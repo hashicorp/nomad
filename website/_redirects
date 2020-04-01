@@ -1,454 +1,454 @@
 /api/*  /api-docs/:splat 200
-/docs/telemetry/overview  /docs/telemetry
+/docs/telemetry/overview  /docs/telemetry 301!
 
 # Nomad Learn Redirects
-/intro/getting-started/install.html     https://learn.hashicorp.com/nomad/getting-started/install
-/intro/getting-started/install          https://learn.hashicorp.com/nomad/getting-started/install
-/intro/getting-started/running.html     https://learn.hashicorp.com/nomad/getting-started/running
-/intro/getting-started/running          https://learn.hashicorp.com/nomad/getting-started/running
-/intro/getting-started/jobs.html        https://learn.hashicorp.com/nomad/getting-started/jobs
-/intro/getting-started/jobs             https://learn.hashicorp.com/nomad/getting-started/jobs
-/intro/getting-started/cluster.html     https://learn.hashicorp.com/nomad/getting-started/cluster
-/intro/getting-started/cluster          https://learn.hashicorp.com/nomad/getting-started/cluster
-/intro/getting-started/ui.html          https://learn.hashicorp.com/nomad/getting-started/ui
-/intro/getting-started/ui               https://learn.hashicorp.com/nomad/getting-started/ui
-/intro/getting-started/next-steps.html  https://learn.hashicorp.com/nomad/getting-started/next-steps
-/intro/getting-started/next-steps       https://learn.hashicorp.com/nomad/getting-started/next-steps
+/intro/getting-started/install.html     https://learn.hashicorp.com/nomad/getting-started/install 301!
+/intro/getting-started/install          https://learn.hashicorp.com/nomad/getting-started/install 301!
+/intro/getting-started/running.html     https://learn.hashicorp.com/nomad/getting-started/running 301!
+/intro/getting-started/running          https://learn.hashicorp.com/nomad/getting-started/running 301!
+/intro/getting-started/jobs.html        https://learn.hashicorp.com/nomad/getting-started/jobs 301!
+/intro/getting-started/jobs             https://learn.hashicorp.com/nomad/getting-started/jobs 301!
+/intro/getting-started/cluster.html     https://learn.hashicorp.com/nomad/getting-started/cluster 301!
+/intro/getting-started/cluster          https://learn.hashicorp.com/nomad/getting-started/cluster 301!
+/intro/getting-started/ui.html          https://learn.hashicorp.com/nomad/getting-started/ui 301!
+/intro/getting-started/ui               https://learn.hashicorp.com/nomad/getting-started/ui 301!
+/intro/getting-started/next-steps.html  https://learn.hashicorp.com/nomad/getting-started/next-steps 301!
+/intro/getting-started/next-steps       https://learn.hashicorp.com/nomad/getting-started/next-steps 301!
 
-/guides/load-balancing                  https://learn.hashicorp.com/nomad?track=load-balancing#operations-and-development
-/guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio
-/guides/load-balancing/fabio            https://learn.hashicorp.com/nomad/load-balancing/fabio
-/guides/load-balancing/nginx.html       https://learn.hashicorp.com/nomad/load-balancing/nginx
-/guides/load-balancing/nginx            https://learn.hashicorp.com/nomad/load-balancing/nginx
-/guides/load-balancing/haproxy.html     https://learn.hashicorp.com/nomad/load-balancing/haproxy
-/guides/load-balancing/haproxy          https://learn.hashicorp.com/nomad/load-balancing/haproxy
-/guides/load-balancing/traefik.html     https://learn.hashicorp.com/nomad/load-balancing/traefik
-/guides/load-balancing/traefik          https://learn.hashicorp.com/nomad/load-balancing/traefik
+/guides/load-balancing                  https://learn.hashicorp.com/nomad?track=load-balancing#operations-and-development 301!
+/guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio 301!
+/guides/load-balancing/fabio            https://learn.hashicorp.com/nomad/load-balancing/fabio 301!
+/guides/load-balancing/nginx.html       https://learn.hashicorp.com/nomad/load-balancing/nginx 301!
+/guides/load-balancing/nginx            https://learn.hashicorp.com/nomad/load-balancing/nginx 301!
+/guides/load-balancing/haproxy.html     https://learn.hashicorp.com/nomad/load-balancing/haproxy 301!
+/guides/load-balancing/haproxy          https://learn.hashicorp.com/nomad/load-balancing/haproxy 301!
+/guides/load-balancing/traefik.html     https://learn.hashicorp.com/nomad/load-balancing/traefik 301!
+/guides/load-balancing/traefik          https://learn.hashicorp.com/nomad/load-balancing/traefik 301!
 
-/guides/stateful-workloads                    https://learn.hashicorp.com/nomad?track=stateful-workload#operations-and-development
-/guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
-/guides/stateful-workloads/host-volumes       https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes
-/guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx
-/guides/stateful-workloads/portworx           https://learn.hashicorp.com/nomad/stateful-workloads/portworx
+/guides/stateful-workloads                    https://learn.hashicorp.com/nomad?track=stateful-workload#operations-and-development 301!
+/guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes 301!
+/guides/stateful-workloads/host-volumes       https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes 301!
+/guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx 301!
+/guides/stateful-workloads/portworx           https://learn.hashicorp.com/nomad/stateful-workloads/portworx 301!
 
-/guides/web-ui                              https://learn.hashicorp.com/nomad?track=web-ui#getting-started
-/guides/web-ui/access.html                  https://learn.hashicorp.com/nomad/web-ui/access
-/guides/web-ui/accessing                    https://learn.hashicorp.com/nomad/web-ui/access
-/guides/web-ui/submitting-a-job.html        https://learn.hashicorp.com/nomad/web-ui/ui-workload
-/guides/web-ui/submitting-a-job             https://learn.hashicorp.com/nomad/web-ui/ui-workload
-/guides/web-ui/operating-a-job.html         https://learn.hashicorp.com/nomad/web-ui/submit-job
-/guides/web-ui/operating-a-job              https://learn.hashicorp.com/nomad/web-ui/submit-job
-/guides/web-ui/inspecting-the-cluster.html  https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster
-/guides/web-ui/inspecting-the-cluster       https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster
-/guides/web-ui/securing.html                https://learn.hashicorp.com/nomad/web-ui/access
-/guides/web-ui/securing                     https://learn.hashicorp.com/nomad/web-ui/access
+/guides/web-ui                              https://learn.hashicorp.com/nomad?track=web-ui#getting-started 301!
+/guides/web-ui/access.html                  https://learn.hashicorp.com/nomad/web-ui/access 301!
+/guides/web-ui/accessing                    https://learn.hashicorp.com/nomad/web-ui/access 301!
+/guides/web-ui/submitting-a-job.html        https://learn.hashicorp.com/nomad/web-ui/ui-workload 301!
+/guides/web-ui/submitting-a-job             https://learn.hashicorp.com/nomad/web-ui/ui-workload 301!
+/guides/web-ui/operating-a-job.html         https://learn.hashicorp.com/nomad/web-ui/submit-job 301!
+/guides/web-ui/operating-a-job              https://learn.hashicorp.com/nomad/web-ui/submit-job 301!
+/guides/web-ui/inspecting-the-cluster.html  https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster 301!
+/guides/web-ui/inspecting-the-cluster       https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster 301!
+/guides/web-ui/securing.html                https://learn.hashicorp.com/nomad/web-ui/access 301!
+/guides/web-ui/securing                     https://learn.hashicorp.com/nomad/web-ui/access 301!
 
-/guides/governance-and-policy                                https://learn.hashicorp.com/nomad?track=governance-and-policy#operations-and-development
-/guides/governance-and-policy/namespaces.html                https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
-/guides/governance-and-policy/namespaces                     https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
-/guides/governance-and-policy/quotas.html                    https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/governance-and-policy/quotas                         https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/governance-and-policy/sentinel/sentinel-policy.html  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/governance-and-policy/sentinel/sentinel-policy       https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/governance-and-policy/sentinel/job.html              https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/governance-and-policy/sentinel/job                   https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
+/guides/governance-and-policy                                https://learn.hashicorp.com/nomad?track=governance-and-policy#operations-and-development 301!
+/guides/governance-and-policy/namespaces.html                https://learn.hashicorp.com/nomad/governance-and-policy/namespaces 301!
+/guides/governance-and-policy/namespaces                     https://learn.hashicorp.com/nomad/governance-and-policy/namespaces 301!
+/guides/governance-and-policy/quotas.html                    https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/governance-and-policy/quotas                         https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/governance-and-policy/sentinel/sentinel-policy.html  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/governance-and-policy/sentinel/sentinel-policy       https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/governance-and-policy/sentinel/job.html              https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/governance-and-policy/sentinel/job                   https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
 
-/guides/analytical-workloads                           https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/analytical-workloads/index.html                https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/analytical-workloads/spark/configuration       https://learn.hashicorp.com/nomad/spark/configuration
-/guides/analytical-workloads/spark/configuration.html  https://learn.hashicorp.com/nomad/spark/configuration
-/guides/analytical-workloads/spark/customizing         https://learn.hashicorp.com/nomad/spark/customizing
-/guides/analytical-workloads/spark/customizing.html    https://learn.hashicorp.com/nomad/spark/customizing
-/guides/analytical-workloads/spark/dynamic             https://learn.hashicorp.com/nomad/spark/dynamic
-/guides/analytical-workloads/spark/dynamic.html        https://learn.hashicorp.com/nomad/spark/dynamic
-/guides/analytical-workloads/spark/hdfs                https://learn.hashicorp.com/nomad/spark/hdfs
-/guides/analytical-workloads/spark/hdfs.html           https://learn.hashicorp.com/nomad/spark/hdfs
-/guides/analytical-workloads/spark/monitoring          https://learn.hashicorp.com/nomad/spark/monitoring
-/guides/analytical-workloads/spark/monitoring.html     https://learn.hashicorp.com/nomad/spark/monitoring
-/guides/analytical-workloads/spark/pre                 https://learn.hashicorp.com/nomad/spark/pre
-/guides/analytical-workloads/spark/pre.html            https://learn.hashicorp.com/nomad/spark/pre
-/guides/analytical-workloads/spark/resource            https://learn.hashicorp.com/nomad/spark/resource
-/guides/analytical-workloads/spark/resource.html       https://learn.hashicorp.com/nomad/spark/resource
-/guides/analytical-workloads/spark/submit              https://learn.hashicorp.com/nomad/spark/submit
-/guides/analytical-workloads/spark/submit.html         https://learn.hashicorp.com/nomad/spark/submit
+/guides/analytical-workloads                           https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/analytical-workloads/index.html                https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/analytical-workloads/spark/configuration       https://learn.hashicorp.com/nomad/spark/configuration 301!
+/guides/analytical-workloads/spark/configuration.html  https://learn.hashicorp.com/nomad/spark/configuration 301!
+/guides/analytical-workloads/spark/customizing         https://learn.hashicorp.com/nomad/spark/customizing 301!
+/guides/analytical-workloads/spark/customizing.html    https://learn.hashicorp.com/nomad/spark/customizing 301!
+/guides/analytical-workloads/spark/dynamic             https://learn.hashicorp.com/nomad/spark/dynamic 301!
+/guides/analytical-workloads/spark/dynamic.html        https://learn.hashicorp.com/nomad/spark/dynamic 301!
+/guides/analytical-workloads/spark/hdfs                https://learn.hashicorp.com/nomad/spark/hdfs 301!
+/guides/analytical-workloads/spark/hdfs.html           https://learn.hashicorp.com/nomad/spark/hdfs 301!
+/guides/analytical-workloads/spark/monitoring          https://learn.hashicorp.com/nomad/spark/monitoring 301!
+/guides/analytical-workloads/spark/monitoring.html     https://learn.hashicorp.com/nomad/spark/monitoring 301!
+/guides/analytical-workloads/spark/pre                 https://learn.hashicorp.com/nomad/spark/pre 301!
+/guides/analytical-workloads/spark/pre.html            https://learn.hashicorp.com/nomad/spark/pre 301!
+/guides/analytical-workloads/spark/resource            https://learn.hashicorp.com/nomad/spark/resource 301!
+/guides/analytical-workloads/spark/resource.html       https://learn.hashicorp.com/nomad/spark/resource 301!
+/guides/analytical-workloads/spark/submit              https://learn.hashicorp.com/nomad/spark/submit 301!
+/guides/analytical-workloads/spark/submit.html         https://learn.hashicorp.com/nomad/spark/submit 301!
 
-/guides/operating-a-job                            https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
-/guides/operating-a-job/accessing-logs             https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs
-/guides/operating-a-job/accessing-logs.html        https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs
-/guides/operating-a-job/configuring-tasks          https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks
-/guides/operating-a-job/configuring-tasks.html     https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks
-/guides/operating-a-job/external                   https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins
-/guides/operating-a-job/external/index.html        https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins
-/guides/operating-a-job/external/lxc               https://learn.hashicorp.com/nomad/using-plugins/lxc
-/guides/operating-a-job/external/lxc.html          https://learn.hashicorp.com/nomad/using-plugins/lxc
-/guides/operating-a-job/index.html                 https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
-/guides/operating-a-job/inspecting-state           https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state
-/guides/operating-a-job/inspecting-state.html      https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state
-/guides/operating-a-job/resource-utilization       https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization
-/guides/operating-a-job/resource-utilization.html  https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization
-/guides/operating-a-job/submitting-jobs            https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs
-/guides/operating-a-job/submitting-jobs.html       https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs
+/guides/operating-a-job                            https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
+/guides/operating-a-job/accessing-logs             https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
+/guides/operating-a-job/accessing-logs.html        https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
+/guides/operating-a-job/configuring-tasks          https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks 301!
+/guides/operating-a-job/configuring-tasks.html     https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks 301!
+/guides/operating-a-job/external                   https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins 301!
+/guides/operating-a-job/external/index.html        https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins 301!
+/guides/operating-a-job/external/lxc               https://learn.hashicorp.com/nomad/using-plugins/lxc 301!
+/guides/operating-a-job/external/lxc.html          https://learn.hashicorp.com/nomad/using-plugins/lxc 301!
+/guides/operating-a-job/index.html                 https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
+/guides/operating-a-job/inspecting-state           https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state 301!
+/guides/operating-a-job/inspecting-state.html      https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state 301!
+/guides/operating-a-job/resource-utilization       https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization 301!
+/guides/operating-a-job/resource-utilization.html  https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization 301!
+/guides/operating-a-job/submitting-jobs            https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs 301!
+/guides/operating-a-job/submitting-jobs.html       https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs 301!
 
-/guides/operating-a-job/advanced-scheduling/advanced-scheduling            https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling
-/guides/operating-a-job/advanced-scheduling/advanced-scheduling.html       https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling
-/guides/operating-a-job/advanced-scheduling/affinity                       https://learn.hashicorp.com/nomad/advanced-scheduling/affinity
-/guides/operating-a-job/advanced-scheduling/affinity.html                  https://learn.hashicorp.com/nomad/advanced-scheduling/affinity
-/guides/operating-a-job/advanced-scheduling/preemption-service-batch       https://learn.hashicorp.com/nomad/advanced-scheduling/preemption
-/guides/operating-a-job/advanced-scheduling/preemption-service-batch.html  https://learn.hashicorp.com/nomad/advanced-scheduling/preemption
-/guides/operating-a-job/advanced-scheduling/spread                         https://learn.hashicorp.com/nomad/advanced-scheduling/spread
-/guides/operating-a-job/advanced-scheduling/spread.html                    https://learn.hashicorp.com/nomad/advanced-scheduling/spread
+/guides/operating-a-job/advanced-scheduling/advanced-scheduling            https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling 301!
+/guides/operating-a-job/advanced-scheduling/advanced-scheduling.html       https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling 301!
+/guides/operating-a-job/advanced-scheduling/affinity                       https://learn.hashicorp.com/nomad/advanced-scheduling/affinity 301!
+/guides/operating-a-job/advanced-scheduling/affinity.html                  https://learn.hashicorp.com/nomad/advanced-scheduling/affinity 301!
+/guides/operating-a-job/advanced-scheduling/preemption-service-batch       https://learn.hashicorp.com/nomad/advanced-scheduling/preemption 301!
+/guides/operating-a-job/advanced-scheduling/preemption-service-batch.html  https://learn.hashicorp.com/nomad/advanced-scheduling/preemption 301!
+/guides/operating-a-job/advanced-scheduling/spread                         https://learn.hashicorp.com/nomad/advanced-scheduling/spread 301!
+/guides/operating-a-job/advanced-scheduling/spread.html                    https://learn.hashicorp.com/nomad/advanced-scheduling/spread 301!
 
-/guides/operating-a-job/failure-handling-strategies                        https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
-/guides/operating-a-job/failure-handling-strategies/check-restart          https://learn.hashicorp.com/nomad/job-failure-handling/check-restart
-/guides/operating-a-job/failure-handling-strategies/check-restart.html     https://learn.hashicorp.com/nomad/job-failure-handling/check-restart
-/guides/operating-a-job/failure-handling-strategies/index.html             https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
-/guides/operating-a-job/failure-handling-strategies/reschedule             https://learn.hashicorp.com/nomad/job-failure-handling/reschedule
-/guides/operating-a-job/failure-handling-strategies/reschedule.html        https://learn.hashicorp.com/nomad/job-failure-handling/reschedule
-/guides/operating-a-job/failure-handling-strategies/restart                https://learn.hashicorp.com/nomad/job-failure-handling/restart
-/guides/operating-a-job/failure-handling-strategies/restart.html           https://learn.hashicorp.com/nomad/job-failure-handling/restart
+/guides/operating-a-job/failure-handling-strategies                        https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling 301!
+/guides/operating-a-job/failure-handling-strategies/check-restart          https://learn.hashicorp.com/nomad/job-failure-handling/check-restart 301!
+/guides/operating-a-job/failure-handling-strategies/check-restart.html     https://learn.hashicorp.com/nomad/job-failure-handling/check-restart 301!
+/guides/operating-a-job/failure-handling-strategies/index.html             https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling 301!
+/guides/operating-a-job/failure-handling-strategies/reschedule             https://learn.hashicorp.com/nomad/job-failure-handling/reschedule 301!
+/guides/operating-a-job/failure-handling-strategies/reschedule.html        https://learn.hashicorp.com/nomad/job-failure-handling/reschedule 301!
+/guides/operating-a-job/failure-handling-strategies/restart                https://learn.hashicorp.com/nomad/job-failure-handling/restart 301!
+/guides/operating-a-job/failure-handling-strategies/restart.html           https://learn.hashicorp.com/nomad/job-failure-handling/restart 301!
 
-/guides/operating-a-job/update-strategies                                         https://learn.hashicorp.com/nomad/update-strategies/
-/guides/operating-a-job/update-strategies/blue-green-and-canary-deployments       https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments
-/guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html  https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments
-/guides/operating-a-job/update-strategies/handling-signals                        https://learn.hashicorp.com/nomad/update-strategies/handling-signals
-/guides/operating-a-job/update-strategies/handling-signals.html                   https://learn.hashicorp.com/nomad/update-strategies/handling-signals
-/guides/operating-a-job/update-strategies/index.html                              https://learn.hashicorp.com/nomad/update-strategies/
-/guides/operating-a-job/update-strategies/rolling-upgrades                        https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
-/guides/operating-a-job/update-strategies/rolling-upgrades.html                   https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
+/guides/operating-a-job/update-strategies                                         https://learn.hashicorp.com/nomad/update-strategies/ 301!
+/guides/operating-a-job/update-strategies/blue-green-and-canary-deployments       https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments 301!
+/guides/operating-a-job/update-strategies/blue-green-and-canary-deployments.html  https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments 301!
+/guides/operating-a-job/update-strategies/handling-signals                        https://learn.hashicorp.com/nomad/update-strategies/handling-signals 301!
+/guides/operating-a-job/update-strategies/handling-signals.html                   https://learn.hashicorp.com/nomad/update-strategies/handling-signals 301!
+/guides/operating-a-job/update-strategies/index.html                              https://learn.hashicorp.com/nomad/update-strategies/ 301!
+/guides/operating-a-job/update-strategies/rolling-upgrades                        https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades 301!
+/guides/operating-a-job/update-strategies/rolling-upgrades.html                   https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades 301!
 
-/guides/operations                                                  https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development
-/guides/operations/autopilot                                        https://learn.hashicorp.com/nomad/operating-nomad/autopilot
-/guides/operations/autopilot.html                                   https://learn.hashicorp.com/nomad/operating-nomad/autopilot
-/guides/operations/cluster/automatic                                https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/automatic.html                           https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/bootstrapping                            https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/bootstrapping.html                       https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/cloud_auto_join                          https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/cloud_auto_join.html                     https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/manual                                   https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/manual.html                              https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/federation                                       https://learn.hashicorp.com/nomad/operating-nomad/federation
-/guides/operations/federation.html                                  https://learn.hashicorp.com/nomad/operating-nomad/federation
-/guides/operations                                                  https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development
-/guides/operations/                                                 https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development
-/guides/operations/index.html                                       https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development
-/guides/operations/monitoring-and-alerting/monitoring               https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/operations/monitoring-and-alerting/monitoring.html          https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/operations/monitoring-and-alerting/prometheus-metrics       https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/operations/monitoring-and-alerting/prometheus-metrics.html  https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/operations/monitoring/nomad-metrics                         https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/operations/monitoring/nomad-metrics.html                    https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/operations/node-draining                                    https://learn.hashicorp.com/nomad/operating-nomad/node-draining
-/guides/operations/node-draining.html                               https://learn.hashicorp.com/nomad/operating-nomad/node-draining
-/guides/operations/outage                                           https://learn.hashicorp.com/nomad/operating-nomad/outage
-/guides/operations/outage.html                                      https://learn.hashicorp.com/nomad/operating-nomad/outage
+/guides/operations                                                  https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development 301!
+/guides/operations/autopilot                                        https://learn.hashicorp.com/nomad/operating-nomad/autopilot 301!
+/guides/operations/autopilot.html                                   https://learn.hashicorp.com/nomad/operating-nomad/autopilot 301!
+/guides/operations/cluster/automatic                                https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/automatic.html                           https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/bootstrapping                            https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/bootstrapping.html                       https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/cloud_auto_join                          https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/cloud_auto_join.html                     https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/manual                                   https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/manual.html                              https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/federation                                       https://learn.hashicorp.com/nomad/operating-nomad/federation 301!
+/guides/operations/federation.html                                  https://learn.hashicorp.com/nomad/operating-nomad/federation 301!
+/guides/operations                                                  https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development 301!
+/guides/operations/                                                 https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development 301!
+/guides/operations/index.html                                       https://learn.hashicorp.com/nomad?track=operating-nomad#operations-and-development 301!
+/guides/operations/monitoring-and-alerting/monitoring               https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/operations/monitoring-and-alerting/monitoring.html          https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/operations/monitoring-and-alerting/prometheus-metrics       https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/operations/monitoring-and-alerting/prometheus-metrics.html  https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/operations/monitoring/nomad-metrics                         https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/operations/monitoring/nomad-metrics.html                    https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/operations/node-draining                                    https://learn.hashicorp.com/nomad/operating-nomad/node-draining 301!
+/guides/operations/node-draining.html                               https://learn.hashicorp.com/nomad/operating-nomad/node-draining 301!
+/guides/operations/outage                                           https://learn.hashicorp.com/nomad/operating-nomad/outage 301!
+/guides/operations/outage.html                                      https://learn.hashicorp.com/nomad/operating-nomad/outage 301!
 
-/guides/security                             https://learn.hashicorp.com/nomad?track=acls#acls
-/guides/security/acl                         https://learn.hashicorp.com/nomad?track=acls#acls
-/guides/security/acl.html                    https://learn.hashicorp.com/nomad?track=acls#acls
-/guides/security/encryption                  https://learn.hashicorp.com/nomad/transport-security/gossip-encryption
-/guides/security/encryption.html             https://learn.hashicorp.com/nomad/transport-security/gossip-encryption
-/guides/security/index.html                  https://learn.hashicorp.com/nomad?track=acls#acls
-/guides/security/securing-nomad              https://learn.hashicorp.com/nomad/transport-security/enable-tls
-/guides/security/securing-nomad.html         https://learn.hashicorp.com/nomad/transport-security/enable-tls
+/guides/security                             https://learn.hashicorp.com/nomad?track=acls#acls 301!
+/guides/security/acl                         https://learn.hashicorp.com/nomad?track=acls#acls 301!
+/guides/security/acl.html                    https://learn.hashicorp.com/nomad?track=acls#acls 301!
+/guides/security/encryption                  https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 301!
+/guides/security/encryption.html             https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 301!
+/guides/security/index.html                  https://learn.hashicorp.com/nomad?track=acls#acls 301!
+/guides/security/securing-nomad              https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
+/guides/security/securing-nomad.html         https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
 
 # Multi-part UI guides
-/guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui
-/guides/ui       https://learn.hashicorp.com/nomad?track=web-ui#web-ui
+/guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui 301!
+/guides/ui       https://learn.hashicorp.com/nomad?track=web-ui#web-ui 301!
 
 
 # Website
-/community.html                               /resources
-/community                                    /resources
+/community.html                               /resources 301!
+/community                                    /resources 301!
 
 # Docs
-/docs/index                                   /docs
-/api/index                                    /api-docs
-/resources                                    /resources
-/docs/agent/config.html                       /docs/configuration
-/docs/agent/config                            /docs/configuration
-/docs/jobops                                  https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
-/docs/jobops/index.html                       https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
-/docs/jobops/taskconfig.html                  https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks
-/docs/jobops/taskconfig                       https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks
-/docs/jobops/inspecting.html                  https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state
-/docs/jobops/inspecting                       https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state
-/docs/jobops/resources.html                   https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization
-/docs/jobops/resources                        https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization
-/docs/jobops/logs.html                        https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs
-/docs/jobops/logs                             https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs
-/docs/jobops/updating.html                    https://learn.hashicorp.com/nomad/update-strategies/
-/docs/jobops/updating                         https://learn.hashicorp.com/nomad/update-strategies/
-/docs/jobops/servicediscovery.html            /docs/integrations/consul-integration
-/docs/jobops/servicediscovery                 /docs/integrations/consul-integration
-/docs/jobspec                                 /docs/job-specification
-/docs/jobspec/                                /docs/job-specification
-/docs/jobspec/index.html                      /docs/job-specification
-/docs/jobspec/interpreted.html                /docs/runtime/interpolation
-/docs/jobspec/interpreted                     /docs/runtime/interpolation
-/docs/jobspec/json.html                       /api-docs/json-jobs
-/docs/jobspec/json                            /api-docs/json-jobs
-/docs/jobspec/environment.html                /docs/runtime/environment
-/docs/jobspec/environment                     /docs/runtime/environment
-/docs/jobspec/schedulers.html                 /docs/schedulers
-/docs/jobspec/schedulers                      /docs/schedulers
-/docs/jobspec/servicediscovery.html           /docs/job-specification/service
-/docs/jobspec/servicediscovery                /docs/job-specification/service
-/docs/jobspec/networking.html                 /docs/job-specification/network
-/docs/jobspec/networking                      /docs/job-specification/network
-/docs/cluster/automatic.html                  https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/docs/cluster/automatic                       https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/docs/cluster/manual.html                     https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/docs/cluster/manual                          https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/docs/cluster/federation.html                 https://learn.hashicorp.com/nomad/operating-nomad/federation
-/docs/cluster/federation                      https://learn.hashicorp.com/nomad/operating-nomad/federation
-/docs/cluster/requirements.html               /docs/install/production/requirements/
-/docs/cluster/requirements                    /docs/install/production/requirements/
-/docs/commands/operator-index.html            /docs/commands/operator
-/docs/commands/operator-index                 /docs/commands/operator
-/docs/commands/operator-raft-list-peers.html  /docs/commands/operator/raft-list-peers
-/docs/commands/operator-raft-list-peers       /docs/commands/operator/raft-list-peers
-/docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer
-/docs/commands/operator-raft-remove-peer      /docs/commands/operator/raft-remove-peer
-/docs/commands/job-dispatch.html              /docs/commands/job/dispatch
-/docs/commands/job-dispatch                   /docs/commands/job/dispatch
-/docs/commands/alloc-status.html              /docs/commands/alloc/status
-/docs/commands/alloc-status                   /docs/commands/alloc/status
-/docs/commands/fs.html                        /docs/commands/alloc/fs
-/docs/commands/fs                             /docs/commands/alloc/fs
-/docs/commands/logs.html                      /docs/commands/alloc/logs
-/docs/commands/logs                           /docs/commands/alloc/logs
-/docs/commands/init.html                      /docs/commands/job/init
-/docs/commands/init                           /docs/commands/job/init
-/docs/commands/inspect.html                   /docs/commands/job/inspect
-/docs/commands/inspect                        /docs/commands/job/inspect
-/docs/commands/run.html                       /docs/commands/job/run
-/docs/commands/run                            /docs/commands/job/run
-/docs/commands/stop.html                      /docs/commands/job/stop
-/docs/commands/stop                           /docs/commands/job/stop
-/docs/commands/plan.html                      /docs/commands/job/plan
-/docs/commands/plan                           /docs/commands/job/plan
-/docs/commands/validate.html                  /docs/commands/job/validate
-/docs/commands/validate                       /docs/commands/job/validate
-/docs/commands/client-config.html             /docs/commands/node/config
-/docs/commands/client-config                  /docs/commands/node/config
-/docs/commands/node-drain.html                /docs/commands/node/drain
-/docs/commands/node-drain                     /docs/commands/node/drain
-/docs/commands/node-status.html               /docs/commands/node/status
-/docs/commands/node-status                    /docs/commands/node/status
-/docs/commands/keygen.html                    /docs/commands/operator/keygen
-/docs/commands/keygen                         /docs/commands/operator/keygen
-/docs/commands/keyring.html                   /docs/commands/operator/keyring
-/docs/commands/keyring                        /docs/commands/operator/keyring
-/docs/commands/server-force-leave.html        /docs/commands/server/force-leave
-/docs/commands/server-force-leave             /docs/commands/server/force-leave
-/docs/commands/server-join.html               /docs/commands/server/join
-/docs/commands/server-join                    /docs/commands/server/join
-/docs/commands/server-members.html            /docs/commands/server/members
-/docs/commands/server-members                 /docs/commands/server/members
-/docs/runtime/schedulers.html                 /docs/schedulers
-/docs/runtime/schedulers                      /docs/schedulers
-/docs/internals/scheduling.html               /docs/internals/scheduling/scheduling
-/docs/internals/scheduling                    /docs/internals/scheduling/scheduling
+/docs/index                                   /docs 301!
+/api/index                                    /api-docs 301!
+/resources                                    /resources 301!
+/docs/agent/config.html                       /docs/configuration 301!
+/docs/agent/config                            /docs/configuration 301!
+/docs/jobops                                  https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
+/docs/jobops/index.html                       https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
+/docs/jobops/taskconfig.html                  https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks 301!
+/docs/jobops/taskconfig                       https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks 301!
+/docs/jobops/inspecting.html                  https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state 301!
+/docs/jobops/inspecting                       https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state 301!
+/docs/jobops/resources.html                   https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization 301!
+/docs/jobops/resources                        https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization 301!
+/docs/jobops/logs.html                        https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
+/docs/jobops/logs                             https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
+/docs/jobops/updating.html                    https://learn.hashicorp.com/nomad/update-strategies/ 301!
+/docs/jobops/updating                         https://learn.hashicorp.com/nomad/update-strategies/ 301!
+/docs/jobops/servicediscovery.html            /docs/integrations/consul-integration 301!
+/docs/jobops/servicediscovery                 /docs/integrations/consul-integration 301!
+/docs/jobspec                                 /docs/job-specification 301!
+/docs/jobspec/                                /docs/job-specification 301!
+/docs/jobspec/index.html                      /docs/job-specification 301!
+/docs/jobspec/interpreted.html                /docs/runtime/interpolation 301!
+/docs/jobspec/interpreted                     /docs/runtime/interpolation 301!
+/docs/jobspec/json.html                       /api-docs/json-jobs 301!
+/docs/jobspec/json                            /api-docs/json-jobs 301!
+/docs/jobspec/environment.html                /docs/runtime/environment 301!
+/docs/jobspec/environment                     /docs/runtime/environment 301!
+/docs/jobspec/schedulers.html                 /docs/schedulers 301!
+/docs/jobspec/schedulers                      /docs/schedulers 301!
+/docs/jobspec/servicediscovery.html           /docs/job-specification/service 301!
+/docs/jobspec/servicediscovery                /docs/job-specification/service 301!
+/docs/jobspec/networking.html                 /docs/job-specification/network 301!
+/docs/jobspec/networking                      /docs/job-specification/network 301!
+/docs/cluster/automatic.html                  https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/docs/cluster/automatic                       https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/docs/cluster/manual.html                     https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/docs/cluster/manual                          https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/docs/cluster/federation.html                 https://learn.hashicorp.com/nomad/operating-nomad/federation 301!
+/docs/cluster/federation                      https://learn.hashicorp.com/nomad/operating-nomad/federation 301!
+/docs/cluster/requirements.html               /docs/install/production/requirements/ 301!
+/docs/cluster/requirements                    /docs/install/production/requirements/ 301!
+/docs/commands/operator-index.html            /docs/commands/operator 301!
+/docs/commands/operator-index                 /docs/commands/operator 301!
+/docs/commands/operator-raft-list-peers.html  /docs/commands/operator/raft-list-peers 301!
+/docs/commands/operator-raft-list-peers       /docs/commands/operator/raft-list-peers 301!
+/docs/commands/operator-raft-remove-peer.html /docs/commands/operator/raft-remove-peer 301!
+/docs/commands/operator-raft-remove-peer      /docs/commands/operator/raft-remove-peer 301!
+/docs/commands/job-dispatch.html              /docs/commands/job/dispatch 301!
+/docs/commands/job-dispatch                   /docs/commands/job/dispatch 301!
+/docs/commands/alloc-status.html              /docs/commands/alloc/status 301!
+/docs/commands/alloc-status                   /docs/commands/alloc/status 301!
+/docs/commands/fs.html                        /docs/commands/alloc/fs 301!
+/docs/commands/fs                             /docs/commands/alloc/fs 301!
+/docs/commands/logs.html                      /docs/commands/alloc/logs 301!
+/docs/commands/logs                           /docs/commands/alloc/logs 301!
+/docs/commands/init.html                      /docs/commands/job/init 301!
+/docs/commands/init                           /docs/commands/job/init 301!
+/docs/commands/inspect.html                   /docs/commands/job/inspect 301!
+/docs/commands/inspect                        /docs/commands/job/inspect 301!
+/docs/commands/run.html                       /docs/commands/job/run 301!
+/docs/commands/run                            /docs/commands/job/run 301!
+/docs/commands/stop.html                      /docs/commands/job/stop 301!
+/docs/commands/stop                           /docs/commands/job/stop 301!
+/docs/commands/plan.html                      /docs/commands/job/plan 301!
+/docs/commands/plan                           /docs/commands/job/plan 301!
+/docs/commands/validate.html                  /docs/commands/job/validate 301!
+/docs/commands/validate                       /docs/commands/job/validate 301!
+/docs/commands/client-config.html             /docs/commands/node/config 301!
+/docs/commands/client-config                  /docs/commands/node/config 301!
+/docs/commands/node-drain.html                /docs/commands/node/drain 301!
+/docs/commands/node-drain                     /docs/commands/node/drain 301!
+/docs/commands/node-status.html               /docs/commands/node/status 301!
+/docs/commands/node-status                    /docs/commands/node/status 301!
+/docs/commands/keygen.html                    /docs/commands/operator/keygen 301!
+/docs/commands/keygen                         /docs/commands/operator/keygen 301!
+/docs/commands/keyring.html                   /docs/commands/operator/keyring 301!
+/docs/commands/keyring                        /docs/commands/operator/keyring 301!
+/docs/commands/server-force-leave.html        /docs/commands/server/force-leave 301!
+/docs/commands/server-force-leave             /docs/commands/server/force-leave 301!
+/docs/commands/server-join.html               /docs/commands/server/join 301!
+/docs/commands/server-join                    /docs/commands/server/join 301!
+/docs/commands/server-members.html            /docs/commands/server/members 301!
+/docs/commands/server-members                 /docs/commands/server/members 301!
+/docs/runtime/schedulers.html                 /docs/schedulers 301!
+/docs/runtime/schedulers                      /docs/schedulers 301!
+/docs/internals/scheduling.html               /docs/internals/scheduling/scheduling 301!
+/docs/internals/scheduling                    /docs/internals/scheduling/scheduling 301!
 
 # Moved /docs/operating-a-job/ -> /guides/operating-a-job/
-/docs/operating-a-job                           https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
-/docs/operating-a-job/index.html                https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs
-/docs/operating-a-job/accessing-logs.html       https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs
-/docs/operating-a-job/inspecting-state.html     https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state
-/docs/operating-a-job/resource-utilization.html https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization
-/docs/operating-a-job/configuring-tasks.html    https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks
-/docs/operating-a-job/submitting-jobs.html      https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs
+/docs/operating-a-job                           https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
+/docs/operating-a-job/index.html                https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
+/docs/operating-a-job/accessing-logs.html       https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
+/docs/operating-a-job/inspecting-state.html     https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state 301!
+/docs/operating-a-job/resource-utilization.html https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization 301!
+/docs/operating-a-job/configuring-tasks.html    https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks 301!
+/docs/operating-a-job/submitting-jobs.html      https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs 301!
 
-/docs/operating-a-job/failure-handling-strategies                    https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
-/docs/operating-a-job/failure-handling-strategies/index.html         https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling
-/docs/operating-a-job/failure-handling-strategies/check-restart.html https://learn.hashicorp.com/nomad/job-failure-handling/check-restart
-/docs/operating-a-job/failure-handling-strategies/check-restart      https://learn.hashicorp.com/nomad/job-failure-handling/check-restart
-/docs/operating-a-job/failure-handling-strategies/reschedule.html    https://learn.hashicorp.com/nomad/job-failure-handling/reschedule
-/docs/operating-a-job/failure-handling-strategies/reschedule         https://learn.hashicorp.com/nomad/job-failure-handling/reschedule
-/docs/operating-a-job/failure-handling-strategies/restart.html       https://learn.hashicorp.com/nomad/job-failure-handling/restart
-/docs/operating-a-job/failure-handling-strategies/restart            https://learn.hashicorp.com/nomad/job-failure-handling/restart
+/docs/operating-a-job/failure-handling-strategies                    https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling 301!
+/docs/operating-a-job/failure-handling-strategies/index.html         https://learn.hashicorp.com/nomad/job-failure-handling/failure-handling 301!
+/docs/operating-a-job/failure-handling-strategies/check-restart.html https://learn.hashicorp.com/nomad/job-failure-handling/check-restart 301!
+/docs/operating-a-job/failure-handling-strategies/check-restart      https://learn.hashicorp.com/nomad/job-failure-handling/check-restart 301!
+/docs/operating-a-job/failure-handling-strategies/reschedule.html    https://learn.hashicorp.com/nomad/job-failure-handling/reschedule 301!
+/docs/operating-a-job/failure-handling-strategies/reschedule         https://learn.hashicorp.com/nomad/job-failure-handling/reschedule 301!
+/docs/operating-a-job/failure-handling-strategies/restart.html       https://learn.hashicorp.com/nomad/job-failure-handling/restart 301!
+/docs/operating-a-job/failure-handling-strategies/restart            https://learn.hashicorp.com/nomad/job-failure-handling/restart 301!
 
-/docs/operating-a-job/update-strategies                                        https://learn.hashicorp.com/nomad/update-strategies/
-/docs/operating-a-job/update-strategies/index.html                             https://learn.hashicorp.com/nomad/update-strategies/
-/docs/operating-a-job/update-strategies/blue-green-and-canary-deployments.html https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments
-/docs/operating-a-job/update-strategies/blue-green-and-canary-deployments      https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments
-/docs/operating-a-job/update-strategies/handling-signals.html                  https://learn.hashicorp.com/nomad/update-strategies/handling-signals
-/docs/operating-a-job/update-strategies/handling-signals                       https://learn.hashicorp.com/nomad/update-strategies/handling-signals
-/docs/operating-a-job/update-strategies/rolling-upgrades.html                  https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
-/docs/operating-a-job/update-strategies/rolling-upgrades                       https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades
+/docs/operating-a-job/update-strategies                                        https://learn.hashicorp.com/nomad/update-strategies/ 301!
+/docs/operating-a-job/update-strategies/index.html                             https://learn.hashicorp.com/nomad/update-strategies/ 301!
+/docs/operating-a-job/update-strategies/blue-green-and-canary-deployments.html https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments 301!
+/docs/operating-a-job/update-strategies/blue-green-and-canary-deployments      https://learn.hashicorp.com/nomad/update-strategies/blue-green-and-canary-deployments 301!
+/docs/operating-a-job/update-strategies/handling-signals.html                  https://learn.hashicorp.com/nomad/update-strategies/handling-signals 301!
+/docs/operating-a-job/update-strategies/handling-signals                       https://learn.hashicorp.com/nomad/update-strategies/handling-signals 301!
+/docs/operating-a-job/update-strategies/rolling-upgrades.html                  https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades 301!
+/docs/operating-a-job/update-strategies/rolling-upgrades                       https://learn.hashicorp.com/nomad/update-strategies/rolling-upgrades 301!
 
-# Moved /docs/agent/configuration/ -> /docs/configuration/
+# Moved /docs/agent/configuration/ -> /docs/configuration/ 301!
 
-/docs/agent/configuration                  /docs/configuration
-/docs/agent/configuration/                 /docs/configuration
-/docs/agent/configuration/index.html       /docs/configuration
-/docs/agent/configuration/acl.html         /docs/configuration/acl
-/docs/agent/configuration/acl              /docs/configuration/acl
-/docs/agent/configuration/autopilot.html   /docs/configuration/autopilot
-/docs/agent/configuration/autopilot        /docs/configuration/autopilot
-/docs/agent/configuration/client.html      /docs/configuration/client
-/docs/agent/configuration/client           /docs/configuration/client
-/docs/agent/configuration/consul.html      /docs/configuration/consul
-/docs/agent/configuration/consul           /docs/configuration/consul
-/docs/agent/configuration/sentinel.html    /docs/configuration/sentinel
-/docs/agent/configuration/sentinel         /docs/configuration/sentinel
-/docs/agent/configuration/server.html      /docs/configuration/server
-/docs/agent/configuration/server           /docs/configuration/server
-/docs/agent/configuration/server_join.html /docs/configuration/server_join
-/docs/agent/configuration/server_join      /docs/configuration/server_join
-/docs/agent/configuration/telemetry.html   /docs/configuration/telemetry
-/docs/agent/configuration/telemetry        /docs/configuration/telemetry
-/docs/agent/configuration/tls.html         /docs/configuration/tls
-/docs/agent/configuration/tls              /docs/configuration/tls
-/docs/agent/configuration/vault.html       /docs/configuration/vault
-/docs/agent/configuration/vault            /docs/configuration/vault
+/docs/agent/configuration                  /docs/configuration 301!
+/docs/agent/configuration/                 /docs/configuration 301!
+/docs/agent/configuration/index.html       /docs/configuration 301!
+/docs/agent/configuration/acl.html         /docs/configuration/acl 301!
+/docs/agent/configuration/acl              /docs/configuration/acl 301!
+/docs/agent/configuration/autopilot.html   /docs/configuration/autopilot 301!
+/docs/agent/configuration/autopilot        /docs/configuration/autopilot 301!
+/docs/agent/configuration/client.html      /docs/configuration/client 301!
+/docs/agent/configuration/client           /docs/configuration/client 301!
+/docs/agent/configuration/consul.html      /docs/configuration/consul 301!
+/docs/agent/configuration/consul           /docs/configuration/consul 301!
+/docs/agent/configuration/sentinel.html    /docs/configuration/sentinel 301!
+/docs/agent/configuration/sentinel         /docs/configuration/sentinel 301!
+/docs/agent/configuration/server.html      /docs/configuration/server 301!
+/docs/agent/configuration/server           /docs/configuration/server 301!
+/docs/agent/configuration/server_join.html /docs/configuration/server_join 301!
+/docs/agent/configuration/server_join      /docs/configuration/server_join 301!
+/docs/agent/configuration/telemetry.html   /docs/configuration/telemetry 301!
+/docs/agent/configuration/telemetry        /docs/configuration/telemetry 301!
+/docs/agent/configuration/tls.html         /docs/configuration/tls 301!
+/docs/agent/configuration/tls              /docs/configuration/tls 301!
+/docs/agent/configuration/vault.html       /docs/configuration/vault 301!
+/docs/agent/configuration/vault            /docs/configuration/vault 301!
 
 # Moved guide-like docs to /guides
-/docs/agent                                   /docs/install/production/nomad-agent/
-/docs/agent/index.html                        /docs/install/production/nomad-agent/
-/docs/agent/cloud_auto_join.html              https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/docs/agent/cloud_auto_join                   https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/docs/agent/telemetry.html                    https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/docs/agent/telemetry                         https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/docs/agent/encryption.html                   https://learn.hashicorp.com/nomad/transport-security/gossip-encryption
-/docs/agent/encryption                        https://learn.hashicorp.com/nomad/transport-security/gossip-encryption
-/docs/service-discovery                       /docs/integrations/consul-integration
-/docs/service-discovery/index.html            /docs/integrations/consul-integration
+/docs/agent                                   /docs/install/production/nomad-agent/ 301!
+/docs/agent/index.html                        /docs/install/production/nomad-agent/ 301!
+/docs/agent/cloud_auto_join.html              https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/docs/agent/cloud_auto_join                   https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/docs/agent/telemetry.html                    https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/docs/agent/telemetry                         https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/docs/agent/encryption.html                   https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 301!
+/docs/agent/encryption                        https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 301!
+/docs/service-discovery                       /docs/integrations/consul-integration 301!
+/docs/service-discovery/index.html            /docs/integrations/consul-integration 301!
 
 # Redirect old LXC driver doc to new one in /docs/external
-/docs/drivers/lxc.html                        /docs/drivers/external/lxc
-/docs/drivers/lxc                             /docs/drivers/external/lxc
+/docs/drivers/lxc.html                        /docs/drivers/external/lxc 301!
+/docs/drivers/lxc                             /docs/drivers/external/lxc 301!
 
 # API
-/docs/http/agent-force-leave            /api-docs/agent
-/docs/http/agent-force-leave.html       /api-docs/agent
-/docs/http/agent-join                   /api-docs/agent
-/docs/http/agent-join.html              /api-docs/agent
-/docs/http/agent-members                /api-docs/agent
-/docs/http/agent-members.html           /api-docs/agent
-/docs/http/agent-self                   /api-docs/agent
-/docs/http/agent-self.html              /api-docs/agent
-/docs/http/agent-servers                /api-docs/agent
-/docs/http/agent-servers.html           /api-docs/agent
-/docs/http/alloc                        /api-docs/allocations
-/docs/http/alloc.html                   /api-docs/allocations
-/docs/http/allocs                       /api-docs/allocations
-/docs/http/allocs.html                  /api-docs/allocations
-/docs/http/client-allocation-stats      /api-docs/client
-/docs/http/client-allocation-stats.html /api-docs/client
-/docs/http/client-fs                    /api-docs/client
-/docs/http/client-fs.html               /api-docs/client
-/docs/http/client-stats                 /api-docs/client
-/docs/http/client-stats.html            /api-docs/client
-/docs/http/eval                         /api-docs/evaluations
-/docs/http/eval.html                    /api-docs/evaluations
-/docs/http/evals                        /api-docs/evaluations
-/docs/http/evals.html                   /api-docs/evaluations
-/docs/http/index.html                   /api-docs/index
-/docs/http/job                          /api-docs/jobs
-/docs/http/job.html                     /api-docs/jobs
-/docs/http/jobs                         /api-docs/jobs
-/docs/http/jobs.html                    /api-docs/jobs
-/docs/http/json-jobs                    /api-docs/json-jobs
-/docs/http/json-jobs.html               /api-docs/json-jobs
-/docs/http/node                         /api-docs/nodes
-/docs/http/node.html                    /api-docs/nodes
-/docs/http/nodes                        /api-docs/nodes
-/docs/http/nodes.html                   /api-docs/nodes
-/docs/http/operator                     /api-docs/operator
-/docs/http/operator.html                /api-docs/operator
-/docs/http/regions                      /api-docs/regions
-/docs/http/regions.html                 /api-docs/regions
-/docs/http/status                       /api-docs/status
-/docs/http/status.html                  /api-docs/status
-/docs/http/system                       /api-docs/system
-/docs/http/system.html                  /api-docs/system
+/docs/http/agent-force-leave            /api-docs/agent 301!
+/docs/http/agent-force-leave.html       /api-docs/agent 301!
+/docs/http/agent-join                   /api-docs/agent 301!
+/docs/http/agent-join.html              /api-docs/agent 301!
+/docs/http/agent-members                /api-docs/agent 301!
+/docs/http/agent-members.html           /api-docs/agent 301!
+/docs/http/agent-self                   /api-docs/agent 301!
+/docs/http/agent-self.html              /api-docs/agent 301!
+/docs/http/agent-servers                /api-docs/agent 301!
+/docs/http/agent-servers.html           /api-docs/agent 301!
+/docs/http/alloc                        /api-docs/allocations 301!
+/docs/http/alloc.html                   /api-docs/allocations 301!
+/docs/http/allocs                       /api-docs/allocations 301!
+/docs/http/allocs.html                  /api-docs/allocations 301!
+/docs/http/client-allocation-stats      /api-docs/client 301!
+/docs/http/client-allocation-stats.html /api-docs/client 301!
+/docs/http/client-fs                    /api-docs/client 301!
+/docs/http/client-fs.html               /api-docs/client 301!
+/docs/http/client-stats                 /api-docs/client 301!
+/docs/http/client-stats.html            /api-docs/client 301!
+/docs/http/eval                         /api-docs/evaluations 301!
+/docs/http/eval.html                    /api-docs/evaluations 301!
+/docs/http/evals                        /api-docs/evaluations 301!
+/docs/http/evals.html                   /api-docs/evaluations 301!
+/docs/http/index.html                   /api-docs/index 301!
+/docs/http/job                          /api-docs/jobs 301!
+/docs/http/job.html                     /api-docs/jobs 301!
+/docs/http/jobs                         /api-docs/jobs 301!
+/docs/http/jobs.html                    /api-docs/jobs 301!
+/docs/http/json-jobs                    /api-docs/json-jobs 301!
+/docs/http/json-jobs.html               /api-docs/json-jobs 301!
+/docs/http/node                         /api-docs/nodes 301!
+/docs/http/node.html                    /api-docs/nodes 301!
+/docs/http/nodes                        /api-docs/nodes 301!
+/docs/http/nodes.html                   /api-docs/nodes 301!
+/docs/http/operator                     /api-docs/operator 301!
+/docs/http/operator.html                /api-docs/operator 301!
+/docs/http/regions                      /api-docs/regions 301!
+/docs/http/regions.html                 /api-docs/regions 301!
+/docs/http/status                       /api-docs/status 301!
+/docs/http/status.html                  /api-docs/status 301!
+/docs/http/system                       /api-docs/system 301!
+/docs/http/system.html                  /api-docs/system 301!
 
 # Guides
 
 # Reorganized Guides by Persona
-/guides/autopilot.html                        https://learn.hashicorp.com/nomad/operating-nomad/autopilot
-/guides/autopilot                             https://learn.hashicorp.com/nomad/operating-nomad/autopilot
-/guides/cluster/automatic.html                https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/cluster/automatic                     https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/cluster/bootstrapping.html            https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/cluster/bootstrapping                 https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/bootstrapping.html https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/operations/cluster/bootstrapping      https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/cluster/manual.html                   https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/cluster/manual                        https://learn.hashicorp.com/nomad/operating-nomad/clustering
-/guides/cluster/federation                    https://learn.hashicorp.com/nomad/operating-nomad/federation
-/guides/cluster/requirements                  /docs/install/production/requirements
-/guides/nomad-metrics.html                    https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/nomad-metrics                         https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics
-/guides/node-draining.html                    https://learn.hashicorp.com/nomad/operating-nomad/node-draining
-/guides/node-draining                         https://learn.hashicorp.com/nomad/operating-nomad/node-draining
-/guides/outage.html                           https://learn.hashicorp.com/nomad/operating-nomad/outage
-/guides/outage                                https://learn.hashicorp.com/nomad/operating-nomad/outage
-/guides/acl.html                              https://learn.hashicorp.com/nomad?track=acls#acls
-/guides/acl                                   https://learn.hashicorp.com/nomad?track=acls#acls
-/guides/namespaces.html                       https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
-/guides/namespaces                            https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
-/guides/quotas.html                           https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/quotas                                https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/securing-nomad.html                   https://learn.hashicorp.com/nomad/transport-security/enable-tls
-/guides/securing-nomad                        https://learn.hashicorp.com/nomad/transport-security/enable-tls
-/guides/sentinel-policy.html                  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/sentinel-policy                       https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/sentinel/job.html                     https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/sentinel/job                          https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
+/guides/autopilot.html                        https://learn.hashicorp.com/nomad/operating-nomad/autopilot 301!
+/guides/autopilot                             https://learn.hashicorp.com/nomad/operating-nomad/autopilot 301!
+/guides/cluster/automatic.html                https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/cluster/automatic                     https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/cluster/bootstrapping.html            https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/cluster/bootstrapping                 https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/bootstrapping.html https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/operations/cluster/bootstrapping      https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/cluster/manual.html                   https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/cluster/manual                        https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
+/guides/cluster/federation                    https://learn.hashicorp.com/nomad/operating-nomad/federation 301!
+/guides/cluster/requirements                  /docs/install/production/requirements 301!
+/guides/nomad-metrics.html                    https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/nomad-metrics                         https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
+/guides/node-draining.html                    https://learn.hashicorp.com/nomad/operating-nomad/node-draining 301!
+/guides/node-draining                         https://learn.hashicorp.com/nomad/operating-nomad/node-draining 301!
+/guides/outage.html                           https://learn.hashicorp.com/nomad/operating-nomad/outage 301!
+/guides/outage                                https://learn.hashicorp.com/nomad/operating-nomad/outage 301!
+/guides/acl.html                              https://learn.hashicorp.com/nomad?track=acls#acls 301!
+/guides/acl                                   https://learn.hashicorp.com/nomad?track=acls#acls 301!
+/guides/namespaces.html                       https://learn.hashicorp.com/nomad/governance-and-policy/namespaces 301!
+/guides/namespaces                            https://learn.hashicorp.com/nomad/governance-and-policy/namespaces 301!
+/guides/quotas.html                           https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/quotas                                https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/securing-nomad.html                   https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
+/guides/securing-nomad                        https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
+/guides/sentinel-policy.html                  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/sentinel-policy                       https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/sentinel/job.html                     https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/sentinel/job                          https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
 
-/guides/analytical-workloads/spark/spark.html     https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/analytical-workloads/spark/spark          https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/spark                                     https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/spark/index.html                          https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/spark/spark.html                          https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/spark/spark                               https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/spark/pre.html                            https://learn.hashicorp.com/nomad/spark/pre
-/guides/spark/pre                                 https://learn.hashicorp.com/nomad/spark/pre
-/guides/security/namespaces.html                  https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
-/guides/security/namespaces                       https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
-/guides/security/quotas.html                      https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/security/quotas                           https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/security/sentinel/job.html                https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/security/sentinel/job                     https://learn.hashicorp.com/nomad/governance-and-policy/quotas
-/guides/security/sentinel-policy.html             https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/security/sentinel-policy                  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel
-/guides/operations/install/index.html             /docs/install/index
-/guides/operations/install/index                  /docs/install/index
-/guides/operations/deployment-guide.html          /docs/install/production/deployment-guide
-/guides/operations/deployment-guide               /docs/install/production/deployment-guide
-/guides/operations/agent/index.html               /docs/install/production/nomad-agent
-/guides/operations/reference-architecture.html    /docs/install/production/reference-architecture
-/guides/operations/reference-architecture         /docs/install/production/reference-architecture
-/guides/operations/requirements.html              /docs/install/production/requirements
-/guides/operations/requirements                   /docs/install/production/requirements
-/guides/operations/consul-integration/index.html  /docs/integrations/consul-integration
-/guides/operations/vault-integration/index.html   /docs/integrations/vault-integration
-/guides/advanced-scheduling/                      https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling
-/guides/external                                  https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins
-/guides/external/index.html                       https://learn.hashicorp.com/nomad?track=spark#spark
-/guides/external/lxc.html                         https://learn.hashicorp.com/nomad/using-plugins/lxc
-/guides/external/lxc                              https://learn.hashicorp.com/nomad/using-plugins/lxc
-/guides/operations/upgrade                        /docs/upgrade
-/guides/operations/upgrade/index.html             /docs/upgrade
-/guides/operations/upgrade/upgrade-specific.html  /docs/upgrade/upgrade-specific
-/guides/operations/upgrade/upgrade-specific       /docs/upgrade/upgrade-specific
+/guides/analytical-workloads/spark/spark.html     https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/analytical-workloads/spark/spark          https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/spark                                     https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/spark/index.html                          https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/spark/spark.html                          https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/spark/spark                               https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/spark/pre.html                            https://learn.hashicorp.com/nomad/spark/pre 301!
+/guides/spark/pre                                 https://learn.hashicorp.com/nomad/spark/pre 301!
+/guides/security/namespaces.html                  https://learn.hashicorp.com/nomad/governance-and-policy/namespaces 301!
+/guides/security/namespaces                       https://learn.hashicorp.com/nomad/governance-and-policy/namespaces 301!
+/guides/security/quotas.html                      https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/security/quotas                           https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/security/sentinel/job.html                https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/security/sentinel/job                     https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
+/guides/security/sentinel-policy.html             https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/security/sentinel-policy                  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
+/guides/operations/install/index.html             /docs/install/index 301!
+/guides/operations/install/index                  /docs/install/index 301!
+/guides/operations/deployment-guide.html          /docs/install/production/deployment-guide 301!
+/guides/operations/deployment-guide               /docs/install/production/deployment-guide 301!
+/guides/operations/agent/index.html               /docs/install/production/nomad-agent 301!
+/guides/operations/reference-architecture.html    /docs/install/production/reference-architecture 301!
+/guides/operations/reference-architecture         /docs/install/production/reference-architecture 301!
+/guides/operations/requirements.html              /docs/install/production/requirements 301!
+/guides/operations/requirements                   /docs/install/production/requirements 301!
+/guides/operations/consul-integration/index.html  /docs/integrations/consul-integration 301!
+/guides/operations/vault-integration/index.html   /docs/integrations/vault-integration 301!
+/guides/advanced-scheduling/                      https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling 301!
+/guides/external                                  https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins 301!
+/guides/external/index.html                       https://learn.hashicorp.com/nomad?track=spark#spark 301!
+/guides/external/lxc.html                         https://learn.hashicorp.com/nomad/using-plugins/lxc 301!
+/guides/external/lxc                              https://learn.hashicorp.com/nomad/using-plugins/lxc 301!
+/guides/operations/upgrade                        /docs/upgrade 301!
+/guides/operations/upgrade/index.html             /docs/upgrade 301!
+/guides/operations/upgrade/upgrade-specific.html  /docs/upgrade/upgrade-specific 301!
+/guides/operations/upgrade/upgrade-specific       /docs/upgrade/upgrade-specific 301!
 
 # Enterprise
 
 # Reorganized Enterprise into single pager
-/docs/enterprise/namespaces                       /docs/enterprise#namespaces
-/docs/enterprise/namespaces/index.html            /docs/enterprise#namespaces
-/docs/enterprise/quotas                           /docs/enterprise#resource-quotas
-/docs/enterprise/quotas/index.html                /docs/enterprise#resource-quotas
-/docs/enterprise/preemption                       /docs/enterprise#preemption
-/docs/enterprise/preemption/index.html            /docs/enterprise#preemption
-/docs/enterprise/sentinel                         /docs/enterprise#sentinel-policies
-/docs/enterprise/sentinel/index.html              /docs/enterprise#sentinel-policies
-/docs/enterprise/autopilot                        /docs/enterprise#nomad-enterprise-platform
-/docs/enterprise/autopilot/index.html             /docs/enterprise#nomad-enterprise-platform
+/docs/enterprise/namespaces                       /docs/enterprise#namespaces 301!
+/docs/enterprise/namespaces/index.html            /docs/enterprise#namespaces 301!
+/docs/enterprise/quotas                           /docs/enterprise#resource-quotas 301!
+/docs/enterprise/quotas/index.html                /docs/enterprise#resource-quotas 301!
+/docs/enterprise/preemption                       /docs/enterprise#preemption 301!
+/docs/enterprise/preemption/index.html            /docs/enterprise#preemption 301!
+/docs/enterprise/sentinel                         /docs/enterprise#sentinel-policies 301!
+/docs/enterprise/sentinel/index.html              /docs/enterprise#sentinel-policies 301!
+/docs/enterprise/autopilot                        /docs/enterprise#nomad-enterprise-platform 301!
+/docs/enterprise/autopilot/index.html             /docs/enterprise#nomad-enterprise-platform 301!
 
 # Guide Catch-all Redirects
 /guides    https://learn.hashicorp.com/nomad  301!
