@@ -692,7 +692,7 @@ jobs:
     - run:
         command: brew install protobuf
     - run:
-        command: sudo -E PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
+        command: sudo -E PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-all static-assets
     - run:
         command: source ${BASH_ENV} && make pkg/darwin_amd64.zip
     - store_artifacts:
@@ -817,7 +817,7 @@ jobs:
           sudo ./scripts/vagrant-linux-priv-protoc.sh
         name: install protoc
     - run:
-        command: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
+        command: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-all static-assets
     - run:
         command: make pkg/windows_amd64.zip pkg/linux_amd64.zip
     - store_artifacts:
