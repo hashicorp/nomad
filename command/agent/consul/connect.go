@@ -58,7 +58,7 @@ func connectSidecarRegistration(serviceName string, css *structs.ConsulSidecarSe
 
 func connectProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
 	if proxy == nil {
-		return nil, nil
+		proxy = new(structs.ConsulProxy)
 	}
 
 	expose, err := connectProxyExpose(proxy.Expose, networks)
