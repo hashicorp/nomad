@@ -5566,8 +5566,16 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 
 	job := mock.Job()
 	groupName := job.TaskGroups[0].Name
-	err := state.UpsertJob(1000, job)
-	require.Nil(err)
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &resp)
+	jobCreateIndex := resp.Index
+	require.NoError(err)
 
 	scale := &structs.JobScaleRequest{
 		JobID: job.ID,
@@ -5589,7 +5597,6 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 			Namespace: job.Namespace,
 		},
 	}
-	var resp structs.JobRegisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.NoError(err)
 	require.Empty(resp.EvalID)
@@ -5604,7 +5611,7 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	require.Len(groupEvents, 1)
 	event := groupEvents[0]
 	require.Nil(event.EvalID)
-	require.Greater(eventsIndex, job.CreateIndex)
+	require.Greater(eventsIndex, jobCreateIndex)
 }
 
 func TestJobEndpoint_GetScaleStatus(t *testing.T) {
