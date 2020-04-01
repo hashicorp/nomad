@@ -517,7 +517,7 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		Target:         args.Target,
 		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
-		Reason:         args.Reason,
+		Message:        args.Message,
 		Error:          args.Error,
 		Meta:           args.Meta,
 	}
