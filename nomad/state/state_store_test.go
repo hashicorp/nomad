@@ -3094,13 +3094,13 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	index++
 	vol := &structs.CSIVolume{
 		ID:        uuid.Generate(),
-		Namespace: "n",
+		Namespace: structs.DefaultNamespace,
 		PluginID:  "foo",
 	}
 	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 
-	vol, err = state.CSIVolumeByID(ws, "n", vol.ID)
+	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
 	require.NoError(t, err)
 	require.True(t, vol.Schedulable)
 
@@ -3129,7 +3129,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	require.Nil(t, plug)
 
 	// Volume exists and is safe to query, but unschedulable
-	vol, err = state.CSIVolumeByID(ws, "n", vol.ID)
+	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
 	require.NoError(t, err)
 	require.False(t, vol.Schedulable)
 }
