@@ -46,6 +46,7 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.header.region.text, this.job.region);
     assert.equal(Exec.header.namespace.text, this.job.namespace);
     assert.equal(Exec.header.job, this.job.name);
+    assert.equal('jorts', 'jants');
   });
 
   test('/exec/:job should not show region and namespace when there are none', async function(assert) {
