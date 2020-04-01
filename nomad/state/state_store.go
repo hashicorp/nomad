@@ -650,6 +650,9 @@ func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventR
 		}
 	}
 
+	jobEvents.ModifyIndex = index
+	req.ScalingEvent.CreateIndex = index
+
 	events := jobEvents.ScalingEvents[req.TaskGroup]
 	// prepend this latest event
 	events = append(
@@ -691,19 +694,20 @@ func (s *StateStore) ScalingEvents(ws memdb.WatchSet) (memdb.ResultIterator, err
 	return iter, nil
 }
 
-func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID string) (map[string][]*structs.ScalingEvent, error) {
+func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID string) (map[string][]*structs.ScalingEvent, uint64, error) {
 	txn := s.db.Txn(false)
 
 	watchCh, existing, err := txn.FirstWatch("scaling_event", "id", namespace, jobID)
 	if err != nil {
-		return nil, fmt.Errorf("job scaling events lookup failed: %v", err)
+		return nil, 0, fmt.Errorf("job scaling events lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
 	if existing != nil {
-		return existing.(*structs.JobScalingEvents).ScalingEvents, nil
+		events := existing.(*structs.JobScalingEvents)
+		return events.ScalingEvents, events.ModifyIndex, nil
 	}
-	return nil, nil
+	return nil, 0, nil
 }
 
 // UpsertNode is used to register a node or update a node definition

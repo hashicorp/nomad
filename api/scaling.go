@@ -92,9 +92,10 @@ type TaskGroupScaleStatus struct {
 }
 
 type ScalingEvent struct {
-	Error   bool
-	Message string
-	Meta    map[string]interface{}
-	EvalID  *string
-	Time    uint64
+	Error       bool
+	Message     string
+	Meta        map[string]interface{}
+	EvalID      *string
+	Time        uint64
+	CreateIndex uint64
 }

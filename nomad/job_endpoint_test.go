@@ -5595,7 +5595,7 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	require.Empty(resp.EvalID)
 	require.Empty(resp.EvalCreateIndex)
 
-	jobEvents, err := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+	jobEvents, eventsIndex, err := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
 	require.NoError(err)
 	require.NotNil(jobEvents)
 	require.Len(jobEvents, 1)
@@ -5604,6 +5604,7 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	require.Len(groupEvents, 1)
 	event := groupEvents[0]
 	require.Nil(event.EvalID)
+	require.Greater(eventsIndex, job.CreateIndex)
 }
 
 func TestJobEndpoint_GetScaleStatus(t *testing.T) {

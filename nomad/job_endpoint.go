@@ -1767,7 +1767,7 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				return err
 			}
 
-			events, err := state.ScalingEventsByJob(ws, args.RequestNamespace(), args.JobID)
+			events, eventsIndex, err := state.ScalingEventsByJob(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
 				return err
 			}
@@ -1799,11 +1799,14 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				reply.JobScaleStatus.TaskGroups[tg.Name] = tgScale
 			}
 
-			if deployment != nil && deployment.ModifyIndex > job.ModifyIndex {
-				reply.Index = deployment.ModifyIndex
-			} else {
-				reply.Index = job.ModifyIndex
+			maxIndex := job.ModifyIndex
+			if deployment != nil && deployment.ModifyIndex > maxIndex {
+				maxIndex = deployment.ModifyIndex
 			}
+			if eventsIndex > maxIndex {
+				maxIndex = eventsIndex
+			}
+			reply.Index = maxIndex
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)

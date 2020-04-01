@@ -8570,7 +8570,7 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 	require.Nil(all.Next())
 
 	ws := memdb.NewWatchSet()
-	out, err := state.ScalingEventsByJob(ws, job.Namespace, job.ID)
+	out, _, err := state.ScalingEventsByJob(ws, job.Namespace, job.ID)
 	require.NoError(err)
 	require.Nil(out)
 
@@ -8585,11 +8585,12 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 	require.True(watchFired(wsAll))
 
 	ws = memdb.NewWatchSet()
-	out, err = state.ScalingEventsByJob(ws, job.Namespace, job.ID)
+	out, eventsIndex, err := state.ScalingEventsByJob(ws, job.Namespace, job.ID)
 	require.NoError(err)
 	require.Equal(map[string][]*structs.ScalingEvent{
 		groupName: {newEvent},
 	}, out)
+	require.EqualValues(eventsIndex, 1000)
 
 	iter, err := state.ScalingEvents(ws)
 	require.NoError(err)
@@ -8607,6 +8608,8 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 		count++
 	}
 	require.Equal(1, count)
+	require.EqualValues(jobEvents.ModifyIndex, 1000)
+	require.EqualValues(jobEvents.ScalingEvents[groupName][0].CreateIndex, 1000)
 
 	index, err := state.Index("scaling_event")
 	require.NoError(err)
@@ -8657,7 +8660,7 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		require.NoError(err)
 	}
 
-	out, err := state.ScalingEventsByJob(nil, namespace, jobID)
+	out, _, err := state.ScalingEventsByJob(nil, namespace, jobID)
 	require.NoError(err)
 	require.Len(out, 2)
 
@@ -8708,7 +8711,7 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 	restore.Commit()
 
 	ws := memdb.NewWatchSet()
-	out, err := state.ScalingEventsByJob(ws, jobScalingEvents.Namespace,
+	out, _, err := state.ScalingEventsByJob(ws, jobScalingEvents.Namespace,
 		jobScalingEvents.JobID)
 	require.NoError(err)
 	require.NotNil(out)

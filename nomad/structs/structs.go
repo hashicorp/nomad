@@ -4664,6 +4664,9 @@ type JobScalingEvents struct {
 	// the indexed array is sorted from newest to oldest event
 	// the array should have less than JobTrackedScalingEvents entries
 	ScalingEvents map[string][]*ScalingEvent
+
+	// Raft index
+	ModifyIndex uint64
 }
 
 // Factory method for ScalingEvent objects
@@ -4693,6 +4696,9 @@ type ScalingEvent struct {
 
 	// EvalID is the ID for an evaluation if one was created as part of a scaling event
 	EvalID *string
+
+	// Raft index
+	CreateIndex uint64
 }
 
 func (e *ScalingEvent) SetError(error bool) *ScalingEvent {
