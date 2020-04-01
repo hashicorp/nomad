@@ -12,9 +12,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/csi"
 )
 
-// CSIController endpoint is used for interacting with CSI plugins on a client.
+// CSI endpoint is used for interacting with CSI plugins on a client.
 // TODO: Submit metrics with labels to allow debugging per plugin perf problems.
-type CSIController struct {
+type CSI struct {
 	c *Client
 }
 
@@ -29,10 +29,10 @@ var (
 	ErrPluginTypeError = errors.New("CSI Plugin loaded incorrectly")
 )
 
-// ValidateVolume is used during volume registration to validate
+// ControllerValidateVolume is used during volume registration to validate
 // that a volume exists and that the capabilities it was registered with are
 // supported by the CSI Plugin and external volume configuration.
-func (c *CSIController) ValidateVolume(req *structs.ClientCSIControllerValidateVolumeRequest, resp *structs.ClientCSIControllerValidateVolumeResponse) error {
+func (c *CSI) ControllerValidateVolume(req *structs.ClientCSIControllerValidateVolumeRequest, resp *structs.ClientCSIControllerValidateVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "validate_volume"}, time.Now())
 
 	if req.VolumeID == "" {
@@ -65,7 +65,7 @@ func (c *CSIController) ValidateVolume(req *structs.ClientCSIControllerValidateV
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 }
 
-// AttachVolume is used to attach a volume from a CSI Cluster to
+// ControllerAttachVolume is used to attach a volume from a CSI Cluster to
 // the storage node provided in the request.
 //
 // The controller attachment flow currently works as follows:
@@ -73,7 +73,7 @@ func (c *CSIController) ValidateVolume(req *structs.ClientCSIControllerValidateV
 // 2. Call ControllerPublishVolume on the CSI Plugin to trigger a remote attachment
 //
 // In the future this may be expanded to request dynamic secrets for attachment.
-func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolumeRequest, resp *structs.ClientCSIControllerAttachVolumeResponse) error {
+func (c *CSI) ControllerAttachVolume(req *structs.ClientCSIControllerAttachVolumeRequest, resp *structs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "publish_volume"}, time.Now())
 	plugin, err := c.findControllerPlugin(req.PluginID)
 	if err != nil {
@@ -116,9 +116,9 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 	return nil
 }
 
-// DetachVolume is used to detach a volume from a CSI Cluster from
+// ControllerDetachVolume is used to detach a volume from a CSI Cluster from
 // the storage node provided in the request.
-func (c *CSIController) DetachVolume(req *structs.ClientCSIControllerDetachVolumeRequest, resp *structs.ClientCSIControllerDetachVolumeResponse) error {
+func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolumeRequest, resp *structs.ClientCSIControllerDetachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "unpublish_volume"}, time.Now())
 	plugin, err := c.findControllerPlugin(req.PluginID)
 	if err != nil {
@@ -157,12 +157,11 @@ func (c *CSIController) DetachVolume(req *structs.ClientCSIControllerDetachVolum
 	return nil
 }
 
-func (c *CSIController) findControllerPlugin(name string) (csi.CSIPlugin, error) {
+func (c *CSI) findControllerPlugin(name string) (csi.CSIPlugin, error) {
 	return c.findPlugin(dynamicplugins.PluginTypeCSIController, name)
 }
 
-// TODO: Cache Plugin Clients?
-func (c *CSIController) findPlugin(ptype, name string) (csi.CSIPlugin, error) {
+func (c *CSI) findPlugin(ptype, name string) (csi.CSIPlugin, error) {
 	pIface, err := c.c.dynamicRegistry.DispensePlugin(ptype, name)
 	if err != nil {
 		return nil, err
@@ -176,6 +175,6 @@ func (c *CSIController) findPlugin(ptype, name string) (csi.CSIPlugin, error) {
 	return plugin, nil
 }
 
-func (c *CSIController) requestContext() (context.Context, context.CancelFunc) {
+func (c *CSI) requestContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), CSIPluginRequestTimeout)
 }

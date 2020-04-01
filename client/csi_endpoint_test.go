@@ -156,7 +156,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerAttachVolumeResponse
-			err = client.ClientRPC("CSIController.AttachVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSI.ControllerAttachVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
@@ -255,7 +255,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerValidateVolumeResponse
-			err = client.ClientRPC("CSIController.ValidateVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSI.ControllerValidateVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
@@ -338,7 +338,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 			require.Nil(err)
 
 			var resp structs.ClientCSIControllerDetachVolumeResponse
-			err = client.ClientRPC("CSIController.DetachVolume", tc.Request, &resp)
+			err = client.ClientRPC("CSI.ControllerDetachVolume", tc.Request, &resp)
 			require.Equal(tc.ExpectedErr, err)
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)

@@ -43,7 +43,7 @@ func (a *ClientCSIController) AttachVolume(args *cstructs.ClientCSIControllerAtt
 	}
 
 	// Make the RPC
-	err = NodeRpc(state.Session, "CSIController.AttachVolume", args, reply)
+	err = NodeRpc(state.Session, "CSI.ControllerAttachVolume", args, reply)
 	if err != nil {
 		return fmt.Errorf("attach volume: %v", err)
 	}
@@ -76,7 +76,7 @@ func (a *ClientCSIController) ValidateVolume(args *cstructs.ClientCSIControllerV
 	}
 
 	// Make the RPC
-	err = NodeRpc(state.Session, "CSIController.ValidateVolume", args, reply)
+	err = NodeRpc(state.Session, "CSI.ControllerValidateVolume", args, reply)
 	if err != nil {
 		return fmt.Errorf("validate volume: %v", err)
 	}
@@ -109,7 +109,7 @@ func (a *ClientCSIController) DetachVolume(args *cstructs.ClientCSIControllerDet
 	}
 
 	// Make the RPC
-	err = NodeRpc(state.Session, "CSIController.DetachVolume", args, reply)
+	err = NodeRpc(state.Session, "CSI.ControllerDetachVolume", args, reply)
 	if err != nil {
 		return fmt.Errorf("detach volume: %v", err)
 	}
