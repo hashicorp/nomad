@@ -3,6 +3,7 @@ package csi
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"time"
 
@@ -373,6 +374,10 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 
 	result.NodeID = resp.GetNodeId()
 	result.MaxVolumes = resp.GetMaxVolumesPerNode()
+	if result.MaxVolumes == 0 {
+		// set safe default so that scheduler ignores this constraint when not set
+		result.MaxVolumes = math.MaxInt64
+	}
 
 	return result, nil
 }
