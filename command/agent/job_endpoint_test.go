@@ -686,8 +686,8 @@ func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
 
 		newCount := job.TaskGroups[0].Count + 1
 		scaleReq := &api.ScalingRequest{
-			Count:  helper.Int64ToPtr(int64(newCount)),
-			Reason: helper.StringToPtr("testing"),
+			Count:   helper.Int64ToPtr(int64(newCount)),
+			Message: "testing",
 			Target: map[string]string{
 				"Job":   job.ID,
 				"Group": job.TaskGroups[0].Name,
@@ -2541,4 +2541,170 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 		resp := obj.(structs.JobValidateResponse)
 		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
 	})
+}
+
+func TestConversion_dereferenceInt(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, 0, dereferenceInt(nil))
+	require.Equal(t, 42, dereferenceInt(helper.IntToPtr(42)))
+}
+
+func TestConversion_apiLogConfigToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiLogConfigToStructs(nil))
+	require.Equal(t, &structs.LogConfig{
+		MaxFiles:      2,
+		MaxFileSizeMB: 8,
+	}, apiLogConfigToStructs(&api.LogConfig{
+		MaxFiles:      helper.IntToPtr(2),
+		MaxFileSizeMB: helper.IntToPtr(8),
+	}))
+}
+
+func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	delay := time.Duration(200)
+	timeout := time.Duration(1000)
+	config := make(map[string]interface{})
+	env := make(map[string]string)
+	meta := make(map[string]string)
+	require.Equal(t, &structs.SidecarTask{
+		Name:   "name",
+		Driver: "driver",
+		User:   "user",
+		Config: config,
+		Env:    env,
+		Resources: &structs.Resources{
+			CPU:      1,
+			MemoryMB: 128,
+		},
+		Meta:        meta,
+		KillTimeout: &timeout,
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      2,
+			MaxFileSizeMB: 8,
+		},
+		ShutdownDelay: &delay,
+		KillSignal:    "SIGTERM",
+	}, apiConnectSidecarTaskToStructs(&api.SidecarTask{
+		Name:   "name",
+		Driver: "driver",
+		User:   "user",
+		Config: config,
+		Env:    env,
+		Resources: &api.Resources{
+			CPU:      helper.IntToPtr(1),
+			MemoryMB: helper.IntToPtr(128),
+		},
+		Meta:        meta,
+		KillTimeout: &timeout,
+		LogConfig: &api.LogConfig{
+			MaxFiles:      helper.IntToPtr(2),
+			MaxFileSizeMB: helper.IntToPtr(8),
+		},
+		ShutdownDelay: &delay,
+		KillSignal:    "SIGTERM",
+	}))
+}
+
+func TestConversion_apiConsulExposePathsToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConsulExposePathsToStructs(nil))
+	require.Nil(t, apiConsulExposePathsToStructs(make([]*api.ConsulExposePath, 0)))
+	require.Equal(t, []structs.ConsulExposePath{{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}}, apiConsulExposePathsToStructs([]*api.ConsulExposePath{{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}}))
+}
+
+func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConsulExposeConfigToStructs(nil))
+	require.Equal(t, &structs.ConsulExposeConfig{
+		Paths: []structs.ConsulExposePath{{Path: "/health"}},
+	}, apiConsulExposeConfigToStructs(&api.ConsulExposeConfig{
+		Path: []*api.ConsulExposePath{{Path: "/health"}},
+	}))
+}
+
+func TestConversion_apiUpstreamsToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiUpstreamsToStructs(nil))
+	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
+	require.Equal(t, []structs.ConsulUpstream{{
+		DestinationName: "upstream",
+		LocalBindPort:   8000,
+	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
+		DestinationName: "upstream",
+		LocalBindPort:   8000,
+	}}))
+}
+
+func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarServiceProxyToStructs(nil))
+	config := make(map[string]interface{})
+	require.Equal(t, &structs.ConsulProxy{
+		LocalServiceAddress: "192.168.30.1",
+		LocalServicePort:    9000,
+		Config:              config,
+		Upstreams: []structs.ConsulUpstream{{
+			DestinationName: "upstream",
+		}},
+		Expose: &structs.ConsulExposeConfig{
+			Paths: []structs.ConsulExposePath{{Path: "/health"}},
+		},
+	}, apiConnectSidecarServiceProxyToStructs(&api.ConsulProxy{
+		LocalServiceAddress: "192.168.30.1",
+		LocalServicePort:    9000,
+		Config:              config,
+		Upstreams: []*api.ConsulUpstream{{
+			DestinationName: "upstream",
+		}},
+		ExposeConfig: &api.ConsulExposeConfig{
+			Path: []*api.ConsulExposePath{{
+				Path: "/health",
+			}},
+		},
+	}))
+}
+
+func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	require.Equal(t, &structs.ConsulSidecarService{
+		Tags: []string{"foo"},
+		Port: "myPort",
+		Proxy: &structs.ConsulProxy{
+			LocalServiceAddress: "192.168.30.1",
+		},
+	}, apiConnectSidecarServiceToStructs(&api.ConsulSidecarService{
+		Tags: []string{"foo"},
+		Port: "myPort",
+		Proxy: &api.ConsulProxy{
+			LocalServiceAddress: "192.168.30.1",
+		},
+	}))
+}
+
+func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, ApiConsulConnectToStructs(nil))
+	require.Equal(t, &structs.ConsulConnect{
+		Native:         false,
+		SidecarService: &structs.ConsulSidecarService{Port: "myPort"},
+		SidecarTask:    &structs.SidecarTask{Name: "task"},
+	}, ApiConsulConnectToStructs(&api.ConsulConnect{
+		Native:         false,
+		SidecarService: &api.ConsulSidecarService{Port: "myPort"},
+		SidecarTask:    &api.SidecarTask{Name: "task"},
+	}))
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
@@ -55,7 +56,13 @@ func (c *CSIController) ValidateVolume(req *structs.ClientCSIControllerValidateV
 
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()
-	return plugin.ControllerValidateCapabilties(ctx, req.VolumeID, caps)
+
+	// CSI ValidateVolumeCapabilities errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	return plugin.ControllerValidateCapabilities(ctx, req.VolumeID, caps,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 }
 
 // AttachVolume is used to attach a volume from a CSI Cluster to
@@ -95,7 +102,12 @@ func (c *CSIController) AttachVolume(req *structs.ClientCSIControllerAttachVolum
 	// Submit the request for a volume to the CSI Plugin.
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()
-	cresp, err := plugin.ControllerPublishVolume(ctx, csiReq)
+	// CSI ControllerPublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	cresp, err := plugin.ControllerPublishVolume(ctx, csiReq,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 	if err != nil {
 		return err
 	}
@@ -132,7 +144,12 @@ func (c *CSIController) DetachVolume(req *structs.ClientCSIControllerDetachVolum
 	// Submit the request for a volume to the CSI Plugin.
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()
-	_, err = plugin.ControllerUnpublishVolume(ctx, csiReq)
+	// CSI ControllerUnpublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	_, err = plugin.ControllerUnpublishVolume(ctx, csiReq,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 	if err != nil {
 		return err
 	}

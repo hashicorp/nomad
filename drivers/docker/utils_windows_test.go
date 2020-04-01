@@ -24,6 +24,8 @@ func TestExpandPath(t *testing.T) {
 
 		{"/tmp/alloc/task", "c:/home/user", "c:/home/user"},
 		{"/tmp/alloc/task", "c:/home/user/..", "c:/home"},
+
+		{"/tmp/alloc/task", `//./pipe/named_pipe`, `//./pipe/named_pipe`},
 	}
 
 	for _, c := range cases {
@@ -53,6 +55,13 @@ func TestParseVolumeSpec_Windows(t *testing.T) {
 			`relativepath:e:\containerpath`,
 			`relativepath`,
 			`e:\containerpath`,
+			"",
+		},
+		{
+			"named pipe",
+			`//./pipe/named_pipe://./pipe/named_pipe`,
+			`\\.\pipe\named_pipe`,
+			`//./pipe/named_pipe`,
 			"",
 		},
 	}

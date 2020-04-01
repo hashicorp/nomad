@@ -627,6 +627,89 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 	return nil
 }
 
+// UpsertScalingEvent is used to insert a new scaling event.
+// Only the most recent JobTrackedScalingEvents will be kept.
+func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventRequest) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+
+	// Get the existing events
+	existing, err := txn.First("scaling_event", "id", req.Namespace, req.JobID)
+	if err != nil {
+		return fmt.Errorf("scaling event lookup failed: %v", err)
+	}
+
+	var jobEvents *structs.JobScalingEvents
+	if existing != nil {
+		jobEvents = existing.(*structs.JobScalingEvents)
+	} else {
+		jobEvents = &structs.JobScalingEvents{
+			Namespace:     req.Namespace,
+			JobID:         req.JobID,
+			ScalingEvents: make(map[string][]*structs.ScalingEvent),
+		}
+	}
+
+	jobEvents.ModifyIndex = index
+	req.ScalingEvent.CreateIndex = index
+
+	events := jobEvents.ScalingEvents[req.TaskGroup]
+	// Prepend this latest event
+	events = append(
+		[]*structs.ScalingEvent{req.ScalingEvent},
+		events...,
+	)
+	// Truncate older events
+	if len(events) > structs.JobTrackedScalingEvents {
+		events = events[0:structs.JobTrackedScalingEvents]
+	}
+	jobEvents.ScalingEvents[req.TaskGroup] = events
+
+	// Insert the new event
+	if err := txn.Insert("scaling_event", jobEvents); err != nil {
+		return fmt.Errorf("scaling event insert failed: %v", err)
+	}
+
+	// Update the indexes table for scaling_event
+	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// ScalingEvents returns an iterator over all the job scaling events
+func (s *StateStore) ScalingEvents(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire scaling_event table
+	iter, err := txn.Get("scaling_event", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID string) (map[string][]*structs.ScalingEvent, uint64, error) {
+	txn := s.db.Txn(false)
+
+	watchCh, existing, err := txn.FirstWatch("scaling_event", "id", namespace, jobID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("job scaling events lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		events := existing.(*structs.JobScalingEvents)
+		return events.ScalingEvents, events.ModifyIndex, nil
+	}
+	return nil, 0, nil
+}
+
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
@@ -959,7 +1042,11 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			plug.Version = info.ProviderVersion
 		}
 
-		plug.AddPlugin(node.ID, info)
+		err = plug.AddPlugin(node.ID, info)
+		if err != nil {
+			return err
+		}
+
 		plug.ModifyIndex = index
 
 		err = txn.Insert("csi_plugins", plug)
@@ -1057,17 +1144,19 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 }
 
 func deleteNodeFromPlugin(txn *memdb.Txn, plug *structs.CSIPlugin, node *structs.Node, index uint64) error {
-	plug.DeleteNode(node.ID)
+	err := plug.DeleteNode(node.ID)
+	if err != nil {
+		return err
+	}
+	return updateOrGCPlugin(index, txn, plug)
+}
+
+// updateOrGCPlugin updates a plugin but will delete it if the plugin is empty
+func updateOrGCPlugin(index uint64, txn *memdb.Txn, plug *structs.CSIPlugin) error {
 	plug.ModifyIndex = index
 
 	if plug.IsEmpty() {
-		_, err := txn.Get("csi_volumes", "plugin_id", plug.ID)
-		if err != nil {
-			// don't delete a plugin that has associated volumes, even
-			// if there are no plugin instances running for it
-			return nil
-		}
-		err = txn.Delete("csi_plugins", plug)
+		err := txn.Delete("csi_plugins", plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins delete error: %v", err)
 		}
@@ -1077,6 +1166,73 @@ func deleteNodeFromPlugin(txn *memdb.Txn, plug *structs.CSIPlugin, node *structs
 			return fmt.Errorf("csi_plugins update error %s: %v", plug.ID, err)
 		}
 	}
+	return nil
+}
+
+// deleteJobFromPlugin removes the allocations of this job from any plugins the job is
+// running, possibly deleting the plugin if it's no longer in use. It's called in DeleteJobTxn
+func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *structs.Job) error {
+	ws := memdb.NewWatchSet()
+	allocs, err := s.AllocsByJob(ws, job.Namespace, job.ID, false)
+	if err != nil {
+		return fmt.Errorf("error getting allocations: %v", err)
+	}
+
+	type pair struct {
+		pluginID string
+		alloc    *structs.Allocation
+	}
+
+	plugAllocs := []*pair{}
+	plugins := map[string]*structs.CSIPlugin{}
+
+	for _, a := range allocs {
+		tg := job.LookupTaskGroup(a.TaskGroup)
+		// if its nil, we can just panic
+		for _, t := range tg.Tasks {
+			if t.CSIPluginConfig != nil {
+				plugAllocs = append(plugAllocs, &pair{
+					pluginID: t.CSIPluginConfig.ID,
+					alloc:    a,
+				})
+
+			}
+		}
+	}
+
+	for _, x := range plugAllocs {
+		plug, ok := plugins[x.pluginID]
+
+		if !ok {
+			plug, err = s.CSIPluginByID(ws, x.pluginID)
+			if err != nil {
+				return fmt.Errorf("error getting plugin: %s, %v", x.pluginID, err)
+			}
+			if plug == nil {
+				return fmt.Errorf("plugin missing: %s %v", x.pluginID, err)
+			}
+			// only copy once, so we update the same plugin on each alloc
+			plugins[x.pluginID] = plug.Copy()
+			plug = plugins[x.pluginID]
+		}
+
+		err := plug.DeleteAlloc(x.alloc.ID, x.alloc.NodeID)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, plug := range plugins {
+		err = updateOrGCPlugin(index, txn, plug)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
 	return nil
 }
 
@@ -1332,6 +1488,20 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
+	}
+
+	// Delete the scaling events
+	if _, err = txn.DeleteAll("scaling_event", "id", namespace, jobID); err != nil {
+		return fmt.Errorf("deleting job scaling events failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// Cleanup plugins registered by this job
+	err = s.deleteJobFromPlugin(index, txn, job)
+	if err != nil {
+		return fmt.Errorf("deleting job from plugin: %v", err)
 	}
 
 	return nil
@@ -1687,7 +1857,17 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			return fmt.Errorf("volume existence check error: %v", err)
 		}
 		if obj != nil {
-			return fmt.Errorf("volume exists: %s", v.ID)
+			// Allow some properties of a volume to be updated in place, but
+			// prevent accidentally overwriting important properties, or
+			// overwriting a volume in use
+			old, ok := obj.(*structs.CSIVolume)
+			if ok &&
+				old.InUse() ||
+				old.ExternalID != v.ExternalID ||
+				old.PluginID != v.PluginID ||
+				old.Provider != v.Provider {
+				return fmt.Errorf("volume exists: %s", v.ID)
+			}
 		}
 
 		if v.CreateIndex == 0 {
@@ -1707,6 +1887,21 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 
 	txn.Commit()
 	return nil
+}
+
+// CSIVolumes returns the unfiltered list of all volumes
+func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+	defer txn.Abort()
+
+	iter, err := txn.Get("csi_volumes", "id")
+	if err != nil {
+		return nil, fmt.Errorf("csi_volumes lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
 }
 
 // CSIVolumeByID is used to lookup a single volume. Returns a copy of the volume
@@ -1764,23 +1959,14 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 }
 
 // CSIVolumesByNodeID looks up CSIVolumes in use on a node
-func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, namespace, nodeID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
 	allocs, err := s.AllocsByNode(ws, nodeID)
-	if err != nil {
-		return nil, fmt.Errorf("alloc lookup failed: %v", err)
-	}
-	snap, err := s.Snapshot()
-	if err != nil {
-		return nil, fmt.Errorf("alloc lookup failed: %v", err)
-	}
-
-	allocs, err = snap.DenormalizeAllocationSlice(allocs)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	// Find volume ids for CSI volumes in running allocs, or allocs that we desire to run
-	ids := map[string]struct{}{}
+	ids := map[string]string{} // Map volumeID to Namespace
 	for _, a := range allocs {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
@@ -1794,14 +1980,14 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, namespace, nodeID str
 			if v.Type != structs.VolumeTypeCSI {
 				continue
 			}
-			ids[v.Source] = struct{}{}
+			ids[v.Source] = a.Namespace
 		}
 	}
 
 	// Lookup the raw CSIVolumes to match the other list interfaces
 	iter := NewSliceIterator()
 	txn := s.db.Txn(false)
-	for id := range ids {
+	for id, namespace := range ids {
 		raw, err := txn.First("csi_volumes", "id", namespace, id)
 		if err != nil {
 			return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
@@ -1982,6 +2168,8 @@ func (s *StateStore) CSIPlugins(ws memdb.WatchSet) (memdb.ResultIterator, error)
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugins lookup failed: %v", err)
 	}
+
+	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
@@ -4856,6 +5044,21 @@ func (s *StateStore) DeleteScalingPoliciesTxn(index uint64, ids []string, txn *m
 	return nil
 }
 
+// ScalingPolicies returns an iterator over all the scaling policies
+func (s *StateStore) ScalingPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	// Walk the entire scaling_policy table
+	iter, err := txn.Get("scaling_policy", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
@@ -4946,6 +5149,8 @@ func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*
 // DenormalizeAllocationSlice queries the Allocation for each allocation diff
 // represented as an Allocation and merges the updated attributes with the existing
 // Allocation, and attaches the Job provided.
+//
+// This should only be called on terminal allocs, particularly stopped or preempted allocs
 func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation) ([]*structs.Allocation, error) {
 	allocDiffs := make([]*structs.AllocationDiff, len(allocs))
 	for i, alloc := range allocs {
@@ -5137,6 +5342,37 @@ func (r *StateRestore) SchedulerConfigRestore(schedConfig *structs.SchedulerConf
 func (r *StateRestore) ClusterMetadataRestore(meta *structs.ClusterMetadata) error {
 	if err := r.txn.Insert("cluster_meta", meta); err != nil {
 		return fmt.Errorf("inserting cluster meta failed: %v", err)
+	}
+	return nil
+}
+
+// ScalingPolicyRestore is used to restore a scaling policy
+func (r *StateRestore) ScalingPolicyRestore(scalingPolicy *structs.ScalingPolicy) error {
+	if err := r.txn.Insert("scaling_policy", scalingPolicy); err != nil {
+		return fmt.Errorf("scaling policy insert failed: %v", err)
+	}
+	return nil
+}
+
+// CSIPluginRestore is used to restore a CSI plugin
+func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
+	if err := r.txn.Insert("csi_plugins", plugin); err != nil {
+		return fmt.Errorf("csi plugin insert failed: %v", err)
+	}
+	return nil
+}
+
+// CSIVolumeRestore is used to restore a CSI volume
+func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
+	if err := r.txn.Insert("csi_volumes", volume); err != nil {
+		return fmt.Errorf("csi volume insert failed: %v", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents) error {
+	if err := r.txn.Insert("scaling_event", jobEvents); err != nil {
+		return fmt.Errorf("scaling event insert failed: %v", err)
 	}
 	return nil
 }

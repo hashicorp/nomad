@@ -454,8 +454,12 @@ jobs:
         command: cd ui && yarn run lint:hbs
         name: lint:hbs
     - run:
-        command: cd ui && yarn test
+        command: mkdir -p /tmp/test-reports && cd ui && yarn test
         name: Ember tests
+    - store_test_results:
+        path: /tmp/test-reports
+    - store_artifacts:
+        path: /tmp/test-reports
   lint-go:
     docker:
     - image: golang:1.14.1

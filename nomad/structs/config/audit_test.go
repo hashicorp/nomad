@@ -28,7 +28,7 @@ func TestAuditConfig_Merge(t *testing.T) {
 			{
 				Name:       "one",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"*"},
 				Operations: []string{"*"},
 			},
@@ -53,7 +53,7 @@ func TestAuditConfig_Merge(t *testing.T) {
 			{
 				Name:       "one",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"OperationReceived"},
 				Operations: []string{"GET"},
 			},
@@ -86,7 +86,7 @@ func TestAuditConfig_Merge(t *testing.T) {
 			{
 				Name:       "one",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"OperationReceived"},
 				Operations: []string{"GET"},
 			},

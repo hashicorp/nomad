@@ -1286,3 +1286,40 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 	job.TaskGroups[0].Scaling = policy
 	return job, policy
 }
+
+func CSIPlugin() *structs.CSIPlugin {
+	return &structs.CSIPlugin{
+		ID:                 uuid.Generate(),
+		Provider:           "com.hashicorp:mock",
+		Version:            "0.1",
+		ControllerRequired: true,
+		Controllers:        map[string]*structs.CSIInfo{},
+		Nodes:              map[string]*structs.CSIInfo{},
+		Allocations:        []*structs.AllocListStub{},
+		ControllersHealthy: 0,
+		NodesHealthy:       0,
+	}
+}
+
+func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
+	return &structs.CSIVolume{
+		ID:                  uuid.Generate(),
+		Name:                "test-vol",
+		ExternalID:          "vol-01",
+		Namespace:           "default",
+		Topologies:          []*structs.CSITopology{},
+		AccessMode:          structs.CSIVolumeAccessModeSingleNodeWriter,
+		AttachmentMode:      structs.CSIVolumeAttachmentModeFilesystem,
+		MountOptions:        &structs.CSIMountOptions{},
+		ReadAllocs:          map[string]*structs.Allocation{},
+		WriteAllocs:         map[string]*structs.Allocation{},
+		PluginID:            plugin.ID,
+		Provider:            plugin.Provider,
+		ProviderVersion:     plugin.Version,
+		ControllerRequired:  plugin.ControllerRequired,
+		ControllersHealthy:  plugin.ControllersHealthy,
+		ControllersExpected: len(plugin.Controllers),
+		NodesHealthy:        plugin.NodesHealthy,
+		NodesExpected:       len(plugin.Nodes),
+	}
+}

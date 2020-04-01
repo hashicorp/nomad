@@ -24,4 +24,8 @@ steps:
       command: cd ui && yarn run lint:hbs
   - run:
       name: Ember tests
-      command: cd ui && yarn test
+      command: mkdir -p /tmp/test-reports && cd ui && yarn test
+  - store_test_results:
+      path: /tmp/test-reports
+  - store_artifacts:
+      path: /tmp/test-reports

@@ -1,6 +1,6 @@
 # Nomad Website
 
-[![Netlify Status](https://img.shields.io/netlify/f7fa8963-0022-4a0e-9ccf-f5385355906b?style=flat-square)](https://app.netlify.com/sites/nomad-docs-platform/deploys)
+[![Netlify Status](https://img.shields.io/netlify/57d01198-7abc-4c39-a89b-386a2fe7de09?style=flat-square)](https://app.netlify.com/sites/nomad-website/deploys)
 
 This subdirectory contains the entire source for the [Nomad Website](https://nomadproject.io/). This is a [NextJS](https://nextjs.org/) project, which builds a static site from these source files.
 
@@ -109,6 +109,31 @@ A {{ release candidate }} for Nomad {{ v1.0.0 }} is available! The release can b
 
 You may customize the parameters in any way you'd like. To remove a prerelease from the website, simply delete the `prerelease` paremeter from the above component.
 
-### Deployment
+### Markdown Enhancements
+
+There are several custom markdown plugins that are available by default that enhance standard markdown to fit our use cases. This set of plugins introduces a couple instances of custom syntax, and a couple specific pitfalls that are not present by default with markdown, detailed below:
+
+- If you see the symbols `~>`, `->`, `=>`, or `!>`, these represent [custom alerts](https://github.com/hashicorp/remark-plugins/tree/master/plugins/paragraph-custom-alerts#paragraph-custom-alerts). These render as colored boxes to draw the user's attention to some type of aside.
+- If you see `@include '/some/path.mdx'`, this is a [markdown include](https://github.com/hashicorp/remark-plugins/tree/master/plugins/include-markdown#include-markdown-plugin). It's worth noting as well that all includes resolve from `website/pages/partials` by default.
+- If you see `# Headline ((#slug))`, this is an example of an [anchor link alias](https://github.com/hashicorp/remark-plugins/tree/je.anchor-link-adjustments/plugins/anchor-links#anchor-link-aliases). It adds an extra permalink to a headline for compatibility and is removed from the output.
+- Due to [automatically generated permalinks](https://github.com/hashicorp/remark-plugins/tree/je.anchor-link-adjustments/plugins/anchor-links#anchor-links), any text changes to _headlines_ or _list items that begin with inline code_ can and will break existing permalinks. Be very cautious when changing either of these two text items.
+
+  Headlines are fairly self-explanitory, but here's an example of how list items that begin with inline code look.
+
+  ```markdown
+  - this is a normal list item
+  - `this` is a list item that begins with inline code
+  ```
+
+  Its worth noting that _only the inline code at the beginning of the list item_ will cause problems if changed. So if you changed the above markup to...
+
+  ```markdown
+  - lsdhfhksdjf
+  - `this` jsdhfkdsjhkdsfjh
+  ```
+
+  ...while it perhaps would not be an improved user experience, no links would break because of it. The best approach is to **avoid changing headlines and inline code at the start of a list item**. If you must change one of these items, make sure to tag someone from the digital marketing development team on your pull request, they will help to ensure as much compatibility as possible.
+
+## Deployment
 
 This website is hosted on Netlify and configured to automatically deploy anytime you push code to the `stable-website` branch. Any time a pull request is submitted that changes files within the `website` folder, a deployment preview will appear in the github checks which can be used to validate the way docs changes will look live. Deployments from `stable-website` will look and behave the same way as deployment previews.

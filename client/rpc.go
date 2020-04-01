@@ -10,12 +10,12 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/client/servers"
 	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
-	"github.com/ugorji/go/codec"
 )
 
 // rpcEndpoints holds the RPC endpoints

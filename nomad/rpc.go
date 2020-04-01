@@ -21,13 +21,13 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
-	"github.com/ugorji/go/codec"
 )
 
 const (

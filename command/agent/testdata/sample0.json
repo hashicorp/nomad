@@ -24,7 +24,7 @@
       {
         "default": [
           {
-            "endpoints": ["/ui/", "/v1/agent/health"],
+            "endpoints": ["/v1/metrics"],
             "operations": ["*"],
             "stages": ["*"],
             "type": "HTTPEvent"

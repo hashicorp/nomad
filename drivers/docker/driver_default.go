@@ -3,7 +3,7 @@
 package docker
 
 import (
-	"github.com/docker/docker/daemon/caps"
+	"github.com/docker/docker/oci/caps"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
@@ -19,7 +19,7 @@ func tweakCapabilities(basics, adds, drops []string) ([]string, error) {
 		basics[i] = "CAP_" + cap
 	}
 
-	effectiveCaps, err := caps.TweakCapabilities(basics, adds, drops)
+	effectiveCaps, err := caps.TweakCapabilities(basics, adds, drops, nil, false)
 	if err != nil {
 		return effectiveCaps, err
 	}

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/require"
@@ -40,11 +40,11 @@ func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
 
 	// Create a plugin
 	id := "long-plugin-id"
-	state := srv.Agent.Server().State()
-	cleanup := nomad.CreateTestCSIPlugin(state, id)
+	s := srv.Agent.Server().State()
+	cleanup := state.CreateTestCSIPlugin(s, id)
 	defer cleanup()
 	ws := memdb.NewWatchSet()
-	plug, err := state.CSIPluginByID(ws, id)
+	plug, err := s.CSIPluginByID(ws, id)
 	require.NoError(t, err)
 
 	prefix := plug.ID[:len(plug.ID)-5]

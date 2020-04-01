@@ -31,8 +31,9 @@ const (
 // volumes are stored by an enriched volume usage struct as the CSI Spec requires
 // slightly different usage based on the given usage model.
 type volumeManager struct {
-	logger hclog.Logger
-	plugin csi.CSIPlugin
+	logger  hclog.Logger
+	eventer TriggerNodeEvent
+	plugin  csi.CSIPlugin
 
 	usageTracker *volumeUsageTracker
 
@@ -49,9 +50,10 @@ type volumeManager struct {
 	requiresStaging bool
 }
 
-func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
+func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
 	return &volumeManager{
 		logger:              logger.Named("volume_manager"),
+		eventer:             eventer,
 		plugin:              plugin,
 		mountRoot:           rootDir,
 		containerMountPoint: containerRootDir,
@@ -160,11 +162,8 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 		return err
 	}
 
-	// We currently treat all explicit CSI NodeStageVolume errors (aside from timeouts, codes.ResourceExhausted, and codes.Unavailable)
-	// as fatal.
-	// In the future, we can provide more useful error messages based on
-	// different types of error. For error documentation see:
-	// https://github.com/container-storage-interface/spec/blob/4731db0e0bc53238b93850f43ab05d9355df0fd9/spec.md#nodestagevolume-errors
+	// CSI NodeStageVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeStageVolume(ctx,
 		vol.ID,
 		publishContext,
@@ -199,6 +198,8 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 		return nil, err
 	}
 
+	// CSI NodePublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
 		VolumeID:          vol.RemoteID(),
 		PublishContext:    publishContext,
@@ -221,24 +222,37 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 // modes from the CSI Hook.
 // It then uses this state to stage and publish the volume as required for use
 // by the given allocation.
-func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (*MountInfo, error) {
+func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (mountInfo *MountInfo, err error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
 	if v.requiresStaging {
-		if err := v.stageVolume(ctx, vol, usage, publishContext); err != nil {
-			return nil, err
-		}
+		err = v.stageVolume(ctx, vol, usage, publishContext)
 	}
 
-	mountInfo, err := v.publishVolume(ctx, vol, alloc, usage, publishContext)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		mountInfo, err = v.publishVolume(ctx, vol, alloc, usage, publishContext)
 	}
 
-	v.usageTracker.Claim(alloc, vol, usage)
+	if err == nil {
+		v.usageTracker.Claim(alloc, vol, usage)
+	}
 
-	return mountInfo, nil
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemStorage).
+		SetMessage("Mount volume").
+		AddDetail("volume_namespace", vol.Namespace).
+		AddDetail("volume_id", vol.ID)
+	if err == nil {
+		event.AddDetail("success", "true")
+	} else {
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
+	}
+
+	v.eventer(event)
+
+	return mountInfo, err
 }
 
 // unstageVolume is the inverse operation of `stageVolume` and must be called
@@ -249,6 +263,9 @@ func (v *volumeManager) unstageVolume(ctx context.Context, vol *structs.CSIVolum
 	logger := hclog.FromContext(ctx)
 	logger.Trace("Unstaging volume")
 	stagingPath := v.stagingDirForVolume(v.containerMountPoint, vol, usage)
+
+	// CSI NodeUnstageVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeUnstageVolume(ctx,
 		vol.ID,
 		stagingPath,
@@ -274,6 +291,8 @@ func combineErrors(maybeErrs ...error) error {
 func (v *volumeManager) unpublishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) error {
 	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, vol, alloc, usage)
 
+	// CSI NodeUnpublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	rpcErr := v.plugin.NodeUnpublishVolume(ctx, vol.ID, pluginTargetPath,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
@@ -301,19 +320,32 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, vol *structs.CSIVol
 	return rpcErr
 }
 
-func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) error {
+func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) (err error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
-	err := v.unpublishVolume(ctx, vol, alloc, usage)
-	if err != nil {
-		return err
+	err = v.unpublishVolume(ctx, vol, alloc, usage)
+
+	if err == nil {
+		canRelease := v.usageTracker.Free(alloc, vol, usage)
+		if v.requiresStaging && canRelease {
+			err = v.unstageVolume(ctx, vol, usage)
+		}
 	}
 
-	canRelease := v.usageTracker.Free(alloc, vol, usage)
-	if !v.requiresStaging || !canRelease {
-		return nil
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemStorage).
+		SetMessage("Unmount volume").
+		AddDetail("volume_namespace", vol.Namespace).
+		AddDetail("volume_id", vol.ID)
+	if err == nil {
+		event.AddDetail("success", "true")
+	} else {
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
 	}
 
-	return v.unstageVolume(ctx, vol, usage)
+	v.eventer(event)
+
+	return err
 }

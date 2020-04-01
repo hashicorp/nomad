@@ -16,6 +16,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
@@ -23,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hpcloud/tail/watch"
-	"github.com/ugorji/go/codec"
 )
 
 var (

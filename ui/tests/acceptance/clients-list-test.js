@@ -232,6 +232,24 @@ module('Acceptance | clients list', function(hooks) {
     filter: (node, selection) => selection.includes(node.datacenter),
   });
 
+  testFacet('Volumes', {
+    facet: ClientsList.facets.volume,
+    paramName: 'volume',
+    expectedOptions(nodes) {
+      const flatten = (acc, val) => acc.concat(Object.keys(val));
+      return Array.from(new Set(nodes.mapBy('hostVolumes').reduce(flatten, [])));
+    },
+    async beforeEach() {
+      server.create('agent');
+      server.createList('node', 2, { hostVolumes: { One: { Name: 'One' } } });
+      server.createList('node', 2, { hostVolumes: { One: { Name: 'One' }, Two: { Name: 'Two' } } });
+      server.createList('node', 2, { hostVolumes: { Two: { Name: 'Two' } } });
+      await ClientsList.visit();
+    },
+    filter: (node, selection) =>
+      Object.keys(node.hostVolumes).find(volume => selection.includes(volume)),
+  });
+
   test('when the facet selections result in no matches, the empty state states why', async function(assert) {
     server.create('agent');
     server.createList('node', 2, { status: 'ready' });

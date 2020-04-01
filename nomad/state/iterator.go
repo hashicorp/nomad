@@ -20,9 +20,10 @@ func (i *SliceIterator) Next() interface{} {
 	if i.idx == len(i.data) {
 		return nil
 	}
-	idx := i.idx
+
+	datum := i.data[i.idx]
 	i.idx += 1
-	return i.data[idx]
+	return datum
 }
 
 func (i *SliceIterator) WatchCh() <-chan struct{} {

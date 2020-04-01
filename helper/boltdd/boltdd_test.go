@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/boltdb/bolt"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 type testingT interface {

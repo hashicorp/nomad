@@ -517,7 +517,7 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		Target:         args.Target,
 		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
-		Reason:         args.Reason,
+		Message:        args.Message,
 		Error:          args.Error,
 		Meta:           args.Meta,
 	}
@@ -1151,6 +1151,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					Path:          check.Path,
 					Protocol:      check.Protocol,
 					PortLabel:     check.PortLabel,
+					Expose:        check.Expose,
 					AddressMode:   check.AddressMode,
 					Interval:      check.Interval,
 					Timeout:       check.Timeout,
@@ -1185,67 +1186,110 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	if in == nil {
 		return nil
 	}
-
-	out := &structs.ConsulConnect{
-		Native: in.Native,
+	return &structs.ConsulConnect{
+		Native:         in.Native,
+		SidecarService: apiConnectSidecarServiceToStructs(in.SidecarService),
+		SidecarTask:    apiConnectSidecarTaskToStructs(in.SidecarTask),
 	}
+}
 
-	if in.SidecarService != nil {
-
-		out.SidecarService = &structs.ConsulSidecarService{
-			Tags: helper.CopySliceString(in.SidecarService.Tags),
-			Port: in.SidecarService.Port,
-		}
-
-		if in.SidecarService.Proxy != nil {
-
-			out.SidecarService.Proxy = &structs.ConsulProxy{
-				LocalServiceAddress: in.SidecarService.Proxy.LocalServiceAddress,
-				LocalServicePort:    in.SidecarService.Proxy.LocalServicePort,
-				Config:              in.SidecarService.Proxy.Config,
-			}
-
-			upstreams := make([]structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))
-			for i, p := range in.SidecarService.Proxy.Upstreams {
-				upstreams[i] = structs.ConsulUpstream{
-					DestinationName: p.DestinationName,
-					LocalBindPort:   p.LocalBindPort,
-				}
-			}
-
-			out.SidecarService.Proxy.Upstreams = upstreams
-		}
+func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.ConsulSidecarService {
+	if in == nil {
+		return nil
 	}
+	return &structs.ConsulSidecarService{
+		Port:  in.Port,
+		Tags:  helper.CopySliceString(in.Tags),
+		Proxy: apiConnectSidecarServiceProxyToStructs(in.Proxy),
+	}
+}
 
-	if in.SidecarTask != nil {
-		out.SidecarTask = &structs.SidecarTask{
-			Name:          in.SidecarTask.Name,
-			Driver:        in.SidecarTask.Driver,
-			Config:        in.SidecarTask.Config,
-			User:          in.SidecarTask.User,
-			Env:           in.SidecarTask.Env,
-			Resources:     ApiResourcesToStructs(in.SidecarTask.Resources),
-			Meta:          in.SidecarTask.Meta,
-			LogConfig:     &structs.LogConfig{},
-			ShutdownDelay: in.SidecarTask.ShutdownDelay,
-			KillSignal:    in.SidecarTask.KillSignal,
-		}
+func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.ConsulProxy {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulProxy{
+		LocalServiceAddress: in.LocalServiceAddress,
+		LocalServicePort:    in.LocalServicePort,
+		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
+		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
+		Config:              in.Config,
+	}
+}
 
-		if in.SidecarTask.KillTimeout != nil {
-			out.SidecarTask.KillTimeout = in.SidecarTask.KillTimeout
-		}
-		if in.SidecarTask.LogConfig != nil {
-			out.SidecarTask.LogConfig = &structs.LogConfig{}
-			if in.SidecarTask.LogConfig.MaxFiles != nil {
-				out.SidecarTask.LogConfig.MaxFiles = *in.SidecarTask.LogConfig.MaxFiles
-			}
-			if in.SidecarTask.LogConfig.MaxFileSizeMB != nil {
-				out.SidecarTask.LogConfig.MaxFileSizeMB = *in.SidecarTask.LogConfig.MaxFileSizeMB
-			}
+func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
+	if len(in) == 0 {
+		return nil
+	}
+	upstreams := make([]structs.ConsulUpstream, len(in))
+	for i, upstream := range in {
+		upstreams[i] = structs.ConsulUpstream{
+			DestinationName: upstream.DestinationName,
+			LocalBindPort:   upstream.LocalBindPort,
 		}
 	}
+	return upstreams
+}
 
-	return out
+func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulExposeConfig {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulExposeConfig{
+		Paths: apiConsulExposePathsToStructs(in.Path),
+	}
+}
+
+func apiConsulExposePathsToStructs(in []*api.ConsulExposePath) []structs.ConsulExposePath {
+	if len(in) == 0 {
+		return nil
+	}
+	paths := make([]structs.ConsulExposePath, len(in))
+	for i, path := range in {
+		paths[i] = structs.ConsulExposePath{
+			Path:          path.Path,
+			Protocol:      path.Protocol,
+			LocalPathPort: path.LocalPathPort,
+			ListenerPort:  path.ListenerPort,
+		}
+	}
+	return paths
+}
+
+func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
+	if in == nil {
+		return nil
+	}
+	return &structs.SidecarTask{
+		Name:          in.Name,
+		Driver:        in.Driver,
+		User:          in.User,
+		Config:        in.Config,
+		Env:           in.Env,
+		Resources:     ApiResourcesToStructs(in.Resources),
+		Meta:          in.Meta,
+		ShutdownDelay: in.ShutdownDelay,
+		KillSignal:    in.KillSignal,
+		KillTimeout:   in.KillTimeout,
+		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+	}
+}
+
+func apiLogConfigToStructs(in *api.LogConfig) *structs.LogConfig {
+	if in == nil {
+		return nil
+	}
+	return &structs.LogConfig{
+		MaxFiles:      dereferenceInt(in.MaxFiles),
+		MaxFileSizeMB: dereferenceInt(in.MaxFileSizeMB),
+	}
+}
+
+func dereferenceInt(in *int) int {
+	if in == nil {
+		return 0
+	}
+	return *in
 }
 
 func ApiConstraintsToStructs(in []*api.Constraint) []*structs.Constraint {

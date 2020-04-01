@@ -143,12 +143,11 @@ func (c *Client) updateNodeFromCSIControllerLocked(name string, info *structs.CS
 		if oldController.Healthy != i.Healthy || oldController.HealthDescription != i.HealthDescription {
 			changed = true
 			if i.HealthDescription != "" {
-				event := &structs.NodeEvent{
-					Subsystem: "CSI",
-					Message:   i.HealthDescription,
-					Timestamp: time.Now(),
-					Details:   map[string]string{"plugin": name, "type": "controller"},
-				}
+				event := structs.NewNodeEvent().
+					SetSubsystem("CSI").
+					SetMessage(i.HealthDescription).
+					AddDetail("plugin", name).
+					AddDetail("type", "controller")
 				c.triggerNodeEvent(event)
 			}
 		}
@@ -187,12 +186,11 @@ func (c *Client) updateNodeFromCSINodeLocked(name string, info *structs.CSIInfo)
 		if oldNode.Healthy != i.Healthy || oldNode.HealthDescription != i.HealthDescription {
 			changed = true
 			if i.HealthDescription != "" {
-				event := &structs.NodeEvent{
-					Subsystem: "CSI",
-					Message:   i.HealthDescription,
-					Timestamp: time.Now(),
-					Details:   map[string]string{"plugin": name, "type": "node"},
-				}
+				event := structs.NewNodeEvent().
+					SetSubsystem("CSI").
+					SetMessage(i.HealthDescription).
+					AddDetail("plugin", name).
+					AddDetail("type", "node")
 				c.triggerNodeEvent(event)
 			}
 		}
@@ -240,12 +238,10 @@ func (c *Client) updateNodeFromDriverLocked(name string, info *structs.DriverInf
 		if oldVal.Healthy != info.Healthy || oldVal.HealthDescription != info.HealthDescription {
 			hasChanged = true
 			if info.HealthDescription != "" {
-				event := &structs.NodeEvent{
-					Subsystem: "Driver",
-					Message:   info.HealthDescription,
-					Timestamp: time.Now(),
-					Details:   map[string]string{"driver": name},
-				}
+				event := structs.NewNodeEvent().
+					SetSubsystem("Driver").
+					SetMessage(info.HealthDescription).
+					AddDetail("driver", name)
 				c.triggerNodeEvent(event)
 			}
 		}

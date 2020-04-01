@@ -1118,6 +1118,65 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-proxy-expose.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_proxy_expose"),
+				Name: helper.StringToPtr("group_service_proxy_expose"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{
+									ExposeConfig: &api.ConsulExposeConfig{
+										Path: []*api.ConsulExposePath{{
+											Path:          "/health",
+											Protocol:      "http",
+											LocalPathPort: 2222,
+											ListenerPort:  "healthcheck",
+										}, {
+											Path:          "/metrics",
+											Protocol:      "grpc",
+											LocalPathPort: 3000,
+											ListenerPort:  "metrics",
+										}},
+									},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-check-expose.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_proxy_expose"),
+				Name: helper.StringToPtr("group_service_proxy_expose"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{},
+							},
+						},
+						Checks: []api.ServiceCheck{{
+							Name:   "example-check1",
+							Expose: true,
+						}, {
+							Name:   "example-check2",
+							Expose: false,
+						}},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-enable-tag-override.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("group_service_eto"),
