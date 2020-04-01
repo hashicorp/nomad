@@ -202,7 +202,6 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	ns := "not-default-ns"
 	state := srv.fsm.State()
 	codec := rpcClient(t, srv)
 	id0 := uuid.Generate()
@@ -216,7 +215,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		Claim:        structs.CSIVolumeClaimWrite,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
-			Namespace: ns,
+			Namespace: structs.DefaultNamespace,
 		},
 	}
 	claimResp := &structs.CSIVolumeClaimResponse{}
@@ -238,7 +237,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 
 	vols := []*structs.CSIVolume{{
 		ID:             id0,
-		Namespace:      ns,
+		Namespace:      structs.DefaultNamespace,
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
@@ -254,7 +253,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		ID: id0,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
-			Namespace: ns,
+			Namespace: structs.DefaultNamespace,
 		},
 	}
 	volGetResp := &structs.CSIVolumeGetResponse{}
