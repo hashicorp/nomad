@@ -30,8 +30,12 @@ jobs:
         name: install protoc
     - run:
         command: ./scripts/vagrant-linux-unpriv-ui.sh
+        name: install ui dependencies
     - run:
-        command: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make prerelease
+        command: |
+          . ~/.nvm/vvm
+          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make prerelease
+        name: generate ui assets and run code generation
     - run:
         command: make pkg/windows_amd64.zip pkg/linux_amd64.zip
     - store_artifacts:
@@ -242,8 +246,14 @@ workflows:
 #     - run: apt-get update; apt-get install -y sudo unzip zip
 #     - run: make deps
 #     - install-protoc
-#     - run: ./scripts/vagrant-linux-unpriv-ui.sh
-#     - run: sudo -E PATH=\"$GOPATH/bin:/usr/local/go/bin:$PATH\" make prerelease
+#     - run:
+#         command: ./scripts/vagrant-linux-unpriv-ui.sh
+#         name: install ui dependencies
+#     - run:
+#         command: |
+#           . ~/.nvm/vvm
+#           sudo -E PATH=\"$GOPATH/bin:/usr/local/go/bin:$PATH\" make prerelease
+#         name: generate ui assets and run code generation
 #     - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip
 #     - store_artifacts:
 #         destination: /builds/nomad_windows_amd64.zip
