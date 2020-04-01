@@ -140,6 +140,7 @@ type ClientCSINodeDetachVolumeRequest struct {
 	PluginID string // ID of the plugin that manages the volume (required)
 	VolumeID string // ID of the volume to be unpublished (required)
 	AllocID  string // ID of the allocation we're unpublishing for (required)
+	NodeID   string // ID of the Nomad client targeted
 
 	// These fields should match the original volume request so that
 	// we can find the mount points on the client

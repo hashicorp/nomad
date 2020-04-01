@@ -10,6 +10,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	version "github.com/hashicorp/go-version"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -735,8 +736,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 			"job", jobID)
 		return nil
 	}
-	c.volumeClaimReap([]*structs.Job{job}, eval.LeaderACL)
-	return nil
+	return c.volumeClaimReap([]*structs.Job{job}, eval.LeaderACL)
 }
 
 // volumeClaimReap contacts the leader and releases volume claims from
@@ -769,69 +769,144 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 					continue
 				}
 
-				gcAllocs := []string{} // alloc IDs
-				claimedNodes := map[string]struct{}{}
-				knownNodes := []string{}
-
-				collectFunc := func(allocs map[string]*structs.Allocation) {
-					for _, alloc := range allocs {
-						// we call denormalize on the volume above to populate
-						// Allocation pointers. But the alloc might have been
-						// garbage collected concurrently, so if the alloc is
-						// still nil we can safely skip it.
-						if alloc == nil {
-							continue
-						}
-						knownNodes = append(knownNodes, alloc.NodeID)
-						if !alloc.Terminated() {
-							// if there are any unterminated allocs, we
-							// don't want to unpublish the volume, just
-							// release the alloc's claim
-							claimedNodes[alloc.NodeID] = struct{}{}
-							continue
-						}
-						gcAllocs = append(gcAllocs, alloc.ID)
-					}
+				plug, err := c.srv.State().CSIPluginByID(ws, vol.PluginID)
+				if err != nil {
+					result = multierror.Append(result, err)
+					continue
 				}
 
-				collectFunc(vol.WriteAllocs)
-				collectFunc(vol.ReadAllocs)
+				gcClaims, nodeClaims := collectClaimsToGCImpl(vol)
 
-				req := &structs.CSIVolumeClaimRequest{
-					VolumeID:     volID,
-					AllocationID: "", // controller unpublish never uses this field
-					Claim:        structs.CSIVolumeClaimRelease,
-					WriteRequest: structs.WriteRequest{
-						Region:    job.Region,
-						Namespace: job.Namespace,
-						AuthToken: leaderACL,
-					},
-				}
-
-				// we only emit the controller unpublish if no other allocs
-				// on the node need it, but we also only want to make this
-				// call at most once per node
-				for _, node := range knownNodes {
-					if _, isClaimed := claimedNodes[node]; isClaimed {
-						continue
-					}
-					err = c.srv.controllerUnpublishVolume(req, node)
+				for _, claim := range gcClaims {
+					nodeClaims, err = volumeClaimReapImpl(c.srv,
+						&volumeClaimReapArgs{
+							vol:        vol,
+							plug:       plug,
+							allocID:    claim.allocID,
+							nodeID:     claim.nodeID,
+							mode:       claim.mode,
+							region:     job.Region,
+							namespace:  job.Namespace,
+							leaderACL:  leaderACL,
+							nodeClaims: nodeClaims,
+						},
+					)
 					if err != nil {
 						result = multierror.Append(result, err)
 						continue
-					}
-				}
-
-				for _, allocID := range gcAllocs {
-					req.AllocationID = allocID
-					err = c.srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
-					if err != nil {
-						c.logger.Error("volume claim release failed", "error", err)
-						result = multierror.Append(result, err)
 					}
 				}
 			}
 		}
 	}
 	return result.ErrorOrNil()
+}
+
+type gcClaimRequest struct {
+	allocID string
+	nodeID  string
+	mode    structs.CSIVolumeClaimMode
+}
+
+func collectClaimsToGCImpl(vol *structs.CSIVolume) ([]gcClaimRequest, map[string]int) {
+	gcAllocs := []gcClaimRequest{}
+	nodeClaims := map[string]int{} // node IDs -> count
+
+	collectFunc := func(allocs map[string]*structs.Allocation,
+		mode structs.CSIVolumeClaimMode) {
+		for _, alloc := range allocs {
+			// we call denormalize on the volume above to populate
+			// Allocation pointers. But the alloc might have been
+			// garbage collected concurrently, so if the alloc is
+			// still nil we can safely skip it.
+			if alloc == nil {
+				continue
+			}
+			nodeClaims[alloc.NodeID]++
+			if alloc.Terminated() {
+				gcAllocs = append(gcAllocs, gcClaimRequest{
+					allocID: alloc.ID,
+					nodeID:  alloc.NodeID,
+					mode:    mode,
+				})
+			}
+		}
+	}
+
+	collectFunc(vol.WriteAllocs, structs.CSIVolumeClaimWrite)
+	collectFunc(vol.ReadAllocs, structs.CSIVolumeClaimRead)
+	return gcAllocs, nodeClaims
+}
+
+type volumeClaimReapArgs struct {
+	vol        *structs.CSIVolume
+	plug       *structs.CSIPlugin
+	allocID    string
+	nodeID     string
+	mode       structs.CSIVolumeClaimMode
+	region     string
+	namespace  string
+	leaderACL  string
+	nodeClaims map[string]int // node IDs -> count
+}
+
+func volumeClaimReapImpl(srv RPCServer, args *volumeClaimReapArgs) (map[string]int, error) {
+	vol := args.vol
+	nodeID := args.nodeID
+
+	// (1) NodePublish / NodeUnstage must be completed before controller
+	// operations or releasing the claim.
+	nReq := &cstructs.ClientCSINodeDetachVolumeRequest{
+		PluginID:       args.plug.ID,
+		VolumeID:       vol.RemoteID(),
+		AllocID:        args.allocID,
+		NodeID:         nodeID,
+		AttachmentMode: vol.AttachmentMode,
+		AccessMode:     vol.AccessMode,
+		ReadOnly:       args.mode == structs.CSIVolumeClaimRead,
+	}
+	err := srv.RPC("ClientCSI.NodeDetachVolume", nReq,
+		&cstructs.ClientCSINodeDetachVolumeResponse{})
+	if err != nil {
+		return args.nodeClaims, err
+	}
+	args.nodeClaims[nodeID]--
+
+	// (2) we only emit the controller unpublish if no other allocs
+	// on the node need it, but we also only want to make this
+	// call at most once per node
+	if vol.ControllerRequired && args.nodeClaims[nodeID] < 1 {
+		controllerNodeID, err := nodeForControllerPlugin(srv.State(), args.plug)
+		if err != nil || nodeID == "" {
+			return args.nodeClaims, err
+		}
+		cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
+			VolumeID:        vol.RemoteID(),
+			ClientCSINodeID: nodeID,
+		}
+		cReq.PluginID = args.plug.ID
+		cReq.ControllerNodeID = controllerNodeID
+		err = srv.RPC("ClientCSI.ControllerDetachVolume", cReq,
+			&cstructs.ClientCSIControllerDetachVolumeResponse{})
+		if err != nil {
+			return args.nodeClaims, err
+		}
+	}
+
+	// (3) release the claim from the state store, allowing it to be rescheduled
+	req := &structs.CSIVolumeClaimRequest{
+		VolumeID:     vol.ID,
+		AllocationID: args.allocID,
+		Claim:        structs.CSIVolumeClaimRelease,
+		WriteRequest: structs.WriteRequest{
+			Region:    args.region,
+			Namespace: args.namespace,
+			AuthToken: args.leaderACL,
+		},
+	}
+	err = srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
+	if err != nil {
+		return args.nodeClaims, err
+	}
+	return args.nodeClaims, nil
 }
