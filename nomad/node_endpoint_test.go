@@ -2335,7 +2335,7 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 	err := state.UpsertNode(99, node)
 	require.NoError(t, err)
 	volId0 := uuid.Generate()
-	ns := "notTheNamespace"
+	ns := structs.DefaultNamespace
 	vols := []*structs.CSIVolume{{
 		ID:             volId0,
 		Namespace:      ns,
