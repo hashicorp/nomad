@@ -934,7 +934,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		reply.JobModifyIndex = job.ModifyIndex
 	}
 
-	// only create an eval for non-dispatch jobs and if the count was provided
+	// Only create an eval for non-dispatch jobs and if the count was provided
 	// for now, we'll do this even if count didn't change
 	if !job.IsPeriodic() && !job.IsParameterized() && args.Count != nil {
 		eval := &structs.Evaluation{

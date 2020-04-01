@@ -654,12 +654,12 @@ func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventR
 	req.ScalingEvent.CreateIndex = index
 
 	events := jobEvents.ScalingEvents[req.TaskGroup]
-	// prepend this latest event
+	// Prepend this latest event
 	events = append(
 		[]*structs.ScalingEvent{req.ScalingEvent},
 		events...,
 	)
-	// truncate older events
+	// Truncate older events
 	if len(events) > structs.JobTrackedScalingEvents {
 		events = events[0:structs.JobTrackedScalingEvents]
 	}
