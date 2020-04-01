@@ -52,6 +52,12 @@ func TestConnect_newConnect(t *testing.T) {
 			Tags:    []string{"foo", "bar"},
 			Port:    3000,
 			Address: "192.168.30.1",
+			Proxy: &api.AgentServiceConnectProxyConfig{
+				Config: map[string]interface{}{
+					"bind_address": "0.0.0.0",
+					"bind_port":    3000,
+				},
+			},
 		}, asr.SidecarService)
 	})
 }
@@ -95,6 +101,12 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 			Tags:    []string{"foo", "bar"},
 			Port:    3000,
 			Address: "192.168.30.1",
+			Proxy: &api.AgentServiceConnectProxyConfig{
+				Config: map[string]interface{}{
+					"bind_address": "0.0.0.0",
+					"bind_port":    3000,
+				},
+			},
 		}, proxy)
 	})
 }
@@ -102,10 +114,21 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 func TestConnect_connectProxy(t *testing.T) {
 	t.Parallel()
 
-	t.Run("nil", func(t *testing.T) {
-		proxy, err := connectProxy(nil, 2000, nil)
+	// If the input proxy is nil, we expect the output to be a proxy with its
+	// config set to default values.
+	t.Run("nil proxy", func(t *testing.T) {
+		proxy, err := connectProxy(nil, 2000, testConnectNetwork)
 		require.NoError(t, err)
-		require.Nil(t, proxy)
+		require.Equal(t, &api.AgentServiceConnectProxyConfig{
+			LocalServiceAddress: "",
+			LocalServicePort:    0,
+			Upstreams:           nil,
+			Expose:              api.ExposeConfig{},
+			Config: map[string]interface{}{
+				"bind_address": "0.0.0.0",
+				"bind_port":    2000,
+			},
+		}, proxy)
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
