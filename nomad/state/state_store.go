@@ -656,7 +656,7 @@ func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventR
 		[]*structs.ScalingEvent{req.ScalingEvent},
 		events...,
 	)
-	// truncate older events
+	// Truncate older events
 	if len(events) > structs.JobTrackedScalingEvents {
 		events = events[0:structs.JobTrackedScalingEvents]
 	}
