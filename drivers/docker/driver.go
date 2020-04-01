@@ -760,6 +760,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 		hostConfig.Runtime = d.config.GPURuntimeName
 	}
+	if driverConfig.OCIRuntime != "" {
+		if hostConfig.Runtime != "" {
+			return c, fmt.Errorf("oci_runtime '%s' requested conflicts with gpu runtime '%s'", driverConfig.OCIRuntime, hostConfig.Runtime)
+		}
+		hostConfig.Runtime = driverConfig.OCIRuntime
+	}
 
 	// Calculate CPU Quota
 	// cfs_quota_us is the time per core, so we must

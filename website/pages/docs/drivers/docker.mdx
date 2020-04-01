@@ -406,6 +406,16 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
 
+- `oci_runtime` - (Optional) A string representing a configured OCI runtime to pass to docker.
+  This is equivilent to the --runtime argument in the docker CLI.
+  For example, to use gvisor:
+
+  ```hcl
+  config {
+    oci_runtime = "runsc"
+  }
+  ```
+
 - `pids_limit` - (Optional) An integer value that specifies the pid limit for
   the container. Defaults to unlimited.
 

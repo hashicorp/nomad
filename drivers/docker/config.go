@@ -341,6 +341,7 @@ var (
 		})),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
+		"oci_runtime":     hclspec.NewAttr("oci_runtime", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
 		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
@@ -404,6 +405,7 @@ type TaskConfig struct {
 	Mounts            []DockerMount      `codec:"mounts"`
 	NetworkAliases    []string           `codec:"network_aliases"`
 	NetworkMode       string             `codec:"network_mode"`
+	OCIRuntime        string             `codec:"oci_runtime"`
 	PidsLimit         int64              `codec:"pids_limit"`
 	PidMode           string             `codec:"pid_mode"`
 	PortMap           hclutils.MapStrInt `codec:"port_map"`
