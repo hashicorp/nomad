@@ -1,5 +1,5 @@
 /* eslint-env node */
-module.exports = {
+const config = {
   test_page: 'tests/index.html?hidepassed',
   disable_watching: true,
   launch_in_ci: ['Chrome'],
@@ -23,3 +23,10 @@ module.exports = {
     }
   }
 };
+
+if (process.env.CI) {
+  config.reporter = 'xunit';
+  config.report_file = '/tmp/test-reports/ui.xml';
+}
+
+module.exports = config;
