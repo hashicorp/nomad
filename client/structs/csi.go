@@ -87,6 +87,9 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.Controller
 	}, nil
 }
 
+// ClientCSIControllerDetachVolumeRequest is the RPC made from the server to
+// a Nomad client to tell a CSI controller plugin on that client to perform
+// ControllerUnpublish for a volume on a specific client.
 type ClientCSIControllerAttachVolumeResponse struct {
 	// Opaque static publish properties of the volume. SP MAY use this
 	// field to ensure subsequent `NodeStageVolume` or `NodePublishVolume`
@@ -129,3 +132,20 @@ func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerU
 }
 
 type ClientCSIControllerDetachVolumeResponse struct{}
+
+// ClientCSINodeDetachVolumeRequest is the RPC made from the server to
+// a Nomad client to tell a CSI node plugin on that client to perform
+// NodeUnpublish and NodeUnstage.
+type ClientCSINodeDetachVolumeRequest struct {
+	PluginID string // ID of the plugin that manages the volume (required)
+	VolumeID string // ID of the volume to be unpublished (required)
+	AllocID  string // ID of the allocation we're unpublishing for (required)
+
+	// These fields should match the original volume request so that
+	// we can find the mount points on the client
+	AttachmentMode structs.CSIVolumeAttachmentMode
+	AccessMode     structs.CSIVolumeAccessMode
+	ReadOnly       bool
+}
+
+type ClientCSINodeDetachVolumeResponse struct{}

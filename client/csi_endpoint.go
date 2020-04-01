@@ -8,6 +8,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
@@ -154,6 +155,45 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 		return err
 	}
 
+	return nil
+}
+
+// NodeDetachVolume is used to detach a volume from a CSI Cluster from
+// the storage node provided in the request.
+func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, resp *structs.ClientCSINodeDetachVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_node", "detach_volume"}, time.Now())
+
+	// The following block of validation checks should not be reached on a
+	// real Nomad cluster. They serve as a defensive check before forwarding
+	// requests to plugins, and to aid with development.
+	if req.PluginID == "" {
+		return errors.New("PluginID is required")
+	}
+	if req.VolumeID == "" {
+		return errors.New("VolumeID is required")
+	}
+	if req.AllocID == "" {
+		return errors.New("AllocID is required")
+	}
+
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+
+	mounter, err := c.c.csimanager.MounterForPlugin(ctx, req.PluginID)
+	if err != nil {
+		return err
+	}
+
+	usageOpts := &csimanager.UsageOptions{
+		ReadOnly:       req.ReadOnly,
+		AttachmentMode: string(req.AttachmentMode),
+		AccessMode:     string(req.AccessMode),
+	}
+
+	err = mounter.UnmountVolume(ctx, req.VolumeID, req.AllocID, usageOpts)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

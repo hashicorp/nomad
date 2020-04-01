@@ -47,13 +47,13 @@ func TestUsageTracker(t *testing.T) {
 				ID: "foo",
 			}
 			for _, alloc := range tc.RegisterAllocs {
-				tracker.Claim(alloc, volume, &UsageOptions{})
+				tracker.Claim(alloc.ID, volume.ID, &UsageOptions{})
 			}
 
 			result := false
 
 			for _, alloc := range tc.FreeAllocs {
-				result = tracker.Free(alloc, volume, &UsageOptions{})
+				result = tracker.Free(alloc.ID, volume.ID, &UsageOptions{})
 			}
 
 			require.Equal(t, tc.ExpectedResult, result, "Tracker State: %#v", tracker.state)
