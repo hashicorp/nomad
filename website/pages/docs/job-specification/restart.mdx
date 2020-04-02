@@ -7,10 +7,16 @@ description: The "restart" stanza configures a group's behavior on task failure.
 
 # `restart` Stanza
 
-<Placement groups={['job', 'group', 'restart']} />
+<Placement
+  groups={[
+    ['job', 'group', 'restart'],
+    ['job', 'group', 'task', 'restart']
+  ]}
+/>
 
-The `restart` stanza configures a group's behavior on task failure. Restarts
-happen on the client that is running the task.
+The `restart` stanza configures a tasks's behavior on task failure. Restarts
+happen on the client that is running the task. If specified at the group level,
+the configuration will apply to all tasks within the group.
 
 ```hcl
 job "docs" {
