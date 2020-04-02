@@ -48,6 +48,10 @@ type serviceHook struct {
 	networks   structs.Networks
 	taskEnv    *taskenv.TaskEnv
 
+	// initialRegistrations tracks if Poststart has completed, initializing
+	// fields required in other lifecycle funcs
+	initialRegistration bool
+
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
 	mu sync.Mutex
@@ -91,12 +95,17 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 	// Create task services struct with request's driver metadata
 	workloadServices := h.getWorkloadServices()
 
+	defer func() { h.initialRegistration = true }()
 	return h.consul.RegisterWorkload(workloadServices)
 }
 
 func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if !h.initialRegistration {
+		// no op since initial registration has not finished
+		return nil
+	}
 
 	// Create old task services struct with request's driver metadata as it
 	// can't change due to Updates
