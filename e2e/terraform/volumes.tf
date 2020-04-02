@@ -22,3 +22,39 @@ resource "aws_ebs_volume" "csi" {
     User = data.aws_caller_identity.current.arn
   }
 }
+
+data "template_file" "ebs_volume_hcl" {
+  template = <<EOT
+type = "csi"
+id = "ebs-vol0"
+name = "ebs-vol0"
+external_id = "${aws_ebs_volume.csi.id}"
+access_mode = "single-node-writer"
+attachment_mode = "file-system"
+plugin_id = "aws-ebs0"
+EOT
+}
+
+data "template_file" "efs_volume_hcl" {
+  template = <<EOT
+type = "csi"
+id = "efs-vol0"
+name = "efs-vol0"
+external_id = "${aws_efs_file_system.csi.id}"
+access_mode = "single-node-writer"
+attachment_mode = "file-system"
+plugin_id = "aws-efs0"
+EOT
+}
+
+resource "local_file" "ebs_volume_hcl" {
+  content         = data.template_file.ebs_volume_hcl.rendered
+  filename        = "${path.module}/../csi/input/volume-ebs.hcl"
+  file_permission = "0664"
+}
+
+resource "local_file" "efs_volume_hcl" {
+  content         = data.template_file.efs_volume_hcl.rendered
+  filename        = "${path.module}/../csi/input/volume-efs.hcl"
+  file_permission = "0664"
+}
