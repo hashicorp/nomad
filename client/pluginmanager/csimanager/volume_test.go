@@ -83,7 +83,7 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 			csiFake := &csifake.Client{}
 			eventer := func(e *structs.NodeEvent) {}
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
-			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume, tc.UsageOptions)
+			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume.ID, tc.UsageOptions)
 
 			if tc.CreateDirAheadOfTime {
 				err := os.MkdirAll(expectedStagingPath, 0700)
@@ -236,7 +236,7 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unstageVolume(ctx, tc.Volume, tc.UsageOptions)
+			err := manager.unstageVolume(ctx, tc.Volume.ID, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -416,7 +416,7 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unpublishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions)
+			err := manager.unpublishVolume(ctx, tc.Volume.ID, tc.Allocation.ID, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -460,7 +460,6 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	require.Equal(t, "Mount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
 	require.Equal(t, "vol", e.Details["volume_id"])
-	require.Equal(t, "ns", e.Details["volume_namespace"])
 	require.Equal(t, "false", e.Details["success"])
 	require.Equal(t, "Unknown volume attachment mode: ", e.Details["error"])
 	events = events[1:]
@@ -474,11 +473,10 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	require.Equal(t, "Mount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
 	require.Equal(t, "vol", e.Details["volume_id"])
-	require.Equal(t, "ns", e.Details["volume_namespace"])
 	require.Equal(t, "true", e.Details["success"])
 	events = events[1:]
 
-	err = manager.UnmountVolume(ctx, vol, alloc, usage)
+	err = manager.UnmountVolume(ctx, vol.ID, alloc.ID, usage)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(events))
@@ -486,6 +484,5 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	require.Equal(t, "Unmount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
 	require.Equal(t, "vol", e.Details["volume_id"])
-	require.Equal(t, "ns", e.Details["volume_namespace"])
 	require.Equal(t, "true", e.Details["success"])
 }

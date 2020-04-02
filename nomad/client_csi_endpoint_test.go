@@ -40,7 +40,7 @@ func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "ClientCSIController.AttachVolume", req, &resp)
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerAttachVolume", req, &resp)
 	require.NotNil(err)
 	// Should recieve an error from the client endpoint
 	require.Contains(err.Error(), "must specify plugin name to dispense")
@@ -84,7 +84,7 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "ClientCSIController.AttachVolume", req, &resp)
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerAttachVolume", req, &resp)
 	require.NotNil(err)
 	// Should recieve an error from the client endpoint
 	require.Contains(err.Error(), "must specify plugin name to dispense")
@@ -118,7 +118,7 @@ func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "ClientCSIController.DetachVolume", req, &resp)
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDetachVolume", req, &resp)
 	require.NotNil(err)
 	// Should recieve an error from the client endpoint
 	require.Contains(err.Error(), "must specify plugin name to dispense")
@@ -162,7 +162,7 @@ func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 
 	// Fetch the response
 	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "ClientCSIController.DetachVolume", req, &resp)
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDetachVolume", req, &resp)
 	require.NotNil(err)
 	// Should recieve an error from the client endpoint
 	require.Contains(err.Error(), "must specify plugin name to dispense")

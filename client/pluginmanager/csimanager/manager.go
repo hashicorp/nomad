@@ -2,6 +2,7 @@ package csimanager
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -73,15 +74,15 @@ func (c *csiManager) PluginManager() pluginmanager.PluginManager {
 	return c
 }
 
-func (c *csiManager) MounterForVolume(ctx context.Context, vol *structs.CSIVolume) (VolumeMounter, error) {
+func (c *csiManager) MounterForPlugin(ctx context.Context, pluginID string) (VolumeMounter, error) {
 	nodePlugins, hasAnyNodePlugins := c.instances["csi-node"]
 	if !hasAnyNodePlugins {
-		return nil, PluginNotFoundErr
+		return nil, fmt.Errorf("no storage node plugins found")
 	}
 
-	mgr, hasPlugin := nodePlugins[vol.PluginID]
+	mgr, hasPlugin := nodePlugins[pluginID]
 	if !hasPlugin {
-		return nil, PluginNotFoundErr
+		return nil, fmt.Errorf("plugin %s for type csi-node not found", pluginID)
 	}
 
 	return mgr.VolumeMounter(ctx)
