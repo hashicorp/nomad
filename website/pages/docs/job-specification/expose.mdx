@@ -55,6 +55,16 @@ job "expose-example" {
           }
         }
       }
+
+      check {
+        name     = "dashboard-health"
+        type     = "http"
+        port     = "expose"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "3s"
+        expose   = true
+      }
     }
   }
 }
@@ -140,6 +150,18 @@ A common use case for `expose` is for exposing endpoints used in Consul service 
 definitions. For these cases the [expose](/docs/job-specification/service#expose)
 parameter in the service check stanza can be used to automatically generate the
 expose path configuration.
+
+```hcl
+check {
+  type     = "http"
+  name     = "dashboard-health"
+  port     = "expose"
+  path     = "/health"
+  interval = "10s"
+  timeout  = "3s"
+  expose   = true
+}
+```
 
 [path]: /docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'
 [port]: /docs/job-specification/network#port-parameters 'Nomad Port Parameters'
