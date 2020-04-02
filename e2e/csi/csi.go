@@ -3,22 +3,22 @@ package csi
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 type CSIVolumesTest struct {
 	framework.TC
-	jobIds    []string
-	volumeIDs *volumeConfig
+	jobIds []string
 }
 
 func init() {
@@ -39,20 +39,6 @@ type volumeConfig struct {
 
 func (tc *CSIVolumesTest) BeforeAll(f *framework.F) {
 	t := f.T()
-	// The volume IDs come from the external provider, so we need
-	// to read the configuration out of our Terraform output.
-	rawjson, err := ioutil.ReadFile("csi/input/volumes.json")
-	if err != nil {
-		t.Skip("volume ID configuration not found, try running 'terraform output volumes > ../csi/input/volumes.json'")
-	}
-	volumeIDs := &volumeConfig{}
-	err = json.Unmarshal(rawjson, volumeIDs)
-	if err != nil {
-		t.Fatal("volume ID configuration could not be read")
-	}
-
-	tc.volumeIDs = volumeIDs
-
 	// Ensure cluster has leader and at least two client
 	// nodes in a ready state before running tests
 	e2eutil.WaitForLeader(t, tc.Nomad())
@@ -97,15 +83,9 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 
 	// register a volume
 	volID := "ebs-vol0"
-	vol := &api.CSIVolume{
-		ID:             volID,
-		Name:           volID,
-		ExternalID:     tc.volumeIDs.EBSVolumeID,
-		AccessMode:     "single-node-writer",
-		AttachmentMode: "file-system",
-		PluginID:       "aws-ebs0",
-	}
-	_, err := nomadClient.CSIVolumes().Register(vol, nil)
+	vol, err := parseVolumeFile("csi/input/volume-ebs.hcl")
+	require.NoError(err)
+	_, err = nomadClient.CSIVolumes().Register(vol, nil)
 	require.NoError(err)
 	defer nomadClient.CSIVolumes().Deregister(volID, nil)
 
@@ -136,7 +116,6 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 		"csi/input/use-ebs-volume.nomad", readJobID, "")
 	readAllocID := readAllocs[0].ID
 	e2eutil.WaitForAllocRunning(t, nomadClient, readAllocID)
-
 	// ensure we clean up claim before we deregister volumes
 	defer nomadClient.Jobs().Deregister(readJobID, true, nil)
 
@@ -179,15 +158,9 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 
 	// register a volume
 	volID := "efs-vol0"
-	vol := &api.CSIVolume{
-		ID:             volID,
-		Name:           volID,
-		ExternalID:     tc.volumeIDs.EFSVolumeID,
-		AccessMode:     "single-node-writer",
-		AttachmentMode: "file-system",
-		PluginID:       "aws-efs0",
-	}
-	_, err := nomadClient.CSIVolumes().Register(vol, nil)
+	vol, err := parseVolumeFile("csi/input/volume-efs.hcl")
+	require.NoError(err)
+	_, err = nomadClient.CSIVolumes().Register(vol, nil)
 	require.NoError(err)
 	defer nomadClient.CSIVolumes().Deregister(volID, nil)
 
@@ -248,4 +221,35 @@ func readFile(client *api.Client, alloc *api.Allocation, path string) (bytes.Buf
 		os.Stdin, &stdout, &stderr,
 		make(chan api.TerminalSize), nil)
 	return stdout, err
+}
+
+// TODO(tgross): this is taken from `nomad volume register` but
+// it would be nice if we could expose this with a ParseFile as
+// we do for api.Job.
+func parseVolumeFile(filepath string) (*api.CSIVolume, error) {
+
+	rawInput, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return nil, err
+	}
+	ast, err := hcl.Parse(string(rawInput))
+	if err != nil {
+		return nil, err
+	}
+
+	output := &api.CSIVolume{}
+	err = hcl.DecodeObject(output, ast)
+	if err != nil {
+		return nil, err
+	}
+
+	// api.CSIVolume doesn't have the type field, it's used only for
+	// dispatch in parseVolumeType
+	helper.RemoveEqualFold(&output.ExtraKeysHCL, "type")
+	err = helper.UnusedKeys(output)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
