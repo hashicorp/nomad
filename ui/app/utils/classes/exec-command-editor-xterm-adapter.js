@@ -4,7 +4,7 @@ const REVERSE_WRAPAROUND_MODE = '\x1b[?45h';
 const BACKSPACE_ONE_CHARACTER = '\x08 \x08';
 
 // eslint-disable-next-line no-control-regex
-const UNPRINTABLE_CHARACTERS_REGEX = /[\x00-\x1F]/;
+const UNPRINTABLE_CHARACTERS_REGEX = /[\x00-\x1F]/i;
 
 export default class ExecCommandEditorXtermAdapter {
   constructor(terminal, setCommandCallback, command) {
@@ -43,9 +43,10 @@ export default class ExecCommandEditorXtermAdapter {
         this.terminal.write(BACKSPACE_ONE_CHARACTER);
         this.command = this.command.slice(0, -1);
       }
-    } else if (data.length > 0 && !UNPRINTABLE_CHARACTERS_REGEX.test(data)) {
-      this.terminal.write(data);
-      this.command = `${this.command}${data}`;
+    } else if (data.length > 0) {
+      const strippedData = data.replace(UNPRINTABLE_CHARACTERS_REGEX, '');
+      this.terminal.write(strippedData);
+      this.command = `${this.command}${strippedData}`;
     }
   }
 
