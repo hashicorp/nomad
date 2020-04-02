@@ -12,6 +12,7 @@ import {
 } from 'ember-cli-page-object';
 
 import facet from 'nomad-ui/tests/pages/components/facet';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
   pageSize: 25,
@@ -61,16 +62,7 @@ export default create({
     headline: text('[data-test-empty-clients-list-headline]'),
   },
 
-  pageSizeSelect: {
-    isPresent: isPresent('[data-test-page-size-select]'),
-    open: clickable('[data-test-page-size-select] .ember-power-select-trigger'),
-    selectedOption: text('[data-test-page-size-select] .ember-power-select-selected-item'),
-    options: collection('.ember-power-select-option', {
-      testContainer: '#ember-testing',
-      resetScope: true,
-      label: text(),
-    }),
-  },
+  pageSizeSelect: pageSizeSelect(),
 
   error: {
     isPresent: isPresent('[data-test-error]'),
