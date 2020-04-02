@@ -32,10 +32,7 @@ export default class ExecCommandEditorXtermAdapter {
     ) {
       // Ignore arrow keys
     } else if (data === KEYS.CONTROL_U) {
-      for (let i = 0; i < this.command.length; i++) {
-        this.terminal.write(BACKSPACE_ONE_CHARACTER);
-      }
-
+      this.terminal.write(BACKSPACE_ONE_CHARACTER.repeat(this.command.length));
       this.command = '';
     } else if (data === KEYS.ENTER) {
       this.terminal.writeln('');
