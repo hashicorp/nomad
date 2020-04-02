@@ -3,6 +3,9 @@ import KEYS from 'nomad-ui/utils/keys';
 const REVERSE_WRAPAROUND_MODE = '\x1b[?45h';
 const BACKSPACE_ONE_CHARACTER = '\x08 \x08';
 
+// eslint-disable-next-line no-control-regex
+const UNPRINTABLE_CHARACTERS_REGEX = /[\x00-\x1F]/;
+
 export default class ExecCommandEditorXtermAdapter {
   constructor(terminal, setCommandCallback, command) {
     this.terminal = terminal;
@@ -43,8 +46,7 @@ export default class ExecCommandEditorXtermAdapter {
         this.terminal.write(BACKSPACE_ONE_CHARACTER);
         this.command = this.command.slice(0, -1);
       }
-      // eslint-disable-next-line no-control-regex
-    } else if (data.length > 0 && !/[\x00-\x1F]/.test(data)) {
+    } else if (data.length > 0 && !UNPRINTABLE_CHARACTERS_REGEX.test(data)) {
       this.terminal.write(data);
       this.command = `${this.command}${data}`;
     }
