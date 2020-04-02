@@ -16,15 +16,54 @@ import (
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/pkg/errors"
 )
 
 const envoyBootstrapHookName = "envoy_bootstrap"
 
+type envoyBootstrapConsulConfig struct {
+	HTTPAddr  string // required
+	Auth      string // optional, env CONSUL_HTTP_AUTH
+	SSL       string // optional, env CONSUL_HTTP_SSL
+	VerifySSL string // optional, env CONSUL_HTTP_SSL_VERIFY
+	CAFile    string // optional, arg -ca-file
+	CertFile  string // optional, arg -client-cert
+	KeyFile   string // optional, arg -client-key
+	// CAPath (dir) not supported by Nomad's config object
+}
+
 type envoyBootstrapHookConfig struct {
-	alloc          *structs.Allocation
-	consulHTTPAddr string
-	logger         hclog.Logger
+	consul envoyBootstrapConsulConfig
+	alloc  *structs.Allocation
+	logger hclog.Logger
+}
+
+func decodeTriState(b *bool) string {
+	switch {
+	case b == nil:
+		return ""
+	case *b:
+		return "true"
+	default:
+		return "false"
+	}
+}
+
+func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, logger hclog.Logger) *envoyBootstrapHookConfig {
+	return &envoyBootstrapHookConfig{
+		alloc:  alloc,
+		logger: logger,
+		consul: envoyBootstrapConsulConfig{
+			HTTPAddr:  consul.Addr,
+			Auth:      consul.Auth,
+			SSL:       decodeTriState(consul.EnableSSL),
+			VerifySSL: decodeTriState(consul.VerifySSL),
+			CAFile:    consul.CAFile,
+			CertFile:  consul.CertFile,
+			KeyFile:   consul.KeyFile,
+		},
+	}
 }
 
 const (
@@ -40,8 +79,9 @@ type envoyBootstrapHook struct {
 
 	// Bootstrapping Envoy requires talking directly to Consul to generate
 	// the bootstrap.json config. Runtime Envoy configuration is done via
-	// Consul's gRPC endpoint.
-	consulHTTPAddr string
+	// Consul's gRPC endpoint. There are many security parameters to configure
+	// before contacting Consul.
+	consulConfig envoyBootstrapConsulConfig
 
 	// logger is used to log things
 	logger hclog.Logger
@@ -49,9 +89,9 @@ type envoyBootstrapHook struct {
 
 func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 	return &envoyBootstrapHook{
-		alloc:          c.alloc,
-		consulHTTPAddr: c.consulHTTPAddr,
-		logger:         c.logger.Named(envoyBootstrapHookName),
+		alloc:        c.alloc,
+		consulConfig: c.consul,
+		logger:       c.logger.Named(envoyBootstrapHookName),
 	}
 }
 
@@ -113,19 +153,23 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	}
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
-	bootstrapArgs := envoyBootstrapArgs{
+	bootstrapBuilder := envoyBootstrapArgs{
+		consulConfig:   h.consulConfig,
 		sidecarFor:     id,
 		grpcAddr:       grpcAddr,
-		consulHTTPAddr: h.consulHTTPAddr,
 		envoyAdminBind: envoyAdminBind,
 		siToken:        siToken,
-	}.args()
+	}
+
+	bootstrapArgs := bootstrapBuilder.args()
+	bootstrapEnv := bootstrapBuilder.env(os.Environ())
 
 	// Since Consul services are registered asynchronously with this task
 	// hook running, retry a small number of times with backoff.
 	for tries := 3; ; tries-- {
 
 		cmd := exec.CommandContext(ctx, "consul", bootstrapArgs...)
+		cmd.Env = bootstrapEnv
 
 		// Redirect output to secrets/envoy_bootstrap.json
 		fd, err := os.Create(bootstrapFilePath)
@@ -225,10 +269,10 @@ func (h *envoyBootstrapHook) execute(cmd *exec.Cmd) (string, error) {
 // along to the exec invocation of consul which will then generate the bootstrap
 // configuration file for envoy.
 type envoyBootstrapArgs struct {
+	consulConfig   envoyBootstrapConsulConfig
 	sidecarFor     string
 	grpcAddr       string
 	envoyAdminBind string
-	consulHTTPAddr string
 	siToken        string
 }
 
@@ -239,15 +283,48 @@ func (e envoyBootstrapArgs) args() []string {
 		"connect",
 		"envoy",
 		"-grpc-addr", e.grpcAddr,
-		"-http-addr", e.consulHTTPAddr,
+		"-http-addr", e.consulConfig.HTTPAddr,
 		"-admin-bind", e.envoyAdminBind,
 		"-bootstrap",
 		"-sidecar-for", e.sidecarFor,
 	}
-	if e.siToken != "" {
-		arguments = append(arguments, "-token", e.siToken)
+
+	if v := e.siToken; v != "" {
+		arguments = append(arguments, "-token", v)
 	}
+
+	if v := e.consulConfig.CAFile; v != "" {
+		arguments = append(arguments, "-ca-file", v)
+	}
+
+	if v := e.consulConfig.CertFile; v != "" {
+		arguments = append(arguments, "-client-cert", v)
+	}
+
+	if v := e.consulConfig.KeyFile; v != "" {
+		arguments = append(arguments, "-client-key", v)
+	}
+
 	return arguments
+}
+
+// env creates the context of environment variables to be used when exec-ing
+// the consul command for generating the envoy bootstrap config. It is expected
+// the value of os.Environ() is passed in to be appended to. Because these are
+// appended at the end of what will be passed into Cmd.Env, they will override
+// any pre-existing values (i.e. what the Nomad agent was launched with).
+// https://golang.org/pkg/os/exec/#Cmd
+func (e envoyBootstrapArgs) env(env []string) []string {
+	if v := e.consulConfig.Auth; v != "" {
+		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_HTTP_AUTH", v))
+	}
+	if v := e.consulConfig.SSL; v != "" {
+		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_HTTP_SSL", v))
+	}
+	if v := e.consulConfig.VerifySSL; v != "" {
+		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_HTTP_SSL_VERIFY", v))
+	}
+	return env
 }
 
 // maybeLoadSIToken reads the SI token saved to disk in the secrets directory
