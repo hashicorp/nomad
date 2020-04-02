@@ -91,11 +91,11 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 	h.driverExec = req.DriverExec
 	h.driverNet = req.DriverNetwork
 	h.taskEnv = req.TaskEnv
+	h.initialRegistration = true
 
 	// Create task services struct with request's driver metadata
 	workloadServices := h.getWorkloadServices()
 
-	defer func() { h.initialRegistration = true }()
 	return h.consul.RegisterWorkload(workloadServices)
 }
 
@@ -103,14 +103,26 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if !h.initialRegistration {
-		// no op since initial registration has not finished
-		return nil
+		// no op Consul since initial registration has not finished
+		// only update hook fields
+		return h.updateHookFields(req)
 	}
 
 	// Create old task services struct with request's driver metadata as it
 	// can't change due to Updates
 	oldWorkloadServices := h.getWorkloadServices()
 
+	if err := h.updateHookFields(req); err != nil {
+		return err
+	}
+
+	// Create new task services struct with those new values
+	newWorkloadServices := h.getWorkloadServices()
+
+	return h.consul.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+}
+
+func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error {
 	// Store new updated values out of request
 	canary := false
 	if req.Alloc.DeploymentStatus != nil {
@@ -134,10 +146,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	h.networks = networks
 	h.canary = canary
 
-	// Create new task services struct with those new values
-	newWorkloadServices := h.getWorkloadServices()
-
-	return h.consul.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+	return nil
 }
 
 func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKillRequest, resp *interfaces.TaskPreKillResponse) error {
@@ -164,6 +173,7 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.deregister()
+	h.initialRegistration = false
 	return nil
 }
 

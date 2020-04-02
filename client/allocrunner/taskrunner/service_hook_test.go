@@ -34,4 +34,17 @@ func TestUpdate_beforePoststart(t *testing.T) {
 	require.Len(t, c.GetOps(), 1)
 	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
 	require.Len(t, c.GetOps(), 2)
+
+	// When a task exits it could be restarted with new driver info
+	// so Update should again wait on Poststart.
+
+	require.NoError(t, hook.Exited(context.Background(), &interfaces.TaskExitedRequest{}, &interfaces.TaskExitedResponse{}))
+	require.Len(t, c.GetOps(), 4)
+	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
+	require.Len(t, c.GetOps(), 4)
+	require.NoError(t, hook.Poststart(context.Background(), &interfaces.TaskPoststartRequest{}, &interfaces.TaskPoststartResponse{}))
+	require.Len(t, c.GetOps(), 5)
+	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
+	require.Len(t, c.GetOps(), 6)
+
 }
