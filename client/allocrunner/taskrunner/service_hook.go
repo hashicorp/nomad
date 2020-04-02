@@ -39,6 +39,8 @@ type serviceHook struct {
 	restarter agentconsul.WorkloadRestarter
 	logger    log.Logger
 
+	started bool
+
 	// The following fields may be updated
 	delay      time.Duration
 	driverExec tinterfaces.ScriptExecutor
@@ -82,6 +84,8 @@ func (h *serviceHook) Name() string {
 func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	h.started = true
 
 	// Store the TaskEnv for interpolating now and when Updating
 	h.driverExec = req.DriverExec
@@ -127,6 +131,11 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 
 	// Create new task services struct with those new values
 	newWorkloadServices := h.getWorkloadServices()
+
+	if !h.started {
+		// Got an update before task started:
+		// avoid registering consul yet, potentially with incomplete info
+	}
 
 	return h.consul.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
