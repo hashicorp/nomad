@@ -591,7 +591,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	inProbation := time.Now().Before(c.deregisterProbationExpiry)
 
 	// Remove Nomad services in Consul but unknown locally
-	anotherClientRegedSvcs := map[string]string{}
+	otherClientRegedSvcs := map[string]string{}
 	for id, svc := range consulServices {
 		if _, ok := c.services[id]; ok {
 			// Known service, skip
@@ -617,7 +617,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
-		// Ignore another client agent registered service
+		// Ignore other client agent registered service
 		// if address is same, but service id is different will be deregistration
 		isThisClientRegistered := false
 		for _, s := range c.services{
@@ -625,10 +625,10 @@ func (c *ServiceClient) sync(reason syncReason) error {
 				isThisClientRegistered = true
 			}else{
 				// used to checks deregistration, just care about self client service checks
-				anotherClientRegedSvcs[svc.ID] = svc.Address
+				otherClientRegedSvcs[svc.ID] = svc.Address
 			}
 		}
-		c.logger.Debug("another client registered services", anotherClientRegedSvcs)
+		c.logger.Debug("other client registered services", otherClientRegedSvcs)
 		if !isThisClientRegistered {
 			continue
 		}
@@ -691,8 +691,8 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
-		// Ignore another client agent registered check
-		if _,ok := anotherClientRegedSvcs[check.ServiceID]; ok {
+		// Ignore other client agent registered check
+		if _,ok := otherClientRegedSvcs[check.ServiceID]; ok {
 			continue
 		}
 		c.logger.Debug("deregister check", id, "name", check.Name)
