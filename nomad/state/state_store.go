@@ -1851,6 +1851,12 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 	defer txn.Abort()
 
 	for _, v := range volumes {
+		if exists, err := s.namespaceExists(txn, v.Namespace); err != nil {
+			return err
+		} else if !exists {
+			return fmt.Errorf("volume %s is in nonexistent namespace %s", v.ID, v.Namespace)
+		}
+
 		// Check for volume existence
 		obj, err := txn.First("csi_volumes", "id", v.Namespace, v.ID)
 		if err != nil {
