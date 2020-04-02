@@ -4,6 +4,7 @@ import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { Terminal } from 'xterm-vendor';
+import KEYS from 'nomad-ui/utils/keys';
 
 module('Integration | Utility | exec-command-editor-xterm-adapter', function(hooks) {
   setupRenderingTest(hooks);
@@ -29,14 +30,14 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
       '/bin/long-command'
     );
 
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
+    await terminal.simulateCommandDataEvent(KEYS.DELETE);
 
     await settled();
 
@@ -48,7 +49,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
       '/bin/long'
     );
 
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Enter' } });
+    await terminal.simulateCommandDataEvent(KEYS.ENTER);
   });
 
   test('it ignores arrow keys', async function(assert) {
@@ -72,13 +73,13 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
       '/bin/bash'
     );
 
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'ArrowRight' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'ArrowRight' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'ArrowLeft' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'ArrowUp' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'ArrowUp' } });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'ArrowDown' } });
-    await terminal.simulateCommandKeyEvent({ key: '!', domEvent: {} });
+    await terminal.simulateCommandDataEvent(KEYS.RIGHT_ARROW);
+    await terminal.simulateCommandDataEvent(KEYS.RIGHT_ARROW);
+    await terminal.simulateCommandDataEvent(KEYS.LEFT_ARROW);
+    await terminal.simulateCommandDataEvent(KEYS.UP_ARROW);
+    await terminal.simulateCommandDataEvent(KEYS.UP_ARROW);
+    await terminal.simulateCommandDataEvent(KEYS.DOWN_ARROW);
+    await terminal.simulateCommandDataEvent('!');
 
     await settled();
 
@@ -93,7 +94,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
       '/bin/bash!'
     );
 
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Enter' } });
+    await terminal.simulateCommandDataEvent(KEYS.ENTER);
   });
 
   test('it supports typing ^U to delete the entire command', async function(assert) {
@@ -117,7 +118,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
       'to-delete'
     );
 
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'u', ctrlKey: true } });
+    await terminal.simulateCommandDataEvent(KEYS.CONTROL_U);
 
     await settled();
 
@@ -129,7 +130,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
       ''
     );
 
-    await terminal.simulateCommandKeyEvent({ key: '!', domEvent: {} });
-    await terminal.simulateCommandKeyEvent({ domEvent: { key: 'Enter' } });
+    await terminal.simulateCommandDataEvent('!');
+    await terminal.simulateCommandDataEvent(KEYS.ENTER);
   });
 });
