@@ -61,6 +61,11 @@ The default sidecar task is equivalent to:
    sidecar_task {
      name   = "connect-proxy-<service>"
 
+     lifecycle {
+       hook = "prestart"
+       sidecar = true
+     }
+
      driver = "docker"
      config {
        image = "${meta.connect.sidecar_image}"
