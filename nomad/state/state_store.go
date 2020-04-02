@@ -1837,7 +1837,7 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 
 	iter, err := txn.Get("job_summary", "id_prefix", namespace, id)
 	if err != nil {
-		return nil, fmt.Errorf("eval lookup failed: %v", err)
+		return nil, fmt.Errorf("job_summary lookup failed: %v", err)
 	}
 
 	ws.Add(iter.WatchCh())
