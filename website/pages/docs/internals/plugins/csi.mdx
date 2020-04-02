@@ -56,10 +56,12 @@ that perform both the controller and node roles in the same
 instance. Not every plugin provider has or needs a controller; that's
 specific to the provider implementation.
 
-Typically it will make sense to run node plugins as Nomad `system`
-jobs with constraints based on the availability of volumes. For
-example, AWS EBS volumes are specific to particular availability zones
-with a region. Controller plugins can be run as `service` jobs.
+You should almost always run node plugins as Nomad `system` jobs to
+ensure volume claims are released when a Nomad client is drained. Use
+constraints for the node plugin jobs based on the availability of
+volumes. For example, AWS EBS volumes are specific to particular
+availability zones with a region. Controller plugins can be run as
+`service` jobs.
 
 Nomad exposes a Unix domain socket named `csi.sock` inside each CSI
 plugin task, and communicates over the gRPC protocol expected by the
@@ -110,16 +112,16 @@ the Nomad data directory. Nomad will bind-mount this staged directory
 into each task that mounts the volume.
 
 This cycle is reversed when a task that claims a volume becomes
-terminal. The client unmounts the bind-mount from the task and makes
-RPC calls to the node plugin. The node plugin umounts the volume from
-the host (if it's not in use by another task). The client updates the
-server frequently about changes to allocations, including terminal
-state. When the server receives a terminal state for a job with volume
-claims, it creates a volume claim garbage collection (GC) evaluation
-to to handled by the core job scheduler. The GC job will send
-"unpublish" RPCs to the controller plugin (if any), and decrement the
-claim count for the volume. At this point the volume’s claim capacity
-has been freed up for scheduling.
+terminal. The client updates the server frequently about changes to
+allocations, including terminal state. When the server receives a
+terminal state for a job with volume claims, it creates a volume claim
+garbage collection (GC) evaluation to to handled by the core job
+scheduler. The GC job will send "detach" RPCs to the node plugin. The
+node plugin unmounts the bind-mount from the allocation and unmounts
+the volume from the plugin (if it's not in use by another task). The
+GC job will then send "unpublish" RPCs to the controller plugin (if
+any), and decrement the claim count for the volume. At this point the
+volume’s claim capacity has been freed up for scheduling.
 
 [csi-spec]: https://github.com/container-storage-interface/spec
 [csi-drivers-list]: https://kubernetes-csi.github.io/docs/drivers.html
