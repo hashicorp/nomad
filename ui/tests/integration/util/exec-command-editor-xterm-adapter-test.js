@@ -52,7 +52,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
     await terminal.simulateCommandDataEvent(KEYS.ENTER);
   });
 
-  test('it ignores arrow keys', async function(assert) {
+  test('it ignores arrow keys and unprintable characters other than ^U', async function(assert) {
     let done = assert.async();
 
     await render(hbs`
@@ -79,6 +79,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
     await terminal.simulateCommandDataEvent(KEYS.UP_ARROW);
     await terminal.simulateCommandDataEvent(KEYS.UP_ARROW);
     await terminal.simulateCommandDataEvent(KEYS.DOWN_ARROW);
+    await terminal.simulateCommandDataEvent(KEYS.CONTROL_A);
     await terminal.simulateCommandDataEvent('!');
 
     await settled();

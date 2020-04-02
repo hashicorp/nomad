@@ -43,7 +43,8 @@ export default class ExecCommandEditorXtermAdapter {
         this.terminal.write(BACKSPACE_ONE_CHARACTER);
         this.command = this.command.slice(0, -1);
       }
-    } else if (data.length > 0) {
+      // eslint-disable-next-line no-control-regex
+    } else if (data.length > 0 && !/[\x00-\x1F]/.test(data)) {
       this.terminal.write(data);
       this.command = `${this.command}${data}`;
     }
