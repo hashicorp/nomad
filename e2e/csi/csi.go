@@ -32,11 +32,6 @@ func init() {
 	})
 }
 
-type volumeConfig struct {
-	EBSVolumeID string `json:"ebs_volume"`
-	EFSVolumeID string `json:"efs_volume"`
-}
-
 func (tc *CSIVolumesTest) BeforeAll(f *framework.F) {
 	t := f.T()
 	// Ensure cluster has leader and at least two client
