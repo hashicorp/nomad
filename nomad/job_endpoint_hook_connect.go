@@ -165,6 +165,10 @@ func newConnectTask(serviceName string) *structs.Task {
 			MaxFileSizeMB: 2,
 		},
 		Resources: connectSidecarResources(),
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:    structs.TaskLifecycleHookPrestart,
+			Sidecar: true,
+		},
 		Constraints: structs.Constraints{
 			connectVersionConstraint(),
 		},
