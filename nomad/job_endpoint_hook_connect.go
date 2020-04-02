@@ -166,7 +166,7 @@ func newConnectTask(serviceName string) *structs.Task {
 		},
 		Resources: connectSidecarResources(),
 		Lifecycle: &structs.TaskLifecycleConfig{
-			Hook: structs.TaskLifecycleHookPrestart,
+			Hook:    structs.TaskLifecycleHookPrestart,
 			Sidecar: true,
 		},
 		Constraints: structs.Constraints{
