@@ -703,12 +703,14 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	}
 	ws := memdb.NewWatchSet()
 	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
-	if err != nil || job == nil {
+	if err != nil {
 		return err
 	}
 
 	// For a job with volumes, run volume claim GC before deleting the job
-	volumeClaimReap(j.srv, j.logger, []*structs.Job{job}, j.srv.getLeaderAcl(), true)
+	if job != nil {
+		volumeClaimReap(j.srv, j.logger, []*structs.Job{job}, j.srv.getLeaderAcl(), true)
+	}
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
@@ -721,7 +723,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.JobModifyIndex = index
 
 	// If the job is periodic or parameterized, we don't create an eval.
-	if job.IsPeriodic() || job.IsParameterized() {
+	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
 		return nil
 	}
 

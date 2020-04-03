@@ -2584,12 +2584,13 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	require.NotZero(eval.CreateTime)
 	require.NotZero(eval.ModifyTime)
 
-	// Deregistration is idempotent
+	// Deregistration is not idempotent, produces a new eval after the job is
+	// deregistered. TODO(langmartin) make it idempotent.
 	var validResp2 structs.JobDeregisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
 	require.NoError(err)
-	require.NotEqual(validResp2.Index, 0)
-	require.Equal("", validResp2.EvalID)
+	require.NotEqual("", validResp2.EvalID)
+	require.NotEqual(validResp.EvalID, validResp2.EvalID)
 }
 
 func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
