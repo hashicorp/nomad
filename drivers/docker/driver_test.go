@@ -1029,7 +1029,7 @@ func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
 	require.Contains(t, container.HostConfig.SecurityOpt[0], "reboot")
 }
 
-func TestDockerDriver_OCIRuntime(t *testing.T) {
+func TestDockerDriver_Runtime(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
 	}
@@ -1037,7 +1037,7 @@ func TestDockerDriver_OCIRuntime(t *testing.T) {
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
-	cfg.OCIRuntime = "runc"
+	cfg.Runtime = "runc"
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client, d, handle, cleanup := dockerSetup(t, task)
@@ -1049,7 +1049,7 @@ func TestDockerDriver_OCIRuntime(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	require.Exactly(t, cfg.OCIRuntime, container.HostConfig.Runtime)
+	require.Exactly(t, cfg.Runtime, container.HostConfig.Runtime)
 }
 
 func TestDockerDriver_CreateContainerConfig(t *testing.T) {
@@ -1074,6 +1074,29 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	// Container name should be /<task_name>-<alloc_id> for backward compat
 	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	require.Equal(t, containerName, c.Name)
+}
+
+func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	task.DeviceEnv[nvidia.NvidiaVisibleDevices] = "GPU_UUID_1"
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.gpuRuntime = true
+
+	// Should error if a runtime was explicitly set that doesn't match gpu runtime
+	cfg.Runtime = "nvidia"
+	_, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	cfg.Runtime = "custom"
+	_, err = driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.Error(t, err)
 }
 
 func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
