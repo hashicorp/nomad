@@ -2564,30 +2564,32 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 	req.AuthToken = validToken.SecretID
 
-	var validResp2 structs.JobDeregisterResponse
-	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
-	require.Nil(err)
-	require.NotEqual(validResp2.Index, 0)
-
 	// Check for the job in the FSM
 	out, err := state.JobByID(nil, job.Namespace, job.ID)
 	require.Nil(err)
 	require.Nil(out)
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(nil, validResp2.EvalID)
+	eval, err := state.EvalByID(nil, validResp.EvalID)
 	require.Nil(err)
 	require.NotNil(eval, nil)
 
-	require.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	require.Equal(eval.CreateIndex, validResp.EvalCreateIndex)
 	require.Equal(eval.Priority, structs.JobDefaultPriority)
 	require.Equal(eval.Type, structs.JobTypeService)
 	require.Equal(eval.TriggeredBy, structs.EvalTriggerJobDeregister)
 	require.Equal(eval.JobID, job.ID)
-	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	require.Equal(eval.JobModifyIndex, validResp.JobModifyIndex)
 	require.Equal(eval.Status, structs.EvalStatusPending)
 	require.NotZero(eval.CreateTime)
 	require.NotZero(eval.ModifyTime)
+
+	// Deregistration is idempotent
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
+	require.NoError(err)
+	require.NotEqual(validResp2.Index, 0)
+	require.Equal("", validResp2.EvalID)
 }
 
 func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
