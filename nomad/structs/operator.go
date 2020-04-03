@@ -162,7 +162,7 @@ type PreemptionConfig struct {
 	BatchSchedulerEnabled bool `hcl:"batch_scheduler_enabled"`
 
 	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
-	ServiceSchedulerEnabled bool `hcl:"service_Scheduler_enabled"`
+	ServiceSchedulerEnabled bool `hcl:"service_scheduler_enabled"`
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the

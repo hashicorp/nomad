@@ -296,6 +296,13 @@
         "1.1.1.1",
         "2.2.2.2"
       ],
+      "default_scheduler_config": [{
+        "preemption_config": [{
+          "batch_scheduler_enabled": true,
+          "system_scheduler_enabled": true,
+          "service_scheduler_enabled": true
+        }]
+      }],
       "upgrade_version": "0.8.0"
     }
   ],
