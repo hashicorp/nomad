@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
-	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,11 +61,10 @@ func stringToPtrOrNil(s string) *string {
 }
 
 func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
-	r := require.New(t)
 
 	// Parse job
 	job, err := jobspec.ParseFile(jobFile)
-	r.Nil(err)
+	require.NoError(t, err)
 
 	// Set custom job ID (distinguish among tests)
 	job.ID = helper.StringToPtr(jobID)
@@ -85,7 +83,7 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 		idx = meta.LastIndex
 		return resp.EvalID != "", fmt.Errorf("expected EvalID:%s", pretty.Sprint(resp))
 	}, func(err error) {
-		r.NoError(err)
+		require.NoError(t, err)
 	})
 
 	allocs, _, err := jobs.Allocations(jobID, false, &api.QueryOptions{WaitIndex: idx})
@@ -94,22 +92,20 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 }
 
 func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
-	r := require.New(t)
-	g := NewGomegaWithT(t)
 	jobs := nomadClient.Jobs()
 
 	// Start allocations
 	RegisterAllocs(t, nomadClient, jobFile, jobID, cToken)
+	var allocs []*api.AllocationListStub
+	var err error
 
 	// Wrap in retry to wait until placement
-	g.Eventually(func() []*api.AllocationListStub {
-		// Look for allocations
-		allocs, _, _ := jobs.Allocations(jobID, false, nil)
-		return allocs
-	}, 30*time.Second, time.Second).ShouldNot(BeEmpty())
+	require.Eventually(t, func() bool {
+		allocs, _, err = jobs.Allocations(jobID, false, nil)
+		return len(allocs) > 0
+	}, 30*time.Second, time.Second)
 
-	allocs, _, err := jobs.Allocations(jobID, false, nil)
-	r.NoError(err)
+	require.NoError(t, err)
 	return allocs
 }
 
