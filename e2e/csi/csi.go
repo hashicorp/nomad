@@ -18,7 +18,9 @@ import (
 
 type CSIVolumesTest struct {
 	framework.TC
-	jobIds []string
+	testJobIDs   []string
+	volumeIDs    []string
+	pluginJobIDs []string
 }
 
 func init() {
@@ -52,18 +54,18 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 
 	// deploy the controller plugin job
 	controllerJobID := "aws-ebs-plugin-controller-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, controllerJobID)
+	tc.pluginJobIDs = append(tc.pluginJobIDs, controllerJobID)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-ebs-controller.nomad", controllerJobID, "")
 
 	// deploy the node plugins job
 	nodesJobID := "aws-ebs-plugin-nodes-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, nodesJobID)
+	tc.pluginJobIDs = append(tc.pluginJobIDs, nodesJobID)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-ebs-nodes.nomad", nodesJobID, "")
 
 	// wait for plugin to become healthy
-	require.Eventually(func() bool {
+	require.Eventuallyf(func() bool {
 		plugin, _, err := nomadClient.CSIPlugins().Info("aws-ebs0", nil)
 		if err != nil {
 			return false
@@ -74,7 +76,7 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 		return true
 		// TODO(tgross): cut down this time after fixing
 		// https://github.com/hashicorp/nomad/issues/7296
-	}, 90*time.Second, 5*time.Second)
+	}, 90*time.Second, 5*time.Second, "aws-ebs0 plugins did not become healthy")
 
 	// register a volume
 	volID := "ebs-vol0"
@@ -82,11 +84,11 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	require.NoError(err)
 	_, err = nomadClient.CSIVolumes().Register(vol, nil)
 	require.NoError(err)
-	defer nomadClient.CSIVolumes().Deregister(volID, nil)
+	tc.volumeIDs = append(tc.volumeIDs, volID)
 
 	// deploy a job that writes to the volume
 	writeJobID := "write-ebs-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, writeJobID)
+	tc.testJobIDs = append(tc.testJobIDs, writeJobID)
 	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", writeJobID, "")
 	writeAllocID := writeAllocs[0].ID
@@ -102,17 +104,16 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	// Shutdown the writer so we can run a reader.
 	// we could mount the EBS volume with multi-attach, but we
 	// want this test to exercise the unpublish workflow.
+	// this runs the equivalent of 'nomad job stop -purge'
 	nomadClient.Jobs().Deregister(writeJobID, true, nil)
 
 	// deploy a job so we can read from the volume
 	readJobID := "read-ebs-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, readJobID)
+	tc.testJobIDs = append(tc.testJobIDs, readJobID)
 	readAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", readJobID, "")
 	readAllocID := readAllocs[0].ID
 	e2eutil.WaitForAllocRunning(t, nomadClient, readAllocID)
-	// ensure we clean up claim before we deregister volumes
-	defer nomadClient.Jobs().Deregister(readJobID, true, nil)
 
 	// read data from volume and assert the writer wrote a file to it
 	readAlloc, _, err := nomadClient.Allocations().Info(readAllocID, nil)
@@ -133,12 +134,12 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 
 	// deploy the node plugins job (no need for a controller for EFS)
 	nodesJobID := "aws-efs-plugin-nodes-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, nodesJobID)
+	tc.pluginJobIDs = append(tc.pluginJobIDs, nodesJobID)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-efs-nodes.nomad", nodesJobID, "")
 
 	// wait for plugin to become healthy
-	require.Eventually(func() bool {
+	require.Eventuallyf(func() bool {
 		plugin, _, err := nomadClient.CSIPlugins().Info("aws-efs0", nil)
 		if err != nil {
 			return false
@@ -149,7 +150,7 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 		return true
 		// TODO(tgross): cut down this time after fixing
 		// https://github.com/hashicorp/nomad/issues/7296
-	}, 90*time.Second, 5*time.Second)
+	}, 90*time.Second, 5*time.Second, "aws-efs0 plugins did not become healthy")
 
 	// register a volume
 	volID := "efs-vol0"
@@ -157,7 +158,7 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	require.NoError(err)
 	_, err = nomadClient.CSIVolumes().Register(vol, nil)
 	require.NoError(err)
-	defer nomadClient.CSIVolumes().Deregister(volID, nil)
+	tc.volumeIDs = append(tc.volumeIDs, volID)
 
 	// deploy a job that writes to the volume
 	writeJobID := "write-efs-" + uuid[0:8]
@@ -176,13 +177,14 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	// Shutdown the writer so we can run a reader.
 	// although EFS should support multiple readers, the plugin
 	// does not.
-	nomadClient.Jobs().Deregister(writeJobID, true, nil)
+	// this runs the equivalent of 'nomad job stop'
+	nomadClient.Jobs().Deregister(writeJobID, false, nil)
 
 	// deploy a job that reads from the volume.
 	readJobID := "read-efs-" + uuid[0:8]
+	tc.testJobIDs = append(tc.testJobIDs, readJobID)
 	readAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-efs-volume-read.nomad", readJobID, "")
-	defer nomadClient.Jobs().Deregister(readJobID, true, nil)
 	e2eutil.WaitForAllocRunning(t, nomadClient, readAllocs[0].ID)
 
 	// read data from volume and assert the writer wrote a file to it
@@ -196,9 +198,18 @@ func (tc *CSIVolumesTest) AfterEach(f *framework.F) {
 	nomadClient := tc.Nomad()
 	jobs := nomadClient.Jobs()
 	// Stop all jobs in test
-	for _, id := range tc.jobIds {
+	for _, id := range tc.testJobIDs {
 		jobs.Deregister(id, true, nil)
 	}
+	// Deregister all volumes in test
+	for _, id := range tc.volumeIDs {
+		nomadClient.CSIVolumes().Deregister(id, nil)
+	}
+	// Deregister all plugin jobs in test
+	for _, id := range tc.pluginJobIDs {
+		jobs.Deregister(id, true, nil)
+	}
+
 	// Garbage collect
 	nomadClient.System().GarbageCollect()
 }
