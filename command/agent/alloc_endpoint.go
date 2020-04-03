@@ -407,9 +407,11 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	return s.execStreamImpl(conn, &args)
 }
 
+// readWsHandshake reads the websocket handshake message and sets
+// query authentication token, if request requires a handshake
 func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
 
-	// avoid handshake if request doesn't require one
+	// Avoid handshake if request doesn't require one
 	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
 		return nil
 	} else if h, err := strconv.ParseBool(hv); err != nil {
@@ -418,15 +420,14 @@ func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *struc
 		return nil
 	}
 
-	fmt.Println("HERE")
-
 	var h wsHandshakeMessage
 	err := readFn(&h)
 	if err != nil {
 		return err
 	}
 
-	if h.Version != 1 {
+	supportedWSHandshakeVersion := 1
+	if h.Version != supportedWSHandshakeVersion {
 		return fmt.Errorf("unexpected handshake value: %v", h.Version)
 	}
 
