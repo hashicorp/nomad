@@ -124,8 +124,37 @@ type AutopilotConfig struct {
 	ModifyIndex uint64
 }
 
+// SchedulerAlgorithm is an enum string that encapsulates the valid options for a
+// SchedulerConfiguration stanza's SchedulerAlgorithm. These modes will allow the
+// scheduler to be user-selectable.
+type SchedulerAlgorithm string
+
+const (
+	// SchedulerAlgorithmBinpack indicates that the scheduler should spread
+	// allocations as evenly as possible over the available hardware.
+	SchedulerAlgorithmBinpack string = "binpack"
+
+	// SchedulerAlgorithmSpread indicates that the scheduler should spread
+	// allocations as evenly as possible over the available hardware.
+	SchedulerAlgorithmSpread string = "spread"
+)
+
+// SchedulerAlgorithmIsValid validates the given SchedulerAlgorithm string and
+// returns true only when a correct algorithm is specified.
+func SchedulerAlgorithmIsValid(alg string) bool {
+	switch alg {
+	case SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
+		return true
+	default:
+		return false
+	}
+}
+
 // SchedulerConfiguration is the config for controlling scheduler behavior
 type SchedulerConfiguration struct {
+	// SchedulerAlgorithm lets you select between available scheduling algorithms.
+	SchedulerAlgorithm string `hcl:"scheduler_algorithm"`
+
 	// PreemptionConfig specifies whether to enable eviction of lower
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
