@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 
@@ -10,7 +11,8 @@ module('Acceptance | exec', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
-    window.localStorage.removeItem('nomadExecCommand');
+    localStorage.clear();
+    sessionStorage.clear();
 
     server.create('agent');
     server.create('node');
@@ -260,6 +262,88 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.deepEqual(mockSocket.sent, [
+      '{"version":1,"auth_token":""}',
+      `{"tty_size":{"width":${window.execTerminal.cols},"height":${window.execTerminal.rows}}}`,
+      '{"stdin":{"data":"DQ=="}}',
+    ]);
+
+    await mockSocket.onclose();
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(6)
+        .translateToString()
+        .trim(),
+      'The connection has closed.'
+    );
+  });
+  test('running the command opens the socket and authenticates', async function(assert) {
+    let managementToken = server.create('token');
+
+    const { secretId } = managementToken;
+
+    await Tokens.visit();
+    await Tokens.secret(secretId).submit();
+
+    let mockSocket = new MockSocket();
+    let mockSockets = Service.extend({
+      getTaskStateSocket(taskState, command) {
+        assert.equal(taskState.name, task.name);
+        assert.equal(taskState.allocation.id, allocation.id);
+
+        assert.equal(command, '/bin/bash');
+
+        assert.step('Socket built');
+
+        return mockSocket;
+      },
+    });
+
+    this.owner.register('service:sockets', mockSockets);
+
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
+    let allocations = this.server.db.allocations.where({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
+    let allocation = allocations[allocations.length - 1];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+      allocation: allocation.id.split('-')[0],
+    });
+
+    await settled();
+
+    await Exec.terminal.pressEnter();
+    await settled();
+    mockSocket.onopen();
+
+    assert.verifySteps(['Socket built']);
+
+    mockSocket.onmessage({
+      data: '{"stdout":{"data":"c2gtMy4yIPCfpbMk"}}',
+    });
+
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(5)
+        .translateToString()
+        .trim(),
+      'sh-3.2 🥳$'
+    );
+
+    await Exec.terminal.pressEnter();
+    await settled();
+
+    assert.deepEqual(mockSocket.sent, [
+      `{"version":1,"auth_token":"${secretId}"}`,
       `{"tty_size":{"width":${window.execTerminal.cols},"height":${window.execTerminal.rows}}}`,
       '{"stdin":{"data":"DQ=="}}',
     ]);
