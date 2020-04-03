@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -96,16 +97,28 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jo
 
 	// Start allocations
 	RegisterAllocs(t, nomadClient, jobFile, jobID, cToken)
-	var allocs []*api.AllocationListStub
+
 	var err error
+	allocs := []*api.AllocationListStub{}
+	evals := []*api.Evaluation{}
 
 	// Wrap in retry to wait until placement
-	require.Eventually(t, func() bool {
+	ok := assert.Eventually(t, func() bool {
 		allocs, _, err = jobs.Allocations(jobID, false, nil)
+		if len(allocs) < 1 {
+			evals, _, err = nomadClient.Jobs().Evaluations(jobID, nil)
+		}
 		return len(allocs) > 0
 	}, 30*time.Second, time.Second)
 
-	require.NoError(t, err)
+	msg := fmt.Sprintf("allocations not placed for %s", jobID)
+	if !ok && len(evals) > 0 {
+		for _, eval := range evals {
+			msg += fmt.Sprintf("\n  %s - %s", eval.Status, eval.StatusDescription)
+		}
+	}
+	require.Truef(t, ok, msg)
+	require.NoError(t, err) // we only care about the last error
 	return allocs
 }
 
