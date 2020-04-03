@@ -308,8 +308,6 @@ module('Acceptance | exec', function(hooks) {
       allocation: allocation.id.split('-')[0],
     });
 
-    await settled();
-
     await Exec.terminal.pressEnter();
     await settled();
     mockSocket.onopen();
