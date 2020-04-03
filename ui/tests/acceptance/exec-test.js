@@ -284,12 +284,7 @@ module('Acceptance | exec', function(hooks) {
 
     let mockSocket = new MockSocket();
     let mockSockets = Service.extend({
-      getTaskStateSocket(taskState, command) {
-        assert.equal(taskState.name, task.name);
-        assert.equal(taskState.allocation.id, allocation.id);
-
-        assert.equal(command, '/bin/bash');
-
+      getTaskStateSocket() {
         assert.step('Socket built');
 
         return mockSocket;
