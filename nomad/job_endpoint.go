@@ -708,7 +708,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	}
 
 	// For a job with volumes, run volume claim GC before deleting the job
-	volumeClaimReap(j.srv, j.logger, []*structs.Job{job}, j.srv.getLeaderAcl())
+	volumeClaimReap(j.srv, j.logger, []*structs.Job{job}, j.srv.getLeaderAcl(), true)
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
