@@ -4,7 +4,7 @@ const REVERSE_WRAPAROUND_MODE = '\x1b[?45h';
 const BACKSPACE_ONE_CHARACTER = '\x08 \x08';
 
 // eslint-disable-next-line no-control-regex
-const UNPRINTABLE_CHARACTERS_REGEX = /[\x00-\x1F]/i;
+const UNPRINTABLE_CHARACTERS_REGEX = /[\x00-\x1F]/g;
 
 export default class ExecCommandEditorXtermAdapter {
   constructor(terminal, setCommandCallback, command) {
