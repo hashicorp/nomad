@@ -116,6 +116,13 @@ var basicConfig = &Config{
 			RetryIntervalHCL: "15s",
 			RetryMaxAttempts: 3,
 		},
+		DefaultSchedulerConfig: &structs.SchedulerConfiguration{
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled:  true,
+				BatchSchedulerEnabled:   true,
+				ServiceSchedulerEnabled: true,
+			},
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled:          true,

@@ -122,6 +122,14 @@ server {
     retry_max      = 3
     retry_interval = "15s"
   }
+
+  default_scheduler_config {
+    preemption_config {
+      batch_scheduler_enabled   = true
+      system_scheduler_enabled  = true
+      service_scheduler_enabled = true
+    }
+  }
 }
 
 acl {
