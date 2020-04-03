@@ -279,10 +279,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('running the command opens the socket and authenticates', async function(assert) {
-    let managementToken = server.create('token');
-
-    const { secretId } = managementToken;
-
+    const { secretId } = server.create('token');
     window.localStorage.nomadTokenSecret = secretId;
 
     let mockSocket = new MockSocket();
