@@ -285,8 +285,6 @@ module('Acceptance | exec', function(hooks) {
     let mockSocket = new MockSocket();
     let mockSockets = Service.extend({
       getTaskStateSocket() {
-        assert.step('Socket built');
-
         return mockSocket;
       },
     });
@@ -311,8 +309,6 @@ module('Acceptance | exec', function(hooks) {
     await Exec.terminal.pressEnter();
     await settled();
     mockSocket.onopen();
-
-    assert.verifySteps(['Socket built']);
 
     await Exec.terminal.pressEnter();
     await settled();
