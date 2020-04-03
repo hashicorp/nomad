@@ -31,12 +31,15 @@ By default, with a minimally configured audit stanza (`audit { enabled = true }`
 The following default sink will be added with no filters.
 
 ```hcl
+audit {
+  enable = true
   sink "audit" {
     type               = "file"
     delivery_guarantee = "enforced"
     format             = "json"
     path               = "/[data_dir]/audit/audit.log"
   }
+}
 ```
 
 The sink will create an `audit.log` file located within the defined `data_dir`
@@ -54,7 +57,7 @@ in order for HTTP requests to successfully complete.
 - `sink` <code>([sink](#sink-stanza): default)</code> - Configures a sink
   for audit logs to be sent to.
 
-- `filter` <code>([filter](#filter-stanza): nil)</code> - Configures a filter
+- `filter` <code>(array<[filter](#filter-stanza)>: [])</code> - Configures a filter
   to exclude matching events from being sent to audit logging sinks.
 
 ### `sink` Stanza
@@ -66,6 +69,9 @@ The key of the stanza corresponds to the name of the sink which is used
 for logging purposes
 
 ```hcl
+audit {
+  enabled = true
+
   sink "audit" {
     type               = "file"
     delivery_guarantee = "enforced"
@@ -75,6 +81,7 @@ for logging purposes
     rotate_duration    = "24h"
     rotate_max_files   = 10
   }
+}
 ```
 
 #### `sink` Parameters
@@ -121,28 +128,32 @@ logging as well as reducing the amount of events generated.
 `endpoints`, `stages`, and `operations` support [globbed pattern](https://github.com/ryanuber/go-glob/blob/master/README.md#example) matching.
 
 ```hcl
-# Filter out all requests and all stages for /v1/metrics
-filter "default" {
-  type       = "HTTPEvent"
-  endpoints  = ["/v1/metrics"]
-  stages     = ["*"]
-  operations = ["*"]
-}
+audit {
+  enabled = true
 
-# Filter out requests where endpoint matches globbed pattern
-filter "globbed example" {
-  type       = "HTTPEvent"
-  endpoints  = ["/v1/evaluation/*/allocations"]
-  stages     = ["*"]
-  operations = ["*"]
-}
+  # Filter out all requests and all stages for /v1/metrics
+  filter "default" {
+    type       = "HTTPEvent"
+    endpoints  = ["/v1/metrics"]
+    stages     = ["*"]
+    operations = ["*"]
+  }
 
-# Filter out OperationReceived GET requests for all endpoints
-filter "OperationReceived GETs" {
-  type       = "HTTPEvent"
-  endpoints  = ["*"]
-  stages     = ["OperationReceived"]
-  operations = ["GET"]
+  # Filter out requests where endpoint matches globbed pattern
+  filter "globbed example" {
+    type       = "HTTPEvent"
+    endpoints  = ["/v1/evaluation/*/allocations"]
+    stages     = ["*"]
+    operations = ["*"]
+  }
+
+  # Filter out OperationReceived GET requests for all endpoints
+  filter "OperationReceived GETs" {
+    type       = "HTTPEvent"
+    endpoints  = ["*"]
+    stages     = ["OperationReceived"]
+    operations = ["GET"]
+  }
 }
 ```
 
