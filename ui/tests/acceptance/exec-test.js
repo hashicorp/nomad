@@ -124,6 +124,48 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.taskGroups[0].tasks.length, 1);
   });
 
+  test('a task that becomes active should appear', async function(assert) {
+    let notRunningTaskGroup = this.job.task_groups.models.sortBy('name')[0];
+    this.server.db.allocations.update(
+      { taskGroup: notRunningTaskGroup.name },
+      { clientStatus: 'failed' }
+    );
+
+    let runningTaskGroup = this.job.task_groups.models.sortBy('name')[1];
+    let changingTaskStateName;
+    runningTaskGroup.tasks.models.sortBy('name').forEach((task, index) => {
+      if (index > 0) {
+        this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
+      }
+
+      if (index === 1) {
+        changingTaskStateName = task.name;
+      }
+    });
+
+    await Exec.visitJob({ job: this.job.id });
+    await Exec.taskGroups[0].click();
+
+    assert.equal(Exec.taskGroups[0].tasks.length, 1);
+
+    // Approximate new task arrival via polling by changing a finished task state to be not finished
+    this.owner
+      .lookup('service:store')
+      .peekAll('allocation')
+      .forEach(allocation => {
+        const changingTaskState = allocation.states.findBy('name', changingTaskStateName);
+
+        if (changingTaskState) {
+          changingTaskState.set('finishedAt', undefined);
+        }
+      });
+
+    await settled();
+
+    assert.equal(Exec.taskGroups[0].tasks.length, 2);
+    assert.equal(Exec.taskGroups[0].tasks[1].name, changingTaskStateName);
+  });
+
   test('visiting a path with a task group should open the group by default', async function(assert) {
     let taskGroup = this.job.task_groups.models.sortBy('name')[0];
     await Exec.visitTaskGroup({ job: this.job.id, task_group: taskGroup.name });
