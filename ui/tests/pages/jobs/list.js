@@ -11,9 +11,10 @@ import {
 } from 'ember-cli-page-object';
 
 import facet from 'nomad-ui/tests/pages/components/facet';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
-  pageSize: 10,
+  pageSize: 25,
 
   visit: visitable('/jobs'),
 
@@ -63,6 +64,8 @@ export default create({
       label: text(),
     }),
   },
+
+  pageSizeSelect: pageSizeSelect(),
 
   facets: {
     type: facet('[data-test-type-facet]'),

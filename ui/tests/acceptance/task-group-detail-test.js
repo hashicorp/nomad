@@ -4,7 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
-import JobsList from 'nomad-ui/tests/pages/jobs/list';
+import pageSizeSelect from './behaviors/page-size-select';
 import moment from 'moment';
 
 let job;
@@ -61,13 +61,15 @@ module('Acceptance | task group detail', function(hooks) {
       previousAllocation: allocations[0].id,
     });
 
-    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    window.localStorage.clear();
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
     const totalCPU = tasks.mapBy('Resources.CPU').reduce(sum, 0);
     const totalMemory = tasks.mapBy('Resources.MemoryMB').reduce(sum, 0);
     const totalDisk = taskGroup.ephemeralDisk.SizeMB;
+
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.equal(TaskGroup.tasksCount, `# Tasks ${tasks.length}`, '# Tasks');
     assert.equal(
@@ -90,6 +92,8 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     assert.equal(TaskGroup.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
     assert.equal(
       TaskGroup.breadcrumbFor('jobs.job.index').text,
@@ -104,11 +108,15 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('/jobs/:id/:task-group first breadcrumb should link to jobs', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     await TaskGroup.breadcrumbFor('jobs.index').visit();
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 
   test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     await TaskGroup.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
@@ -124,7 +132,6 @@ module('Acceptance | task group detail', function(hooks) {
       clientStatus: 'running',
     });
 
-    await JobsList.visit();
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(
@@ -140,6 +147,8 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('each allocation should show basic information about the allocation', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     const allocation = allocations.sortBy('modifyIndex').reverse()[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
 
@@ -173,6 +182,8 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('each allocation should show stats about the allocation', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     const allocation = allocations.sortBy('name')[0];
     const allocationRow = TaskGroup.allocations.objectAt(0);
 
@@ -208,6 +219,8 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('when the allocation search has no matches, there is an empty message', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     await TaskGroup.search('zzzzzz');
 
     assert.ok(TaskGroup.isEmpty, 'Empty state is shown');
@@ -219,6 +232,8 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('when the allocation has reschedule events, the allocation row is denoted with an icon', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     const rescheduleRow = TaskGroup.allocationFor(allocations[0].id);
     const normalRow = TaskGroup.allocationFor(allocations[1].id);
 
@@ -227,6 +242,8 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('when the task group depends on volumes, the volumes table is shown', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     assert.ok(TaskGroup.hasVolumes);
     assert.equal(TaskGroup.volumes.length, Object.keys(taskGroup.volumes).length);
   });
@@ -241,6 +258,8 @@ module('Acceptance | task group detail', function(hooks) {
   });
 
   test('each row in the volumes table lists information about the volume', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
     TaskGroup.volumes[0].as(volumeRow => {
       const volume = taskGroup.volumes[volumeRow.name];
       assert.equal(volumeRow.name, volume.Name);
@@ -278,5 +297,20 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(currentURL(), `/jobs/${job.id}/not-a-real-task-group`, 'The URL persists');
     assert.ok(TaskGroup.error.isPresent, 'Error message is shown');
     assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
+  });
+
+  pageSizeSelect({
+    resourceName: 'allocation',
+    pageObject: TaskGroup,
+    pageObjectList: TaskGroup.allocations,
+    async setup() {
+      server.createList('allocation', TaskGroup.pageSize, {
+        jobId: job.id,
+        taskGroup: taskGroup.name,
+        clientStatus: 'running',
+      });
+
+      await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    },
   });
 });

@@ -1,4 +1,5 @@
-import { alias } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
 import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -11,6 +12,7 @@ export default Controller.extend(
   SortableFactory(['id', 'name', 'compositeStatus', 'datacenter']),
   Searchable,
   {
+    userSettings: service(),
     clientsController: controller('clients'),
 
     nodes: alias('model.nodes'),
@@ -28,7 +30,7 @@ export default Controller.extend(
     },
 
     currentPage: 1,
-    pageSize: 8,
+    pageSize: readOnly('userSettings.pageSize'),
 
     sortProperty: 'modifyIndex',
     sortDescending: true,

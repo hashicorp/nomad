@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { alias } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 
@@ -13,6 +13,7 @@ export default Controller.extend(
   ]),
   {
     system: service(),
+    userSettings: service(),
     csiController: controller('csi'),
 
     isForbidden: alias('csiController.isForbidden'),
@@ -24,12 +25,19 @@ export default Controller.extend(
     },
 
     currentPage: 1,
-    pageSize: 10,
+    pageSize: readOnly('userSettings.pageSize'),
 
     sortProperty: 'id',
     sortDescending: true,
 
     listToSort: alias('model'),
     sortedVolumes: alias('listSorted'),
+
+    // TODO: Remove once this page gets search capability
+    resetPagination() {
+      if (this.currentPage != null) {
+        this.set('currentPage', 1);
+      }
+    },
   }
 );
