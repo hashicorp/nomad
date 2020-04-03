@@ -1128,6 +1128,8 @@ type JobDeregisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+	VolumeEvalID    string
+	VolumeEvalIndex uint64
 	QueryMeta
 }
 

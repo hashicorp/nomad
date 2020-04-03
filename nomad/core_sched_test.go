@@ -2306,7 +2306,7 @@ func TestCSI_GCVolumeClaims_Collection(t *testing.T) {
 	vol, err = state.CSIVolumeDenormalize(ws, vol)
 	require.NoError(t, err)
 
-	gcClaims, nodeClaims := collectClaimsToGCImpl(vol)
+	gcClaims, nodeClaims := collectClaimsToGCImpl(vol, false)
 	require.Equal(t, nodeClaims[node.ID], 2)
 	require.Len(t, gcClaims, 2)
 }
