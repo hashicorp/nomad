@@ -10,8 +10,8 @@ module('Acceptance | exec', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
-    localStorage.clear();
-    sessionStorage.clear();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
 
     server.create('agent');
     server.create('node');
@@ -347,7 +347,7 @@ module('Acceptance | exec', function(hooks) {
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(command, '/sh');
-        localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
+        window.localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
 
         assert.step('Socket built');
 
@@ -407,7 +407,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('a persisted customised command is recalled', async function(assert) {
-    localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
+    window.localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
 
     let taskGroup = this.job.task_groups.models[0];
     let task = taskGroup.tasks.models[0];

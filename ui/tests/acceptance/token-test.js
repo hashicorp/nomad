@@ -17,8 +17,8 @@ module('Acceptance | tokens', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function() {
-    localStorage.clear();
-    sessionStorage.clear();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
 
     server.create('agent');
     node = server.create('node');
