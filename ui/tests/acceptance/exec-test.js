@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
+import KEYS from 'nomad-ui/utils/keys';
 
 module('Acceptance | exec', function(hooks) {
   setupApplicationTest(hooks);
@@ -331,20 +332,20 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     // Delete /bash
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
 
     // Delete /bin and try to go beyond
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
-    await window.execTerminal.simulateCommandKeyEvent({ domEvent: { key: 'Backspace' } });
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
+    await window.execTerminal.simulateCommandDataEvent(KEYS.DELETE);
 
     await settled();
 
@@ -356,9 +357,7 @@ module('Acceptance | exec', function(hooks) {
       `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]}`
     );
 
-    await window.execTerminal.simulateCommandKeyEvent({ key: '/', domEvent: {} });
-    await window.execTerminal.simulateCommandKeyEvent({ key: 's', domEvent: {} });
-    await window.execTerminal.simulateCommandKeyEvent({ key: 'h', domEvent: {} });
+    await window.execTerminal.simulateCommandDataEvent('/sh');
 
     await Exec.terminal.pressEnter();
     await settled();
