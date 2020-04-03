@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	hclog "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -31,7 +30,13 @@ func (c *csiHook) Prerun() error {
 		return nil
 	}
 
+	// TODO(tgross): the contexts for the CSI RPC calls made during
+	// mounting can have very long timeouts. Until these are better
+	// tuned, there's not a good value to put here for a WithCancel
+	// without risking conflicts with the grpc retries/timeouts in the
+	// pluginmanager package.
 	ctx := context.TODO()
+
 	volumes, err := c.claimVolumesFromAlloc()
 	if err != nil {
 		return fmt.Errorf("claim volumes: %v", err)
@@ -39,7 +44,7 @@ func (c *csiHook) Prerun() error {
 
 	mounts := make(map[string]*csimanager.MountInfo, len(volumes))
 	for alias, pair := range volumes {
-		mounter, err := c.csimanager.MounterForVolume(ctx, pair.volume)
+		mounter, err := c.csimanager.MounterForPlugin(ctx, pair.volume.PluginID)
 		if err != nil {
 			return err
 		}
@@ -64,47 +69,6 @@ func (c *csiHook) Prerun() error {
 	c.updater.SetAllocHookResources(res)
 
 	return nil
-}
-
-func (c *csiHook) Postrun() error {
-	if !c.shouldRun() {
-		return nil
-	}
-
-	ctx := context.TODO()
-	volumes, err := c.csiVolumesFromAlloc()
-	if err != nil {
-		return err
-	}
-
-	// For Postrun, we accumulate all unmount errors, rather than stopping on the
-	// first failure. This is because we want to make a best effort to free all
-	// storage, and in some cases there may be incorrect errors from volumes that
-	// never mounted correctly during prerun when an alloc is failed. It may also
-	// fail because a volume was externally deleted while in use by this alloc.
-	var result *multierror.Error
-
-	for _, pair := range volumes {
-		mounter, err := c.csimanager.MounterForVolume(ctx, pair.volume)
-		if err != nil {
-			result = multierror.Append(result, err)
-			continue
-		}
-
-		usageOpts := &csimanager.UsageOptions{
-			ReadOnly:       pair.request.ReadOnly,
-			AttachmentMode: string(pair.volume.AttachmentMode),
-			AccessMode:     string(pair.volume.AccessMode),
-		}
-
-		err = mounter.UnmountVolume(ctx, pair.volume, c.alloc, usageOpts)
-		if err != nil {
-			result = multierror.Append(result, err)
-			continue
-		}
-	}
-
-	return result.ErrorOrNil()
 }
 
 type volumeAndRequest struct {
@@ -158,42 +122,6 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 	}
 
 	return result, nil
-}
-
-// csiVolumesFromAlloc finds all the CSI Volume requests from the allocation's
-// task group and then fetches them from the Nomad Server, before returning
-// them in the form of map[RequestedAlias]*volumeAndReqest. This allows us to
-// thread the request context through to determine usage options for each volume.
-//
-// If any volume fails to validate then we return an error.
-func (c *csiHook) csiVolumesFromAlloc() (map[string]*volumeAndRequest, error) {
-	vols := make(map[string]*volumeAndRequest)
-	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
-	for alias, vol := range tg.Volumes {
-		if vol.Type == structs.VolumeTypeCSI {
-			vols[alias] = &volumeAndRequest{request: vol}
-		}
-	}
-
-	for alias, pair := range vols {
-		req := &structs.CSIVolumeGetRequest{
-			ID: pair.request.Source,
-		}
-		req.Region = c.alloc.Job.Region
-
-		var resp structs.CSIVolumeGetResponse
-		if err := c.rpcClient.RPC("CSIVolume.Get", req, &resp); err != nil {
-			return nil, err
-		}
-
-		if resp.Volume == nil {
-			return nil, fmt.Errorf("Unexpected nil volume returned for ID: %v", pair.request.Source)
-		}
-
-		vols[alias].volume = resp.Volume
-	}
-
-	return vols, nil
 }
 
 func newCSIHook(logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer, csi csimanager.Manager, updater hookResourceSetter) *csiHook {

@@ -31,7 +31,7 @@ into the plan queue.
 
 # Details
 
-Preemption is enabled by default in Nomad 0.9. Operators can use the [scheduler config](/api/operator#update-scheduler-configuration) API endpoint to disable preemption.
+Preemption is enabled by default in Nomad 0.9. Operators can use the [scheduler config](/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
 
 Nomad uses the [job priority](/docs/job-specification/job#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority
@@ -55,7 +55,7 @@ allocations `a1`, `a2` and `a4` to satisfy those requirements.
 
 # Preemption Visibility
 
-Operators can use the [allocation API](/api/allocations#read-allocation) or the `alloc status` command to get visibility into
+Operators can use the [allocation API](/api-docs/allocations#read-allocation) or the `alloc status` command to get visibility into
 whether an allocation has been preempted. Preempted allocations will have their DesiredStatus set to “evict”. The `Allocation` object
 in the API also has two additional fields related to preemption.
 

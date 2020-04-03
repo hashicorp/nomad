@@ -140,7 +140,7 @@ func (c *Client) ControllerGetCapabilities(ctx context.Context) (*csi.Controller
 }
 
 // ControllerPublishVolume is used to attach a remote volume to a node
-func (c *Client) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+func (c *Client) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerPublishVolumeResponse, error) {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
@@ -150,7 +150,7 @@ func (c *Client) ControllerPublishVolume(ctx context.Context, req *csi.Controlle
 }
 
 // ControllerUnpublishVolume is used to attach a remote volume to a node
-func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerUnpublishVolumeResponse, error) {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
@@ -159,7 +159,7 @@ func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.Control
 	return c.NextControllerUnpublishVolumeResponse, c.NextControllerUnpublishVolumeErr
 }
 
-func (c *Client) ControllerValidateCapabilties(ctx context.Context, volumeID string, capabilities *csi.VolumeCapability) error {
+func (c *Client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *csi.VolumeCapability, opts ...grpc.CallOption) error {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 

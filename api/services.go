@@ -81,6 +81,7 @@ type ServiceCheck struct {
 	Path          string
 	Protocol      string
 	PortLabel     string `mapstructure:"port"`
+	Expose        bool
 	AddressMode   string `mapstructure:"address_mode"`
 	Interval      time.Duration
 	Timeout       time.Duration
@@ -168,8 +169,9 @@ type SidecarTask struct {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
-	LocalServiceAddress string `mapstructure:"local_service_address"`
-	LocalServicePort    int    `mapstructure:"local_service_port"`
+	LocalServiceAddress string              `mapstructure:"local_service_address"`
+	LocalServicePort    int                 `mapstructure:"local_service_port"`
+	ExposeConfig        *ConsulExposeConfig `mapstructure:"expose"`
 	Upstreams           []*ConsulUpstream
 	Config              map[string]interface{}
 }
@@ -178,4 +180,15 @@ type ConsulProxy struct {
 type ConsulUpstream struct {
 	DestinationName string `mapstructure:"destination_name"`
 	LocalBindPort   int    `mapstructure:"local_bind_port"`
+}
+
+type ConsulExposeConfig struct {
+	Path []*ConsulExposePath `mapstructure:"path"`
+}
+
+type ConsulExposePath struct {
+	Path          string
+	Protocol      string
+	LocalPathPort int    `mapstructure:"local_path_port"`
+	ListenerPort  string `mapstructure:"listener_port"`
 }

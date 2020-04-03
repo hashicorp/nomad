@@ -1,8 +1,6 @@
 .PHONY: \
 	all \
 	lint \
-	vet \
-	fmtcheck \
 	pretest \
 	test \
 	integration
@@ -10,23 +8,13 @@
 all: test
 
 lint:
-	@ go get -v golang.org/x/lint/golint
-	[ -z "$$(golint . | grep -v 'type name will be used as docker.DockerInfo' | grep -v 'context.Context should be the first' | tee /dev/stderr)" ]
+	cd /tmp && GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	golangci-lint run
 
-vet:
-	go vet ./...
-
-fmtcheck:
-	if [ -z "$${SKIP_FMT_CHECK}" ]; then [ -z "$$(gofmt -s -d *.go ./testing | tee /dev/stderr)" ]; fi
-
-testdeps:
-	go get -u github.com/golang/dep/cmd/dep
-	dep ensure -v
-
-pretest: testdeps lint vet fmtcheck
+pretest: lint
 
 gotest:
-	go test -race ./...
+	go test -race -vet all ./...
 
 test: pretest gotest
 

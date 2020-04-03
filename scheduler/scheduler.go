@@ -97,6 +97,9 @@ type State interface {
 
 	// CSIVolumeByID fetch CSI volumes, containing controller jobs
 	CSIVolumeByID(memdb.WatchSet, string, string) (*structs.CSIVolume, error)
+
+	// CSIVolumeByID fetch CSI volumes, containing controller jobs
+	CSIVolumesByNodeID(memdb.WatchSet, string) (memdb.ResultIterator, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

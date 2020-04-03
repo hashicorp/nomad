@@ -7,10 +7,32 @@
 
 export default [
   {
+    category: 'install',
+    content: [
+      { category: 'quickstart' },
+      {
+        category: 'production',
+        content: [
+          'requirements',
+          'nomad-agent',
+          'reference-architecture',
+          'deployment-guide'
+        ]
+      },
+      'windows-service'
+    ]
+  },
+  { category: 'upgrade', content: ['upgrade-specific'] },
+  {
+    category: 'integrations',
+    content: ['consul-integration', 'consul-connect', 'vault-integration']
+  },
+  '-----------',
+  {
     category: 'internals',
     content: [
       'architecture',
-      { category: 'plugins', content: ['base', 'task-drivers', 'devices'] },
+      { category: 'plugins', content: ['base', 'task-drivers', 'devices', 'csi'] },
       {
         category: 'scheduling',
         content: ['scheduling', 'preemption']
@@ -134,6 +156,7 @@ export default [
       'dispatch_payload',
       'env',
       'ephemeral_disk',
+      'expose',
       'group',
       'job',
       'lifecycle',

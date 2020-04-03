@@ -30,9 +30,9 @@ const (
 	// revocation requests Nomad will make against Consul.
 	siTokenMaxParallelRevokes = 64
 
-	// siTokenRevocationIterval is the interval at which SI tokens that failed
+	// siTokenRevocationInterval is the interval at which SI tokens that failed
 	// initial revocation are retried.
-	siTokenRevocationIterval = 5 * time.Minute
+	siTokenRevocationInterval = 5 * time.Minute
 )
 
 const (
@@ -77,6 +77,9 @@ func (sii ServiceIdentityIndex) Description() string {
 
 // ConsulACLsAPI is an abstraction over the consul/api.ACL API used by Nomad
 // Server.
+//
+// ACL requirements
+// - acl:write (transitive through ACLsAPI)
 type ConsulACLsAPI interface {
 
 	// CheckSIPolicy checks that the given operator token has the equivalent ACL
@@ -350,7 +353,7 @@ func (c *consulACLsAPI) singleRevoke(ctx context.Context, accessor *structs.SITo
 }
 
 func (c *consulACLsAPI) bgRetryRevokeDaemon() {
-	ticker := time.NewTicker(siTokenRevocationIterval)
+	ticker := time.NewTicker(siTokenRevocationInterval)
 	defer ticker.Stop()
 
 	for {

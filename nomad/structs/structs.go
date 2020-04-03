@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/go-msgpack/codec"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/copystructure"
-	"github.com/ugorji/go/codec"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/nomad/acl"
@@ -90,6 +90,7 @@ const (
 	CSIVolumeRegisterRequestType
 	CSIVolumeDeregisterRequestType
 	CSIVolumeClaimRequestType
+	ScalingEventRegisterRequestType
 )
 
 const (
@@ -625,8 +626,8 @@ type JobScaleRequest struct {
 	JobID     string
 	Target    map[string]string
 	Count     *int64
-	Reason    *string
-	Error     *string
+	Message   string
+	Error     bool
 	Meta      map[string]interface{}
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
@@ -1255,16 +1256,7 @@ type TaskGroupScaleStatus struct {
 	Running   int
 	Healthy   int
 	Unhealthy int
-	Events    []ScalingEvent
-}
-
-// ScalingEvent represents a specific scaling event
-type ScalingEvent struct {
-	Reason *string
-	Error  *string
-	Meta   map[string]interface{}
-	Time   uint64
-	EvalID *string
+	Events    []*ScalingEvent
 }
 
 type JobDispatchResponse struct {
@@ -1469,6 +1461,7 @@ const (
 	NodeEventSubsystemDriver    = "Driver"
 	NodeEventSubsystemHeartbeat = "Heartbeat"
 	NodeEventSubsystemCluster   = "Cluster"
+	NodeEventSubsystemStorage   = "Storage"
 )
 
 // NodeEvent is a single unit representing a node’s state change
@@ -1944,6 +1937,7 @@ func (n *Node) Stub() *NodeListStub {
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
 		Drivers:               n.Drivers,
+		HostVolumes:           n.HostVolumes,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -1963,6 +1957,7 @@ type NodeListStub struct {
 	Status                string
 	StatusDescription     string
 	Drivers               map[string]*DriverInfo
+	HostVolumes           map[string]*ClientHostVolumeConfig
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -2419,7 +2414,7 @@ type RequestedDevice struct {
 	// to use.
 	Constraints Constraints
 
-	// Affinities are a set of affinites to apply when selecting the device
+	// Affinities are a set of affinities to apply when selecting the device
 	// to use.
 	Affinities Affinities
 }
@@ -2612,18 +2607,18 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 }
 
 // Equals equates Networks as a set
-func (n *Networks) Equals(o *Networks) bool {
-	if n == o {
+func (ns *Networks) Equals(o *Networks) bool {
+	if ns == o {
 		return true
 	}
-	if n == nil || o == nil {
+	if ns == nil || o == nil {
 		return false
 	}
-	if len(*n) != len(*o) {
+	if len(*ns) != len(*o) {
 		return false
 	}
 SETEQUALS:
-	for _, ne := range *n {
+	for _, ne := range *ns {
 		for _, oe := range *o {
 			if ne.Equals(oe) {
 				continue SETEQUALS
@@ -3514,6 +3509,10 @@ const (
 	// JobTrackedVersions is the number of historic job versions that are
 	// kept.
 	JobTrackedVersions = 6
+
+	// JobTrackedScalingEvents is the number of scaling events that are
+	// kept for a single task group.
+	JobTrackedScalingEvents = 20
 )
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
@@ -4655,6 +4654,77 @@ const (
 	// ReasonWithinPolicy describes restart events that are within policy
 	ReasonWithinPolicy = "Restart within policy"
 )
+
+// JobScalingEvents contains the scaling events for a given job
+type JobScalingEvents struct {
+	Namespace string
+	JobID     string
+
+	// This map is indexed by target; currently, this is just task group
+	// the indexed array is sorted from newest to oldest event
+	// the array should have less than JobTrackedScalingEvents entries
+	ScalingEvents map[string][]*ScalingEvent
+
+	// Raft index
+	ModifyIndex uint64
+}
+
+// Factory method for ScalingEvent objects
+func NewScalingEvent(message string) *ScalingEvent {
+	return &ScalingEvent{
+		Time:    time.Now().Unix(),
+		Message: message,
+	}
+}
+
+// ScalingEvent describes a scaling event against a Job
+type ScalingEvent struct {
+	// Unix Nanosecond timestamp for the scaling event
+	Time int64
+
+	// Count is the new scaling count, if provided
+	Count *int64
+
+	// Message is the message describing a scaling event
+	Message string
+
+	// Error indicates an error state for this scaling event
+	Error bool
+
+	// Meta is a map of metadata returned during a scaling event
+	Meta map[string]interface{}
+
+	// EvalID is the ID for an evaluation if one was created as part of a scaling event
+	EvalID *string
+
+	// Raft index
+	CreateIndex uint64
+}
+
+func (e *ScalingEvent) SetError(error bool) *ScalingEvent {
+	e.Error = error
+	return e
+}
+
+func (e *ScalingEvent) SetMeta(meta map[string]interface{}) *ScalingEvent {
+	e.Meta = meta
+	return e
+}
+
+func (e *ScalingEvent) SetEvalID(evalID string) *ScalingEvent {
+	e.EvalID = &evalID
+	return e
+}
+
+// ScalingEventRequest is by for Job.Scale endpoint
+// to register scaling events
+type ScalingEventRequest struct {
+	Namespace string
+	JobID     string
+	TaskGroup string
+
+	ScalingEvent *ScalingEvent
+}
 
 // ScalingPolicy specifies the scaling policy for a scaling target
 type ScalingPolicy struct {

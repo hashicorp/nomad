@@ -9,15 +9,6 @@ export NOMAD_E2E=1
 EOM
 }
 
-output "volumes" {
-  description = "get volume IDs needed to register volumes for CSI testing."
-  value = jsonencode(
-    {
-      "ebs_volume" : aws_ebs_volume.csi.id,
-      "efs_volume" : aws_efs_file_system.csi.id,
-  })
-}
-
 output "provisioning" {
   description = "output to a file to be use w/ E2E framework -provision.terraform"
   value = jsonencode(

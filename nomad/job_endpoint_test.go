@@ -121,19 +121,15 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	job.TaskGroups[0].Networks = structs.Networks{
-		{
-			Mode: "bridge",
-		},
-	}
-	job.TaskGroups[0].Services = []*structs.Service{
-		{
-			Name:      "backend",
-			PortLabel: "8080",
-			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
-			},
-		},
+	job.TaskGroups[0].Networks = structs.Networks{{
+		Mode: "bridge",
+	}}
+	job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "backend",
+		PortLabel: "8080",
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{},
+		}},
 	}
 	req := &structs.JobRegisterRequest{
 		Job: job,
@@ -178,7 +174,118 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	require.Len(out.TaskGroups[0].Tasks, 2)
 	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+}
 
+func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Setup the job we are going to register
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{{
+		Mode: "bridge",
+		DynamicPorts: []structs.Port{{
+			Label: "hcPort",
+			To:    -1,
+		}, {
+			Label: "v2Port",
+			To:    -1,
+		}},
+	}}
+	job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "backend",
+		PortLabel: "8080",
+		Checks: []*structs.ServiceCheck{{
+			Name:      "check1",
+			Type:      "http",
+			Protocol:  "http",
+			Path:      "/health",
+			Expose:    true,
+			PortLabel: "hcPort",
+			Interval:  1 * time.Second,
+			Timeout:   1 * time.Second,
+		}, {
+			Name:     "check2",
+			Type:     "script",
+			Command:  "/bin/true",
+			Interval: 1 * time.Second,
+			Timeout:  1 * time.Second,
+		}, {
+			Name:      "check3",
+			Type:      "grpc",
+			Protocol:  "grpc",
+			Path:      "/v2/health",
+			Expose:    true,
+			PortLabel: "v2Port",
+			Interval:  1 * time.Second,
+			Timeout:   1 * time.Second,
+		}},
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{}},
+	}}
+
+	// Create the register request
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the new expose paths got created
+	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
+	httpPath := out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths[0]
+	r.Equal(structs.ConsulExposePath{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}, httpPath)
+	grpcPath := out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths[1]
+	r.Equal(structs.ConsulExposePath{
+		Path:          "/v2/health",
+		Protocol:      "grpc",
+		LocalPathPort: 8080,
+		ListenerPort:  "v2Port",
+	}, grpcPath)
+
+	// make sure round tripping does not create duplicate expose paths
+	out.Meta["test"] = "abc"
+	req.Job = out
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// make sure we are not re-adding what has already been added
+	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
 }
 
 func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
@@ -5289,8 +5396,8 @@ func TestJobEndpoint_Scale(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
 		},
-		Count:  helper.Int64ToPtr(int64(count + 1)),
-		Reason: helper.StringToPtr("this should fail"),
+		Count:   helper.Int64ToPtr(int64(count + 1)),
+		Message: "because of the load",
 		Meta: map[string]interface{}{
 			"metrics": map[string]string{
 				"1": "a",
@@ -5308,6 +5415,7 @@ func TestJobEndpoint_Scale(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.NoError(err)
 	require.NotEmpty(resp.EvalID)
+	require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
 }
 
 func TestJobEndpoint_Scale_ACL(t *testing.T) {
@@ -5329,7 +5437,7 @@ func TestJobEndpoint_Scale_ACL(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
 		},
-		Reason: helper.StringToPtr("this should fail"),
+		Message: "because of the load",
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
 			Namespace: job.Namespace,
@@ -5414,8 +5522,8 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 		Target: map[string]string{
 			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
 		},
-		Count:  helper.Int64ToPtr(int64(count) + 1),
-		Reason: helper.StringToPtr("this should fail"),
+		Count:   helper.Int64ToPtr(int64(count) + 1),
+		Message: "this should fail",
 		Meta: map[string]interface{}{
 			"metrics": map[string]string{
 				"1": "a",
@@ -5438,19 +5546,72 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 	err = state.UpsertJob(1000, job)
 	require.Nil(err)
 
-	scale.Count = nil
-	scale.Error = helper.StringToPtr("error and reason")
-	scale.Reason = helper.StringToPtr("is not allowed")
-	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "should not contain error and scaling reason")
-
 	scale.Count = helper.Int64ToPtr(10)
-	scale.Reason = nil
-	scale.Error = helper.StringToPtr("error and count is not allowed")
+	scale.Message = "error message"
+	scale.Error = true
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.Error(err)
-	require.Contains(err.Error(), "should not contain error and count")
+	require.Contains(err.Error(), "should not contain count if error is true")
+}
+
+func TestJobEndpoint_Scale_NoEval(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	groupName := job.TaskGroups[0].Name
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &resp)
+	jobCreateIndex := resp.Index
+	require.NoError(err)
+
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: groupName,
+		},
+		Count:   nil, // no count => no eval
+		Message: "something informative",
+		Meta: map[string]interface{}{
+			"metrics": map[string]string{
+				"1": "a",
+				"2": "b",
+			},
+			"other": "value",
+		},
+		PolicyOverride: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.NoError(err)
+	require.Empty(resp.EvalID)
+	require.Empty(resp.EvalCreateIndex)
+
+	jobEvents, eventsIndex, err := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(jobEvents)
+	require.Len(jobEvents, 1)
+	require.Contains(jobEvents, groupName)
+	groupEvents := jobEvents[groupName]
+	require.Len(groupEvents, 1)
+	event := groupEvents[0]
+	require.Nil(event.EvalID)
+	require.Greater(eventsIndex, jobCreateIndex)
 }
 
 func TestJobEndpoint_GetScaleStatus(t *testing.T) {

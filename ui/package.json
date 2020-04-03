@@ -116,6 +116,8 @@
     "query-string": "^5.0.0",
     "qunit-dom": "^0.9.0",
     "sass": "^1.17.3",
+    "testem": "^3.0.3",
+    "testem-multi-reporter": "^1.2.0",
     "text-encoder-lite": "^2.0.0",
     "xterm": "^4.2.0-vscode1",
     "xterm-addon-fit": "^0.3.0"

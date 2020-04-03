@@ -1,7 +1,6 @@
 package fingerprint
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -29,7 +28,7 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 }
 
 func TestEnvAWSFingerprint_aws(t *testing.T) {
-	endpoint, cleanup := startFakeEC2Metadata(t)
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
@@ -70,7 +69,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 }
 
 func TestNetworkFingerprint_AWS(t *testing.T) {
-	endpoint, cleanup := startFakeEC2Metadata(t)
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
@@ -98,7 +97,7 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 }
 
 func TestNetworkFingerprint_AWS_network(t *testing.T) {
-	endpoint, cleanup := startFakeEC2Metadata(t)
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
 	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
@@ -158,16 +157,56 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 	}
 }
 
-/// Utility functions for tests
+func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, noNetworkAWSStubs)
+	defer cleanup()
 
-func startFakeEC2Metadata(t *testing.T) (endpoint string, cleanup func()) {
-	routes := routes{}
-	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{
+		Attributes: make(map[string]string),
 	}
 
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+
+	require.True(t, response.Detected, "expected response to be applicable")
+
+	require.Equal(t, "ami-1234", response.Attributes["platform.aws.ami-id"])
+
+	require.Nil(t, response.NodeResources)
+}
+
+func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, incompleteAWSImitationStubs)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+
+	require.False(t, response.Detected, "expected response not to be applicable")
+
+	require.NotContains(t, response.Attributes, "platform.aws.ami-id")
+	require.Nil(t, response.NodeResources)
+}
+
+/// Utility functions for tests
+
+func startFakeEC2Metadata(t *testing.T, endpoints []endpoint) (endpoint string, cleanup func()) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, e := range routes.Endpoints {
+		for _, e := range endpoints {
 			if r.RequestURI == e.Uri {
 				w.Header().Set("Content-Type", e.ContentType)
 				fmt.Fprintln(w, e.Body)
@@ -181,60 +220,133 @@ func startFakeEC2Metadata(t *testing.T) (endpoint string, cleanup func()) {
 type routes struct {
 	Endpoints []*endpoint `json:"endpoints"`
 }
+
 type endpoint struct {
 	Uri         string `json:"uri"`
 	ContentType string `json:"content-type"`
 	Body        string `json:"body"`
 }
 
-const aws_routes = `
-{
-  "endpoints": [
-    {
-      "uri": "/latest/meta-data/ami-id",
-      "content-type": "text/plain",
-      "body": "ami-1234"
-    },
-    {
-      "uri": "/latest/meta-data/hostname",
-      "content-type": "text/plain",
-      "body": "ip-10-0-0-207.us-west-2.compute.internal"
-    },
-    {
-      "uri": "/latest/meta-data/placement/availability-zone",
-      "content-type": "text/plain",
-      "body": "us-west-2a"
-    },
-    {
-      "uri": "/latest/meta-data/instance-id",
-      "content-type": "text/plain",
-      "body": "i-b3ba3875"
-    },
-    {
-      "uri": "/latest/meta-data/instance-type",
-      "content-type": "text/plain",
-      "body": "m3.2xlarge"
-    },
-    {
-      "uri": "/latest/meta-data/local-hostname",
-      "content-type": "text/plain",
-      "body": "ip-10-0-0-207.us-west-2.compute.internal"
-    },
-    {
-      "uri": "/latest/meta-data/local-ipv4",
-      "content-type": "text/plain",
-      "body": "10.0.0.207"
-    },
-    {
-      "uri": "/latest/meta-data/public-hostname",
-      "content-type": "text/plain",
-      "body": "ec2-54-191-117-175.us-west-2.compute.amazonaws.com"
-    },
-    {
-      "uri": "/latest/meta-data/public-ipv4",
-      "content-type": "text/plain",
-      "body": "54.191.117.175"
-    }
-  ]
+// awsStubs mimics normal EC2 instance metadata
+var awsStubs = []endpoint{
+	{
+		Uri:         "/latest/meta-data/ami-id",
+		ContentType: "text/plain",
+		Body:        "ami-1234",
+	},
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/placement/availability-zone",
+		ContentType: "text/plain",
+		Body:        "us-west-2a",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-type",
+		ContentType: "text/plain",
+		Body:        "m3.2xlarge",
+	},
+	{
+		Uri:         "/latest/meta-data/local-hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/local-ipv4",
+		ContentType: "text/plain",
+		Body:        "10.0.0.207",
+	},
+	{
+		Uri:         "/latest/meta-data/public-hostname",
+		ContentType: "text/plain",
+		Body:        "ec2-54-191-117-175.us-west-2.compute.amazonaws.com",
+	},
+	{
+		Uri:         "/latest/meta-data/public-ipv4",
+		ContentType: "text/plain",
+		Body:        "54.191.117.175",
+	},
 }
-`
+
+// noNetworkAWSStubs mimics an EC2 instance but without local ip address
+// may happen in environments with odd EC2 Metadata emulation
+var noNetworkAWSStubs = []endpoint{
+	{
+		Uri:         "/latest/meta-data/ami-id",
+		ContentType: "text/plain",
+		Body:        "ami-1234",
+	},
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/placement/availability-zone",
+		ContentType: "text/plain",
+		Body:        "us-west-2a",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-type",
+		ContentType: "text/plain",
+		Body:        "m3.2xlarge",
+	},
+	{
+		Uri:         "/latest/meta-data/local-hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/local-ipv4",
+		ContentType: "text/plain",
+		Body:        "",
+	},
+	{
+		Uri:         "/latest/meta-data/public-hostname",
+		ContentType: "text/plain",
+		Body:        "ec2-54-191-117-175.us-west-2.compute.amazonaws.com",
+	},
+	{
+		Uri:         "/latest/meta-data/public-ipv4",
+		ContentType: "text/plain",
+		Body:        "54.191.117.175",
+	},
+}
+
+// incompleteAWSImitationsStub mimics environments where some AWS endpoints
+// return empty, namely Hetzner
+var incompleteAWSImitationStubs = []endpoint{
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/local-ipv4",
+		ContentType: "text/plain",
+		Body:        "",
+	},
+	{
+		Uri:         "/latest/meta-data/public-ipv4",
+		ContentType: "text/plain",
+		Body:        "54.191.117.175",
+	},
+}

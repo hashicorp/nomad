@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	csifake "github.com/hashicorp/nomad/plugins/csi/fake"
@@ -80,8 +81,9 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 			defer os.RemoveAll(tmpPath)
 
 			csiFake := &csifake.Client{}
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
-			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume, tc.UsageOptions)
+			eventer := func(e *structs.NodeEvent) {}
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume.ID, tc.UsageOptions)
 
 			if tc.CreateDirAheadOfTime {
 				err := os.MkdirAll(expectedStagingPath, 0700)
@@ -175,7 +177,8 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeStageVolumeErr = tc.PluginErr
 
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
+			eventer := func(e *structs.NodeEvent) {}
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
 			err := manager.stageVolume(ctx, tc.Volume, tc.UsageOptions, nil)
@@ -229,10 +232,11 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeUnstageVolumeErr = tc.PluginErr
 
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
+			eventer := func(e *structs.NodeEvent) {}
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unstageVolume(ctx, tc.Volume, tc.UsageOptions)
+			err := manager.unstageVolume(ctx, tc.Volume.ID, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -343,7 +347,8 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			csiFake := &csifake.Client{}
 			csiFake.NextNodePublishVolumeErr = tc.PluginErr
 
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
+			eventer := func(e *structs.NodeEvent) {}
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
 			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions, nil)
@@ -407,10 +412,11 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			csiFake := &csifake.Client{}
 			csiFake.NextNodeUnpublishVolumeErr = tc.PluginErr
 
-			manager := newVolumeManager(testlog.HCLogger(t), csiFake, tmpPath, tmpPath, true)
+			eventer := func(e *structs.NodeEvent) {}
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unpublishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions)
+			err := manager.unpublishVolume(ctx, tc.Volume.ID, tc.Allocation.ID, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -421,4 +427,62 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			require.Equal(t, tc.ExpectedCSICallCount, csiFake.NodeUnpublishVolumeCallCount)
 		})
 	}
+}
+
+func TestVolumeManager_MountVolumeEvents(t *testing.T) {
+	t.Parallel()
+
+	tmpPath := tmpDir(t)
+	defer os.RemoveAll(tmpPath)
+
+	csiFake := &csifake.Client{}
+
+	var events []*structs.NodeEvent
+	eventer := func(e *structs.NodeEvent) {
+		events = append(events, e)
+	}
+
+	manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+	ctx := context.Background()
+	vol := &structs.CSIVolume{
+		ID:         "vol",
+		Namespace:  "ns",
+		AccessMode: structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+	}
+	alloc := mock.Alloc()
+	usage := &UsageOptions{}
+	pubCtx := map[string]string{}
+
+	_, err := manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
+	require.Error(t, err, "Unknown volume attachment mode: ")
+	require.Equal(t, 1, len(events))
+	e := events[0]
+	require.Equal(t, "Mount volume", e.Message)
+	require.Equal(t, "Storage", e.Subsystem)
+	require.Equal(t, "vol", e.Details["volume_id"])
+	require.Equal(t, "false", e.Details["success"])
+	require.Equal(t, "Unknown volume attachment mode: ", e.Details["error"])
+	events = events[1:]
+
+	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	_, err = manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, len(events))
+	e = events[0]
+	require.Equal(t, "Mount volume", e.Message)
+	require.Equal(t, "Storage", e.Subsystem)
+	require.Equal(t, "vol", e.Details["volume_id"])
+	require.Equal(t, "true", e.Details["success"])
+	events = events[1:]
+
+	err = manager.UnmountVolume(ctx, vol.ID, alloc.ID, usage)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, len(events))
+	e = events[0]
+	require.Equal(t, "Unmount volume", e.Message)
+	require.Equal(t, "Storage", e.Subsystem)
+	require.Equal(t, "vol", e.Details["volume_id"])
+	require.Equal(t, "true", e.Details["success"])
 }

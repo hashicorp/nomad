@@ -47,6 +47,7 @@ type ServiceCheck struct {
 	Path          string              // path of the health check url for http type check
 	Protocol      string              // Protocol to use if check is http, defaults to http
 	PortLabel     string              // The port to use for tcp/http checks
+	Expose        bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
 	AddressMode   string              // 'host' to use host ip:port or 'driver' to use driver's
 	Interval      time.Duration       // Interval of the check
 	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
@@ -136,6 +137,10 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 		return false
 	}
 
+	if sc.Expose != o.Expose {
+		return false
+	}
+
 	if sc.Protocol != o.Protocol {
 		return false
 	}
@@ -180,18 +185,19 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 // validate a Service's ServiceCheck
 func (sc *ServiceCheck) validate() error {
 	// Validate Type
-	switch strings.ToLower(sc.Type) {
+	checkType := strings.ToLower(sc.Type)
+	switch checkType {
 	case ServiceCheckGRPC:
 	case ServiceCheckTCP:
 	case ServiceCheckHTTP:
 		if sc.Path == "" {
 			return fmt.Errorf("http type must have a valid http path")
 		}
-		url, err := url.Parse(sc.Path)
+		checkPath, err := url.Parse(sc.Path)
 		if err != nil {
 			return fmt.Errorf("http type must have a valid http path")
 		}
-		if url.IsAbs() {
+		if checkPath.IsAbs() {
 			return fmt.Errorf("http type must have a relative http path")
 		}
 
@@ -238,6 +244,19 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("invalid address_mode %q", sc.AddressMode)
 	}
 
+	// Note that we cannot completely validate the Expose field yet - we do not
+	// know whether this ServiceCheck belongs to a connect-enabled group-service.
+	// Instead, such validation will happen in a job admission controller.
+	if sc.Expose {
+		// We can however immediately ensure expose is configured only for HTTP
+		// and gRPC checks.
+		switch checkType {
+		case ServiceCheckGRPC, ServiceCheckHTTP: // ok
+		default:
+			return fmt.Errorf("expose may only be set on HTTP or gRPC checks")
+		}
+	}
+
 	return sc.CheckRestart.Validate()
 }
 
@@ -263,47 +282,60 @@ func (sc *ServiceCheck) TriggersRestarts() bool {
 // called.
 func (sc *ServiceCheck) Hash(serviceID string) string {
 	h := sha1.New()
-	io.WriteString(h, serviceID)
-	io.WriteString(h, sc.Name)
-	io.WriteString(h, sc.Type)
-	io.WriteString(h, sc.Command)
-	io.WriteString(h, strings.Join(sc.Args, ""))
-	io.WriteString(h, sc.Path)
-	io.WriteString(h, sc.Protocol)
-	io.WriteString(h, sc.PortLabel)
-	io.WriteString(h, sc.Interval.String())
-	io.WriteString(h, sc.Timeout.String())
-	io.WriteString(h, sc.Method)
-	// Only include TLSSkipVerify if set to maintain ID stability with Nomad <0.6
-	if sc.TLSSkipVerify {
-		io.WriteString(h, "true")
-	}
+	hashString(h, serviceID)
+	hashString(h, sc.Name)
+	hashString(h, sc.Type)
+	hashString(h, sc.Command)
+	hashString(h, strings.Join(sc.Args, ""))
+	hashString(h, sc.Path)
+	hashString(h, sc.Protocol)
+	hashString(h, sc.PortLabel)
+	hashString(h, sc.Interval.String())
+	hashString(h, sc.Timeout.String())
+	hashString(h, sc.Method)
 
-	// Since map iteration order isn't stable we need to write k/v pairs to
-	// a slice and sort it before hashing.
-	if len(sc.Header) > 0 {
-		headers := make([]string, 0, len(sc.Header))
-		for k, v := range sc.Header {
+	// use name "true" to maintain ID stability
+	hashBool(h, sc.TLSSkipVerify, "true")
+
+	// maintain artisanal map hashing to maintain ID stability
+	hashHeader(h, sc.Header)
+
+	// Only include AddressMode if set to maintain ID stability with Nomad <0.7.1
+	hashStringIfNonEmpty(h, sc.AddressMode)
+
+	// Only include gRPC if set to maintain ID stability with Nomad <0.8.4
+	hashStringIfNonEmpty(h, sc.GRPCService)
+
+	// use name "true" to maintain ID stability
+	hashBool(h, sc.GRPCUseTLS, "true")
+
+	// Hash is used for diffing against the Consul check definition, which does
+	// not have an expose parameter. Instead we rely on implied changes to
+	// other fields if the Expose setting is changed in a nomad service.
+	// hashBool(h, sc.Expose, "Expose")
+
+	// maintain use of hex (i.e. not b32) to maintain ID stability
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func hashStringIfNonEmpty(h hash.Hash, s string) {
+	if len(s) > 0 {
+		hashString(h, s)
+	}
+}
+
+func hashHeader(h hash.Hash, m map[string][]string) {
+	// maintain backwards compatibility for ID stability
+	// using the %v formatter on a map with string keys produces consistent
+	// output, but our existing format here is incompatible
+	if len(m) > 0 {
+		headers := make([]string, 0, len(m))
+		for k, v := range m {
 			headers = append(headers, k+strings.Join(v, ""))
 		}
 		sort.Strings(headers)
-		io.WriteString(h, strings.Join(headers, ""))
+		hashString(h, strings.Join(headers, ""))
 	}
-
-	// Only include AddressMode if set to maintain ID stability with Nomad <0.7.1
-	if len(sc.AddressMode) > 0 {
-		io.WriteString(h, sc.AddressMode)
-	}
-
-	// Only include GRPC if set to maintain ID stability with Nomad <0.8.4
-	if sc.GRPCService != "" {
-		io.WriteString(h, sc.GRPCService)
-	}
-	if sc.GRPCUseTLS {
-		io.WriteString(h, "true")
-	}
-
-	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 const (
@@ -852,6 +884,10 @@ type ConsulProxy struct {
 	// connect to.
 	Upstreams []ConsulUpstream
 
+	// Expose configures the consul proxy.expose stanza to "open up" endpoints
+	// used by task-group level service checks using HTTP or gRPC protocols.
+	Expose *ConsulExposeConfig
+
 	// Config is a proxy configuration. It is opaque to Nomad and passed
 	// directly to Consul.
 	Config map[string]interface{}
@@ -863,9 +899,11 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 		return nil
 	}
 
-	newP := ConsulProxy{}
-	newP.LocalServiceAddress = p.LocalServiceAddress
-	newP.LocalServicePort = p.LocalServicePort
+	newP := &ConsulProxy{
+		LocalServiceAddress: p.LocalServiceAddress,
+		LocalServicePort:    p.LocalServicePort,
+		Expose:              p.Expose,
+	}
 
 	if n := len(p.Upstreams); n > 0 {
 		newP.Upstreams = make([]ConsulUpstream, n)
@@ -883,7 +921,7 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 		}
 	}
 
-	return &newP
+	return newP
 }
 
 // Equals returns true if the structs are recursively equal.
@@ -895,24 +933,16 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 	if p.LocalServiceAddress != o.LocalServiceAddress {
 		return false
 	}
+
 	if p.LocalServicePort != o.LocalServicePort {
 		return false
 	}
-	if len(p.Upstreams) != len(o.Upstreams) {
+
+	if !p.Expose.Equals(o.Expose) {
 		return false
 	}
 
-	// Order doesn't matter
-OUTER:
-	for _, up := range p.Upstreams {
-		for _, innerUp := range o.Upstreams {
-			if up.Equals(&innerUp) {
-				// Match; find next upstream
-				continue OUTER
-			}
-		}
-
-		// No match
+	if !upstreamsEquals(p.Upstreams, o.Upstreams) {
 		return false
 	}
 
@@ -936,7 +966,24 @@ type ConsulUpstream struct {
 	LocalBindPort int
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+func upstreamsEquals(a, b []ConsulUpstream) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+LOOP: // order does not matter
+	for _, upA := range a {
+		for _, upB := range b {
+			if upA.Equals(&upB) {
+				continue LOOP
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// Copy the stanza recursively. Returns nil if u is nil.
 func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	if u == nil {
 		return nil
@@ -955,4 +1002,55 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 	}
 
 	return (*u) == (*o)
+}
+
+// ExposeConfig represents a Consul Connect expose jobspec stanza.
+type ConsulExposeConfig struct {
+	Paths []ConsulExposePath
+}
+
+type ConsulExposePath struct {
+	Path          string
+	Protocol      string
+	LocalPathPort int
+	ListenerPort  string
+}
+
+func exposePathsEqual(pathsA, pathsB []ConsulExposePath) bool {
+	if len(pathsA) != len(pathsB) {
+		return false
+	}
+
+LOOP: // order does not matter
+	for _, pathA := range pathsA {
+		for _, pathB := range pathsB {
+			if pathA == pathB {
+				continue LOOP
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// Copy the stanza. Returns nil if e is nil.
+func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
+	if e == nil {
+		return nil
+	}
+	paths := make([]ConsulExposePath, len(e.Paths))
+	for i := 0; i < len(e.Paths); i++ {
+		paths[i] = e.Paths[i]
+	}
+	return &ConsulExposeConfig{
+		Paths: paths,
+	}
+}
+
+// Equals returns true if the structs are recursively equal.
+func (e *ConsulExposeConfig) Equals(o *ConsulExposeConfig) bool {
+	if e == nil || o == nil {
+		return e == o
+	}
+	return exposePathsEqual(e.Paths, o.Paths)
 }

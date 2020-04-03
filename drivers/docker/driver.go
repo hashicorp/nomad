@@ -1,8 +1,11 @@
 package docker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -672,6 +675,35 @@ var userMountToUnixMount = map[string]string{
 	nstructs.VolumeMountPropagationBidirectional: "rshared",
 }
 
+// takes a local seccomp daemon, reads the file contents for sending to the daemon
+// this code modified slightly from the docker CLI code
+// https://github.com/docker/cli/blob/8ef8547eb6934b28497d309d21e280bcd25145f5/cli/command/container/opts.go#L840
+func parseSecurityOpts(securityOpts []string) ([]string, error) {
+	for key, opt := range securityOpts {
+		con := strings.SplitN(opt, "=", 2)
+		if len(con) == 1 && con[0] != "no-new-privileges" {
+			if strings.Contains(opt, ":") {
+				con = strings.SplitN(opt, ":", 2)
+			} else {
+				return securityOpts, fmt.Errorf("invalid security_opt: %q", opt)
+			}
+		}
+		if con[0] == "seccomp" && con[1] != "unconfined" {
+			f, err := ioutil.ReadFile(con[1])
+			if err != nil {
+				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
+			}
+			b := bytes.NewBuffer(nil)
+			if err := json.Compact(b, f); err != nil {
+				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
+			}
+			securityOpts[key] = fmt.Sprintf("seccomp=%s", b.Bytes())
+		}
+	}
+
+	return securityOpts, nil
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -719,7 +751,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
-		PidsLimit: driverConfig.PidsLimit,
+		PidsLimit: &driverConfig.PidsLimit,
 	}
 
 	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
@@ -748,9 +780,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
 		hostConfig.MemorySwap = 0
-		hostConfig.MemorySwappiness = -1
+		hostConfig.MemorySwappiness = nil
 	} else {
 		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+
+		// disable swap explicitly in non-Windows environments
+		var swapiness int64 = 0
+		hostConfig.MemorySwappiness = &swapiness
+
 	}
 
 	loggingDriver := driverConfig.Logging.Type
@@ -894,6 +931,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	hostConfig.UsernsMode = driverConfig.UsernsMode
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 	hostConfig.Sysctls = driverConfig.Sysctl
+
+	hostConfig.SecurityOpt, err = parseSecurityOpts(driverConfig.SecurityOpt)
+	if err != nil {
+		return c, fmt.Errorf("failed to parse security_opt configuration: %v", err)
+	}
 
 	ulimits, err := sliceMergeUlimit(driverConfig.Ulimit)
 	if err != nil {

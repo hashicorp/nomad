@@ -30,9 +30,9 @@ var (
 	}
 
 	// connectVersionConstraint is used when building the sidecar task to ensure
-	// the proper Consul version is used that supports the nessicary Connect
-	// features. This includes bootstraping envoy with a unix socket for Consul's
-	// grpc xDS api.
+	// the proper Consul version is used that supports the necessary Connect
+	// features. This includes bootstrapping envoy with a unix socket for Consul's
+	// gRPC xDS API.
 	connectVersionConstraint = func() *structs.Constraint {
 		return &structs.Constraint{
 			LTarget: "${attr.consul.version}",
@@ -97,6 +97,8 @@ func isSidecarForService(t *structs.Task, svc string) bool {
 	return t.Kind == structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, svc))
 }
 
+// probably need to hack this up to look for checks on the service, and if they
+// qualify, configure a port for envoy to use to expose their paths.
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 	for _, service := range g.Services {
 		if service.Connect.HasSidecar() {
@@ -125,29 +127,28 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// Canonicalize task since this mutator runs after job canonicalization
 			task.Canonicalize(job, g)
 
-			// port to be added for the sidecar task's proxy port
-			port := structs.Port{
-				Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name),
-
-				// -1 is a sentinel value to instruct the
-				// scheduler to map the host's dynamic port to
-				// the same port in the netns.
-				To: -1,
-			}
-
-			// check that port hasn't already been defined before adding it to tg
-			var found bool
-			for _, p := range g.Networks[0].DynamicPorts {
-				if p.Label == port.Label {
-					found = true
-					break
+			makePort := func(label string) {
+				// check that port hasn't already been defined before adding it to tg
+				for _, p := range g.Networks[0].DynamicPorts {
+					if p.Label == label {
+						return
+					}
 				}
+				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, structs.Port{
+					Label: label,
+					// -1 is a sentinel value to instruct the
+					// scheduler to map the host's dynamic port to
+					// the same port in the netns.
+					To: -1,
+				})
 			}
-			if !found {
-				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, port)
-			}
+
+			// create a port for the sidecar task's proxy port
+			makePort(fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name))
+			// todo(shoenig) magic port for 'expose.checks'
 		}
 	}
+
 	return nil
 }
 
@@ -164,6 +165,10 @@ func newConnectTask(serviceName string) *structs.Task {
 			MaxFileSizeMB: 2,
 		},
 		Resources: connectSidecarResources(),
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:    structs.TaskLifecycleHookPrestart,
+			Sidecar: true,
+		},
 		Constraints: structs.Constraints{
 			connectVersionConstraint(),
 		},

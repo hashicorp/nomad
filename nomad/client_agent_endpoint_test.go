@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
@@ -22,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 func TestMonitor_Monitor_Remote_Client(t *testing.T) {
@@ -231,11 +232,13 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			require := require.New(t)
 
 			// send some specific logs
-			doneCh := make(chan struct{})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				for {
 					select {
-					case <-doneCh:
+					case <-ctx.Done():
 						return
 					default:
 						tc.logger.Warn(tc.expectedLog)
@@ -310,7 +313,7 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 
 						received += string(frame.Data)
 						if strings.Contains(received, tc.expectedLog) {
-							close(doneCh)
+							cancel()
 							require.Nil(p2.Close())
 							break OUTER
 						}

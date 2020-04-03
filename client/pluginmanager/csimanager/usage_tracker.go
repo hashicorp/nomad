@@ -2,8 +2,6 @@ package csimanager
 
 import (
 	"sync"
-
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // volumeUsageTracker tracks the allocations that depend on a given volume
@@ -20,7 +18,7 @@ func newVolumeUsageTracker() *volumeUsageTracker {
 }
 
 type volumeUsageKey struct {
-	volume    *structs.CSIVolume
+	id        string
 	usageOpts UsageOptions
 }
 
@@ -28,17 +26,17 @@ func (v *volumeUsageTracker) allocsForKey(key volumeUsageKey) []string {
 	return v.state[key]
 }
 
-func (v *volumeUsageTracker) appendAlloc(key volumeUsageKey, alloc *structs.Allocation) {
+func (v *volumeUsageTracker) appendAlloc(key volumeUsageKey, allocID string) {
 	allocs := v.allocsForKey(key)
-	allocs = append(allocs, alloc.ID)
+	allocs = append(allocs, allocID)
 	v.state[key] = allocs
 }
 
-func (v *volumeUsageTracker) removeAlloc(key volumeUsageKey, needle *structs.Allocation) {
+func (v *volumeUsageTracker) removeAlloc(key volumeUsageKey, needle string) {
 	allocs := v.allocsForKey(key)
 	var newAllocs []string
 	for _, allocID := range allocs {
-		if allocID != needle.ID {
+		if allocID != needle {
 			newAllocs = append(newAllocs, allocID)
 		}
 	}
@@ -50,22 +48,22 @@ func (v *volumeUsageTracker) removeAlloc(key volumeUsageKey, needle *structs.All
 	}
 }
 
-func (v *volumeUsageTracker) Claim(alloc *structs.Allocation, volume *structs.CSIVolume, usage *UsageOptions) {
+func (v *volumeUsageTracker) Claim(allocID, volID string, usage *UsageOptions) {
 	v.stateMu.Lock()
 	defer v.stateMu.Unlock()
 
-	key := volumeUsageKey{volume: volume, usageOpts: *usage}
-	v.appendAlloc(key, alloc)
+	key := volumeUsageKey{id: volID, usageOpts: *usage}
+	v.appendAlloc(key, allocID)
 }
 
 // Free removes the allocation from the state list for the given alloc. If the
 // alloc is the last allocation for the volume then it returns true.
-func (v *volumeUsageTracker) Free(alloc *structs.Allocation, volume *structs.CSIVolume, usage *UsageOptions) bool {
+func (v *volumeUsageTracker) Free(allocID, volID string, usage *UsageOptions) bool {
 	v.stateMu.Lock()
 	defer v.stateMu.Unlock()
 
-	key := volumeUsageKey{volume: volume, usageOpts: *usage}
-	v.removeAlloc(key, alloc)
+	key := volumeUsageKey{id: volID, usageOpts: *usage}
+	v.removeAlloc(key, allocID)
 	allocs := v.allocsForKey(key)
 	return len(allocs) == 0
 }

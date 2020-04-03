@@ -1,5 +1,10 @@
 import { module, test } from 'qunit';
 import { decode } from 'nomad-ui/utils/stream-frames';
+import { TextEncoderLite } from 'text-encoder-lite';
+import base64js from 'base64-js';
+
+const Encoder = new TextEncoderLite('utf-8');
+const encode = str => base64js.fromByteArray(Encoder.encode(str));
 
 module('Unit | Util | stream-frames', function() {
   const { btoa } = window;
@@ -30,6 +35,14 @@ module('Unit | Util | stream-frames', function() {
       name: 'Empty string',
       in: '',
       out: {},
+    },
+    {
+      name: 'Multi-byte unicode',
+      in: `{"Offset":1,"Data":"${encode('ワンワン 🐶')}"}`,
+      out: {
+        offset: 1,
+        message: 'ワンワン 🐶',
+      },
     },
   ];
 

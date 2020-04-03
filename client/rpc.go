@@ -10,21 +10,21 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/client/servers"
 	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
-	"github.com/ugorji/go/codec"
 )
 
 // rpcEndpoints holds the RPC endpoints
 type rpcEndpoints struct {
-	ClientStats   *ClientStats
-	CSIController *CSIController
-	FileSystem    *FileSystem
-	Allocations   *Allocations
-	Agent         *Agent
+	ClientStats *ClientStats
+	CSI         *CSI
+	FileSystem  *FileSystem
+	Allocations *Allocations
+	Agent       *Agent
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -218,7 +218,7 @@ func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Co
 func (c *Client) setupClientRpc() {
 	// Initialize the RPC handlers
 	c.endpoints.ClientStats = &ClientStats{c}
-	c.endpoints.CSIController = &CSIController{c}
+	c.endpoints.CSI = &CSI{c}
 	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 	c.endpoints.Allocations = NewAllocationsEndpoint(c)
 	c.endpoints.Agent = NewAgentEndpoint(c)
@@ -236,7 +236,7 @@ func (c *Client) setupClientRpc() {
 func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	// Register the endpoints
 	server.Register(c.endpoints.ClientStats)
-	server.Register(c.endpoints.CSIController)
+	server.Register(c.endpoints.CSI)
 	server.Register(c.endpoints.FileSystem)
 	server.Register(c.endpoints.Allocations)
 	server.Register(c.endpoints.Agent)

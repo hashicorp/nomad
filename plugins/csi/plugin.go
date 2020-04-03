@@ -36,14 +36,14 @@ type CSIPlugin interface {
 	ControllerGetCapabilities(ctx context.Context) (*ControllerCapabilitySet, error)
 
 	// ControllerPublishVolume is used to attach a remote volume to a cluster node.
-	ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest) (*ControllerPublishVolumeResponse, error)
+	ControllerPublishVolume(ctx context.Context, req *ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*ControllerPublishVolumeResponse, error)
 
 	// ControllerUnpublishVolume is used to deattach a remote volume from a cluster node.
-	ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest) (*ControllerUnpublishVolumeResponse, error)
+	ControllerUnpublishVolume(ctx context.Context, req *ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*ControllerUnpublishVolumeResponse, error)
 
 	// ControllerValidateCapabilities is used to validate that a volume exists and
 	// supports the requested capability.
-	ControllerValidateCapabilties(ctx context.Context, volumeID string, capabilities *VolumeCapability) error
+	ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, opts ...grpc.CallOption) error
 
 	// NodeGetCapabilities is used to return the available capabilities from the
 	// Node Service.

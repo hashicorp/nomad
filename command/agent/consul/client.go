@@ -75,13 +75,25 @@ const (
 	deregisterProbationPeriod = time.Minute
 )
 
+// Additional Consul ACLs required
+// - Consul Template: key:read
+//   Used in tasks with template stanza that use Consul keys.
+
 // CatalogAPI is the consul/api.Catalog API used by Nomad.
+//
+// ACL requirements
+// - node:read (listing datacenters)
+// - service:read
 type CatalogAPI interface {
 	Datacenters() ([]string, error)
 	Service(service, tag string, q *api.QueryOptions) ([]*api.CatalogService, *api.QueryMeta, error)
 }
 
 // AgentAPI is the consul/api.Agent API used by Nomad.
+//
+// ACL requirements
+// - agent:read
+// - service:write
 type AgentAPI interface {
 	Services() (map[string]*api.AgentService, error)
 	Checks() (map[string]*api.AgentCheck, error)
@@ -94,6 +106,9 @@ type AgentAPI interface {
 }
 
 // ACLsAPI is the consul/api.ACL API subset used by Nomad Server.
+//
+// ACL requirements
+// - acl:write (server only)
 type ACLsAPI interface {
 	// We are looking up by [operator token] SecretID, which implies we need
 	// to use this method instead of the normal TokenRead, which can only be
@@ -1265,7 +1280,7 @@ func MakeCheckID(serviceID string, check *structs.ServiceCheck) string {
 // createCheckReg creates a Check that can be registered with Consul.
 //
 // Script checks simply have a TTL set and the caller is responsible for
-// running the script and heartbeating.
+// running the script and heart-beating.
 func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host string, port int) (*api.AgentCheckRegistration, error) {
 	chkReg := api.AgentCheckRegistration{
 		ID:        checkID,
@@ -1298,8 +1313,8 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		if err != nil {
 			return nil, err
 		}
-		url := base.ResolveReference(relative)
-		chkReg.HTTP = url.String()
+		checkURL := base.ResolveReference(relative)
+		chkReg.HTTP = checkURL.String()
 		chkReg.Method = check.Method
 		chkReg.Header = check.Header
 
@@ -1455,91 +1470,4 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		// Shouldn't happen due to validation, but enforce invariants
 		return "", 0, fmt.Errorf("invalid address mode %q", addrMode)
 	}
-}
-
-// newConnect creates a new Consul AgentServiceConnect struct based on a Nomad
-// Connect struct. If the nomad Connect struct is nil, nil will be returned to
-// disable Connect for this service.
-func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.Networks) (*api.AgentServiceConnect, error) {
-	if nc == nil {
-		// No Connect stanza, returning nil is fine
-		return nil, nil
-	}
-
-	cc := &api.AgentServiceConnect{
-		Native: nc.Native,
-	}
-
-	if nc.SidecarService == nil {
-		return cc, nil
-	}
-
-	net, port, err := getConnectPort(serviceName, networks)
-	if err != nil {
-		return nil, err
-	}
-
-	// Bind to netns IP(s):port
-	proxyConfig := map[string]interface{}{}
-	localServiceAddress := ""
-	localServicePort := 0
-	if nc.SidecarService.Proxy != nil {
-		localServiceAddress = nc.SidecarService.Proxy.LocalServiceAddress
-		localServicePort = nc.SidecarService.Proxy.LocalServicePort
-		if nc.SidecarService.Proxy.Config != nil {
-			proxyConfig = nc.SidecarService.Proxy.Config
-		}
-	}
-	proxyConfig["bind_address"] = "0.0.0.0"
-	proxyConfig["bind_port"] = port.To
-
-	// Advertise host IP:port
-	cc.SidecarService = &api.AgentServiceRegistration{
-		Tags:    helper.CopySliceString(nc.SidecarService.Tags),
-		Address: net.IP,
-		Port:    port.Value,
-
-		// Automatically configure the proxy to bind to all addresses
-		// within the netns.
-		Proxy: &api.AgentServiceConnectProxyConfig{
-			LocalServiceAddress: localServiceAddress,
-			LocalServicePort:    localServicePort,
-			Config:              proxyConfig,
-		},
-	}
-
-	// If no further proxy settings were explicitly configured, exit early
-	if nc.SidecarService.Proxy == nil {
-		return cc, nil
-	}
-
-	numUpstreams := len(nc.SidecarService.Proxy.Upstreams)
-	if numUpstreams == 0 {
-		return cc, nil
-	}
-
-	upstreams := make([]api.Upstream, numUpstreams)
-	for i, nu := range nc.SidecarService.Proxy.Upstreams {
-		upstreams[i].DestinationName = nu.DestinationName
-		upstreams[i].LocalBindPort = nu.LocalBindPort
-	}
-	cc.SidecarService.Proxy.Upstreams = upstreams
-
-	return cc, nil
-}
-
-// getConnectPort returns the network and port for the Connect proxy sidecar
-// defined for this service. An error is returned if the network and port
-// cannot be determined.
-func getConnectPort(serviceName string, networks structs.Networks) (*structs.NetworkResource, structs.Port, error) {
-	if n := len(networks); n != 1 {
-		return nil, structs.Port{}, fmt.Errorf("Connect only supported with exactly 1 network (found %d)", n)
-	}
-
-	port, ok := networks[0].PortForService(serviceName)
-	if !ok {
-		return nil, structs.Port{}, fmt.Errorf("No Connect port defined for service %q", serviceName)
-	}
-
-	return networks[0], port, nil
 }

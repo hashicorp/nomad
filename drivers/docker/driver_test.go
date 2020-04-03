@@ -978,7 +978,7 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 	require.Equal(t, localDigest, container.Image)
 }
 
-func TestDockerDriver_SecurityOpt(t *testing.T) {
+func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support seccomp")
 	}
@@ -1002,6 +1002,31 @@ func TestDockerDriver_SecurityOpt(t *testing.T) {
 	}
 
 	require.Exactly(t, cfg.SecurityOpt, container.HostConfig.SecurityOpt)
+}
+
+func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support seccomp")
+	}
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	cfg.SecurityOpt = []string{"seccomp=./test-resources/docker/seccomp.json"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Contains(t, container.HostConfig.SecurityOpt[0], "reboot")
 }
 
 func TestDockerDriver_CreateContainerConfig(t *testing.T) {

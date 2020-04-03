@@ -33,7 +33,7 @@ audit {
 
   filter "default" {
     type       = "HTTPEvent"
-    endpoints  = ["/ui/", "/v1/agent/health"]
+    endpoints  = ["/v1/metrics"]
     stages     = ["*"]
     operations = ["*"]
   }

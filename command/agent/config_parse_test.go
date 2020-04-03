@@ -125,6 +125,13 @@ var basicConfig = &Config{
 			RetryIntervalHCL: "15s",
 			RetryMaxAttempts: 3,
 		},
+		DefaultSchedulerConfig: &structs.SchedulerConfiguration{
+			PreemptionConfig: structs.PreemptionConfig{
+				SystemSchedulerEnabled:  true,
+				BatchSchedulerEnabled:   true,
+				ServiceSchedulerEnabled: true,
+			},
+		},
 	},
 	ACL: &ACLConfig{
 		Enabled:          true,
@@ -153,7 +160,7 @@ var basicConfig = &Config{
 			{
 				Name:       "default",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"*"},
 				Operations: []string{"*"},
 			},
@@ -623,7 +630,7 @@ var sample0 = &Config{
 			{
 				Name:       "default",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"*"},
 				Operations: []string{"*"},
 			},
@@ -711,7 +718,7 @@ var sample1 = &Config{
 			{
 				Name:       "default",
 				Type:       "HTTPEvent",
-				Endpoints:  []string{"/ui/", "/v1/agent/health"},
+				Endpoints:  []string{"/v1/metrics"},
 				Stages:     []string{"*"},
 				Operations: []string{"*"},
 			},

@@ -2454,6 +2454,7 @@ func TestTaskGroupDiff(t *testing.T) {
 								Args:     []string{"foo"},
 								Path:     "foo",
 								Protocol: "http",
+								Expose:   true,
 								Interval: 1 * time.Second,
 								Timeout:  1 * time.Second,
 							},
@@ -2486,6 +2487,7 @@ func TestTaskGroupDiff(t *testing.T) {
 								Command:  "bar",
 								Path:     "bar",
 								Protocol: "tcp",
+								Expose:   false,
 								Interval: 2 * time.Second,
 								Timeout:  2 * time.Second,
 								Header: map[string][]string{
@@ -2548,7 +2550,6 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 						},
 						Objects: []*ObjectDiff{
-
 							{
 								Type: DiffTypeEdited,
 								Name: "Check",
@@ -2564,6 +2565,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "Command",
 										Old:  "foo",
 										New:  "bar",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Expose",
+										Old:  "true",
+										New:  "false",
 									},
 									{
 										Type: DiffTypeNone,
@@ -2619,6 +2626,7 @@ func TestTaskGroupDiff(t *testing.T) {
 										Old:  "http",
 										New:  "tcp",
 									},
+
 									{
 										Type: DiffTypeNone,
 										Name: "TLSSkipVerify",
@@ -4866,6 +4874,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeAdded,
+										Name: "Expose",
+										Old:  "",
+										New:  "false",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "GRPCUseTLS",
 										Old:  "",
 										New:  "false",
@@ -4922,6 +4936,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeDeleted,
 										Name: "Command",
 										Old:  "foo",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Expose",
+										Old:  "false",
 										New:  "",
 									},
 									{
@@ -5091,6 +5111,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Command",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Expose",
+										Old:  "false",
+										New:  "false",
 									},
 									{
 										Type: DiffTypeNone,

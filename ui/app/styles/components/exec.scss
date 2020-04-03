@@ -21,6 +21,13 @@
       }
     }
   }
+
+  &.loading {
+    justify-content: center;
+    align-items: center;
+    background: black;
+    height: 100%;
+  }
 }
 
 .task-group-tree {

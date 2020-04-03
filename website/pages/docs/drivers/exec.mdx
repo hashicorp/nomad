@@ -95,7 +95,7 @@ This also applies for running Nomad in -dev mode.
 
 ## Plugin Options
 
-* `no_pivot_root` - Defaults to `false`. When `true`, the driver uses `chroot`
+- `no_pivot_root` - Defaults to `false`. When `true`, the driver uses `chroot`
   for file system isolation without `pivot_root`. This is useful for systems
   where the root is on a ramdisk.
 
@@ -113,7 +113,7 @@ the client and the configuration.
 On Linux, Nomad will use cgroups, and a chroot to isolate the
 resources of a process and as such the Nomad agent must be run as root.
 
-### <a id="chroot"></a>Chroot
+### Chroot
 
 The chroot is populated with data in the following directories from the host
 machine:

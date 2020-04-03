@@ -128,7 +128,7 @@ func TestBuildBasicFingerprint_Node(t *testing.T) {
 			client.NextNodeGetInfoResponse = test.NodeInfo
 			client.NextNodeGetInfoErr = test.NodeInfoErr
 
-			info, err := im.fp.buildBasicFingerprint(context.TODO())
+			info, err := im.fp.buildBasicFingerprint(context.Background())
 
 			require.Equal(t, test.ExpectedCSIInfo, info)
 			require.Equal(t, test.ExpectedErr, err)
@@ -204,7 +204,7 @@ func TestBuildControllerFingerprint(t *testing.T) {
 			client.NextPluginProbeResponse = test.ProbeResponse
 			client.NextPluginProbeErr = test.ProbeErr
 
-			info, err := im.fp.buildControllerFingerprint(context.TODO(), &structs.CSIInfo{ControllerInfo: &structs.CSIControllerInfo{}})
+			info, err := im.fp.buildControllerFingerprint(context.Background(), &structs.CSIInfo{ControllerInfo: &structs.CSIControllerInfo{}})
 
 			require.Equal(t, test.ExpectedControllerInfo, info.ControllerInfo)
 			require.Equal(t, test.ExpectedErr, err)
@@ -266,7 +266,7 @@ func TestBuildNodeFingerprint(t *testing.T) {
 			client.NextNodeGetCapabilitiesResponse = test.Capabilities
 			client.NextNodeGetCapabilitiesErr = test.CapabilitiesErr
 
-			info, err := im.fp.buildNodeFingerprint(context.TODO(), &structs.CSIInfo{NodeInfo: &structs.CSINodeInfo{}})
+			info, err := im.fp.buildNodeFingerprint(context.Background(), &structs.CSIInfo{NodeInfo: &structs.CSINodeInfo{}})
 
 			require.Equal(t, test.ExpectedCSINodeInfo, info.NodeInfo)
 			require.Equal(t, test.ExpectedErr, err)

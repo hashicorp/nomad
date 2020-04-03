@@ -3,6 +3,7 @@ package loader
 import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 var (
@@ -10,6 +11,6 @@ var (
 	// Nomad agent by plugin type.
 	AgentSupportedApiVersions = map[string][]string{
 		base.PluginTypeDevice: {device.ApiVersion010},
-		base.PluginTypeDriver: {device.ApiVersion010},
+		base.PluginTypeDriver: {drivers.ApiVersion010},
 	}
 )

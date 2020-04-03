@@ -135,7 +135,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](/guides/operations/autopilot).
+  information, see the [Autopilot Guide](https://learn.hashicorp.com/nomad/operating-nomad/autopilot).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -150,7 +150,7 @@ server {
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](/guides/operations/autopilot).
+  For more information, see the [Autopilot Guide](https://learn.hashicorp.com/nomad/operating-nomad/autopilot).
 
 ### Deprecated Parameters
 
@@ -216,7 +216,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](/guides/operations/cluster/automatic).
+[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/nomad/operating-nomad/clustering).
 
 ### Restricting Schedulers
 
@@ -255,6 +255,6 @@ bootstrap. During upgrades, if a previously bootstrapped cluster already set
 scheduler configuration via the [Update Scheduler Config][update-scheduler-config]
 endpoint, that is always preferred.
 
-[encryption]: /guides/security/encryption 'Nomad Encryption Overview'
+[encryption]: https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 'Nomad Encryption Overview'
 [server-join]: /docs/configuration/server_join 'Server Join'
-[update-scheduler-config]: /api/operator#update-scheduler-configuration 'Scheduler Config'
+[update-scheduler-config]: /api-docs/operator#update-scheduler-configuration 'Scheduler Config'

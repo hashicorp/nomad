@@ -2,6 +2,7 @@ package csimanager
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -18,12 +19,14 @@ const defaultPluginResyncPeriod = 30 * time.Second
 // UpdateNodeCSIInfoFunc is the callback used to update the node from
 // fingerprinting
 type UpdateNodeCSIInfoFunc func(string, *structs.CSIInfo)
+type TriggerNodeEvent func(*structs.NodeEvent)
 
 type Config struct {
 	Logger                hclog.Logger
 	DynamicRegistry       dynamicplugins.Registry
 	UpdateNodeCSIInfoFunc UpdateNodeCSIInfoFunc
 	PluginResyncPeriod    time.Duration
+	TriggerNodeEvent      TriggerNodeEvent
 }
 
 // New returns a new PluginManager that will handle managing CSI plugins from
@@ -37,6 +40,7 @@ func New(config *Config) Manager {
 
 	return &csiManager{
 		logger:    config.Logger,
+		eventer:   config.TriggerNodeEvent,
 		registry:  config.DynamicRegistry,
 		instances: make(map[string]map[string]*instanceManager),
 
@@ -56,6 +60,7 @@ type csiManager struct {
 
 	registry           dynamicplugins.Registry
 	logger             hclog.Logger
+	eventer            TriggerNodeEvent
 	pluginResyncPeriod time.Duration
 
 	updateNodeCSIInfoFunc UpdateNodeCSIInfoFunc
@@ -69,15 +74,15 @@ func (c *csiManager) PluginManager() pluginmanager.PluginManager {
 	return c
 }
 
-func (c *csiManager) MounterForVolume(ctx context.Context, vol *structs.CSIVolume) (VolumeMounter, error) {
+func (c *csiManager) MounterForPlugin(ctx context.Context, pluginID string) (VolumeMounter, error) {
 	nodePlugins, hasAnyNodePlugins := c.instances["csi-node"]
 	if !hasAnyNodePlugins {
-		return nil, PluginNotFoundErr
+		return nil, fmt.Errorf("no storage node plugins found")
 	}
 
-	mgr, hasPlugin := nodePlugins[vol.PluginID]
+	mgr, hasPlugin := nodePlugins[pluginID]
 	if !hasPlugin {
-		return nil, PluginNotFoundErr
+		return nil, fmt.Errorf("plugin %s for type csi-node not found", pluginID)
 	}
 
 	return mgr.VolumeMounter(ctx)
@@ -164,7 +169,7 @@ func (c *csiManager) ensureInstance(plugin *dynamicplugins.PluginInfo) {
 	instances := c.instancesForType(ptype)
 	if _, ok := instances[name]; !ok {
 		c.logger.Debug("detected new CSI plugin", "name", name, "type", ptype)
-		mgr := newInstanceManager(c.logger, c.updateNodeCSIInfoFunc, plugin)
+		mgr := newInstanceManager(c.logger, c.eventer, c.updateNodeCSIInfoFunc, plugin)
 		instances[name] = mgr
 		mgr.run()
 	}

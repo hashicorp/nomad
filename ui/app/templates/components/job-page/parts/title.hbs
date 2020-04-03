@@ -5,12 +5,13 @@
   </div>
   {{yield}}
   <div>
-    <div class="two-step-button">
-      {{exec/open-button job=job}}
-    </div>
     {{#if (not (eq job.status "dead"))}}
+      <div class="two-step-button">
+        {{exec/open-button job=job}}
+      </div>
       {{two-step-button
         data-test-stop
+        alignRight=true
         idleText="Stop"
         cancelText="Cancel"
         confirmText="Yes, Stop"
@@ -20,6 +21,7 @@
     {{else}}
       {{two-step-button
         data-test-start
+        alignRight=true
         idleText="Start"
         cancelText="Cancel"
         confirmText="Yes, Start"

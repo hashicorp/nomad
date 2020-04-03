@@ -3,22 +3,24 @@ package csi
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 type CSIVolumesTest struct {
 	framework.TC
-	jobIds    []string
-	volumeIDs *volumeConfig
+	testJobIDs   []string
+	volumeIDs    []string
+	pluginJobIDs []string
 }
 
 func init() {
@@ -32,27 +34,8 @@ func init() {
 	})
 }
 
-type volumeConfig struct {
-	EBSVolumeID string `json:"ebs_volume"`
-	EFSVolumeID string `json:"efs_volume"`
-}
-
 func (tc *CSIVolumesTest) BeforeAll(f *framework.F) {
 	t := f.T()
-	// The volume IDs come from the external provider, so we need
-	// to read the configuration out of our Terraform output.
-	rawjson, err := ioutil.ReadFile("csi/input/volumes.json")
-	if err != nil {
-		t.Skip("volume ID configuration not found, try running 'terraform output volumes > ../csi/input/volumes.json'")
-	}
-	volumeIDs := &volumeConfig{}
-	err = json.Unmarshal(rawjson, volumeIDs)
-	if err != nil {
-		t.Fatal("volume ID configuration could not be read")
-	}
-
-	tc.volumeIDs = volumeIDs
-
 	// Ensure cluster has leader and at least two client
 	// nodes in a ready state before running tests
 	e2eutil.WaitForLeader(t, tc.Nomad())
@@ -71,18 +54,18 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 
 	// deploy the controller plugin job
 	controllerJobID := "aws-ebs-plugin-controller-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, controllerJobID)
+	tc.pluginJobIDs = append(tc.pluginJobIDs, controllerJobID)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-ebs-controller.nomad", controllerJobID, "")
 
 	// deploy the node plugins job
 	nodesJobID := "aws-ebs-plugin-nodes-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, nodesJobID)
+	tc.pluginJobIDs = append(tc.pluginJobIDs, nodesJobID)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-ebs-nodes.nomad", nodesJobID, "")
 
 	// wait for plugin to become healthy
-	require.Eventually(func() bool {
+	require.Eventuallyf(func() bool {
 		plugin, _, err := nomadClient.CSIPlugins().Info("aws-ebs0", nil)
 		if err != nil {
 			return false
@@ -93,25 +76,19 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 		return true
 		// TODO(tgross): cut down this time after fixing
 		// https://github.com/hashicorp/nomad/issues/7296
-	}, 90*time.Second, 5*time.Second)
+	}, 90*time.Second, 5*time.Second, "aws-ebs0 plugins did not become healthy")
 
 	// register a volume
 	volID := "ebs-vol0"
-	vol := &api.CSIVolume{
-		ID:             volID,
-		Name:           volID,
-		ExternalID:     tc.volumeIDs.EBSVolumeID,
-		AccessMode:     "single-node-writer",
-		AttachmentMode: "file-system",
-		PluginID:       "aws-ebs0",
-	}
-	_, err := nomadClient.CSIVolumes().Register(vol, nil)
+	vol, err := parseVolumeFile("csi/input/volume-ebs.hcl")
 	require.NoError(err)
-	defer nomadClient.CSIVolumes().Deregister(volID, nil)
+	_, err = nomadClient.CSIVolumes().Register(vol, nil)
+	require.NoError(err)
+	tc.volumeIDs = append(tc.volumeIDs, volID)
 
 	// deploy a job that writes to the volume
 	writeJobID := "write-ebs-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, writeJobID)
+	tc.testJobIDs = append(tc.testJobIDs, writeJobID)
 	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", writeJobID, "")
 	writeAllocID := writeAllocs[0].ID
@@ -127,18 +104,16 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	// Shutdown the writer so we can run a reader.
 	// we could mount the EBS volume with multi-attach, but we
 	// want this test to exercise the unpublish workflow.
+	// this runs the equivalent of 'nomad job stop -purge'
 	nomadClient.Jobs().Deregister(writeJobID, true, nil)
 
 	// deploy a job so we can read from the volume
 	readJobID := "read-ebs-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, readJobID)
+	tc.testJobIDs = append(tc.testJobIDs, readJobID)
 	readAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", readJobID, "")
 	readAllocID := readAllocs[0].ID
 	e2eutil.WaitForAllocRunning(t, nomadClient, readAllocID)
-
-	// ensure we clean up claim before we deregister volumes
-	defer nomadClient.Jobs().Deregister(readJobID, true, nil)
 
 	// read data from volume and assert the writer wrote a file to it
 	readAlloc, _, err := nomadClient.Allocations().Info(readAllocID, nil)
@@ -159,12 +134,12 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 
 	// deploy the node plugins job (no need for a controller for EFS)
 	nodesJobID := "aws-efs-plugin-nodes-" + uuid[0:8]
-	tc.jobIds = append(tc.jobIds, nodesJobID)
+	tc.pluginJobIDs = append(tc.pluginJobIDs, nodesJobID)
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/plugin-aws-efs-nodes.nomad", nodesJobID, "")
 
 	// wait for plugin to become healthy
-	require.Eventually(func() bool {
+	require.Eventuallyf(func() bool {
 		plugin, _, err := nomadClient.CSIPlugins().Info("aws-efs0", nil)
 		if err != nil {
 			return false
@@ -175,21 +150,15 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 		return true
 		// TODO(tgross): cut down this time after fixing
 		// https://github.com/hashicorp/nomad/issues/7296
-	}, 90*time.Second, 5*time.Second)
+	}, 90*time.Second, 5*time.Second, "aws-efs0 plugins did not become healthy")
 
 	// register a volume
 	volID := "efs-vol0"
-	vol := &api.CSIVolume{
-		ID:             volID,
-		Name:           volID,
-		ExternalID:     tc.volumeIDs.EFSVolumeID,
-		AccessMode:     "single-node-writer",
-		AttachmentMode: "file-system",
-		PluginID:       "aws-efs0",
-	}
-	_, err := nomadClient.CSIVolumes().Register(vol, nil)
+	vol, err := parseVolumeFile("csi/input/volume-efs.hcl")
 	require.NoError(err)
-	defer nomadClient.CSIVolumes().Deregister(volID, nil)
+	_, err = nomadClient.CSIVolumes().Register(vol, nil)
+	require.NoError(err)
+	tc.volumeIDs = append(tc.volumeIDs, volID)
 
 	// deploy a job that writes to the volume
 	writeJobID := "write-efs-" + uuid[0:8]
@@ -208,13 +177,14 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	// Shutdown the writer so we can run a reader.
 	// although EFS should support multiple readers, the plugin
 	// does not.
-	nomadClient.Jobs().Deregister(writeJobID, true, nil)
+	// this runs the equivalent of 'nomad job stop'
+	nomadClient.Jobs().Deregister(writeJobID, false, nil)
 
 	// deploy a job that reads from the volume.
 	readJobID := "read-efs-" + uuid[0:8]
+	tc.testJobIDs = append(tc.testJobIDs, readJobID)
 	readAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-efs-volume-read.nomad", readJobID, "")
-	defer nomadClient.Jobs().Deregister(readJobID, true, nil)
 	e2eutil.WaitForAllocRunning(t, nomadClient, readAllocs[0].ID)
 
 	// read data from volume and assert the writer wrote a file to it
@@ -228,9 +198,18 @@ func (tc *CSIVolumesTest) AfterEach(f *framework.F) {
 	nomadClient := tc.Nomad()
 	jobs := nomadClient.Jobs()
 	// Stop all jobs in test
-	for _, id := range tc.jobIds {
+	for _, id := range tc.testJobIDs {
 		jobs.Deregister(id, true, nil)
 	}
+	// Deregister all volumes in test
+	for _, id := range tc.volumeIDs {
+		nomadClient.CSIVolumes().Deregister(id, nil)
+	}
+	// Deregister all plugin jobs in test
+	for _, id := range tc.pluginJobIDs {
+		jobs.Deregister(id, true, nil)
+	}
+
 	// Garbage collect
 	nomadClient.System().GarbageCollect()
 }
@@ -248,4 +227,35 @@ func readFile(client *api.Client, alloc *api.Allocation, path string) (bytes.Buf
 		os.Stdin, &stdout, &stderr,
 		make(chan api.TerminalSize), nil)
 	return stdout, err
+}
+
+// TODO(tgross): this is taken from `nomad volume register` but
+// it would be nice if we could expose this with a ParseFile as
+// we do for api.Job.
+func parseVolumeFile(filepath string) (*api.CSIVolume, error) {
+
+	rawInput, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return nil, err
+	}
+	ast, err := hcl.Parse(string(rawInput))
+	if err != nil {
+		return nil, err
+	}
+
+	output := &api.CSIVolume{}
+	err = hcl.DecodeObject(output, ast)
+	if err != nil {
+		return nil, err
+	}
+
+	// api.CSIVolume doesn't have the type field, it's used only for
+	// dispatch in parseVolumeType
+	helper.RemoveEqualFold(&output.ExtraKeysHCL, "type")
+	err = helper.UnusedKeys(output)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }

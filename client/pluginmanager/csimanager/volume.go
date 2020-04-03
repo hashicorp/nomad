@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -31,8 +32,9 @@ const (
 // volumes are stored by an enriched volume usage struct as the CSI Spec requires
 // slightly different usage based on the given usage model.
 type volumeManager struct {
-	logger hclog.Logger
-	plugin csi.CSIPlugin
+	logger  hclog.Logger
+	eventer TriggerNodeEvent
+	plugin  csi.CSIPlugin
 
 	usageTracker *volumeUsageTracker
 
@@ -49,9 +51,10 @@ type volumeManager struct {
 	requiresStaging bool
 }
 
-func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
+func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
 	return &volumeManager{
 		logger:              logger.Named("volume_manager"),
+		eventer:             eventer,
 		plugin:              plugin,
 		mountRoot:           rootDir,
 		containerMountPoint: containerRootDir,
@@ -60,12 +63,12 @@ func newVolumeManager(logger hclog.Logger, plugin csi.CSIPlugin, rootDir, contai
 	}
 }
 
-func (v *volumeManager) stagingDirForVolume(root string, vol *structs.CSIVolume, usage *UsageOptions) string {
-	return filepath.Join(root, StagingDirName, vol.ID, usage.ToFS())
+func (v *volumeManager) stagingDirForVolume(root string, volID string, usage *UsageOptions) string {
+	return filepath.Join(root, StagingDirName, volID, usage.ToFS())
 }
 
-func (v *volumeManager) allocDirForVolume(root string, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) string {
-	return filepath.Join(root, AllocSpecificDirName, alloc.ID, vol.ID, usage.ToFS())
+func (v *volumeManager) allocDirForVolume(root string, volID, allocID string, usage *UsageOptions) string {
+	return filepath.Join(root, AllocSpecificDirName, allocID, volID, usage.ToFS())
 }
 
 // ensureStagingDir attempts to create a directory for use when staging a volume
@@ -75,7 +78,7 @@ func (v *volumeManager) allocDirForVolume(root string, vol *structs.CSIVolume, a
 // Returns whether the directory is a pre-existing mountpoint, the staging path,
 // and any errors that occurred.
 func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume, usage *UsageOptions) (string, bool, error) {
-	stagingPath := v.stagingDirForVolume(v.mountRoot, vol, usage)
+	stagingPath := v.stagingDirForVolume(v.mountRoot, vol.ID, usage)
 
 	// Make the staging path, owned by the Nomad User
 	if err := os.MkdirAll(stagingPath, 0700); err != nil && !os.IsExist(err) {
@@ -100,7 +103,7 @@ func (v *volumeManager) ensureStagingDir(vol *structs.CSIVolume, usage *UsageOpt
 // Returns whether the directory is a pre-existing mountpoint, the publish path,
 // and any errors that occurred.
 func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) (string, bool, error) {
-	allocPath := v.allocDirForVolume(v.mountRoot, vol, alloc, usage)
+	allocPath := v.allocDirForVolume(v.mountRoot, vol.ID, alloc.ID, usage)
 
 	// Make the alloc path, owned by the Nomad User
 	if err := os.MkdirAll(allocPath, 0700); err != nil && !os.IsExist(err) {
@@ -146,7 +149,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 	if err != nil {
 		return err
 	}
-	pluginStagingPath := v.stagingDirForVolume(v.containerMountPoint, vol, usage)
+	pluginStagingPath := v.stagingDirForVolume(v.containerMountPoint, vol.ID, usage)
 
 	logger.Trace("Volume staging environment", "pre-existing_mount", isMount, "host_staging_path", hostStagingPath, "plugin_staging_path", pluginStagingPath)
 
@@ -160,11 +163,8 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 		return err
 	}
 
-	// We currently treat all explicit CSI NodeStageVolume errors (aside from timeouts, codes.ResourceExhausted, and codes.Unavailable)
-	// as fatal.
-	// In the future, we can provide more useful error messages based on
-	// different types of error. For error documentation see:
-	// https://github.com/container-storage-interface/spec/blob/4731db0e0bc53238b93850f43ab05d9355df0fd9/spec.md#nodestagevolume-errors
+	// CSI NodeStageVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeStageVolume(ctx,
 		vol.ID,
 		publishContext,
@@ -180,14 +180,14 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 	logger := hclog.FromContext(ctx)
 	var pluginStagingPath string
 	if v.requiresStaging {
-		pluginStagingPath = v.stagingDirForVolume(v.containerMountPoint, vol, usage)
+		pluginStagingPath = v.stagingDirForVolume(v.containerMountPoint, vol.ID, usage)
 	}
 
 	hostTargetPath, isMount, err := v.ensureAllocDir(vol, alloc, usage)
 	if err != nil {
 		return nil, err
 	}
-	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, vol, alloc, usage)
+	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, vol.ID, alloc.ID, usage)
 
 	if isMount {
 		logger.Debug("Re-using existing published volume for allocation")
@@ -199,6 +199,8 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 		return nil, err
 	}
 
+	// CSI NodePublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
 		VolumeID:          vol.RemoteID(),
 		PublishContext:    publishContext,
@@ -221,36 +223,51 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 // modes from the CSI Hook.
 // It then uses this state to stage and publish the volume as required for use
 // by the given allocation.
-func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (*MountInfo, error) {
+func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions, publishContext map[string]string) (mountInfo *MountInfo, err error) {
 	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
 	ctx = hclog.WithContext(ctx, logger)
 
 	if v.requiresStaging {
-		if err := v.stageVolume(ctx, vol, usage, publishContext); err != nil {
-			return nil, err
-		}
+		err = v.stageVolume(ctx, vol, usage, publishContext)
 	}
 
-	mountInfo, err := v.publishVolume(ctx, vol, alloc, usage, publishContext)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		mountInfo, err = v.publishVolume(ctx, vol, alloc, usage, publishContext)
 	}
 
-	v.usageTracker.Claim(alloc, vol, usage)
+	if err == nil {
+		v.usageTracker.Claim(alloc.ID, vol.ID, usage)
+	}
 
-	return mountInfo, nil
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemStorage).
+		SetMessage("Mount volume").
+		AddDetail("volume_id", vol.ID)
+	if err == nil {
+		event.AddDetail("success", "true")
+	} else {
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
+	}
+
+	v.eventer(event)
+
+	return mountInfo, err
 }
 
 // unstageVolume is the inverse operation of `stageVolume` and must be called
 // once for each staging path that a volume has been staged under.
 // It is safe to call multiple times and a plugin is required to return OK if
 // the volume has been unstaged or was never staged on the node.
-func (v *volumeManager) unstageVolume(ctx context.Context, vol *structs.CSIVolume, usage *UsageOptions) error {
+func (v *volumeManager) unstageVolume(ctx context.Context, volID string, usage *UsageOptions) error {
 	logger := hclog.FromContext(ctx)
 	logger.Trace("Unstaging volume")
-	stagingPath := v.stagingDirForVolume(v.containerMountPoint, vol, usage)
+	stagingPath := v.stagingDirForVolume(v.containerMountPoint, volID, usage)
+
+	// CSI NodeUnstageVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeUnstageVolume(ctx,
-		vol.ID,
+		volID,
 		stagingPath,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
@@ -271,18 +288,25 @@ func combineErrors(maybeErrs ...error) error {
 	return result.ErrorOrNil()
 }
 
-func (v *volumeManager) unpublishVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) error {
-	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, vol, alloc, usage)
+func (v *volumeManager) unpublishVolume(ctx context.Context, volID, allocID string, usage *UsageOptions) error {
+	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, volID, allocID, usage)
 
-	rpcErr := v.plugin.NodeUnpublishVolume(ctx, vol.ID, pluginTargetPath,
+	// CSI NodeUnpublishVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	rpcErr := v.plugin.NodeUnpublishVolume(ctx, volID, pluginTargetPath,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
 	)
 
-	hostTargetPath := v.allocDirForVolume(v.mountRoot, vol, alloc, usage)
+	hostTargetPath := v.allocDirForVolume(v.mountRoot, volID, allocID, usage)
 	if _, err := os.Stat(hostTargetPath); os.IsNotExist(err) {
-		// Host Target Path already got destroyed, just return any rpcErr
+		if rpcErr != nil && strings.Contains(rpcErr.Error(), "no mount point") {
+			// host target path was already destroyed, nothing to do here.
+			// this helps us in the case that a previous GC attempt cleaned
+			// up the volume on the node but the controller RPCs failed
+			return nil
+		}
 		return rpcErr
 	}
 
@@ -301,19 +325,31 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, vol *structs.CSIVol
 	return rpcErr
 }
 
-func (v *volumeManager) UnmountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usage *UsageOptions) error {
-	logger := v.logger.With("volume_id", vol.ID, "alloc_id", alloc.ID)
+func (v *volumeManager) UnmountVolume(ctx context.Context, volID, allocID string, usage *UsageOptions) (err error) {
+	logger := v.logger.With("volume_id", volID, "alloc_id", allocID)
 	ctx = hclog.WithContext(ctx, logger)
 
-	err := v.unpublishVolume(ctx, vol, alloc, usage)
-	if err != nil {
-		return err
+	err = v.unpublishVolume(ctx, volID, allocID, usage)
+
+	if err == nil {
+		canRelease := v.usageTracker.Free(allocID, volID, usage)
+		if v.requiresStaging && canRelease {
+			err = v.unstageVolume(ctx, volID, usage)
+		}
 	}
 
-	canRelease := v.usageTracker.Free(alloc, vol, usage)
-	if !v.requiresStaging || !canRelease {
-		return nil
+	event := structs.NewNodeEvent().
+		SetSubsystem(structs.NodeEventSubsystemStorage).
+		SetMessage("Unmount volume").
+		AddDetail("volume_id", volID)
+	if err == nil {
+		event.AddDetail("success", "true")
+	} else {
+		event.AddDetail("success", "false")
+		event.AddDetail("error", err.Error())
 	}
 
-	return v.unstageVolume(ctx, vol, usage)
+	v.eventer(event)
+
+	return err
 }
