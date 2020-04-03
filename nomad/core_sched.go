@@ -739,13 +739,13 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 	return c.volumeClaimReap([]*structs.Job{job}, eval.LeaderACL)
 }
 
-// volumeClaimReap contacts the leader and releases volume claims from
-// terminal allocs
+// volumeClaimReap contacts the leader and releases volume claims from terminal allocs
 func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) error {
-	return volumeClaimReap(c.srv, c.logger, jobs, leaderACL)
+	return volumeClaimReap(c.srv, c.logger, jobs, leaderACL, false)
 }
 
-func volumeClaimReap(srv *Server, logger log.Logger, jobs []*structs.Job, leaderACL string) error {
+// volumeClaimReap contacts the leader and releases volume claims from terminal allocs
+func volumeClaimReap(srv *Server, logger log.Logger, jobs []*structs.Job, leaderACL string, runningAllocs bool) error {
 	ws := memdb.NewWatchSet()
 	var result *multierror.Error
 
@@ -779,7 +779,7 @@ func volumeClaimReap(srv *Server, logger log.Logger, jobs []*structs.Job, leader
 					continue
 				}
 
-				gcClaims, nodeClaims := collectClaimsToGCImpl(vol)
+				gcClaims, nodeClaims := collectClaimsToGCImpl(vol, runningAllocs)
 
 				for _, claim := range gcClaims {
 					nodeClaims, err = volumeClaimReapImpl(srv,
@@ -812,7 +812,7 @@ type gcClaimRequest struct {
 	mode    structs.CSIVolumeClaimMode
 }
 
-func collectClaimsToGCImpl(vol *structs.CSIVolume) ([]gcClaimRequest, map[string]int) {
+func collectClaimsToGCImpl(vol *structs.CSIVolume, runningAllocs bool) ([]gcClaimRequest, map[string]int) {
 	gcAllocs := []gcClaimRequest{}
 	nodeClaims := map[string]int{} // node IDs -> count
 
@@ -827,7 +827,7 @@ func collectClaimsToGCImpl(vol *structs.CSIVolume) ([]gcClaimRequest, map[string
 				continue
 			}
 			nodeClaims[alloc.NodeID]++
-			if alloc.Terminated() {
+			if runningAllocs || alloc.Terminated() {
 				gcAllocs = append(gcAllocs, gcClaimRequest{
 					allocID: alloc.ID,
 					nodeID:  alloc.NodeID,
