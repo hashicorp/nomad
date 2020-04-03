@@ -703,7 +703,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	}
 	ws := memdb.NewWatchSet()
 	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
-	if err != nil {
+	if err != nil || job == nil {
 		return err
 	}
 
@@ -721,7 +721,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.JobModifyIndex = index
 
 	// If the job is periodic or parameterized, we don't create an eval.
-	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
+	if job.IsPeriodic() || job.IsParameterized() {
 		return nil
 	}
 
