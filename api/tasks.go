@@ -663,7 +663,7 @@ type Task struct {
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
 	VolumeMounts    []*VolumeMount
-	CSIPluginConfig *TaskCSIPluginConfig `mapstructure:"csi_plugin" json:"csi_plugin,omitempty"`
+	CSIPluginConfig *TaskCSIPluginConfig `mapstructure:"csi_plugin" json:",omitempty"`
 	Leader          bool
 	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 	KillSignal      string        `mapstructure:"kill_signal"`
