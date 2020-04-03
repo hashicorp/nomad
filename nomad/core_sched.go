@@ -742,34 +742,38 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 // volumeClaimReap contacts the leader and releases volume claims from
 // terminal allocs
 func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) error {
+	return volumeClaimReap(c.srv, c.logger, jobs, leaderACL)
+}
+
+func volumeClaimReap(srv *Server, logger log.Logger, jobs []*structs.Job, leaderACL string) error {
 	ws := memdb.NewWatchSet()
 	var result *multierror.Error
 
 	for _, job := range jobs {
-		c.logger.Trace("garbage collecting unclaimed CSI volume claims for job", "job", job.ID)
+		logger.Trace("garbage collecting unclaimed CSI volume claims for job", "job", job.ID)
 		for _, taskGroup := range job.TaskGroups {
 			for _, tgVolume := range taskGroup.Volumes {
 				if tgVolume.Type != structs.VolumeTypeCSI {
 					continue // filter to just CSI volumes
 				}
 				volID := tgVolume.Source
-				vol, err := c.srv.State().CSIVolumeByID(ws, job.Namespace, volID)
+				vol, err := srv.State().CSIVolumeByID(ws, job.Namespace, volID)
 				if err != nil {
 					result = multierror.Append(result, err)
 					continue
 				}
 				if vol == nil {
-					c.logger.Trace("cannot find volume to be GC'd. it may have been deregistered",
+					logger.Trace("cannot find volume to be GC'd. it may have been deregistered",
 						"volume", volID)
 					continue
 				}
-				vol, err = c.srv.State().CSIVolumeDenormalize(ws, vol)
+				vol, err = srv.State().CSIVolumeDenormalize(ws, vol)
 				if err != nil {
 					result = multierror.Append(result, err)
 					continue
 				}
 
-				plug, err := c.srv.State().CSIPluginByID(ws, vol.PluginID)
+				plug, err := srv.State().CSIPluginByID(ws, vol.PluginID)
 				if err != nil {
 					result = multierror.Append(result, err)
 					continue
@@ -778,7 +782,7 @@ func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) e
 				gcClaims, nodeClaims := collectClaimsToGCImpl(vol)
 
 				for _, claim := range gcClaims {
-					nodeClaims, err = volumeClaimReapImpl(c.srv,
+					nodeClaims, err = volumeClaimReapImpl(srv,
 						&volumeClaimReapArgs{
 							vol:        vol,
 							plug:       plug,
