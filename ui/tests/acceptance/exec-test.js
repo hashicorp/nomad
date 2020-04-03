@@ -278,7 +278,7 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
-  test('running the command opens the socket and authenticates', async function(assert) {
+  test('the opening message includes the token if it exists', async function(assert) {
     const { secretId } = server.create('token');
     window.localStorage.nomadTokenSecret = secretId;
 
@@ -321,39 +321,10 @@ module('Acceptance | exec', function(hooks) {
 
     assert.verifySteps(['Socket built']);
 
-    mockSocket.onmessage({
-      data: '{"stdout":{"data":"c2gtMy4yIPCfpbMk"}}',
-    });
-
-    await settled();
-
-    assert.equal(
-      window.execTerminal.buffer
-        .getLine(5)
-        .translateToString()
-        .trim(),
-      'sh-3.2 🥳$'
-    );
-
     await Exec.terminal.pressEnter();
     await settled();
 
-    assert.deepEqual(mockSocket.sent, [
-      `{"version":1,"auth_token":"${secretId}"}`,
-      `{"tty_size":{"width":${window.execTerminal.cols},"height":${window.execTerminal.rows}}}`,
-      '{"stdin":{"data":"DQ=="}}',
-    ]);
-
-    await mockSocket.onclose();
-    await settled();
-
-    assert.equal(
-      window.execTerminal.buffer
-        .getLine(6)
-        .translateToString()
-        .trim(),
-      'The connection has closed.'
-    );
+    assert.equal(mockSocket.sent[0], `{"version":1,"auth_token":"${secretId}"}`);
   });
 
   test('only one socket is opened after switching between tasks', async function(assert) {
