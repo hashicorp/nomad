@@ -278,6 +278,7 @@ module('Acceptance | exec', function(hooks) {
       'The connection has closed.'
     );
   });
+
   test('running the command opens the socket and authenticates', async function(assert) {
     let managementToken = server.create('token');
 
