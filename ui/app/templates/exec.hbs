@@ -35,7 +35,11 @@
     <ul>
       {{#each sortedTaskGroups as |taskGroup|}}
         <li data-test-task-group>
-          {{exec/task-group-parent taskGroup=taskGroup openInNewWindow=socketOpen activeTaskState=taskState}}
+          {{exec/task-group-parent
+            taskGroup=taskGroup
+            openInNewWindow=socketOpen
+            activeTaskName=taskName
+            activeTaskGroupName=taskGroupName}}
         </li>
       {{/each}}
     </ul>
