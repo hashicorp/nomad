@@ -2,7 +2,6 @@ import { module, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 
@@ -284,8 +283,7 @@ module('Acceptance | exec', function(hooks) {
 
     const { secretId } = managementToken;
 
-    await Tokens.visit();
-    await Tokens.secret(secretId).submit();
+    window.localStorage.nomadTokenSecret = secretId;
 
     let mockSocket = new MockSocket();
     let mockSockets = Service.extend({
