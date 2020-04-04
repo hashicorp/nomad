@@ -236,7 +236,8 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unstageVolume(ctx, tc.Volume.ID, tc.UsageOptions)
+			err := manager.unstageVolume(ctx,
+				tc.Volume.ID, tc.Volume.RemoteID(), tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -416,7 +417,8 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unpublishVolume(ctx, tc.Volume.ID, tc.Allocation.ID, tc.UsageOptions)
+			err := manager.unpublishVolume(ctx,
+				tc.Volume.ID, tc.Volume.RemoteID(), tc.Allocation.ID, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -476,7 +478,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	require.Equal(t, "true", e.Details["success"])
 	events = events[1:]
 
-	err = manager.UnmountVolume(ctx, vol.ID, alloc.ID, usage)
+	err = manager.UnmountVolume(ctx, vol.ID, vol.RemoteID(), alloc.ID, usage)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(events))
