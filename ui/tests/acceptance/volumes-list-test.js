@@ -2,6 +2,7 @@ import { currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
 
 const assignWriteAlloc = (volume, alloc) => {
@@ -21,6 +22,7 @@ module('Acceptance | volumes list', function(hooks) {
   hooks.beforeEach(function() {
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
+    window.localStorage.clear();
   });
 
   test('visiting /csi redirects to /csi/volumes', async function(assert) {
@@ -124,5 +126,15 @@ module('Acceptance | volumes list', function(hooks) {
 
     await VolumesList.error.seekHelp();
     assert.equal(currentURL(), '/settings/tokens');
+  });
+
+  pageSizeSelect({
+    resourceName: 'volume',
+    pageObject: VolumesList,
+    pageObjectList: VolumesList.volumes,
+    async setup() {
+      server.createList('csi-volume', VolumesList.pageSize);
+      await VolumesList.visit();
+    },
   });
 });

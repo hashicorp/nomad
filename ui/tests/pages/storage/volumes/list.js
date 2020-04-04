@@ -1,9 +1,10 @@
 import { clickable, collection, create, isPresent, text, visitable } from 'ember-cli-page-object';
 
 import error from 'nomad-ui/tests/pages/components/error';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
-  pageSize: 10,
+  pageSize: 25,
 
   visit: visitable('/csi/volumes'),
 
@@ -28,6 +29,7 @@ export default create({
   },
 
   error: error(),
+  pageSizeSelect: pageSizeSelect(),
 
   namespaceSwitcher: {
     isPresent: isPresent('[data-test-namespace-switcher]'),
