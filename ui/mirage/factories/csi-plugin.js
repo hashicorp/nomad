@@ -21,6 +21,9 @@ export default Factory.extend({
   // Controller plugins.
   isMonolith: faker.random.boolean,
 
+  // When false, the plugin will not make its own volumes
+  createVolumes: true,
+
   afterCreate(plugin, server) {
     let storageNodes;
     let storageControllers;
@@ -48,9 +51,11 @@ export default Factory.extend({
       nodes: storageNodes,
     });
 
-    server.createList('csi-volume', faker.random.number(5), {
-      plugin,
-      provider: plugin.provider,
-    });
+    if (plugin.createVolumes) {
+      server.createList('csi-volume', faker.random.number(5), {
+        plugin,
+        provider: plugin.provider,
+      });
+    }
   },
 });
