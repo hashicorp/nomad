@@ -31,7 +31,7 @@ type CSIControllerQuery struct {
 }
 
 type ClientCSIControllerValidateVolumeRequest struct {
-	VolumeID string
+	VolumeID string // note: this is the external ID
 
 	AttachmentMode structs.CSIVolumeAttachmentMode
 	AccessMode     structs.CSIVolumeAccessMode
@@ -43,7 +43,7 @@ type ClientCSIControllerValidateVolumeResponse struct {
 }
 
 type ClientCSIControllerAttachVolumeRequest struct {
-	// The ID of the volume to be used on a node.
+	// The external ID of the volume to be used on a node.
 	// This field is REQUIRED.
 	VolumeID string
 
