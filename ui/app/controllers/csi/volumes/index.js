@@ -56,5 +56,11 @@ export default Controller.extend(
         this.set('currentPage', 1);
       }
     },
+
+    actions: {
+      gotoVolume(volume) {
+        this.transitionToRoute('csi.volumes.volume', volume.get('plainId'));
+      },
+    },
   }
 );
