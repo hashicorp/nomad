@@ -1,6 +1,9 @@
 import { attribute, collection, clickable, isPresent, text } from 'ember-cli-page-object';
+import { singularize } from 'ember-inflector';
 
 export default function(selector = '[data-test-allocation]', propKey = 'allocations') {
+  const lookupKey = `${singularize(propKey)}For`;
+
   return {
     [propKey]: collection(selector, {
       id: attribute('data-test-allocation'),
@@ -25,8 +28,8 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       visitClient: clickable('[data-test-client] a'),
     }),
 
-    allocationFor(id) {
-      return this.allocations.toArray().find(allocation => allocation.id === id);
+    [lookupKey]: function(id) {
+      return this[propKey].toArray().find(allocation => allocation.id === id);
     },
   };
 }
