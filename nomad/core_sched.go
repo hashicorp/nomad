@@ -863,6 +863,7 @@ func volumeClaimReapImpl(srv RPCServer, args *volumeClaimReapArgs) (map[string]i
 	nReq := &cstructs.ClientCSINodeDetachVolumeRequest{
 		PluginID:       args.plug.ID,
 		VolumeID:       vol.ID,
+		ExternalID:     vol.RemoteID(),
 		AllocID:        args.allocID,
 		NodeID:         nodeID,
 		AttachmentMode: vol.AttachmentMode,

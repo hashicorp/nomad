@@ -190,7 +190,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 		AccessMode:     string(req.AccessMode),
 	}
 
-	err = mounter.UnmountVolume(ctx, req.VolumeID, req.AllocID, usageOpts)
+	err = mounter.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
 	if err != nil {
 		return err
 	}
