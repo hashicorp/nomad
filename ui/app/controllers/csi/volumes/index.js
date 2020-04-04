@@ -28,7 +28,7 @@ export default Controller.extend(
     pageSize: readOnly('userSettings.pageSize'),
 
     sortProperty: 'id',
-    sortDescending: true,
+    sortDescending: false,
 
     listToSort: alias('model'),
     sortedVolumes: alias('listSorted'),
