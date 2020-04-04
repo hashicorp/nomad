@@ -2364,7 +2364,7 @@ func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
 			ClaimsCount:        map[string]int{node.ID: 1},
 			ControllerRequired: true,
 			ExpectedErr: fmt.Sprintf(
-				"no controllers available for plugin %q", plugin.ID),
+				"Unknown node: %s", node.ID),
 			ExpectedClaimsCount:                 0,
 			ExpectedNodeDetachVolumeCount:       1,
 			ExpectedControllerDetachVolumeCount: 0,

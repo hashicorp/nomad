@@ -880,13 +880,30 @@ func volumeClaimReapImpl(srv RPCServer, args *volumeClaimReapArgs) (map[string]i
 	// on the node need it, but we also only want to make this
 	// call at most once per node
 	if vol.ControllerRequired && args.nodeClaims[nodeID] < 1 {
+
+		// we need to get the CSI Node ID, which is not the same as
+		// the Nomad Node ID
+		ws := memdb.NewWatchSet()
+		targetNode, err := srv.State().NodeByID(ws, nodeID)
+		if err != nil {
+			return args.nodeClaims, err
+		}
+		if targetNode == nil {
+			return args.nodeClaims, fmt.Errorf("%s: %s",
+				structs.ErrUnknownNodePrefix, nodeID)
+		}
+		targetCSIInfo, ok := targetNode.CSINodePlugins[args.plug.ID]
+		if !ok {
+			return args.nodeClaims, fmt.Errorf("Failed to find NodeInfo for node: %s", targetNode.ID)
+		}
+
 		controllerNodeID, err := nodeForControllerPlugin(srv.State(), args.plug)
-		if err != nil || nodeID == "" {
+		if err != nil || controllerNodeID == "" {
 			return args.nodeClaims, err
 		}
 		cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
 			VolumeID:        vol.RemoteID(),
-			ClientCSINodeID: nodeID,
+			ClientCSINodeID: targetCSIInfo.NodeInfo.ID,
 		}
 		cReq.PluginID = args.plug.ID
 		cReq.ControllerNodeID = controllerNodeID
