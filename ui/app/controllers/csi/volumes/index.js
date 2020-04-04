@@ -15,9 +15,9 @@ export default Controller.extend(
   {
     system: service(),
     userSettings: service(),
-    csiController: controller('csi'),
+    volumesController: controller('csi/volumes'),
 
-    isForbidden: alias('csiController.isForbidden'),
+    isForbidden: alias('volumesController.isForbidden'),
 
     queryParams: {
       currentPage: 'page',
