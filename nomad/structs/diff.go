@@ -224,6 +224,18 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		newPrimitiveFlat = flatmap.Flatten(other, filter, true)
 	}
 
+	// ShutdownDelay diff
+	if tg.ShutdownDelay == nil {
+		oldPrimitiveFlat["ShutdownDelay"] = "nil"
+	} else {
+		oldPrimitiveFlat["ShutdownDelay"] = fmt.Sprintf("%d", *tg.ShutdownDelay)
+	}
+	if other.ShutdownDelay == nil {
+		newPrimitiveFlat["ShutdownDelay"] = "nil"
+	} else {
+		newPrimitiveFlat["ShutdownDelay"] = fmt.Sprintf("%d", *other.ShutdownDelay)
+	}
+
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
 

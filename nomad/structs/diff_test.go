@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -3025,6 +3026,26 @@ func TestTaskGroupDiff(t *testing.T) {
 								New:  "",
 							},
 						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "TaskGroup shutdown_delay edited",
+			Old: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+			},
+			New: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "ShutdownDelay",
+						Old:  "30000000000",
+						New:  "5000000000",
 					},
 				},
 			},

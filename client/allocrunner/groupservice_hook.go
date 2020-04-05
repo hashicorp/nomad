@@ -112,10 +112,18 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	}
 
 	// Update group service hook fields
+	tg := req.Alloc.Job.LookupTaskGroup(h.group)
 	h.networks = networks
-	h.services = req.Alloc.Job.LookupTaskGroup(h.group).Services
+	h.services = tg.Services
 	h.canary = canary
 	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
+
+	// Update shutdown delay
+	var shutdown time.Duration
+	if tg.ShutdownDelay != nil {
+		shutdown = *tg.ShutdownDelay
+	}
+	h.delay = shutdown
 
 	// Create new task services struct with those new values
 	newWorkloadServices := h.getWorkloadServices()
