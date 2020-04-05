@@ -157,11 +157,6 @@ OUTER:
 	c.logger.Debug("job GC found eligible objects",
 		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
 
-	// Clean up any outstanding volume claims
-	if err := c.volumeClaimReap(gcJob, eval.LeaderACL); err != nil {
-		return err
-	}
-
 	// Reap the evals and allocs
 	if err := c.evalReap(gcEval, gcAlloc); err != nil {
 		return err
@@ -720,90 +715,64 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 	c.logger.Trace("garbage collecting unclaimed CSI volume claims")
 
-	// JobID smuggled in with the eval's own JobID
-	var jobID string
-	evalJobID := strings.Split(eval.JobID, ":")
-	if len(evalJobID) != 2 {
-		c.logger.Error("volume gc called without jobID")
+	// Volume ID smuggled in with the eval's own JobID
+	evalVolID := strings.Split(eval.JobID, ":")
+	if len(evalVolID) != 3 {
+		c.logger.Error("volume gc called without volID")
 		return nil
 	}
 
-	jobID = evalJobID[1]
-	job, err := c.srv.State().JobByID(nil, eval.Namespace, jobID)
-	if err != nil || job == nil {
-		c.logger.Trace(
-			"cannot find job to perform volume claim GC. it may have been garbage collected",
-			"job", jobID)
-		return nil
-	}
-	return c.volumeClaimReap([]*structs.Job{job}, eval.LeaderACL)
+	volID := evalVolID[1]
+	runningAllocs := evalVolID[2] == "purge"
+	return volumeClaimReap(c.srv, volID, eval.Namespace,
+		c.srv.config.Region, eval.LeaderACL, runningAllocs)
 }
 
-// volumeClaimReap contacts the leader and releases volume claims from terminal allocs
-func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) error {
-	return volumeClaimReap(c.srv, c.logger, jobs, leaderACL, false)
-}
+func volumeClaimReap(srv RPCServer, volID, namespace, region, leaderACL string, runningAllocs bool) error {
 
-// volumeClaimReap contacts the leader and releases volume claims from terminal allocs
-func volumeClaimReap(srv *Server, logger log.Logger, jobs []*structs.Job, leaderACL string, runningAllocs bool) error {
 	ws := memdb.NewWatchSet()
+
+	vol, err := srv.State().CSIVolumeByID(ws, namespace, volID)
+	if err != nil {
+		return err
+	}
+	if vol == nil {
+		return nil
+	}
+	vol, err = srv.State().CSIVolumeDenormalize(ws, vol)
+	if err != nil {
+		return err
+	}
+
+	plug, err := srv.State().CSIPluginByID(ws, vol.PluginID)
+	if err != nil {
+		return err
+	}
+
+	gcClaims, nodeClaims := collectClaimsToGCImpl(vol, runningAllocs)
+
 	var result *multierror.Error
-
-	for _, job := range jobs {
-		logger.Trace("garbage collecting unclaimed CSI volume claims for job", "job", job.ID)
-		for _, taskGroup := range job.TaskGroups {
-			for _, tgVolume := range taskGroup.Volumes {
-				if tgVolume.Type != structs.VolumeTypeCSI {
-					continue // filter to just CSI volumes
-				}
-				volID := tgVolume.Source
-				vol, err := srv.State().CSIVolumeByID(ws, job.Namespace, volID)
-				if err != nil {
-					result = multierror.Append(result, err)
-					continue
-				}
-				if vol == nil {
-					logger.Trace("cannot find volume to be GC'd. it may have been deregistered",
-						"volume", volID)
-					continue
-				}
-				vol, err = srv.State().CSIVolumeDenormalize(ws, vol)
-				if err != nil {
-					result = multierror.Append(result, err)
-					continue
-				}
-
-				plug, err := srv.State().CSIPluginByID(ws, vol.PluginID)
-				if err != nil {
-					result = multierror.Append(result, err)
-					continue
-				}
-
-				gcClaims, nodeClaims := collectClaimsToGCImpl(vol, runningAllocs)
-
-				for _, claim := range gcClaims {
-					nodeClaims, err = volumeClaimReapImpl(srv,
-						&volumeClaimReapArgs{
-							vol:        vol,
-							plug:       plug,
-							allocID:    claim.allocID,
-							nodeID:     claim.nodeID,
-							mode:       claim.mode,
-							region:     job.Region,
-							namespace:  job.Namespace,
-							leaderACL:  leaderACL,
-							nodeClaims: nodeClaims,
-						},
-					)
-					if err != nil {
-						result = multierror.Append(result, err)
-						continue
-					}
-				}
-			}
+	for _, claim := range gcClaims {
+		nodeClaims, err = volumeClaimReapImpl(srv,
+			&volumeClaimReapArgs{
+				vol:        vol,
+				plug:       plug,
+				allocID:    claim.allocID,
+				nodeID:     claim.nodeID,
+				mode:       claim.mode,
+				namespace:  namespace,
+				region:     region,
+				leaderACL:  leaderACL,
+				nodeClaims: nodeClaims,
+			},
+		)
+		if err != nil {
+			result = multierror.Append(result, err)
+			continue
 		}
 	}
 	return result.ErrorOrNil()
+
 }
 
 type gcClaimRequest struct {

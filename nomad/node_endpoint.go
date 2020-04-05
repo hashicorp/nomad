@@ -1081,9 +1081,9 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	// A set of de-duplicated IDs for jobs that need volume claim GC.
-	// Later we'll create a gc eval for each job.
-	jobsWithVolumeGCs := make(map[string]*structs.Job)
+	// A set of de-duplicated volumes that need volume claim GC.
+	// Later we'll create a gc eval for each volume.
+	volumesToGC := make(map[string][]string) // ID+namespace -> [id, namespace]
 
 	for _, allocToUpdate := range args.Alloc {
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
@@ -1097,9 +1097,10 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
+		// if the job has been purged, this will always return error
 		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
 		if err != nil {
-			n.logger.Error("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
+			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
 			continue
 		}
 		if job == nil {
@@ -1116,7 +1117,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		// of jobs we're going to call volume claim GC on.
 		for _, vol := range taskGroup.Volumes {
 			if vol.Type == structs.VolumeTypeCSI {
-				jobsWithVolumeGCs[job.ID] = job
+				volumesToGC[vol.Source+alloc.Namespace] = []string{vol.Source, alloc.Namespace}
 			}
 		}
 
@@ -1138,17 +1139,17 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 
 	// Add an evaluation for garbage collecting the the CSI volume claims
-	// of jobs with terminal allocs
-	for _, job := range jobsWithVolumeGCs {
+	// of terminal allocs
+	for _, volAndNamespace := range volumesToGC {
 		// we have to build this eval by hand rather than calling srv.CoreJob
-		// here because we need to use the alloc's namespace
+		// here because we need to use the volume's namespace
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
-			Namespace:   job.Namespace,
+			Namespace:   volAndNamespace[1],
 			Priority:    structs.CoreJobPriority,
 			Type:        structs.JobTypeCore,
 			TriggeredBy: structs.EvalTriggerAllocStop,
-			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + job.ID,
+			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + volAndNamespace[0] + ":no",
 			LeaderACL:   n.srv.getLeaderAcl(),
 			Status:      structs.EvalStatusPending,
 			CreateTime:  now.UTC().UnixNano(),
