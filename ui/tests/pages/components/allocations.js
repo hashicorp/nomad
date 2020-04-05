@@ -3,10 +3,12 @@ import { singularize } from 'ember-inflector';
 
 export default function(selector = '[data-test-allocation]', propKey = 'allocations') {
   const lookupKey = `${singularize(propKey)}For`;
+  // Remove the bracket notation
+  const attr = selector.substring(1, selector.length - 1);
 
   return {
     [propKey]: collection(selector, {
-      id: attribute('data-test-allocation'),
+      id: attribute(attr),
       shortId: text('[data-test-short-id]'),
       createTime: text('[data-test-create-time]'),
       modifyTime: text('[data-test-modify-time]'),
