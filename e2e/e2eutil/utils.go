@@ -162,6 +162,29 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 	})
 }
 
+func WaitForAllocStopped(t *testing.T, nomadClient *api.Client, allocID string) {
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(time.Millisecond * 100)
+		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+		switch alloc.ClientStatus {
+		case structs.AllocClientStatusComplete:
+			return true, nil
+		case structs.AllocClientStatusFailed:
+			return true, nil
+		case structs.AllocClientStatusLost:
+			return true, nil
+		default:
+			return false, fmt.Errorf("expected stopped alloc, but was: %s",
+				alloc.ClientStatus)
+		}
+	}, func(err error) {
+		t.Fatalf("failed to wait on alloc: %v", err)
+	})
+}
+
 func AllocIDsFromAllocationListStubs(allocs []*api.AllocationListStub) []string {
 	allocIDs := make([]string, 0, len(allocs))
 	for _, alloc := range allocs {

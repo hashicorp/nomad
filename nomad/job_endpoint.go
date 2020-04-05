@@ -709,10 +709,12 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// For a job with volumes, find its volumes before deleting the job
 	volumesToGC := make(map[string]*structs.VolumeRequest)
-	for _, tg := range job.TaskGroups {
-		for _, vol := range tg.Volumes {
-			if vol.Type == structs.VolumeTypeCSI {
-				volumesToGC[vol.Source] = vol
+	if job != nil {
+		for _, tg := range job.TaskGroups {
+			for _, vol := range tg.Volumes {
+				if vol.Type == structs.VolumeTypeCSI {
+					volumesToGC[vol.Source] = vol
+				}
 			}
 		}
 	}
