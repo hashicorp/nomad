@@ -112,7 +112,7 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	nomadClient.Jobs().Deregister(writeJobID, false, nil)
 	// instead of waiting for the alloc to stop, wait for the volume claim gc run
 	require.Eventuallyf(func() bool {
-		vol, _, err := nomadClient.CSIVolumes().Info("ebs-vol0", nil)
+		vol, _, err := nomadClient.CSIVolumes().Info(volID, nil)
 		if err != nil {
 			return false
 		}
@@ -193,7 +193,7 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	nomadClient.Jobs().Deregister(writeJobID, false, nil)
 	// instead of waiting for the alloc to stop, wait for the volume claim gc run
 	require.Eventuallyf(func() bool {
-		vol, _, err := nomadClient.CSIVolumes().Info("ebs-vol0", nil)
+		vol, _, err := nomadClient.CSIVolumes().Info(volID, nil)
 		if err != nil {
 			return false
 		}
