@@ -123,10 +123,14 @@ export default Controller.extend({
   },
 
   openAndConnectSocket(command) {
-    this.set('socketOpen', true);
-    this.set('command', command);
-    this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
+    if (this.taskState) {
+      this.set('socketOpen', true);
+      this.set('command', command);
+      this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
 
-    new ExecSocketXtermAdapter(this.terminal, this.socket);
+      new ExecSocketXtermAdapter(this.terminal, this.socket);
+    } else {
+      this.terminal.writeln(`Failed to open a socket because task ${this.taskName} is not active.`);
+    }
   },
 });

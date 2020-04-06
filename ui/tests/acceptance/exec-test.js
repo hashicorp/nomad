@@ -1,4 +1,4 @@
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -486,6 +486,34 @@ module('Acceptance | exec', function(hooks) {
         .translateToString()
         .trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/sh`
+    );
+  });
+
+  skip('when a task state finishes submitting a command displays an error', async function(assert) {
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+    });
+
+    // Approximate allocation failure via polling
+    this.owner
+      .lookup('service:store')
+      .peekAll('allocation')
+      .forEach(allocation => allocation.set('clientStatus', 'failed'));
+
+    await Exec.terminal.pressEnter();
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer
+        .getLine(7)
+        .translateToString()
+        .trim(),
+      `Failed to open a socket because task ${task.name} is not active.`
     );
   });
 });
