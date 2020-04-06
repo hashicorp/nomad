@@ -87,45 +87,51 @@ export default Controller.extend({
         taskGroupName,
       });
 
-      this.terminal.write(ANSI_UI_GRAY_400);
-      this.terminal.writeln('');
-
-      if (!allocationShortId) {
-        this.terminal.writeln(
-          'Multiple instances of this task are running. The allocation below was selected by random draw.'
-        );
+      if (this.taskState) {
+        this.terminal.write(ANSI_UI_GRAY_400);
         this.terminal.writeln('');
+
+        if (!allocationShortId) {
+          this.terminal.writeln(
+            'Multiple instances of this task are running. The allocation below was selected by random draw.'
+          );
+          this.terminal.writeln('');
+        }
+
+        this.terminal.writeln('Customize your command, then hit ‘return’ to run.');
+        this.terminal.writeln('');
+        this.terminal.write(
+          `$ nomad alloc exec -i -t -task ${escapeTaskName(taskName)} ${
+            this.taskState.allocation.shortId
+          } `
+        );
+
+        this.terminal.write(ANSI_WHITE);
+
+        this.terminal.write(this.command);
+
+        if (this.commandEditorAdapter) {
+          this.commandEditorAdapter.destroy();
+        }
+
+        this.commandEditorAdapter = new ExecCommandEditorXtermAdapter(
+          this.terminal,
+          this.openAndConnectSocket.bind(this),
+          this.command
+        );
       }
-
-      this.terminal.writeln('Customize your command, then hit ‘return’ to run.');
-      this.terminal.writeln('');
-      this.terminal.write(
-        `$ nomad alloc exec -i -t -task ${escapeTaskName(taskName)} ${
-          this.taskState.allocation.shortId
-        } `
-      );
-
-      this.terminal.write(ANSI_WHITE);
-
-      this.terminal.write(this.command);
-
-      if (this.commandEditorAdapter) {
-        this.commandEditorAdapter.destroy();
-      }
-
-      this.commandEditorAdapter = new ExecCommandEditorXtermAdapter(
-        this.terminal,
-        this.openAndConnectSocket.bind(this),
-        this.command
-      );
     },
   },
 
   openAndConnectSocket(command) {
-    this.set('socketOpen', true);
-    this.set('command', command);
-    this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
+    if (this.taskState) {
+      this.set('socketOpen', true);
+      this.set('command', command);
+      this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
 
-    new ExecSocketXtermAdapter(this.terminal, this.socket, this.token.secret);
+      new ExecSocketXtermAdapter(this.terminal, this.socket, this.token.secret);
+    } else {
+      this.terminal.writeln(`Failed to open a socket because task ${this.taskName} is not active.`);
+    }
   },
 });

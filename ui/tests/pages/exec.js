@@ -42,4 +42,9 @@ export default create({
     scope: '.xterm-helper-textarea',
     pressEnter: triggerable('keydown', '', { eventProperties: { keyCode: 13 } }),
   },
+
+  jobDead: {
+    scope: '[data-test-exec-job-dead]',
+    message: text('[data-test-exec-job-dead-message]'),
+  },
 });
