@@ -104,8 +104,13 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	// Shutdown the writer so we can run a reader.
 	// we could mount the EBS volume with multi-attach, but we
 	// want this test to exercise the unpublish workflow.
-	// this runs the equivalent of 'nomad job stop -purge'
-	nomadClient.Jobs().Deregister(writeJobID, true, nil)
+	//
+	// TODO(tgross): we should pass true here to run the equivalent
+	// of 'nomad job stop -purge' but this makes the test really
+	// racy. Once the unmount hang problem with -purge is fixed,
+	// we can restore this.
+	nomadClient.Jobs().Deregister(writeJobID, false, nil)
+	e2eutil.WaitForAllocStopped(t, nomadClient, writeAllocID)
 
 	// deploy a job so we can read from the volume
 	readJobID := "read-ebs-" + uuid[0:8]
@@ -179,6 +184,7 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	// does not.
 	// this runs the equivalent of 'nomad job stop'
 	nomadClient.Jobs().Deregister(writeJobID, false, nil)
+	e2eutil.WaitForAllocStopped(t, nomadClient, writeAllocID)
 
 	// deploy a job that reads from the volume.
 	readJobID := "read-efs-" + uuid[0:8]

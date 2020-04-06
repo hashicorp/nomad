@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -54,6 +55,43 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	require.Equal(t, "add", ops[0].Op)
 	require.Equal(t, "update", ops[1].Op)
 	require.Equal(t, "remove", ops[2].Op)
+}
+
+// TestGroupServiceHook_ShutdownDelayUpdate asserts calling group service hooks
+// update updates the hooks delay value.
+func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].ShutdownDelay = helper.TimeToPtr(10 * time.Second)
+
+	logger := testlog.HCLogger(t)
+	consulClient := consul.NewMockConsulServiceClient(t, logger)
+
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:          alloc,
+		consul:         consulClient,
+		restarter:      agentconsul.NoopRestarter(),
+		taskEnvBuilder: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		logger:         logger,
+	})
+	require.NoError(t, h.Prerun())
+
+	// Incease shutdown Delay
+	alloc.Job.TaskGroups[0].ShutdownDelay = helper.TimeToPtr(15 * time.Second)
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	require.NoError(t, h.Update(req))
+
+	// Assert that update updated the delay value
+	require.Equal(t, h.delay, 15*time.Second)
+
+	// Remove shutdown delay
+	alloc.Job.TaskGroups[0].ShutdownDelay = nil
+	req = &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	require.NoError(t, h.Update(req))
+
+	// Assert that update updated the delay value
+	require.Equal(t, h.delay, 0*time.Second)
 }
 
 // TestGroupServiceHook_GroupServices asserts group service hooks with group

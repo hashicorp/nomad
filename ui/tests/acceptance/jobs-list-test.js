@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 let managementToken, clientToken;
@@ -17,6 +18,7 @@ module('Acceptance | jobs list', function(hooks) {
     managementToken = server.create('token');
     clientToken = server.create('token');
 
+    window.localStorage.clear();
     window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
@@ -337,6 +339,16 @@ module('Acceptance | jobs list', function(hooks) {
     await JobsList.visit({ type: JSON.stringify(['batch']) });
 
     assert.equal(JobsList.jobs.length, 1, 'Only one job shown due to query param');
+  });
+
+  pageSizeSelect({
+    resourceName: 'job',
+    pageObject: JobsList,
+    pageObjectList: JobsList.jobs,
+    async setup() {
+      server.createList('job', JobsList.pageSize, { shallow: true, createAllocations: false });
+      await JobsList.visit();
+    },
   });
 
   function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {

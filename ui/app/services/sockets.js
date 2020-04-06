@@ -30,7 +30,7 @@ export default Service.extend({
 
       return new WebSocket(
         `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
-          `/exec?task=${taskState.name}&tty=true` +
+          `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
           `&command=${encodeURIComponent(`["${command}"]`)}`
       );
     }

@@ -2306,7 +2306,7 @@ func TestCSI_GCVolumeClaims_Collection(t *testing.T) {
 	vol, err = state.CSIVolumeDenormalize(ws, vol)
 	require.NoError(t, err)
 
-	gcClaims, nodeClaims := collectClaimsToGCImpl(vol)
+	gcClaims, nodeClaims := collectClaimsToGCImpl(vol, false)
 	require.Equal(t, nodeClaims[node.ID], 2)
 	require.Len(t, gcClaims, 2)
 }
@@ -2364,7 +2364,7 @@ func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
 			ClaimsCount:        map[string]int{node.ID: 1},
 			ControllerRequired: true,
 			ExpectedErr: fmt.Sprintf(
-				"no controllers available for plugin %q", plugin.ID),
+				"Unknown node: %s", node.ID),
 			ExpectedClaimsCount:                 0,
 			ExpectedNodeDetachVolumeCount:       1,
 			ExpectedControllerDetachVolumeCount: 0,

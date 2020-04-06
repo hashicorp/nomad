@@ -143,12 +143,12 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 	csiReq := req.ToCSIRequest()
 
 	// Submit the request for a volume to the CSI Plugin.
-	ctx, cancelFn := c.requestContext()
+	ctx, cancelFn := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelFn()
 	// CSI ControllerUnpublishVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
 	_, err = plugin.ControllerUnpublishVolume(ctx, csiReq,
-		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithPerRetryTimeout(10*time.Second),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 	if err != nil {
@@ -190,7 +190,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 		AccessMode:     string(req.AccessMode),
 	}
 
-	err = mounter.UnmountVolume(ctx, req.VolumeID, req.AllocID, usageOpts)
+	err = mounter.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
 	if err != nil {
 		return err
 	}

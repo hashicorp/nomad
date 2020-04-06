@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { alias } from '@ember/object/computed';
+import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
@@ -10,6 +10,7 @@ import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/q
 
 export default Controller.extend(Sortable, Searchable, {
   system: service(),
+  userSettings: service(),
   jobsController: controller('jobs'),
 
   isForbidden: alias('jobsController.isForbidden'),
@@ -26,7 +27,7 @@ export default Controller.extend(Sortable, Searchable, {
   },
 
   currentPage: 1,
-  pageSize: 10,
+  pageSize: readOnly('userSettings.pageSize'),
 
   sortProperty: 'modifyIndex',
   sortDescending: true,

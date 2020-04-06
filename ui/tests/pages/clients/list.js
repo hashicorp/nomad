@@ -12,8 +12,11 @@ import {
 } from 'ember-cli-page-object';
 
 import facet from 'nomad-ui/tests/pages/components/facet';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
+  pageSize: 25,
+
   visit: visitable('/clients'),
 
   search: fillable('.search-box input'),
@@ -58,6 +61,8 @@ export default create({
   empty: {
     headline: text('[data-test-empty-clients-list-headline]'),
   },
+
+  pageSizeSelect: pageSizeSelect(),
 
   error: {
     isPresent: isPresent('[data-test-error]'),

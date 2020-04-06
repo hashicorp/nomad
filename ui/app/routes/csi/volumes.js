@@ -9,8 +9,8 @@ export default Route.extend(WithForbiddenState, {
 
   breadcrumbs: [
     {
-      label: 'CSI',
-      args: ['csi.volumes.index'],
+      label: 'Storage',
+      args: ['csi.index'],
     },
   ],
 

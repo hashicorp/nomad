@@ -210,7 +210,7 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
 		for _, s := range servers {
-			r.Check(wantPeers(s, 3))
+			r.Check(wantPeers(s, 4))
 		}
 	})
 

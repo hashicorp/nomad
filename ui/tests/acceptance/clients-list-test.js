@@ -2,23 +2,27 @@ import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
 module('Acceptance | clients list', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
+  hooks.beforeEach(function() {
+    window.localStorage.clear();
+  });
+
   test('/clients should list one page of clients', async function(assert) {
     // Make sure to make more nodes than 1 page to assert that pagination is working
-    const nodesCount = 10;
-    const pageSize = 8;
+    const nodesCount = ClientsList.pageSize + 1;
 
     server.createList('node', nodesCount);
     server.createList('agent', 1);
 
     await ClientsList.visit();
 
-    assert.equal(ClientsList.nodes.length, pageSize);
+    assert.equal(ClientsList.nodes.length, ClientsList.pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
 
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
@@ -172,6 +176,17 @@ module('Acceptance | clients list', function(hooks) {
     await ClientsList.error.seekHelp();
 
     assert.equal(currentURL(), '/settings/tokens');
+  });
+
+  pageSizeSelect({
+    resourceName: 'client',
+    pageObject: ClientsList,
+    pageObjectList: ClientsList.nodes,
+    async setup() {
+      server.createList('node', ClientsList.pageSize);
+      server.createList('agent', 1);
+      await ClientsList.visit();
+    },
   });
 
   testFacet('Class', {

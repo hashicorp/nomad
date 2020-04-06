@@ -11,9 +11,10 @@ import {
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import error from 'nomad-ui/tests/pages/components/error';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
-  pageSize: 10,
+  pageSize: 25,
 
   visit: visitable('/jobs/:id/:name'),
 
@@ -51,4 +52,6 @@ export default create({
   emptyState: {
     headline: text('[data-test-empty-allocations-list-headline]'),
   },
+
+  pageSizeSelect: pageSizeSelect(),
 });
