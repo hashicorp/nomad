@@ -5,6 +5,11 @@
 job "plugin-aws-ebs-nodes" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   # you can run node plugins as service jobs as well, but this ensures
   # that all nodes in the DC have a copy.
   type = "system"

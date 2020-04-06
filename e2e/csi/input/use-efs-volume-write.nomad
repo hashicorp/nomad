@@ -2,6 +2,11 @@
 job "use-efs-volume" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "group" {
     volume "test" {
       type   = "csi"
