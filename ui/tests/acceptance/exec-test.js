@@ -20,6 +20,7 @@ module('Acceptance | exec', function(hooks) {
       groupsCount: 2,
       groupTaskCount: 5,
       createAllocations: false,
+      status: 'running',
     });
 
     this.job.task_group_ids.forEach(taskGroupId => {
@@ -38,7 +39,11 @@ module('Acceptance | exec', function(hooks) {
     server.create('region', { id: 'global' });
     server.create('region', { id: 'region-2' });
 
-    this.job = server.create('job', { createAllocations: false, namespaceId: namespace.id });
+    this.job = server.create('job', {
+      createAllocations: false,
+      namespaceId: namespace.id,
+      status: 'running',
+    });
 
     await Exec.visitJob({ job: this.job.id, namespace: namespace.id, region: 'region-2' });
 
@@ -47,6 +52,8 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.header.region.text, this.job.region);
     assert.equal(Exec.header.namespace.text, this.job.namespace);
     assert.equal(Exec.header.job, this.job.name);
+
+    assert.notOk(Exec.jobDead.isPresent);
   });
 
   test('/exec/:job should not show region and namespace when there are none', async function(assert) {
@@ -164,6 +171,42 @@ module('Acceptance | exec', function(hooks) {
 
     assert.equal(Exec.taskGroups[0].tasks.length, 2);
     assert.equal(Exec.taskGroups[0].tasks[1].name, changingTaskStateName);
+  });
+
+  test('a dead job has an inert window', async function(assert) {
+    this.job.status = 'dead';
+    this.job.save();
+
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
+
+    this.server.db.taskStates.update({ finishedAt: new Date() });
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+    });
+
+    assert.ok(Exec.jobDead.isPresent);
+    assert.equal(
+      Exec.jobDead.message,
+      `Job ${this.job.name} is dead and cannot host an exec session.`
+    );
+  });
+
+  test('when a job dies the exec window becomes inert', async function(assert) {
+    await Exec.visitJob({ job: this.job.id });
+
+    // Approximate live-polling job death
+    this.owner
+      .lookup('service:store')
+      .peekAll('job')
+      .forEach(job => job.set('status', 'dead'));
+
+    await settled();
+
+    assert.ok(Exec.jobDead.isPresent);
   });
 
   test('visiting a path with a task group should open the group by default', async function(assert) {
