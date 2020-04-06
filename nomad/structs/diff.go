@@ -226,12 +226,12 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 
 	// ShutdownDelay diff
 	if tg.ShutdownDelay == nil {
-		oldPrimitiveFlat["ShutdownDelay"] = "nil"
+		oldPrimitiveFlat["ShutdownDelay"] = ""
 	} else {
 		oldPrimitiveFlat["ShutdownDelay"] = fmt.Sprintf("%d", *tg.ShutdownDelay)
 	}
 	if other.ShutdownDelay == nil {
-		newPrimitiveFlat["ShutdownDelay"] = "nil"
+		newPrimitiveFlat["ShutdownDelay"] = ""
 	} else {
 		newPrimitiveFlat["ShutdownDelay"] = fmt.Sprintf("%d", *other.ShutdownDelay)
 	}

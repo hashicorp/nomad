@@ -3050,6 +3050,42 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			TestCase: "TaskGroup shutdown_delay removed",
+			Old: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "ShutdownDelay",
+						Old:  "30000000000",
+						New:  "",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "TaskGroup shutdown_delay added",
+			Old:      &TaskGroup{},
+			New: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "ShutdownDelay",
+						Old:  "",
+						New:  "30000000000",
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
