@@ -234,7 +234,13 @@ export default function() {
         return new Response(200, {}, '[]');
       }
 
-      return this.serialize(csiVolumes.all());
+      const json = this.serialize(csiVolumes.all());
+      const namespace = queryParams.namespace || 'default';
+      return json.filter(volume =>
+        namespace === 'default'
+          ? !volume.NamespaceID || volume.NamespaceID === namespace
+          : volume.NamespaceID === namespace
+      );
     })
   );
 

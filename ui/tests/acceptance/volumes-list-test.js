@@ -1,26 +1,140 @@
-import { module, skip } from 'qunit';
+import { currentURL, visit } from '@ember/test-helpers';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import pageSizeSelect from './behaviors/page-size-select';
+import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
+
+const assignWriteAlloc = (volume, alloc) => {
+  volume.writeAllocs.add(alloc);
+  volume.save();
+};
+
+const assignReadAlloc = (volume, alloc) => {
+  volume.readAllocs.add(alloc);
+  volume.save();
+};
 
 module('Acceptance | volumes list', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  skip('visiting /csi', async function() {
-    // redirects to /csi/volumes
+  hooks.beforeEach(function() {
+    server.create('node');
+    server.create('csi-plugin', { createVolumes: false });
+    window.localStorage.clear();
   });
 
-  skip('visiting /csi/volumes', async function() {});
+  test('visiting /csi redirects to /csi/volumes', async function(assert) {
+    await visit('/csi');
 
-  skip('/csi/volumes should list the first page of volumes sorted by name', async function() {});
+    assert.equal(currentURL(), '/csi/volumes');
+  });
 
-  skip('each volume row should contain information about the volume', async function() {});
+  test('visiting /csi/volumes', async function(assert) {
+    await VolumesList.visit();
 
-  skip('each volume row should link to the corresponding volume', async function() {});
+    assert.equal(currentURL(), '/csi/volumes');
+    assert.equal(document.title, 'CSI Volumes - Nomad');
+  });
 
-  skip('when there are no volumes, there is an empty message', async function() {});
+  test('/csi/volumes should list the first page of volumes sorted by name', async function(assert) {
+    const volumeCount = VolumesList.pageSize + 1;
+    server.createList('csi-volume', volumeCount);
 
-  skip('when the namespace query param is set, only matching volumes are shown and the namespace value is forwarded to app state', async function() {});
+    await VolumesList.visit();
 
-  skip('when accessing volumes is forbidden, a message is shown with a link to the tokens page', async function() {});
+    const sortedVolumes = server.db.csiVolumes.sortBy('id');
+    assert.equal(VolumesList.volumes.length, VolumesList.pageSize);
+    VolumesList.volumes.forEach((volume, index) => {
+      assert.equal(volume.name, sortedVolumes[index].id, 'Volumes are ordered');
+    });
+  });
+
+  test('each volume row should contain information about the volume', async function(assert) {
+    const volume = server.create('csi-volume');
+    const readAllocs = server.createList('allocation', 2, { shallow: true });
+    const writeAllocs = server.createList('allocation', 3, { shallow: true });
+    readAllocs.forEach(alloc => assignReadAlloc(volume, alloc));
+    writeAllocs.forEach(alloc => assignWriteAlloc(volume, alloc));
+
+    await VolumesList.visit();
+
+    const volumeRow = VolumesList.volumes.objectAt(0);
+
+    const controllerHealthStr = volume.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
+    const nodeHealthStr = volume.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
+
+    assert.equal(volumeRow.name, volume.id);
+    assert.equal(volumeRow.schedulable, volume.schedulable ? 'Schedulable' : 'Unschedulable');
+    assert.equal(
+      volumeRow.controllerHealth,
+      `${controllerHealthStr} (${volume.controllersHealthy}/${volume.controllersExpected})`
+    );
+    assert.equal(
+      volumeRow.nodeHealth,
+      `${nodeHealthStr} (${volume.nodesHealthy}/${volume.nodesExpected})`
+    );
+    assert.equal(volumeRow.provider, volume.provider);
+    assert.equal(volumeRow.allocations, readAllocs.length + writeAllocs.length);
+  });
+
+  test('each volume row should link to the corresponding volume', async function(assert) {
+    const volume = server.create('csi-volume');
+
+    await VolumesList.visit();
+
+    await VolumesList.volumes.objectAt(0).clickName();
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}`);
+
+    await VolumesList.visit();
+    assert.equal(currentURL(), '/csi/volumes');
+
+    await VolumesList.volumes.objectAt(0).clickRow();
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}`);
+  });
+
+  test('when there are no volumes, there is an empty message', async function(assert) {
+    await VolumesList.visit();
+
+    assert.ok(VolumesList.isEmpty);
+    assert.equal(VolumesList.emptyState.headline, 'No Volumes');
+  });
+
+  test('when the namespace query param is set, only matching volumes are shown and the namespace value is forwarded to app state', async function(assert) {
+    server.createList('namespace', 2);
+    const volume1 = server.create('csi-volume', { namespaceId: server.db.namespaces[0].id });
+    const volume2 = server.create('csi-volume', { namespaceId: server.db.namespaces[1].id });
+
+    await VolumesList.visit();
+
+    assert.equal(VolumesList.volumes.length, 1);
+    assert.equal(VolumesList.volumes.objectAt(0).name, volume1.id);
+
+    const secondNamespace = server.db.namespaces[1];
+    await VolumesList.visit({ namespace: secondNamespace.id });
+
+    assert.equal(VolumesList.volumes.length, 1);
+    assert.equal(VolumesList.volumes.objectAt(0).name, volume2.id);
+  });
+
+  test('when accessing volumes is forbidden, a message is shown with a link to the tokens page', async function(assert) {
+    server.pretender.get('/v1/volumes', () => [403, {}, null]);
+
+    await VolumesList.visit();
+    assert.equal(VolumesList.error.title, 'Not Authorized');
+
+    await VolumesList.error.seekHelp();
+    assert.equal(currentURL(), '/settings/tokens');
+  });
+
+  pageSizeSelect({
+    resourceName: 'volume',
+    pageObject: VolumesList,
+    pageObjectList: VolumesList.volumes,
+    async setup() {
+      server.createList('csi-volume', VolumesList.pageSize);
+      await VolumesList.visit();
+    },
+  });
 });
