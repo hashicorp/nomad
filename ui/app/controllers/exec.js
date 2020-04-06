@@ -20,7 +20,6 @@ export default Controller.extend({
 
   command: localStorageProperty('nomadExecCommand', '/bin/bash'),
   socketOpen: false,
-  taskState: null,
 
   pendingAndRunningAllocations: computed('model.allocations.@each.clientStatus', function() {
     return this.model.allocations.filter(
