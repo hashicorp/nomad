@@ -14,6 +14,7 @@ const ANSI_WHITE = '\x1b[0m';
 export default Controller.extend({
   sockets: service(),
   system: service(),
+  token: service(),
 
   queryParams: ['allocation'],
 
@@ -78,6 +79,6 @@ export default Controller.extend({
     this.set('command', command);
     this.socket = this.sockets.getTaskStateSocket(this.taskState, command);
 
-    new ExecSocketXtermAdapter(this.terminal, this.socket);
+    new ExecSocketXtermAdapter(this.terminal, this.socket, this.token.secret);
   },
 });

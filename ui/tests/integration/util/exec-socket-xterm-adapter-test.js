@@ -8,6 +8,66 @@ import { Terminal } from 'xterm-vendor';
 module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
   setupRenderingTest(hooks);
 
+  test('initiating socket sends authentication handshake', async function(assert) {
+    let done = assert.async();
+
+    let terminal = new Terminal();
+    this.set('terminal', terminal);
+
+    await render(hbs`
+      {{exec-terminal terminal=terminal}}
+    `);
+
+    await settled();
+
+    let firstMessage = true;
+    let mockSocket = new Object({
+      send(message) {
+        if (firstMessage) {
+          firstMessage = false;
+          assert.deepEqual(message, JSON.stringify({ version: 1, auth_token: 'mysecrettoken' }));
+          done();
+        }
+      },
+    });
+
+    new ExecSocketXtermAdapter(terminal, mockSocket, 'mysecrettoken');
+
+    mockSocket.onopen();
+
+    await settled();
+  });
+
+  test('initiating socket sends authentication handshake even if unauthenticated', async function(assert) {
+    let done = assert.async();
+
+    let terminal = new Terminal();
+    this.set('terminal', terminal);
+
+    await render(hbs`
+      {{exec-terminal terminal=terminal}}
+    `);
+
+    await settled();
+
+    let firstMessage = true;
+    let mockSocket = new Object({
+      send(message) {
+        if (firstMessage) {
+          firstMessage = false;
+          assert.deepEqual(message, JSON.stringify({ version: 1, auth_token: '' }));
+          done();
+        }
+      },
+    });
+
+    new ExecSocketXtermAdapter(terminal, mockSocket, null);
+
+    mockSocket.onopen();
+
+    await settled();
+  });
+
   test('resizing the window passes a resize message through the socket', async function(assert) {
     let done = assert.async();
 
@@ -30,7 +90,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
       },
     });
 
-    new ExecSocketXtermAdapter(terminal, mockSocket);
+    new ExecSocketXtermAdapter(terminal, mockSocket, '');
 
     window.dispatchEvent(new Event('resize'));
 
@@ -53,7 +113,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
       send() {},
     });
 
-    new ExecSocketXtermAdapter(terminal, mockSocket);
+    new ExecSocketXtermAdapter(terminal, mockSocket, '');
 
     mockSocket.onmessage({
       data: '{"stdout":{"exited":"true"}}',
@@ -76,7 +136,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
       send() {},
     });
 
-    new ExecSocketXtermAdapter(terminal, mockSocket);
+    new ExecSocketXtermAdapter(terminal, mockSocket, '');
 
     mockSocket.onmessage({
       data: '{"stdout":{"data":"c2gtMy4yIPCfpbMk"}}',

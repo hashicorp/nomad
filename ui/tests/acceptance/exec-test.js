@@ -11,7 +11,8 @@ module('Acceptance | exec', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
-    window.localStorage.removeItem('nomadExecCommand');
+    window.localStorage.clear();
+    window.sessionStorage.clear();
 
     server.create('agent');
     server.create('node');
@@ -261,6 +262,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.deepEqual(mockSocket.sent, [
+      '{"version":1,"auth_token":""}',
       `{"tty_size":{"width":${window.execTerminal.cols},"height":${window.execTerminal.rows}}}`,
       '{"stdin":{"data":"DQ=="}}',
     ]);
@@ -275,6 +277,44 @@ module('Acceptance | exec', function(hooks) {
         .trim(),
       'The connection has closed.'
     );
+  });
+
+  test('the opening message includes the token if it exists', async function(assert) {
+    const { secretId } = server.create('token');
+    window.localStorage.nomadTokenSecret = secretId;
+
+    let mockSocket = new MockSocket();
+    let mockSockets = Service.extend({
+      getTaskStateSocket() {
+        return mockSocket;
+      },
+    });
+
+    this.owner.register('service:sockets', mockSockets);
+
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
+    let allocations = this.server.db.allocations.where({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
+    let allocation = allocations[allocations.length - 1];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+      allocation: allocation.id.split('-')[0],
+    });
+
+    await Exec.terminal.pressEnter();
+    await settled();
+    mockSocket.onopen();
+
+    await Exec.terminal.pressEnter();
+    await settled();
+
+    assert.equal(mockSocket.sent[0], `{"version":1,"auth_token":"${secretId}"}`);
   });
 
   test('only one socket is opened after switching between tasks', async function(assert) {
@@ -308,7 +348,7 @@ module('Acceptance | exec', function(hooks) {
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(command, '/sh');
-        localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
+        window.localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
 
         assert.step('Socket built');
 
@@ -366,7 +406,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('a persisted customised command is recalled', async function(assert) {
-    localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
+    window.localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
 
     let taskGroup = this.job.task_groups.models[0];
     let task = taskGroup.tasks.models[0];

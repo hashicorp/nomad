@@ -959,3 +959,57 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 		}
 	})
 }
+
+func TestHTTP_ReadWsHandshake(t *testing.T) {
+	cases := []struct {
+		name      string
+		token     string
+		handshake bool
+	}{
+		{
+			name:      "plain compatible mode",
+			token:     "",
+			handshake: false,
+		},
+		{
+			name:      "handshake unauthenticated",
+			token:     "",
+			handshake: true,
+		},
+		{
+			name:      "handshake authenticated",
+			token:     "mysupersecret",
+			handshake: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+
+			called := false
+			readFn := func(h interface{}) error {
+				called = true
+				if !c.handshake {
+					return fmt.Errorf("should not be called")
+				}
+
+				hm := h.(*wsHandshakeMessage)
+				hm.Version = 1
+				hm.AuthToken = c.token
+				return nil
+			}
+
+			req := httptest.NewRequest("PUT", "/target", nil)
+			if c.handshake {
+				req.URL.RawQuery = "ws_handshake=true"
+			}
+
+			var q structs.QueryOptions
+
+			err := readWsHandshake(readFn, req, &q)
+			require.NoError(t, err)
+			require.Equal(t, c.token, q.AuthToken)
+			require.Equal(t, c.handshake, called)
+		})
+	}
+}
