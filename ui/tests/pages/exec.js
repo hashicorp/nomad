@@ -24,6 +24,8 @@ export default create({
     click: clickable('[data-test-task-group-name]'),
     name: text('[data-test-task-group-name]'),
 
+    isLoading: hasClass('is-loading', '[data-test-task-group-name]'),
+
     chevron: {
       scope: '.toggle-button .icon',
       isDown: hasClass('icon-is-chevron-down'),

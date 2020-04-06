@@ -1,17 +1,23 @@
-<button {{action "toggleOpen"}} class="toggle-button" data-test-task-group-name>
+<button {{action "toggleOpen"}} class="toggle-button {{if hasPendingAllocations "is-loading"}}" data-test-task-group-name>
   {{x-icon (if isOpen "chevron-down" "chevron-right")}}
   {{taskGroup.name}}
 </button>
 {{#if isOpen}}
   <ul class="task-list">
-    {{#each tasksWithRunningStates as |task|}}
+    {{#each sortedTasks as |task|}}
       {{#if openInNewWindow}}
         <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
-          {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}
+          {{exec/task-contents
+            task=task
+            active=(and currentRouteIsThisTaskGroup (eq task.name activeTaskName))
+            openInNewWindow=openInNewWindow}}
         </a>
       {{else}}
         {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
-          {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}
+          {{exec/task-contents
+            task=task
+            active=(and currentRouteIsThisTaskGroup (eq task.name activeTaskName))
+            openInNewWindow=openInNewWindow}}
         {{/link-to}}
       {{/if}}
     {{/each}}

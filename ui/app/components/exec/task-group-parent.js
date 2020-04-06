@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { filterBy, mapBy, or } from '@ember/object/computed';
+import { filterBy, mapBy, or, sort } from '@ember/object/computed';
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
 import openExecUrl from 'nomad-ui/utils/open-exec-url';
 
@@ -24,6 +24,10 @@ export default Component.extend({
     } else {
       return false;
     }
+  }),
+
+  hasPendingAllocations: computed('taskGroup.allocations.@each.clientStatus', function() {
+    return this.taskGroup.allocations.any(allocation => allocation.clientStatus === 'pending');
   }),
 
   allocationTaskStatesRecordArrays: mapBy('taskGroup.allocations', 'states'),
@@ -53,6 +57,9 @@ export default Component.extend({
       return this.taskGroup.tasks.filter(task => activeTaskStateNames.includes(task.name));
     }
   ),
+
+  taskSorting: Object.freeze(['name']),
+  sortedTasks: sort('tasksWithRunningStates', 'taskSorting'),
 
   clickedOpen: false,
 

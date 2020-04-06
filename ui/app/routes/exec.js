@@ -1,10 +1,11 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import notifyError from 'nomad-ui/utils/notify-error';
+import { collect } from '@ember/object/computed';
+import WithWatchers from 'nomad-ui/mixins/with-watchers';
+import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
 
-// copied from jobs/job, issue to improve: https://github.com/hashicorp/nomad/issues/7458
-
-export default Route.extend({
+export default Route.extend(WithWatchers, {
   store: service(),
   token: service(),
 
@@ -17,10 +18,22 @@ export default Route.extend({
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
     return this.store
-      .findRecord('job', fullId, { reload: true })
+      .findRecord('job', fullId)
       .then(job => {
         return job.get('allocations').then(() => job);
       })
       .catch(notifyError(this));
   },
+
+  startWatchers(controller, model) {
+    if (model) {
+      controller.set('watcher', this.watch.perform(model));
+      controller.set('watchAllocations', this.watchAllocations.perform(model));
+    }
+  },
+
+  watch: watchRecord('job'),
+  watchAllocations: watchRelationship('allocations'),
+
+  watchers: collect('watch', 'watchAllocations'),
 });

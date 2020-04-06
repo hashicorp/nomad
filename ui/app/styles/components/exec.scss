@@ -66,6 +66,21 @@
       padding: 3px 3px 0 0;
       margin-left: -3px;
     }
+
+    // Adapted from fs-explorer
+    &.is-loading::after {
+      animation: spinAround 750ms infinite linear;
+      border: 2px solid $grey-light;
+      border-radius: 290486px;
+      border-right-color: transparent;
+      border-top-color: transparent;
+      opacity: 0.3;
+      content: '';
+      display: inline-block;
+      height: 1em;
+      width: 1em;
+      margin-left: 0.5em;
+    }
   }
 
   .task-list {
