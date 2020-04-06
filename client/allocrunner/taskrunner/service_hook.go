@@ -173,7 +173,6 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.deregister()
-	h.initialRegistration = false
 	return nil
 }
 
@@ -186,7 +185,7 @@ func (h *serviceHook) deregister() {
 	// destroyed, so remove both variations of the service
 	workloadServices.Canary = !workloadServices.Canary
 	h.consul.RemoveWorkload(workloadServices)
-
+	h.initialRegistration = false
 }
 
 func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {

@@ -46,5 +46,9 @@ func TestUpdate_beforePoststart(t *testing.T) {
 	require.Len(t, c.GetOps(), 5)
 	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
 	require.Len(t, c.GetOps(), 6)
+	require.NoError(t, hook.PreKilling(context.Background(), &interfaces.TaskPreKillRequest{}, &interfaces.TaskPreKillResponse{}))
+	require.Len(t, c.GetOps(), 8)
+	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
+	require.Len(t, c.GetOps(), 8)
 
 }
