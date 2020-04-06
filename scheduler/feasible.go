@@ -304,7 +304,7 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 			// Check the blocking allocations to see if they belong to this job
 			for id := range vol.WriteAllocs {
 				a, err := c.ctx.State().AllocByID(ws, id)
-				if err != nil || a.Namespace != c.namespace || a.JobID != c.jobID {
+				if err != nil || a == nil || a.Namespace != c.namespace || a.JobID != c.jobID {
 					return false, fmt.Sprintf(FilterConstraintCSIVolumeInUseTemplate, vol.ID)
 				}
 			}
