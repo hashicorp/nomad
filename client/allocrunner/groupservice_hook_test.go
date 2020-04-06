@@ -77,12 +77,21 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	})
 	require.NoError(t, h.Prerun())
 
+	// Incease shutdown Delay
 	alloc.Job.TaskGroups[0].ShutdownDelay = helper.TimeToPtr(15 * time.Second)
 	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
 	require.NoError(t, h.Update(req))
 
 	// Assert that update updated the delay value
 	require.Equal(t, h.delay, 15*time.Second)
+
+	// Remove shutdown delay
+	alloc.Job.TaskGroups[0].ShutdownDelay = nil
+	req = &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	require.NoError(t, h.Update(req))
+
+	// Assert that update updated the delay value
+	require.Equal(t, h.delay, 0*time.Second)
 }
 
 // TestGroupServiceHook_GroupServices asserts group service hooks with group
