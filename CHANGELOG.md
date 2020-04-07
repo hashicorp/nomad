@@ -3,10 +3,10 @@
 FEATURES:
  * **Container Storage Interface [beta]**: Nomad has expanded support
    of stateful workloads through support for CSI plugins.
- * **Exec UI [beta]**: an in-browser terminal for connecting to running allocations.
- * **Audit Logging (Enterprise) [beta]**: Audit logging support for Nomad
+ * **Exec UI**: an in-browser terminal for connecting to running allocations.
+ * **Audit Logging (Enterprise):**: Audit logging support for Nomad
    Enterprise.
- * **Scaling APIs [beta]**: new scaling policy API and job scaling APIs to support external autoscalers
+ * **Scaling APIs**: new scaling policy API and job scaling APIs to support external autoscalers
  * **Task Dependencies**: introduces `lifecycle` stanza with prestart and sidecar hooks for tasks within a task group
 
 
