@@ -711,7 +711,7 @@ func TestHTTP_AgentSetServers(t *testing.T) {
 			}
 			defer conn.Close()
 
-			// Write the Consul RPC byte to set the mode
+			// Write the Nomad RPC byte to set the mode
 			if _, err := conn.Write([]byte{byte(pool.RpcNomad)}); err != nil {
 				return false, err
 			}
