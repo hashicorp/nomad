@@ -31,6 +31,9 @@ module('Acceptance | task detail', function(hooks) {
       'Task started at'
     );
 
+    const lifecycle = server.db.tasks.where({ name: task.name })[0].Lifecycle;
+    assert.equal(Task.lifecycle, lifecycle ? lifecycle.Hook : 'Main');
+
     assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 

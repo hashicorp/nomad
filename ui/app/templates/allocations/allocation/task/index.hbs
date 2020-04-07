@@ -63,6 +63,10 @@
         <span class="term">Driver</span>
         {{model.task.driver}}
       </span>
+      <span class="pair">
+        <span class="term">Lifecycle</span>
+        <span data-test-lifecycle>{{ if model.task.lifecycle model.task.lifecycle.hook "Main"}}</span>
+      </span>
     </div>
   </div>
 

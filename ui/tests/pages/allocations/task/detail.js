@@ -24,6 +24,8 @@ export default create({
   state: text('[data-test-state]'),
   startedAt: text('[data-test-started-at]'),
 
+  lifecycle: text('[data-test-lifecycle]'),
+
   restart: twoStepButton('[data-test-restart]'),
 
   execButton: {
