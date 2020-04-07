@@ -110,7 +110,14 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	// racy. Once the unmount hang problem with -purge is fixed,
 	// we can restore this.
 	nomadClient.Jobs().Deregister(writeJobID, false, nil)
-	e2eutil.WaitForAllocStopped(t, nomadClient, writeAllocID)
+	// instead of waiting for the alloc to stop, wait for the volume claim gc run
+	require.Eventuallyf(func() bool {
+		vol, _, err := nomadClient.CSIVolumes().Info(volID, nil)
+		if err != nil {
+			return false
+		}
+		return len(vol.WriteAllocs) == 0
+	}, 90*time.Second, 5*time.Second, "write-ebs alloc claim was not released")
 
 	// deploy a job so we can read from the volume
 	readJobID := "read-ebs-" + uuid[0:8]
@@ -184,7 +191,14 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	// does not.
 	// this runs the equivalent of 'nomad job stop'
 	nomadClient.Jobs().Deregister(writeJobID, false, nil)
-	e2eutil.WaitForAllocStopped(t, nomadClient, writeAllocID)
+	// instead of waiting for the alloc to stop, wait for the volume claim gc run
+	require.Eventuallyf(func() bool {
+		vol, _, err := nomadClient.CSIVolumes().Info(volID, nil)
+		if err != nil {
+			return false
+		}
+		return len(vol.WriteAllocs) == 0
+	}, 90*time.Second, 5*time.Second, "write-efs alloc claim was not released")
 
 	// deploy a job that reads from the volume.
 	readJobID := "read-efs-" + uuid[0:8]
