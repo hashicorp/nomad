@@ -76,7 +76,7 @@ class NextApp extends App {
           url="https://www.hashicorp.com/blog/announcing-hashicorp-nomad-0-11-beta/"
           tag="Announcing"
           theme="nomad"
-          text="HashiCorp Nomad 0.11 Beta is now available"
+          text="HashiCorp Nomad 0.11 Release Candidate is now available"
           linkText="Learn More"
         />
         <MegaNav product="Nomad" />
