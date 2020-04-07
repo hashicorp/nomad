@@ -58,6 +58,7 @@ pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
@@ -66,6 +67,7 @@ pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
 	@echo "==> Building $@..."
 	@CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
@@ -74,6 +76,7 @@ pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=386 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
@@ -82,6 +85,7 @@ pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
@@ -90,6 +94,7 @@ pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm CC=arm-linux-gnueabihf-gcc-5 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
@@ -98,6 +103,7 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-5 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
@@ -111,6 +117,7 @@ pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
@@ -119,6 +126,7 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@.exe"
@@ -127,6 +135,7 @@ pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=ppc64le \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
@@ -135,6 +144,7 @@ pkg/linux_s390x/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=s390x \
 		go build \
+		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
 		-tags "$(GO_TAGS)" \
 		-o "$@"
