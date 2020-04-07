@@ -160,6 +160,10 @@ def configureLinuxProvisioners(vmCfg)
 		privileged: true,
 		path: './scripts/vagrant-linux-priv-protoc.sh'
 
+	vmCfg.vm.provision "shell",
+		privileged: false,
+		path: './scripts/vagrant-linux-unpriv-osxcross.sh'
+
 	return vmCfg
 end
 

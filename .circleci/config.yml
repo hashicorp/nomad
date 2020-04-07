@@ -665,52 +665,6 @@ jobs:
         path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/test-reports
-  build-darwin-binaries:
-    macos:
-      xcode: 11.3.1
-    working_directory: ~/go/src/github.com/hashicorp/nomad
-    steps:
-    - checkout
-    - run:
-        command: echo 'export PATH="${GOPATH}/bin:${HOME}/goinstall/go/bin:$PATH"' >> ${BASH_ENV}
-        name: configure PATH
-    - run:
-        command: |
-          set -x
-
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
-          echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf ~/goinstall/go
-          sudo mkdir -p ~/goinstall
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
-    - run:
-        command: source ${BASH_ENV} && make deps
-    - run:
-        command: brew install protobuf
-    - run:
-        command: sudo -E PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
-    - run:
-        command: source ${BASH_ENV} && make pkg/darwin_amd64.zip
-    - store_artifacts:
-        destination: /builds/nomad_darwin_amd64.zip
-        path: pkg/darwin_amd64.zip
-    environment:
-    - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.14
-    - GOMAXPROCS: 1
-    - GOPATH: /Users/distiller/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
-    - NOMAD_SLOW_TEST: 1
-    - PAGER: cat
   test-docker:
     machine:
       image: circleci/classic:201808-01
@@ -816,20 +770,28 @@ jobs:
     - run:
         command: make deps
     - run:
+        command: ./scripts/vagrant-linux-unpriv-osxcross.sh ~/osxcross
+    - run:
         command: |
           sudo rm -rf /usr/bin/protoc
           sudo ./scripts/vagrant-linux-priv-protoc.sh
         name: install protoc
     - run:
-        command: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
+        command: sudo -E PATH="$GOPATH/bin:${HOME}/osxcross/target/bin:/usr/local/go/bin:$PATH" make generate-structs
     - run:
-        command: make pkg/windows_amd64.zip pkg/linux_amd64.zip
-    - store_artifacts:
-        destination: /builds/nomad_windows_amd64.zip
-        path: pkg/windows_amd64.zip
+        command: |
+          export PATH="$GOPATH/bin:${HOME}/osxcross/target/bin:/usr/local/go/bin:$PATH"
+          make pkg/linux_amd64.zip pkg/windows_amd64.zip pkg/darwin_amd64.zip
+        name: compile
     - store_artifacts:
         destination: /builds/nomad_linux_amd64.zip
         path: pkg/linux_amd64.zip
+    - store_artifacts:
+        destination: /builds/nomad_darwin_amd64.zip
+        path: pkg/darwin_amd64.zip
+    - store_artifacts:
+        destination: /builds/nomad_windows_amd64.zip
+        path: pkg/windows_amd64.zip
   test-e2e:
     docker:
     - image: golang:1.14.1
@@ -953,13 +915,6 @@ workflows:
             - stable-website
             - /^.-ui\b.*/
     - lint-go:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - build-darwin-binaries:
         filters:
           branches:
             ignore:

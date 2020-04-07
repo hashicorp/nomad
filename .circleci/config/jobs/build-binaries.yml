@@ -6,12 +6,20 @@ steps:
   - checkout
   - run: apt-get update; apt-get install -y sudo unzip zip
   - run: make deps
+  - run: ./scripts/vagrant-linux-unpriv-osxcross.sh ~/osxcross
   - install-protoc
-  - run: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-  - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip
-  - store_artifacts:
-      path: pkg/windows_amd64.zip
-      destination: /builds/nomad_windows_amd64.zip
+  - run: sudo -E PATH="$GOPATH/bin:${HOME}/osxcross/target/bin:/usr/local/go/bin:$PATH" make generate-structs
+  - run:
+      name: compile
+      command: |
+        export PATH="$GOPATH/bin:${HOME}/osxcross/target/bin:/usr/local/go/bin:$PATH"
+        make pkg/linux_amd64.zip pkg/windows_amd64.zip pkg/darwin_amd64.zip
   - store_artifacts:
       path: pkg/linux_amd64.zip
       destination: /builds/nomad_linux_amd64.zip
+  - store_artifacts:
+      path: pkg/darwin_amd64.zip
+      destination: /builds/nomad_darwin_amd64.zip
+  - store_artifacts:
+      path: pkg/windows_amd64.zip
+      destination: /builds/nomad_windows_amd64.zip
