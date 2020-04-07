@@ -165,7 +165,11 @@ deps:  ## Install build and development dependencies
 	GO111MODULE=on go get -u gotest.tools/gotestsum
 	GO111MODULE=on go get -u github.com/fatih/hclfmt
 	GO111MODULE=on go get -u github.com/golang/protobuf/protoc-gen-go@v1.3.4
-	@bash -C "$(PROJECT_ROOT)/scripts/install-codecgen.sh"
+
+	# The tag here must correspoond to codec version nomad uses, e.g. v1.1.5.
+	# Though, v1.1.5 codecgen has a bug in code generator, so using a specific sha
+	# here instead.
+	GO111MODULE=on go get -u github.com/hashicorp/go-msgpack/codec/codecgen@f51b5189210768cf0d476580cf287620374d4f02
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
