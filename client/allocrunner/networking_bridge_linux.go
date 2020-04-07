@@ -148,7 +148,7 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 		return fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
 
-	if err := b.cni.Load(cni.WithConfListBytes(b.buildNomadNetConfig())); err != nil {
+	if err := b.ensureCNIInitialized(); err != nil {
 		return err
 	}
 
@@ -176,7 +176,19 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 
 // Teardown calls the CNI plugins with the delete action
 func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+	if err := b.ensureCNIInitialized(); err != nil {
+		return err
+	}
+
 	return b.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc)))
+}
+
+func (b *bridgeNetworkConfigurator) ensureCNIInitialized() error {
+	if err := b.cni.Status(); cni.IsCNINotInitialized(err) {
+		return b.cni.Load(cni.WithConfListBytes(b.buildNomadNetConfig()))
+	} else {
+		return err
+	}
 }
 
 // getPortMapping builds a list of portMapping structs that are used as the
