@@ -184,10 +184,11 @@ func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs
 }
 
 func (b *bridgeNetworkConfigurator) ensureCNIInitialized() error {
-	if b.cni.Status() == cni.ErrCNINotInitialized {
+	err := b.cni.Status()
+	if err == cni.ErrCNINotInitialized {
 		return b.cni.Load(cni.WithConfListBytes(b.buildNomadNetConfig()))
 	}
-	return nil
+	return err
 }
 
 // getPortMapping builds a list of portMapping structs that are used as the
