@@ -18,26 +18,37 @@ RUN useradd --create-home vagrant \
     && echo 'vagrant      ALL = (ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # install priv packages
-COPY ./scripts/vagrant-linux-priv-config.sh /tmp/scripts/vagrant-linux-priv-config.sh
-RUN /tmp/scripts/vagrant-linux-priv-config.sh
+COPY ./scripts/vagrant-linux-priv-config.sh /tmp/build-tmp/scripts/vagrant-linux-priv-config.sh
+RUN /tmp/build-tmp/scripts/vagrant-linux-priv-config.sh
 
-COPY ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
-RUN /tmp/scripts/vagrant-linux-priv-go.sh
+COPY ./scripts/vagrant-linux-priv-go.sh /tmp/build-tmp/scripts/vagrant-linux-priv-go.sh
+RUN /tmp/build-tmp/scripts/vagrant-linux-priv-go.sh
 
-COPY ./scripts/vagrant-linux-priv-protoc.sh /tmp/scripts/vagrant-linux-priv-protoc.sh
-RUN /tmp/scripts/vagrant-linux-priv-protoc.sh
+COPY ./scripts/vagrant-linux-priv-protoc.sh /tmp/build-tmp/scripts/vagrant-linux-priv-protoc.sh
+RUN /tmp/build-tmp/scripts/vagrant-linux-priv-protoc.sh
 
 USER vagrant
 
-COPY ./scripts/vagrant-linux-unpriv-ui.sh /tmp/scripts/vagrant-linux-unpriv-ui.sh
-RUN /tmp/scripts/vagrant-linux-unpriv-ui.sh
+COPY ./scripts/vagrant-linux-unpriv-ui.sh /tmp/build-tmp/scripts/vagrant-linux-unpriv-ui.sh
+RUN /tmp/build-tmp/scripts/vagrant-linux-unpriv-ui.sh
 
-COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
+COPY ./GNUmakefile /tmp/build-tmp/makefile/GNUmakefile
+RUN make -C /tmp/build-tmp/makefile deps
+
+COPY ./scripts/release/docker-build-all /tmp/build-tmp/scripts/docker-build-all
 
 # Update PATH with GO bin, yarn, and node
 ENV NODE_VERSION=v10.15.3
 ENV GOPATH="/opt/gopath" \
     PATH="/home/vagrant/.nvm/versions/node/${NODE_VERSION}/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.yarn/bin:/home/vagrant/.config/yarn/global/node_modules/.bin:$PATH"
+
+COPY ./ui/packages.json /tmp/build-tmp/ui/
+COPY ./ui/yarn.lock /tmp/build-tmp/ui/
+RUN cd /tmp/build-tmp/ui/ \
+    && yarn install \
+    && rm -rf node_modules
+
+RUN rm -rf /tmp/build-tmp
 
 RUN mkdir -p /opt/gopath/src/github.com/hashicorp/nomad
 RUN mkdir -p /home/vagrant/bin \
