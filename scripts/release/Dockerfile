@@ -32,12 +32,8 @@ USER vagrant
 COPY ./scripts/vagrant-linux-unpriv-ui.sh /tmp/build-tmp/scripts/vagrant-linux-unpriv-ui.sh
 RUN /tmp/build-tmp/scripts/vagrant-linux-unpriv-ui.sh
 
-COPY ./GNUmakefile /tmp/build-tmp/makefile/GNUmakefile
-RUN make -C /tmp/build-tmp/makefile deps
-
 COPY ./scripts/vagrant-linux-unpriv-osxcross.sh /tmp/build-tmp/scripts/vagrant-linux-unpriv-osxcross.sh
 RUN /tmp/build-tmp/scripts/vagrant-linux-unpriv-osxcross.sh /home/vagrant/osxcross
-
 
 COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
 
