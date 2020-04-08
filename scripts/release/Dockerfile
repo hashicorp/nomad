@@ -39,20 +39,12 @@ COPY ./scripts/vagrant-linux-unpriv-osxcross.sh /tmp/build-tmp/scripts/vagrant-l
 RUN /tmp/build-tmp/scripts/vagrant-linux-unpriv-osxcross.sh /home/vagrant/osxcross
 
 
-COPY ./scripts/release/docker-build-all /tmp/build-tmp/scripts/docker-build-all
+COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
 
 # Update PATH with GO bin, yarn, and node
 ENV NODE_VERSION=v10.15.3
 ENV GOPATH="/opt/gopath" \
     PATH="/home/vagrant/.nvm/versions/node/${NODE_VERSION}/bin:/home/vagrant/osxcross/target/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.yarn/bin:/home/vagrant/.config/yarn/global/node_modules/.bin:$PATH"
-
-COPY ./ui/package.json /tmp/build-tmp/ui/
-COPY ./ui/yarn.lock /tmp/build-tmp/ui/
-RUN cd /tmp/build-tmp/ui/ \
-    && yarn install \
-    && rm -rf node_modules
-
-RUN rm -rf /tmp/build-tmp
 
 RUN mkdir -p /opt/gopath/src/github.com/hashicorp/nomad
 RUN mkdir -p /home/vagrant/bin \
