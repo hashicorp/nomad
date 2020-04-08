@@ -13,12 +13,6 @@ export default function DownloadsPage({ downloadData }) {
         version={VERSION}
         downloads={downloadData}
         community="/resources"
-        prerelease={{
-          type: 'Release Candidate 1',
-          name: 'v0.11.0',
-          version: '0.11.0-rc1'
-        }}
-
       />
     </div>
   )
