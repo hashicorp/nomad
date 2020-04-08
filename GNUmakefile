@@ -168,8 +168,8 @@ bootstrap: deps lint-deps git-hooks # Install all dependencies
 deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
 	GO111MODULE=on go get -u github.com/kardianos/govendor
-	go get -u github.com/hashicorp/go-bindata/go-bindata
-	go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
+	GO111MODULE=on go get -u github.com/hashicorp/go-bindata/go-bindata@master
+	GO111MODULE=on go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@master
 	GO111MODULE=on go get -u github.com/a8m/tree/cmd/tree
 	GO111MODULE=on go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	GO111MODULE=on go get -u gotest.tools/gotestsum
