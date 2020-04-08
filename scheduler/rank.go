@@ -151,19 +151,22 @@ type BinPackIterator struct {
 	source    RankIterator
 	evict     bool
 	priority  int
+	algorithm string
 	jobId     *structs.NamespacedID
 	taskGroup *structs.TaskGroup
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
 // potentially evicting other tasks based on a given priority.
-func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int) *BinPackIterator {
+func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, algorithm string) *BinPackIterator {
 	iter := &BinPackIterator{
-		ctx:      ctx,
-		source:   source,
-		evict:    evict,
-		priority: priority,
+		ctx:       ctx,
+		source:    source,
+		evict:     evict,
+		priority:  priority,
+		algorithm: algorithm,
 	}
+	iter.ctx.Logger().Named("binpack").Trace("NewBinPackIterator created", "algorithm", algorithm)
 	return iter
 }
 
@@ -436,7 +439,7 @@ OUTER:
 		}
 
 		// Score the fit normally otherwise
-		fitness := structs.ScoreFit(option.Node, util)
+		fitness := structs.ScoreFit(option.Node, util, iter.algorithm)
 		normalizedFit := fitness / binPackingMaxFitScore
 		option.Scores = append(option.Scores, normalizedFit)
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)

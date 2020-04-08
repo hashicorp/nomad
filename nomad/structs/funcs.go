@@ -151,7 +151,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 // ScoreFit is used to score the fit based on the Google work published here:
 // http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
 // This is equivalent to their BestFit v3
-func ScoreFit(node *Node, util *ComparableResources) float64 {
+func ScoreFit(node *Node, util *ComparableResources, algorithm string) float64 {
 	// COMPAT(0.11): Remove in 0.11
 	reserved := node.ComparableReservedResources()
 	res := node.ComparableResources()
@@ -176,6 +176,9 @@ func ScoreFit(node *Node, util *ComparableResources) float64 {
 	// score. Because the floor is 20, we simply use that as an anchor.
 	// This means at a perfect fit, we return 18 as the score.
 	score := 20.0 - total
+	if algorithm == "spread" {
+		score = total - 2
+	}
 
 	// Bound the score, just in case
 	// If the score is over 18, that means we've overfit the node.

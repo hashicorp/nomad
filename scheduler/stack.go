@@ -238,10 +238,13 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// priority.
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
 	enablePreemption := true
+	schedulerAlgorithm := "binpack"
 	if schedConfig != nil {
 		enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+		schedulerAlgorithm = schedConfig.SchedulerAlgorithm
 	}
-	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0)
+
+	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedulerAlgorithm)
 
 	// Apply score normalization
 	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack)
