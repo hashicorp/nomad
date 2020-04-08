@@ -65,7 +65,14 @@
       </span>
       <span class="pair">
         <span class="term">Lifecycle</span>
-        <span data-test-lifecycle>{{ if model.task.lifecycle model.task.lifecycle.hook "Main"}}</span>
+        <span data-test-lifecycle>
+          {{#if model.task.lifecycle}}
+            {{model.task.lifecycle.hook}}-{{if model.task.lifecycle.sidecar "sidecar" "ephemeral"}}
+          {{else}}
+            main
+          {{/if}}
+        </span>
+
       </span>
     </div>
   </div>

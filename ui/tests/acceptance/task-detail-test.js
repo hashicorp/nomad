@@ -32,7 +32,8 @@ module('Acceptance | task detail', function(hooks) {
     );
 
     const lifecycle = server.db.tasks.where({ name: task.name })[0].Lifecycle;
-    assert.equal(Task.lifecycle, lifecycle ? lifecycle.Hook : 'Main');
+    const sidecar = lifecycle && lifecycle.Sidecar ? '-sidecar' : '-ephemeral';
+    assert.equal(Task.lifecycle, lifecycle ? `${lifecycle.Hook}${sidecar}` : 'main');
 
     assert.equal(document.title, `Task ${task.name} - Nomad`);
   });

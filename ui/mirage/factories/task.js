@@ -20,7 +20,7 @@ export default Factory.extend({
 
   Lifecycle: () => {
     if (faker.random.boolean()) {
-      return { Hook: 'Prestart', Sidecar: false };
+      return { Hook: 'prestart', Sidecar: faker.random.boolean() };
     } else {
       return null;
     }
