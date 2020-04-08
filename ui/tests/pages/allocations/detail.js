@@ -3,6 +3,7 @@ import {
   clickable,
   create,
   collection,
+  hasClass,
   isPresent,
   text,
   visitable,
@@ -35,6 +36,13 @@ export default create({
   }),
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
+
+  lifecycleCharts: collection('[data-test-lifecycle-chart]', {
+    name: text('[data-test-name]'),
+    isMain: hasClass('main'),
+    isPrestart: hasClass('prestart'),
+    isSidecar: hasClass('sidecar'),
+  }),
 
   tasks: collection('[data-test-task-row]', {
     name: text('[data-test-name]'),

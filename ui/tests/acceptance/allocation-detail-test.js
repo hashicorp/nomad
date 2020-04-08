@@ -72,6 +72,26 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.equal(Allocation.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 
+  test('/allocation:id should present task lifecycles', async function(assert) {
+    assert.equal(
+      Allocation.lifecycleCharts.length,
+      server.db.taskStates.where({ allocationId: allocation.id }).length
+    );
+    server.db.taskStates.where({ allocationId: allocation.id }).forEach((state, index) => {
+      assert.equal(Allocation.lifecycleCharts[index].name, state.name);
+      const lifecycle = server.db.tasks.where({ name: state.name })[0].Lifecycle;
+      if (lifecycle) {
+        if (lifecycle.Sidecar) {
+          assert.ok(Allocation.lifecycleCharts[index].isSidecar);
+        } else {
+          assert.ok(Allocation.lifecycleCharts[index].isPrestart);
+        }
+      } else {
+        assert.ok(Allocation.lifecycleCharts[index].isMain);
+      }
+    });
+  });
+
   test('/allocation/:id should list all tasks for the allocation', async function(assert) {
     assert.equal(
       Allocation.tasks.length,
