@@ -857,6 +857,19 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.ShmSize = driverConfig.ShmSize
 	}
 
+	// setup Nomad DNS options, these are overriden by docker driver specific options
+	if task.DNS != nil {
+		hostConfig.DNS = task.DNS.Servers
+		hostConfig.DNSSearch = task.DNS.Searches
+		hostConfig.DNSOptions = task.DNS.Options
+	}
+
+	if len(driverConfig.DNSSearchDomains) > 0 {
+		hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+	}
+	if len(driverConfig.DNSOptions) > 0 {
+		hostConfig.DNSOptions = driverConfig.DNSOptions
+	}
 	// set DNS servers
 	for _, ip := range driverConfig.DNSServers {
 		if net.ParseIP(ip) != nil {
@@ -920,9 +933,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
-	// set DNS search domains and extra hosts
-	hostConfig.DNSSearch = driverConfig.DNSSearchDomains
-	hostConfig.DNSOptions = driverConfig.DNSOptions
 	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 
 	hostConfig.IpcMode = driverConfig.IPCMode

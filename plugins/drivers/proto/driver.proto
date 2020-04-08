@@ -385,6 +385,12 @@ message NetworkIsolationSpec {
   map<string,string> labels = 3;
 }
 
+message DNSConfig {
+    repeated string servers = 1;
+    repeated string searches = 2;
+    repeated string options = 3;
+}
+
 message TaskConfig {
 
     // Id of the task, recommended to the globally unique, must be unique to the driver.
@@ -440,6 +446,9 @@ message TaskConfig {
     // NetworkIsolationSpec specifies the configuration for the network namespace
     // to use for the task. *Only supported on Linux
     NetworkIsolationSpec network_isolation_spec = 16;
+
+    // DNSConfig is the configuration for task DNS resolvers and other options
+    DNSConfig dns = 17;
 }
 
 message Resources {
