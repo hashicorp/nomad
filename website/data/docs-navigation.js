@@ -192,11 +192,11 @@ export default [
       'java',
       'qemu',
       'raw_exec',
-      'rkt',
       {
         category: 'external',
         content: [
           'lxc',
+          'rkt',
           'podman',
           'singularity',
           'jail-task-driver',
