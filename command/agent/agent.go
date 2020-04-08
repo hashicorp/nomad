@@ -421,15 +421,20 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	// configured explicitly. This handles both running server and client on one
 	// host and -dev mode.
 	if a.server != nil {
-		if a.config.AdvertiseAddrs == nil || a.config.AdvertiseAddrs.RPC == "" {
+		advertised := a.config.AdvertiseAddrs
+		normalized := a.config.normalizedAddrs
+
+		if advertised == nil || advertised.RPC == "" {
 			return fmt.Errorf("AdvertiseAddrs is nil or empty")
-		} else if a.config.normalizedAddrs == nil || a.config.normalizedAddrs.RPC == "" {
+		} else if normalized == nil || normalized.RPC == "" {
 			return fmt.Errorf("normalizedAddrs is nil or empty")
 		}
 
-		c.Servers = append(c.Servers,
-			a.config.normalizedAddrs.RPC,
-			a.config.AdvertiseAddrs.RPC)
+		if normalized.RPC == advertised.RPC {
+			c.Servers = append(c.Servers, normalized.RPC)
+		} else {
+			c.Servers = append(c.Servers, normalized.RPC, advertised.RPC)
+		}
 	}
 
 	// Setup the plugin loaders
