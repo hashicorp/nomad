@@ -46,7 +46,7 @@ ENV NODE_VERSION=v10.15.3
 ENV GOPATH="/opt/gopath" \
     PATH="/home/vagrant/.nvm/versions/node/${NODE_VERSION}/bin:/home/vagrant/osxcross/target/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.yarn/bin:/home/vagrant/.config/yarn/global/node_modules/.bin:$PATH"
 
-COPY ./ui/packages.json /tmp/build-tmp/ui/
+COPY ./ui/package.json /tmp/build-tmp/ui/
 COPY ./ui/yarn.lock /tmp/build-tmp/ui/
 RUN cd /tmp/build-tmp/ui/ \
     && yarn install \
