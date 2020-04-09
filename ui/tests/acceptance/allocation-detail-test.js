@@ -72,7 +72,7 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.equal(Allocation.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 
-  test('/allocation:id should present task lifecycles', async function(assert) {
+  test('/allocation/:id should present task lifecycles', async function(assert) {
     assert.equal(
       Allocation.lifecycleCharts.length,
       server.db.taskStates.where({ allocationId: allocation.id }).length
