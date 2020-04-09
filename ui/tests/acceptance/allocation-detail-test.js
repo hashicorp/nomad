@@ -88,17 +88,23 @@ module('Acceptance | allocation detail', function(hooks) {
     });
 
     sortedServerStates.forEach((state, index) => {
-      assert.equal(Allocation.lifecycleCharts[index].name, state.name);
       const lifecycle = server.db.tasks.where({ name: state.name })[0].Lifecycle;
-      if (lifecycle) {
-        if (lifecycle.Sidecar) {
-          assert.ok(Allocation.lifecycleCharts[index].isSidecar);
+
+      Allocation.lifecycleCharts[index].as(ChartRow => {
+        assert.equal(Allocation.lifecycleCharts[index].name, state.name);
+        if (lifecycle) {
+          if (lifecycle.Sidecar) {
+            assert.ok(ChartRow.isSidecar);
+            assert.equal(ChartRow.lifecycle, 'Sidecar Task');
+          } else {
+            assert.ok(ChartRow.isPrestart);
+            assert.equal(ChartRow.lifecycle, 'PreStart Task');
+          }
         } else {
-          assert.ok(Allocation.lifecycleCharts[index].isPrestart);
+          assert.ok(ChartRow.isMain);
+          assert.equal(ChartRow.lifecycle, 'Main Task');
         }
-      } else {
-        assert.ok(Allocation.lifecycleCharts[index].isMain);
-      }
+      });
     });
   });
 
