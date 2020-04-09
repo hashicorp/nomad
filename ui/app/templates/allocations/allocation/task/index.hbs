@@ -108,12 +108,21 @@
       <div class="boxed-section-body is-full-bleed">
         {{#list-table source=prestartTaskStates as |t|}}
           {{#t.head}}
+            <th class="is-narrow"></th>
             <th>Task</th>
             <th>State</th>
             <th>Lifecycle</th>
           {{/t.head}}
           {{#t.body as |row|}}
             <tr data-test-prestart-task>
+              <td class="is-narrow">
+                {{#if (and row.model.isRunning (not row.model.task.lifecycle.sidecar))}}
+                  <span class="tooltip text-center" role="tooltip" aria-label="Lifecycle constraints not met">
+                    {{!-- FIXME this is supposed to be yellow --}}
+                    {{x-icon "alert-triangle" class="is-faded"}}
+                  </span>
+                {{/if}}
+              </td>
               <td data-test-name>{{row.model.task.name}}</td>
               <td data-test-state>{{row.model.state}}</td>
               <td data-test-lifecycle>{{if row.model.task.lifecycle.sidecar "sidecar" "prestart"}}</td>

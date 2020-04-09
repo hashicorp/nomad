@@ -132,9 +132,13 @@ module('Acceptance | task detail', function(hooks) {
       task.save();
     });
 
-    const mainTaskState = server.db.taskStates.findBy({ name: mainTask.name });
-    const sidecarTaskState = server.db.taskStates.findBy({ name: sidecarTask.name });
-    const prestartTaskState = server.db.taskStates.findBy({ name: prestartTask.name });
+    const mainTaskState = server.schema.taskStates.findBy({ name: mainTask.name });
+    const sidecarTaskState = server.schema.taskStates.findBy({ name: sidecarTask.name });
+    const prestartTaskState = server.schema.taskStates.findBy({ name: prestartTask.name });
+
+    prestartTaskState.attrs.state = 'running';
+    prestartTaskState.attrs.finishedAt = null;
+    prestartTaskState.save();
 
     await Task.visit({ id: mainTaskState.allocationId, name: mainTask.name });
 
@@ -145,12 +149,14 @@ module('Acceptance | task detail', function(hooks) {
       assert.equal(SidecarTask.name, sidecarTask.name);
       assert.equal(SidecarTask.state, sidecarTaskState.state);
       assert.equal(SidecarTask.lifecycle, 'sidecar');
+      assert.notOk(SidecarTask.isBlocking);
     });
 
     Task.prestartTasks[1].as(PrestartTask => {
       assert.equal(PrestartTask.name, prestartTask.name);
       assert.equal(PrestartTask.state, prestartTaskState.state);
       assert.equal(PrestartTask.lifecycle, 'prestart');
+      assert.ok(PrestartTask.isBlocking);
     });
 
     await Task.visit({ id: sidecarTaskState.allocationId, name: sidecarTask.name });
