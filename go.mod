@@ -36,6 +36,7 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.0
 	github.com/fatih/color v1.9.0
 	github.com/fsouza/go-dockerclient v1.6.3
+	github.com/godbus/dbus/v5 v5.0.3 // indirect
 	github.com/golang/protobuf v1.3.4
 	github.com/golang/snappy v0.0.1
 	github.com/google/go-cmp v0.4.0
