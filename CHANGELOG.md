@@ -1,4 +1,4 @@
-## 0.11.0 (Unreleased)
+## 0.11.0 (April 8, 2020)
 
 FEATURES:
  * **Container Storage Interface [beta]**: Nomad has expanded support
