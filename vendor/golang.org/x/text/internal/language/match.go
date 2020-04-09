@@ -205,7 +205,7 @@ func (t Tag) minimize() (Tag, error) {
 
 // minimizeTags mimics the behavior of the ICU 51 C implementation.
 func minimizeTags(t Tag) (Tag, error) {
-	if t.equalTags(und) {
+	if t.equalTags(Und) {
 		return t, nil
 	}
 	max, err := addTags(t)
