@@ -346,6 +346,17 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		"-nographic",
 	}
 
+	var dnsArgs string
+	if cfg.DNS != nil {
+		if len(cfg.DNS.Servers) > 0 {
+			dnsArgs = ",dns=" + cfg.DNS.Servers[0]
+		}
+
+		for _, s := range cfg.DNS.Searches {
+			dnsArgs = fmt.Sprintf("%s,dnssearch=%s", dnsArgs, s)
+		}
+	}
+
 	var monitorPath string
 	if driverConfig.GracefulShutdown {
 		if runtime.GOOS == "windows" {
@@ -400,7 +411,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		if len(forwarding) != 0 {
 			args = append(args,
 				"-netdev",
-				fmt.Sprintf("user,id=user.0,%s", strings.Join(forwarding, ",")),
+				fmt.Sprintf("user,id=user.0,%s%s", strings.Join(forwarding, ","), dnsArgs),
 				"-device", "virtio-net,netdev=user.0",
 			)
 		}
