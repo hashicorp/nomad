@@ -1,3 +1,9 @@
+## 0.11.1 (Unreleased)
+
+BUG FIXES:
+
+ * vault: Upgrade http2 library to fix Vault API calls that fail with `http2: no cached connection was available` [[GH-7673](https://github.com/hashicorp/nomad/issues/7673)]
+
 ## 0.11.0 (April 8, 2020)
 
 FEATURES:
