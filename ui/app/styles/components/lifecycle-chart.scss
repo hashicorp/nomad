@@ -1,18 +1,12 @@
 .lifecycle-chart {
-  margin: 1em;
   padding: 0.75em 1em;
   border: 1px solid $grey-blue;
 
   &.main {
-    text-align: right;
-    width: 75%;
-    color: green;
+    margin-left: 25%;
   }
-  &.sidecar {
-    color: pink;
-  }
+
   &.prestart {
-    width: 25%;
-    color: purple;
+    margin-right: 75%;
   }
 }
