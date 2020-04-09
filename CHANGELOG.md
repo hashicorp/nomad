@@ -1,13 +1,24 @@
-## 0.10.5 (March 24, 2020
+## 0.11.6 (April 9, 2020)
 
-SECURITY:
-
-* server: Override content-type headers for unsafe content. CVE-TBD [GH-7468](https://github.com/hashicorp/nomad/issues/7468)
+IMPROVEMENTS:
+ * connect: Added support for using Connect with TLS enabled Consul agents [[GH-7602](https://github.com/hashicorp/nomad/pull/7602)]
 
 BUG FIXES:
 
  * api: Fixed a panic when canonicalizing a jobspec with an incorrect job type [[GH-7207]](https://github.com/hashicorp/nomad/pull/7207)
+ * api: Fixed a bug where `/client/allocations/...` (e.g. allocation stats) requests may hang in special cases after a leader election [[GH-7370](https://github.com/hashicorp/nomad/issues/7370)]
  * cli: Fixed a panic when displaying device plugins without stats [[GH-7231](https://github.com/hashicorp/nomad/issues/7231)]
+ * cli: Fixed a bug where `alloc exec` command in TLS environments may fail [[GH-7274](https://github.com/hashicorp/nomad/issues/7274)]
+ * client: Fixed a bug affecting network detection in environments that mimic the EC2 Metadata API [[GH-7509](https://github.com/hashicorp/nomad/issues/7509)]
+ * client: Fixed a bug where a multi-task allocation maybe considered healthy despite a task restarting [[GH-7383](https://github.com/hashicorp/nomad/issues/7383)]
+ * connect: Fixed a bug where Connect enabled allocation would not stop after promotion [[GH-7540](https://github.com/hashicorp/nomad/issues/7540)]
+ * ui: Fixed handling of multi-byte unicode characters in allocation log view [[GH-7470](https://github.com/hashicorp/nomad/issues/7470)] [[GH-7551](https://github.com/hashicorp/nomad/pull/7551)]
+
+## 0.10.5 (March 24, 2020)
+
+SECURITY:
+
+* server: Override content-type headers for unsafe content. CVE-2020-10944 [[GH-7468](https://github.com/hashicorp/nomad/issues/7468)]
 
 ## 0.10.4 (February 19, 2020)
 
