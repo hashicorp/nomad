@@ -97,17 +97,19 @@
 
       {{#each sortedLifecycleTaskStates as |state|}}
         <div class="lifecycle-chart {{if state.task.lifecycle (if state.task.lifecycle.sidecar "sidecar" "prestart") "main"}}" data-test-lifecycle-chart>
-          <div data-test-name>{{state.name}}</div>
-          <div data-test-lifecycle>
-            {{#if state.task.lifecycle}}
-              {{#if state.task.lifecycle.sidecar}}
-                Sidecar Task
+          <div class="row">
+            <div class="name" data-test-name>{{state.name}}</div>
+            <div class="lifecycle" data-test-lifecycle>
+              {{#if state.task.lifecycle}}
+                {{#if state.task.lifecycle.sidecar}}
+                  Sidecar Task
+                {{else}}
+                  PreStart Task
+                {{/if}}
               {{else}}
-                PreStart Task
+                Main Task
               {{/if}}
-            {{else}}
-              Main Task
-            {{/if}}
+            </div>
           </div>
         </div>
       {{/each}}
