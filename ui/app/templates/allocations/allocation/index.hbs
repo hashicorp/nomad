@@ -95,7 +95,7 @@
     </div>
     <div class="boxed-section-body">
 
-      {{#each model.states as |state|}}
+      {{#each sortedLifecycleTaskStates as |state|}}
         <div class="lifecycle-chart {{if state.task.lifecycle (if state.task.lifecycle.sidecar "sidecar" "prestart") "main"}}" data-test-lifecycle-chart>
           <div data-test-name>{{state.name}}</div>
 

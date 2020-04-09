@@ -77,7 +77,15 @@ module('Acceptance | allocation detail', function(hooks) {
       Allocation.lifecycleCharts.length,
       server.db.taskStates.where({ allocationId: allocation.id }).length
     );
-    server.db.taskStates.where({ allocationId: allocation.id }).forEach((state, index) => {
+
+    const getTaskSortPrefix = task =>
+      `${task.lifecycle ? (task.lifecycle.sidecar ? '1' : '0') : '2'}-${task.name}`;
+    const serverStates = server.db.taskStates.where({ allocationId: allocation.id });
+    const sortedServerStates = serverStates.sort((a, b) => {
+      return getTaskSortPrefix(a).localeCompare(getTaskSortPrefix(b));
+    });
+
+    sortedServerStates.forEach((state, index) => {
       assert.equal(Allocation.lifecycleCharts[index].name, state.name);
       const lifecycle = server.db.tasks.where({ name: state.name })[0].Lifecycle;
       if (lifecycle) {

@@ -2,7 +2,7 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { alias } from '@ember/object/computed';
+import { alias, sort } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
@@ -21,6 +21,11 @@ export default Controller.extend(Sortable, {
 
   listToSort: alias('model.states'),
   sortedStates: alias('listSorted'),
+
+  sortedLifecycleTaskStates: sort('model.states', function(a, b) {
+    // FIXME sorts prestart, sidecar, main, secondary by name, correct?
+    return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
+  }),
 
   // Set in the route
   preempter: null,
@@ -85,3 +90,7 @@ export default Controller.extend(Sortable, {
     },
   },
 });
+
+function getTaskSortPrefix(task) {
+  return `${task.lifecycle ? (task.lifecycle.sidecar ? '1' : '0') : '2'}-${task.name}`;
+}
