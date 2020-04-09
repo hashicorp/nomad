@@ -5,13 +5,13 @@ import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
 export default Controller.extend({
-  otherTasks: computed('model.task.taskGroup.tasks.@each.name', function() {
+  otherTaskStates: computed('model.task.taskGroup.tasks.@each.name', function() {
     const taskName = this.model.task.name;
-    return this.model.task.taskGroup.tasks.rejectBy('name', taskName);
+    return this.model.allocation.states.rejectBy('name', taskName);
   }),
 
-  prestartTasks: computed('otherTasks.@each.lifecycle', function() {
-    return this.otherTasks.mapBy('lifecycle').compact();
+  prestartTaskStates: computed('otherTaskStates.@each.lifecycle', function() {
+    return this.otherTaskStates.filterBy('task.lifecycle');
   }),
 
   network: alias('model.resources.networks.firstObject'),

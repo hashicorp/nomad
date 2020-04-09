@@ -133,6 +133,9 @@ module('Acceptance | task detail', function(hooks) {
     });
 
     const mainTaskState = server.db.taskStates.findBy({ name: mainTask.name });
+    const sidecarTaskState = server.db.taskStates.findBy({ name: sidecarTask.name });
+    const prestartTaskState = server.db.taskStates.findBy({ name: prestartTask.name });
+
     await Task.visit({ id: mainTaskState.allocationId, name: mainTask.name });
 
     assert.ok(Task.hasPrestartTasks);
@@ -140,13 +143,16 @@ module('Acceptance | task detail', function(hooks) {
 
     Task.prestartTasks[0].as(SidecarTask => {
       assert.equal(SidecarTask.name, sidecarTask.name);
+      assert.equal(SidecarTask.state, sidecarTaskState.state);
+      assert.equal(SidecarTask.lifecycle, 'sidecar');
     });
 
     Task.prestartTasks[1].as(PrestartTask => {
       assert.equal(PrestartTask.name, prestartTask.name);
+      assert.equal(PrestartTask.state, prestartTaskState.state);
+      assert.equal(PrestartTask.lifecycle, 'prestart');
     });
 
-    const sidecarTaskState = server.db.taskStates.findBy({ name: sidecarTask.name });
     await Task.visit({ id: sidecarTaskState.allocationId, name: sidecarTask.name });
 
     assert.notOk(Task.hasPrestartTasks);
