@@ -49,6 +49,13 @@ export default create({
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
 
+  hasPrestartTasks: isPresent('[data-test-prestart-tasks'),
+  prestartTasks: collection('[data-test-prestart-task]', {
+    name: text('[data-test-name]'),
+    state: text('[data-test-state]'),
+    lifecycle: text('[data-test-lifecycle]'),
+  }),
+
   hasAddresses: isPresent('[data-test-task-addresses]'),
   addresses: collection('[data-test-task-address]', {
     name: text('[data-test-task-address-name]'),

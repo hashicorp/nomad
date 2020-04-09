@@ -100,6 +100,28 @@
     </div>
   </div>
 
+  {{#if (and (not model.task.lifecycle) prestartTasks)}}
+    <div class="boxed-section" data-test-prestart-tasks>
+      <div class="boxed-section-head">
+        PreStart Tasks
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=prestartTasks as |t|}}
+          {{#t.head}}
+            <th>Task</th>
+            <th>State</th>
+            <th>Lifecycle</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-prestart-task>
+              <td data-test-name>{{row.model.task.name}}</td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
+
   {{#if network.ports.length}}
     <div class="boxed-section" data-test-task-addresses>
       <div class="boxed-section-head">
