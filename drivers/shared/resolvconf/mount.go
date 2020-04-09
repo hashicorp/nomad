@@ -12,9 +12,9 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 	var nSearches, nServers, nOptions int
 	path := filepath.Join(taskDir, "resolv.conf")
 	if conf != nil {
-		nServers := len(conf.Servers)
-		nSearches := len(conf.Searches)
-		nOptions := len(conf.Options)
+		nServers = len(conf.Servers)
+		nSearches = len(conf.Searches)
+		nOptions = len(conf.Options)
 	}
 
 	// Use system dns if no configuration is given
@@ -25,7 +25,7 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 
 		return &drivers.MountConfig{
 			TaskPath:        "/etc/resolv.conf",
-			HostPath:        dest,
+			HostPath:        path,
 			Readonly:        true,
 			PropagationMode: "private",
 		}, nil

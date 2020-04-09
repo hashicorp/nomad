@@ -857,7 +857,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.ShmSize = driverConfig.ShmSize
 	}
 
-	// setup Nomad DNS options, these are overriden by docker driver specific options
+	// setup Nomad DNS options, these are overridden by docker driver specific options
 	if task.DNS != nil {
 		hostConfig.DNS = task.DNS.Servers
 		hostConfig.DNSSearch = task.DNS.Searches

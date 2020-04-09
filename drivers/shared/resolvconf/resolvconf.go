@@ -17,8 +17,7 @@ func New(servers []string, searches []string, options []string) (*ResolvConf, er
 		servers:  servers,
 		searches: searches,
 		options:  options,
-	}
-	return nil, nil
+	}, nil
 }
 
 func (rc *ResolvConf) Content() []byte {
