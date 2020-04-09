@@ -53,7 +53,7 @@ Then deploy Nomad to the cluster by passing `-provision.terraform`
 without a Nomad version flag:
 
 ```sh
-go test -v . -nomad.version=0.10.2 -provision.terraform ./provisioning.json -skipTests
+NOMAD_E2E=1 go test -v . -nomad.version=0.10.2 -provision.terraform ./provisioning.json -skipTests
 ```
 
 Because it can take a little while for the cluster to settle, it's
