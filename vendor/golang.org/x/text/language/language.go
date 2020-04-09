@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go run gen.go gen_index.go -output tables.go
+//go:generate go run gen.go -output tables.go
 
 package language
 
@@ -13,67 +13,24 @@ import (
 	"strings"
 
 	"golang.org/x/text/internal/language"
+	"golang.org/x/text/internal/language/compact"
 )
 
 // Tag represents a BCP 47 language tag. It is used to specify an instance of a
 // specific language or locale. All language tag values are guaranteed to be
 // well-formed.
-type Tag struct {
-	language compactID
-	locale   compactID
-	full     fullTag // always a language.Tag for now.
-}
-
-type fullTag interface {
-	IsRoot() bool
-	Parent() language.Tag
-}
+type Tag compact.Tag
 
 func makeTag(t language.Tag) (tag Tag) {
-	if region := t.TypeForKey("rg"); len(region) == 6 && region[2:] == "zzzz" {
-		if r, err := language.ParseRegion(region[:2]); err == nil {
-			tFull := t
-			t, _ = t.SetTypeForKey("rg", "")
-			// TODO: should we not consider "va" for the language tag?
-			var exact1, exact2 bool
-			tag.language, exact1 = compactIndex(t)
-			t.RegionID = r
-			tag.locale, exact2 = compactIndex(t)
-			if !exact1 || !exact2 {
-				tag.full = tFull
-			}
-			return tag
-		}
-	}
-	lang, ok := compactIndex(t)
-	tag.language = lang
-	tag.locale = lang
-	if !ok {
-		tag.full = t
-	}
-	return tag
+	return Tag(compact.Make(t))
 }
 
 func (t *Tag) tag() language.Tag {
-	if t.full != nil {
-		return t.full.(language.Tag)
-	}
-	tag := t.language.tag()
-	if t.language != t.locale {
-		loc := t.locale.tag()
-		tag, _ = tag.SetTypeForKey("rg", strings.ToLower(loc.RegionID.String())+"zzzz")
-	}
-	return tag
+	return (*compact.Tag)(t).Tag()
 }
 
-func (t *Tag) mayHaveVariants() bool {
-	return t.full != nil || int(t.language) >= len(coreTags)
-}
-
-func (t *Tag) mayHaveExtensions() bool {
-	return t.full != nil ||
-		int(t.language) >= len(coreTags) ||
-		t.language != t.locale
+func (t *Tag) isCompact() bool {
+	return (*compact.Tag)(t).IsCompact()
 }
 
 // TODO: improve performance.
@@ -103,10 +60,7 @@ func (t Tag) Raw() (b Base, s Script, r Region) {
 
 // IsRoot returns true if t is equal to language "und".
 func (t Tag) IsRoot() bool {
-	if t.full != nil {
-		return t.full.IsRoot()
-	}
-	return t.language == _und
+	return compact.Tag(t).IsRoot()
 }
 
 // CanonType can be used to enable or disable various types of canonicalization.
@@ -188,8 +142,8 @@ func canonicalize(c CanonType, t language.Tag) (language.Tag, bool) {
 						// for legacy reasons, CLDR maps "no", the macro language
 						// code for Norwegian, to the dominant variant "nb". This
 						// change is currently under consideration for CLDR as well.
-						// See http://unicode.org/cldr/trac/ticket/2698 and also
-						// http://unicode.org/cldr/trac/ticket/1790 for some of the
+						// See https://unicode.org/cldr/trac/ticket/2698 and also
+						// https://unicode.org/cldr/trac/ticket/1790 for some of the
 						// practical implications. TODO: this check could be removed
 						// if CLDR adopts this change.
 						if c&CLDR == 0 || t.LangID != _nb {
@@ -233,8 +187,8 @@ func canonicalize(c CanonType, t language.Tag) (language.Tag, bool) {
 // Canonicalize returns the canonicalized equivalent of the tag.
 func (c CanonType) Canonicalize(t Tag) (Tag, error) {
 	// First try fast path.
-	if t.full == nil {
-		if _, changed := canonicalize(c, t.language.tag()); !changed {
+	if t.isCompact() {
+		if _, changed := canonicalize(c, compact.Tag(t).Tag()); !changed {
 			return t, nil
 		}
 	}
@@ -312,7 +266,7 @@ func (t Tag) Base() (Base, Confidence) {
 // If a script cannot be inferred (Zzzz, No) is returned. We do not use Zyyy (undetermined)
 // as one would suspect from the IANA registry for BCP 47. In a Unicode context Zyyy marks
 // common characters (like 1, 2, 3, '.', etc.) and is therefore more like multiple scripts.
-// See http://www.unicode.org/reports/tr24/#Values for more details. Zzzz is also used for
+// See https://www.unicode.org/reports/tr24/#Values for more details. Zzzz is also used for
 // unknown value in CLDR.  (Zzzz, Exact) is returned if Zzzz was explicitly specified.
 // Note that an inferred script is never guaranteed to be the correct one. Latin is
 // almost exclusively used for Afrikaans, but Arabic has been used for some texts
@@ -366,7 +320,7 @@ func (t Tag) Region() (Region, Confidence) {
 // Variants returns the variants specified explicitly for this language tag.
 // or nil if no variant was specified.
 func (t Tag) Variants() []Variant {
-	if !t.mayHaveVariants() {
+	if !compact.Tag(t).MayHaveVariants() {
 		return nil
 	}
 	v := []Variant{}
@@ -381,20 +335,13 @@ func (t Tag) Variants() []Variant {
 // Parent returns the CLDR parent of t. In CLDR, missing fields in data for a
 // specific language are substituted with fields from the parent language.
 // The parent for a language may change for newer versions of CLDR.
+//
+// Parent returns a tag for a less specific language that is mutually
+// intelligible or Und if there is no such language. This may not be the same as
+// simply stripping the last BCP 47 subtag. For instance, the parent of "zh-TW"
+// is "zh-Hant", and the parent of "zh-Hant" is "und".
 func (t Tag) Parent() Tag {
-	if t.full != nil {
-		return makeTag(t.full.Parent())
-	}
-	if t.language != t.locale {
-		// Simulate stripping -u-rg-xxxxxx
-		return Tag{language: t.language, locale: t.language}
-	}
-	// TODO: use parent lookup table once cycle from internal package is
-	// removed. Probably by internalizing the table and declaring this fast
-	// enough.
-	// lang := compactID(internal.Parent(uint16(t.language)))
-	lang, _ := compactIndex(t.language.tag().Parent())
-	return Tag{language: lang, locale: lang}
+	return Tag(compact.Tag(t).Parent())
 }
 
 // returns token t and the rest of the string.
@@ -442,7 +389,7 @@ func (e Extension) Tokens() []string {
 // false for ok if t does not have the requested extension. The returned
 // extension will be invalid in this case.
 func (t Tag) Extension(x byte) (ext Extension, ok bool) {
-	if !t.mayHaveExtensions() {
+	if !compact.Tag(t).MayHaveExtensions() {
 		return Extension{}, false
 	}
 	e, ok := t.tag().Extension(x)
@@ -451,7 +398,7 @@ func (t Tag) Extension(x byte) (ext Extension, ok bool) {
 
 // Extensions returns all extensions of t.
 func (t Tag) Extensions() []Extension {
-	if !t.mayHaveExtensions() {
+	if !compact.Tag(t).MayHaveExtensions() {
 		return nil
 	}
 	e := []Extension{}
@@ -463,10 +410,10 @@ func (t Tag) Extensions() []Extension {
 
 // TypeForKey returns the type associated with the given key, where key and type
 // are of the allowed values defined for the Unicode locale extension ('u') in
-// http://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
+// https://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
 // TypeForKey will traverse the inheritance chain to get the correct value.
 func (t Tag) TypeForKey(key string) string {
-	if !t.mayHaveExtensions() {
+	if !compact.Tag(t).MayHaveExtensions() {
 		if key != "rg" && key != "va" {
 			return ""
 		}
@@ -476,12 +423,16 @@ func (t Tag) TypeForKey(key string) string {
 
 // SetTypeForKey returns a new Tag with the key set to type, where key and type
 // are of the allowed values defined for the Unicode locale extension ('u') in
-// http://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
+// https://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
 // An empty value removes an existing pair with the same key.
 func (t Tag) SetTypeForKey(key, value string) (Tag, error) {
 	tt, err := t.tag().SetTypeForKey(key, value)
 	return makeTag(tt), err
 }
+
+// NumCompactTags is the number of compact tags. The maximum tag is
+// NumCompactTags-1.
+const NumCompactTags = compact.NumCompactTags
 
 // CompactIndex returns an index, where 0 <= index < NumCompactTags, for tags
 // for which data exists in the text repository.The index will change over time
@@ -489,120 +440,8 @@ func (t Tag) SetTypeForKey(key, value string) (Tag, error) {
 // index, exact will be false and the compact index will be returned for the
 // first match after repeatedly taking the Parent of t.
 func CompactIndex(t Tag) (index int, exact bool) {
-	return int(t.language), t.full == nil
-}
-
-// TODO: make these functions and methods public once we settle on the API and
-//
-
-// regionalCompactIndex returns the CompactIndex for the regional variant of
-// this tag. This index is used to indicate region-specific overrides, such as
-// default currency, default calendar and week data, default time cycle, and
-// default measurement system and unit preferences.
-//
-// For instance, the tag en-GB-u-rg-uszzzz specifies British English with US
-// settings for currency, number formatting, etc. The CompactIndex for this tag
-// will be that for en-GB, while the regionalCompactIndex will be the one
-// corresponding to en-US.
-func regionalCompactIndex(t Tag) (index int, exact bool) {
-	return int(t.locale), t.full == nil
-}
-
-// languageTag returns t stripped of regional variant indicators.
-//
-// At the moment this means it is stripped of a regional and variant subtag "rg"
-// and "va" in the "u" extension.
-func (t Tag) languageTag() Tag {
-	if t.full == nil {
-		return Tag{language: t.language, locale: t.language}
-	}
-	tt := t.tag()
-	tt.SetTypeForKey("rg", "")
-	tt.SetTypeForKey("va", "")
-	return makeTag(tt)
-}
-
-// regionalTag returns the regional variant of the tag.
-//
-// At the moment this means that the region is set from the regional subtag
-// "rg" in the "u" extension.
-func (t Tag) regionalTag() Tag {
-	rt := Tag{language: t.locale, locale: t.locale}
-	if t.full == nil {
-		return rt
-	}
-	t, _ = Raw.Compose(rt, t.Variants(), t.Extensions())
-	t, _ = t.SetTypeForKey("rg", "")
-	return t
-}
-
-func compactIndex(t language.Tag) (index compactID, exact bool) {
-	// TODO: perhaps give more frequent tags a lower index.
-	// TODO: we could make the indexes stable. This will excluded some
-	//       possibilities for optimization, so don't do this quite yet.
-	exact = true
-
-	b, s, r := t.Raw()
-	switch {
-	case t.HasString():
-		if t.IsPrivateUse() {
-			// We have no entries for user-defined tags.
-			return 0, false
-		}
-		hasExtra := false
-		if t.HasVariants() {
-			if t.HasExtensions() {
-				build := language.Builder{}
-				build.SetTag(language.Tag{LangID: b, ScriptID: s, RegionID: r})
-				build.AddVariant(t.Variants())
-				exact = false
-				t = build.Make()
-			}
-			hasExtra = true
-		} else if _, ok := t.Extension('u'); ok {
-			// TODO: va may mean something else. Consider not considering it.
-			// Strip all but the 'va' entry.
-			old := t
-			variant := t.TypeForKey("va")
-			t = language.Tag{LangID: b, ScriptID: s, RegionID: r}
-			if variant != "" {
-				t, _ = t.SetTypeForKey("va", variant)
-				hasExtra = true
-			}
-			exact = old == t
-		} else {
-			exact = false
-		}
-		if hasExtra {
-			// We have some variants.
-			for i, s := range specialTags {
-				if s == t {
-					return compactID(i + len(coreTags)), exact
-				}
-			}
-			exact = false
-		}
-	}
-	if x, ok := getCoreIndex(t); ok {
-		return x, exact
-	}
-	exact = false
-	if r != 0 && s == 0 {
-		// Deal with cases where an extra script is inserted for the region.
-		t, _ := t.Maximize()
-		if x, ok := getCoreIndex(t); ok {
-			return x, exact
-		}
-	}
-	for t = t.Parent(); t != root; t = t.Parent() {
-		// No variants specified: just compare core components.
-		// The key has the form lllssrrr, where l, s, and r are nibbles for
-		// respectively the langID, scriptID, and regionID.
-		if x, ok := getCoreIndex(t); ok {
-			return x, exact
-		}
-	}
-	return 0, exact
+	id, exact := compact.LanguageID(compact.Tag(t))
+	return int(id), exact
 }
 
 var root = language.Tag{}
@@ -691,7 +530,7 @@ func (r Region) String() string {
 // Note that not all regions have a 3-letter ISO code.
 // In such cases this method returns "ZZZ".
 func (r Region) ISO3() string {
-	return r.regionID.String()
+	return r.regionID.ISO3()
 }
 
 // M49 returns the UN M.49 encoding of r, or 0 if this encoding
