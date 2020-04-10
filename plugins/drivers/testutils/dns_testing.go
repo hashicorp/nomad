@@ -30,7 +30,7 @@ func TestTaskDNSConfig(t *testing.T, driver *DriverHarness, taskID string, dns *
 		if dns != nil {
 			require.ElementsMatch(t, dns.Servers, getNameservers(resolvConf))
 			require.ElementsMatch(t, dns.Searches, getSearchDomains(resolvConf))
-			require.ElementsMatch(t, dns.Searches, getOptions(resolvConf))
+			require.ElementsMatch(t, dns.Options, getOptions(resolvConf))
 		} else {
 			system, err := ioutil.ReadFile("/etc/resolv.conf")
 			require.NoError(t, err)
