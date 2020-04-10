@@ -37,7 +37,8 @@ ALL_TARGETS += linux_386 \
 	linux_arm \
 	linux_arm64 \
 	windows_386 \
-	windows_amd64
+	windows_amd64 \
+	darwin_amd64
 
 endif
 
@@ -56,7 +57,7 @@ endif
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
