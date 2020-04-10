@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -600,46 +599,4 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	require.Nil(t, plugin)
 	require.Nil(t, vol)
 	require.EqualError(t, err, fmt.Sprintf("volume not found: %s", id2))
-}
-
-func TestCSI_NodeForControllerPlugin(t *testing.T) {
-	t.Parallel()
-	srv, shutdown := TestServer(t, func(c *Config) {})
-	testutil.WaitForLeader(t, srv.RPC)
-	defer shutdown()
-
-	plugins := map[string]*structs.CSIInfo{
-		"minnie": {PluginID: "minnie",
-			Healthy:                  true,
-			ControllerInfo:           &structs.CSIControllerInfo{},
-			NodeInfo:                 &structs.CSINodeInfo{},
-			RequiresControllerPlugin: true,
-		},
-	}
-	state := srv.fsm.State()
-
-	node1 := mock.Node()
-	node1.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
-	node1.CSIControllerPlugins = plugins
-	node2 := mock.Node()
-	node2.CSIControllerPlugins = plugins
-	node2.ID = uuid.Generate()
-	node3 := mock.Node()
-	node3.ID = uuid.Generate()
-
-	err := state.UpsertNode(1002, node1)
-	require.NoError(t, err)
-	err = state.UpsertNode(1003, node2)
-	require.NoError(t, err)
-	err = state.UpsertNode(1004, node3)
-	require.NoError(t, err)
-
-	ws := memdb.NewWatchSet()
-
-	plugin, err := state.CSIPluginByID(ws, "minnie")
-	require.NoError(t, err)
-	nodeID, err := nodeForControllerPlugin(state, plugin)
-
-	// only node1 has both the controller and a recent Nomad version
-	require.Equal(t, nodeID, node1.ID)
 }

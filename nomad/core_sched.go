@@ -867,16 +867,11 @@ func volumeClaimReapImpl(srv RPCServer, args *volumeClaimReapArgs) (map[string]i
 			return args.nodeClaims, fmt.Errorf("Failed to find NodeInfo for node: %s", targetNode.ID)
 		}
 
-		controllerNodeID, err := nodeForControllerPlugin(srv.State(), args.plug)
-		if err != nil || controllerNodeID == "" {
-			return args.nodeClaims, err
-		}
 		cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
 			VolumeID:        vol.RemoteID(),
 			ClientCSINodeID: targetCSIInfo.NodeInfo.ID,
 		}
 		cReq.PluginID = args.plug.ID
-		cReq.ControllerNodeID = controllerNodeID
 		err = srv.RPC("ClientCSI.ControllerDetachVolume", cReq,
 			&cstructs.ClientCSIControllerDetachVolumeResponse{})
 		if err != nil {
