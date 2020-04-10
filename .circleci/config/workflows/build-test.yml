@@ -15,11 +15,6 @@ jobs:
           - /^docs-.*/
           - stable-website
 
-- build-darwin-binaries:
-    # almost always build binaries as they may be needed
-    # for e2e tests
-    filters: *backend_branches_filter
-
 - test-machine:
     name: "test-client"
     test_packages: "./client/..."

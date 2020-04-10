@@ -8,10 +8,13 @@ steps:
   - run: make deps
   - install-protoc
   - run: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-  - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip
+  - run: make pkg/linux_amd64.zip pkg/windows_amd64.zip pkg/darwin_amd64.zip
+  - store_artifacts:
+      path: pkg/linux_amd64.zip
+      destination: /builds/nomad_linux_amd64.zip
   - store_artifacts:
       path: pkg/windows_amd64.zip
       destination: /builds/nomad_windows_amd64.zip
   - store_artifacts:
-      path: pkg/linux_amd64.zip
-      destination: /builds/nomad_linux_amd64.zip
+      path: pkg/darwin_amd64.zip
+      destination: /builds/nomad_darwin_amd64.zip
