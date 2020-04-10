@@ -701,6 +701,9 @@ func (s *ConsulSidecarService) HasUpstreams() bool {
 
 // Copy the stanza recursively. Returns nil if nil.
 func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
+	if s == nil {
+		return nil
+	}
 	return &ConsulSidecarService{
 		Tags:  helper.CopySliceString(s.Tags),
 		Port:  s.Port,
