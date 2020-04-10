@@ -345,3 +345,56 @@ config {
 
 	require.EqualValues(t, expected, tc)
 }
+
+// Tests that a given DNSConfig properly configures dns
+func Test_dnsConfig(t *testing.T) {
+	t.Parallel()
+	ctestutil.RequireRoot(t)
+	javaCompatible(t)
+	require := require.New(t)
+	d := NewDriver(testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		tc := &TaskConfig{
+			Class: "Hello",
+			Args:  []string{"900"},
+		}
+		task := basicTask(t, "demo-app", tc)
+		task.DNS = c.cfg
+
+		cleanup := harness.MkAllocDir(task, false)
+		defer cleanup()
+
+		_, _, err := harness.StartTask(task)
+		require.NoError(err)
+		defer d.DestroyTask(task.ID, true)
+
+		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+	}
+
+}

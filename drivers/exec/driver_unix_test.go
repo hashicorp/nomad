@@ -131,6 +131,14 @@ func TestExec_dnsConfig(t *testing.T) {
 				Servers: []string{"1.1.1.1", "1.0.0.1"},
 			},
 		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
 	}
 
 	for _, c := range cases {
