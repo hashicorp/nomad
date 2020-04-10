@@ -926,7 +926,6 @@ func (tr *TaskRunner) persistLocalState() error {
 func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	task := tr.Task()
 	alloc := tr.Alloc()
-	allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
 	invocationid := uuid.Generate()[:8]
 	taskResources := tr.taskResources
 	env := tr.envBuilder.Build()
@@ -934,11 +933,14 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	defer tr.networkIsolationLock.Unlock()
 
 	var dns *drivers.DNSConfig
-	if allocDNS != nil {
-		dns = &drivers.DNSConfig{
-			Servers:  allocDNS.Servers,
-			Searches: allocDNS.Searches,
-			Options:  allocDNS.Options,
+	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 {
+		allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
+		if allocDNS != nil {
+			dns = &drivers.DNSConfig{
+				Servers:  allocDNS.Servers,
+				Searches: allocDNS.Searches,
+				Options:  allocDNS.Options,
+			}
 		}
 	}
 
