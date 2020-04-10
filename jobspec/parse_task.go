@@ -13,45 +13,38 @@ import (
 )
 
 var (
-	normalTaskKeys = []string{
-		"artifact",
+	commonTaskKeys = []string{
+		"driver",
+		"user",
 		"config",
+		"env",
+		"resources",
+		"meta",
+		"logs",
+		"kill_timeout",
+		"shutdown_delay",
+		"kill_signal",
+	}
+
+	normalTaskKeys = append(commonTaskKeys,
+		"artifact",
 		"constraint",
 		"affinity",
 		"dispatch_payload",
 		"lifecycle",
-		"driver",
-		"env",
-		"kill_timeout",
 		"leader",
-		"logs",
-		"meta",
-		"resources",
 		"restart",
 		"service",
-		"shutdown_delay",
 		"template",
-		"user",
 		"vault",
-		"kill_signal",
 		"kind",
 		"volume_mount",
 		"csi_plugin",
-	}
+	)
 
-	sidecarTaskKeys = []string{
+	sidecarTaskKeys = append(commonTaskKeys,
 		"name",
-		"driver",
-		"user",
-		"config",
-		"env",
-		"resources",
-		"meta",
-		"logs",
-		"kill_timeout",
-		"shutdown_delay",
-		"kill_signal",
-	}
+	)
 )
 
 func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
