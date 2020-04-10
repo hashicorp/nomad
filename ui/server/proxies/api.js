@@ -7,11 +7,13 @@ module.exports = function(app, options) {
   // For options, see:
   // https://github.com/nodejitsu/node-http-proxy
 
+  let proxyAddress = options.proxy;
+
   let server = options.httpServer;
   let proxy = require('http-proxy').createProxyServer({
-    target: 'http://localhost:4646',
+    target: proxyAddress,
     ws: true,
-    changeOrigin: true
+    changeOrigin: true,
   });
 
   proxy.on('error', function(err, req) {
@@ -19,16 +21,16 @@ module.exports = function(app, options) {
     console.error(err, req.url);
   });
 
-  app.use(proxyPath, function(req, res){
+  app.use(proxyPath, function(req, res) {
     // include root path in proxied request
     req.url = proxyPath + req.url;
-    proxy.web(req, res, { target: 'http://localhost:4646'});
+    proxy.web(req, res, { target: proxyAddress });
   });
 
-  server.on('upgrade', function (req, socket, head) {
+  server.on('upgrade', function(req, socket, head) {
     if (req.url.startsWith('/v1/client/allocation') && req.url.includes('exec?')) {
-      req.headers.origin = 'http://localhost:4646';
-      proxy.ws(req, socket, head, { target: 'http://localhost:4646'});
+      req.headers.origin = proxyAddress;
+      proxy.ws(req, socket, head, { target: proxyAddress });
     }
   });
 };
