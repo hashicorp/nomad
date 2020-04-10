@@ -2941,18 +2941,33 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
+	// Allocs
+	a0 := mock.Alloc()
+	a1 := mock.Alloc()
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{a0, a1})
+	require.NoError(t, err)
+
 	// Claims
-	a0 := &structs.Allocation{ID: uuid.Generate()}
-	a1 := &structs.Allocation{ID: uuid.Generate()}
 	r := structs.CSIVolumeClaimRead
 	w := structs.CSIVolumeClaimWrite
 	u := structs.CSIVolumeClaimRelease
+	claim0 := &structs.CSIVolumeClaim{
+		AllocationID: a0.ID,
+		NodeID:       node.ID,
+		Mode:         r,
+	}
+	claim1 := &structs.CSIVolumeClaim{
+		AllocationID: a1.ID,
+		NodeID:       node.ID,
+		Mode:         w,
+	}
 
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a0, r)
+	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a1, w)
+	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
@@ -2961,7 +2976,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.False(t, vs[0].WriteFreeClaims())
 
-	err = state.CSIVolumeClaim(2, ns, vol0, a0, u)
+	claim0.Mode = u
+	err = state.CSIVolumeClaim(2, ns, vol0, claim0)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
 	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
@@ -2980,10 +2996,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// release claims to unblock deregister
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a0, u)
+	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a1, u)
+	claim1.Mode = u
+	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	index++
