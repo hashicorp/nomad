@@ -263,32 +263,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 }
 
 func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
-	// We need this later
-	var listVal *ast.ObjectList
-	if ot, ok := item.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return nil, fmt.Errorf("should be an object")
-	}
-
-	// Check for invalid keys
-	valid := []string{
-		"config",
-		"driver",
-		"env",
-		"kill_timeout",
-		"logs",
-		"meta",
-		"resources",
-		"shutdown_delay",
-		"user",
-		"kill_signal",
-	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
-		return nil, err
-	}
-
-	task, err := parseTask(item)
+	task, err := parseTask(item, sidecarTaskKeys)
 	if err != nil {
 		return nil, err
 	}

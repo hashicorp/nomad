@@ -12,47 +12,8 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
-	list = list.Children()
-	if len(list.Items) == 0 {
-		return nil
-	}
-
-	// Go through each object and turn it into an actual result.
-	seen := make(map[string]struct{})
-	for _, item := range list.Items {
-		n := item.Keys[0].Token.Value().(string)
-
-		// Make sure we haven't already found this
-		if _, ok := seen[n]; ok {
-			return fmt.Errorf("task '%s' defined more than once", n)
-		}
-		seen[n] = struct{}{}
-
-		t, err := parseTask(item)
-		if err != nil {
-			return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
-		}
-
-		t.Name = n
-
-		*result = append(*result, t)
-	}
-
-	return nil
-}
-
-func parseTask(item *ast.ObjectItem) (*api.Task, error) {
-	// We need this later
-	var listVal *ast.ObjectList
-	if ot, ok := item.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return nil, fmt.Errorf("should be an object")
-	}
-
-	// Check for invalid keys
-	valid := []string{
+var (
+	normalTaskKeys = []string{
 		"artifact",
 		"config",
 		"constraint",
@@ -77,7 +38,63 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		"volume_mount",
 		"csi_plugin",
 	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+
+	sidecarTaskKeys = []string{
+		"name",
+		"driver",
+		"user",
+		"config",
+		"env",
+		"resources",
+		"meta",
+		"logs",
+		"kill_timeout",
+		"shutdown_delay",
+		"kill_signal",
+	}
+)
+
+func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
+	list = list.Children()
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	// Go through each object and turn it into an actual result.
+	seen := make(map[string]struct{})
+	for _, item := range list.Items {
+		n := item.Keys[0].Token.Value().(string)
+
+		// Make sure we haven't already found this
+		if _, ok := seen[n]; ok {
+			return fmt.Errorf("task '%s' defined more than once", n)
+		}
+		seen[n] = struct{}{}
+
+		t, err := parseTask(item, normalTaskKeys)
+		if err != nil {
+			return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
+		}
+
+		t.Name = n
+
+		*result = append(*result, t)
+	}
+
+	return nil
+}
+
+func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := item.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("should be an object")
+	}
+
+	// Check for invalid keys
+	if err := helper.CheckHCLKeys(listVal, keys); err != nil {
 		return nil, err
 	}
 

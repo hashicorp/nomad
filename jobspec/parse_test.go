@@ -895,6 +895,28 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-connect-sidecar_task-name.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("sidecar_task_name"),
+				Name: helper.StringToPtr("sidecar_task_name"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native:         false,
+							SidecarService: &api.ConsulSidecarService{},
+							SidecarTask: &api.SidecarTask{
+								Name: "my-sidecar",
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"reschedule-job.hcl",
 			&api.Job{
 				ID:          helper.StringToPtr("foo"),
