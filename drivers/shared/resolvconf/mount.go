@@ -11,6 +11,12 @@ import (
 func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountConfig, error) {
 	var nSearches, nServers, nOptions int
 	path := filepath.Join(taskDir, "resolv.conf")
+	mount := &drivers.MountConfig{
+		TaskPath:        "/etc/resolv.conf",
+		HostPath:        path,
+		Readonly:        true,
+		PropagationMode: "private",
+	}
 	if conf != nil {
 		nServers = len(conf.Servers)
 		nSearches = len(conf.Searches)
@@ -23,12 +29,7 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 			return nil, err
 		}
 
-		return &drivers.MountConfig{
-			TaskPath:        "/etc/resolv.conf",
-			HostPath:        path,
-			Readonly:        true,
-			PropagationMode: "private",
-		}, nil
+		return mount, nil
 	}
 
 	f, err := os.Create(path)
@@ -46,12 +47,7 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		return nil, err
 	}
 
-	return &drivers.MountConfig{
-		TaskPath:        "/etc/resolv.conf",
-		HostPath:        path,
-		Readonly:        true,
-		PropagationMode: "private",
-	}, nil
+	return mount, nil
 }
 
 func copySystemDNS(dest string) error {
