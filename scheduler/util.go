@@ -908,6 +908,11 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 
 			// Add the networks back
 			resources.Networks = networks
+
+			// Add the resources back
+			if len(existing.AllocatedResources.Tasks[task].Devices) > 0 {
+				resources.Devices = existing.AllocatedResources.Tasks[task].Devices
+			}
 		}
 
 		// Create a shallow copy
