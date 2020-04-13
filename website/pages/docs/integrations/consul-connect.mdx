@@ -325,8 +325,6 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
   proxy sidecar on client nodes.
 - Consul Connect Native is not yet supported ([#6083][gh6083]).
-- Consul Connect HTTP and gRPC checks are not yet supported ([#6120][gh6120]).
-- Consul ACLs are not yet supported ([#6701][gh6701]).
 - Only the Docker, `exec`, `raw_exec`, and `java` drivers support network namespaces
   and Connect.
 - Changes to the `connect` stanza may not properly trigger a job update
