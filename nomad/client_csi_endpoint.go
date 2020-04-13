@@ -9,7 +9,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ClientCSI is used to forward RPC requests to the targed Nomad client's
@@ -118,34 +117,6 @@ func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeReq
 	}
 	return nil
 
-}
-
-func (srv *Server) volAndPluginLookup(namespace, volID string) (*structs.CSIPlugin, *structs.CSIVolume, error) {
-	state := srv.fsm.State()
-	ws := memdb.NewWatchSet()
-
-	vol, err := state.CSIVolumeByID(ws, namespace, volID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if vol == nil {
-		return nil, nil, fmt.Errorf("volume not found: %s", volID)
-	}
-	if !vol.ControllerRequired {
-		return nil, vol, nil
-	}
-
-	// note: we do this same lookup in CSIVolumeByID but then throw
-	// away the pointer to the plugin rather than attaching it to
-	// the volume so we have to do it again here.
-	plug, err := state.CSIPluginByID(ws, vol.PluginID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if plug == nil {
-		return nil, nil, fmt.Errorf("plugin not found: %s", vol.PluginID)
-	}
-	return plug, vol, nil
 }
 
 // nodeForController validates that the Nomad client node ID for

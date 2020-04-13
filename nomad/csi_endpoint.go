@@ -374,7 +374,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 // controllerPublishVolume sends publish request to the CSI controller
 // plugin associated with a volume, if any.
 func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, resp *structs.CSIVolumeClaimResponse) error {
-	plug, vol, err := v.srv.volAndPluginLookup(req.RequestNamespace(), req.VolumeID)
+	plug, vol, err := v.volAndPluginLookup(req.RequestNamespace(), req.VolumeID)
 	if err != nil {
 		return err
 	}
@@ -429,6 +429,34 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 	}
 	resp.PublishContext = cResp.PublishContext
 	return nil
+}
+
+func (v *CSIVolume) volAndPluginLookup(namespace, volID string) (*structs.CSIPlugin, *structs.CSIVolume, error) {
+	state := v.srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	vol, err := state.CSIVolumeByID(ws, namespace, volID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if vol == nil {
+		return nil, nil, fmt.Errorf("volume not found: %s", volID)
+	}
+	if !vol.ControllerRequired {
+		return nil, vol, nil
+	}
+
+	// note: we do this same lookup in CSIVolumeByID but then throw
+	// away the pointer to the plugin rather than attaching it to
+	// the volume so we have to do it again here.
+	plug, err := state.CSIPluginByID(ws, vol.PluginID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if plug == nil {
+		return nil, nil, fmt.Errorf("plugin not found: %s", vol.PluginID)
+	}
+	return plug, vol, nil
 }
 
 // allowCSIMount is called on Job register to check mount permission
