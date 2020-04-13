@@ -182,7 +182,7 @@ func (r *containerReconciler) dockerAPIQueryContext() (context.Context, context.
 		timeout = r.config.period
 	}
 
-	return context.WithTimeout(context.Background(), timeout)
+	return context.WithTimeout(r.ctx, timeout)
 }
 
 func (*containerReconciler) isNomadContainer(c docker.APIContainers) bool {
