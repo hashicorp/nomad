@@ -21,11 +21,8 @@ type containerReconciler struct {
 	ctx    context.Context
 	config *ContainerGCConfig
 	client *docker.Client
+	driver *Driver
 	logger hclog.Logger
-
-	isDriverHealthy   func() bool
-	trackedContainers func() map[string]bool
-	isNomadContainer  func(c docker.APIContainers) bool
 
 	once sync.Once
 }
@@ -35,12 +32,25 @@ func newReconciler(d *Driver) *containerReconciler {
 		ctx:    d.ctx,
 		config: &d.config.GC.DanglingContainers,
 		client: client,
+		driver: d,
 		logger: d.logger,
-
-		isDriverHealthy:   func() bool { return d.previouslyDetected() && d.fingerprintSuccessful() },
-		trackedContainers: d.trackedContainers,
-		isNomadContainer:  isNomadContainer,
 	}
+}
+
+func (r *containerReconciler) isDriverHealthy() bool {
+	if r.driver == nil {
+		return false
+	}
+
+	return r.driver.previouslyDetected() && r.driver.fingerprintSuccessful()
+}
+
+func (r *containerReconciler) trackedContainers() map[string]bool {
+	if r.driver == nil {
+		return map[string]bool{}
+	}
+
+	return r.driver.trackedContainers()
 }
 
 func (r *containerReconciler) Start() {
@@ -175,7 +185,7 @@ func (r *containerReconciler) dockerAPIQueryContext() (context.Context, context.
 	return context.WithTimeout(context.Background(), timeout)
 }
 
-func isNomadContainer(c docker.APIContainers) bool {
+func (*containerReconciler) isNomadContainer(c docker.APIContainers) bool {
 	if _, ok := c.Labels[dockerLabelAllocID]; ok {
 		return true
 	}
