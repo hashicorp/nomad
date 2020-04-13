@@ -180,10 +180,10 @@ type Client struct {
 	servers *servers.Manager
 
 	// heartbeat related times for tracking how often to heartbeat
-	lastHeartbeat   time.Time
 	heartbeatTTL    time.Duration
 	haveHeartbeated bool
 	heartbeatLock   sync.Mutex
+	heartbeatStop   *heartbeatStop
 
 	// triggerDiscoveryCh triggers Consul discovery; see triggerDiscovery
 	triggerDiscoveryCh chan struct{}
@@ -371,6 +371,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
 		})
 
+	// create heartbeatStop, and restore its previous state from the state store. Post init for the stateDB
+	c.heartbeatStop = newHeartbeatStop(c.stateDB, c.getAllocRunner, logger, c.shutdownCh)
+
 	// Setup the clients RPC server
 	c.setupClientRpc()
 
@@ -447,6 +450,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Batching of initial fingerprints is done to reduce the number of node
 	// updates sent to the server on startup.
 	go c.batchFirstFingerprints()
+
+	// Watch for disconnection, and heartbeatStopAllocs configured to have a maximum
+	// lifetime when out of touch with the server
+	go c.heartbeatStop.watch()
 
 	// Add the stats collector
 	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
@@ -765,7 +772,7 @@ func (c *Client) Stats() map[string]map[string]string {
 			"node_id":         c.NodeID(),
 			"known_servers":   strings.Join(c.GetServers(), ","),
 			"num_allocations": strconv.Itoa(c.NumAllocs()),
-			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
+			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat())),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
 		"runtime": hstats.RuntimeStats(),
@@ -1113,10 +1120,21 @@ func (c *Client) restoreState() error {
 			continue
 		}
 
+		// Maybe mark the alloc for halt on missing server heartbeats
+		if c.heartbeatStop.shouldStop(alloc) {
+			err = c.heartbeatStop.stopAlloc(alloc.ID)
+			if err != nil {
+				c.logger.Error("error stopping alloc", "error", err, "alloc_id", alloc.ID)
+			}
+			continue
+		}
+
 		//XXX is this locking necessary?
 		c.allocLock.Lock()
 		c.allocs[alloc.ID] = ar
 		c.allocLock.Unlock()
+
+		c.heartbeatStop.allocHook(alloc)
 	}
 
 	// All allocs restored successfully, run them!
@@ -1532,6 +1550,10 @@ func (c *Client) registerAndHeartbeat() {
 	}
 }
 
+func (c *Client) lastHeartbeat() time.Time {
+	return c.heartbeatStop.getLastOk()
+}
+
 // getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
 // another heartbeat.
 func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
@@ -1542,7 +1564,7 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 	// Collect the useful heartbeat info
 	c.heartbeatLock.Lock()
 	haveHeartbeated := c.haveHeartbeated
-	last := c.lastHeartbeat
+	last := c.lastHeartbeat()
 	ttl := c.heartbeatTTL
 	c.heartbeatLock.Unlock()
 
@@ -1742,7 +1764,7 @@ func (c *Client) registerNode() error {
 
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
-	c.lastHeartbeat = time.Now()
+	c.heartbeatStop.setLastOk()
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
 }
@@ -1768,10 +1790,10 @@ func (c *Client) updateNodeStatus() error {
 
 	// Update the last heartbeat and the new TTL, capturing the old values
 	c.heartbeatLock.Lock()
-	last := c.lastHeartbeat
+	last := c.lastHeartbeat()
 	oldTTL := c.heartbeatTTL
 	haveHeartbeated := c.haveHeartbeated
-	c.lastHeartbeat = time.Now()
+	c.heartbeatStop.setLastOk()
 	c.heartbeatTTL = resp.HeartbeatTTL
 	c.haveHeartbeated = true
 	c.heartbeatLock.Unlock()
@@ -2367,6 +2389,9 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
+
+	// Maybe mark the alloc for halt on missing server heartbeats
+	c.heartbeatStop.allocHook(alloc)
 
 	go ar.Run()
 	return nil
