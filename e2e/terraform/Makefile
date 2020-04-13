@@ -1,4 +1,4 @@
-NOMAD_SHA := $(shell git rev-parse HEAD)
+NOMAD_SHA ?= $(shell git rev-parse HEAD)
 
 dev-cluster:
 	terraform apply -auto-approve -var-file=terraform.tfvars.dev
