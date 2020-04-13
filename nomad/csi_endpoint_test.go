@@ -583,19 +583,20 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	require.NoError(t, err)
 
 	// has controller
-	plugin, vol, err := srv.volAndPluginLookup(structs.DefaultNamespace, id0)
+	c := srv.staticEndpoints.CSIVolume
+	plugin, vol, err := c.volAndPluginLookup(structs.DefaultNamespace, id0)
 	require.NotNil(t, plugin)
 	require.NotNil(t, vol)
 	require.NoError(t, err)
 
 	// no controller
-	plugin, vol, err = srv.volAndPluginLookup(structs.DefaultNamespace, id1)
+	plugin, vol, err = c.volAndPluginLookup(structs.DefaultNamespace, id1)
 	require.Nil(t, plugin)
 	require.NotNil(t, vol)
 	require.NoError(t, err)
 
 	// doesn't exist
-	plugin, vol, err = srv.volAndPluginLookup(structs.DefaultNamespace, id2)
+	plugin, vol, err = c.volAndPluginLookup(structs.DefaultNamespace, id2)
 	require.Nil(t, plugin)
 	require.Nil(t, vol)
 	require.EqualError(t, err, fmt.Sprintf("volume not found: %s", id2))
