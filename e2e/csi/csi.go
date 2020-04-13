@@ -92,6 +92,7 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", writeJobID, "")
 	writeAllocID := writeAllocs[0].ID
+	tc.testJobIDs = append(tc.testJobIDs, writeJobID) // ensure failed tests clean up
 	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocID)
 
 	// read data from volume and assert the writer wrote a file to it
@@ -177,6 +178,7 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-efs-volume-write.nomad", writeJobID, "")
 	writeAllocID := writeAllocs[0].ID
+	tc.testJobIDs = append(tc.testJobIDs, writeJobID) // ensure failed tests clean up
 	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocID)
 
 	// read data from volume and assert the writer wrote a file to it
