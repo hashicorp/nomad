@@ -1042,23 +1042,24 @@ The `Spread` object supports the following keys:
 ### Scaling
 
 Scaling policies allow operators to attach autoscaling configuration to a task group. This information
-can be queried by external autoscalers; Nomad does not currently provide any built-in autoscaling
-capability. 
+can be queried by [external autoscalers](https://github.com/hashicorp/nomad-autoscaler).
 
 The `Scaling` object supports the following keys:
 
 - `Min` - The minimum allowable count for the task group. This is optional; if absent, the default
-  is the count specified with the task group. Attempts to set the task group count below `Min` will
-  result in a 400 error.
+  is the `Count` specified in the task group. Attempts to set the task group `Count` below `Min` will
+  result in a 400 error during job registration.
 
-- `Max` - The maximum allowable count for the task group. This is required and must be larger than
-  `Min`. Attempts to set the task group count above `Max` wil result in a 400 error.
+- `Max` - The maximum allowable count for the task group. This is required if a scaling policy is provided.
+   This must be larger than `Min`. Attempts to set the task group `Count` above `Max` wil result in a 400
+   error during job registration.
 
-- `Enabled` - An optional boolean, defaulting to false. This indicates to the autoscaler that this
-   scaling policy should be ignored.
+- `Enabled` - An optional boolean (default: `true`). This indicates to the autoscaler that this
+   scaling policy should be ignored. It is intended to allow autoscaling to be temporarily disabled
+   for a task group.
 
 - `Policy` - An optional JSON block. This is opaque to Nomad; see the documentation for the external
-   autoscaler.
+   autoscaler (e.g., [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)).
 
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
