@@ -844,6 +844,14 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// Run the pre killing hooks
 	tr.preKill()
 
+	// Wait for task ShutdownDelay after running prekill hooks
+	// This allows for things like service de-registration to run
+	// before waiting to kill task
+	if delay := tr.Task().ShutdownDelay; delay != 0 {
+		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
+		time.Sleep(delay)
+	}
+
 	// Tell the restart tracker that the task has been killed so it doesn't
 	// attempt to restart it.
 	tr.restartTracker.SetKilled()
