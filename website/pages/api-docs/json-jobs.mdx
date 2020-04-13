@@ -396,6 +396,11 @@ The `Task` object supports the following keys:
 - `Resources` - Provides the resource requirements of the task.
   See the resources reference for more details.
 
+- `RestartPolicy` - Specifies the task-specific restart policy.
+  If omitted, the restart policy from the encapsulating task group is used. If both
+  are present, they are merged. See the [restart policy reference](#restart_policy)
+  for more details.
+
 - `Services` - `Services` is a list of `Service` objects. Nomad integrates with
   Consul for service discovery. A `Service` object represents a routable and
   discoverable service on the network. Nomad automatically registers when a task
