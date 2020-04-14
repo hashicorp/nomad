@@ -501,6 +501,51 @@ export default function() {
       return this.serialize(clientStats.find(host));
     });
   });
+
+  this.post('/search', function(schema, { requestBody }) {
+    const prefixSearch = JSON.parse(requestBody).Prefix;
+
+    const collectionProperties = {
+      allocations: {
+        responseKey: 'allocs',
+      },
+      deployments: {
+        responseKey: 'deployment',
+      },
+      evaluations: {
+        responseKey: 'evals',
+      },
+      jobs: {
+        responseKey: 'jobs',
+        searchProperty: 'name',
+      },
+      nodes: {
+        responseKey: 'nodes',
+      },
+    };
+
+    return {
+      Matches: Object.keys(collectionProperties).reduce((response, key) => {
+        const collection = schema[key];
+        const searchProperty = collectionProperties.searchProperty || 'id';
+
+        if (!collection.where) {
+          debugger;
+        }
+
+        const matches = collection.where(item => item[searchProperty].startsWith(prefixSearch))
+          .models;
+
+        if (matches.length > 0) {
+          response[key] = matches.map(model => model[searchProperty]);
+        } else {
+          response[key] = null;
+        }
+
+        return response;
+      }, {}),
+    };
+  });
 }
 
 function filterKeys(object, ...keys) {
