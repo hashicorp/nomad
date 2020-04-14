@@ -476,6 +476,7 @@ type Node struct {
 	HostVolumes           map[string]*HostVolumeInfo
 	CSIControllerPlugins  map[string]*CSIInfo
 	CSINodePlugins        map[string]*CSIInfo
+	Datalog               string
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }

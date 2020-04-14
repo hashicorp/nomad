@@ -1745,6 +1745,8 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	Datalog string
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -3634,6 +3636,8 @@ type Job struct {
 	// UTC
 	SubmitTime int64
 
+	Datalog string
+
 	// Raft Indexes
 	CreateIndex    uint64
 	ModifyIndex    uint64
@@ -5205,6 +5209,8 @@ type TaskGroup struct {
 	// ShutdownDelay is the amount of time to wait between deregistering
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
+
+	Datalog string
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -5863,6 +5869,8 @@ type Task struct {
 
 	// CSIPluginConfig is used to configure the plugin supervisor for the task.
 	CSIPluginConfig *TaskCSIPluginConfig
+
+	Datalog string
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use

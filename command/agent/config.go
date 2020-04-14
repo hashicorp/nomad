@@ -286,6 +286,8 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
+	Datalog string
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }

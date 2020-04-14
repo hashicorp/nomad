@@ -709,6 +709,7 @@ type Job struct {
 	Reschedule        *ReschedulePolicy
 	Migrate           *MigrateStrategy
 	Meta              map[string]string
+	Datalog           string
 	ConsulToken       *string `mapstructure:"consul_token"`
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
