@@ -11,7 +11,6 @@ module('Acceptance | search', function(hooks) {
   setupMirage(hooks);
 
   test('search searches', async function(assert) {
-    assert.timeout(100000);
     await visit('/');
 
     server.post('/search', function() {
