@@ -1,6 +1,5 @@
 'use strict';
 
-// Issue to improve: https://github.com/hashicorp/nomad/issues/7465
 const proxyPath = '/v1';
 
 module.exports = function(app, options) {
