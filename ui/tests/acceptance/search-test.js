@@ -40,17 +40,15 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(PageLayout.navbar.search.scope, 'abc');
 
     PageLayout.navbar.search.as(search => {
-      assert.equal(search.groups.length, 5);
+      assert.equal(search.groups.length, 2);
 
-      assert.equal(search.groups[0].name, 'allocs');
-
-      search.groups[2].as(evals => {
+      search.groups[0].as(evals => {
         assert.equal(evals.name, 'evals');
         assert.equal(evals.options.length, 1);
         assert.equal(evals.options[0].text, 'abc2fdc0-e1fd-2536-67d8-43af8ca798ac');
       });
 
-      search.groups[3].as(jobs => {
+      search.groups[1].as(jobs => {
         assert.equal(jobs.name, 'jobs');
         assert.equal(jobs.options.length, 1);
         assert.equal(jobs.options[0].text, 'abcde');
