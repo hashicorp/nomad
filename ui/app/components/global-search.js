@@ -23,8 +23,11 @@ export default Component.extend({
     });
     const json = yield response.json();
 
-    return Object.keys(json.Matches).reduce((results, key) => {
-      return results.concat(json.Matches[key] || []);
-    }, []);
+    return Object.keys(json.Matches).map(key => {
+      return {
+        groupName: key,
+        options: json.Matches[key] || [],
+      };
+    });
   }),
 });
