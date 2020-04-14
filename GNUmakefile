@@ -16,6 +16,11 @@ else
 GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
 endif
 
+# 1 to enable cgo for non-linux targets
+# Linux targets require cgo
+NON_LINUX_CGO_ENABLED ?= 0
+
+
 default: help
 
 ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows))
@@ -57,7 +62,7 @@ endif
 
 pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 \
+	@CGO_ENABLED=$(NON_LINUX_CGO_ENABLED) GOOS=darwin GOARCH=amd64 \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
@@ -66,7 +71,7 @@ pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
 
 pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
 	@echo "==> Building $@..."
-	@CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 \
+	@CGO_ENABLED=$(NON_LINUX_CGO_ENABLED) GOOS=freebsd GOARCH=amd64 \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
@@ -116,7 +121,7 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 #	CXX=i686-w64-mingw32-g++
 pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
+	@CGO_ENABLED=$(NON_LINUX_CGO_ENABLED) GOOS=windows GOARCH=386 \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
@@ -125,7 +130,7 @@ pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 
 pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
+	@CGO_ENABLED=$(NON_LINUX_CGO_ENABLED) GOOS=windows GOARCH=amd64 \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
@@ -134,7 +139,7 @@ pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 
 pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=ppc64le \
+	@CGO_ENABLED=$(NON_LINUX_CGO_ENABLED) GOOS=linux GOARCH=ppc64le \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
@@ -143,7 +148,7 @@ pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 
 pkg/linux_s390x/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=s390x \
+	@CGO_ENABLED=$(NON_LINUX_CGO_ENABLED) GOOS=linux GOARCH=s390x \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
