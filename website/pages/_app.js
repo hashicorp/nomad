@@ -73,11 +73,10 @@ class NextApp extends App {
           ]}
         />
         <AlertBanner
-          url="https://www.hashicorp.com/webinars/nomad-technical-demo-autoscaling-csi-plugins-and-more/"
+          url="https://www.hashicorp.com/blog/hashicorp-nomad-0-11-general-availability"
           tag="Announcing"
           theme="nomad"
-          text="HashiCorp Nomad 0.11 is generally available now. Watch a live demo of new features."
-          linkText="Register now"
+          text="HashiCorp Nomad 0.11 is generally available now. Read the blog post on the release."
         />
         <MegaNav product="Nomad" />
         <ProductSubnav />
