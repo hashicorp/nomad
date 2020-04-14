@@ -12,6 +12,15 @@ export default create({
         label: text(),
       }),
     },
+
+    search: {
+      scope: '[data-test-search]',
+      options: collection('.ember-power-select-option', {
+        testContainer: '.ember-power-select-options',
+        resetScope: true,
+        label: text(),
+      }),
+    },
   },
 
   gutter: {

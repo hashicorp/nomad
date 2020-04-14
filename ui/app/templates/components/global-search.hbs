@@ -1,0 +1,11 @@
+  <PowerSelect
+    @tagName="div"
+    data-test-search
+    @searchEnabled={{true}}
+    @search={{perform this.search}}
+    @selected={{this.selected}}
+    @onChange={{fn (mut this.selected)}}
+    style="width: 10em" {{!-- FIXME obvs --}}
+    as |option|>
+    {{option}}
+  </PowerSelect>
