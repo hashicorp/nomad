@@ -40,12 +40,26 @@ module('Acceptance | search', function(hooks) {
     assert.equal(currentURL(), `/clients/${node.id}`);
   });
 
+  test('only allocation, client, and job search results show', async function(assert) {
+    server.create('node');
+    server.create('job', { id: 'xyz', namespaceId: 'default' });
+
+    await visit('/');
+
+    const evaluation = server.db.evaluations.firstObject;
+    await selectSearch(PageLayout.navbar.search.scope, evaluation.id.substr(0, 3));
+
+    assert.ok(PageLayout.navbar.search.hasNoMatches);
+  });
+
   skip('pressing slash focuses the search', async function(assert) {
     await visit('/');
 
     assert.notOk(PageLayout.navbar.search.field.isPresent);
 
-    await triggerKeyEvent('.navbar', 'keydown', 'Slash');
+    window.pl = PageLayout;
+    await triggerKeyEvent('.global-search', 'keydown', 'Slash');
+    await this.pauseTest();
 
     assert.ok(PageLayout.navbar.search.field.isPresent);
   });

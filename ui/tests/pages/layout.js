@@ -26,6 +26,11 @@ export default create({
         }),
       }),
 
+      hasNoMatches: isPresent('.ember-power-select-option--no-matches-message', {
+        testContainer: 'html',
+        resetScope: true,
+      }),
+
       field: {
         scope: '.ember-power-select-search',
         testContainer: 'html',

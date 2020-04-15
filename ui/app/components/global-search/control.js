@@ -74,7 +74,7 @@ export default Component.extend({
     });
     const json = yield response.json();
 
-    return Object.keys(json.Matches)
+    return ['allocs', 'jobs', 'nodes']
       .filter(key => json.Matches[key])
       .map(key => {
         const matches = json.Matches[key];
