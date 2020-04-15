@@ -77,8 +77,11 @@ export default Component.extend({
     return Object.keys(json.Matches)
       .filter(key => json.Matches[key])
       .map(key => {
+        const matches = json.Matches[key];
+        const label = `${key.capitalize()} (${matches.length})`;
+
         return {
-          groupName: key,
+          groupName: label,
           options: collectModels(this.store, key, json.Matches[key]),
         };
       });

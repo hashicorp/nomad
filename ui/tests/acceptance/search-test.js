@@ -21,7 +21,7 @@ module('Acceptance | search', function(hooks) {
       assert.equal(search.groups.length, 1);
 
       search.groups[0].as(jobs => {
-        assert.equal(jobs.name, 'jobs');
+        assert.equal(jobs.name, 'Jobs (1)');
         assert.equal(jobs.options.length, 1);
         assert.equal(jobs.options[0].text, 'xyz');
       });
