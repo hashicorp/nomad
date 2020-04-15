@@ -1,7 +1,43 @@
 .global-search {
-  width: 20em;
+  width: 30em;
 
   .ember-power-select-trigger {
-    background-color: $nomad-green-darker;
+    background: $nomad-green-darker;
+
+    .placeholder {
+      opacity: 0.7;
+      padding-bottom: 2px;
+    }
+
+    &.ember-power-select-trigger--active {
+      background: white;
+    }
+  }
+
+  .ember-basic-dropdown-content-wormhole-origin {
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+}
+
+.global-search-dropdown {
+  background: transparent;
+  border: 0;
+
+  .ember-power-select-search {
+    margin-left: $icon-dimensions;
+    border: 0;
+  }
+
+  input,
+  input:focus {
+    background: transparent;
+    border: 0;
+    outline: 0;
+  }
+
+  .ember-power-select-options {
+    background: white;
   }
 }

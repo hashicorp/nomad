@@ -83,6 +83,17 @@ export default Component.extend({
         };
       });
   }),
+
+  calculatePosition(trigger) {
+    const { top, left, width } = trigger.getBoundingClientRect();
+    return {
+      style: {
+        left,
+        width,
+        top,
+      },
+    };
+  },
 });
 
 function collectModels(store, searchResultsTypeKey, matches) {
