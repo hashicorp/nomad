@@ -529,10 +529,6 @@ export default function() {
         const collection = schema[key];
         const searchProperty = collectionProperties.searchProperty || 'id';
 
-        if (!collection.where) {
-          debugger;
-        }
-
         const matches = collection.where(item => item[searchProperty].startsWith(prefixSearch))
           .models;
 
