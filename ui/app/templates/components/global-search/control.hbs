@@ -11,5 +11,5 @@
     @triggerComponent="global-search/trigger"
     @registerAPI={{action 'storeSelect'}}
     as |option|>
-    {{option.label}}
+    {{get option.model option.labelProperty}}
   </PowerSelect>

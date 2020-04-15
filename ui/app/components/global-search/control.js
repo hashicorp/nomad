@@ -50,15 +50,16 @@ export default Component.extend({
       }
     },
 
-    select({ model }) {
-      const itemModelName = model.constructor.modelName;
+    async select({ model }) {
+      const resolvedModel = await model.then();
+      const itemModelName = resolvedModel.constructor.modelName;
 
       if (itemModelName === 'job') {
-        this.router.transitionTo('jobs.job', model.plainId);
+        this.router.transitionTo('jobs.job', resolvedModel.name);
       } else if (itemModelName === 'allocation') {
-        this.router.transitionTo('allocations.allocation', model.id);
+        this.router.transitionTo('allocations.allocation', resolvedModel.id);
       } else if (itemModelName === 'node') {
-        this.router.transitionTo('clients.client', model.id);
+        this.router.transitionTo('clients.client', resolvedModel.id);
       }
     },
   },
@@ -109,25 +110,28 @@ function collectModels(store, searchResultsTypeKey, matches) {
   if (searchResultsTypeKey === 'jobs') {
     return matches.map(id => {
       // FIXME don’t hardcode namespace
-      const model = store.peekRecord('job', JSON.stringify([id, 'default']));
+      const model = store.findRecord('job', JSON.stringify([id, 'default']));
       return {
         model,
+        labelProperty: 'name',
         label: model.name,
       };
     });
   } else if (searchResultsTypeKey === 'allocs') {
     return matches.map(id => {
-      const model = store.peekRecord('allocation', id);
+      const model = store.findRecord('allocation', id);
       return {
         model,
+        labelProperty: 'id',
         label: model.id,
       };
     });
   } else if (searchResultsTypeKey === 'nodes') {
     return matches.map(id => {
-      const model = store.peekRecord('node', id);
+      const model = store.findRecord('node', id);
       return {
         model,
+        labelProperty: 'id',
         label: model.id,
       };
     });
