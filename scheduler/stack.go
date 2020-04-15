@@ -47,6 +47,7 @@ type GenericStack struct {
 	wrappedChecks        *FeasibilityWrapper
 	quota                FeasibleIterator
 	jobConstraint        *ConstraintChecker
+	jobDatalog           *DatalogChecker
 	taskGroupDrivers     *DriverChecker
 	taskGroupConstraint  *ConstraintChecker
 	taskGroupDevices     *DeviceChecker
@@ -89,6 +90,7 @@ func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
 
 func (s *GenericStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
+	s.jobDatalog.SetJob(job)
 	s.distinctHostsConstraint.SetJob(job)
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
@@ -174,6 +176,7 @@ type SystemStack struct {
 	wrappedChecks        *FeasibilityWrapper
 	quota                FeasibleIterator
 	jobConstraint        *ConstraintChecker
+	jobDatalog           *DatalogChecker
 	taskGroupDrivers     *DriverChecker
 	taskGroupConstraint  *ConstraintChecker
 	taskGroupDevices     *DeviceChecker
@@ -200,6 +203,8 @@ func NewSystemStack(ctx Context) *SystemStack {
 
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
+
+	s.jobDatalog = NewDatalogChecker(ctx)
 
 	// Filter on task group drivers first as they are faster
 	s.taskGroupDrivers = NewDriverChecker(ctx, nil)
@@ -255,6 +260,7 @@ func (s *SystemStack) SetNodes(baseNodes []*structs.Node) {
 
 func (s *SystemStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
+	s.jobDatalog.SetJob(job)
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)

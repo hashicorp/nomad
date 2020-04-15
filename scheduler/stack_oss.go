@@ -22,6 +22,8 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
+	s.jobDatalog = NewDatalogChecker(ctx)
+
 	// Filter on task group drivers first as they are faster
 	s.taskGroupDrivers = NewDriverChecker(ctx, nil)
 
