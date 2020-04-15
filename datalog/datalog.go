@@ -41,6 +41,36 @@ func (d *DB) Assert(name, input string) {
 	d.engine.Batch(name, input)
 }
 
+func isAssertion(line string) bool {
+	l := len(line)
+	return l > 0 && line[l-1] == '.'
+}
+
+func retraction(assertion string) string {
+	l := len(assertion)
+	if l == 0 {
+		return ""
+	}
+	return assertion[:l-2] + "~"
+}
+
+func isQuery(line string) bool {
+	l := len(line)
+	return l > 0 && line[l-1] == '?'
+}
+
+func (d *DB) Allow(input string) bool {
+	for _, l := range lines(input) {
+		if !isQuery(l) {
+			continue
+		}
+		if len(d.Query(l)) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func (d *DB) Query(input string) []string {
 	var output []string
 	answers, err := d.engine.Query(input)
@@ -55,7 +85,24 @@ func (d *DB) Query(input string) []string {
 	return output
 }
 
-func (d *DB) Retract(name string) {
+func (d *DB) Retract(input string) {
+	for _, l := range lines(input) {
+		if isAssertion(l) {
+			d.engine.Retract(retraction(l))
+		}
+	}
+}
+
+func (d *DB) WithTempRules(input string, thunk func()) {
+	for _, l := range lines(input) {
+		if isAssertion(l) {
+			d.engine.Assert(l)
+		}
+	}
+
+	thunk()
+
+	d.Retract(input)
 }
 
 func lines(input string) []string {
