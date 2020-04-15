@@ -5432,6 +5432,19 @@ func (s *StateStore) deleteJobDatalog(job *structs.Job) error {
 }
 
 func (s *StateStore) upsertNodeDatalog(node *structs.Node) error {
-
 	return nil
+}
+
+func (s *StateStore) DatalogWithTempRules(input string, thunk func()) {
+	s.datalog.WithTempRules(input, thunk)
+}
+
+func (s *StateStore) DatalogAllow(rules ...string) bool {
+	for _, r := range rules {
+		if !s.datalog.Allow(r) {
+			return false
+		}
+	}
+
+	return true
 }
