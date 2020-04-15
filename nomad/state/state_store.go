@@ -12,6 +12,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
+	"github.com/hashicorp/nomad/datalog"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -57,6 +58,8 @@ type StateStore struct {
 	logger log.Logger
 	db     *memdb.MemDB
 
+	datalog *datalog.DB
+
 	// config is the passed in configuration
 	config *StateStoreConfig
 
@@ -77,6 +80,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	s := &StateStore{
 		logger:    config.Logger.Named("state_store"),
 		db:        db,
+		datalog:   datalog.NewDB(),
 		config:    config,
 		abandonCh: make(chan struct{}),
 	}
@@ -1375,6 +1379,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 
 	if err := s.updateJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("unable to update job scaling policies: %v", err)
+	}
+
+	if err := s.upsertJobDatalog(job); err != nil {
+		return fmt.Errorf("unable to update job datalog: %v", err)
 	}
 
 	// Insert the job
@@ -5380,5 +5388,50 @@ func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents)
 	if err := r.txn.Insert("scaling_event", jobEvents); err != nil {
 		return fmt.Errorf("scaling event insert failed: %v", err)
 	}
+	return nil
+}
+
+func (s *StateStore) upsertJobDatalog(job *structs.Job) error {
+	jobName := datalog.JobName(job.Namespace, job.ID)
+	if job.Datalog != "" {
+		s.datalog.Assert(jobName, job.Datalog)
+	}
+
+	for _, g := range job.TaskGroups {
+		groupName := datalog.GroupName(jobName, g.Name)
+		if g.Datalog != "" {
+			s.datalog.Assert(groupName, g.Datalog)
+		}
+
+		for _, t := range g.Tasks {
+			if t.Datalog != "" {
+				taskName := datalog.TaskName(groupName, t.Name)
+				s.datalog.Assert(taskName, t.Datalog)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *StateStore) deleteJobDatalog(job *structs.Job) error {
+	jobName := datalog.JobName(job.Namespace, job.ID)
+	s.datalog.Retract(jobName)
+
+	for _, g := range job.TaskGroups {
+		groupName := datalog.GroupName(jobName, g.Name)
+		s.datalog.Retract(groupName)
+
+		for _, t := range g.Tasks {
+			taskName := datalog.TaskName(groupName, t.Name)
+			s.datalog.Retract(taskName)
+		}
+	}
+
+	return nil
+}
+
+func (s *StateStore) upsertNodeDatalog(node *structs.Node) error {
+
 	return nil
 }
