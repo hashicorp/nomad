@@ -4,10 +4,9 @@
     data-test-search
     @searchEnabled={{true}}
     @search={{perform this.search}}
-    @selected={{this.selected}}
-    @onChange={{fn (mut this.selected)}}
+    @onChange={{action 'select'}}
     @registerAPI={{action 'storeSelect'}}
     style="width: 10em" {{!-- FIXME obvs --}}
     as |option|>
-    {{option}}
+    {{option.label}}
   </PowerSelect>
