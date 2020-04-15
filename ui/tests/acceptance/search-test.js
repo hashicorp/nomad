@@ -1,5 +1,5 @@
-import { module, test } from 'qunit';
-import { visit } from '@ember/test-helpers';
+import { module, skip, test } from 'qunit';
+import { triggerKeyEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import PageLayout from 'nomad-ui/tests/pages/layout';
@@ -25,5 +25,15 @@ module('Acceptance | search', function(hooks) {
         assert.equal(jobs.options[0].text, 'xyz');
       });
     });
+  });
+
+  skip('pressing slash focuses the search', async function(assert) {
+    await visit('/');
+
+    assert.notOk(PageLayout.navbar.search.field.isPresent);
+
+    await triggerKeyEvent('.navbar', 'keydown', 'Slash');
+
+    assert.ok(PageLayout.navbar.search.field.isPresent);
   });
 });

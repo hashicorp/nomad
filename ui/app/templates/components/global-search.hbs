@@ -6,6 +6,7 @@
     @search={{perform this.search}}
     @selected={{this.selected}}
     @onChange={{fn (mut this.selected)}}
+    @registerAPI={{action 'storeSelect'}}
     style="width: 10em" {{!-- FIXME obvs --}}
     as |option|>
     {{option}}

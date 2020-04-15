@@ -15,6 +15,7 @@ export default create({
 
     search: {
       scope: '[data-test-search]',
+
       groups: collection('.ember-power-select-group', {
         testContainer: '.ember-power-select-options',
         resetScope: true,
@@ -24,6 +25,12 @@ export default create({
           label: text(),
         }),
       }),
+
+      field: {
+        scope: '.ember-power-select-search',
+        testContainer: 'html',
+        resetScope: true,
+      },
     },
   },
 
