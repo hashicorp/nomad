@@ -101,9 +101,9 @@ type State interface {
 	// CSIVolumeByID fetch CSI volumes, containing controller jobs
 	CSIVolumesByNodeID(memdb.WatchSet, string) (memdb.ResultIterator, error)
 
-	DatalogWithTempRules(string, func()) bool
+	DatalogWithTempRules(string, func())
 
-	DatalogAllow(string) bool
+	DatalogAllow(...string) bool
 }
 
 // Planner interface is used to submit a task allocation plan.
