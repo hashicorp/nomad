@@ -527,15 +527,16 @@ export default function() {
     return {
       Matches: Object.keys(collectionProperties).reduce((response, key) => {
         const collection = schema[key];
-        const searchProperty = collectionProperties.searchProperty || 'id';
+        const searchProperty = collectionProperties[key].searchProperty || 'id';
+        const responseKey = collectionProperties[key].responseKey;
 
         const matches = collection.where(item => item[searchProperty].startsWith(prefixSearch))
           .models;
 
         if (matches.length > 0) {
-          response[key] = matches.map(model => model[searchProperty]);
+          response[responseKey] = matches.map(model => model[searchProperty]);
         } else {
-          response[key] = null;
+          response[responseKey] = null;
         }
 
         return response;
