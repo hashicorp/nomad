@@ -5,6 +5,12 @@ import fetch from 'nomad-ui/utils/fetch';
 import { getOwner } from '@ember/application';
 import { bindKeyboardShortcuts, unbindKeyboardShortcuts } from 'ember-keyboard-shortcuts';
 
+const SEARCH_PROPERTY_TO_LABEL = {
+  allocs: 'Allocations',
+  jobs: 'Jobs',
+  nodes: 'Clients',
+};
+
 export default Component.extend({
   tagName: '',
 
@@ -78,7 +84,7 @@ export default Component.extend({
       .filter(key => json.Matches[key])
       .map(key => {
         const matches = json.Matches[key];
-        const label = `${key.capitalize()} (${matches.length})`;
+        const label = `${SEARCH_PROPERTY_TO_LABEL[key]} (${matches.length})`;
 
         return {
           groupName: label,

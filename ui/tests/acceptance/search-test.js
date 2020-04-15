@@ -32,10 +32,14 @@ module('Acceptance | search', function(hooks) {
 
     const allocation = server.db.allocations.firstObject;
     await selectSearch(PageLayout.navbar.search.scope, allocation.id.substr(0, 3));
+    assert.equal(PageLayout.navbar.search.groups[0].name, 'Allocations (1)');
+
     await PageLayout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), `/allocations/${allocation.id}`);
 
     await selectSearch(PageLayout.navbar.search.scope, node.id.substr(0, 3));
+    assert.equal(PageLayout.navbar.search.groups[0].name, 'Clients (1)');
+
     await PageLayout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), `/clients/${node.id}`);
   });
