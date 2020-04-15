@@ -385,6 +385,61 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 	return true
 }
 
+type DatalogChecker struct {
+	ctx Context
+	job *structs.Job
+}
+
+func NewDatalogChecker(ctx Context) *DatalogChecker {
+	return &DatalogChecker{
+		ctx: ctx,
+	}
+}
+
+func (c *DatalogChecker) SetJob(job *structs.Job) {
+	c.job = job
+}
+
+func (c *DatalogChecker) Feasible(n *structs.Node) bool {
+	nd := n.Datalog
+
+	// if the node does not define any datalog, ignore the job configuration
+	if nd == "" {
+		return true
+	}
+
+	allow := false
+	c.ctx.State().DatalogWithTempRules(nd, func() {
+		jd := c.job.Datalog
+		if !c.ctx.State().DatalogAllow(jd, nd) {
+			allow = false
+			return
+		}
+
+		for _, g := range job.TaskGroups {
+			jd = g.Datalog
+			if !c.ctx.State().DatalogAllow(jd, nd) {
+				allow = false
+				return
+			}
+
+			for _, t := range g.Tasks {
+				if c.ctx.State().DatalogAllow(t.Datalog, nd) {
+					allow = false
+					return
+				}
+			}
+		}
+	})
+
+	if allow {
+		return true
+	}
+
+	c.ctx.Metrics().FilterNode(n, "datalog rules prohibit placement")
+	return false
+}
+
 // DistinctHostsIterator is a FeasibleIterator which returns nodes that pass the
 // distinct_hosts constraint. The constraint ensures that multiple allocations
 // do not exist on the same node.
