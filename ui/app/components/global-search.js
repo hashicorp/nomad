@@ -86,7 +86,6 @@ export default Component.extend({
 });
 
 function collectModels(store, searchResultsTypeKey, matches) {
-  console.log('type key', searchResultsTypeKey);
   if (searchResultsTypeKey === 'jobs') {
     return matches.map(id => {
       // FIXME don’t hardcode namespace
