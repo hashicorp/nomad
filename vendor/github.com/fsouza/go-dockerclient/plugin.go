@@ -136,7 +136,7 @@ type PluginConfig struct {
 	Description     string `json:"Description,omitempty" yaml:"Description,omitempty" toml:"Description,omitempty"`
 	Documentation   string
 	Interface       PluginInterface `json:"Interface,omitempty" yaml:"Interface,omitempty" toml:"Interface,omitempty"`
-	Entrypoint      []string        `json:"Entrypoint,omitempty" yaml:"Entrypoint,omitempty" toml:"Entrypoint,omitempty"`
+	Entrypoint      string          `json:"Entrypoint,omitempty" yaml:"Entrypoint,omitempty" toml:"Entrypoint,omitempty"`
 	WorkDir         string          `json:"WorkDir,omitempty" yaml:"WorkDir,omitempty" toml:"WorkDir,omitempty"`
 	User            PluginUser      `json:"User,omitempty" yaml:"User,omitempty" toml:"User,omitempty"`
 	Network         PluginNetwork   `json:"Network,omitempty" yaml:"Network,omitempty" toml:"Network,omitempty"`

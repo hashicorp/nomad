@@ -300,7 +300,7 @@ config {
 	expected := &TaskConfig{
 		Image:             "redis:3.2",
 		AdvertiseIPv6Addr: true,
-		Args:              []string{"command_arg1", "command_arg2"},
+		Args:              []string{"-c", "command_arg1", "command_arg2"},
 		Auth: DockerAuth{
 			Username:   "myusername",
 			Password:   "mypassword",
@@ -328,7 +328,7 @@ config {
 		DNSSearchDomains: []string{"sub.example.com", "sub2.example.com"},
 		DNSOptions:       []string{"debug", "attempts:10"},
 		DNSServers:       []string{"8.8.8.8", "1.1.1.1"},
-		Entrypoint:       []string{"/bin/bash", "-c"},
+		Entrypoint:       "/bin/bash",
 		ExtraHosts:       []string{"127.0.0.1  localhost.example.com"},
 		ForcePull:        true,
 		Hostname:         "self.example.com",

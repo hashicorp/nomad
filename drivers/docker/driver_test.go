@@ -2311,12 +2311,12 @@ func TestDockerDriver_Entrypoint(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	entrypoint := []string{"sh", "-c"}
+	entrypoint := "/bin/echo"
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
 	cfg.Entrypoint = entrypoint
 	cfg.Command = strings.Join(busyboxLongRunningCmd, " ")
-	cfg.Args = []string{}
+	cfg.Args = []string{"hello"}
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 

@@ -389,7 +389,7 @@ type TaskConfig struct {
 	DNSSearchDomains  []string           `codec:"dns_search_domains"`
 	DNSOptions        []string           `codec:"dns_options"`
 	DNSServers        []string           `codec:"dns_servers"`
-	Entrypoint        []string           `codec:"entrypoint"`
+	Entrypoint        string             `codec:"entrypoint"`
 	ExtraHosts        []string           `codec:"extra_hosts"`
 	ForcePull         bool               `codec:"force_pull"`
 	Hostname          string             `codec:"hostname"`
