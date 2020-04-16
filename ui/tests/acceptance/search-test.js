@@ -85,10 +85,7 @@ module('Acceptance | search', function(hooks) {
       done();
     });
 
-    await visit(`/jobs?forky=norky&namespace=${namespace.id}`, {
-      namespace: 'ooo',
-      queryParams: { namespace: 'jortle' },
-    });
+    await visit(`/jobs?namespace=${namespace.id}`);
     await selectSearch(PageLayout.navbar.search.scope, 'string');
   });
 
