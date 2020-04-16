@@ -4914,6 +4914,7 @@ func TestNode_Copy(t *testing.T) {
 		SecretID:   uuid.Generate(),
 		Datacenter: "dc1",
 		Name:       "foobar",
+		Datalog:    "foo(foo, bar).",
 		Attributes: map[string]string{
 			"kernel.name":        "linux",
 			"arch":               "x86",
@@ -5011,6 +5012,7 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.Events, node2.Events)
 	require.Equal(node.DrainStrategy, node2.DrainStrategy)
 	require.Equal(node.Drivers, node2.Drivers)
+	require.Equal(node.Datalog, node2.Datalog)
 }
 
 func TestSpread_Validate(t *testing.T) {
