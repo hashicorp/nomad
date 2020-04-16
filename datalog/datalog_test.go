@@ -39,6 +39,9 @@ func TestDatalog_Basics(t *testing.T) {
 	// empty result
 	as = db.Query("ancestor(bob, alice)?")
 	require.Empty(t, as)
+
+	ok := db.Allow("ancestor(bob, alice)?")
+	require.False(t, ok)
 }
 
 func TestDatalog_lines(t *testing.T) {
