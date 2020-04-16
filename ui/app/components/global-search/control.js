@@ -17,6 +17,7 @@ export default Component.extend({
 
   router: service(),
   store: service(),
+  system: service(),
 
   opened: false,
 
@@ -79,7 +80,13 @@ export default Component.extend({
     const searchUrl = applicationAdapter.urlForFindAll('job').replace('jobs', 'search');
     // FIXME hackery!
 
-    const response = yield fetch(searchUrl, {
+    let query = '';
+
+    if (this.system.get('activeNamespace.id')) {
+      query = `?namespace=${this.system.activeNamespace.id}`;
+    }
+
+    const response = yield fetch(`${searchUrl}${query}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -99,7 +106,12 @@ export default Component.extend({
 
         return {
           groupName: label,
-          options: collectModels(this.store, key, json.Matches[key]),
+          options: collectModels(
+            this.store,
+            this.system.get('activeNamespace.id'),
+            key,
+            json.Matches[key]
+          ),
         };
       });
   }),
@@ -116,11 +128,11 @@ export default Component.extend({
   },
 });
 
-function collectModels(store, searchResultsTypeKey, matches) {
+function collectModels(store, namespace, searchResultsTypeKey, matches) {
   if (searchResultsTypeKey === 'jobs') {
     return matches.map(id => {
       // FIXME don’t hardcode namespace
-      const model = store.findRecord('job', JSON.stringify([id, 'default']));
+      const model = store.findRecord('job', JSON.stringify([id, namespace]));
       return {
         model,
         labelProperty: 'name',

@@ -74,6 +74,49 @@ module('Acceptance | search', function(hooks) {
     assert.ok(PageLayout.navbar.search.field.isPresent);
   });
 
+  test('namespace is included in the search query if present', async function(assert) {
+    const done = assert.async();
+
+    server.create('namespace');
+    const namespace = server.create('namespace');
+
+    server.post('/search', (server, { queryParams }) => {
+      assert.equal(queryParams.namespace, namespace.id);
+      done();
+    });
+
+    await visit(`/jobs?forky=norky&namespace=${namespace.id}`, {
+      namespace: 'ooo',
+      queryParams: { namespace: 'jortle' },
+    });
+    await selectSearch(PageLayout.navbar.search.scope, 'string');
+  });
+
+  test('namespace is included when fetching and rendering job search results', async function(assert) {
+    server.create('namespace');
+    const namespace = server.create('namespace');
+    const job = server.create('job', {
+      id: 'xyz',
+      namespaceId: namespace.id,
+      createAllocations: false,
+    });
+
+    await visit(`/?namespace=${namespace.id}`);
+    await selectSearch(PageLayout.navbar.search.scope, 'xy');
+
+    PageLayout.navbar.search.as(search => {
+      assert.equal(search.groups.length, 1);
+
+      search.groups[0].as(jobs => {
+        assert.equal(jobs.options[0].text, 'xyz');
+        assert.equal(jobs.options[0].statusClass, job.status);
+      });
+    });
+
+    await PageLayout.navbar.search.groups[0].options[0].click();
+    assert.equal(currentURL(), `/jobs/xyz?namespace=${namespace.id}`);
+  });
+
   skip('pressing slash focuses the search', async function(assert) {
     await visit('/');
 
@@ -81,7 +124,7 @@ module('Acceptance | search', function(hooks) {
 
     window.pl = PageLayout;
     await triggerKeyEvent('.global-search', 'keydown', 'Slash');
-    await this.pauseTest();
+    // await this.pauseTest();
 
     assert.ok(PageLayout.navbar.search.field.isPresent);
   });

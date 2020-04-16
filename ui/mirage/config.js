@@ -502,8 +502,9 @@ export default function() {
     });
   });
 
-  this.post('/search', function(schema, { requestBody }) {
+  this.post('/search', function(schema, { requestBody, queryParams }) {
     const prefixSearch = JSON.parse(requestBody).Prefix;
+    const namespaceQueryParam = queryParams.namespace || 'default';
 
     const collectionProperties = {
       allocations: {
@@ -530,8 +531,14 @@ export default function() {
         const searchProperty = collectionProperties[key].searchProperty || 'id';
         const responseKey = collectionProperties[key].responseKey;
 
-        const matches = collection.where(item => item[searchProperty].startsWith(prefixSearch))
-          .models;
+        const matches = collection.where(item => {
+          const prefixMatches = item[searchProperty].startsWith(prefixSearch);
+          const namespaceExistsAndMatches = item.namespaceId
+            ? item.namespaceId === namespaceQueryParam
+            : true;
+
+          return prefixMatches && namespaceExistsAndMatches;
+        }).models;
 
         if (matches.length > 0) {
           response[responseKey] = matches.map(model => model[searchProperty]);
