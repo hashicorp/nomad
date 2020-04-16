@@ -134,7 +134,6 @@ export default Component.extend({
 function collectModels(store, namespace, searchResultsTypeKey, matches) {
   if (searchResultsTypeKey === 'jobs') {
     return matches.map(id => {
-      // FIXME don’t hardcode namespace
       const model = store.findRecord('job', JSON.stringify([id, namespace]));
       return {
         model,
