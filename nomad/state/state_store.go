@@ -1381,10 +1381,6 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to update job scaling policies: %v", err)
 	}
 
-	if err := s.upsertJobDatalog(job); err != nil {
-		return fmt.Errorf("unable to update job datalog: %v", err)
-	}
-
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
