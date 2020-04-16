@@ -407,22 +407,6 @@ func (c *DatalogChecker) SetJob(job *structs.Job) {
 		c.db.Assert(jobName, job.Datalog)
 		c.jobDl = append(c.jobDl, job.Datalog)
 	}
-
-	for _, g := range job.TaskGroups {
-		groupName := datalog.GroupName(jobName, g.Name)
-		if g.Datalog != "" {
-			c.db.Assert(groupName, g.Datalog)
-			c.jobDl = append(c.jobDl, g.Datalog)
-		}
-
-		for _, t := range g.Tasks {
-			if t.Datalog != "" {
-				taskName := datalog.TaskName(groupName, t.Name)
-				c.db.Assert(taskName, t.Datalog)
-				c.jobDl = append(c.jobDl, t.Datalog)
-			}
-		}
-	}
 }
 
 func (c *DatalogChecker) Feasible(n *structs.Node) bool {
