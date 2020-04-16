@@ -618,6 +618,27 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"datalog.hcl",
+			&api.Job{
+				ID:      helper.StringToPtr("binstore-storagelocker"),
+				Name:    helper.StringToPtr("binstore-storagelocker"),
+				Datalog: "foo(bar, baz).",
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:    helper.StringToPtr("binsl"),
+						Datalog: "bar(bar, baz).",
+						Tasks: []*api.Task{
+							{
+								Name:    "binstore",
+								Datalog: "zup(bar, baz).\n",
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
 			"service-check-initial-status.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("check_initial_status"),
