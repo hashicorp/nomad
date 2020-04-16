@@ -44,6 +44,32 @@ func TestDatalog_Basics(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestDatalog_Temp(t *testing.T) {
+	db := NewDB()
+
+	job := "color(job1,green).\ntravel(A,space)?"
+	node1 := "travel(node1,space).\ncolor(A,green)?"
+	node2 := "travel(node1,air).\ncolor(A,green)?"
+
+	db.Assert("", job)
+	db.WithTempRules(node1, func() {
+		require.True(t, db.Allow(job))
+		require.True(t, db.Allow(node1))
+	})
+
+	require.Empty(t, db.Query("travel(A,space)?"))
+	require.False(t, db.Allow(job))
+	require.True(t, db.Allow(node1))
+
+	db.WithTempRules(node2, func() {
+		require.False(t, db.Allow(job))
+		require.True(t, db.Allow(node2))
+	})
+
+	require.False(t, db.Allow(job))
+	require.True(t, db.Allow(node1))
+}
+
 func TestDatalog_lines(t *testing.T) {
 	ls := lines(`
 thing(foo, bar).

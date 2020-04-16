@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kevinawalsh/datalog/dlengine"
+	"github.com/kr/pretty"
 )
 
 type DB struct {
@@ -36,9 +37,11 @@ func TaskName(groupName, taskName string) string {
 }
 
 func (d *DB) Assert(name, input string) {
-	d.Retract(name)
 	d.input[name] = input
-	d.engine.Batch(name, input)
+	_, _, err := d.engine.Batch(name, input)
+	if err != nil {
+		pretty.Log("ASSERT ERR", err)
+	}
 }
 
 func isAssertion(line string) bool {
@@ -51,7 +54,7 @@ func retraction(assertion string) string {
 	if l == 0 {
 		return ""
 	}
-	return assertion[:l-2] + "~"
+	return assertion[:l-1] + "~"
 }
 
 func isQuery(line string) bool {
@@ -60,6 +63,10 @@ func isQuery(line string) bool {
 }
 
 func (d *DB) Allow(input string) bool {
+	pretty.Log("ALLOW",
+		d.Query("job_color(A,B)?"),
+		d.Query("capabilities(A,B)?"))
+
 	for _, l := range lines(input) {
 		if !isQuery(l) {
 			continue
@@ -68,6 +75,7 @@ func (d *DB) Allow(input string) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -88,7 +96,10 @@ func (d *DB) Query(input string) []string {
 func (d *DB) Retract(input string) {
 	for _, l := range lines(input) {
 		if isAssertion(l) {
-			d.engine.Retract(retraction(l))
+			err := d.engine.Retract(retraction(l))
+			if err != nil {
+				pretty.Log("ERROR", err)
+			}
 		}
 	}
 }
