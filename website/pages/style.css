@@ -201,57 +201,59 @@
 
 /* TEMPORARY - prism stylesheet */
 
-pre[class*='language-'],
-code[class*='language-'] {
-  color: #d4d4d4;
-  font-size: 13px;
-  text-shadow: none;
-  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  direction: ltr;
-  text-align: left;
-  white-space: pre;
-  word-spacing: normal;
-  word-break: normal;
-  line-height: 1.5;
-  -moz-tab-size: 4;
-  -o-tab-size: 4;
-  tab-size: 4;
+/**
+* xonokai theme for JavaScript, CSS and HTML
+* based on: https://github.com/MoOx/sass-prism-theme-base by Maxime Thirouin ~ MoOx --> http://moox.fr/ , which is Loosely based on Monokai textmate theme by http://www.monokai.nl/
+* license: MIT; http://moox.mit-license.org/
+*/
+code[class*='language-'],
+pre[class*='language-'] {
+  -moz-tab-size: 2;
+  -o-tab-size: 2;
+  tab-size: 2;
   -webkit-hyphens: none;
   -moz-hyphens: none;
   -ms-hyphens: none;
   hyphens: none;
-}
-
-pre[class*='language-']::selection,
-code[class*='language-']::selection {
+  white-space: pre;
+  white-space: pre-wrap;
+  word-wrap: normal;
+  font-family: Menlo, Monaco, 'Courier New', monospace;
+  font-size: 14px;
+  color: #76d9e6;
   text-shadow: none;
-  background: #b3d4fc;
 }
 
-@media print {
-  pre[class*='language-'],
-  code[class*='language-'] {
-    text-shadow: none;
-  }
+pre > code[class*='language-'] {
+  font-size: 1em;
+}
+
+pre[class*='language-'],
+:not(pre) > code[class*='language-'] {
+  background: #2a2a2a;
 }
 
 pre[class*='language-'] {
-  padding: 1em;
-  margin: 0.5em 0;
+  padding: 15px;
+  border-radius: 4px;
+  border: 1px solid #e1e1e8;
   overflow: auto;
-  background: #1e1e1e;
+  position: relative;
+}
+
+pre[class*='language-'] code {
+  white-space: pre;
+  display: block;
 }
 
 :not(pre) > code[class*='language-'] {
-  padding: 0.1em 0.3em;
+  padding: 0.15em 0.2em 0.05em;
   border-radius: 0.3em;
-  color: #db4c69;
-  background: #f9f2f4;
+  border: 0.13em solid #7a6652;
+  box-shadow: 1px 1px 0.3em -0.1em #000 inset;
 }
-/*********************************************************
-* Tokens
-*/
-.namespace {
+
+.token.namespace {
   opacity: 0.7;
 }
 
@@ -259,163 +261,134 @@ pre[class*='language-'] {
 .token.prolog,
 .token.doctype,
 .token.cdata {
-  color: #6a9955;
-}
-
-.token.punctuation {
-  color: #d4d4d4;
-}
-
-.token.property,
-.token.tag,
-.token.boolean,
-.token.number,
-.token.constant,
-.token.symbol,
-.token.deleted {
-  color: #b5cea8;
-}
-
-.token.selector,
-.token.attr-name,
-.token.string,
-.token.char,
-.token.builtin,
-.token.inserted {
-  color: #ce9178;
+  color: #6f705e;
 }
 
 .token.operator,
+.token.boolean,
+.token.number {
+  color: #a77afe;
+}
+
+.token.attr-name,
+.token.string {
+  color: #e6d06c;
+}
+
 .token.entity,
 .token.url,
 .language-css .token.string,
 .style .token.string {
-  color: #d4d4d4;
-  background: #1e1e1e;
+  color: #e6d06c;
+}
+
+.token.selector,
+.token.inserted {
+  color: #a6e22d;
 }
 
 .token.atrule,
 .token.attr-value,
-.token.keyword {
-  color: #c586c0;
-}
-
-.token.function {
-  color: #dcdcaa;
+.token.keyword,
+.token.important,
+.token.deleted {
+  color: #ef3b7d;
 }
 
 .token.regex,
-.token.important,
+.token.statement {
+  color: #76d9e6;
+}
+
+.token.placeholder,
 .token.variable {
-  color: #d16969;
+  color: #fff;
 }
 
 .token.important,
+.token.statement,
 .token.bold {
   font-weight: bold;
+}
+
+.token.punctuation {
+  color: #bebec5;
+}
+
+.token.entity {
+  cursor: help;
 }
 
 .token.italic {
   font-style: italic;
 }
 
-.token.constant {
-  color: #9cdcfe;
+code.language-markup {
+  color: #f9f9f9;
 }
 
-.token.class-name {
-  color: #4ec9b0;
+code.language-markup .token.tag {
+  color: #ef3b7d;
 }
 
-.token.parameter {
-  color: #9cdcfe;
+code.language-markup .token.attr-name {
+  color: #a6e22d;
 }
 
-.token.interpolation {
-  color: #9cdcfe;
+code.language-markup .token.attr-value {
+  color: #e6d06c;
 }
 
-.token.punctuation.interpolation-punctuation {
-  color: #569cd6;
+code.language-markup .token.style,
+code.language-markup .token.script {
+  color: #76d9e6;
 }
 
-.token.boolean {
-  color: #569cd6;
+code.language-markup .token.script .token.keyword {
+  color: #76d9e6;
 }
 
-.token.property {
-  color: #9cdcfe;
-}
-
-.token.selector {
-  color: #d7ba7d;
-}
-
-.token.tag {
-  color: #569cd6;
-}
-
-.token.attr-name {
-  color: #9cdcfe;
-}
-
-.token.attr-value {
-  color: #ce9178;
-}
-
-.token.entity {
-  color: #4ec9b0;
-  cursor: unset;
-}
-
-.token.namespace {
-  color: #4ec9b0;
-}
-/*********************************************************
-* Language Specific
-*/
-pre[class*='language-javascript'],
-code[class*='language-javascript'] {
-  color: #4ec9b0;
-}
-
-pre[class*='language-css'],
-code[class*='language-css'] {
-  color: #ce9178;
-}
-
-pre[class*='language-html'],
-code[class*='language-html'] {
-  color: #d4d4d4;
-}
-
-.language-html .token.punctuation {
-  color: #808080;
-}
-/*********************************************************
-* Line highlighting
-*/
-pre[data-line] {
+/* Line highlight plugin */
+pre[class*='language-'][data-line] {
   position: relative;
+  padding: 1em 0 1em 3em;
 }
 
-pre[class*='language-'] > code[class*='language-'] {
-  position: relative;
-  z-index: 1;
-}
-
-.line-highlight {
+pre[data-line] .line-highlight {
   position: absolute;
   left: 0;
   right: 0;
-  padding: inherit 0;
+  padding: 0;
   margin-top: 1em;
-  background: #f7ebc6;
-  box-shadow: inset 5px 0 0 #f7d87c;
-  z-index: 0;
+  background: rgba(255, 255, 255, 0.08);
   pointer-events: none;
   line-height: inherit;
   white-space: pre;
+}
+
+pre[data-line] .line-highlight:before,
+pre[data-line] .line-highlight[data-end]:after {
+  content: attr(data-start);
+  position: absolute;
+  top: 0.4em;
+  left: 0.6em;
+  min-width: 1em;
+  padding: 0.2em 0.5em;
+  background-color: rgba(255, 255, 255, 0.4);
+  color: black;
+  font: bold 65%/1 sans-serif;
+  height: 1em;
+  line-height: 1em;
+  text-align: center;
+  border-radius: 999px;
+  text-shadow: none;
+  box-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+
+pre[data-line] .line-highlight[data-end]:after {
+  content: attr(data-end);
+  top: auto;
+  bottom: 0.4em;
 }
 
 /* overrides */
