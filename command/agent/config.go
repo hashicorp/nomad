@@ -184,6 +184,8 @@ type ClientConfig struct {
 	// StateDir is the state directory
 	StateDir string `hcl:"state_dir"`
 
+	Datalog string
+
 	// AllocDir is the directory for storing allocation data
 	AllocDir string `hcl:"alloc_dir"`
 
@@ -285,8 +287,6 @@ type ClientConfig struct {
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
-
-	Datalog string
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -1396,6 +1396,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.Enabled {
 		result.Enabled = true
 	}
+
+	if b.Datalog != "" {
+		result.Datalog = b.Datalog
+	}
+
 	if b.StateDir != "" {
 		result.StateDir = b.StateDir
 	}

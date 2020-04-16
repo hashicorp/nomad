@@ -484,6 +484,11 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.Client.StateDir != "" {
 		conf.StateDir = agentConfig.Client.StateDir
 	}
+
+	if agentConfig.Client.Datalog != "" {
+		conf.Datalog = agentConfig.Client.Datalog
+	}
+
 	if agentConfig.Client.AllocDir != "" {
 		conf.AllocDir = agentConfig.Client.AllocDir
 	}

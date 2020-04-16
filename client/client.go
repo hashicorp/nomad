@@ -1306,6 +1306,7 @@ func (c *Client) setupNode() error {
 
 	node.ID = id
 	node.SecretID = secretID
+	node.Datalog = c.config.Datalog
 	if node.Attributes == nil {
 		node.Attributes = make(map[string]string)
 	}

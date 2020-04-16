@@ -79,6 +79,8 @@ type Config struct {
 	// StateDir is where we store our state
 	StateDir string
 
+	Datalog string
+
 	// AllocDir is where we store data for allocations
 	AllocDir string
 

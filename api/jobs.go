@@ -709,7 +709,7 @@ type Job struct {
 	Reschedule        *ReschedulePolicy
 	Migrate           *MigrateStrategy
 	Meta              map[string]string
-	Datalog           string
+	Datalog           *string
 	ConsulToken       *string `mapstructure:"consul_token"`
 	VaultToken        *string `mapstructure:"vault_token"`
 	Status            *string
@@ -768,6 +768,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.VaultToken == nil {
 		j.VaultToken = stringToPtr("")
+	}
+	if j.Datalog == nil {
+		j.Datalog = stringToPtr("")
 	}
 	if j.Status == nil {
 		j.Status = stringToPtr("")
