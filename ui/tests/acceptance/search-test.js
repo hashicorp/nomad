@@ -11,7 +11,7 @@ module('Acceptance | search', function(hooks) {
 
   test('search searches and choosing an item navigates to it', async function(assert) {
     const node = server.create('node');
-    server.create('job', { id: 'xyz', namespaceId: 'default' });
+    const job = server.create('job', { id: 'xyz', namespaceId: 'default' });
 
     await visit('/');
 
@@ -24,6 +24,7 @@ module('Acceptance | search', function(hooks) {
         assert.equal(jobs.name, 'Jobs (1)');
         assert.equal(jobs.options.length, 1);
         assert.equal(jobs.options[0].text, 'xyz');
+        assert.equal(jobs.options[0].statusClass, job.status);
       });
     });
 
@@ -32,13 +33,20 @@ module('Acceptance | search', function(hooks) {
 
     const allocation = server.db.allocations.firstObject;
     await selectSearch(PageLayout.navbar.search.scope, allocation.id.substr(0, 3));
+
     assert.equal(PageLayout.navbar.search.groups[0].name, 'Allocations (1)');
+    assert.equal(
+      PageLayout.navbar.search.groups[0].options[0].statusClass,
+      allocation.clientStatus
+    );
 
     await PageLayout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), `/allocations/${allocation.id}`);
 
     await selectSearch(PageLayout.navbar.search.scope, node.id.substr(0, 3));
+
     assert.equal(PageLayout.navbar.search.groups[0].name, 'Clients (1)');
+    assert.equal(PageLayout.navbar.search.groups[0].options[0].statusClass, node.status);
 
     await PageLayout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), `/clients/${node.id}`);

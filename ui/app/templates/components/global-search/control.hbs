@@ -11,5 +11,6 @@
     @triggerComponent="global-search/trigger"
     @registerAPI={{action 'storeSelect'}}
     as |option|>
+    <div class="color-swatch {{get option.model option.statusProperty}}"></div>
     {{get option.model option.labelProperty}}
   </PowerSelect>

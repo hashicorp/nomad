@@ -114,6 +114,7 @@ function collectModels(store, searchResultsTypeKey, matches) {
       return {
         model,
         labelProperty: 'name',
+        statusProperty: 'status',
         label: model.name,
       };
     });
@@ -123,6 +124,7 @@ function collectModels(store, searchResultsTypeKey, matches) {
       return {
         model,
         labelProperty: 'id',
+        statusProperty: 'clientStatus',
         label: model.id,
       };
     });
@@ -132,6 +134,7 @@ function collectModels(store, searchResultsTypeKey, matches) {
       return {
         model,
         labelProperty: 'id',
+        statusProperty: 'status',
         label: model.id,
       };
     });

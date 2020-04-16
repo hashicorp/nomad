@@ -1,4 +1,5 @@
 import { create, clickable, collection, isPresent, text } from 'ember-cli-page-object';
+import { findElementWithAssert } from 'ember-cli-page-object/extend';
 
 export default create({
   navbar: {
@@ -23,6 +24,7 @@ export default create({
 
         options: collection('.ember-power-select-option', {
           label: text(),
+          statusClass: statusClass('.color-swatch'),
         }),
       }),
 
@@ -54,3 +56,14 @@ export default create({
     visitServers: clickable('[data-test-gutter-link="servers"]'),
   },
 });
+
+function statusClass(selector, options = {}) {
+  return {
+    isDescriptor: true,
+
+    get() {
+      const element = findElementWithAssert(this, selector, options)[0];
+      return Array.from(element.classList)[1];
+    },
+  };
+}
