@@ -1,4 +1,4 @@
-import { module, skip, test } from 'qunit';
+import { module, test } from 'qunit';
 import { currentURL, triggerKeyEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -140,17 +140,5 @@ module('Acceptance | search', function(hooks) {
 
     assert.ok(PageLayout.navbar.search.hasNoMatches);
     // TODO is this sensible?
-  });
-
-  skip('pressing slash focuses the search', async function(assert) {
-    await visit('/');
-
-    assert.notOk(PageLayout.navbar.search.field.isPresent);
-
-    window.pl = PageLayout;
-    await triggerKeyEvent('.global-search', 'keydown', 'Slash');
-    // await this.pauseTest();
-
-    assert.ok(PageLayout.navbar.search.field.isPresent);
   });
 });
