@@ -428,7 +428,6 @@ type TaskGroup struct {
 	Services         []*Service
 	ShutdownDelay    *time.Duration `mapstructure:"shutdown_delay"`
 	Scaling          *ScalingPolicy
-	Datalog          string
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -669,7 +668,6 @@ type Task struct {
 	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 	KillSignal      string        `mapstructure:"kill_signal"`
 	Kind            string
-	Datalog         string
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
