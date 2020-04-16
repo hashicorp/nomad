@@ -115,7 +115,6 @@ function collectModels(store, searchResultsTypeKey, matches) {
         model,
         labelProperty: 'name',
         statusProperty: 'status',
-        label: model.name,
       };
     });
   } else if (searchResultsTypeKey === 'allocs') {
@@ -125,7 +124,6 @@ function collectModels(store, searchResultsTypeKey, matches) {
         model,
         labelProperty: 'id',
         statusProperty: 'clientStatus',
-        label: model.id,
       };
     });
   } else if (searchResultsTypeKey === 'nodes') {
@@ -135,7 +133,6 @@ function collectModels(store, searchResultsTypeKey, matches) {
         model,
         labelProperty: 'id',
         statusProperty: 'status',
-        label: model.id,
       };
     });
   }
