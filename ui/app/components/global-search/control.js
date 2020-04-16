@@ -45,7 +45,8 @@ export default Component.extend({
       }
     },
 
-    focus(select, { target }) {
+    openOnClickOrTab(select, { target }) {
+      // Bypass having to press enter to access search after clicking/tabbing
       if (target.classList.contains('ember-power-select-trigger')) {
         run.next(() => {
           select.actions.open();
