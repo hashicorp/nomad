@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import PageLayout from 'nomad-ui/tests/pages/layout';
 import { selectSearch } from 'ember-power-select/test-support';
+import Response from 'ember-cli-mirage/response';
 
 module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
@@ -127,6 +128,18 @@ module('Acceptance | search', function(hooks) {
 
     await PageLayout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), `/jobs/xyz?namespace=${namespace.id}`);
+  });
+
+  test('an error when searching is treated as no results', async function(assert) {
+    server.post('/search', () => {
+      return new Response(500, {}, 'no such file or directory');
+    });
+
+    await visit('/');
+    await selectSearch(PageLayout.navbar.search.scope, 'abc');
+
+    assert.ok(PageLayout.navbar.search.hasNoMatches);
+    // TODO is this sensible?
   });
 
   skip('pressing slash focuses the search', async function(assert) {
