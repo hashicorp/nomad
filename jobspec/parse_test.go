@@ -623,18 +623,6 @@ func TestParse(t *testing.T) {
 				ID:      helper.StringToPtr("binstore-storagelocker"),
 				Name:    helper.StringToPtr("binstore-storagelocker"),
 				Datalog: "foo(bar, baz).",
-				TaskGroups: []*api.TaskGroup{
-					{
-						Name:    helper.StringToPtr("binsl"),
-						Datalog: "bar(bar, baz).",
-						Tasks: []*api.Task{
-							{
-								Name:    "binstore",
-								Datalog: "zup(bar, baz).\n",
-							},
-						},
-					},
-				},
 			},
 			false,
 		},
