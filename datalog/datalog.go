@@ -93,6 +93,8 @@ func (d *DB) Retract(input string) {
 	}
 }
 
+// WithTempRules applys all the assertions in the input to the database, executes the thunk,
+// and then retracts the assertions in input
 func (d *DB) WithTempRules(input string, thunk func()) {
 	for _, l := range lines(input) {
 		if isAssertion(l) {
