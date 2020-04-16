@@ -64,6 +64,16 @@ module('Acceptance | search', function(hooks) {
     assert.ok(PageLayout.navbar.search.hasNoMatches);
   });
 
+  test('clicking the search field starts search immediately', async function(assert) {
+    await visit('/');
+
+    assert.notOk(PageLayout.navbar.search.field.isPresent);
+
+    await PageLayout.navbar.search.click();
+
+    assert.ok(PageLayout.navbar.search.field.isPresent);
+  });
+
   skip('pressing slash focuses the search', async function(assert) {
     await visit('/');
 

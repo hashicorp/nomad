@@ -4,6 +4,7 @@ import { task } from 'ember-concurrency';
 import fetch from 'nomad-ui/utils/fetch';
 import { getOwner } from '@ember/application';
 import { bindKeyboardShortcuts, unbindKeyboardShortcuts } from 'ember-keyboard-shortcuts';
+import { run } from '@ember/runloop';
 
 const SEARCH_PROPERTY_TO_LABEL = {
   allocs: 'Allocations',
@@ -41,6 +42,14 @@ export default Component.extend({
     open() {
       if (this.select) {
         this.select.actions.open();
+      }
+    },
+
+    focus(select, { target }) {
+      if (target.classList.contains('ember-power-select-trigger')) {
+        run.next(() => {
+          select.actions.open();
+        });
       }
     },
 
