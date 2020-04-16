@@ -9,6 +9,7 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/datalog"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -386,48 +387,62 @@ func (c *DriverChecker) hasDrivers(option *structs.Node) bool {
 }
 
 type DatalogChecker struct {
-	ctx Context
-	job *structs.Job
+	ctx   Context
+	db    *datalog.DB
+	jobDl []string
 }
 
 func NewDatalogChecker(ctx Context) *DatalogChecker {
 	return &DatalogChecker{
 		ctx: ctx,
+		db:  datalog.NewDB(),
 	}
 }
 
+// SetJob adds assertions to the database, and collects the datalog scripts so we can query
+// them in Feasible
 func (c *DatalogChecker) SetJob(job *structs.Job) {
-	c.job = job
+	jobName := datalog.JobName(job.Namespace, job.ID)
+	if job.Datalog != "" {
+		c.db.Assert(jobName, job.Datalog)
+		c.jobDl = append(c.jobDl, job.Datalog)
+	}
+
+	for _, g := range job.TaskGroups {
+		groupName := datalog.GroupName(jobName, g.Name)
+		if g.Datalog != "" {
+			c.db.Assert(groupName, g.Datalog)
+			c.jobDl = append(c.jobDl, g.Datalog)
+		}
+
+		for _, t := range g.Tasks {
+			if t.Datalog != "" {
+				taskName := datalog.TaskName(groupName, t.Name)
+				c.db.Assert(taskName, t.Datalog)
+				c.jobDl = append(c.jobDl, t.Datalog)
+			}
+		}
+	}
 }
 
 func (c *DatalogChecker) Feasible(n *structs.Node) bool {
+	// if the node does not define any datalog, ignore the job's datalog
 	nd := n.Datalog
-
-	// if the node does not define any datalog, ignore the job configuration
 	if nd == "" {
 		return true
 	}
 
-	allow := false
-	c.ctx.State().DatalogWithTempRules(nd, func() {
-		jd := c.job.Datalog
-		if !c.ctx.State().DatalogAllow(jd, nd) {
-			allow = false
+	var allow bool
+	c.db.WithTempRules(nd, func() {
+		allow = c.db.Allow(nd)
+		if !allow {
 			return
 		}
 
-		for _, g := range job.TaskGroups {
-			jd = g.Datalog
-			if !c.ctx.State().DatalogAllow(jd, nd) {
+		for _, dl := range c.jobDl {
+			if !c.db.Allow(dl) {
 				allow = false
 				return
-			}
-
-			for _, t := range g.Tasks {
-				if c.ctx.State().DatalogAllow(t.Datalog, nd) {
-					allow = false
-					return
-				}
 			}
 		}
 	})
