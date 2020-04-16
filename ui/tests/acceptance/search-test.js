@@ -74,6 +74,21 @@ module('Acceptance | search', function(hooks) {
     assert.ok(PageLayout.navbar.search.field.isPresent);
   });
 
+  test('region is included in the search query if present', async function(assert) {
+    const done = assert.async();
+
+    server.create('region', { id: 'global' });
+    const region = server.create('region', { id: 'region-2' });
+
+    server.post('/search', (server, { queryParams }) => {
+      assert.equal(queryParams.region, region.id);
+      done();
+    });
+
+    await visit(`/?region=${region.id}`);
+    await selectSearch(PageLayout.navbar.search.scope, 'string');
+  });
+
   test('namespace is included in the search query if present', async function(assert) {
     const done = assert.async();
 

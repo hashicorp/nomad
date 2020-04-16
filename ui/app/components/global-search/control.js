@@ -79,14 +79,17 @@ export default Component.extend({
     const applicationAdapter = getOwner(this).lookup('adapter:application');
     const searchUrl = applicationAdapter.urlForFindAll('job').replace('jobs', 'search');
     // FIXME hackery!
-
-    let query = '';
+    const query = new URLSearchParams();
 
     if (this.system.get('activeNamespace.id')) {
-      query = `?namespace=${this.system.activeNamespace.id}`;
+      query.append('namespace', this.system.activeNamespace.id);
     }
 
-    const response = yield fetch(`${searchUrl}${query}`, {
+    if (this.system.activeRegion) {
+      query.append('region', this.system.activeRegion);
+    }
+
+    const response = yield fetch(`${searchUrl}?${query}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
