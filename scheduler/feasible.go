@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/kr/pretty"
 )
 
 const (
@@ -393,6 +394,7 @@ type DatalogChecker struct {
 }
 
 func NewDatalogChecker(ctx Context) *DatalogChecker {
+	pretty.Log("NEWDB")
 	return &DatalogChecker{
 		ctx: ctx,
 		db:  datalog.NewDB(),
@@ -406,12 +408,16 @@ func (c *DatalogChecker) SetJob(job *structs.Job) {
 	if job.Datalog != "" {
 		c.db.Assert(jobName, job.Datalog)
 		c.jobDl = append(c.jobDl, job.Datalog)
+		pretty.Log("SETJOB", c.jobDl)
 	}
 }
 
 func (c *DatalogChecker) Feasible(n *structs.Node) bool {
 	// if the node does not define any datalog, ignore the job's datalog
 	nd := n.Datalog
+
+	pretty.Log("FEASIBLE", c.jobDl, n.Datalog)
+
 	if nd == "" {
 		return true
 	}
@@ -1024,7 +1030,8 @@ OUTER:
 		}
 
 		// Run the job feasibility checks.
-		for _, check := range w.jobCheckers {
+		for i, check := range w.jobCheckers {
+			pretty.Log("CHECK", i)
 			feasible := check.Feasible(option)
 			if !feasible {
 				// If the job hasn't escaped, set it to be ineligible since it
