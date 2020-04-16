@@ -111,7 +111,7 @@ export default Component.extend({
           groupName: label,
           options: collectModels(
             this.store,
-            this.system.get('activeNamespace.id'),
+            this.system.get('activeNamespace.id') || 'default',
             key,
             json.Matches[key]
           ),
