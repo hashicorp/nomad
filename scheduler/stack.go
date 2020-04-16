@@ -225,7 +225,7 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
-	jobs := []FeasibilityChecker{s.jobConstraint}
+	jobs := []FeasibilityChecker{s.jobConstraint, s.jobDatalog}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
 		s.taskGroupDevices}
