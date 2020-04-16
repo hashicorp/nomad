@@ -56,6 +56,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"service",
 			"volume",
 			"scaling",
+			"datalog",
 		}
 		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
