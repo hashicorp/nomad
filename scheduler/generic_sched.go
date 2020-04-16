@@ -426,6 +426,8 @@ func (s *GenericScheduler) computeJobAllocs() error {
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
 	// Get the base nodes
+	// TODO(langmartin) this is the right place to query datalog for the set of nodes
+	// for performance
 	nodes, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
 	if err != nil {
 		return err
