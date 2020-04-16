@@ -63,15 +63,23 @@ func isQuery(line string) bool {
 }
 
 func (d *DB) Allow(input string) bool {
-	pretty.Log("ALLOW",
-		d.Query("job_color(A,B)?"),
-		d.Query("capabilities(A,B)?"))
+	// pretty.Log("ALLOW", d.Query("job_color(A,B)?"), d.Query("capabilities(A,B)?"))
 
+	var negate bool
 	for _, l := range lines(input) {
 		if !isQuery(l) {
 			continue
 		}
-		if len(d.Query(l)) == 0 {
+
+		negate = false
+		if l[0] == '~' {
+			l = l[1:]
+			negate = true
+		}
+
+		if len(d.Query(l)) == 0 && !negate {
+			return false
+		} else if negate {
 			return false
 		}
 	}
