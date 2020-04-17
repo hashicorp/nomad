@@ -46,6 +46,7 @@ $lost: $dark;
 .global-search-dropdown {
   background: transparent;
   border: 0;
+  position: fixed;
 
   .ember-power-select-search {
     margin-left: $icon-dimensions;
