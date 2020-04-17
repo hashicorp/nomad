@@ -414,23 +414,32 @@ func (c *DatalogChecker) SetJob(job *structs.Job) {
 
 func (c *DatalogChecker) Feasible(n *structs.Node) bool {
 	// if the node does not define any datalog, ignore the job's datalog
-	nd := n.Datalog
+	dls := []string{n.Datalog}
 
 	pretty.Log("FEASIBLE", c.jobDl, n.Datalog)
 
-	if nd == "" {
+	ws := memdb.NewWatchSet()
+	as, _ := c.ctx.State().AllocsByNode(ws, n.ID)
+	for _, a := range as {
+		if a.Job.Datalog != "" {
+			dls = append(dls, a.Job.Datalog)
+		}
+	}
+
+	ndl := strings.Join(dls, "")
+	if ndl == "" {
 		return true
 	}
 
 	var allow bool
-	c.db.WithTempRules(nd, func() {
-		allow = c.db.Allow(nd)
+	c.db.WithTempRules(ndl, func() {
+		allow = c.db.Allow(ndl)
 		if !allow {
 			return
 		}
 
-		for _, dl := range c.jobDl {
-			if !c.db.Allow(dl) {
+		for _, jdl := range c.jobDl {
+			if !c.db.Allow(jdl) {
 				allow = false
 				return
 			}
