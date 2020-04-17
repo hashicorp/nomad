@@ -72,6 +72,12 @@ func TestDatalog_Temp(t *testing.T) {
 	require.False(t, db.Allow("~color(A,green)?"))
 }
 
+func TestDatalog_Neg(t *testing.T) {
+	db := NewDB()
+
+	require.True(t, db.Allow("~color(A,red)?"))
+}
+
 func TestDatalog_lines(t *testing.T) {
 	ls := lines(`
 thing(foo, bar).
