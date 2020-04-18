@@ -1,8 +1,10 @@
-// +build !pro,!ent
+// +build !ent
 
 package agent
 
-import "net/http"
+import (
+	"net/http"
+)
 
 // registerEnterpriseHandlers is a no-op for the oss release
 func (s *HTTPServer) registerEnterpriseHandlers() {
@@ -21,4 +23,19 @@ func (s *HTTPServer) registerEnterpriseHandlers() {
 
 func (s *HTTPServer) entOnly(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	return nil, CodedError(501, ErrEntOnly)
+}
+
+// auditHandler wraps the passed handlerFn
+func (s *HTTPServer) auditHandler(h handlerFn) handlerFn {
+	return h
+}
+
+// auditHTTPHandler wraps  the passed handlerByteFn
+func (s *HTTPServer) auditNonJSONHandler(h handlerByteFn) handlerByteFn {
+	return h
+}
+
+// auditHTTPHandler wraps the passed http.Handler
+func (s *HTTPServer) auditHTTPHandler(h http.Handler) http.Handler {
+	return h
 }

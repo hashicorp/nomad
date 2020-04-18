@@ -77,6 +77,13 @@ export default create({
     message: text('[data-test-client-event-message]'),
   }),
 
+  hasHostVolumes: isPresent('[data-test-client-host-volumes]'),
+  hostVolumes: collection('[data-test-client-host-volume]', {
+    name: text('[data-test-name]'),
+    path: text('[data-test-path]'),
+    permissions: text('[data-test-permissions]'),
+  }),
+
   driverHeads: collection('[data-test-driver-status] [data-test-accordion-head]', {
     name: text('[data-test-name]'),
     detected: text('[data-test-detected]'),
@@ -117,6 +124,7 @@ export default create({
     label: text('[data-test-drain-popover] [data-test-popover-trigger]'),
     isOpen: isPresent('[data-test-drain-popover-form]'),
     toggle: clickable('[data-test-drain-popover] [data-test-popover-trigger]'),
+    isDisabled: attribute('aria-disabled', '[data-test-popover-trigger]'),
 
     deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {

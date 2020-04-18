@@ -13,6 +13,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/mitchellh/copystructure"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -250,6 +251,32 @@ func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 		c[i] = v.Copy()
 	}
 	return c
+}
+
+func CopyScalingPolicy(p *ScalingPolicy) *ScalingPolicy {
+	if p == nil {
+		return nil
+	}
+
+	opaquePolicyConfig, err := copystructure.Copy(p.Policy)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	c := ScalingPolicy{
+		ID:          p.ID,
+		Policy:      opaquePolicyConfig.(map[string]interface{}),
+		Enabled:     p.Enabled,
+		Min:         p.Min,
+		Max:         p.Max,
+		CreateIndex: p.CreateIndex,
+		ModifyIndex: p.ModifyIndex,
+	}
+	c.Target = make(map[string]string, len(p.Target))
+	for k, v := range p.Target {
+		c.Target[k] = v
+	}
+	return &c
 }
 
 // VaultPoliciesSet takes the structure returned by VaultPolicies and returns

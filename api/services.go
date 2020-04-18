@@ -81,6 +81,7 @@ type ServiceCheck struct {
 	Path          string
 	Protocol      string
 	PortLabel     string `mapstructure:"port"`
+	Expose        bool
 	AddressMode   string `mapstructure:"address_mode"`
 	Interval      time.Duration
 	Timeout       time.Duration
@@ -97,16 +98,18 @@ type ServiceCheck struct {
 // Service represents a Consul service definition.
 type Service struct {
 	//FIXME Id is unused. Remove?
-	Id           string
-	Name         string
-	Tags         []string
-	CanaryTags   []string `mapstructure:"canary_tags"`
-	PortLabel    string   `mapstructure:"port"`
-	AddressMode  string   `mapstructure:"address_mode"`
-	Checks       []ServiceCheck
-	CheckRestart *CheckRestart `mapstructure:"check_restart"`
-	Connect      *ConsulConnect
-	Meta         map[string]string
+	Id                string
+	Name              string
+	Tags              []string
+	CanaryTags        []string `mapstructure:"canary_tags"`
+	EnableTagOverride bool     `mapstructure:"enable_tag_override"`
+	PortLabel         string   `mapstructure:"port"`
+	AddressMode       string   `mapstructure:"address_mode"`
+	Checks            []ServiceCheck
+	CheckRestart      *CheckRestart `mapstructure:"check_restart"`
+	Connect           *ConsulConnect
+	Meta              map[string]string
+	CanaryMeta        map[string]string
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
@@ -166,8 +169,9 @@ type SidecarTask struct {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
-	LocalServiceAddress string `mapstructure:"local_service_address"`
-	LocalServicePort    int    `mapstructure:"local_service_port"`
+	LocalServiceAddress string              `mapstructure:"local_service_address"`
+	LocalServicePort    int                 `mapstructure:"local_service_port"`
+	ExposeConfig        *ConsulExposeConfig `mapstructure:"expose"`
 	Upstreams           []*ConsulUpstream
 	Config              map[string]interface{}
 }
@@ -176,4 +180,15 @@ type ConsulProxy struct {
 type ConsulUpstream struct {
 	DestinationName string `mapstructure:"destination_name"`
 	LocalBindPort   int    `mapstructure:"local_bind_port"`
+}
+
+type ConsulExposeConfig struct {
+	Path []*ConsulExposePath `mapstructure:"path"`
+}
+
+type ConsulExposePath struct {
+	Path          string
+	Protocol      string
+	LocalPathPort int    `mapstructure:"local_path_port"`
+	ListenerPort  string `mapstructure:"listener_port"`
 }

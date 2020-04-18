@@ -97,6 +97,7 @@ func (h *groupServiceHook) Prerun() error {
 func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
 	oldWorkloadServices := h.getWorkloadServices()
 
 	// Store new updated values out of request
@@ -110,10 +111,17 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 		networks = req.Alloc.AllocatedResources.Shared.Networks
 	}
 
+	tg := req.Alloc.Job.LookupTaskGroup(h.group)
+	var shutdown time.Duration
+	if tg.ShutdownDelay != nil {
+		shutdown = *tg.ShutdownDelay
+	}
+
 	// Update group service hook fields
 	h.networks = networks
-	h.services = req.Alloc.Job.LookupTaskGroup(h.group).Services
+	h.services = tg.Services
 	h.canary = canary
+	h.delay = shutdown
 	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
 
 	// Create new task services struct with those new values

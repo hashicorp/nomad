@@ -31,6 +31,7 @@ func TestParse(t *testing.T) {
 				Datacenters: []string{"us2", "eu1"},
 				Region:      helper.StringToPtr("fooregion"),
 				Namespace:   helper.StringToPtr("foonamespace"),
+				ConsulToken: helper.StringToPtr("abc"),
 				VaultToken:  helper.StringToPtr("foo"),
 
 				Meta: map[string]string{
@@ -116,11 +117,32 @@ func TestParse(t *testing.T) {
 								Operand: "=",
 							},
 						},
-
 						Volumes: map[string]*api.VolumeRequest{
 							"foo": {
-								Name: "foo",
-								Type: "host",
+								Name:         "foo",
+								Type:         "host",
+								Source:       "/path",
+								ExtraKeysHCL: nil,
+							},
+							"bar": {
+								Name:   "bar",
+								Type:   "csi",
+								Source: "bar-vol",
+								MountOptions: &api.CSIMountOptions{
+									FSType: "ext4",
+								},
+								ExtraKeysHCL: nil,
+							},
+							"baz": {
+								Name:   "baz",
+								Type:   "csi",
+								Source: "bar-vol",
+								MountOptions: &api.CSIMountOptions{
+									MountFlags: []string{
+										"ro",
+									},
+								},
+								ExtraKeysHCL: nil,
 							},
 						},
 						Affinities: []*api.Affinity{
@@ -214,11 +236,20 @@ func TestParse(t *testing.T) {
 										Weight:  helper.Int8ToPtr(25),
 									},
 								},
+								RestartPolicy: &api.RestartPolicy{
+									Attempts: helper.IntToPtr(10),
+								},
 								Services: []*api.Service{
 									{
 										Tags:       []string{"foo", "bar"},
 										CanaryTags: []string{"canary", "bam"},
-										PortLabel:  "http",
+										Meta: map[string]string{
+											"abc": "123",
+										},
+										CanaryMeta: map[string]string{
+											"canary": "boom",
+										},
+										PortLabel: "http",
 										Checks: []api.ServiceCheck{
 											{
 												Name:        "check-name",
@@ -332,6 +363,10 @@ func TestParse(t *testing.T) {
 								Name:   "storagelocker",
 								Driver: "docker",
 								User:   "",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    "prestart",
+									Sidecar: true,
+								},
 								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",
 								},
@@ -550,6 +585,30 @@ func TestParse(t *testing.T) {
 										GetterOptions: nil,
 										RelativeDest:  helper.StringToPtr("var/foo"),
 									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"csi-plugin.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("binstore-storagelocker"),
+				Name: helper.StringToPtr("binstore-storagelocker"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("binsl"),
+						Tasks: []*api.Task{
+							{
+								Name:   "binstore",
+								Driver: "docker",
+								CSIPluginConfig: &api.TaskCSIPluginConfig{
+									ID:       "org.hashicorp.csi",
+									Type:     api.CSIPluginTypeMonolith,
+									MountDir: "/csi/test",
 								},
 							},
 						},
@@ -817,6 +876,47 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-enable-tag-override.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service_eto"),
+				Name: helper.StringToPtr("service_eto"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Tasks: []*api.Task{{
+						Name: "task",
+						Services: []*api.Service{{
+							Name:              "example",
+							EnableTagOverride: true,
+						}},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"service-connect-sidecar_task-name.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("sidecar_task_name"),
+				Name: helper.StringToPtr("sidecar_task_name"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native:         false,
+							SidecarService: &api.ConsulSidecarService{},
+							SidecarTask: &api.SidecarTask{
+								Name: "my-sidecar",
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"reschedule-job.hcl",
 			&api.Job{
 				ID:          helper.StringToPtr("foo"),
@@ -1034,6 +1134,105 @@ func TestParse(t *testing.T) {
 							},
 						},
 						Tasks: []*api.Task{{Name: "foo"}},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"tg-service-proxy-expose.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_proxy_expose"),
+				Name: helper.StringToPtr("group_service_proxy_expose"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{
+									ExposeConfig: &api.ConsulExposeConfig{
+										Path: []*api.ConsulExposePath{{
+											Path:          "/health",
+											Protocol:      "http",
+											LocalPathPort: 2222,
+											ListenerPort:  "healthcheck",
+										}, {
+											Path:          "/metrics",
+											Protocol:      "grpc",
+											LocalPathPort: 3000,
+											ListenerPort:  "metrics",
+										}},
+									},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-check-expose.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_proxy_expose"),
+				Name: helper.StringToPtr("group_service_proxy_expose"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{},
+							},
+						},
+						Checks: []api.ServiceCheck{{
+							Name:   "example-check1",
+							Expose: true,
+						}, {
+							Name:   "example-check2",
+							Expose: false,
+						}},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-enable-tag-override.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_eto"),
+				Name: helper.StringToPtr("group_service_eto"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name:              "example",
+						EnableTagOverride: true,
+					}},
+				}},
+			},
+			false,
+		},
+
+		{
+			"tg-scaling-policy.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("elastic"),
+				Name: helper.StringToPtr("elastic"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Scaling: &api.ScalingPolicy{
+							Min: helper.Int64ToPtr(5),
+							Max: 100,
+							Policy: map[string]interface{}{
+								"foo": "bar",
+								"b":   true,
+								"val": 5,
+								"f":   .1,
+							},
+							Enabled: helper.BoolToPtr(false),
+						},
 					},
 				},
 			},

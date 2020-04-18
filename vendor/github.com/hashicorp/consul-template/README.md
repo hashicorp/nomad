@@ -30,6 +30,9 @@ this functionality might prove useful.
   - [Configuration File Format](#configuration-file-format)
   - [Templating Language](#templating-language)
     - [API Functions](#api-functions)
+      - [caLeaf](#caleaf)
+      - [caRoot](#caroot)
+      - [connect](#connect)
       - [datacenters](#datacenters)
       - [file](#file)
       - [key](#key)
@@ -511,7 +514,7 @@ exec {
   # This defines the signal sent to the child process when Consul Template is
   # gracefully shutting down. The application should begin a graceful cleanup.
   # If the application does not terminate before the `kill_timeout`, it will
-  # be terminated (effectively "kill -9"). The default value is "SIGTERM".
+  # be terminated (effectively "kill -9"). The default value is "SIGINT".
   kill_signal = "SIGINT"
 
   # This defines the amount of time to wait for the child process to gracefully
@@ -638,6 +641,87 @@ provides the following functions:
 
 API functions interact with remote API calls, communicating with external
 services like [Consul][consul] and [Vault][vault].
+
+##### `caLeaf`
+
+Query [Consul][consul] for the leaf certificate representing a single service.
+
+```liquid
+{{ caLeaf "<NAME>" }}
+```
+
+For example:
+```liquid
+{{ with caLeaf "proxy" }}{{ .CertPEM }}{{ end }}
+```
+
+renders
+```text
+-----BEGIN CERTIFICATE-----
+MIICizCCAjGgAwIBAgIBCDAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtDb25zdWwg
+...
+lXcQzfKlIYeFWvcAv4cA4W258gTtqaFRDRJ2i720eQ==
+-----END CERTIFICATE-----
+```
+
+The two most useful fields are `.CertPEM` and `.PrivateKeyPEM`. For a complete
+list of available fields, see consul's documentation on
+[LeafCert](https://godoc.org/github.com/hashicorp/consul/api#LeafCert).
+
+##### `caRoot`
+
+Query [Consul][consul] for all [connect][connect] trusted certificate authority
+(CA) root certificates.
+
+```liquid
+{{ caRoots }}
+```
+
+For example:
+```liquid
+{{ range caRoots }}{{ .RootCertPEM }}{{ end }}
+```
+
+renders
+```text
+-----BEGIN CERTIFICATE-----
+MIICWDCCAf+gAwIBAgIBBzAKBggqhkjOPQQDAjAWMRQwEgYDVQQDEwtDb25zdWwg
+...
+bcA+Su3r8qSRppTlc6D0UOYOWc1ykQKQOK7mIg==
+-----END CERTIFICATE-----
+
+```
+
+The most useful field is `.RootCertPEM`. For a complete list of available
+fields, see consul's documentation on
+[CARootList](https://godoc.org/github.com/hashicorp/consul/api#CARootList).
+
+
+##### `connect`
+
+Query [Consul][consul] for [connect][connect]-capable services based on their
+health.
+
+```liquid
+{{ connect "<TAG>.<NAME>@<DATACENTER>~<NEAR>|<FILTER>" }}
+```
+
+Syntax is exactly the same as for the [service](#service) function below.
+
+
+```liquid
+{{ range connect "web" }}
+server {{ .Name }} {{ .Address }}:{{ .Port }}{{ end }}
+```
+
+renders the IP addresses of all _healthy_ nodes with a logical
+[connect][connect]-capable service named "web":
+
+```text
+server web01 10.5.2.45:21000
+server web02 10.2.6.61:21000
+```
+
 
 ##### `datacenters`
 
@@ -2090,6 +2174,26 @@ func main() {
 
 ## Caveats
 
+### Docker Image Use
+
+The Alpine Docker image is configured to support an external volume to render
+shared templates to. If mounted you will need to make sure that the
+consul-template user in the docker image has write permissions to the
+directory. Also if you build your own image using these you need to be sure you
+have the permissions correct.
+
+**The consul-template user in docker has a UID of 100 and a GID of 1000.**
+
+This effects the in image directories /consul-template/config, used to add
+configuration when using this as a parent image, and /consul-template/data,
+exported as a VOLUME as a location to render shared results.
+
+Previously the image initially ran as root in order to ensure the permissions
+allowed it. But this ran against docker best practices and security policies.
+
+If you build your own image based on ours you can override these values with
+`--build-arg` parameters.
+
 ### Dots in Service Names
 
 Using dots `.` in service names will conflict with the use of dots for [TAG
@@ -2422,7 +2526,7 @@ A: Configuration management tools are designed to be used in unison with Consul 
 
 ## Contributing
 
-To build and install Envconsul locally, you will need to [install Go][go].
+To build and install Consul-Template locally, you will need to [install Go][go].
 
 Clone the repository:
 
@@ -2459,6 +2563,7 @@ go test ./... -run SomeTestFunction_name
 ```
 
 [consul]: https://www.consul.io "Consul by HashiCorp"
+[connect]: https://www.consul.io/docs/connect/ "Connect"
 [examples]: (https://github.com/hashicorp/consul-template/tree/master/examples) "Consul Template Examples"
 [hcl]: https://github.com/hashicorp/hcl "HashiCorp Configuration Language (hcl)"
 [releases]: https://releases.hashicorp.com/consul-template "Consul Template Releases"

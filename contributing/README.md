@@ -39,3 +39,7 @@ developers and reviewers confidence that the proper changes have been made:
 * [New `jobspec` entry](checklist-jobspec.md)
 * [New CLI command](checklist-command.md)
 * [New RPC endpoint](checklist-rpc-endpoint.md)
+
+## Tooling
+
+* [Go tool versions](golang.md)

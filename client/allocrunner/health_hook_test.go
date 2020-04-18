@@ -219,9 +219,9 @@ func TestHealthHook_Postrun(t *testing.T) {
 	require.NoError(h.Postrun())
 }
 
-// TestHealthHook_SetHealth asserts SetHealth is called when health status is
+// TestHealthHook_SetHealth_healthy asserts SetHealth is called when health status is
 // set. Uses task state and health checks.
-func TestHealthHook_SetHealth(t *testing.T) {
+func TestHealthHook_SetHealth_healthy(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
@@ -294,6 +294,90 @@ func TestHealthHook_SetHealth(t *testing.T) {
 		// Healthy allocs shouldn't emit task events
 		ev := health.taskEvents[task.Name]
 		require.Nilf(ev, "%#v", health.taskEvents)
+	}
+
+	// Postrun
+	require.NoError(h.Postrun())
+}
+
+// TestHealthHook_SetHealth_unhealthy asserts SetHealth notices unhealthy allocs
+func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	newCheck := task.Services[0].Checks[0].Copy()
+	newCheck.Name = "failing-check"
+	task.Services[0].Checks = append(task.Services[0].Checks, newCheck)
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		task.Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+	}
+
+	// Make Consul response
+	checkHealthy := &consulapi.AgentCheck{
+		Name:   task.Services[0].Checks[0].Name,
+		Status: consulapi.HealthPassing,
+	}
+	checksUnhealthy := &consulapi.AgentCheck{
+		Name:   task.Services[0].Checks[1].Name,
+		Status: consulapi.HealthCritical,
+	}
+	taskRegs := map[string]*agentconsul.ServiceRegistrations{
+		task.Name: {
+			Services: map[string]*agentconsul.ServiceRegistration{
+				task.Services[0].Name: {
+					Service: &consulapi.AgentService{
+						ID:      "foo",
+						Service: task.Services[0].Name,
+					},
+					Checks: []*consulapi.AgentCheck{checkHealthy, checksUnhealthy},
+				},
+			},
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	// Don't reply on the first call
+	called := false
+	consul := consul.NewMockConsulServiceClient(t, logger)
+	consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+		if !called {
+			called = true
+			return nil, nil
+		}
+
+		reg := &agentconsul.AllocRegistration{
+			Tasks: taskRegs,
+		}
+
+		return reg, nil
+	}
+
+	hs := newMockHealthSetter()
+
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul).(*allocHealthWatcherHook)
+
+	// Prerun
+	require.NoError(h.Prerun())
+
+	// Wait to ensure we don't get a healthy status
+	select {
+	case <-time.After(2 * time.Second):
+		// great no healthy status
+	case health := <-hs.healthCh:
+		require.Fail("expected no health event", "got %v", health)
 	}
 
 	// Postrun

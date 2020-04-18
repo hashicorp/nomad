@@ -1,9 +1,14 @@
 import { attribute, collection, clickable, isPresent, text } from 'ember-cli-page-object';
+import { singularize } from 'ember-inflector';
 
 export default function(selector = '[data-test-allocation]', propKey = 'allocations') {
+  const lookupKey = `${singularize(propKey)}For`;
+  // Remove the bracket notation
+  const attr = selector.substring(1, selector.length - 1);
+
   return {
     [propKey]: collection(selector, {
-      id: attribute('data-test-allocation'),
+      id: attribute(attr),
       shortId: text('[data-test-short-id]'),
       createTime: text('[data-test-create-time]'),
       modifyTime: text('[data-test-modify-time]'),
@@ -12,6 +17,7 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       taskGroup: text('[data-test-task-group]'),
       client: text('[data-test-client]'),
       jobVersion: text('[data-test-job-version]'),
+      volume: text('[data-test-volume]'),
       cpu: text('[data-test-cpu]'),
       cpuTooltip: attribute('aria-label', '[data-test-cpu] .tooltip'),
       mem: text('[data-test-mem]'),
@@ -24,8 +30,8 @@ export default function(selector = '[data-test-allocation]', propKey = 'allocati
       visitClient: clickable('[data-test-client] a'),
     }),
 
-    allocationFor(id) {
-      return this.allocations.toArray().find(allocation => allocation.id === id);
+    [lookupKey]: function(id) {
+      return this[propKey].toArray().find(allocation => allocation.id === id);
     },
   };
 }

@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -124,52 +123,52 @@ func (a *TestAgent) Start() *TestAgent {
 	i := 10
 
 RETRY:
-	for ; i >= 0; i-- {
-		a.pickRandomPorts(a.Config)
-		if a.Config.NodeName == "" {
-			a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
-		}
+	i--
+	a.pickRandomPorts(a.Config)
+	if a.Config.NodeName == "" {
+		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
+	}
 
-		// write the keyring
-		if a.Key != "" {
-			writeKey := func(key, filename string) {
-				path := filepath.Join(a.Config.DataDir, filename)
-				if err := initKeyring(path, key); err != nil {
-					a.T.Fatalf("Error creating keyring %s: %s", path, err)
-				}
+	// write the keyring
+	if a.Key != "" {
+		writeKey := func(key, filename string) {
+			path := filepath.Join(a.Config.DataDir, filename)
+			if err := initKeyring(path, key); err != nil {
+				a.T.Fatalf("Error creating keyring %s: %s", path, err)
 			}
-			writeKey(a.Key, serfKeyring)
 		}
+		writeKey(a.Key, serfKeyring)
+	}
 
-		// we need the err var in the next exit condition
-		if agent, err := a.start(); err == nil {
-			a.Agent = agent
-			break
-		} else if i == 0 {
-			a.T.Logf("%s: Error starting agent: %v", a.Name, err)
-			runtime.Goexit()
-		} else {
-			if agent != nil {
-				agent.Shutdown()
-			}
-			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			a.T.Logf("%s: retrying in %v", a.Name, wait)
-			time.Sleep(wait)
+	// we need the err var in the next exit condition
+	agent, err := a.start()
+	if err == nil {
+		a.Agent = agent
+	} else if i == 0 {
+		a.T.Fatalf("%s: Error starting agent: %v", a.Name, err)
+	} else {
+
+		if agent != nil {
+			agent.Shutdown()
 		}
+		wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
+		a.T.Logf("%s: retrying in %v", a.Name, wait)
+		time.Sleep(wait)
 
 		// Clean out the data dir if we are responsible for it before we
 		// try again, since the old ports may have gotten written to
 		// the data dir, such as in the Raft configuration.
 		if a.DataDir != "" {
 			if err := os.RemoveAll(a.DataDir); err != nil {
-				a.T.Logf("%s: Error resetting data dir: %v", a.Name, err)
-				runtime.Goexit()
+				a.T.Fatalf("%s: Error resetting data dir: %v", a.Name, err)
 			}
 		}
+
+		goto RETRY
 	}
 
 	failed := false
-	if a.Config.NomadConfig.Bootstrap && a.Config.Server.Enabled {
+	if a.Config.NomadConfig.BootstrapExpect == 1 && a.Config.Server.Enabled {
 		testutil.WaitForResult(func() (bool, error) {
 			args := &structs.GenericRequest{}
 			var leader string
@@ -192,6 +191,9 @@ RETRY:
 	}
 	if failed {
 		a.Agent.Shutdown()
+		if i == 0 {
+			a.T.Fatalf("ran out of retries trying to start test agent")
+		}
 		goto RETRY
 	}
 
@@ -273,7 +275,11 @@ func (a *TestAgent) HTTPAddr() string {
 	if a.Server == nil {
 		return ""
 	}
-	return "http://" + a.Server.Addr
+	proto := "http://"
+	if a.Config.TLSConfig != nil && a.Config.TLSConfig.EnableHTTP {
+		proto = "https://"
+	}
+	return proto + a.Server.Addr
 }
 
 func (a *TestAgent) Client() *api.Client {
@@ -345,17 +351,12 @@ func (a *TestAgent) config() *Config {
 	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
 	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
 	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
-	config.RaftConfig.StartAsLeader = true
 	config.RaftTimeout = 500 * time.Millisecond
 
 	// Tighten the autopilot timing
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
-
-	// Bootstrap ourselves
-	config.Bootstrap = true
-	config.BootstrapExpect = 1
 
 	// Tighten the fingerprinter timeouts
 	if conf.Client.Options == nil {

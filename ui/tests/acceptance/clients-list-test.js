@@ -2,23 +2,27 @@ import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
 module('Acceptance | clients list', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
+  hooks.beforeEach(function() {
+    window.localStorage.clear();
+  });
+
   test('/clients should list one page of clients', async function(assert) {
     // Make sure to make more nodes than 1 page to assert that pagination is working
-    const nodesCount = 10;
-    const pageSize = 8;
+    const nodesCount = ClientsList.pageSize + 1;
 
     server.createList('node', nodesCount);
     server.createList('agent', 1);
 
     await ClientsList.visit();
 
-    assert.equal(ClientsList.nodes.length, pageSize);
+    assert.equal(ClientsList.nodes.length, ClientsList.pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
 
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
@@ -174,6 +178,17 @@ module('Acceptance | clients list', function(hooks) {
     assert.equal(currentURL(), '/settings/tokens');
   });
 
+  pageSizeSelect({
+    resourceName: 'client',
+    pageObject: ClientsList,
+    pageObjectList: ClientsList.nodes,
+    async setup() {
+      server.createList('node', ClientsList.pageSize);
+      server.createList('agent', 1);
+      await ClientsList.visit();
+    },
+  });
+
   testFacet('Class', {
     facet: ClientsList.facets.class,
     paramName: 'class',
@@ -230,6 +245,24 @@ module('Acceptance | clients list', function(hooks) {
       await ClientsList.visit();
     },
     filter: (node, selection) => selection.includes(node.datacenter),
+  });
+
+  testFacet('Volumes', {
+    facet: ClientsList.facets.volume,
+    paramName: 'volume',
+    expectedOptions(nodes) {
+      const flatten = (acc, val) => acc.concat(Object.keys(val));
+      return Array.from(new Set(nodes.mapBy('hostVolumes').reduce(flatten, [])));
+    },
+    async beforeEach() {
+      server.create('agent');
+      server.createList('node', 2, { hostVolumes: { One: { Name: 'One' } } });
+      server.createList('node', 2, { hostVolumes: { One: { Name: 'One' }, Two: { Name: 'Two' } } });
+      server.createList('node', 2, { hostVolumes: { Two: { Name: 'Two' } } });
+      await ClientsList.visit();
+    },
+    filter: (node, selection) =>
+      Object.keys(node.hostVolumes).find(volume => selection.includes(volume)),
   });
 
   test('when the facet selections result in no matches, the empty state states why', async function(assert) {

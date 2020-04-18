@@ -156,6 +156,39 @@ export let IconItems = () => {
   };
 };
 
+export let TaggedItems = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Hypothetical gutter navigation with icon items</h5>
+      <div class="columns">
+        <div class="column is-4">
+          <div class="gutter">
+            <aside class="menu">
+              <p class="menu-label">Places</p>
+              <ul class="menu-list">
+                <li><a href="javascript:;">Place One <span class="tag is-small">Beta</span></a></li>
+                <li><a href="javascript:;" class="is-active">{{x-icon "history"}} Place Two</a></li>
+              </ul>
+
+              <p class="menu-label">Features</p>
+              <ul class="menu-list">
+                <li><a href="javascript:;">{{x-icon "warning"}} Feature One</a></li>
+                <li><a href="javascript:;">{{x-icon "media-pause"}} Feature Two <span class="tag is-small is-warning">3</span></a></li>
+              </ul>
+            </aside>
+          </div>
+        </div>
+        <div class="column">
+          <div class="mock-content">
+            <div class="mock-vague"></div>
+          </div>
+        </div>
+      </div>
+      <p class="annotation">Tags can be used to denote beta features or low-priority notifications.</p>
+    `,
+  };
+};
+
 export let Global = () => {
   return {
     template: hbs`

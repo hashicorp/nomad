@@ -611,17 +611,6 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	}
 	conf.Templates = &flat
 
-	// Go through the templates and determine the minimum Vault grace
-	vaultGrace := time.Duration(-1)
-	for _, tmpl := range templateMapping {
-		// Initial condition
-		if vaultGrace < 0 {
-			vaultGrace = tmpl.VaultGrace
-		} else if tmpl.VaultGrace < vaultGrace {
-			vaultGrace = tmpl.VaultGrace
-		}
-	}
-
 	// Force faster retries
 	if config.retryRate != 0 {
 		rate := config.retryRate
@@ -666,7 +655,6 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	if cc.VaultConfig != nil && cc.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &cc.VaultConfig.Addr
 		conf.Vault.Token = &config.VaultToken
-		conf.Vault.Grace = helper.TimeToPtr(vaultGrace)
 		if config.ClientConfig.VaultConfig.Namespace != "" {
 			conf.Vault.Namespace = &config.ClientConfig.VaultConfig.Namespace
 		}

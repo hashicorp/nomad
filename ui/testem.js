@@ -1,5 +1,10 @@
 /* eslint-env node */
-module.exports = {
+const MultiReporter = require('testem-multi-reporter');
+const TapReporter = require('testem/lib/reporters/tap_reporter');
+const XunitReporter = require('testem/lib/reporters/xunit_reporter');
+const fs = require('fs');
+
+const config = {
   test_page: 'tests/index.html?hidepassed',
   disable_watching: true,
   launch_in_ci: ['Chrome'],
@@ -23,3 +28,19 @@ module.exports = {
     }
   }
 };
+
+if (process.env.CI) {
+  const reporters = [{
+    ReporterClass: TapReporter,
+    args: [false, null, { get: () => false }]
+  }, {
+    ReporterClass: XunitReporter,
+    args: [false, fs.createWriteStream('/tmp/test-reports/ui.xml'), { get: () => false }]
+  }];
+
+  const multiReporter = new MultiReporter({ reporters });
+
+  config.reporter = multiReporter;
+}
+
+module.exports = config;

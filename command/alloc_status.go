@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -184,16 +185,20 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	// Format the allocation data
-	output, err := formatAllocBasicInfo(alloc, client, length, verbose)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
-	c.Ui.Output(output)
+	if short {
+		c.Ui.Output(formatAllocShortInfo(alloc, client))
+	} else {
+		output, err := formatAllocBasicInfo(alloc, client, length, verbose)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+		c.Ui.Output(output)
 
-	if len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
-		c.Ui.Output("")
-		c.Ui.Output(formatAllocNetworkInfo(alloc))
+		if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 && alloc.AllocatedResources.Shared.Networks[0].HasPorts() {
+			c.Ui.Output("")
+			c.Ui.Output(formatAllocNetworkInfo(alloc))
+		}
 	}
 
 	if short {
@@ -210,7 +215,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 				c.Ui.Output("Omitting resource statistics since the node is down.")
 			}
 		}
-		c.outputTaskDetails(alloc, stats, displayStats)
+		c.outputTaskDetails(alloc, stats, displayStats, verbose)
 	}
 
 	// Format the detailed status
@@ -220,6 +225,20 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func formatAllocShortInfo(alloc *api.Allocation, client *api.Client) string {
+	formattedCreateTime := prettyTimeDiff(time.Unix(0, alloc.CreateTime), time.Now())
+	formattedModifyTime := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), time.Now())
+
+	basic := []string{
+		fmt.Sprintf("ID|%s", alloc.ID),
+		fmt.Sprintf("Name|%s", alloc.Name),
+		fmt.Sprintf("Created|%s", formattedCreateTime),
+		fmt.Sprintf("Modified|%s", formattedModifyTime),
+	}
+
+	return formatKV(basic)
 }
 
 func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength int, verbose bool) (string, error) {
@@ -344,12 +363,24 @@ func futureEvalTimePretty(evalID string, client *api.Client) string {
 
 // outputTaskDetails prints task details for each task in the allocation,
 // optionally printing verbose statistics if displayStats is set
-func (c *AllocStatusCommand) outputTaskDetails(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool) {
-	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
+func (c *AllocStatusCommand) outputTaskDetails(alloc *api.Allocation, stats *api.AllocResourceUsage, displayStats bool, verbose bool) {
+	taskLifecycles := map[string]*api.TaskLifecycle{}
+	for _, t := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+		taskLifecycles[t.Name] = t.Lifecycle
+	}
+
+	for _, task := range c.sortedTaskStateIterator(alloc.TaskStates, taskLifecycles) {
 		state := alloc.TaskStates[task]
-		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q is %q[reset]", task, state.State)))
+
+		lcIndicator := ""
+		if lc := taskLifecycles[task]; !lc.Empty() {
+			lcIndicator = " (" + lifecycleDisplayName(lc) + ")"
+		}
+
+		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Task %q%v is %q[reset]", task, lcIndicator, state.State)))
 		c.outputTaskResources(alloc, task, stats, displayStats)
 		c.Ui.Output("")
+		c.outputTaskVolumes(alloc, task, verbose)
 		c.outputTaskStatus(state)
 	}
 }
@@ -649,8 +680,14 @@ func (c *AllocStatusCommand) outputVerboseResourceUsage(task string, resourceUsa
 // shortTaskStatus prints out the current state of each task.
 func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 	tasks := make([]string, 0, len(alloc.TaskStates)+1)
-	tasks = append(tasks, "Name|State|Last Event|Time")
-	for task := range c.sortedTaskStateIterator(alloc.TaskStates) {
+	tasks = append(tasks, "Name|State|Last Event|Time|Lifecycle")
+
+	taskLifecycles := map[string]*api.TaskLifecycle{}
+	for _, t := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+		taskLifecycles[t.Name] = t.Lifecycle
+	}
+
+	for _, task := range c.sortedTaskStateIterator(alloc.TaskStates, taskLifecycles) {
 		state := alloc.TaskStates[task]
 		lastState := state.State
 		var lastEvent, lastTime string
@@ -662,8 +699,8 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 			lastTime = formatUnixNanoTime(last.Time)
 		}
 
-		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s",
-			task, lastState, lastEvent, lastTime))
+		tasks = append(tasks, fmt.Sprintf("%s|%s|%s|%s|%s",
+			task, lastState, lastEvent, lastTime, lifecycleDisplayName(taskLifecycles[task])))
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Tasks[reset]"))
@@ -672,8 +709,7 @@ func (c *AllocStatusCommand) shortTaskStatus(alloc *api.Allocation) {
 
 // sortedTaskStateIterator is a helper that takes the task state map and returns a
 // channel that returns the keys in a sorted order.
-func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState) <-chan string {
-	output := make(chan string, len(m))
+func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState, lifecycles map[string]*api.TaskLifecycle) []string {
 	keys := make([]string, len(m))
 	i := 0
 	for k := range m {
@@ -682,10 +718,111 @@ func (c *AllocStatusCommand) sortedTaskStateIterator(m map[string]*api.TaskState
 	}
 	sort.Strings(keys)
 
-	for _, key := range keys {
-		output <- key
+	// display prestart then prestart sidecar then main
+	sort.SliceStable(keys, func(i, j int) bool {
+		lci := lifecycles[keys[i]]
+		lcj := lifecycles[keys[j]]
+
+		switch {
+		case lci == nil:
+			return false
+		case lcj == nil:
+			return true
+		case !lci.Sidecar && lcj.Sidecar:
+			return true
+		default:
+			return false
+		}
+	})
+
+	return keys
+}
+
+func lifecycleDisplayName(l *api.TaskLifecycle) string {
+	if l.Empty() {
+		return "main"
 	}
 
-	close(output)
-	return output
+	sidecar := ""
+	if l.Sidecar {
+		sidecar = " sidecar"
+	}
+	return l.Hook + sidecar
+}
+
+func (c *AllocStatusCommand) outputTaskVolumes(alloc *api.Allocation, taskName string, verbose bool) {
+	var task *api.Task
+	var tg *api.TaskGroup
+FOUND:
+	for _, tg = range alloc.Job.TaskGroups {
+		for _, task = range tg.Tasks {
+			if task.Name == taskName {
+				break FOUND
+			}
+		}
+	}
+	if task == nil || tg == nil {
+		c.Ui.Error(fmt.Sprintf("Could not find task data for %q", taskName))
+		return
+	}
+	if len(task.VolumeMounts) == 0 {
+		return
+	}
+	client, err := c.Meta.Client()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return
+	}
+
+	var hostVolumesOutput []string
+	var csiVolumesOutput []string
+	hostVolumesOutput = append(hostVolumesOutput, "ID|Read Only")
+	if verbose {
+		csiVolumesOutput = append(csiVolumesOutput,
+			"ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
+	} else {
+		csiVolumesOutput = append(csiVolumesOutput, "ID|Read Only")
+	}
+
+	for _, volMount := range task.VolumeMounts {
+		volReq := tg.Volumes[*volMount.Volume]
+		switch volReq.Type {
+		case structs.VolumeTypeHost:
+			hostVolumesOutput = append(hostVolumesOutput,
+				fmt.Sprintf("%s|%v", volReq.Name, *volMount.ReadOnly))
+		case structs.VolumeTypeCSI:
+			if verbose {
+				// there's an extra API call per volume here so we toggle it
+				// off with the -verbose flag
+				vol, _, err := client.CSIVolumes().Info(volReq.Name, nil)
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Error retrieving volume info for %q: %s",
+						volReq.Name, err))
+					continue
+				}
+				csiVolumesOutput = append(csiVolumesOutput,
+					fmt.Sprintf("%s|%s|%s|%v|%v|%s",
+						volReq.Name,
+						vol.PluginID,
+						vol.Provider,
+						vol.Schedulable,
+						volReq.ReadOnly,
+						csiVolMountOption(vol.MountOptions, volReq.MountOptions),
+					))
+			} else {
+				csiVolumesOutput = append(csiVolumesOutput,
+					fmt.Sprintf("%s|%v", volReq.Name, volReq.ReadOnly))
+			}
+		}
+	}
+	if len(hostVolumesOutput) > 1 {
+		c.Ui.Output("Host Volumes:")
+		c.Ui.Output(formatList(hostVolumesOutput))
+		c.Ui.Output("") // line padding to next stanza
+	}
+	if len(csiVolumesOutput) > 1 {
+		c.Ui.Output("CSI Volumes:")
+		c.Ui.Output(formatList(csiVolumesOutput))
+		c.Ui.Output("") // line padding to next stanza
+	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
+
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,6 +123,54 @@ func TestJob_Validate(t *testing.T) {
 	}
 }
 
+func TestJob_ValidateScaling(t *testing.T) {
+	require := require.New(t)
+
+	p := &ScalingPolicy{
+		Policy:  nil, // allowed to be nil
+		Min:     5,
+		Max:     5,
+		Enabled: true,
+	}
+	job := testJob()
+	job.TaskGroups[0].Scaling = p
+	job.TaskGroups[0].Count = 5
+
+	require.NoError(job.Validate())
+
+	// min <= max
+	p.Max = 0
+	p.Min = 10
+	err := job.Validate()
+	require.Error(err)
+	mErr := err.(*multierror.Error)
+	require.Len(mErr.Errors, 1)
+	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+
+	// count <= max
+	p.Max = 0
+	p.Min = 5
+	job.TaskGroups[0].Count = 5
+	err = job.Validate()
+	require.Error(err)
+	mErr = err.(*multierror.Error)
+	require.Len(mErr.Errors, 1)
+	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+
+	// min <= count
+	job.TaskGroups[0].Count = 0
+	p.Min = 5
+	p.Max = 5
+	err = job.Validate()
+	require.Error(err)
+	mErr = err.(*multierror.Error)
+	require.Len(mErr.Errors, 1)
+	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
+}
+
 func TestJob_Warnings(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -158,6 +207,26 @@ func TestJob_Warnings(t *testing.T) {
 					{
 						Update: &UpdateStrategy{
 							AutoPromote: false,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Template.VaultGrace Deprecated",
+			Expected: []string{"VaultGrace has been deprecated as of Nomad 0.11 and ignored since Vault 0.5. Please remove VaultGrace / vault_grace from template stanza."},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Tasks: []*Task{
+							{
+								Templates: []*Template{
+									{
+										VaultGrace: 1,
+									},
+								},
+							},
 						},
 					},
 				},
@@ -535,6 +604,47 @@ func TestJob_VaultPolicies(t *testing.T) {
 	}
 }
 
+func TestJob_ConnectTasks(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	// todo(shoenig): this will need some updates when we support connect native
+	//  tasks, which will have a different Kind format, probably.
+
+	j0 := &Job{
+		TaskGroups: []*TaskGroup{{
+			Name: "tg1",
+			Tasks: []*Task{{
+				Name: "connect-proxy-task1",
+				Kind: "connect-proxy:task1",
+			}, {
+				Name: "task2",
+				Kind: "task2",
+			}, {
+				Name: "connect-proxy-task3",
+				Kind: "connect-proxy:task3",
+			}},
+		}, {
+			Name: "tg2",
+			Tasks: []*Task{{
+				Name: "task1",
+				Kind: "task1",
+			}, {
+				Name: "connect-proxy-task2",
+				Kind: "connect-proxy:task2",
+			}},
+		}},
+	}
+
+	connectTasks := j0.ConnectTasks()
+
+	exp := map[string][]string{
+		"tg1": {"connect-proxy-task1", "connect-proxy-task3"},
+		"tg2": {"connect-proxy-task2"},
+	}
+	r.Equal(exp, connectTasks)
+}
+
 func TestJob_RequiredSignals(t *testing.T) {
 	j0 := &Job{}
 	e0 := make(map[string]map[string][]string, 0)
@@ -690,6 +800,65 @@ func TestJob_PartEqual(t *testing.T) {
 		&Affinity{"left2", "right2", "=", 0, ""},
 		&Affinity{"left1", "right1", "=", 0, ""},
 	}))
+}
+
+func TestTask_UsesConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("normal task", func(t *testing.T) {
+		task := testJob().TaskGroups[0].Tasks[0]
+		usesConnect := task.UsesConnect()
+		require.False(t, usesConnect)
+	})
+
+	t.Run("sidecar proxy", func(t *testing.T) {
+		task := &Task{
+			Name: "connect-proxy-task1",
+			Kind: "connect-proxy:task1",
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
+
+	// todo(shoenig): add native case
+}
+
+func TestTaskGroup_UsesConnect(t *testing.T) {
+	t.Parallel()
+
+	try := func(t *testing.T, tg *TaskGroup, exp bool) {
+		result := tg.UsesConnect()
+		require.Equal(t, exp, result)
+	}
+
+	t.Run("tg uses native", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{
+				{Connect: nil},
+				{Connect: &ConsulConnect{Native: true}},
+			},
+		}, true)
+	})
+
+	t.Run("tg uses sidecar", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{{
+				Connect: &ConsulConnect{
+					SidecarService: &ConsulSidecarService{
+						Port: "9090",
+					},
+				},
+			}},
+		}, true)
+	})
+
+	t.Run("tg does not use connect", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{
+				{Connect: nil},
+			},
+		}, false)
+	})
 }
 
 func TestTaskGroup_Validate(t *testing.T) {
@@ -1318,6 +1487,26 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	if !strings.Contains(err.Error(), "relative http path") {
 		t.Fatalf("err: %v", err)
 	}
+
+	t.Run("check expose", func(t *testing.T) {
+		t.Run("type http", func(t *testing.T) {
+			require.NoError(t, (&ServiceCheck{
+				Type:     ServiceCheckHTTP,
+				Interval: 1 * time.Second,
+				Timeout:  1 * time.Second,
+				Path:     "/health",
+				Expose:   true,
+			}).validate())
+		})
+		t.Run("type tcp", func(t *testing.T) {
+			require.EqualError(t, (&ServiceCheck{
+				Type:     ServiceCheckTCP,
+				Interval: 1 * time.Second,
+				Timeout:  1 * time.Second,
+				Expose:   true,
+			}).validate(), "expose may only be set on HTTP or gRPC checks")
+		})
+	})
 }
 
 // TestTask_Validate_Service_Check_AddressMode asserts that checks do not
@@ -1658,6 +1847,55 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 	mErr := err.(*multierror.Error)
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestTask_Validate_CSIPluginConfig(t *testing.T) {
+	table := []struct {
+		name        string
+		pc          *TaskCSIPluginConfig
+		expectedErr string
+	}{
+		{
+			name: "no errors when not specified",
+			pc:   nil,
+		},
+		{
+			name:        "requires non-empty plugin id",
+			pc:          &TaskCSIPluginConfig{},
+			expectedErr: "CSIPluginConfig must have a non-empty PluginID",
+		},
+		{
+			name: "requires valid plugin type",
+			pc: &TaskCSIPluginConfig{
+				ID:   "com.hashicorp.csi",
+				Type: "nonsense",
+			},
+			expectedErr: "CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"nonsense\"",
+		},
+	}
+
+	for _, tt := range table {
+		t.Run(tt.name, func(t *testing.T) {
+			task := &Task{
+				CSIPluginConfig: tt.pc,
+			}
+			ephemeralDisk := &EphemeralDisk{
+				SizeMB: 1,
+			}
+
+			err := task.Validate(ephemeralDisk, JobTypeService, nil)
+			mErr := err.(*multierror.Error)
+			if tt.expectedErr != "" {
+				if !strings.Contains(mErr.Errors[4].Error(), tt.expectedErr) {
+					t.Fatalf("err: %s", err)
+				}
+			} else {
+				if len(mErr.Errors) != 4 {
+					t.Fatalf("unexpected err: %s", mErr.Errors[4])
+				}
+			}
+		})
 	}
 }
 
@@ -2521,6 +2759,9 @@ func TestService_Equals(t *testing.T) {
 
 	o.Connect = &ConsulConnect{Native: true}
 	assertDiff()
+
+	o.EnableTagOverride = true
+	assertDiff()
 }
 
 func TestJob_ExpandServiceNames(t *testing.T) {
@@ -2742,6 +2983,51 @@ func TestPeriodicConfig_DST(t *testing.T) {
 
 	require.Equal(e1, n1.UTC())
 	require.Equal(e2, n2.UTC())
+}
+
+func TestTaskLifecycleConfig_Validate(t *testing.T) {
+	testCases := []struct {
+		name string
+		tlc  *TaskLifecycleConfig
+		err  error
+	}{
+		{
+			name: "prestart completed",
+			tlc: &TaskLifecycleConfig{
+				Hook:    "prestart",
+				Sidecar: false,
+			},
+			err: nil,
+		},
+		{
+			name: "prestart running",
+			tlc: &TaskLifecycleConfig{
+				Hook:    "prestart",
+				Sidecar: true,
+			},
+			err: nil,
+		},
+		{
+			name: "no hook",
+			tlc: &TaskLifecycleConfig{
+				Sidecar: true,
+			},
+			err: fmt.Errorf("no lifecycle hook provided"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.tlc.Validate()
+			if tc.err != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.Nil(t, err)
+			}
+		})
+
+	}
 }
 
 func TestRestartPolicy_Validate(t *testing.T) {
@@ -4087,6 +4373,67 @@ func TestAllocation_NextDelay(t *testing.T) {
 		})
 	}
 
+}
+
+func TestAllocation_Canonicalize_Old(t *testing.T) {
+	alloc := MockAlloc()
+	alloc.AllocatedResources = nil
+	alloc.TaskResources = map[string]*Resources{
+		"web": {
+			CPU:      500,
+			MemoryMB: 256,
+			Networks: []*NetworkResource{
+				{
+					Device:        "eth0",
+					IP:            "192.168.0.100",
+					ReservedPorts: []Port{{Label: "admin", Value: 5000}},
+					MBits:         50,
+					DynamicPorts:  []Port{{Label: "http", Value: 9876}},
+				},
+			},
+		},
+	}
+	alloc.SharedResources = &Resources{
+		DiskMB: 150,
+	}
+	alloc.Canonicalize()
+
+	expected := &AllocatedResources{
+		Tasks: map[string]*AllocatedTaskResources{
+			"web": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 500,
+				},
+				Memory: AllocatedMemoryResources{
+					MemoryMB: 256,
+				},
+				Networks: []*NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []Port{{Label: "admin", Value: 5000}},
+						MBits:         50,
+						DynamicPorts:  []Port{{Label: "http", Value: 9876}},
+					},
+				},
+			},
+		},
+		Shared: AllocatedSharedResources{
+			DiskMB: 150,
+		},
+	}
+
+	require.Equal(t, expected, alloc.AllocatedResources)
+}
+
+// TestAllocation_Canonicalize_New asserts that an alloc with latest
+// schema isn't modified with Canonicalize
+func TestAllocation_Canonicalize_New(t *testing.T) {
+	alloc := MockAlloc()
+	copy := alloc.Copy()
+
+	alloc.Canonicalize()
+	require.Equal(t, copy, alloc)
 }
 
 func TestRescheduleTracker_Copy(t *testing.T) {

@@ -1,0 +1,51 @@
+---
+layout: docs
+page_title: 'Commands: operator'
+sidebar_title: operator
+description: |
+  The operator command provides cluster-level tools for Nomad operators.
+---
+
+# Command: operator
+
+The `operator` command provides cluster-level tools for Nomad operators, such
+as interacting with the Raft subsystem. This was added in Nomad 0.5.5.
+
+~> Use this command with extreme caution, as improper use could lead to a Nomad
+outage and even loss of data.
+
+See the [Outage Recovery guide] guide for some examples of how this command is
+used. For an API to perform these operations programmatically, please see the
+documentation for the [Operator] endpoint.
+
+## Usage
+
+Usage: `nomad operator <subcommand> <subcommand> [options]`
+
+Run `nomad operator <subcommand>` with no arguments for help on that subcommand.
+The following subcommands are available:
+
+- [`operator autopilot get-config`][get-config] - Display the current Autopilot
+  configuration
+
+- [`operator autopilot set-config`][set-config] - Modify the current Autopilot
+  configuration
+
+- [`operator keygen`][keygen] - Generates a new encryption key
+
+- [`operator keyring`][keyring] - Manages gossip layer encryption keys
+
+- [`operator raft list-peers`][list] - Display the current Raft peer
+  configuration
+
+- [`operator raft remove-peer`][remove] - Remove a Nomad server from the Raft
+  configuration
+
+[get-config]: /docs/commands/operator/autopilot-get-config 'Autopilot Get Config command'
+[keygen]: /docs/commands/operator/keygen 'Generates a new encryption key'
+[keyring]: /docs/commands/operator/keyring 'Manages gossip layer encryption keys'
+[list]: /docs/commands/operator/raft-list-peers 'Raft List Peers command'
+[operator]: /api-docs/operator 'Operator API documentation'
+[outage recovery guide]: https://learn.hashicorp.com/nomad/operating-nomad/outage
+[remove]: /docs/commands/operator/raft-remove-peer 'Raft Remove Peer command'
+[set-config]: /docs/commands/operator/autopilot-set-config 'Autopilot Set Config command'

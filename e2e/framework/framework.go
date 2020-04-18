@@ -20,6 +20,7 @@ These flags are coarse overrides for the test environment.
   -local       force default no-op provisioning
   -skipTests   skips all tests and only provisions
   -slow        include execution of slow test suites
+  -suite       run specified test suite
   -showHelp    shows this help text
 
 Provisioning flags tell the test runner to pre-provision the cluster before
@@ -58,6 +59,7 @@ var fSlow = flag.Bool("slow", false, "toggles execution of slow test suites")
 var fForceRun = flag.Bool("forceRun", false,
 	"if set, skips all environment checks when filtering test suites")
 var fSkipTests = flag.Bool("skipTests", false, "skip all tests and only provision")
+var fSuite = flag.String("suite", "", "run specified test suite")
 
 // Provisioning flags
 var fProvisionVagrant = flag.String("provision.vagrant", "",
@@ -91,8 +93,6 @@ var fArch = flag.String("env.arch", "",
 var fTags = flag.String("env.tags", "",
 	"comma delimited list of tags associated with the environment")
 
-var pkgFramework = New()
-
 type Framework struct {
 	suites      []*TestSuite
 	provisioner provisioning.Provisioner
@@ -102,6 +102,7 @@ type Framework struct {
 	slow       bool
 	force      bool
 	skipAll    bool
+	suite      string
 }
 
 // Environment contains information about the test target environment, used
@@ -144,6 +145,7 @@ func New() *Framework {
 		slow:       *fSlow,
 		force:      *fForceRun,
 		skipAll:    *fSkipTests,
+		suite:      *fSuite,
 	}
 }
 
@@ -153,10 +155,11 @@ func (f *Framework) AddSuites(s ...*TestSuite) *Framework {
 	return f
 }
 
+var pkgSuites []*TestSuite
+
 // AddSuites adds a set of test suites to the package scoped Framework
-func AddSuites(s ...*TestSuite) *Framework {
-	pkgFramework.AddSuites(s...)
-	return pkgFramework
+func AddSuites(s ...*TestSuite) {
+	pkgSuites = append(pkgSuites, s...)
 }
 
 // Run starts the test framework, running each TestSuite
@@ -183,12 +186,13 @@ func (f *Framework) Run(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // Run starts the package scoped Framework, running each TestSuite
 func Run(t *testing.T) {
-	pkgFramework.Run(t)
+	f := New()
+	f.AddSuites(pkgSuites...)
+	f.Run(t)
 }
 
 // runSuite is called from Framework.Run inside of a sub test for each TestSuite.
@@ -213,6 +217,11 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 		if f.slow != s.Slow {
 			return true, fmt.Errorf("framework slow suite configuration is %v but suite is %v", f.slow, s.Slow)
 		}
+	}
+
+	// If -suite is set, skip any suite that is not the one specified.
+	if f.suite != "" && f.suite != s.Component {
+		return true, fmt.Errorf("only running suite %q", f.suite)
 	}
 
 	info, err := f.provisioner.SetupTestSuite(t, provisioning.SetupOptions{
@@ -304,6 +313,7 @@ func isTestMethod(m string) bool {
 	if !strings.HasPrefix(m, "Test") {
 		return false
 	}
+
 	// THINKING: adding flag to target a specific test or test regex?
 	return true
 }

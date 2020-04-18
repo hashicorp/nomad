@@ -8,9 +8,6 @@
       "ssh_username": "ubuntu",
       "iam_instance_profile": "packer-builder",
       "ami_name": "nomad-e2e-{{timestamp}}",
-      "ami_groups": [
-        "all"
-      ],
       "tags": {
         "OS": "Ubuntu"
       }

@@ -1,15 +1,13 @@
 package dbus
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 )
-
-const defaultSystemBusAddress = "unix:path=/var/run/dbus/system_bus_socket"
 
 var (
 	systemBus     *Conn
@@ -32,29 +30,25 @@ var ErrClosed = errors.New("dbus: connection closed by user")
 type Conn struct {
 	transport
 
+	ctx       context.Context
+	cancelCtx context.CancelFunc
+
+	closeOnce sync.Once
+	closeErr  error
+
 	busObj BusObject
 	unixFD bool
 	uuid   string
 
-	names    []string
-	namesLck sync.RWMutex
+	handler       Handler
+	signalHandler SignalHandler
+	serialGen     SerialGenerator
+	inInt         Interceptor
+	outInt        Interceptor
 
-	serialLck  sync.Mutex
-	nextSerial uint32
-	serialUsed map[uint32]bool
-
-	calls    map[uint32]*Call
-	callsLck sync.RWMutex
-
-	handlers    map[ObjectPath]map[string]exportWithMapping
-	handlersLck sync.RWMutex
-
-	out    chan *Message
-	closed bool
-	outLck sync.RWMutex
-
-	signals    []chan<- *Signal
-	signalsLck sync.Mutex
+	names      *nameTracker
+	calls      *callTracker
+	outHandler *outputHandler
 
 	eavesdropped    chan<- *Message
 	eavesdroppedLck sync.Mutex
@@ -89,14 +83,32 @@ func SessionBus() (conn *Conn, err error) {
 	return
 }
 
+func getSessionBusAddress() (string, error) {
+	if address := os.Getenv("DBUS_SESSION_BUS_ADDRESS"); address != "" && address != "autolaunch:" {
+		return address, nil
+
+	} else if address := tryDiscoverDbusSessionBusAddress(); address != "" {
+		os.Setenv("DBUS_SESSION_BUS_ADDRESS", address)
+		return address, nil
+	}
+	return getSessionBusPlatformAddress()
+}
+
 // SessionBusPrivate returns a new private connection to the session bus.
-func SessionBusPrivate() (*Conn, error) {
-	address := os.Getenv("DBUS_SESSION_BUS_ADDRESS")
-	if address != "" && address != "autolaunch:" {
-		return Dial(address)
+func SessionBusPrivate(opts ...ConnOption) (*Conn, error) {
+	address, err := getSessionBusAddress()
+	if err != nil {
+		return nil, err
 	}
 
-	return sessionBusPlatform()
+	return Dial(address, opts...)
+}
+
+// SessionBusPrivate returns a new private connection to the session bus.
+//
+// Deprecated: use SessionBusPrivate with options instead.
+func SessionBusPrivateHandler(handler Handler, signalHandler SignalHandler) (*Conn, error) {
+	return SessionBusPrivate(WithHandler(handler), WithSignalHandler(signalHandler))
 }
 
 // SystemBus returns a shared connection to the system bus, connecting to it if
@@ -129,37 +141,131 @@ func SystemBus() (conn *Conn, err error) {
 }
 
 // SystemBusPrivate returns a new private connection to the system bus.
-func SystemBusPrivate() (*Conn, error) {
-	address := os.Getenv("DBUS_SYSTEM_BUS_ADDRESS")
-	if address != "" {
-		return Dial(address)
-	}
-	return Dial(defaultSystemBusAddress)
+// Note: this connection is not ready to use. One must perform Auth and Hello
+// on the connection before it is useable.
+func SystemBusPrivate(opts ...ConnOption) (*Conn, error) {
+	return Dial(getSystemBusPlatformAddress(), opts...)
+}
+
+// SystemBusPrivateHandler returns a new private connection to the system bus, using the provided handlers.
+//
+// Deprecated: use SystemBusPrivate with options instead.
+func SystemBusPrivateHandler(handler Handler, signalHandler SignalHandler) (*Conn, error) {
+	return SystemBusPrivate(WithHandler(handler), WithSignalHandler(signalHandler))
 }
 
 // Dial establishes a new private connection to the message bus specified by address.
-func Dial(address string) (*Conn, error) {
+func Dial(address string, opts ...ConnOption) (*Conn, error) {
 	tr, err := getTransport(address)
 	if err != nil {
 		return nil, err
 	}
-	return newConn(tr)
+	return newConn(tr, opts...)
+}
+
+// DialHandler establishes a new private connection to the message bus specified by address, using the supplied handlers.
+//
+// Deprecated: use Dial with options instead.
+func DialHandler(address string, handler Handler, signalHandler SignalHandler) (*Conn, error) {
+	return Dial(address, WithSignalHandler(signalHandler))
+}
+
+// ConnOption is a connection option.
+type ConnOption func(conn *Conn) error
+
+// WithHandler overrides the default handler.
+func WithHandler(handler Handler) ConnOption {
+	return func(conn *Conn) error {
+		conn.handler = handler
+		return nil
+	}
+}
+
+// WithSignalHandler overrides the default signal handler.
+func WithSignalHandler(handler SignalHandler) ConnOption {
+	return func(conn *Conn) error {
+		conn.signalHandler = handler
+		return nil
+	}
+}
+
+// WithSerialGenerator overrides the default signals generator.
+func WithSerialGenerator(gen SerialGenerator) ConnOption {
+	return func(conn *Conn) error {
+		conn.serialGen = gen
+		return nil
+	}
+}
+
+// Interceptor intercepts incoming and outgoing messages.
+type Interceptor func(msg *Message)
+
+// WithIncomingInterceptor sets the given interceptor for incoming messages.
+func WithIncomingInterceptor(interceptor Interceptor) ConnOption {
+	return func(conn *Conn) error {
+		conn.inInt = interceptor
+		return nil
+	}
+}
+
+// WithOutgoingInterceptor sets the given interceptor for outgoing messages.
+func WithOutgoingInterceptor(interceptor Interceptor) ConnOption {
+	return func(conn *Conn) error {
+		conn.outInt = interceptor
+		return nil
+	}
+}
+
+// WithContext overrides  the default context for the connection.
+func WithContext(ctx context.Context) ConnOption {
+	return func(conn *Conn) error {
+		conn.ctx = ctx
+		return nil
+	}
 }
 
 // NewConn creates a new private *Conn from an already established connection.
-func NewConn(conn io.ReadWriteCloser) (*Conn, error) {
-	return newConn(genericTransport{conn})
+func NewConn(conn io.ReadWriteCloser, opts ...ConnOption) (*Conn, error) {
+	return newConn(genericTransport{conn}, opts...)
+}
+
+// NewConnHandler creates a new private *Conn from an already established connection, using the supplied handlers.
+//
+// Deprecated: use NewConn with options instead.
+func NewConnHandler(conn io.ReadWriteCloser, handler Handler, signalHandler SignalHandler) (*Conn, error) {
+	return NewConn(genericTransport{conn}, WithHandler(handler), WithSignalHandler(signalHandler))
 }
 
 // newConn creates a new *Conn from a transport.
-func newConn(tr transport) (*Conn, error) {
+func newConn(tr transport, opts ...ConnOption) (*Conn, error) {
 	conn := new(Conn)
 	conn.transport = tr
-	conn.calls = make(map[uint32]*Call)
-	conn.out = make(chan *Message, 10)
-	conn.handlers = make(map[ObjectPath]map[string]exportWithMapping)
-	conn.nextSerial = 1
-	conn.serialUsed = map[uint32]bool{0: true}
+	for _, opt := range opts {
+		if err := opt(conn); err != nil {
+			return nil, err
+		}
+	}
+	if conn.ctx == nil {
+		conn.ctx = context.Background()
+	}
+	conn.ctx, conn.cancelCtx = context.WithCancel(conn.ctx)
+	go func() {
+		<-conn.ctx.Done()
+		conn.Close()
+	}()
+
+	conn.calls = newCallTracker()
+	if conn.handler == nil {
+		conn.handler = NewDefaultHandler()
+	}
+	if conn.signalHandler == nil {
+		conn.signalHandler = NewDefaultSignalHandler()
+	}
+	if conn.serialGen == nil {
+		conn.serialGen = newSerialGenerator()
+	}
+	conn.outHandler = &outputHandler{conn: conn}
+	conn.names = newNameTracker()
 	conn.busObj = conn.Object("org.freedesktop.DBus", "/org/freedesktop/DBus")
 	return conn, nil
 }
@@ -174,33 +280,38 @@ func (conn *Conn) BusObject() BusObject {
 // and the channels passed to Eavesdrop and Signal are closed. This method must
 // not be called on shared connections.
 func (conn *Conn) Close() error {
-	conn.outLck.Lock()
-	if conn.closed {
-		// inWorker calls Close on read error, the read error may
-		// be caused by another caller calling Close to shutdown the
-		// dbus connection, a double-close scenario we prevent here.
-		conn.outLck.Unlock()
-		return nil
-	}
-	close(conn.out)
-	conn.closed = true
-	conn.outLck.Unlock()
-	conn.signalsLck.Lock()
-	for _, ch := range conn.signals {
-		close(ch)
-	}
-	conn.signalsLck.Unlock()
-	conn.eavesdroppedLck.Lock()
-	if conn.eavesdropped != nil {
-		close(conn.eavesdropped)
-	}
-	conn.eavesdroppedLck.Unlock()
-	return conn.transport.Close()
+	conn.closeOnce.Do(func() {
+		conn.outHandler.close()
+		if term, ok := conn.signalHandler.(Terminator); ok {
+			term.Terminate()
+		}
+
+		if term, ok := conn.handler.(Terminator); ok {
+			term.Terminate()
+		}
+
+		conn.eavesdroppedLck.Lock()
+		if conn.eavesdropped != nil {
+			close(conn.eavesdropped)
+		}
+		conn.eavesdroppedLck.Unlock()
+
+		conn.cancelCtx()
+
+		conn.closeErr = conn.transport.Close()
+	})
+	return conn.closeErr
+}
+
+// Context returns the context associated with the connection.  The
+// context will be cancelled when the connection is closed.
+func (conn *Conn) Context() context.Context {
+	return conn.ctx
 }
 
 // Eavesdrop causes conn to send all incoming messages to the given channel
 // without further processing. Method replies, errors and signals will not be
-// sent to the appropiate channels and method calls will not be handled. If nil
+// sent to the appropriate channels and method calls will not be handled. If nil
 // is passed, the normal behaviour is restored.
 //
 // The caller has to make sure that ch is sufficiently buffered;
@@ -214,15 +325,7 @@ func (conn *Conn) Eavesdrop(ch chan<- *Message) {
 
 // getSerial returns an unused serial.
 func (conn *Conn) getSerial() uint32 {
-	conn.serialLck.Lock()
-	defer conn.serialLck.Unlock()
-	n := conn.nextSerial
-	for conn.serialUsed[n] {
-		n++
-	}
-	conn.serialUsed[n] = true
-	conn.nextSerial = n + 1
-	return n
+	return conn.serialGen.GetSerial()
 }
 
 // Hello sends the initial org.freedesktop.DBus.Hello call. This method must be
@@ -234,10 +337,7 @@ func (conn *Conn) Hello() error {
 	if err != nil {
 		return err
 	}
-	conn.namesLck.Lock()
-	conn.names = make([]string, 1)
-	conn.names[0] = s
-	conn.namesLck.Unlock()
+	conn.names.acquireUniqueConnectionName(s)
 	return nil
 }
 
@@ -246,132 +346,94 @@ func (conn *Conn) Hello() error {
 func (conn *Conn) inWorker() {
 	for {
 		msg, err := conn.ReadMessage()
-		if err == nil {
-			conn.eavesdroppedLck.Lock()
-			if conn.eavesdropped != nil {
-				select {
-				case conn.eavesdropped <- msg:
-				default:
-				}
-				conn.eavesdroppedLck.Unlock()
-				continue
+		if err != nil {
+			if _, ok := err.(InvalidMessageError); !ok {
+				// Some read error occurred (usually EOF); we can't really do
+				// anything but to shut down all stuff and returns errors to all
+				// pending replies.
+				conn.Close()
+				conn.calls.finalizeAllWithError(err)
+				return
+			}
+			// invalid messages are ignored
+			continue
+		}
+		conn.eavesdroppedLck.Lock()
+		if conn.eavesdropped != nil {
+			select {
+			case conn.eavesdropped <- msg:
+			default:
 			}
 			conn.eavesdroppedLck.Unlock()
-			dest, _ := msg.Headers[FieldDestination].value.(string)
-			found := false
-			if dest == "" {
-				found = true
-			} else {
-				conn.namesLck.RLock()
-				if len(conn.names) == 0 {
-					found = true
-				}
-				for _, v := range conn.names {
-					if dest == v {
-						found = true
-						break
-					}
-				}
-				conn.namesLck.RUnlock()
-			}
-			if !found {
-				// Eavesdropped a message, but no channel for it is registered.
-				// Ignore it.
-				continue
-			}
-			switch msg.Type {
-			case TypeMethodReply, TypeError:
-				serial := msg.Headers[FieldReplySerial].value.(uint32)
-				conn.callsLck.Lock()
-				if c, ok := conn.calls[serial]; ok {
-					if msg.Type == TypeError {
-						name, _ := msg.Headers[FieldErrorName].value.(string)
-						c.Err = Error{name, msg.Body}
-					} else {
-						c.Body = msg.Body
-					}
-					c.Done <- c
-					conn.serialLck.Lock()
-					delete(conn.serialUsed, serial)
-					conn.serialLck.Unlock()
-					delete(conn.calls, serial)
-				}
-				conn.callsLck.Unlock()
-			case TypeSignal:
-				iface := msg.Headers[FieldInterface].value.(string)
-				member := msg.Headers[FieldMember].value.(string)
-				// as per http://dbus.freedesktop.org/doc/dbus-specification.html ,
-				// sender is optional for signals.
-				sender, _ := msg.Headers[FieldSender].value.(string)
-				if iface == "org.freedesktop.DBus" && sender == "org.freedesktop.DBus" {
-					if member == "NameLost" {
-						// If we lost the name on the bus, remove it from our
-						// tracking list.
-						name, ok := msg.Body[0].(string)
-						if !ok {
-							panic("Unable to read the lost name")
-						}
-						conn.namesLck.Lock()
-						for i, v := range conn.names {
-							if v == name {
-								conn.names = append(conn.names[:i],
-									conn.names[i+1:]...)
-							}
-						}
-						conn.namesLck.Unlock()
-					} else if member == "NameAcquired" {
-						// If we acquired the name on the bus, add it to our
-						// tracking list.
-						name, ok := msg.Body[0].(string)
-						if !ok {
-							panic("Unable to read the acquired name")
-						}
-						conn.namesLck.Lock()
-						conn.names = append(conn.names, name)
-						conn.namesLck.Unlock()
-					}
-				}
-				signal := &Signal{
-					Sender: sender,
-					Path:   msg.Headers[FieldPath].value.(ObjectPath),
-					Name:   iface + "." + member,
-					Body:   msg.Body,
-				}
-				conn.signalsLck.Lock()
-				for _, ch := range conn.signals {
-					ch <- signal
-				}
-				conn.signalsLck.Unlock()
-			case TypeMethodCall:
-				go conn.handleCall(msg)
-			}
-		} else if _, ok := err.(InvalidMessageError); !ok {
-			// Some read error occured (usually EOF); we can't really do
-			// anything but to shut down all stuff and returns errors to all
-			// pending replies.
-			conn.Close()
-			conn.callsLck.RLock()
-			for _, v := range conn.calls {
-				v.Err = err
-				v.Done <- v
-			}
-			conn.callsLck.RUnlock()
-			return
+			continue
 		}
-		// invalid messages are ignored
+		conn.eavesdroppedLck.Unlock()
+		dest, _ := msg.Headers[FieldDestination].value.(string)
+		found := dest == "" ||
+			!conn.names.uniqueNameIsKnown() ||
+			conn.names.isKnownName(dest)
+		if !found {
+			// Eavesdropped a message, but no channel for it is registered.
+			// Ignore it.
+			continue
+		}
+
+		if conn.inInt != nil {
+			conn.inInt(msg)
+		}
+		switch msg.Type {
+		case TypeError:
+			conn.serialGen.RetireSerial(conn.calls.handleDBusError(msg))
+		case TypeMethodReply:
+			conn.serialGen.RetireSerial(conn.calls.handleReply(msg))
+		case TypeSignal:
+			conn.handleSignal(msg)
+		case TypeMethodCall:
+			go conn.handleCall(msg)
+		}
+
 	}
+}
+
+func (conn *Conn) handleSignal(msg *Message) {
+	iface := msg.Headers[FieldInterface].value.(string)
+	member := msg.Headers[FieldMember].value.(string)
+	// as per http://dbus.freedesktop.org/doc/dbus-specification.html ,
+	// sender is optional for signals.
+	sender, _ := msg.Headers[FieldSender].value.(string)
+	if iface == "org.freedesktop.DBus" && sender == "org.freedesktop.DBus" {
+		if member == "NameLost" {
+			// If we lost the name on the bus, remove it from our
+			// tracking list.
+			name, ok := msg.Body[0].(string)
+			if !ok {
+				panic("Unable to read the lost name")
+			}
+			conn.names.loseName(name)
+		} else if member == "NameAcquired" {
+			// If we acquired the name on the bus, add it to our
+			// tracking list.
+			name, ok := msg.Body[0].(string)
+			if !ok {
+				panic("Unable to read the acquired name")
+			}
+			conn.names.acquireName(name)
+		}
+	}
+	signal := &Signal{
+		Sender: sender,
+		Path:   msg.Headers[FieldPath].value.(ObjectPath),
+		Name:   iface + "." + member,
+		Body:   msg.Body,
+	}
+	conn.signalHandler.DeliverSignal(iface, member, signal)
 }
 
 // Names returns the list of all names that are currently owned by this
 // connection. The slice is always at least one element long, the first element
 // being the unique name of the connection.
 func (conn *Conn) Names() []string {
-	conn.namesLck.RLock()
-	// copy the slice so it can't be modified
-	s := make([]string, len(conn.names))
-	copy(s, conn.names)
-	conn.namesLck.RUnlock()
-	return s
+	return conn.names.listKnownNames()
 }
 
 // Object returns the object identified by the given destination name and path.
@@ -379,26 +441,16 @@ func (conn *Conn) Object(dest string, path ObjectPath) BusObject {
 	return &Object{conn, dest, path}
 }
 
-// outWorker runs in an own goroutine, encoding and sending messages that are
-// sent to conn.out.
-func (conn *Conn) outWorker() {
-	for msg := range conn.out {
-		err := conn.SendMessage(msg)
-		conn.callsLck.RLock()
-		if err != nil {
-			if c := conn.calls[msg.serial]; c != nil {
-				c.Err = err
-				c.Done <- c
-			}
-			conn.serialLck.Lock()
-			delete(conn.serialUsed, msg.serial)
-			conn.serialLck.Unlock()
-		} else if msg.Type != TypeMethodCall {
-			conn.serialLck.Lock()
-			delete(conn.serialUsed, msg.serial)
-			conn.serialLck.Unlock()
-		}
-		conn.callsLck.RUnlock()
+func (conn *Conn) sendMessageAndIfClosed(msg *Message, ifClosed func()) {
+	if conn.outInt != nil {
+		conn.outInt(msg)
+	}
+	err := conn.outHandler.sendAndIfClosed(msg, ifClosed)
+	conn.calls.handleSendError(msg, err)
+	if err != nil {
+		conn.serialGen.RetireSerial(msg.serial)
+	} else if msg.Type != TypeMethodCall {
+		conn.serialGen.RetireSerial(msg.serial)
 	}
 }
 
@@ -409,8 +461,21 @@ func (conn *Conn) outWorker() {
 // once the call is complete. Otherwise, ch is ignored and a Call structure is
 // returned of which only the Err member is valid.
 func (conn *Conn) Send(msg *Message, ch chan *Call) *Call {
-	var call *Call
+	return conn.send(context.Background(), msg, ch)
+}
 
+// SendWithContext acts like Send but takes a context
+func (conn *Conn) SendWithContext(ctx context.Context, msg *Message, ch chan *Call) *Call {
+	return conn.send(ctx, msg, ch)
+}
+
+func (conn *Conn) send(ctx context.Context, msg *Message, ch chan *Call) *Call {
+	if ctx == nil {
+		panic("nil context")
+	}
+
+	var call *Call
+	ctx, canceler := context.WithCancel(ctx)
 	msg.serial = conn.getSerial()
 	if msg.Type == TypeMethodCall && msg.Flags&FlagNoReplyExpected == 0 {
 		if ch == nil {
@@ -426,33 +491,42 @@ func (conn *Conn) Send(msg *Message, ch chan *Call) *Call {
 		call.Method = iface + "." + member
 		call.Args = msg.Body
 		call.Done = ch
-		conn.callsLck.Lock()
-		conn.calls[msg.serial] = call
-		conn.callsLck.Unlock()
-		conn.outLck.RLock()
-		if conn.closed {
-			call.Err = ErrClosed
-			call.Done <- call
-		} else {
-			conn.out <- msg
-		}
-		conn.outLck.RUnlock()
+		call.ctx = ctx
+		call.ctxCanceler = canceler
+		conn.calls.track(msg.serial, call)
+		go func() {
+			<-ctx.Done()
+			conn.calls.handleSendError(msg, ctx.Err())
+		}()
+		conn.sendMessageAndIfClosed(msg, func() {
+			conn.calls.handleSendError(msg, ErrClosed)
+			canceler()
+		})
 	} else {
-		conn.outLck.RLock()
-		if conn.closed {
+		canceler()
+		call = &Call{Err: nil}
+		conn.sendMessageAndIfClosed(msg, func() {
 			call = &Call{Err: ErrClosed}
-		} else {
-			conn.out <- msg
-			call = &Call{Err: nil}
-		}
-		conn.outLck.RUnlock()
+		})
 	}
 	return call
 }
 
 // sendError creates an error message corresponding to the parameters and sends
 // it to conn.out.
-func (conn *Conn) sendError(e Error, dest string, serial uint32) {
+func (conn *Conn) sendError(err error, dest string, serial uint32) {
+	var e *Error
+	switch em := err.(type) {
+	case Error:
+		e = &em
+	case *Error:
+		e = em
+	case DBusError:
+		name, body := em.DBusError()
+		e = NewError(name, body)
+	default:
+		e = MakeFailedError(err)
+	}
 	msg := new(Message)
 	msg.Type = TypeError
 	msg.serial = conn.getSerial()
@@ -466,11 +540,7 @@ func (conn *Conn) sendError(e Error, dest string, serial uint32) {
 	if len(e.Body) > 0 {
 		msg.Headers[FieldSignature] = MakeVariant(SignatureOf(e.Body...))
 	}
-	conn.outLck.RLock()
-	if !conn.closed {
-		conn.out <- msg
-	}
-	conn.outLck.RUnlock()
+	conn.sendMessageAndIfClosed(msg, nil)
 }
 
 // sendReply creates a method reply message corresponding to the parameters and
@@ -488,28 +558,54 @@ func (conn *Conn) sendReply(dest string, serial uint32, values ...interface{}) {
 	if len(values) > 0 {
 		msg.Headers[FieldSignature] = MakeVariant(SignatureOf(values...))
 	}
-	conn.outLck.RLock()
-	if !conn.closed {
-		conn.out <- msg
-	}
-	conn.outLck.RUnlock()
+	conn.sendMessageAndIfClosed(msg, nil)
+}
+
+// AddMatchSignal registers the given match rule to receive broadcast
+// signals based on their contents.
+func (conn *Conn) AddMatchSignal(options ...MatchOption) error {
+	options = append([]MatchOption{withMatchType("signal")}, options...)
+	return conn.busObj.Call(
+		"org.freedesktop.DBus.AddMatch", 0,
+		formatMatchOptions(options),
+	).Store()
+}
+
+// RemoveMatchSignal removes the first rule that matches previously registered with AddMatchSignal.
+func (conn *Conn) RemoveMatchSignal(options ...MatchOption) error {
+	options = append([]MatchOption{withMatchType("signal")}, options...)
+	return conn.busObj.Call(
+		"org.freedesktop.DBus.RemoveMatch", 0,
+		formatMatchOptions(options),
+	).Store()
 }
 
 // Signal registers the given channel to be passed all received signal messages.
-// The caller has to make sure that ch is sufficiently buffered; if a message
-// arrives when a write to c is not possible, it is discarded.
 //
-// Multiple of these channels can be registered at the same time. Passing a
-// channel that already is registered will remove it from the list of the
-// registered channels.
+// Multiple of these channels can be registered at the same time.
 //
 // These channels are "overwritten" by Eavesdrop; i.e., if there currently is a
 // channel for eavesdropped messages, this channel receives all signals, and
 // none of the channels passed to Signal will receive any signals.
+//
+// Panics if the signal handler is not a `SignalRegistrar`.
 func (conn *Conn) Signal(ch chan<- *Signal) {
-	conn.signalsLck.Lock()
-	conn.signals = append(conn.signals, ch)
-	conn.signalsLck.Unlock()
+	handler, ok := conn.signalHandler.(SignalRegistrar)
+	if !ok {
+		panic("cannot use this method with a non SignalRegistrar handler")
+	}
+	handler.AddSignal(ch)
+}
+
+// RemoveSignal removes the given channel from the list of the registered channels.
+//
+// Panics if the signal handler is not a `SignalRegistrar`.
+func (conn *Conn) RemoveSignal(ch chan<- *Signal) {
+	handler, ok := conn.signalHandler.(SignalRegistrar)
+	if !ok {
+		panic("cannot use this method with a non SignalRegistrar handler")
+	}
+	handler.RemoveSignal(ch)
 }
 
 // SupportsUnixFDs returns whether the underlying transport supports passing of
@@ -596,30 +692,221 @@ func getTransport(address string) (transport, error) {
 	return nil, err
 }
 
-// dereferenceAll returns a slice that, assuming that vs is a slice of pointers
-// of arbitrary types, containes the values that are obtained from dereferencing
-// all elements in vs.
-func dereferenceAll(vs []interface{}) []interface{} {
-	for i := range vs {
-		v := reflect.ValueOf(vs[i])
-		v = v.Elem()
-		vs[i] = v.Interface()
-	}
-	return vs
-}
-
 // getKey gets a key from a the list of keys. Returns "" on error / not found...
 func getKey(s, key string) string {
-	i := strings.Index(s, key)
-	if i == -1 {
-		return ""
+	for _, keyEqualsValue := range strings.Split(s, ",") {
+		keyValue := strings.SplitN(keyEqualsValue, "=", 2)
+		if len(keyValue) == 2 && keyValue[0] == key {
+			return keyValue[1]
+		}
 	}
-	if i+len(key)+1 >= len(s) || s[i+len(key)] != '=' {
-		return ""
+	return ""
+}
+
+type outputHandler struct {
+	conn    *Conn
+	sendLck sync.Mutex
+	closed  struct {
+		isClosed bool
+		lck      sync.RWMutex
 	}
-	j := strings.Index(s, ",")
-	if j == -1 {
-		j = len(s)
+}
+
+func (h *outputHandler) sendAndIfClosed(msg *Message, ifClosed func()) error {
+	h.closed.lck.RLock()
+	defer h.closed.lck.RUnlock()
+	if h.closed.isClosed {
+		if ifClosed != nil {
+			ifClosed()
+		}
+		return nil
 	}
-	return s[i+len(key)+1 : j]
+	h.sendLck.Lock()
+	defer h.sendLck.Unlock()
+	return h.conn.SendMessage(msg)
+}
+
+func (h *outputHandler) close() {
+	h.closed.lck.Lock()
+	defer h.closed.lck.Unlock()
+	h.closed.isClosed = true
+}
+
+type serialGenerator struct {
+	lck        sync.Mutex
+	nextSerial uint32
+	serialUsed map[uint32]bool
+}
+
+func newSerialGenerator() *serialGenerator {
+	return &serialGenerator{
+		serialUsed: map[uint32]bool{0: true},
+		nextSerial: 1,
+	}
+}
+
+func (gen *serialGenerator) GetSerial() uint32 {
+	gen.lck.Lock()
+	defer gen.lck.Unlock()
+	n := gen.nextSerial
+	for gen.serialUsed[n] {
+		n++
+	}
+	gen.serialUsed[n] = true
+	gen.nextSerial = n + 1
+	return n
+}
+
+func (gen *serialGenerator) RetireSerial(serial uint32) {
+	gen.lck.Lock()
+	defer gen.lck.Unlock()
+	delete(gen.serialUsed, serial)
+}
+
+type nameTracker struct {
+	lck    sync.RWMutex
+	unique string
+	names  map[string]struct{}
+}
+
+func newNameTracker() *nameTracker {
+	return &nameTracker{names: map[string]struct{}{}}
+}
+func (tracker *nameTracker) acquireUniqueConnectionName(name string) {
+	tracker.lck.Lock()
+	defer tracker.lck.Unlock()
+	tracker.unique = name
+}
+func (tracker *nameTracker) acquireName(name string) {
+	tracker.lck.Lock()
+	defer tracker.lck.Unlock()
+	tracker.names[name] = struct{}{}
+}
+func (tracker *nameTracker) loseName(name string) {
+	tracker.lck.Lock()
+	defer tracker.lck.Unlock()
+	delete(tracker.names, name)
+}
+
+func (tracker *nameTracker) uniqueNameIsKnown() bool {
+	tracker.lck.RLock()
+	defer tracker.lck.RUnlock()
+	return tracker.unique != ""
+}
+func (tracker *nameTracker) isKnownName(name string) bool {
+	tracker.lck.RLock()
+	defer tracker.lck.RUnlock()
+	_, ok := tracker.names[name]
+	return ok || name == tracker.unique
+}
+func (tracker *nameTracker) listKnownNames() []string {
+	tracker.lck.RLock()
+	defer tracker.lck.RUnlock()
+	out := make([]string, 0, len(tracker.names)+1)
+	out = append(out, tracker.unique)
+	for k := range tracker.names {
+		out = append(out, k)
+	}
+	return out
+}
+
+type callTracker struct {
+	calls map[uint32]*Call
+	lck   sync.RWMutex
+}
+
+func newCallTracker() *callTracker {
+	return &callTracker{calls: map[uint32]*Call{}}
+}
+
+func (tracker *callTracker) track(sn uint32, call *Call) {
+	tracker.lck.Lock()
+	tracker.calls[sn] = call
+	tracker.lck.Unlock()
+}
+
+func (tracker *callTracker) handleReply(msg *Message) uint32 {
+	serial := msg.Headers[FieldReplySerial].value.(uint32)
+	tracker.lck.RLock()
+	_, ok := tracker.calls[serial]
+	tracker.lck.RUnlock()
+	if ok {
+		tracker.finalizeWithBody(serial, msg.Body)
+	}
+	return serial
+}
+
+func (tracker *callTracker) handleDBusError(msg *Message) uint32 {
+	serial := msg.Headers[FieldReplySerial].value.(uint32)
+	tracker.lck.RLock()
+	_, ok := tracker.calls[serial]
+	tracker.lck.RUnlock()
+	if ok {
+		name, _ := msg.Headers[FieldErrorName].value.(string)
+		tracker.finalizeWithError(serial, Error{name, msg.Body})
+	}
+	return serial
+}
+
+func (tracker *callTracker) handleSendError(msg *Message, err error) {
+	if err == nil {
+		return
+	}
+	tracker.lck.RLock()
+	_, ok := tracker.calls[msg.serial]
+	tracker.lck.RUnlock()
+	if ok {
+		tracker.finalizeWithError(msg.serial, err)
+	}
+}
+
+// finalize was the only func that did not strobe Done
+func (tracker *callTracker) finalize(sn uint32) {
+	tracker.lck.Lock()
+	defer tracker.lck.Unlock()
+	c, ok := tracker.calls[sn]
+	if ok {
+		delete(tracker.calls, sn)
+		c.ContextCancel()
+	}
+}
+
+func (tracker *callTracker) finalizeWithBody(sn uint32, body []interface{}) {
+	tracker.lck.Lock()
+	c, ok := tracker.calls[sn]
+	if ok {
+		delete(tracker.calls, sn)
+	}
+	tracker.lck.Unlock()
+	if ok {
+		c.Body = body
+		c.done()
+	}
+}
+
+func (tracker *callTracker) finalizeWithError(sn uint32, err error) {
+	tracker.lck.Lock()
+	c, ok := tracker.calls[sn]
+	if ok {
+		delete(tracker.calls, sn)
+	}
+	tracker.lck.Unlock()
+	if ok {
+		c.Err = err
+		c.done()
+	}
+}
+
+func (tracker *callTracker) finalizeAllWithError(err error) {
+	tracker.lck.Lock()
+	closedCalls := make([]*Call, 0, len(tracker.calls))
+	for sn := range tracker.calls {
+		closedCalls = append(closedCalls, tracker.calls[sn])
+	}
+	tracker.calls = map[uint32]*Call{}
+	tracker.lck.Unlock()
+	for _, call := range closedCalls {
+		call.Err = err
+		call.done()
+	}
 }

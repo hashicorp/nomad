@@ -24,9 +24,13 @@ import (
 	"time"
 
 	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/go-msgpack/codec"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/mitchellh/copystructure"
+	"golang.org/x/crypto/blake2b"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -35,9 +39,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/mitchellh/copystructure"
-	"github.com/ugorji/go/codec"
-	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -83,6 +84,13 @@ const (
 	BatchNodeUpdateDrainRequestType
 	SchedulerConfigRequestType
 	NodeBatchDeregisterRequestType
+	ClusterMetadataRequestType
+	ServiceIdentityAccessorRegisterRequestType
+	ServiceIdentityAccessorDeregisterRequestType
+	CSIVolumeRegisterRequestType
+	CSIVolumeDeregisterRequestType
+	CSIVolumeClaimRequestType
+	ScalingEventRegisterRequestType
 )
 
 const (
@@ -157,6 +165,8 @@ const (
 	Namespaces  Context = "namespaces"
 	Quotas      Context = "quotas"
 	All         Context = "all"
+	Plugins     Context = "plugins"
+	Volumes     Context = "volumes"
 )
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -609,8 +619,29 @@ type JobPlanRequest struct {
 	WriteRequest
 }
 
+// JobScaleRequest is used for the Job.Scale endpoint to scale one of the
+// scaling targets in a job
+type JobScaleRequest struct {
+	Namespace string
+	JobID     string
+	Target    map[string]string
+	Count     *int64
+	Message   string
+	Error     bool
+	Meta      map[string]interface{}
+	// PolicyOverride is set when the user is attempting to override any policies
+	PolicyOverride bool
+	WriteRequest
+}
+
 // JobSummaryRequest is used when we just need to get a specific job summary
 type JobSummaryRequest struct {
+	JobID string
+	QueryOptions
+}
+
+// JobScaleStatusRequest is used to get the scale status for a job
+type JobScaleStatusRequest struct {
 	JobID string
 	QueryOptions
 }
@@ -640,6 +671,12 @@ type JobRevertRequest struct {
 	// EnforcePriorVersion if set will enforce that the job is at the given
 	// version before reverting.
 	EnforcePriorVersion *uint64
+
+	// ConsulToken is the Consul token that proves the submitter of the job revert
+	// has access to the Service Identity policies associated with the job's
+	// Consul Connect enabled services. This field is only used to transfer the
+	// token and is not stored after the Job revert.
+	ConsulToken string
 
 	// VaultToken is the Vault token that proves the submitter of the job revert
 	// has access to any Vault policies specified in the targeted job version. This
@@ -873,6 +910,12 @@ type ServerMember struct {
 	DelegateCur uint8
 }
 
+// ClusterMetadata is used to store per-cluster metadata.
+type ClusterMetadata struct {
+	ClusterID  string
+	CreateTime int64
+}
+
 // DeriveVaultTokenRequest is used to request wrapped Vault tokens for the
 // following tasks in the given allocation
 type DeriveVaultTokenRequest struct {
@@ -907,7 +950,7 @@ type DeriveVaultTokenResponse struct {
 	Tasks map[string]string
 
 	// Error stores any error that occurred. Errors are stored here so we can
-	// communicate whether it is retriable
+	// communicate whether it is retryable
 	Error *RecoverableError
 
 	QueryMeta
@@ -1025,6 +1068,29 @@ type DeploymentFailRequest struct {
 	WriteRequest
 }
 
+// ScalingPolicySpecificRequest is used when we just need to specify a target scaling policy
+type ScalingPolicySpecificRequest struct {
+	ID string
+	QueryOptions
+}
+
+// SingleScalingPolicyResponse is used to return a single job
+type SingleScalingPolicyResponse struct {
+	Policy *ScalingPolicy
+	QueryMeta
+}
+
+// ScalingPolicyListRequest is used to parameterize a scaling policy list request
+type ScalingPolicyListRequest struct {
+	QueryOptions
+}
+
+// ScalingPolicyListResponse is used for a list request
+type ScalingPolicyListResponse struct {
+	Policies []*ScalingPolicyListStub
+	QueryMeta
+}
+
 // SingleDeploymentResponse is used to respond with a single deployment
 type SingleDeploymentResponse struct {
 	Deployment *Deployment
@@ -1062,6 +1128,8 @@ type JobDeregisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
 	JobModifyIndex  uint64
+	VolumeEvalID    string
+	VolumeEvalIndex uint64
 	QueryMeta
 }
 
@@ -1167,6 +1235,30 @@ type SingleJobResponse struct {
 type JobSummaryResponse struct {
 	JobSummary *JobSummary
 	QueryMeta
+}
+
+// JobScaleStatusResponse is used to return the scale status for a job
+type JobScaleStatusResponse struct {
+	JobScaleStatus *JobScaleStatus
+	QueryMeta
+}
+
+type JobScaleStatus struct {
+	JobID          string
+	JobCreateIndex uint64
+	JobModifyIndex uint64
+	JobStopped     bool
+	TaskGroups     map[string]*TaskGroupScaleStatus
+}
+
+// TaskGroupScaleStatus is used to return the scale status for a given task group
+type TaskGroupScaleStatus struct {
+	Desired   int
+	Placed    int
+	Running   int
+	Healthy   int
+	Unhealthy int
+	Events    []*ScalingEvent
 }
 
 type JobDispatchResponse struct {
@@ -1371,6 +1463,7 @@ const (
 	NodeEventSubsystemDriver    = "Driver"
 	NodeEventSubsystemHeartbeat = "Heartbeat"
 	NodeEventSubsystemCluster   = "Cluster"
+	NodeEventSubsystemStorage   = "Storage"
 )
 
 // NodeEvent is a single unit representing a node’s state change
@@ -1644,6 +1737,11 @@ type Node struct {
 	// Drivers is a map of driver names to current driver information
 	Drivers map[string]*DriverInfo
 
+	// CSIControllerPlugins is a map of plugin names to current CSI Plugin info
+	CSIControllerPlugins map[string]*CSIInfo
+	// CSINodePlugins is a map of plugin names to current CSI Plugin info
+	CSINodePlugins map[string]*CSIInfo
+
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
@@ -1690,6 +1788,8 @@ func (n *Node) Copy() *Node {
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
+	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
+	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
 	return nn
@@ -1706,6 +1806,21 @@ func copyNodeEvents(events []*NodeEvent) []*NodeEvent {
 	for i, event := range events {
 		c[i] = event.Copy()
 	}
+	return c
+}
+
+// copyNodeCSI is a helper to copy a map of CSIInfo
+func copyNodeCSI(plugins map[string]*CSIInfo) map[string]*CSIInfo {
+	l := len(plugins)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*CSIInfo, l)
+	for plugin, info := range plugins {
+		c[plugin] = info.Copy()
+	}
+
 	return c
 }
 
@@ -1824,6 +1939,7 @@ func (n *Node) Stub() *NodeListStub {
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
 		Drivers:               n.Drivers,
+		HostVolumes:           n.HostVolumes,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -1843,6 +1959,7 @@ type NodeListStub struct {
 	Status                string
 	StatusDescription     string
 	Drivers               map[string]*DriverInfo
+	HostVolumes           map[string]*ClientHostVolumeConfig
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -2299,7 +2416,7 @@ type RequestedDevice struct {
 	// to use.
 	Constraints Constraints
 
-	// Affinities are a set of affinites to apply when selecting the device
+	// Affinities are a set of affinities to apply when selecting the device
 	// to use.
 	Affinities Affinities
 }
@@ -2492,18 +2609,18 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 }
 
 // Equals equates Networks as a set
-func (n *Networks) Equals(o *Networks) bool {
-	if n == o {
+func (ns *Networks) Equals(o *Networks) bool {
+	if ns == o {
 		return true
 	}
-	if n == nil || o == nil {
+	if ns == nil || o == nil {
 		return false
 	}
-	if len(*n) != len(*o) {
+	if len(*ns) != len(*o) {
 		return false
 	}
 SETEQUALS:
-	for _, ne := range *n {
+	for _, ne := range *ns {
 		for _, oe := range *o {
 			if ne.Equals(oe) {
 				continue SETEQUALS
@@ -2922,7 +3039,8 @@ func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.
-	Tasks map[string]*AllocatedTaskResources
+	Tasks          map[string]*AllocatedTaskResources
+	TaskLifecycles map[string]*TaskLifecycleConfig
 
 	// Shared is the set of resource that are shared by all tasks in the group.
 	Shared AllocatedSharedResources
@@ -2943,6 +3061,13 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 			out.Tasks[task] = resource.Copy()
 		}
 	}
+	if a.TaskLifecycles != nil {
+		out.TaskLifecycles = make(map[string]*TaskLifecycleConfig, len(out.TaskLifecycles))
+		for task, lifecycle := range a.TaskLifecycles {
+			out.TaskLifecycles[task] = lifecycle.Copy()
+		}
+
+	}
 
 	return &out
 }
@@ -2957,9 +3082,29 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	c := &ComparableResources{
 		Shared: a.Shared,
 	}
-	for _, r := range a.Tasks {
-		c.Flattened.Add(r)
+
+	prestartSidecarTasks := &AllocatedTaskResources{}
+	prestartEphemeralTasks := &AllocatedTaskResources{}
+	main := &AllocatedTaskResources{}
+
+	for taskName, r := range a.Tasks {
+		lc := a.TaskLifecycles[taskName]
+		if lc == nil {
+			main.Add(r)
+		} else if lc.Hook == TaskLifecycleHookPrestart {
+			if lc.Sidecar {
+				prestartSidecarTasks.Add(r)
+			} else {
+				prestartEphemeralTasks.Add(r)
+			}
+		}
 	}
+
+	// update this loop to account for lifecycle hook
+	prestartEphemeralTasks.Max(main)
+	prestartSidecarTasks.Add(prestartEphemeralTasks)
+	c.Flattened.Add(prestartSidecarTasks)
+
 	// Add network resources that are at the task group level
 	for _, network := range a.Shared.Networks {
 		c.Flattened.Add(&AllocatedTaskResources{
@@ -3038,6 +3183,35 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 	}
 
 	for _, d := range delta.Devices {
+		// Find the matching device
+		idx := AllocatedDevices(a.Devices).Index(d)
+		if idx == -1 {
+			a.Devices = append(a.Devices, d.Copy())
+		} else {
+			a.Devices[idx].Add(d)
+		}
+	}
+}
+
+func (a *AllocatedTaskResources) Max(other *AllocatedTaskResources) {
+	if other == nil {
+		return
+	}
+
+	a.Cpu.Max(&other.Cpu)
+	a.Memory.Max(&other.Memory)
+
+	for _, n := range other.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := a.NetIndex(n)
+		if idx == -1 {
+			a.Networks = append(a.Networks, n.Copy())
+		} else {
+			a.Networks[idx].Add(n)
+		}
+	}
+
+	for _, d := range other.Devices {
 		// Find the matching device
 		idx := AllocatedDevices(a.Devices).Index(d)
 		if idx == -1 {
@@ -3142,6 +3316,16 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 	a.CpuShares -= delta.CpuShares
 }
 
+func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
+	if other == nil {
+		return
+	}
+
+	if other.CpuShares > a.CpuShares {
+		a.CpuShares = other.CpuShares
+	}
+}
+
 // AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
 	MemoryMB int64
@@ -3161,6 +3345,16 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+}
+
+func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
+	if other == nil {
+		return
+	}
+
+	if other.MemoryMB > a.MemoryMB {
+		a.MemoryMB = other.MemoryMB
+	}
 }
 
 type AllocatedDevices []*AllocatedDeviceResource
@@ -3317,6 +3511,10 @@ const (
 	// JobTrackedVersions is the number of historic job versions that are
 	// kept.
 	JobTrackedVersions = 6
+
+	// JobTrackedScalingEvents is the number of scaling events that are
+	// kept for a single task group.
+	JobTrackedScalingEvents = 20
 )
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
@@ -3402,6 +3600,12 @@ type Job struct {
 	// Meta is used to associate arbitrary metadata with this
 	// job. This is opaque to Nomad.
 	Meta map[string]string
+
+	// ConsulToken is the Consul token that proves the submitter of the job has
+	// access to the Service Identity policies associated with the job's
+	// Consul Connect enabled services. This field is only used to transfer the
+	// token and is not stored after Job submission.
+	ConsulToken string
 
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
@@ -3783,6 +3987,27 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	return policies
 }
 
+// Connect tasks returns the set of Consul Connect enabled tasks that will
+// require a Service Identity token, if Consul ACLs are enabled.
+//
+// This method is meaningful only after the Job has passed through the job
+// submission Mutator functions.
+//
+// task group -> []task
+func (j *Job) ConnectTasks() map[string][]string {
+	m := make(map[string][]string)
+	for _, tg := range j.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.Kind.IsConnectProxy() {
+				// todo(shoenig): when we support native, probably need to check
+				//  an additional TBD TaskKind as well.
+				m[tg.Name] = append(m[tg.Name], task.Name)
+			}
+		}
+	}
+	return m
+}
+
 // RequiredSignals returns a mapping of task groups to tasks to their required
 // set of signals
 func (j *Job) RequiredSignals() map[string]map[string][]string {
@@ -3856,6 +4081,8 @@ func (j *Job) SpecChanged(new *Job) bool {
 	c.ModifyIndex = j.ModifyIndex
 	c.JobModifyIndex = j.JobModifyIndex
 	c.SubmitTime = j.SubmitTime
+
+	// cgbaker: FINISH: probably need some consideration of scaling policy ID here
 
 	// Deep equals the jobs
 	return !reflect.DeepEqual(j, c)
@@ -4343,6 +4570,40 @@ func (d *DispatchPayloadConfig) Validate() error {
 	return nil
 }
 
+const (
+	TaskLifecycleHookPrestart = "prestart"
+)
+
+type TaskLifecycleConfig struct {
+	Hook    string
+	Sidecar bool
+}
+
+func (d *TaskLifecycleConfig) Copy() *TaskLifecycleConfig {
+	if d == nil {
+		return nil
+	}
+	nd := new(TaskLifecycleConfig)
+	*nd = *d
+	return nd
+}
+
+func (d *TaskLifecycleConfig) Validate() error {
+	if d == nil {
+		return nil
+	}
+
+	switch d.Hook {
+	case TaskLifecycleHookPrestart:
+	case "":
+		return fmt.Errorf("no lifecycle hook provided")
+	default:
+		return fmt.Errorf("invalid hook: %v", d.Hook)
+	}
+
+	return nil
+}
+
 var (
 	// These default restart policies needs to be in sync with
 	// Canonicalize in api/tasks.go
@@ -4395,6 +4656,162 @@ const (
 	// ReasonWithinPolicy describes restart events that are within policy
 	ReasonWithinPolicy = "Restart within policy"
 )
+
+// JobScalingEvents contains the scaling events for a given job
+type JobScalingEvents struct {
+	Namespace string
+	JobID     string
+
+	// This map is indexed by target; currently, this is just task group
+	// the indexed array is sorted from newest to oldest event
+	// the array should have less than JobTrackedScalingEvents entries
+	ScalingEvents map[string][]*ScalingEvent
+
+	// Raft index
+	ModifyIndex uint64
+}
+
+// Factory method for ScalingEvent objects
+func NewScalingEvent(message string) *ScalingEvent {
+	return &ScalingEvent{
+		Time:    time.Now().Unix(),
+		Message: message,
+	}
+}
+
+// ScalingEvent describes a scaling event against a Job
+type ScalingEvent struct {
+	// Unix Nanosecond timestamp for the scaling event
+	Time int64
+
+	// Count is the new scaling count, if provided
+	Count *int64
+
+	// Message is the message describing a scaling event
+	Message string
+
+	// Error indicates an error state for this scaling event
+	Error bool
+
+	// Meta is a map of metadata returned during a scaling event
+	Meta map[string]interface{}
+
+	// EvalID is the ID for an evaluation if one was created as part of a scaling event
+	EvalID *string
+
+	// Raft index
+	CreateIndex uint64
+}
+
+func (e *ScalingEvent) SetError(error bool) *ScalingEvent {
+	e.Error = error
+	return e
+}
+
+func (e *ScalingEvent) SetMeta(meta map[string]interface{}) *ScalingEvent {
+	e.Meta = meta
+	return e
+}
+
+func (e *ScalingEvent) SetEvalID(evalID string) *ScalingEvent {
+	e.EvalID = &evalID
+	return e
+}
+
+// ScalingEventRequest is by for Job.Scale endpoint
+// to register scaling events
+type ScalingEventRequest struct {
+	Namespace string
+	JobID     string
+	TaskGroup string
+
+	ScalingEvent *ScalingEvent
+}
+
+// ScalingPolicy specifies the scaling policy for a scaling target
+type ScalingPolicy struct {
+	// ID is a generated UUID used for looking up the scaling policy
+	ID string
+
+	// Target contains information about the target of the scaling policy, like job and group
+	Target map[string]string
+
+	// Policy is an opaque description of the scaling policy, passed to the autoscaler
+	Policy map[string]interface{}
+
+	// Min is the minimum allowable scaling count for this target
+	Min int64
+
+	// Max is the maximum allowable scaling count for this target
+	Max int64
+
+	// Enabled indicates whether this policy has been enabled/disabled
+	Enabled bool
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+const (
+	ScalingTargetNamespace = "Namespace"
+	ScalingTargetJob       = "Job"
+	ScalingTargetGroup     = "Group"
+)
+
+// Diff indicates whether the specification for a given scaling policy has changed
+func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
+	copy := *p2
+	copy.ID = p.ID
+	copy.CreateIndex = p.CreateIndex
+	copy.ModifyIndex = p.ModifyIndex
+	return !reflect.DeepEqual(*p, copy)
+}
+
+func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
+	p.Target = map[string]string{
+		ScalingTargetNamespace: job.Namespace,
+		ScalingTargetJob:       job.ID,
+		ScalingTargetGroup:     tg.Name,
+	}
+	return p
+}
+
+func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
+	stub := &ScalingPolicyListStub{
+		ID:          p.ID,
+		Target:      make(map[string]string),
+		Enabled:     p.Enabled,
+		CreateIndex: p.CreateIndex,
+		ModifyIndex: p.ModifyIndex,
+	}
+	for k, v := range p.Target {
+		stub.Target[k] = v
+	}
+	return stub
+}
+
+// GetScalingPolicies returns a slice of all scaling scaling policies for this job
+func (j *Job) GetScalingPolicies() []*ScalingPolicy {
+	ret := make([]*ScalingPolicy, 0)
+
+	for _, tg := range j.TaskGroups {
+		if tg.Scaling != nil {
+			ret = append(ret, tg.Scaling)
+		}
+	}
+
+	return ret
+}
+
+// ScalingPolicyListStub is used to return a subset of scaling policy information
+// for the scaling policy list
+type ScalingPolicyListStub struct {
+	ID          string
+	Enabled     bool
+	Target      map[string]string
+	CreateIndex uint64
+	ModifyIndex uint64
+}
 
 // RestartPolicy configures how Tasks are restarted when they crash or fail.
 type RestartPolicy struct {
@@ -4747,7 +5164,10 @@ type TaskGroup struct {
 	// all the tasks contained.
 	Constraints []*Constraint
 
-	//RestartPolicy of a TaskGroup
+	// Scaling is the list of autoscaling policies for the TaskGroup
+	Scaling *ScalingPolicy
+
+	// RestartPolicy of a TaskGroup
 	RestartPolicy *RestartPolicy
 
 	// Tasks are the collection of tasks that this task group needs to run
@@ -4800,6 +5220,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
+	ntg.Scaling = CopyScalingPolicy(ntg.Scaling)
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -5001,8 +5422,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 	// Validate the Host Volumes
 	for name, decl := range tg.Volumes {
-		if decl.Type != VolumeTypeHost {
-			// TODO: Remove this error when adding new volume types
+		if !(decl.Type == VolumeTypeHost ||
+			decl.Type == VolumeTypeCSI) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
 			continue
 		}
@@ -5021,6 +5442,12 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	// Validate task group and task services
 	if err := tg.validateServices(); err != nil {
 		outer := fmt.Errorf("Task group service validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
+	// Validate the scaling policy
+	if err := tg.validateScalingPolicy(); err != nil {
+		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
@@ -5175,6 +5602,33 @@ func (tg *TaskGroup) validateServices() error {
 	return mErr.ErrorOrNil()
 }
 
+// validateScalingPolicy ensures that the scaling policy has consistent
+// min and max, not in conflict with the task group count
+func (tg *TaskGroup) validateScalingPolicy() error {
+	if tg.Scaling == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+
+	if tg.Scaling.Min > tg.Scaling.Max {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
+	}
+
+	if int64(tg.Count) < tg.Scaling.Min {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: task group count must not be less than minimum count in scaling policy"))
+	}
+
+	if tg.Scaling.Max < int64(tg.Count) {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // Warnings returns a list of warnings that may be from dubious settings or
 // deprecation warnings.
 func (tg *TaskGroup) Warnings(j *Job) error {
@@ -5208,6 +5662,17 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 		}
 	}
 	return nil
+}
+
+func (tg *TaskGroup) UsesConnect() bool {
+	for _, service := range tg.Services {
+		if service.Connect != nil {
+			if service.Connect.Native || service.Connect.SidecarService != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (tg *TaskGroup) GoString() string {
@@ -5351,8 +5816,13 @@ type Task struct {
 	// Resources is the resources needed by this task
 	Resources *Resources
 
+	// RestartPolicy of a TaskGroup
+	RestartPolicy *RestartPolicy
+
 	// DispatchPayload configures how the task retrieves its input from a dispatch
 	DispatchPayload *DispatchPayloadConfig
+
+	Lifecycle *TaskLifecycleConfig
 
 	// Meta is used to associate arbitrary metadata with this
 	// task. This is opaque to Nomad.
@@ -5390,6 +5860,25 @@ type Task struct {
 	// Used internally to manage tasks according to their TaskKind. Initial use case
 	// is for Consul Connect
 	Kind TaskKind
+
+	// CSIPluginConfig is used to configure the plugin supervisor for the task.
+	CSIPluginConfig *TaskCSIPluginConfig
+}
+
+// UsesConnect is for conveniently detecting if the Task is able to make use
+// of Consul Connect features. This will be indicated in the TaskKind of the
+// Task, which exports known types of Tasks.
+//
+// Currently only Consul Connect Proxy tasks are known.
+// (Consul Connect Native tasks will be supported soon).
+func (t *Task) UsesConnect() bool {
+	// todo(shoenig): native tasks
+	switch {
+	case t.Kind.IsConnectProxy():
+		return true
+	default:
+		return false
+	}
 }
 
 func (t *Task) Copy() *Task {
@@ -5411,12 +5900,14 @@ func (t *Task) Copy() *Task {
 	nt.Constraints = CopySliceConstraints(nt.Constraints)
 	nt.Affinities = CopySliceAffinities(nt.Affinities)
 	nt.VolumeMounts = CopySliceVolumeMount(nt.VolumeMounts)
+	nt.CSIPluginConfig = nt.CSIPluginConfig.Copy()
 
 	nt.Vault = nt.Vault.Copy()
 	nt.Resources = nt.Resources.Copy()
 	nt.LogConfig = nt.LogConfig.Copy()
 	nt.Meta = helper.CopyMapStringString(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
+	nt.Lifecycle = nt.Lifecycle.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -5466,6 +5957,10 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 		t.Resources = DefaultResources()
 	} else {
 		t.Resources.Canonicalize()
+	}
+
+	if t.RestartPolicy == nil {
+		t.RestartPolicy = tg.RestartPolicy
 	}
 
 	// Set the default timeout if it is not specified.
@@ -5596,6 +6091,14 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		}
 	}
 
+	// Validate the Lifecycle block if there
+	if t.Lifecycle != nil {
+		if err := t.Lifecycle.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Lifecycle validation failed: %v", err))
+		}
+
+	}
+
 	// Validation for TaskKind field which is used for Consul Connect integration
 	if t.Kind.IsConnectProxy() {
 		// This task is a Connect proxy so it should not have service stanzas
@@ -5618,6 +6121,19 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		if !MountPropagationModeIsValid(vm.PropagationMode) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) has an invalid propagation mode: \"%s\"", idx, vm.PropagationMode))
 		}
+	}
+
+	// Validate CSI Plugin Config
+	if t.CSIPluginConfig != nil {
+		if t.CSIPluginConfig.ID == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig must have a non-empty PluginID"))
+		}
+
+		if !CSIPluginTypeIsValid(t.CSIPluginConfig.Type) {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"%s\"", t.CSIPluginConfig.Type))
+		}
+
+		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
 	}
 
 	return mErr.ErrorOrNil()
@@ -5760,12 +6276,19 @@ func (t *Task) Warnings() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
 	}
 
+	for idx, tmpl := range t.Templates {
+		if err := tmpl.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Template[%d]", idx))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
 // TaskKind identifies the special kinds of tasks using the following format:
 // '<kind_name>(:<identifier>)`. The TaskKind can optionally include an identifier that
-// is opague to the Task. This identier can be used to relate the task to some
+// is opaque to the Task. This identifier can be used to relate the task to some
 // other entity based on the kind.
 //
 // For example, a task may have the TaskKind of `connect-proxy:service` where
@@ -5895,6 +6418,7 @@ type Template struct {
 	// VaultGrace is the grace duration between lease renewal and reacquiring a
 	// secret. If the lease of a secret is less than the grace, a new secret is
 	// acquired.
+	// COMPAT(0.12) VaultGrace has been ignored by Vault since Vault v0.5.
 	VaultGrace time.Duration
 }
 
@@ -5969,8 +6493,15 @@ func (t *Template) Validate() error {
 		}
 	}
 
-	if t.VaultGrace.Nanoseconds() < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Vault grace must be greater than zero: %v < 0", t.VaultGrace))
+	return mErr.ErrorOrNil()
+}
+
+func (t *Template) Warnings() error {
+	var mErr multierror.Error
+
+	// Deprecation notice for vault_grace
+	if t.VaultGrace != 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("VaultGrace has been deprecated as of Nomad 0.11 and ignored since Vault 0.5. Please remove VaultGrace / vault_grace from template stanza."))
 	}
 
 	return mErr.ErrorOrNil()
@@ -6130,6 +6661,12 @@ const (
 	// TaskRestoreFailed indicates Nomad was unable to reattach to a
 	// restored task.
 	TaskRestoreFailed = "Failed Restoring Task"
+
+	// TaskPluginUnhealthy indicates that a plugin managed by Nomad became unhealthy
+	TaskPluginUnhealthy = "Plugin became unhealthy"
+
+	// TaskPluginHealthy indicates that a plugin managed by Nomad became healthy
+	TaskPluginHealthy = "Plugin became healthy"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -7568,15 +8105,17 @@ type Allocation struct {
 	// the scheduler.
 	Resources *Resources
 
-	// COMPAT(0.11): Remove in 0.11
 	// SharedResources are the resources that are shared by all the tasks in an
 	// allocation
+	// Deprecated: use AllocatedResources.Shared instead.
+	// Keep field to allow us to handle upgrade paths from old versions
 	SharedResources *Resources
 
-	// COMPAT(0.11): Remove in 0.11
 	// TaskResources is the set of resources allocated to each
 	// task. These should sum to the total Resources. Dynamic ports will be
 	// set by the scheduler.
+	// Deprecated: use AllocatedResources.Tasks instead.
+	// Keep field to allow us to handle upgrade paths from old versions
 	TaskResources map[string]*Resources
 
 	// AllocatedResources is the total resources allocated for the task group.
@@ -7671,6 +8210,36 @@ func (a *Allocation) Copy() *Allocation {
 // CopySkipJob provides a copy of the allocation but doesn't deep copy the job
 func (a *Allocation) CopySkipJob() *Allocation {
 	return a.copyImpl(false)
+}
+
+// Canonicalize Allocation to ensure fields are initialized to the expectations
+// of this version of Nomad. Should be called when restoring persisted
+// Allocations or receiving Allocations from Nomad agents potentially on an
+// older version of Nomad.
+func (a *Allocation) Canonicalize() {
+	if a.AllocatedResources == nil && a.TaskResources != nil {
+		ar := AllocatedResources{}
+
+		tasks := make(map[string]*AllocatedTaskResources, len(a.TaskResources))
+		for name, tr := range a.TaskResources {
+			atr := AllocatedTaskResources{}
+			atr.Cpu.CpuShares = int64(tr.CPU)
+			atr.Memory.MemoryMB = int64(tr.MemoryMB)
+			atr.Networks = tr.Networks.Copy()
+
+			tasks[name] = &atr
+		}
+		ar.Tasks = tasks
+
+		if a.SharedResources != nil {
+			ar.Shared.DiskMB = int64(a.SharedResources.DiskMB)
+			ar.Shared.Networks = a.SharedResources.Networks.Copy()
+		}
+
+		a.AllocatedResources = &ar
+	}
+
+	a.Job.Canonicalize()
 }
 
 func (a *Allocation) copyImpl(job bool) *Allocation {
@@ -8383,6 +8952,7 @@ const (
 	EvalTriggerRetryFailedAlloc  = "alloc-failure"
 	EvalTriggerQueuedAllocs      = "queued-allocs"
 	EvalTriggerPreemption        = "preemption"
+	EvalTriggerScaling           = "job-scaling"
 )
 
 const (
@@ -8407,6 +8977,11 @@ const (
 	// deployments. We periodically scan garbage collectible deployments and
 	// check if they are terminal. If so, we delete these out of the system.
 	CoreJobDeploymentGC = "deployment-gc"
+
+	// CoreJobCSIVolumeClaimGC is use for the garbage collection of CSI
+	// volume claims. We periodically scan volumes to see if no allocs are
+	// claiming them. If so, we unclaim the volume.
+	CoreJobCSIVolumeClaimGC = "csi-volume-claim-gc"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"

@@ -2,6 +2,8 @@
 
 ## Code
 
+* [ ] Consider similar features in Consul, Kubernetes, and other tools. Is
+  there prior art we should match? Terminology, structure, etc?
 * [ ] Parse in `jobspec/parse.go`
 * [ ] Test in `jobspec/parse_test.go` (preferably with a
   `jobspec/text-fixtures/<feature>.hcl` test file)
@@ -14,6 +16,8 @@
   * Validation happens in this package and must be implemented
   * Implement other methods and tests from `api/` package
 * [ ] Add conversion between `api/` and `nomad/structs` in `command/agent/job_endpoint.go`
+* [ ] Add check for job diff in `nomad/structs/diff.go`
+  * Note that fields must be listed in alphabetical order in `FieldDiff` slices in `nomad/structs/diff_test.go`
 * [ ] Test conversion
 
 ## Docs

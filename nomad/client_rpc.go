@@ -6,12 +6,12 @@ import (
 	"net"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
-	"github.com/ugorji/go/codec"
 )
 
 // nodeConnState is used to track connection information about a Nomad Client.
@@ -219,14 +219,14 @@ func NodeRpc(session *yamux.Session, method string, args, reply interface{}) err
 	// Open a new session
 	stream, err := session.Open()
 	if err != nil {
-		return err
+		return fmt.Errorf("session open: %v", err)
 	}
 	defer stream.Close()
 
 	// Write the RpcNomad byte to set the mode
 	if _, err := stream.Write([]byte{byte(pool.RpcNomad)}); err != nil {
 		stream.Close()
-		return err
+		return fmt.Errorf("set mode: %v", err)
 	}
 
 	// Make the RPC

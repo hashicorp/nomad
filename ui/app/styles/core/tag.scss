@@ -52,4 +52,14 @@
   &.is-outlined {
     box-shadow: 0 0 0 1px $white;
   }
+
+  &.is-alone {
+    padding: 0;
+    margin-bottom: 1em;
+  }
+
+  &.is-small {
+    font-size: 0.7rem;
+    vertical-align: 2px;
+  }
 }

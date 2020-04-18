@@ -8,6 +8,11 @@ variable "region" {
   default     = "us-east-1"
 }
 
+variable "availability_zone" {
+  description = "The AWS availability zone to deploy to."
+  default     = "us-east-1a"
+}
+
 variable "indexed" {
   description = "Different configurations per client/server"
   default     = true
@@ -34,7 +39,8 @@ variable "windows_client_count" {
 }
 
 variable "nomad_sha" {
-  description = "The sha of Nomad to run"
+  description = "The sha of Nomad to write to provisioning output"
+  default     = ""
 }
 
 provider "aws" {
@@ -126,7 +132,13 @@ go test -v ./e2e
 
 ssh into nodes with:
 ```
-ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.client_linux[0].public_ip}
+# server
+ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.server[0].public_ip}
+
+# clients
+%{ for ip in aws_instance.client_linux.*.public_ip ~}
+ssh -i keys/${local.random_name}.pem ubuntu@${ip}
+%{ endfor ~}
 ```
 EOM
 

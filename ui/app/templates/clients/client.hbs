@@ -81,7 +81,9 @@
   <div class="toolbar">
     <div class="toolbar-item is-top-aligned is-minimum">
       <span class="title">
-        <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}"></span>
+        <span data-test-node-status="{{model.compositeStatus}}" class="node-status-light {{model.compositeStatus}}">
+          {{x-icon model.compositeStatusIcon}}
+        </span>
       </span>
     </div>
     <div class="toolbar-item">
@@ -93,7 +95,7 @@
           {{#toggle
             data-test-eligibility-toggle
             isActive=model.isEligible
-            isDisabled=(or setEligibility.isRunning model.isDraining)
+            isDisabled=(or setEligibility.isRunning model.isDraining (cannot "write client"))
             onToggle=(perform setEligibility (not model.isEligible))}}
             Eligible
           {{/toggle}}
@@ -122,6 +124,7 @@
     <div class="toolbar-item is-right-aligned is-top-aligned">
       {{drain-popover
         client=model
+        isDisabled=(cannot "write client")
         onDrain=(action "drainNotify")
         onError=(action "drainError")}}
     </div>
@@ -302,6 +305,7 @@
             {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
             {{#t.sort-by prop="job.name"}}Job{{/t.sort-by}}
             {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
+            <th>Volume</th>
             <th>CPU</th>
             <th>Memory</th>
           {{/t.head}}
@@ -357,6 +361,30 @@
       {{/list-table}}
     </div>
   </div>
+
+  {{#if sortedHostVolumes.length}}
+    <div data-test-client-host-volumes class="boxed-section">
+      <div class="boxed-section-head">
+        Host Volumes
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=sortedHostVolumes class="is-striped" as |t|}}
+          {{#t.head}}
+            <th>Name</th>
+            <th>Source</th>
+            <th>Permissions</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-client-host-volume>
+              <td data-test-name>{{row.model.name}}</td>
+              <td data-test-path><code>{{row.model.path}}</code></td>
+              <td data-test-permissions>{{if row.model.readOnly "Read" "Read/Write"}}</td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
 
   <div data-test-driver-status class="boxed-section">
     <div class="boxed-section-head">

@@ -121,6 +121,11 @@ type ExecCommand struct {
 	// Using the cgroup does allow more precise cleanup of processes.
 	BasicProcessCgroup bool
 
+	// NoPivotRoot disables using pivot_root for isolation, useful when the root
+	// partition is on a ramdisk which does not support pivot_root,
+	// see man 2 pivot_root
+	NoPivotRoot bool
+
 	// Mounts are the host paths to be be made available inside rootfs
 	Mounts []*drivers.MountConfig
 

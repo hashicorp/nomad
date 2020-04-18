@@ -26,6 +26,10 @@ export default create({
 
   restart: twoStepButton('[data-test-restart]'),
 
+  execButton: {
+    scope: '[data-test-exec-button]',
+  },
+
   breadcrumbs: collection('[data-test-breadcrumb]', {
     id: attribute('data-test-breadcrumb'),
     text: text(),
@@ -48,6 +52,14 @@ export default create({
     name: text('[data-test-task-address-name]'),
     isDynamic: text('[data-test-task-address-is-dynamic]'),
     address: text('[data-test-task-address-address]'),
+  }),
+
+  hasVolumes: isPresent('[data-test-volumes]'),
+  volumes: collection('[data-test-volume]', {
+    name: text('[data-test-volume-name]'),
+    destination: text('[data-test-volume-destination]'),
+    permissions: text('[data-test-volume-permissions]'),
+    clientSource: text('[data-test-volume-client-source]'),
   }),
 
   events: collection('[data-test-task-event]', {

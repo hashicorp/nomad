@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"sort"
 	"strconv"
 	"sync"
@@ -234,11 +233,7 @@ func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task st
 	var conn *websocket.Conn
 
 	if nodeClient != nil {
-		conn, _, err = nodeClient.websocket(reqPath, q)
-		if _, ok := err.(net.Error); err != nil && !ok {
-			errCh <- err
-			return nil, nil
-		}
+		conn, _, _ = nodeClient.websocket(reqPath, q)
 	}
 
 	if conn == nil {
@@ -404,6 +399,36 @@ type NodeScoreMeta struct {
 	NormScore float64
 }
 
+// Stub returns a list stub for the allocation
+func (a *Allocation) Stub() *AllocationListStub {
+	return &AllocationListStub{
+		ID:                    a.ID,
+		EvalID:                a.EvalID,
+		Name:                  a.Name,
+		Namespace:             a.Namespace,
+		NodeID:                a.NodeID,
+		NodeName:              a.NodeName,
+		JobID:                 a.JobID,
+		JobType:               *a.Job.Type,
+		JobVersion:            *a.Job.Version,
+		TaskGroup:             a.TaskGroup,
+		DesiredStatus:         a.DesiredStatus,
+		DesiredDescription:    a.DesiredDescription,
+		ClientStatus:          a.ClientStatus,
+		ClientDescription:     a.ClientDescription,
+		TaskStates:            a.TaskStates,
+		DeploymentStatus:      a.DeploymentStatus,
+		FollowupEvalID:        a.FollowupEvalID,
+		RescheduleTracker:     a.RescheduleTracker,
+		PreemptedAllocations:  a.PreemptedAllocations,
+		PreemptedByAllocation: a.PreemptedByAllocation,
+		CreateIndex:           a.CreateIndex,
+		ModifyIndex:           a.ModifyIndex,
+		CreateTime:            a.CreateTime,
+		ModifyTime:            a.ModifyTime,
+	}
+}
+
 // AllocationListStub is used to return a subset of an allocation
 // during list operations.
 type AllocationListStub struct {
@@ -482,18 +507,23 @@ func (a AllocIndexSort) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+func (a Allocation) GetTaskGroup() *TaskGroup {
+	for _, tg := range a.Job.TaskGroups {
+		if *tg.Name == a.TaskGroup {
+			return tg
+		}
+	}
+	return nil
+}
+
 // RescheduleInfo is used to calculate remaining reschedule attempts
 // according to the given time and the task groups reschedule policy
 func (a Allocation) RescheduleInfo(t time.Time) (int, int) {
-	var reschedulePolicy *ReschedulePolicy
-	for _, tg := range a.Job.TaskGroups {
-		if *tg.Name == a.TaskGroup {
-			reschedulePolicy = tg.ReschedulePolicy
-		}
-	}
-	if reschedulePolicy == nil {
+	tg := a.GetTaskGroup()
+	if tg == nil || tg.ReschedulePolicy == nil {
 		return 0, 0
 	}
+	reschedulePolicy := tg.ReschedulePolicy
 	availableAttempts := *reschedulePolicy.Attempts
 	interval := *reschedulePolicy.Interval
 	attempted := 0

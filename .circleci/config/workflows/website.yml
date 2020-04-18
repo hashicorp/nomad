@@ -1,6 +1,7 @@
 jobs:
-  - build-website:
+  - website-docker-image:
       context: static-sites
       filters:
         branches:
-          only: stable-website
+          only:
+            - master

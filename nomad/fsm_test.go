@@ -184,7 +184,7 @@ func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
-	// Setup a node without eligiblity
+	// Setup a node without eligibility
 	node := mock.Node()
 	node.SchedulingEligibility = ""
 
@@ -1379,6 +1379,45 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 	}
 }
 
+// TestFSM_UpsertAllocs_Canonicalize asserts that allocations are Canonicalized
+// to handle logs emited by servers running old versions
+func TestFSM_UpsertAllocs_Canonicalize(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	alloc := mock.Alloc()
+	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
+	alloc.AllocatedResources = nil
+
+	// pre-assert that our mock populates old field
+	require.NotEmpty(t, alloc.TaskResources)
+
+	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+	req := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+	}
+	buf, err := structs.Encode(structs.AllocUpdateRequestType, req)
+	require.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(t, resp)
+
+	// Verify we are registered
+	ws := memdb.NewWatchSet()
+	out, err := fsm.State().AllocByID(ws, alloc.ID)
+	require.NoError(t, err)
+
+	require.NotNil(t, out.AllocatedResources)
+	require.Contains(t, out.AllocatedResources.Tasks, "web")
+
+	expected := alloc.Copy()
+	expected.Canonicalize()
+	expected.CreateIndex = out.CreateIndex
+	expected.ModifyIndex = out.ModifyIndex
+	expected.AllocModifyIndex = out.AllocModifyIndex
+	require.Equal(t, expected, out)
+}
+
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
@@ -1660,6 +1699,79 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 	if index != 1 {
 		t.Fatalf("bad: %d", index)
 	}
+}
+
+func TestFSM_UpsertSITokenAccessor(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	a1 := mock.SITokenAccessor()
+	a2 := mock.SITokenAccessor()
+	request := structs.SITokenAccessorsRequest{
+		Accessors: []*structs.SITokenAccessor{a1, a2},
+	}
+	buf, err := structs.Encode(structs.ServiceIdentityAccessorRegisterRequestType, request)
+	r.NoError(err)
+
+	response := fsm.Apply(makeLog(buf))
+	r.Nil(response)
+
+	// Verify the accessors got registered
+	ws := memdb.NewWatchSet()
+	result1, err := fsm.State().SITokenAccessor(ws, a1.AccessorID)
+	r.NoError(err)
+	r.NotNil(result1)
+	r.Equal(uint64(1), result1.CreateIndex)
+
+	result2, err := fsm.State().SITokenAccessor(ws, a2.AccessorID)
+	r.NoError(err)
+	r.NotNil(result2)
+	r.Equal(uint64(1), result2.CreateIndex)
+
+	tt := fsm.TimeTable()
+	latestIndex := tt.NearestIndex(time.Now())
+	r.Equal(uint64(1), latestIndex)
+}
+
+func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	a1 := mock.SITokenAccessor()
+	a2 := mock.SITokenAccessor()
+	accessors := []*structs.SITokenAccessor{a1, a2}
+	var err error
+
+	// Insert the accessors
+	err = fsm.State().UpsertSITokenAccessors(1000, accessors)
+	r.NoError(err)
+
+	request := structs.SITokenAccessorsRequest{Accessors: accessors}
+	buf, err := structs.Encode(structs.ServiceIdentityAccessorDeregisterRequestType, request)
+	r.NoError(err)
+
+	response := fsm.Apply(makeLog(buf))
+	r.Nil(response)
+
+	ws := memdb.NewWatchSet()
+
+	result1, err := fsm.State().SITokenAccessor(ws, a1.AccessorID)
+	r.NoError(err)
+	r.Nil(result1) // should have been deleted
+
+	result2, err := fsm.State().SITokenAccessor(ws, a2.AccessorID)
+	r.NoError(err)
+	r.Nil(result2) // should have been deleted
+
+	tt := fsm.TimeTable()
+	latestIndex := tt.NearestIndex(time.Now())
+	r.Equal(uint64(1), latestIndex)
 }
 
 func TestFSM_ApplyPlanResults(t *testing.T) {
@@ -2453,6 +2565,33 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	}
 }
 
+func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	alloc := mock.Alloc()
+
+	// remove old versions to force migration path
+	alloc.AllocatedResources = nil
+
+	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
+	state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	ws := memdb.NewWatchSet()
+	out, err := state2.AllocByID(ws, alloc.ID)
+	require.NoError(t, err)
+
+	require.NotNil(t, out.AllocatedResources)
+	require.Contains(t, out.AllocatedResources.Tasks, "web")
+
+	alloc.Canonicalize()
+	require.Equal(t, alloc, out)
+}
+
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	t.Parallel()
 	// Add some state
@@ -2698,7 +2837,25 @@ func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
 	require.Nil(err)
 	require.EqualValues(1000, index)
 	require.Equal(schedConfig, out)
+}
 
+func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
+	t.Parallel()
+
+	fsm := testFSM(t)
+	state := fsm.State()
+	clusterID := "12345678-1234-1234-1234-1234567890"
+	now := time.Now().UnixNano()
+	meta := &structs.ClusterMetadata{ClusterID: clusterID, CreateTime: now}
+	state.ClusterSetMetadata(1000, meta)
+
+	// Verify the contents
+	require := require.New(t)
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out, err := state2.ClusterMetadata()
+	require.NoError(err)
+	require.Equal(clusterID, out.ClusterID)
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {
@@ -2876,6 +3033,7 @@ func TestFSM_Autopilot(t *testing.T) {
 			CleanupDeadServers:   true,
 			LastContactThreshold: 10 * time.Second,
 			MaxTrailingLogs:      300,
+			MinQuorum:            3,
 		},
 	}
 	buf, err := structs.Encode(structs.AutopilotRequestType, req)
@@ -2900,6 +3058,9 @@ func TestFSM_Autopilot(t *testing.T) {
 	}
 	if config.MaxTrailingLogs != req.Config.MaxTrailingLogs {
 		t.Fatalf("bad: %v", config.MaxTrailingLogs)
+	}
+	if config.MinQuorum != req.Config.MinQuorum {
+		t.Fatalf("bad: %v", config.MinQuorum)
 	}
 
 	// Now use CAS and provide an old index
@@ -2971,4 +3132,42 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 	// Verify that preemption is still enabled
 	require.True(config.PreemptionConfig.SystemSchedulerEnabled)
 	require.True(config.PreemptionConfig.BatchSchedulerEnabled)
+}
+
+func TestFSM_ClusterMetadata(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	fsm := testFSM(t)
+	clusterID := "12345678-1234-1234-1234-1234567890"
+	now := time.Now().UnixNano()
+	meta := structs.ClusterMetadata{
+		ClusterID:  clusterID,
+		CreateTime: now,
+	}
+	buf, err := structs.Encode(structs.ClusterMetadataRequestType, meta)
+	r.NoError(err)
+
+	result := fsm.Apply(makeLog(buf))
+	r.Nil(result)
+
+	// Verify the clusterID is set directly in the state store
+	storedMetadata, err := fsm.state.ClusterMetadata()
+	r.NoError(err)
+	r.Equal(clusterID, storedMetadata.ClusterID)
+
+	// Check that the sanity check prevents accidental UUID regeneration
+	erroneous := structs.ClusterMetadata{
+		ClusterID: "99999999-9999-9999-9999-9999999999",
+	}
+	buf, err = structs.Encode(structs.ClusterMetadataRequestType, erroneous)
+	r.NoError(err)
+
+	result = fsm.Apply(makeLog(buf))
+	r.Error(result.(error))
+
+	storedMetadata, err = fsm.state.ClusterMetadata()
+	r.NoError(err)
+	r.Equal(clusterID, storedMetadata.ClusterID)
+	r.Equal(now, storedMetadata.CreateTime)
 }

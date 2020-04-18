@@ -2,11 +2,14 @@ package command
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -82,6 +85,69 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
 		t.Fatalf("expected getting formatter error, got: %s", out)
 	}
+}
+
+func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
+	t.Parallel()
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	// Wait for a node to be ready
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		for _, node := range nodes {
+			if node.Status == structs.NodeStatusReady {
+				return true, nil
+			}
+		}
+		return false, fmt.Errorf("no ready nodes")
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+	state := srv.Agent.Server().State()
+
+	a := mock.Alloc()
+	a.Metrics = &structs.AllocMetric{}
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	initTask := tg.Tasks[0].Copy()
+	initTask.Name = "init_task"
+	initTask.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook: "prestart",
+	}
+
+	prestartSidecarTask := tg.Tasks[0].Copy()
+	prestartSidecarTask.Name = "prestart_sidecar"
+	prestartSidecarTask.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    "prestart",
+		Sidecar: true,
+	}
+
+	tg.Tasks = append(tg.Tasks, initTask, prestartSidecarTask)
+	a.TaskResources["init_task"] = a.TaskResources["web"]
+	a.TaskResources["prestart_sidecar"] = a.TaskResources["web"]
+	a.TaskStates = map[string]*structs.TaskState{
+		"web":              &structs.TaskState{State: "pending"},
+		"init_task":        &structs.TaskState{State: "running"},
+		"prestart_sidecar": &structs.TaskState{State: "running"},
+	}
+
+	require.Nil(t, state.UpsertAllocs(1000, []*structs.Allocation{a}))
+
+	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+
+	require.Contains(t, out, `Task "init_task" (prestart) is "running"`)
+	require.Contains(t, out, `Task "prestart_sidecar" (prestart sidecar) is "running"`)
+	require.Contains(t, out, `Task "web" is "pending"`)
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
@@ -314,4 +380,147 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
 	assert.Equal(a.ID, res[0])
+}
+
+func TestAllocStatusCommand_HostVolumes(t *testing.T) {
+	t.Parallel()
+	// We have to create a tempdir for the host volume even though we're
+	// not going to use it b/c the server validates the config on startup
+	tmpDir, err := ioutil.TempDir("", "vol0")
+	if err != nil {
+		t.Fatalf("unable to create tempdir for test: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	vol0 := uuid.Generate()
+	srv, _, url := testServer(t, true, func(c *agent.Config) {
+		c.Client.HostVolumes = []*structs.ClientHostVolumeConfig{
+			{
+				Name:     vol0,
+				Path:     tmpDir,
+				ReadOnly: false,
+			},
+		}
+	})
+	defer srv.Shutdown()
+	state := srv.Agent.Server().State()
+
+	// Upsert the job and alloc
+	node := mock.Node()
+	alloc := mock.Alloc()
+	alloc.Metrics = &structs.AllocMetric{}
+	alloc.NodeID = node.ID
+	job := alloc.Job
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		vol0: {
+			Name:   vol0,
+			Type:   structs.VolumeTypeHost,
+			Source: tmpDir,
+		},
+	}
+	job.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
+		{
+			Volume:          vol0,
+			Destination:     "/var/www",
+			ReadOnly:        true,
+			PropagationMode: "private",
+		},
+	}
+	// fakes the placement enough so that we have something to iterate
+	// on in 'nomad alloc status'
+	alloc.TaskStates = map[string]*structs.TaskState{
+		"web": &structs.TaskState{
+			Events: []*structs.TaskEvent{
+				structs.NewTaskEvent("test event").SetMessage("test msg"),
+			},
+		},
+	}
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(1004, summary))
+	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+	require.Contains(t, out, "Host Volumes")
+	require.Contains(t, out, fmt.Sprintf("%s  true", vol0))
+	require.NotContains(t, out, "CSI Volumes")
+}
+
+func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
+	t.Parallel()
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+	state := srv.Agent.Server().State()
+
+	// Upsert the node, plugin, and volume
+	vol0 := uuid.Generate()
+	node := mock.Node()
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	err := state.UpsertNode(1001, node)
+	require.NoError(t, err)
+
+	vols := []*structs.CSIVolume{{
+		ID:             vol0,
+		Namespace:      structs.DefaultNamespace,
+		PluginID:       "minnie",
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		Topologies: []*structs.CSITopology{{
+			Segments: map[string]string{"foo": "bar"},
+		}},
+	}}
+	err = state.CSIVolumeRegister(1002, vols)
+	require.NoError(t, err)
+
+	// Upsert the job and alloc
+	alloc := mock.Alloc()
+	alloc.Metrics = &structs.AllocMetric{}
+	alloc.NodeID = node.ID
+	job := alloc.Job
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		vol0: {
+			Name:   vol0,
+			Type:   structs.VolumeTypeCSI,
+			Source: "/tmp/vol0",
+		},
+	}
+	job.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
+		{
+			Volume:          vol0,
+			Destination:     "/var/www",
+			ReadOnly:        true,
+			PropagationMode: "private",
+		},
+	}
+	// if we don't set a task state, there's nothing to iterate on alloc status
+	alloc.TaskStates = map[string]*structs.TaskState{
+		"web": &structs.TaskState{
+			Events: []*structs.TaskEvent{
+				structs.NewTaskEvent("test event").SetMessage("test msg"),
+			},
+		},
+	}
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(1004, summary))
+	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+
+	ui := new(cli.MockUi)
+	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
+	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out := ui.OutputWriter.String()
+	require.Contains(t, out, "CSI Volumes")
+	require.Contains(t, out, fmt.Sprintf("%s  minnie", vol0))
+	require.NotContains(t, out, "Host Volumes")
 }

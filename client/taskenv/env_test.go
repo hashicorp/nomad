@@ -266,6 +266,10 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 			},
 		},
 	}
+
+	// simulate canonicalization on restore or fetch
+	a.Canonicalize()
+
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{
 		"taskEnvKey": "taskEnvVal",

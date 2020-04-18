@@ -46,6 +46,9 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
     actions = [
       "ec2:DescribeInstances",
       "ec2:DescribeTags",
+      "ec2:DescribeVolume*",
+      "ec2:AttachVolume",
+      "ec2:DetachVolume",
       "autoscaling:DescribeAutoScalingGroups",
     ]
     resources = ["*"]
@@ -62,4 +65,3 @@ data "aws_iam_policy_document" "auto_discover_cluster" {
     resources = ["arn:aws:s3:::nomad-team-test-binary/*"]
   }
 }
-

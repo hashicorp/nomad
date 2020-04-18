@@ -7,10 +7,25 @@ import (
 	"strconv"
 	"strings"
 
+	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+)
+
+const (
+	FilterConstraintHostVolumes                 = "missing compatible host volumes"
+	FilterConstraintCSIPluginTemplate           = "CSI plugin %s is missing from client %s"
+	FilterConstraintCSIPluginUnhealthyTemplate  = "CSI plugin %s is unhealthy on client %s"
+	FilterConstraintCSIPluginMaxVolumesTemplate = "CSI plugin %s has the maximum number of volumes on client %s"
+	FilterConstraintCSIVolumesLookupFailed      = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate   = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNoReadTemplate     = "CSI volume %s is unschedulable or has exhausted its available reader claims"
+	FilterConstraintCSIVolumeNoWriteTemplate    = "CSI volume %s is unschedulable or is read-only"
+	FilterConstraintCSIVolumeInUseTemplate      = "CSI volume %s has exhausted its available writer claims" //
+	FilterConstraintDrivers                     = "missing drivers"
+	FilterConstraintDevices                     = "missing devices"
 )
 
 // FeasibleIterator is used to iteratively yield nodes that
@@ -61,14 +76,14 @@ func (iter *StaticIterator) Next() *structs.Node {
 	// Check if exhausted
 	n := len(iter.nodes)
 	if iter.offset == n || iter.seen == n {
-		if iter.seen != n {
+		if iter.seen != n { // seen has been Reset() to 0
 			iter.offset = 0
 		} else {
 			return nil
 		}
 	}
 
-	// Return the next offset
+	// Return the next offset, use this one
 	offset := iter.offset
 	iter.offset += 1
 	iter.seen += 1
@@ -117,7 +132,6 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 // SetVolumes takes the volumes required by a task group and updates the checker.
 func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
 	lookupMap := make(map[string][]*structs.VolumeRequest)
-
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
 	for _, req := range volumes {
@@ -135,7 +149,7 @@ func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
 		return true
 	}
 
-	h.ctx.Metrics().FilterNode(candidate, "missing compatible host volumes")
+	h.ctx.Metrics().FilterNode(candidate, FilterConstraintHostVolumes)
 	return false
 }
 
@@ -177,6 +191,129 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	return true
 }
 
+type CSIVolumeChecker struct {
+	ctx       Context
+	namespace string
+	jobID     string
+	volumes   map[string]*structs.VolumeRequest
+}
+
+func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
+	return &CSIVolumeChecker{
+		ctx: ctx,
+	}
+}
+
+func (c *CSIVolumeChecker) SetJobID(jobID string) {
+	c.jobID = jobID
+}
+
+func (c *CSIVolumeChecker) SetNamespace(namespace string) {
+	c.namespace = namespace
+}
+
+func (c *CSIVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
+	xs := make(map[string]*structs.VolumeRequest)
+	// Filter to only CSI Volumes
+	for alias, req := range volumes {
+		if req.Type != structs.VolumeTypeCSI {
+			continue
+		}
+
+		xs[alias] = req
+	}
+	c.volumes = xs
+}
+
+func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
+	hasPlugins, failReason := c.hasPlugins(n)
+
+	if hasPlugins {
+		return true
+	}
+
+	c.ctx.Metrics().FilterNode(n, failReason)
+	return false
+}
+
+func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
+	// We can mount the volume if
+	// - if required, a healthy controller plugin is running the driver
+	// - the volume has free claims, or this job owns the claims
+	// - this node is running the node plugin, implies matching topology
+
+	// Fast path: Requested no volumes. No need to check further.
+	if len(c.volumes) == 0 {
+		return true, ""
+	}
+
+	ws := memdb.NewWatchSet()
+
+	// Find the count per plugin for this node, so that can enforce MaxVolumes
+	pluginCount := map[string]int64{}
+	iter, err := c.ctx.State().CSIVolumesByNodeID(ws, n.ID)
+	if err != nil {
+		return false, FilterConstraintCSIVolumesLookupFailed
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		vol, ok := raw.(*structs.CSIVolume)
+		if !ok {
+			continue
+		}
+		pluginCount[vol.PluginID] += 1
+	}
+
+	// For volume requests, find volumes and determine feasibility
+	for _, req := range c.volumes {
+		vol, err := c.ctx.State().CSIVolumeByID(ws, c.namespace, req.Source)
+		if err != nil {
+			return false, FilterConstraintCSIVolumesLookupFailed
+		}
+		if vol == nil {
+			return false, fmt.Sprintf(FilterConstraintCSIVolumeNotFoundTemplate, req.Source)
+		}
+
+		// Check that this node has a healthy running plugin with the right PluginID
+		plugin, ok := n.CSINodePlugins[vol.PluginID]
+		if !ok {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginTemplate, vol.PluginID, n.ID)
+		}
+		if !plugin.Healthy {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginUnhealthyTemplate, vol.PluginID, n.ID)
+		}
+		if pluginCount[vol.PluginID] >= plugin.NodeInfo.MaxVolumes {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginMaxVolumesTemplate, vol.PluginID, n.ID)
+		}
+
+		if req.ReadOnly {
+			if !vol.ReadSchedulable() {
+				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoReadTemplate, vol.ID)
+			}
+		} else {
+			if !vol.WriteSchedulable() {
+				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
+			}
+			if vol.WriteFreeClaims() {
+				return true, ""
+			}
+
+			// Check the blocking allocations to see if they belong to this job
+			for id := range vol.WriteAllocs {
+				a, err := c.ctx.State().AllocByID(ws, id)
+				if err != nil || a == nil || a.Namespace != c.namespace || a.JobID != c.jobID {
+					return false, fmt.Sprintf(FilterConstraintCSIVolumeInUseTemplate, vol.ID)
+				}
+			}
+		}
+	}
+
+	return true, ""
+}
+
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
 // drivers necessary to scheduler a task group.
 type DriverChecker struct {
@@ -201,7 +338,7 @@ func (c *DriverChecker) Feasible(option *structs.Node) bool {
 	if c.hasDrivers(option) {
 		return true
 	}
-	c.ctx.Metrics().FilterNode(option, "missing drivers")
+	c.ctx.Metrics().FilterNode(option, FilterConstraintDrivers)
 	return false
 }
 
@@ -780,18 +917,20 @@ type FeasibilityWrapper struct {
 	source      FeasibleIterator
 	jobCheckers []FeasibilityChecker
 	tgCheckers  []FeasibilityChecker
+	tgAvailable []FeasibilityChecker
 	tg          string
 }
 
 // NewFeasibilityWrapper returns a FeasibleIterator based on the passed source
 // and FeasibilityCheckers.
 func NewFeasibilityWrapper(ctx Context, source FeasibleIterator,
-	jobCheckers, tgCheckers []FeasibilityChecker) *FeasibilityWrapper {
+	jobCheckers, tgCheckers, tgAvailable []FeasibilityChecker) *FeasibilityWrapper {
 	return &FeasibilityWrapper{
 		ctx:         ctx,
 		source:      source,
 		jobCheckers: jobCheckers,
 		tgCheckers:  tgCheckers,
+		tgAvailable: tgAvailable,
 	}
 }
 
@@ -858,7 +997,12 @@ OUTER:
 			continue
 		case EvalComputedClassEligible:
 			// Fast path the eligible case
-			return option
+			if w.available(option) {
+				return option
+			}
+			// We match the class but are temporarily unavailable, the eval
+			// should be blocked
+			return nil
 		case EvalComputedClassEscaped:
 			tgEscaped = true
 		case EvalComputedClassUnknown:
@@ -884,8 +1028,30 @@ OUTER:
 			evalElig.SetTaskGroupEligibility(true, w.tg, option.ComputedClass)
 		}
 
+		// tgAvailable handlers are available transiently, so we test them without
+		// affecting the computed class
+		if !w.available(option) {
+			continue OUTER
+		}
+
 		return option
 	}
+}
+
+// available checks transient feasibility checkers which depend on changing conditions,
+// e.g. the health status of a plugin or driver
+func (w *FeasibilityWrapper) available(option *structs.Node) bool {
+	// If we don't have any availability checks, we're available
+	if len(w.tgAvailable) == 0 {
+		return true
+	}
+
+	for _, check := range w.tgAvailable {
+		if !check.Feasible(option) {
+			return false
+		}
+	}
+	return true
 }
 
 // DeviceChecker is a FeasibilityChecker which returns whether a node has the
@@ -920,7 +1086,7 @@ func (c *DeviceChecker) Feasible(option *structs.Node) bool {
 		return true
 	}
 
-	c.ctx.Metrics().FilterNode(option, "missing devices")
+	c.ctx.Metrics().FilterNode(option, FilterConstraintDevices)
 	return false
 }
 

@@ -25,11 +25,17 @@ export default Factory.extend({
 
   namespace: null,
 
-  clientStatus: () => faker.helpers.randomize(CLIENT_STATUSES),
+  clientStatus() {
+    return this.forceRunningClientStatus ? 'running' : faker.helpers.randomize(CLIENT_STATUSES);
+  },
+
   desiredStatus: () => faker.helpers.randomize(DESIRED_STATUSES),
 
   // When true, doesn't create any resources, state, or events
   shallow: false,
+
+  // When true, sets the client status to running
+  forceRunningClientStatus: false,
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {

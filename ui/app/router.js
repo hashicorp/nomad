@@ -7,6 +7,12 @@ const Router = EmberRouter.extend({
 });
 
 Router.map(function() {
+  this.route('exec', { path: '/exec/:job_name' }, function() {
+    this.route('task-group', { path: '/:task_group_name' }, function() {
+      this.route('task', { path: '/:task_name' });
+    });
+  });
+
   this.route('jobs', function() {
     this.route('run');
     this.route('job', { path: '/:job_name' }, function() {
@@ -25,6 +31,12 @@ Router.map(function() {
 
   this.route('servers', function() {
     this.route('server', { path: '/:agent_id' });
+  });
+
+  this.route('csi', function() {
+    this.route('volumes', function() {
+      this.route('volume', { path: '/:volume_name' });
+    });
   });
 
   this.route('allocations', function() {

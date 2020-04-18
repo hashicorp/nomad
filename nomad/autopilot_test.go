@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
-	"github.com/hashicorp/consul/testutil/retry"
+	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -39,7 +39,9 @@ func wantRaft(servers []*Server) error {
 			want[s.config.RaftConfig.LocalID] = true
 		}
 
+		found := make([]raft.ServerID, 0, len(c.Servers))
 		for _, s := range c.Servers {
+			found = append(found, s.ID)
 			if !want[s.ID] {
 				return fmt.Errorf("don't want %q", s.ID)
 			}
@@ -47,7 +49,7 @@ func wantRaft(servers []*Server) error {
 		}
 
 		if len(want) > 0 {
-			return fmt.Errorf("didn't find %v", want)
+			return fmt.Errorf("didn't find %v in %#+v", want, found)
 		}
 		return nil
 	}
@@ -73,7 +75,6 @@ func TestAutopilot_CleanupDeadServer(t *testing.T) {
 
 func testCleanupDeadServer(t *testing.T, raftVersion int) {
 	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(raftVersion)
 	}
@@ -127,12 +128,12 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-
 	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 5
 	}
+
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, conf)
 	defer cleanupS2()
@@ -174,15 +175,13 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 func TestAutopilot_RollingUpdate(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = 3
-	})
-	defer cleanupS1()
-
 	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	}
+
+	s1, cleanupS1 := TestServer(t, conf)
+	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, conf)
 	defer cleanupS2()
@@ -202,18 +201,21 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	})
 
 	// Add one more server like we are doing a rolling update.
+	t.Logf("adding server s4")
 	s4, cleanupS4 := TestServer(t, conf)
 	defer cleanupS4()
 	TestJoin(t, s1, s4)
+
 	servers = append(servers, s4)
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
 		for _, s := range servers {
-			r.Check(wantPeers(s, 3))
+			r.Check(wantPeers(s, 4))
 		}
 	})
 
 	// Now kill one of the "old" nodes like we are doing a rolling update.
+	t.Logf("shutting down server s3")
 	s3.Shutdown()
 
 	isVoter := func() bool {
@@ -229,6 +231,8 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 		t.Fatalf("didn't find s4")
 		return false
 	}
+
+	t.Logf("waiting for s4 to stabalize and be promoted")
 
 	// Wait for s4 to stabilize, get promoted to a voter, and for s3 to be
 	// removed.
@@ -248,19 +252,21 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	t.Skip("TestAutopilot_CleanupDeadServer is very flaky, removing it for now")
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
+	conf := func(c *Config) {
+		c.BootstrapExpect = 3
+	}
+	s1, cleanupS1 := TestServer(t, conf)
 	defer cleanupS1()
 
-	conf := func(c *Config) {
-		c.DevDisableBootstrap = true
-	}
 	s2, cleanupS2 := TestServer(t, conf)
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, conf)
 	defer cleanupS3()
 
-	s4, cleanupS4 := TestServer(t, conf)
+	s4, cleanupS4 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+	})
 	defer cleanupS4()
 
 	servers := []*Server{s1, s2, s3}
@@ -304,7 +310,7 @@ func TestAutopilot_PromoteNonVoter(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()

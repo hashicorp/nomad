@@ -42,7 +42,7 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 
 	// Job run: verify that checks were registered in Consul
 	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(),
-		nomadClient, "consul/input/checks_group.nomad", jobId)
+		nomadClient, "consul/input/checks_group.nomad", jobId, "")
 	require.Equal(1, len(allocs))
 	e2eutil.RequireConsulStatus(require, consulClient, "group-service-1", capi.HealthPassing)
 	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthWarning)
@@ -56,7 +56,7 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 
 	// Job update: verify checks are re-registered in Consul
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
-		nomadClient, "consul/input/checks_group_update.nomad", jobId)
+		nomadClient, "consul/input/checks_group_update.nomad", jobId, "")
 	require.Equal(1, len(allocs))
 	e2eutil.RequireConsulStatus(require, consulClient, "group-service-1", capi.HealthPassing)
 	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthPassing)
@@ -76,7 +76,7 @@ func (tc *ScriptChecksE2ETest) TestGroupScriptCheck(f *framework.F) {
 
 	// Restore for next test
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
-		nomadClient, "consul/input/checks_group.nomad", jobId)
+		nomadClient, "consul/input/checks_group.nomad", jobId, "")
 	require.Equal(2, len(allocs))
 	e2eutil.RequireConsulStatus(require, consulClient, "group-service-1", capi.HealthPassing)
 	e2eutil.RequireConsulStatus(require, consulClient, "group-service-2", capi.HealthWarning)
@@ -109,7 +109,7 @@ func (tc *ScriptChecksE2ETest) TestTaskScriptCheck(f *framework.F) {
 
 	// Job run: verify that checks were registered in Consul
 	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(),
-		nomadClient, "consul/input/checks_task.nomad", jobId)
+		nomadClient, "consul/input/checks_task.nomad", jobId, "")
 	require.Equal(1, len(allocs))
 	e2eutil.RequireConsulStatus(require, consulClient, "task-service-1", capi.HealthPassing)
 	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthWarning)
@@ -123,7 +123,7 @@ func (tc *ScriptChecksE2ETest) TestTaskScriptCheck(f *framework.F) {
 
 	// Job update: verify checks are re-registered in Consul
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
-		nomadClient, "consul/input/checks_task_update.nomad", jobId)
+		nomadClient, "consul/input/checks_task_update.nomad", jobId, "")
 	require.Equal(1, len(allocs))
 	e2eutil.RequireConsulStatus(require, consulClient, "task-service-1", capi.HealthPassing)
 	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthPassing)
@@ -143,7 +143,7 @@ func (tc *ScriptChecksE2ETest) TestTaskScriptCheck(f *framework.F) {
 
 	// Restore for next test
 	allocs = e2eutil.RegisterAndWaitForAllocs(f.T(),
-		nomadClient, "consul/input/checks_task.nomad", jobId)
+		nomadClient, "consul/input/checks_task.nomad", jobId, "")
 	require.Equal(2, len(allocs))
 	e2eutil.RequireConsulStatus(require, consulClient, "task-service-1", capi.HealthPassing)
 	e2eutil.RequireConsulStatus(require, consulClient, "task-service-2", capi.HealthWarning)

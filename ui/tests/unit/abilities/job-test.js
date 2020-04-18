@@ -1,29 +1,43 @@
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
+import setupAbility from 'nomad-ui/tests/helpers/setup-ability';
 
 module('Unit | Ability | job', function(hooks) {
   setupTest(hooks);
+  setupAbility('job')(hooks);
+
+  test('it permits job run when ACLs are disabled', function(assert) {
+    const mockToken = Service.extend({
+      aclEnabled: false,
+    });
+
+    this.owner.register('service:token', mockToken);
+
+    assert.ok(this.ability.canRun);
+  });
 
   test('it permits job run for management tokens', function(assert) {
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'management' },
     });
 
     this.owner.register('service:token', mockToken);
 
-    const jobAbility = this.owner.lookup('ability:job');
-    assert.ok(jobAbility.canRun);
+    assert.ok(this.ability.canRun);
   });
 
   test('it permits job run for client tokens with a policy that has namespace submit-job', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'aNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
@@ -42,18 +56,19 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    const jobAbility = this.owner.lookup('ability:job');
-    assert.ok(jobAbility.canRun);
+    assert.ok(this.ability.canRun);
   });
 
   test('it permits job run for client tokens with a policy that has default namespace submit-job and no capabilities for active namespace', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'anotherNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
@@ -76,18 +91,19 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    const jobAbility = this.owner.lookup('ability:job');
-    assert.ok(jobAbility.canRun);
+    assert.ok(this.ability.canRun);
   });
 
   test('it blocks job run for client tokens with a policy that has no submit-job capability', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'aNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
@@ -106,18 +122,19 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    const jobAbility = this.owner.lookup('ability:job');
-    assert.notOk(jobAbility.canRun);
+    assert.notOk(this.ability.canRun);
   });
 
   test('it handles globs in namespace names', function(assert) {
     const mockSystem = Service.extend({
+      aclEnabled: true,
       activeNamespace: {
         name: 'aNamespace',
       },
     });
 
     const mockToken = Service.extend({
+      aclEnabled: true,
       selfToken: { type: 'client' },
       selfTokenPolicies: [
         {
@@ -156,28 +173,27 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    const jobAbility = this.owner.lookup('ability:job');
     const systemService = this.owner.lookup('service:system');
 
     systemService.set('activeNamespace.name', 'production-web');
-    assert.notOk(jobAbility.canRun);
+    assert.notOk(this.ability.canRun);
 
     systemService.set('activeNamespace.name', 'production-api');
-    assert.ok(jobAbility.canRun);
+    assert.ok(this.ability.canRun);
 
     systemService.set('activeNamespace.name', 'production-other');
-    assert.ok(jobAbility.canRun);
+    assert.ok(this.ability.canRun);
 
     systemService.set('activeNamespace.name', 'something-suffixed');
-    assert.ok(jobAbility.canRun);
+    assert.ok(this.ability.canRun);
 
     systemService.set('activeNamespace.name', 'something-more-suffixed');
     assert.notOk(
-      jobAbility.canRun,
+      this.ability.canRun,
       'expected the namespace with the greatest number of matched characters to be chosen'
     );
 
     systemService.set('activeNamespace.name', '000-abc-999');
-    assert.ok(jobAbility.canRun, 'expected to be able to match against more than one wildcard');
+    assert.ok(this.ability.canRun, 'expected to be able to match against more than one wildcard');
   });
 });

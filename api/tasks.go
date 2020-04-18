@@ -217,6 +217,19 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 			MaxDelay:      timeToPtr(0),
 			Unlimited:     boolToPtr(false),
 		}
+
+	default:
+		// GH-7203: it is possible an unknown job type is passed to this
+		// function and we need to ensure a non-nil object is returned so that
+		// the canonicalization runs without panicking.
+		dp = &ReschedulePolicy{
+			Attempts:      intToPtr(0),
+			Interval:      timeToPtr(0),
+			Delay:         timeToPtr(0),
+			DelayFunction: stringToPtr(""),
+			MaxDelay:      timeToPtr(0),
+			Unlimited:     boolToPtr(false),
+		}
 	}
 	return dp
 }
@@ -364,10 +377,12 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name     string
-	Type     string
-	Source   string
-	ReadOnly bool `mapstructure:"read_only"`
+	Name         string
+	Type         string
+	Source       string
+	ReadOnly     bool             `hcl:"read_only"`
+	MountOptions *CSIMountOptions `hcl:"mount_options"`
+	ExtraKeysHCL []string         `hcl:",unusedKeys" json:"-"`
 }
 
 const (
@@ -412,6 +427,7 @@ type TaskGroup struct {
 	Meta             map[string]string
 	Services         []*Service
 	ShutdownDelay    *time.Duration `mapstructure:"shutdown_delay"`
+	Scaling          *ScalingPolicy
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -428,10 +444,14 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		g.Name = stringToPtr("")
 	}
 	if g.Count == nil {
-		g.Count = intToPtr(1)
+		if g.Scaling != nil && g.Scaling.Min != nil {
+			g.Count = intToPtr(int(*g.Scaling.Min))
+		} else {
+			g.Count = intToPtr(1)
+		}
 	}
-	for _, t := range g.Tasks {
-		t.Canonicalize(g, job)
+	if g.Scaling != nil {
+		g.Scaling.Canonicalize(*g.Count)
 	}
 	if g.EphemeralDisk == nil {
 		g.EphemeralDisk = DefaultEphemeralDisk()
@@ -492,29 +512,19 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	var defaultRestartPolicy *RestartPolicy
 	switch *job.Type {
 	case "service", "system":
-		// These needs to be in sync with DefaultServiceJobRestartPolicy in
-		// in nomad/structs/structs.go
-		defaultRestartPolicy = &RestartPolicy{
-			Delay:    timeToPtr(15 * time.Second),
-			Attempts: intToPtr(2),
-			Interval: timeToPtr(30 * time.Minute),
-			Mode:     stringToPtr(RestartPolicyModeFail),
-		}
+		defaultRestartPolicy = defaultServiceJobRestartPolicy()
 	default:
-		// These needs to be in sync with DefaultBatchJobRestartPolicy in
-		// in nomad/structs/structs.go
-		defaultRestartPolicy = &RestartPolicy{
-			Delay:    timeToPtr(15 * time.Second),
-			Attempts: intToPtr(3),
-			Interval: timeToPtr(24 * time.Hour),
-			Mode:     stringToPtr(RestartPolicyModeFail),
-		}
+		defaultRestartPolicy = defaultBatchJobRestartPolicy()
 	}
 
 	if g.RestartPolicy != nil {
 		defaultRestartPolicy.Merge(g.RestartPolicy)
 	}
 	g.RestartPolicy = defaultRestartPolicy
+
+	for _, t := range g.Tasks {
+		t.Canonicalize(g, job)
+	}
 
 	for _, spread := range g.Spreads {
 		spread.Canonicalize()
@@ -527,6 +537,28 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
+	}
+}
+
+// These needs to be in sync with DefaultServiceJobRestartPolicy in
+// in nomad/structs/structs.go
+func defaultServiceJobRestartPolicy() *RestartPolicy {
+	return &RestartPolicy{
+		Delay:    timeToPtr(15 * time.Second),
+		Attempts: intToPtr(2),
+		Interval: timeToPtr(30 * time.Minute),
+		Mode:     stringToPtr(RestartPolicyModeFail),
+	}
+}
+
+// These needs to be in sync with DefaultBatchJobRestartPolicy in
+// in nomad/structs/structs.go
+func defaultBatchJobRestartPolicy() *RestartPolicy {
+	return &RestartPolicy{
+		Delay:    timeToPtr(15 * time.Second),
+		Attempts: intToPtr(3),
+		Interval: timeToPtr(24 * time.Hour),
+		Mode:     stringToPtr(RestartPolicyModeFail),
 	}
 }
 
@@ -596,17 +628,33 @@ type DispatchPayloadConfig struct {
 	File string
 }
 
+const (
+	TaskLifecycleHookPrestart = "prestart"
+)
+
+type TaskLifecycle struct {
+	Hook    string `mapstructure:"hook"`
+	Sidecar bool   `mapstructure:"sidecar"`
+}
+
+// Determine if lifecycle has user-input values
+func (l *TaskLifecycle) Empty() bool {
+	return l == nil || (l.Hook == "")
+}
+
 // Task is a single process in a task group.
 type Task struct {
 	Name            string
 	Driver          string
 	User            string
+	Lifecycle       *TaskLifecycle
 	Config          map[string]interface{}
 	Constraints     []*Constraint
 	Affinities      []*Affinity
 	Env             map[string]string
 	Services        []*Service
 	Resources       *Resources
+	RestartPolicy   *RestartPolicy
 	Meta            map[string]string
 	KillTimeout     *time.Duration `mapstructure:"kill_timeout"`
 	LogConfig       *LogConfig     `mapstructure:"logs"`
@@ -615,6 +663,7 @@ type Task struct {
 	Templates       []*Template
 	DispatchPayload *DispatchPayloadConfig
 	VolumeMounts    []*VolumeMount
+	CSIPluginConfig *TaskCSIPluginConfig `mapstructure:"csi_plugin" json:",omitempty"`
 	Leader          bool
 	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
 	KillSignal      string        `mapstructure:"kill_signal"`
@@ -651,6 +700,20 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	}
 	for _, vm := range t.VolumeMounts {
 		vm.Canonicalize()
+	}
+	if t.Lifecycle.Empty() {
+		t.Lifecycle = nil
+	}
+	if t.CSIPluginConfig != nil {
+		t.CSIPluginConfig.Canonicalize()
+	}
+	if t.RestartPolicy == nil {
+		t.RestartPolicy = tg.RestartPolicy
+	} else {
+		tgrp := &RestartPolicy{}
+		*tgrp = *tg.RestartPolicy
+		tgrp.Merge(t.RestartPolicy)
+		t.RestartPolicy = tgrp
 	}
 }
 
@@ -737,8 +800,10 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.Envvars == nil {
 		tmpl.Envvars = boolToPtr(false)
 	}
+
+	//COMPAT(0.12) VaultGrace is deprecated and unused as of Vault 0.5
 	if tmpl.VaultGrace == nil {
-		tmpl.VaultGrace = timeToPtr(15 * time.Second)
+		tmpl.VaultGrace = timeToPtr(0)
 	}
 }
 
@@ -875,4 +940,49 @@ type TaskEvent struct {
 	TaskSignalReason string
 	TaskSignal       string
 	GenericSource    string
+}
+
+// CSIPluginType is an enum string that encapsulates the valid options for a
+// CSIPlugin stanza's Type. These modes will allow the plugin to be used in
+// different ways by the client.
+type CSIPluginType string
+
+const (
+	// CSIPluginTypeNode indicates that Nomad should only use the plugin for
+	// performing Node RPCs against the provided plugin.
+	CSIPluginTypeNode CSIPluginType = "node"
+
+	// CSIPluginTypeController indicates that Nomad should only use the plugin for
+	// performing Controller RPCs against the provided plugin.
+	CSIPluginTypeController CSIPluginType = "controller"
+
+	// CSIPluginTypeMonolith indicates that Nomad can use the provided plugin for
+	// both controller and node rpcs.
+	CSIPluginTypeMonolith CSIPluginType = "monolith"
+)
+
+// TaskCSIPluginConfig contains the data that is required to setup a task as a
+// CSI plugin. This will be used by the csi_plugin_supervisor_hook to configure
+// mounts for the plugin and initiate the connection to the plugin catalog.
+type TaskCSIPluginConfig struct {
+	// ID is the identifier of the plugin.
+	// Ideally this should be the FQDN of the plugin.
+	ID string `mapstructure:"id"`
+
+	// CSIPluginType instructs Nomad on how to handle processing a plugin
+	Type CSIPluginType `mapstructure:"type"`
+
+	// MountDir is the destination that nomad should mount in its CSI
+	// directory for the plugin. It will then expect a file called CSISocketName
+	// to be created by the plugin, and will provide references into
+	// "MountDir/CSIIntermediaryDirname/VolumeName/AllocID for mounts.
+	//
+	// Default is /csi.
+	MountDir string `mapstructure:"mount_dir"`
+}
+
+func (t *TaskCSIPluginConfig) Canonicalize() {
+	if t.MountDir == "" {
+		t.MountDir = "/csi"
+	}
 }

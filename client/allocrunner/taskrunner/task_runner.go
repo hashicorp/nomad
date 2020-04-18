@@ -19,7 +19,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -50,7 +52,7 @@ const (
 	// giving up and potentially leaking resources.
 	killFailureLimit = 5
 
-	// triggerUpdatechCap is the capacity for the triggerUpdateCh used for
+	// triggerUpdateChCap is the capacity for the triggerUpdateCh used for
 	// triggering updates. It should be exactly 1 as even if multiple
 	// updates have come in since the last one was handled, we only need to
 	// handle the last one.
@@ -158,6 +160,10 @@ type TaskRunner struct {
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
 
+	// sidsClient is the client used by the service identity hook for managing
+	// service identity tokens
+	siClient consul.ServiceIdentityAPI
+
 	// vaultClient is the client to use to derive and renew Vault tokens
 	vaultClient vaultclient.VaultClient
 
@@ -182,6 +188,9 @@ type TaskRunner struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	deviceStatsReporter cinterfaces.DeviceStatsReporter
 
+	// csiManager is used to manage the mounting of CSI volumes into tasks
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -189,6 +198,9 @@ type TaskRunner struct {
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
+
+	// dynamicRegistry is where dynamic plugins should be registered.
+	dynamicRegistry dynamicplugins.Registry
 
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
@@ -198,6 +210,9 @@ type TaskRunner struct {
 	// GetClientAllocs has been called in case of a failed restore.
 	serversContactedCh <-chan struct{}
 
+	// startConditionMetCtx is done when TR should start the task
+	startConditionMetCtx <-chan struct{}
+
 	// waitOnServers defaults to false but will be set true if a restore
 	// fails and the Run method should wait until serversContactedCh is
 	// closed.
@@ -205,15 +220,25 @@ type TaskRunner struct {
 
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
+
+	allocHookResources *cstructs.AllocHookResources
 }
 
 type Config struct {
 	Alloc        *structs.Allocation
 	ClientConfig *config.Config
-	Consul       consul.ConsulServiceAPI
 	Task         *structs.Task
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
+
+	// Consul is the client to use for managing Consul service registrations
+	Consul consul.ConsulServiceAPI
+
+	// ConsulSI is the client to use for managing Consul SI tokens
+	ConsulSI consul.ServiceIdentityAPI
+
+	// DynamicRegistry is where dynamic plugins should be registered.
+	DynamicRegistry dynamicplugins.Registry
 
 	// Vault is the client to use to derive and renew Vault tokens
 	Vault vaultclient.VaultClient
@@ -227,6 +252,9 @@ type Config struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	DeviceStatsReporter cinterfaces.DeviceStatsReporter
 
+	// CSIManager is used to manage the mounting of CSI volumes into tasks
+	CSIManager csimanager.Manager
+
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
@@ -238,6 +266,9 @@ type Config struct {
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
+
+	// startConditionMetCtx is done when TR should start the task
+	StartConditionMetCtx <-chan struct{}
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -262,31 +293,35 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:               config.Alloc,
-		allocID:             config.Alloc.ID,
-		clientConfig:        config.ClientConfig,
-		task:                config.Task,
-		taskDir:             config.TaskDir,
-		taskName:            config.Task.Name,
-		taskLeader:          config.Task.Leader,
-		envBuilder:          envBuilder,
-		consulClient:        config.Consul,
-		vaultClient:         config.Vault,
-		state:               tstate,
-		localState:          state.NewLocalState(),
-		stateDB:             config.StateDB,
-		stateUpdater:        config.StateUpdater,
-		deviceStatsReporter: config.DeviceStatsReporter,
-		killCtx:             killCtx,
-		killCtxCancel:       killCancel,
-		shutdownCtx:         trCtx,
-		shutdownCtxCancel:   trCancel,
-		triggerUpdateCh:     make(chan struct{}, triggerUpdateChCap),
-		waitCh:              make(chan struct{}),
-		devicemanager:       config.DeviceManager,
-		driverManager:       config.DriverManager,
-		maxEvents:           defaultMaxEvents,
-		serversContactedCh:  config.ServersContactedCh,
+		alloc:                config.Alloc,
+		allocID:              config.Alloc.ID,
+		clientConfig:         config.ClientConfig,
+		task:                 config.Task,
+		taskDir:              config.TaskDir,
+		taskName:             config.Task.Name,
+		taskLeader:           config.Task.Leader,
+		envBuilder:           envBuilder,
+		dynamicRegistry:      config.DynamicRegistry,
+		consulClient:         config.Consul,
+		siClient:             config.ConsulSI,
+		vaultClient:          config.Vault,
+		state:                tstate,
+		localState:           state.NewLocalState(),
+		stateDB:              config.StateDB,
+		stateUpdater:         config.StateUpdater,
+		deviceStatsReporter:  config.DeviceStatsReporter,
+		killCtx:              killCtx,
+		killCtxCancel:        killCancel,
+		shutdownCtx:          trCtx,
+		shutdownCtxCancel:    trCancel,
+		triggerUpdateCh:      make(chan struct{}, triggerUpdateChCap),
+		waitCh:               make(chan struct{}),
+		csiManager:           config.CSIManager,
+		devicemanager:        config.DeviceManager,
+		driverManager:        config.DriverManager,
+		maxEvents:            defaultMaxEvents,
+		serversContactedCh:   config.ServersContactedCh,
+		startConditionMetCtx: config.StartConditionMetCtx,
 	}
 
 	// Create the logger based on the allocation ID
@@ -294,39 +329,27 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
-	if ares != nil {
-		tres, ok := ares.Tasks[tr.taskName]
-		if !ok {
-			return nil, fmt.Errorf("no task resources found on allocation")
-		}
-		tr.taskResources = tres
-	} else {
-		// COMPAT(0.11): Upgrade from 0.8 resources to 0.9+ resources
-		// Grab the old task resources
-		oldTr, ok := tr.alloc.TaskResources[tr.taskName]
-		if !ok {
-			return nil, fmt.Errorf("no task resources found on allocation")
-		}
-
-		// Convert the old to new
-		tr.taskResources = &structs.AllocatedTaskResources{
-			Cpu: structs.AllocatedCpuResources{
-				CpuShares: int64(oldTr.CPU),
-			},
-			Memory: structs.AllocatedMemoryResources{
-				MemoryMB: int64(oldTr.MemoryMB),
-			},
-			Networks: oldTr.Networks,
-		}
+	if ares == nil {
+		return nil, fmt.Errorf("no task resources found on allocation")
 	}
+
+	tres, ok := ares.Tasks[tr.taskName]
+	if !ok {
+		return nil, fmt.Errorf("no task resources found on allocation")
+	}
+	tr.taskResources = tres
 
 	// Build the restart tracker.
-	tg := tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)
-	if tg == nil {
-		tr.logger.Error("alloc missing task group")
-		return nil, fmt.Errorf("alloc missing task group")
+	rp := config.Task.RestartPolicy
+	if rp == nil {
+		tg := tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)
+		if tg == nil {
+			tr.logger.Error("alloc missing task group")
+			return nil, fmt.Errorf("alloc missing task group")
+		}
+		rp = tg.RestartPolicy
 	}
-	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
+	tr.restartTracker = restarts.NewRestartTracker(rp, tr.alloc.Job.Type, config.Task.Lifecycle)
 
 	// Get the driver
 	if err := tr.initDriver(); err != nil {
@@ -458,6 +481,14 @@ func (tr *TaskRunner) Run() {
 		case <-tr.serversContactedCh:
 			tr.logger.Info("server contacted; unblocking waiting task")
 		}
+	}
+
+	select {
+	case <-tr.startConditionMetCtx:
+		// yay proceed
+	case <-tr.killCtx.Done():
+	case <-tr.shutdownCtx.Done():
+		return
 	}
 
 MAIN:
@@ -812,6 +843,14 @@ func (tr *TaskRunner) initDriver() error {
 func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// Run the pre killing hooks
 	tr.preKill()
+
+	// Wait for task ShutdownDelay after running prekill hooks
+	// This allows for things like service de-registration to run
+	// before waiting to kill task
+	if delay := tr.Task().ShutdownDelay; delay != 0 {
+		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
+		time.Sleep(delay)
+	}
 
 	// Tell the restart tracker that the task has been killed so it doesn't
 	// attempt to restart it.
@@ -1253,15 +1292,9 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
-	if alloc.AllocatedResources != nil {
-		if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
-			// Convert to bytes to match other memory metrics
-			allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
-		}
-	} else if taskRes := alloc.TaskResources[tr.taskName]; taskRes != nil {
-		// COMPAT(0.11) Remove in 0.11 when TaskResources is removed
-		allocatedMem = float32(taskRes.MemoryMB) * 1024 * 1024
-
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		// Convert to bytes to match other memory metrics
+		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
 	}
 
 	if !tr.clientConfig.DisableTaggedMetrics {
@@ -1303,13 +1336,8 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedCPU float32
-	if alloc.AllocatedResources != nil {
-		if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
-			allocatedCPU = float32(taskRes.Cpu.CpuShares)
-		}
-	} else if taskRes := alloc.TaskResources[tr.taskName]; taskRes != nil {
-		// COMPAT(0.11) Remove in 0.11 when TaskResources is removed
-		allocatedCPU = float32(taskRes.CPU)
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		allocatedCPU = float32(taskRes.Cpu.CpuShares)
 	}
 
 	if !tr.clientConfig.DisableTaggedMetrics {
@@ -1393,4 +1421,8 @@ func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
 	return tr.driver.Capabilities()
+}
+
+func (tr *TaskRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
+	tr.allocHookResources = res
 }

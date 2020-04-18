@@ -34,6 +34,7 @@ func (c *OperatorAutopilotSetCommand) Name() string { return "operator autopilot
 func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	var cleanupDeadServers flags.BoolValue
 	var maxTrailingLogs flags.UintValue
+	var minQuorum flags.UintValue
 	var lastContactThreshold flags.DurationValue
 	var serverStabilizationTime flags.DurationValue
 	var enableRedundancyZones flags.BoolValue
@@ -50,6 +51,7 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	f.Var(&enableRedundancyZones, "enable-redundancy-zones", "")
 	f.Var(&disableUpgradeMigration, "disable-upgrade-migration", "")
 	f.Var(&enableCustomUpgrades, "enable-custom-upgrades", "")
+	f.Var(&minQuorum, "min-quorum", "")
 
 	if err := f.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
@@ -80,6 +82,7 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	trailing := uint(conf.MaxTrailingLogs)
 	maxTrailingLogs.Merge(&trailing)
 	conf.MaxTrailingLogs = uint64(trailing)
+	minQuorum.Merge(&conf.MinQuorum)
 	lastContactThreshold.Merge(&conf.LastContactThreshold)
 	serverStabilizationTime.Merge(&conf.ServerStabilizationTime)
 
@@ -130,6 +133,10 @@ Set Config Options:
   -max-trailing-logs=<value>
      Controls the maximum number of log entries that a server can trail
      the leader by before being considered unhealthy.
+
+  -min-quorum=<value>
+      Controls the minimum number of servers required in a cluster
+      before autopilot can prune dead servers.
 
   -redundancy-zone-tag=<value>
      (Enterprise-only) Controls the node_meta tag name used for

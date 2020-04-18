@@ -1,0 +1,297 @@
+---
+layout: docs
+page_title: audit Stanza - Agent Configuration
+sidebar_title: audit
+description: >-
+  The "audit" stanza configures the Nomad agent to configure Audit Logging
+  behavior. This is an Enterprise-only feature.
+---
+
+# `audit` Stanza
+
+<Placement groups={['audit']} />
+
+The `audit` stanza configures the Nomad agent to configure Audit logging behavior.
+Audit logging is an Enterprise-only feature.
+
+```hcl
+audit {
+  enabled = true
+}
+```
+
+When enabled, each HTTP request made to a nomad agent (client or server) will
+generate two audit log entries. These two entries correspond to a stage,
+`OperationReceived` and `OperationComplete`. Audit logging will generate a
+`OperationReceived` event before the request is processed. An `OperationComplete`
+event will be sent after the request has been processed, but before the response
+body is returned to the end user.
+
+By default, with a minimally configured audit stanza (`audit { enabled = true }`)
+The following default sink will be added with no filters.
+
+```hcl
+audit {
+  enable = true
+  sink "audit" {
+    type               = "file"
+    delivery_guarantee = "enforced"
+    format             = "json"
+    path               = "/[data_dir]/audit/audit.log"
+  }
+}
+```
+
+The sink will create an `audit.log` file located within the defined `data_dir`
+directory inside an `audit` directory. `delivery_guarantee` will be set to 
+`"enforced"` meaning that all requests must successfully be written to the sink 
+in order for HTTP requests to successfully complete.
+
+
+## `audit` Parameters
+
+- `enabled` `(bool: false)` - Specifies if audit logging should be enabled.
+  When enabled, audit logging will occur for every request, unless it is
+  filtered by a `filter`.
+
+- `sink` <code>([sink](#sink-stanza): default)</code> - Configures a sink
+  for audit logs to be sent to.
+
+- `filter` <code>(array<[filter](#filter-stanza)>: [])</code> - Configures a filter
+  to exclude matching events from being sent to audit logging sinks.
+
+### `sink` Stanza
+
+The `sink` stanza is used to make audit logging sinks for events to be 
+sent to. Currently only a single sink is supported.
+
+The key of the stanza corresponds to the name of the sink which is used
+for logging purposes
+
+```hcl
+audit {
+  enabled = true
+
+  sink "audit" {
+    type               = "file"
+    delivery_guarantee = "enforced"
+    format             = "json"
+    path               = "/var/lib/nomad/audit/audit.log"
+    rotate_bytes       = 100
+    rotate_duration    = "24h"
+    rotate_max_files   = 10
+  }
+}
+```
+
+#### `sink` Parameters
+
+- `type` `(string: "file", required)` - Specifies the type of sink to create.
+  Currently only `"file"` type is supported.
+
+- `delivery_guarantee` `(string: "enforced", required)` - Specifies the 
+  delivery guarantee that will be made for each audit log entry. Available
+  options are `"enforced"` and `"best-effort"`. `"enforced"` will
+  hault request execution if the audit log event fails to be written to it's sink.
+  `"best-effort"` will not hault request execution, meaning a request could
+  potentially be un-audited.
+
+- `format` `(string: "json", required)` - Specifies the output format to be 
+  sent to a sink. Currently only `"json"` format is supported.
+
+- `path` `(string: "[data_dir]/audit/audit.log")` - Specifies the path and file
+  name to use for the audit log. By default Nomad will use it's configured 
+  [`data_dir`](/docs/configuration#data_dir) for a combined path of 
+  `/data_dir/audit/audit.log`. If `rotate_bytes` or `rotate_duration` are set
+  file rotation will occur. In this case the filename will be post-fixed with
+  a timestamp `"filename-{timestamp}.log"`
+
+- `rotate_bytes` `(int: 0)` - Specifies the number of bytes that should be
+  written to an audit log before it needs to be rotated. Unless specified,
+  there is no limit to the number of bytes that can be written to a log file.
+
+- `rotate_duration` `(duration: "24h")` - Specifies the maximum duration a
+  audit log should be written to before it needs to be rotated. Must be a
+  duration value such as 30s.
+
+- `rotate_max_files` `(int: 0)` - Specifies the maximum number of older audit log
+  file archives to keep. If 0 no files are ever deleted.
+
+### `filter` Stanza
+
+The `filter` stanza is used to create filters to filter __out__ matching events
+from being written to the audit log. By default, all events will be sent to an
+audit log for all stages (OperationReceived and OperationComplete). Filters
+are useful for operators who want to limit the performance impact of audit 
+logging as well as reducing the amount of events generated.
+
+`endpoints`, `stages`, and `operations` support [globbed pattern](https://github.com/ryanuber/go-glob/blob/master/README.md#example) matching.
+
+Query parameters are ignored when evaluating filters.
+
+```hcl
+audit {
+  enabled = true
+
+  # Filter out all requests and all stages for /v1/metrics
+  filter "default" {
+    type       = "HTTPEvent"
+    endpoints  = ["/v1/metrics"]
+    stages     = ["*"]
+    operations = ["*"]
+  }
+
+  # Filter out requests where endpoint matches globbed pattern
+  filter "globbed example" {
+    type       = "HTTPEvent"
+    endpoints  = ["/v1/evaluation/*/allocations"]
+    stages     = ["*"]
+    operations = ["*"]
+  }
+
+  # Filter out OperationReceived GET requests for all endpoints
+  filter "OperationReceived GETs" {
+    type       = "HTTPEvent"
+    endpoints  = ["*"]
+    stages     = ["OperationReceived"]
+    operations = ["GET"]
+  }
+}
+```
+
+#### `filter` Parameters
+
+- `type` `(string: "HTTPEvent", required)` - Specifies the type of filter to 
+  create. Currently only HTTPEvent is supported.
+
+- `endpoints` `(array<string>: [])` - Specifies the list of endpoints to apply
+  the filter to.
+
+- `stages` `(array<string>: [])` - Specifies the list of stages 
+  (`"OperationReceived"`, `"OperationComplete"`, `"*"`) to apply the filter to
+  for a matching endpoint.
+
+- `operations` `(array<string>: [])` - Specifies the list of operations to
+  apply the filter to for a matching endpoint. For HTTPEvent types this 
+  corresponds to an HTTP verb (GET, PUT, POST, DELETE...).
+
+## Audit Log Format
+
+Below are two audit log entries for a request made to `/v1/job/web/summary`.
+The first entry is for the `OperationReceived` stage. The second entry is for
+the `OperationComplete` stage and includes the contents of the `OperationReceived`
+stage plus a `response` key.
+
+```json
+{
+  "created_at": "2020-03-24T13:09:35.703869927-04:00",
+  "event_type": "audit",
+  "payload": {
+    "id": "8b826146-b264-af15-6526-29cb905145aa",
+    "stage": "OperationReceived",
+    "type": "audit",
+    "timestamp": "2020-03-24T13:09:35.703865005-04:00",
+    "version": 1,
+    "auth": {
+      "accessor_id": "a162f017-bcf7-900c-e22a-a2a8cbbcef53",
+      "name": "Bootstrap Token",
+      "global": true,
+      "create_time": "2020-03-24T17:08:35.086591881Z"
+    },
+    "request": {
+      "id": "02f0ac35-c7e8-0871-5a58-ee9dbc0a70ea",
+      "operation": "GET",
+      "endpoint": "/v1/job/web/summary",
+      "namespace": {
+        "id": "default"
+      },
+      "request_meta": {
+        "remote_address": "127.0.0.1:33648",
+        "user_agent": "Go-http-client/1.1"
+      },
+      "node_meta": {
+        "ip": "127.0.0.1:4646"
+      }
+    }
+  }
+}
+{
+  "created_at": "2020-03-24T13:09:35.704224536-04:00",
+  "event_type": "audit",
+  "payload": {
+    "id": "8b826146-b264-af15-6526-29cb905145aa",
+    "stage": "OperationComplete",
+    "type": "audit",
+    "timestamp": "2020-03-24T13:09:35.703865005-04:00",
+    "version": 1,
+    "auth": {
+      "accessor_id": "a162f017-bcf7-900c-e22a-a2a8cbbcef53",
+      "name": "Bootstrap Token",
+      "global": true,
+      "create_time": "2020-03-24T17:08:35.086591881Z"
+    },
+    "request": {
+      "id": "02f0ac35-c7e8-0871-5a58-ee9dbc0a70ea",
+      "operation": "GET",
+      "endpoint": "/v1/job/web/summary",
+      "namespace": {
+        "id": "default"
+      },
+      "request_meta": {
+        "remote_address": "127.0.0.1:33648",
+        "user_agent": "Go-http-client/1.1"
+      },
+      "node_meta": {
+        "ip": "127.0.0.1:4646"
+      }
+    },
+    "response": {
+      "status_code": 200
+    }
+  }
+}
+
+```
+
+If the request returns an error the audit log will reflect the error message.
+
+```json
+{
+  "created_at": "2020-03-24T13:18:36.121978648-04:00",
+  "event_type": "audit",
+  "payload": {
+    "id": "21c6f97a-fbfb-1090-1e34-34d1ece57cc2",
+    "stage": "OperationComplete",
+    "type": "audit",
+    "timestamp": "2020-03-24T13:18:36.121428628-04:00",
+    "version": 1,
+    "auth": {
+      "accessor_id": "anonymous",
+      "name": "Anonymous Token",
+      "policies": [
+        "anonymous"
+      ],
+      "create_time": "0001-01-01T00:00:00Z"
+    },
+    "request": {
+      "id": "c696cc9e-962e-18b3-4097-e0a09070f89e",
+      "operation": "GET",
+      "endpoint": "/v1/jobs?prefix=web",
+      "namespace": {
+        "id": "default"
+      },
+      "request_meta": {
+        "remote_address": "127.0.0.1:33874",
+        "user_agent": "Go-http-client/1.1"
+      },
+      "node_meta": {
+        "ip": "127.0.0.1:4646"
+      }
+    },
+    "response": {
+      "status_code": 403,
+      "error": "Permission denied"
+    }
+  }
+}
+```

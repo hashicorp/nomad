@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -11,6 +12,8 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -94,7 +97,7 @@ func TestClientEndpoint_Register_NodeConn_Forwarded(t *testing.T) {
 
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -751,16 +754,18 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 func TestClientEndpoint_UpdateStatus_HeartbeatOnly(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -2136,7 +2141,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	start := time.Now()
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp2)
 	require.Nil(err)
-	require.NotEqual(0, resp2.Index)
+	require.NotEqual(uint64(0), resp2.Index)
 
 	if diff := time.Since(start); diff < batchUpdateInterval {
 		t.Fatalf("too fast: %v", diff)
@@ -2305,6 +2310,105 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	if l := len(tvc.RevokedTokens); l != 1 {
 		t.Fatalf("Deregister revoked %d tokens; want 1", l)
 	}
+}
+
+func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	codec := rpcClient(t, srv)
+	state := srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	// Create a client node, plugin, and volume
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early version
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"csi-plugin-example": {PluginID: "csi-plugin-example",
+			Healthy:        true,
+			NodeInfo:       &structs.CSINodeInfo{},
+			ControllerInfo: &structs.CSIControllerInfo{},
+		},
+	}
+	err := state.UpsertNode(99, node)
+	require.NoError(t, err)
+	volId0 := uuid.Generate()
+	ns := structs.DefaultNamespace
+	vols := []*structs.CSIVolume{{
+		ID:             volId0,
+		Namespace:      ns,
+		PluginID:       "csi-plugin-example",
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+	}}
+	err = state.CSIVolumeRegister(100, vols)
+	require.NoError(t, err)
+	vol, err := state.CSIVolumeByID(ws, ns, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 0)
+	require.Len(t, vol.WriteAllocs, 0)
+
+	// Create a job with 2 allocations
+	job := mock.Job()
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"_": {
+			Name:     "someVolume",
+			Type:     structs.VolumeTypeCSI,
+			Source:   volId0,
+			ReadOnly: false,
+		},
+	}
+	err = state.UpsertJob(101, job)
+	require.NoError(t, err)
+
+	alloc1 := mock.Alloc()
+	alloc1.JobID = job.ID
+	alloc1.NodeID = node.ID
+	err = state.UpsertJobSummary(102, mock.JobSummary(alloc1.JobID))
+	require.NoError(t, err)
+	alloc1.TaskGroup = job.TaskGroups[0].Name
+
+	alloc2 := mock.Alloc()
+	alloc2.JobID = job.ID
+	alloc2.NodeID = node.ID
+	err = state.UpsertJobSummary(103, mock.JobSummary(alloc2.JobID))
+	require.NoError(t, err)
+	alloc2.TaskGroup = job.TaskGroups[0].Name
+
+	err = state.UpsertAllocs(104, []*structs.Allocation{alloc1, alloc2})
+	require.NoError(t, err)
+
+	// Claim the volumes and verify the claims were set
+	err = state.CSIVolumeClaim(105, ns, volId0, alloc1, structs.CSIVolumeClaimWrite)
+	require.NoError(t, err)
+	err = state.CSIVolumeClaim(106, ns, volId0, alloc2, structs.CSIVolumeClaimRead)
+	require.NoError(t, err)
+	vol, err = state.CSIVolumeByID(ws, ns, volId0)
+	require.NoError(t, err)
+	require.Len(t, vol.ReadAllocs, 1)
+	require.Len(t, vol.WriteAllocs, 1)
+
+	// Update the 1st alloc as terminal/failed
+	alloc1.ClientStatus = structs.AllocClientStatusFailed
+	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc",
+		&structs.AllocUpdateRequest{
+			Alloc:        []*structs.Allocation{alloc1},
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}, &structs.NodeAllocsResponse{})
+	require.NoError(t, err)
+
+	// Lookup the alloc and verify status was updated
+	out, err := state.AllocByID(ws, alloc1.ID)
+	require.NoError(t, err)
+	require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
+
+	// Verify the eval for the claim GC was emitted
+	// Lookup the evaluations
+	eval, err := state.EvalsByJob(ws, job.Namespace, structs.CoreJobCSIVolumeClaimGC+":"+volId0+":no")
+	require.NotNil(t, eval)
+	require.Nil(t, err)
 }
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
@@ -2559,6 +2663,13 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 
 	// Create the register request
 	node := mock.Node()
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {
+			Name:     "foo",
+			Path:     "/",
+			ReadOnly: true,
+		},
+	}
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -2584,12 +2695,11 @@ func TestClientEndpoint_ListNodes(t *testing.T) {
 		t.Fatalf("Bad index: %d %d", resp2.Index, resp.Index)
 	}
 
-	if len(resp2.Nodes) != 1 {
-		t.Fatalf("bad: %#v", resp2.Nodes)
-	}
-	if resp2.Nodes[0].ID != node.ID {
-		t.Fatalf("bad: %#v", resp2.Nodes[0])
-	}
+	require.Len(t, resp2.Nodes, 1)
+	require.Equal(t, node.ID, resp2.Nodes[0].ID)
+
+	// #7344 - Assert HostVolumes are included in stub
+	require.Equal(t, node.HostVolumes, resp2.Nodes[0].HostVolumes)
 
 	// Lookup the node with prefix
 	get = &structs.NodeListRequest{
@@ -3031,6 +3141,175 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_taskUsesConnect(t *testing.T) {
+	t.Parallel()
+
+	try := func(t *testing.T, task *structs.Task, exp bool) {
+		result := taskUsesConnect(task)
+		require.Equal(t, exp, result)
+	}
+
+	t.Run("task uses connect", func(t *testing.T) {
+		try(t, &structs.Task{
+			// see nomad.newConnectTask for how this works
+			Name: "connect-proxy-myservice",
+			Kind: "connect-proxy:myservice",
+		}, true)
+	})
+
+	t.Run("task does not use connect", func(t *testing.T) {
+		try(t, &structs.Task{
+			Name: "mytask",
+			Kind: "incorrect:mytask",
+		}, false)
+	})
+
+	t.Run("task does not exist", func(t *testing.T) {
+		try(t, nil, false)
+	})
+}
+
+func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
+	t.Parallel()
+
+	taskGroup := &structs.TaskGroup{
+		Name: "testgroup",
+		Tasks: []*structs.Task{{
+			Name: "connect-proxy-service1",
+			Kind: "connect-proxy:service1",
+		}, {
+			Name: "incorrect-task3",
+			Kind: "incorrect:task3",
+		}, {
+			Name: "connect-proxy-service4",
+			Kind: "connect-proxy:service4",
+		}, {
+			Name: "incorrect-task5",
+			Kind: "incorrect:task5",
+		}},
+	}
+
+	requestingTasks := []string{
+		"connect-proxy-service1", // yes
+		"task2",                  // does not exist
+		"task3",                  // no
+		"connect-proxy-service4", // yes
+		"task5",                  // no
+	}
+
+	unneeded := tasksNotUsingConnect(taskGroup, requestingTasks)
+	exp := []string{"task2", "task3", "task5"}
+	require.Equal(t, exp, unneeded)
+}
+
+func mutateConnectJob(t *testing.T, job *structs.Job) {
+	var jch jobConnectHook
+	_, warnings, err := jch.Mutate(job)
+	require.Empty(t, warnings)
+	require.NoError(t, err)
+}
+
+func TestClientEndpoint_DeriveSIToken(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil) // already sets consul mocks
+	defer cleanupS1()
+
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Set allow unauthenticated (no operator token required)
+	s1.config.ConsulConfig.AllowUnauthenticated = helper.BoolToPtr(true)
+
+	// Create the node
+	node := mock.Node()
+	err := state.UpsertNode(2, node)
+	r.NoError(err)
+
+	// Create an alloc with a typical connect service (sidecar) defined
+	alloc := mock.ConnectAlloc()
+	alloc.NodeID = node.ID
+	mutateConnectJob(t, alloc.Job) // appends sidecar task
+	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
+
+	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	r.NoError(err)
+
+	request := &structs.DeriveSITokenRequest{
+		NodeID:       node.ID,
+		SecretID:     node.SecretID,
+		AllocID:      alloc.ID,
+		Tasks:        []string{sidecarTask.Name},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var response structs.DeriveSITokenResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.DeriveSIToken", request, &response)
+	r.NoError(err)
+	r.Nil(response.Error)
+
+	// Check the state store and ensure we created a Consul SI Token Accessor
+	ws := memdb.NewWatchSet()
+	accessors, err := state.SITokenAccessorsByNode(ws, node.ID)
+	r.NoError(err)
+	r.Equal(1, len(accessors))                                  // only asked for one
+	r.Equal("connect-proxy-testconnect", accessors[0].TaskName) // set by the mock
+	r.Equal(node.ID, accessors[0].NodeID)                       // should match
+	r.Equal(alloc.ID, accessors[0].AllocID)                     // should match
+	r.True(helper.IsUUID(accessors[0].AccessorID))              // should be set
+	r.Greater(accessors[0].CreateIndex, uint64(3))              // more than 3rd
+}
+
+func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Set allow unauthenticated (no operator token required)
+	s1.config.ConsulConfig.AllowUnauthenticated = helper.BoolToPtr(true)
+
+	// Create the node
+	node := mock.Node()
+	err := state.UpsertNode(2, node)
+	r.NoError(err)
+
+	// Create an alloc with a typical connect service (sidecar) defined
+	alloc := mock.ConnectAlloc()
+	alloc.NodeID = node.ID
+	mutateConnectJob(t, alloc.Job) // appends sidecar task
+	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
+
+	// rejigger the server to use a broken mock consul
+	mockACLsAPI := consul.NewMockACLsAPI(s1.logger)
+	mockACLsAPI.SetError(structs.NewRecoverableError(errors.New("consul recoverable error"), true))
+	m := NewConsulACLsAPI(mockACLsAPI, s1.logger, nil)
+	s1.consulACLs = m
+
+	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	r.NoError(err)
+
+	request := &structs.DeriveSITokenRequest{
+		NodeID:       node.ID,
+		SecretID:     node.SecretID,
+		AllocID:      alloc.ID,
+		Tasks:        []string{sidecarTask.Name},
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+
+	var response structs.DeriveSITokenResponse
+	err = msgpackrpc.CallWithCodec(codec, "Node.DeriveSIToken", request, &response)
+	r.NoError(err)
+	r.NotNil(response.Error)               // error should be set
+	r.True(response.Error.IsRecoverable()) // and is recoverable
+}
+
 func TestClientEndpoint_EmitEvents(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -3061,7 +3340,7 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	var resp structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
 	require.Nil(err)
-	require.NotEqual(0, resp.Index)
+	require.NotEqual(uint64(0), resp.Index)
 
 	// Check for the node in the FSM
 	ws := memdb.NewWatchSet()

@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/testutil/retry"
+	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -20,16 +23,18 @@ import (
 )
 
 func TestLeader_LeftServer(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -80,16 +85,18 @@ func TestLeader_LeftServer(t *testing.T) {
 }
 
 func TestLeader_LeftLeader(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -151,24 +158,29 @@ func TestLeader_MultiBootstrap(t *testing.T) {
 
 	// Ensure we don't have multiple raft peers
 	for _, s := range servers {
-		peers, _ := s.numPeers()
+		peers, err := s.numPeers()
+		if err != nil {
+			t.Fatalf("failed: %v", err)
+		}
 		if peers != 1 {
-			t.Fatalf("should only have 1 raft peer!")
+			t.Fatalf("should only have 1 raft peer! %v", peers)
 		}
 	}
 }
 
 func TestLeader_PlanQueue_Reset(t *testing.T) {
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -220,13 +232,13 @@ func TestLeader_EvalBroker_Reset(t *testing.T) {
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -278,13 +290,13 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}
@@ -601,7 +613,7 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	})
 }
 
-func TestLeader_RestoreVaultAccessors(t *testing.T) {
+func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
@@ -609,9 +621,9 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert a vault accessor that should be revoked
-	state := s1.fsm.State()
+	fsmState := s1.fsm.State()
 	va := mock.VaultAccessor()
-	if err := state.UpsertVaultAccessor(100, []*structs.VaultAccessor{va}); err != nil {
+	if err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -620,13 +632,234 @@ func TestLeader_RestoreVaultAccessors(t *testing.T) {
 	s1.vault = tvc
 
 	// Do a restore
-	if err := s1.restoreRevokingAccessors(); err != nil {
+	if err := s1.revokeVaultAccessorsOnRestore(); err != nil {
 		t.Fatalf("Failed to restore: %v", err)
 	}
 
 	if len(tvc.RevokedTokens) != 1 && tvc.RevokedTokens[0].Accessor != va.Accessor {
 		t.Fatalf("Bad revoked accessors: %v", tvc.RevokedTokens)
 	}
+}
+
+func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// replace consul ACLs api with a mock for tracking calls
+	var consulACLsAPI mockConsulACLsAPI
+	s1.consulACLs = &consulACLsAPI
+
+	// Insert a SI token accessor that should be revoked
+	fsmState := s1.fsm.State()
+	accessor := mock.SITokenAccessor()
+	err := fsmState.UpsertSITokenAccessors(100, []*structs.SITokenAccessor{accessor})
+	r.NoError(err)
+
+	// Do a restore
+	err = s1.revokeSITokenAccessorsOnRestore()
+	r.NoError(err)
+
+	// Check the accessor was revoked
+	exp := []revokeRequest{{
+		accessorID: accessor.AccessorID,
+		committed:  true,
+	}}
+	r.ElementsMatch(exp, consulACLsAPI.revokeRequests)
+}
+
+func TestLeader_ClusterID(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.Build = minClusterIDVersion.String()
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	clusterID, err := s1.ClusterID()
+
+	require.NoError(t, err)
+	require.True(t, helper.IsUUID(clusterID))
+}
+
+func TestLeader_ClusterID_upgradePath(t *testing.T) {
+	t.Parallel()
+
+	before := version.Must(version.NewVersion("0.10.1")).String()
+	after := minClusterIDVersion.String()
+
+	type server struct {
+		s       *Server
+		cleanup func()
+	}
+
+	outdated := func() server {
+		s, cleanup := TestServer(t, func(c *Config) {
+			c.NumSchedulers = 0
+			c.Build = before
+			c.BootstrapExpect = 3
+			c.Logger.SetLevel(hclog.Trace)
+		})
+		return server{s: s, cleanup: cleanup}
+	}
+
+	upgraded := func() server {
+		s, cleanup := TestServer(t, func(c *Config) {
+			c.NumSchedulers = 0
+			c.Build = after
+			c.BootstrapExpect = 0
+			c.Logger.SetLevel(hclog.Trace)
+		})
+		return server{s: s, cleanup: cleanup}
+	}
+
+	servers := []server{outdated(), outdated(), outdated()}
+	// fallback shutdown attempt in case testing fails
+	defer servers[0].cleanup()
+	defer servers[1].cleanup()
+	defer servers[2].cleanup()
+
+	upgrade := func(i int) {
+		previous := servers[i]
+
+		servers[i] = upgraded()
+		TestJoin(t, servers[i].s, servers[(i+1)%3].s, servers[(i+2)%3].s)
+		testutil.WaitForLeader(t, servers[i].s.RPC)
+
+		require.NoError(t, previous.s.Leave())
+		require.NoError(t, previous.s.Shutdown())
+	}
+
+	// Join the servers before doing anything
+	TestJoin(t, servers[0].s, servers[1].s, servers[2].s)
+
+	// Wait for servers to settle
+	for i := 0; i < len(servers); i++ {
+		testutil.WaitForLeader(t, servers[i].s.RPC)
+	}
+
+	// A check that ClusterID is not available yet
+	noIDYet := func() {
+		for _, s := range servers {
+			retry.Run(t, func(r *retry.R) {
+				if _, err := s.s.ClusterID(); err == nil {
+					r.Error("expected error")
+				}
+			})
+		}
+	}
+
+	// Replace first old server with new server
+	upgrade(0)
+	defer servers[0].cleanup()
+	noIDYet() // ClusterID should not work yet, servers: [new, old, old]
+
+	// Replace second old server with new server
+	upgrade(1)
+	defer servers[1].cleanup()
+	noIDYet() // ClusterID should not work yet, servers: [new, new, old]
+
+	// Replace third / final old server with new server
+	upgrade(2)
+	defer servers[2].cleanup()
+
+	// Wait for old servers to really be gone
+	for _, s := range servers {
+		testutil.WaitForResult(func() (bool, error) {
+			peers, _ := s.s.numPeers()
+			return peers == 3, nil
+		}, func(_ error) {
+			t.Fatalf("should have 3 peers")
+		})
+	}
+
+	// Now we can tickle the leader into making a cluster ID
+	leaderID := ""
+	for _, s := range servers {
+		if s.s.IsLeader() {
+			id, err := s.s.ClusterID()
+			require.NoError(t, err)
+			leaderID = id
+			break
+		}
+	}
+	require.True(t, helper.IsUUID(leaderID))
+
+	// Now every participating server has been upgraded, each one should be
+	// able to get the cluster ID, having been plumbed all the way through.
+	agreeClusterID(t, []*Server{servers[0].s, servers[1].s, servers[2].s})
+}
+
+func TestLeader_ClusterID_noUpgrade(t *testing.T) {
+	t.Parallel()
+
+	type server struct {
+		s       *Server
+		cleanup func()
+	}
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.Logger.SetLevel(hclog.Trace)
+		c.NumSchedulers = 0
+		c.Build = minClusterIDVersion.String()
+		c.BootstrapExpect = 3
+	})
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.Logger.SetLevel(hclog.Trace)
+		c.NumSchedulers = 0
+		c.Build = minClusterIDVersion.String()
+		c.BootstrapExpect = 3
+	})
+	defer cleanupS2()
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
+		c.Logger.SetLevel(hclog.Trace)
+		c.NumSchedulers = 0
+		c.Build = minClusterIDVersion.String()
+		c.BootstrapExpect = 3
+	})
+	defer cleanupS3()
+
+	servers := []*Server{s1, s2, s3}
+
+	// Join the servers before doing anything
+	TestJoin(t, servers[0], servers[1], servers[2])
+
+	// Wait for servers to settle
+	for i := 0; i < len(servers); i++ {
+		testutil.WaitForLeader(t, servers[i].RPC)
+	}
+
+	// Each server started at the minimum version, check there should be only 1
+	// cluster ID they all agree on.
+	agreeClusterID(t, []*Server{servers[0], servers[1], servers[2]})
+}
+
+func agreeClusterID(t *testing.T, servers []*Server) {
+	retries := &retry.Timer{Timeout: 60 * time.Second, Wait: 1 * time.Second}
+	ids := make([]string, 3)
+	for i, s := range servers {
+		retry.RunWith(retries, t, func(r *retry.R) {
+			id, err := s.ClusterID()
+			if err != nil {
+				r.Error(err.Error())
+				return
+			}
+			if !helper.IsUUID(id) {
+				r.Error("not a UUID")
+				return
+			}
+			ids[i] = id
+		})
+	}
+	require.True(t, ids[0] == ids[1] && ids[1] == ids[2], "ids[0] %s, ids[1] %s, ids[2] %s", ids[0], ids[1], ids[2])
 }
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
@@ -784,13 +1017,13 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 1
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
@@ -826,7 +1059,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 
 	// Replace the dead server with one running raft protocol v3
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.Datacenter = "dc1"
 		c.RaftConfig.ProtocolVersion = 3
 	})
@@ -883,14 +1116,12 @@ func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.DevDisableBootstrap = true
 		c.RaftConfig.ProtocolVersion = raftProtocol
 	})
 	defer cleanupS3() // todo(shoenig) added this, should be here right??
@@ -942,13 +1173,13 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
@@ -979,7 +1210,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 
 	// Replace the dead server with one running raft protocol v3
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS4()
@@ -1002,7 +1233,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 	}
 	// Replace another dead server with one running raft protocol v3
 	s5, cleanupS5 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS5()
@@ -1026,7 +1257,7 @@ func TestLeader_RollRaftServer(t *testing.T) {
 
 	// Replace the last dead server with one running raft protocol v3
 	s6, cleanupS6 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS6()
@@ -1102,24 +1333,29 @@ func TestServer_ReconcileMember(t *testing.T) {
 
 	// Create a three node cluster
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()
 
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// test relies on s3 not being the leader, so adding it
+	// after leadership has been established to reduce
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 2
 	})
 	defer cleanupS3()
-	TestJoin(t, s1, s2, s3)
-	testutil.WaitForLeader(t, s1.RPC)
+
+	TestJoin(t, s1, s3)
 
 	// Create a memberlist object for s3, with raft protocol upgraded to 3
 	upgradedS3Member := serf.Member{
@@ -1139,24 +1375,34 @@ func TestServer_ReconcileMember(t *testing.T) {
 	upgradedS3Member.Tags["mvn"] = "1"
 	upgradedS3Member.Tags["raft_vsn"] = "3"
 
-	// Find the leader so that we can call reconcile member on it
-	var leader *Server
-	for _, s := range []*Server{s1, s2, s3} {
-		if s.IsLeader() {
-			leader = s
+	findLeader := func(t *testing.T) *Server {
+		t.Helper()
+		for _, s := range []*Server{s1, s2, s3} {
+			if s.IsLeader() {
+				t.Logf("found leader: %v %v", s.config.NodeID, s.config.RPCAddr)
+				return s
+			}
 		}
+
+		t.Fatalf("no leader found")
+		return nil
 	}
-	leader.reconcileMember(upgradedS3Member)
+
+	// Find the leader so that we can call reconcile member on it
+	leader := findLeader(t)
+	if err := leader.reconcileMember(upgradedS3Member); err != nil {
+		t.Fatalf("failed to reconcile member: %v", err)
+	}
+
 	// This should remove s3 from the config and potentially cause a leader election
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Figure out the new leader and call reconcile again, this should add s3 with the new ID format
-	for _, s := range []*Server{s1, s2, s3} {
-		if s.IsLeader() {
-			leader = s
-		}
+	leader = findLeader(t)
+	if err := leader.reconcileMember(upgradedS3Member); err != nil {
+		t.Fatalf("failed to reconcile member: %v", err)
 	}
-	leader.reconcileMember(upgradedS3Member)
+
 	testutil.WaitForLeader(t, s1.RPC)
 	future := s2.raft.GetConfiguration()
 	if err := future.Error(); err != nil {
@@ -1176,7 +1422,7 @@ func TestServer_ReconcileMember(t *testing.T) {
 		t.Fatalf("got %d server addresses want %d", got, want)
 	}
 	if got, want := ids, 3; got != want {
-		t.Fatalf("got %d server ids want %d", got, want)
+		t.Fatalf("got %d server ids want %d: %#v", got, want, future.Configuration().Servers)
 	}
 }
 

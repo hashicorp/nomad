@@ -8,6 +8,7 @@ import (
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -75,12 +76,6 @@ func TestStateDB_Allocations(t *testing.T) {
 		// Put allocations
 		alloc1 := mock.Alloc()
 		alloc2 := mock.BatchAlloc()
-
-		//XXX Sadly roundtripping allocs loses time.Duration type
-		//    information from the Config map[string]interface{}. As
-		//    the mock driver itself with unmarshal run_for into the
-		//    proper type, we can safely ignore it here.
-		delete(alloc2.Job.TaskGroups[0].Tasks[0].Config, "run_for")
 
 		require.NoError(db.PutAllocation(alloc1))
 		require.NoError(db.PutAllocation(alloc2))
@@ -238,6 +233,31 @@ func TestStateDB_DriverManager(t *testing.T) {
 
 		// Getting should return the available state
 		ps, err = db.GetDriverPluginState()
+		require.NoError(err)
+		require.NotNil(ps)
+		require.Equal(state, ps)
+	})
+}
+
+// TestStateDB_DynamicRegistry asserts the behavior of dynamic registry state related StateDB
+// methods.
+func TestStateDB_DynamicRegistry(t *testing.T) {
+	t.Parallel()
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		require := require.New(t)
+
+		// Getting nonexistent state should return nils
+		ps, err := db.GetDynamicPluginRegistryState()
+		require.NoError(err)
+		require.Nil(ps)
+
+		// Putting PluginState should work
+		state := &dynamicplugins.RegistryState{}
+		require.NoError(db.PutDynamicPluginRegistryState(state))
+
+		// Getting should return the available state
+		ps, err = db.GetDynamicPluginRegistryState()
 		require.NoError(err)
 		require.NotNil(ps)
 		require.Equal(state, ps)

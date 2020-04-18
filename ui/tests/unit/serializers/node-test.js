@@ -89,6 +89,16 @@ module('Unit | Serializer | Node', function(hooks) {
             Healthy: false,
           },
         },
+        HostVolumes: {
+          one: {
+            Name: 'one',
+            ReadOnly: true,
+          },
+          two: {
+            Name: 'two',
+            ReadOnly: false,
+          },
+        },
       },
       out: {
         data: {
@@ -104,6 +114,7 @@ module('Unit | Serializer | Node', function(hooks) {
                 healthy: false,
               },
             ],
+            hostVolumes: [{ name: 'one', readOnly: true }, { name: 'two', readOnly: false }],
           },
           relationships: {
             allocations: {
@@ -152,6 +163,33 @@ module('Unit | Serializer | Node', function(hooks) {
                 healthy: false,
               },
             ],
+            hostVolumes: [],
+          },
+          relationships: {
+            allocations: {
+              links: {
+                related: '/v1/node/test-node/allocations',
+              },
+            },
+          },
+        },
+      },
+    },
+
+    {
+      name: 'Null hash values',
+      in: {
+        ID: 'test-node',
+        Drivers: null,
+        HostVolumes: null,
+      },
+      out: {
+        data: {
+          id: 'test-node',
+          type: 'node',
+          attributes: {
+            hostVolumes: [],
+            drivers: [],
           },
           relationships: {
             allocations: {

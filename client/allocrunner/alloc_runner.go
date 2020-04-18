@@ -17,7 +17,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -61,6 +63,10 @@ type allocRunner struct {
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
+
+	// sidsClient is the client used by the service identity hook for
+	// managing SI tokens
+	sidsClient consul.ServiceIdentityAPI
 
 	// vaultClient is the used to manage Vault tokens
 	vaultClient vaultclient.VaultClient
@@ -114,6 +120,10 @@ type allocRunner struct {
 	// transistions.
 	runnerHooks []interfaces.RunnerHook
 
+	// hookState is the output of allocrunner hooks
+	hookState   *cstructs.AllocHookResources
+	hookStateMu sync.RWMutex
+
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
@@ -130,6 +140,14 @@ type allocRunner struct {
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
 	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
+	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
+	// plugins).
+	dynamicRegistry dynamicplugins.Registry
+
+	// csiManager is used to wait for CSI Volumes to be attached, and by the task
+	// runner to manage their mounting
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -142,6 +160,17 @@ type allocRunner struct {
 	// servers have been contacted for the first time in case of a failed
 	// restore.
 	serversContactedCh chan struct{}
+
+	taskHookCoordinator *taskHookCoordinator
+
+	// rpcClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient RPCer
+}
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -157,6 +186,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		alloc:                    alloc,
 		clientConfig:             config.ClientConfig,
 		consulClient:             config.Consul,
+		sidsClient:               config.ConsulSI,
 		vaultClient:              config.Vault,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:                   make(chan struct{}),
@@ -171,9 +201,12 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
+		dynamicRegistry:          config.DynamicRegistry,
+		csiManager:               config.CSIManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
+		rpcClient:                config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID
@@ -184,6 +217,8 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
+
+	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
 
 	// Initialize the runners hooks.
 	if err := ar.initRunnerHooks(config.ClientConfig); err != nil {
@@ -202,19 +237,23 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		config := &taskrunner.Config{
-			Alloc:               ar.alloc,
-			ClientConfig:        ar.clientConfig,
-			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
-			Logger:              ar.logger,
-			StateDB:             ar.stateDB,
-			StateUpdater:        ar,
-			Consul:              ar.consulClient,
-			Vault:               ar.vaultClient,
-			DeviceStatsReporter: ar.deviceStatsReporter,
-			DeviceManager:       ar.devicemanager,
-			DriverManager:       ar.driverManager,
-			ServersContactedCh:  ar.serversContactedCh,
+			Alloc:                ar.alloc,
+			ClientConfig:         ar.clientConfig,
+			Task:                 task,
+			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
+			Logger:               ar.logger,
+			StateDB:              ar.stateDB,
+			StateUpdater:         ar,
+			DynamicRegistry:      ar.dynamicRegistry,
+			Consul:               ar.consulClient,
+			ConsulSI:             ar.sidsClient,
+			Vault:                ar.vaultClient,
+			DeviceStatsReporter:  ar.deviceStatsReporter,
+			CSIManager:           ar.csiManager,
+			DeviceManager:        ar.devicemanager,
+			DriverManager:        ar.driverManager,
+			ServersContactedCh:   ar.serversContactedCh,
+			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 		}
 
 		// Create, but do not Run, the task runner
@@ -351,12 +390,17 @@ func (ar *allocRunner) Restore() error {
 	ar.state.DeploymentStatus = ds
 	ar.stateLock.Unlock()
 
+	states := make(map[string]*structs.TaskState)
+
 	// Restore task runners
 	for _, tr := range ar.tasks {
 		if err := tr.Restore(); err != nil {
 			return err
 		}
+		states[tr.Task().Name] = tr.TaskState()
 	}
+
+	ar.taskHookCoordinator.taskStateUpdated(states)
 
 	return nil
 }
@@ -481,6 +525,8 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			}
 		}
+
+		ar.taskHookCoordinator.taskStateUpdated(states)
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)

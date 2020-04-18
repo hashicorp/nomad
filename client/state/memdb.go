@@ -6,6 +6,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -28,6 +29,9 @@ type MemDB struct {
 
 	// drivermanager -> plugin-state
 	driverManagerPs *driverstate.PluginState
+
+	// dynamicmanager -> registry-state
+	dynamicManagerPs *dynamicplugins.RegistryState
 
 	logger hclog.Logger
 
@@ -190,6 +194,19 @@ func (m *MemDB) PutDriverPluginState(ps *driverstate.PluginState) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.driverManagerPs = ps
+	return nil
+}
+
+func (m *MemDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryState, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.dynamicManagerPs, nil
+}
+
+func (m *MemDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dynamicManagerPs = ps
 	return nil
 }
 

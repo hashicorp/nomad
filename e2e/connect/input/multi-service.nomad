@@ -25,7 +25,7 @@ job "multi-service" {
 
       config {
         image = "hashicorp/http-echo"
-        args = ["-listen=:9001", "-text=echo1"]
+        args  = ["-listen=:9001", "-text=echo1"]
       }
     }
 
@@ -43,7 +43,7 @@ job "multi-service" {
 
       config {
         image = "hashicorp/http-echo"
-        args = ["-listen=:9002", "-text=echo2"]
+        args  = ["-listen=:9002", "-text=echo2"]
       }
     }
   }

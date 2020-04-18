@@ -1,7 +1,6 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -27,8 +26,10 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/pluginmanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
@@ -43,9 +44,11 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
+	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
 )
 
@@ -236,6 +239,10 @@ type Client struct {
 	// Shutdown() blocks on Wait() after closing shutdownCh.
 	shutdownGroup group
 
+	// tokensClient is Nomad Client's custom Consul client for requesting Consul
+	// Service Identity tokens through Nomad Server.
+	tokensClient consulApi.ServiceIdentityAPI
+
 	// vaultClient is used to interact with Vault for token and secret renewals
 	vaultClient vaultclient.VaultClient
 
@@ -253,6 +260,9 @@ type Client struct {
 
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
+
+	// csimanager is responsible for managing csi plugins.
+	csimanager csimanager.Manager
 
 	// devicemanger is responsible for managing device plugins.
 	devicemanager devicemanager.Manager
@@ -275,6 +285,10 @@ type Client struct {
 	// successfully run once.
 	serversContactedCh   chan struct{}
 	serversContactedOnce sync.Once
+
+	// dynamicRegistry provides access to plugins that are dynamically registered
+	// with a nomad client. Currently only used for CSI.
+	dynamicRegistry dynamicplugins.Registry
 }
 
 var (
@@ -332,6 +346,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.batchNodeUpdates = newBatchNodeUpdates(
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
+		c.updateNodeFromCSI,
 	)
 
 	// Initialize the server manager
@@ -340,10 +355,21 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Start server manager rebalancing go routine
 	go c.servers.Start()
 
-	// Initialize the client
+	// initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
+
+	// initialize the dynamic registry (needs to happen after init)
+	c.dynamicRegistry =
+		dynamicplugins.NewRegistry(c.stateDB, map[string]dynamicplugins.PluginDispenser{
+			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller"))
+			},
+			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client"))
+			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
+		})
 
 	// Setup the clients RPC server
 	c.setupClientRpc()
@@ -378,6 +404,17 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Build the white/blacklists of drivers.
 	allowlistDrivers := cfg.ReadStringListToMap("driver.whitelist")
 	blocklistDrivers := cfg.ReadStringListToMap("driver.blacklist")
+
+	// Setup the csi manager
+	csiConfig := &csimanager.Config{
+		Logger:                c.logger,
+		DynamicRegistry:       c.dynamicRegistry,
+		UpdateNodeCSIInfoFunc: c.batchNodeUpdates.updateNodeFromCSI,
+		TriggerNodeEvent:      c.triggerNodeEvent,
+	}
+	csiManager := csimanager.New(csiConfig)
+	c.csimanager = csiManager
+	c.pluginManagers.RegisterAndRun(csiManager.PluginManager())
 
 	// Setup the driver manager
 	driverConfig := &drivermanager.Config{
@@ -443,6 +480,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 			// No configured servers; trigger discovery manually
 			c.triggerDiscoveryCh <- struct{}{}
 		}
+	}
+
+	if err := c.setupConsulTokenClient(); err != nil {
+		return nil, errors.Wrap(err, "failed to setup consul tokens client")
 	}
 
 	// Setup the vault client for token and secret renewals
@@ -1042,12 +1083,16 @@ func (c *Client) restoreState() error {
 			StateUpdater:        c,
 			DeviceStatsReporter: c,
 			Consul:              c.consulService,
+			ConsulSI:            c.tokensClient,
 			Vault:               c.vaultClient,
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
+			DynamicRegistry:     c.dynamicRegistry,
+			CSIManager:          c.csimanager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
+			RPCClient:           c,
 		}
 		c.configLock.RUnlock()
 
@@ -1269,6 +1314,12 @@ func (c *Client) setupNode() error {
 	}
 	if node.Drivers == nil {
 		node.Drivers = make(map[string]*structs.DriverInfo)
+	}
+	if node.CSIControllerPlugins == nil {
+		node.CSIControllerPlugins = make(map[string]*structs.CSIInfo)
+	}
+	if node.CSINodePlugins == nil {
+		node.CSINodePlugins = make(map[string]*structs.CSIInfo)
 	}
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
@@ -1995,6 +2046,10 @@ OUTER:
 			// Ensure that we received all the allocations we wanted
 			pulledAllocs = make(map[string]*structs.Allocation, len(allocsResp.Allocs))
 			for _, alloc := range allocsResp.Allocs {
+
+				// handle an old Server
+				alloc.Canonicalize()
+
 				pulledAllocs[alloc.ID] = alloc
 			}
 
@@ -2291,13 +2346,17 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		ClientConfig:        c.configCopy,
 		StateDB:             c.stateDB,
 		Consul:              c.consulService,
+		ConsulSI:            c.tokensClient,
 		Vault:               c.vaultClient,
 		StateUpdater:        c,
 		DeviceStatsReporter: c,
 		PrevAllocWatcher:    prevAllocWatcher,
 		PrevAllocMigrator:   prevAllocMigrator,
+		DynamicRegistry:     c.dynamicRegistry,
+		CSIManager:          c.csimanager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		RPCClient:           c,
 	}
 	c.configLock.RUnlock()
 
@@ -2310,6 +2369,14 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	c.allocs[alloc.ID] = ar
 
 	go ar.Run()
+	return nil
+}
+
+// setupConsulTokenClient configures a tokenClient for managing consul service
+// identity tokens.
+func (c *Client) setupConsulTokenClient() error {
+	tc := consulApi.NewIdentitiesClient(c.logger, c.deriveSIToken)
+	c.tokensClient = tc
 	return nil
 }
 
@@ -2338,33 +2405,10 @@ func (c *Client) setupVaultClient() error {
 // client and returns a map of unwrapped tokens, indexed by the task name.
 func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
 	vlogger := c.logger.Named("vault")
-	if alloc == nil {
-		return nil, fmt.Errorf("nil allocation")
-	}
 
-	if taskNames == nil || len(taskNames) == 0 {
-		return nil, fmt.Errorf("missing task names")
-	}
-
-	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	if group == nil {
-		return nil, fmt.Errorf("group name in allocation is not present in job")
-	}
-
-	verifiedTasks := []string{}
-	// Check if the given task names actually exist in the allocation
-	for _, taskName := range taskNames {
-		found := false
-		for _, task := range group.Tasks {
-			if task.Name == taskName {
-				found = true
-			}
-		}
-		if !found {
-			vlogger.Error("task not found in the allocation", "task_name", taskName)
-			return nil, fmt.Errorf("task %q not found in the allocation", taskName)
-		}
-		verifiedTasks = append(verifiedTasks, taskName)
+	verifiedTasks, err := verifiedTasks(vlogger, alloc, taskNames)
+	if err != nil {
+		return nil, err
 	}
 
 	// DeriveVaultToken of nomad server can take in a set of tasks and
@@ -2437,6 +2481,90 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	}
 
 	return unwrappedTokens, nil
+}
+
+// deriveSIToken takes an allocation and a set of tasks and derives Consul
+// Service Identity tokens for each of the tasks by requesting them from the
+// Nomad Server.
+func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
+	tasks, err := verifiedTasks(c.logger, alloc, taskNames)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &structs.DeriveSITokenRequest{
+		NodeID:       c.NodeID(),
+		SecretID:     c.secretNodeID(),
+		AllocID:      alloc.ID,
+		Tasks:        tasks,
+		QueryOptions: structs.QueryOptions{Region: c.Region()},
+	}
+
+	// Nicely ask Nomad Server for the tokens.
+	var resp structs.DeriveSITokenResponse
+	if err := c.RPC("Node.DeriveSIToken", &req, &resp); err != nil {
+		c.logger.Error("error making derive token RPC", "error", err)
+		return nil, fmt.Errorf("DeriveSIToken RPC failed: %v", err)
+	}
+	if err := resp.Error; err != nil {
+		c.logger.Error("error deriving SI tokens", "error", err)
+		return nil, structs.NewWrappedServerError(err)
+	}
+	if len(resp.Tokens) == 0 {
+		c.logger.Error("error deriving SI tokens", "error", "invalid_response")
+		return nil, fmt.Errorf("failed to derive SI tokens: invalid response")
+	}
+
+	// NOTE: Unlike with the Vault integration, Nomad Server replies with the
+	// actual Consul SI token (.SecretID), because otherwise each Nomad
+	// Client would need to be blessed with 'acl:write' permissions to read the
+	// secret value given the .AccessorID, which does not fit well in the Consul
+	// security model.
+	//
+	// https://www.consul.io/api/acl/tokens.html#read-a-token
+	// https://www.consul.io/docs/internals/security.html
+
+	m := helper.CopyMapStringString(resp.Tokens)
+	return m, nil
+}
+
+// verifiedTasks asserts each task in taskNames actually exists in the given alloc,
+// otherwise an error is returned.
+func verifiedTasks(logger hclog.Logger, alloc *structs.Allocation, taskNames []string) ([]string, error) {
+	if alloc == nil {
+		return nil, fmt.Errorf("nil allocation")
+	}
+
+	if len(taskNames) == 0 {
+		return nil, fmt.Errorf("missing task names")
+	}
+
+	group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if group == nil {
+		return nil, fmt.Errorf("group name in allocation is not present in job")
+	}
+
+	verifiedTasks := make([]string, 0, len(taskNames))
+
+	// confirm the requested task names actually exist in the allocation
+	for _, taskName := range taskNames {
+		if !taskIsPresent(taskName, group.Tasks) {
+			logger.Error("task not found in the allocation", "task_name", taskName)
+			return nil, fmt.Errorf("task %q not found in allocation", taskName)
+		}
+		verifiedTasks = append(verifiedTasks, taskName)
+	}
+
+	return verifiedTasks, nil
+}
+
+func taskIsPresent(taskName string, tasks []*structs.Task) bool {
+	for _, task := range tasks {
+		if task.Name == taskName {
+			return true
+		}
+	}
+	return false
 }
 
 // triggerDiscovery causes a Consul discovery to begin (if one hasn't already)
@@ -2764,12 +2892,15 @@ func (c *Client) setGaugeForUptime(hStats *stats.HostStats, baseLabels []metrics
 func (c *Client) emitHostStats() {
 	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
-	node := c.Node()
 
-	node.Canonicalize()
+	c.configLock.RLock()
+	nodeStatus := c.configCopy.Node.Status
+	nodeEligibility := c.configCopy.Node.SchedulingEligibility
+	c.configLock.RUnlock()
+
 	labels := append(c.baseLabels,
-		metrics.Label{Name: "node_status", Value: node.Status},
-		metrics.Label{Name: "node_scheduling_eligibility", Value: node.SchedulingEligibility},
+		metrics.Label{Name: "node_status", Value: nodeStatus},
+		metrics.Label{Name: "node_scheduling_eligibility", Value: nodeEligibility},
 	)
 
 	c.setGaugeForMemoryStats(nodeID, hStats, labels)

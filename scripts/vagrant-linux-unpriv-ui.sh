@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Install NVM for simple node.js version management
-wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+curl -sSL --fail -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
 
 # This enables NVM without a logout/login
 export NVM_DIR="/home/vagrant/.nvm"

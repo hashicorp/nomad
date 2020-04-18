@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/shirou/gopsutil/internal/common"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -42,7 +43,7 @@ func parseNetstatLine(line string) (stat *IOCountersStat, linkID *uint, err erro
 
 	base := 1
 	numberColumns := len(columns)
-	// sometimes Address is ommitted
+	// sometimes Address is omitted
 	if numberColumns < 12 {
 		base = 0
 	}
@@ -174,13 +175,13 @@ func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, 
 		retIndex int
 	)
 
-	netstat, err := exec.LookPath("/usr/sbin/netstat")
+	netstat, err := exec.LookPath("netstat")
 	if err != nil {
 		return nil, err
 	}
 
 	// try to get all interface metrics, and hope there won't be any truncated
-	out, err := invoke.Command(netstat, "-ibdnW")
+	out, err := invoke.CommandWithContext(ctx, netstat, "-ibdnW")
 	if err != nil {
 		return nil, err
 	}
@@ -204,11 +205,11 @@ func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, 
 		}
 	} else {
 		// duplicated interface, list all interfaces
-		ifconfig, err := exec.LookPath("/sbin/ifconfig")
+		ifconfig, err := exec.LookPath("ifconfig")
 		if err != nil {
 			return nil, err
 		}
-		if out, err = invoke.Command(ifconfig, "-l"); err != nil {
+		if out, err = invoke.CommandWithContext(ctx, ifconfig, "-l"); err != nil {
 			return nil, err
 		}
 		interfaceNames := strings.Fields(strings.TrimRight(string(out), endOfLine))
@@ -227,7 +228,7 @@ func IOCountersWithContext(ctx context.Context, pernic bool) ([]IOCountersStat, 
 			}
 			if truncated {
 				// run netstat with -I$ifacename
-				if out, err = invoke.Command(netstat, "-ibdnWI"+interfaceName); err != nil {
+				if out, err = invoke.CommandWithContext(ctx, netstat, "-ibdnWI"+interfaceName); err != nil {
 					return nil, err
 				}
 				parsedIfaces, err := parseNetstatOutput(string(out))
@@ -269,6 +270,14 @@ func FilterCounters() ([]FilterStat, error) {
 
 func FilterCountersWithContext(ctx context.Context) ([]FilterStat, error) {
 	return nil, errors.New("NetFilterCounters not implemented for darwin")
+}
+
+func ConntrackStats(percpu bool) ([]ConntrackStat, error) {
+	return ConntrackStatsWithContext(context.Background(), percpu)
+}
+
+func ConntrackStatsWithContext(ctx context.Context, percpu bool) ([]ConntrackStat, error) {
+	return nil, common.ErrNotImplementedError
 }
 
 // NetProtoCounters returns network statistics for the entire system

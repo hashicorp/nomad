@@ -80,13 +80,8 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		return fmt.Errorf("failed to setup ec2Metadata client: %v", err)
 	}
 
-	if !ec2meta.Available() {
+	if !isAWS(ec2meta) {
 		return nil
-	}
-
-	// newNetwork is populated and added to the Nodes resources
-	newNetwork := &structs.NetworkResource{
-		Device: "eth0",
 	}
 
 	// Keys and whether they should be namespaced as unique. Any key whose value
@@ -103,9 +98,14 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		"public-ipv4":                 true,
 		"placement/availability-zone": false,
 	}
+
 	for k, unique := range keys {
 		resp, err := ec2meta.GetMetadata(k)
-		if awsErr, ok := err.(awserr.RequestFailure); ok {
+		v := strings.TrimSpace(resp)
+		if v == "" {
+			f.logger.Debug("read an empty value", "attribute", k)
+			continue
+		} else if awsErr, ok := err.(awserr.RequestFailure); ok {
 			f.logger.Debug("could not read attribute value", "attribute", k, "error", awsErr)
 			continue
 		} else if awsErr, ok := err.(awserr.Error); ok {
@@ -125,43 +125,26 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 			key = structs.UniqueNamespace(key)
 		}
 
-		response.AddAttribute(key, strings.Trim(resp, "\n"))
+		response.AddAttribute(key, v)
 	}
+
+	// newNetwork is populated and added to the Nodes resources
+	var newNetwork *structs.NetworkResource
 
 	// copy over network specific information
 	if val, ok := response.Attributes["unique.platform.aws.local-ipv4"]; ok && val != "" {
 		response.AddAttribute("unique.network.ip-address", val)
-		newNetwork.IP = val
-		newNetwork.CIDR = newNetwork.IP + "/32"
-	}
 
-	// find LinkSpeed from lookup
-	throughput := cfg.NetworkSpeed
-	if throughput == 0 {
-		throughput = f.linkSpeed(ec2meta)
-	}
-	if throughput == 0 {
-		// Failed to determine speed. Check if the network fingerprint got it
-		found := false
-		if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
-			for _, n := range request.Node.Resources.Networks {
-				if n.IP == newNetwork.IP {
-					throughput = n.MBits
-					found = true
-					break
-				}
-			}
+		newNetwork = &structs.NetworkResource{
+			Device: "eth0",
+			IP:     val,
+			CIDR:   val + "/32",
+			MBits:  f.throughput(request, ec2meta, val),
 		}
 
-		// Nothing detected so default
-		if !found {
-			throughput = defaultNetworkSpeed
+		response.NodeResources = &structs.NodeResources{
+			Networks: []*structs.NetworkResource{newNetwork},
 		}
-	}
-
-	newNetwork.MBits = throughput
-	response.NodeResources = &structs.NodeResources{
-		Networks: []*structs.NetworkResource{newNetwork},
 	}
 
 	// populate Links
@@ -171,6 +154,28 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	response.Detected = true
 
 	return nil
+}
+
+func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, ec2meta *ec2metadata.EC2Metadata, ip string) int {
+	throughput := request.Config.NetworkSpeed
+	if throughput != 0 {
+		return throughput
+	}
+
+	throughput = f.linkSpeed(ec2meta)
+	if throughput != 0 {
+		return throughput
+	}
+
+	if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
+		for _, n := range request.Node.Resources.Networks {
+			if n.IP == ip {
+				return n.MBits
+			}
+		}
+	}
+
+	return defaultNetworkSpeed
 }
 
 // EnvAWSFingerprint uses lookup table to approximate network speeds
@@ -210,4 +215,10 @@ func ec2MetaClient(endpoint string, timeout time.Duration) (*ec2metadata.EC2Meta
 		return nil, err
 	}
 	return ec2metadata.New(session, c), nil
+}
+
+func isAWS(ec2meta *ec2metadata.EC2Metadata) bool {
+	v, err := ec2meta.GetMetadata("ami-id")
+	v = strings.TrimSpace(v)
+	return err == nil && v != ""
 }

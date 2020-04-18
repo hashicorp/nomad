@@ -86,8 +86,6 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath
 
 // ensureForwardingRules ensures that a forwarding rule is added to iptables
 // to allow traffic inbound to the bridge network
-// // ensureForwardingRules ensures that a forwarding rule is added to iptables
-// to allow traffic inbound to the bridge network
 func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 	ipt, err := iptables.New()
 	if err != nil {
@@ -150,13 +148,13 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 		return fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
 
-	if err := b.cni.Load(cni.WithConfListBytes(b.buildNomadNetConfig())); err != nil {
+	if err := b.ensureCNIInitialized(); err != nil {
 		return err
 	}
 
-	// Depending on the version of bridge cni plugin used, a known race could occure
+	// Depending on the version of bridge cni plugin (< 0.8.4) a known race could occur
 	// where two alloc attempt to create the nomad bridge at the same time, resulting
-	// in one of them to fail. This rety attempts to overcome any
+	// in one of them to fail. This retry attempts to overcome those erroneous failures.
 	const retry = 3
 	for attempt := 1; ; attempt++ {
 		//TODO eventually returning the IP from the result would be nice to have in the alloc
@@ -178,7 +176,19 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 
 // Teardown calls the CNI plugins with the delete action
 func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+	if err := b.ensureCNIInitialized(); err != nil {
+		return err
+	}
+
 	return b.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc)))
+}
+
+func (b *bridgeNetworkConfigurator) ensureCNIInitialized() error {
+	if err := b.cni.Status(); cni.IsCNINotInitialized(err) {
+		return b.cni.Load(cni.WithConfListBytes(b.buildNomadNetConfig()))
+	} else {
+		return err
+	}
 }
 
 // getPortMapping builds a list of portMapping structs that are used as the

@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -27,6 +28,7 @@ import (
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/drivers/rawexec"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -94,19 +96,26 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		cleanup()
 	}
 
+	// Create a closed channel to mock TaskHookCoordinator.startConditionForTask.
+	// Closed channel indicates this task is not blocked on prestart hooks.
+	closedCh := make(chan struct{})
+	close(closedCh)
+
 	conf := &Config{
-		Alloc:              alloc,
-		ClientConfig:       clientConf,
-		Consul:             consulapi.NewMockConsulServiceClient(t, logger),
-		Task:               thisTask,
-		TaskDir:            taskDir,
-		Logger:             clientConf.Logger,
-		Vault:              vaultclient.NewMockVaultClient(),
-		StateDB:            cstate.NoopDB{},
-		StateUpdater:       NewMockTaskStateUpdater(),
-		DeviceManager:      devicemanager.NoopMockManager(),
-		DriverManager:      drivermanager.TestDriverManager(t),
-		ServersContactedCh: make(chan struct{}),
+		Alloc:                alloc,
+		ClientConfig:         clientConf,
+		Task:                 thisTask,
+		TaskDir:              taskDir,
+		Logger:               clientConf.Logger,
+		Consul:               consulapi.NewMockConsulServiceClient(t, logger),
+		ConsulSI:             consulapi.NewMockServiceIdentitiesClient(),
+		Vault:                vaultclient.NewMockVaultClient(),
+		StateDB:              cstate.NoopDB{},
+		StateUpdater:         NewMockTaskStateUpdater(),
+		DeviceManager:        devicemanager.NoopMockManager(),
+		DriverManager:        drivermanager.TestDriverManager(t),
+		ServersContactedCh:   make(chan struct{}),
+		StartConditionMetCtx: closedCh,
 	}
 	return conf, trCleanup
 }
@@ -1080,14 +1089,222 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 		actualEvents[i] = string(e.Type)
 	}
 	require.Equal(t, actualEvents, expectedEvents)
-
 	require.Equal(t, structs.TaskStateDead, state.State)
 	require.True(t, state.Failed, pretty.Sprint(state))
 }
 
-// TestTaskRunner_BlockForVault asserts tasks do not start until a vault token
+type mockEnvoyBootstrapHook struct {
+	// nothing
+}
+
+func (_ *mockEnvoyBootstrapHook) Name() string {
+	return "mock_envoy_bootstrap"
+}
+
+func (_ *mockEnvoyBootstrapHook) Prestart(_ context.Context, _ *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	resp.Done = true
+	return nil
+}
+
+// The envoy bootstrap hook tries to connect to consul and run the envoy
+// bootstrap command, so turn it off when testing connect jobs that are not
+// using envoy.
+func useMockEnvoyBootstrapHook(tr *TaskRunner) {
+	mock := new(mockEnvoyBootstrapHook)
+	for i, hook := range tr.runnerHooks {
+		if _, ok := hook.(*envoyBootstrapHook); ok {
+			tr.runnerHooks[i] = mock
+		}
+	}
+}
+
+// TestTaskRunner_BlockForSIDSToken asserts tasks do not start until a Consul
+// Service Identity token is derived.
+func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	alloc := mock.BatchConnectAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// set a consul token on the Nomad client's consul config, because that is
+	// what gates the action of requesting SI token(s)
+	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+
+	// control when we get a Consul SI token
+	token := uuid.Generate()
+	waitCh := make(chan struct{})
+	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+		<-waitCh
+		return map[string]string{task.Name: token}, nil
+	}
+	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient.DeriveTokenFn = deriveFn
+
+	// start the task runner
+	tr, err := NewTaskRunner(trConfig)
+	r.NoError(err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap hook
+
+	go tr.Run()
+
+	// assert task runner blocks on SI token
+	select {
+	case <-tr.WaitCh():
+		r.Fail("task_runner exited before si unblocked")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// assert task state is still pending
+	r.Equal(structs.TaskStatePending, tr.TaskState().State)
+
+	// unblock service identity token
+	close(waitCh)
+
+	// task runner should exit now that it has been unblocked and it is a batch
+	// job with a zero sleep time
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(15 * time.Second * time.Duration(testutil.TestMultiplier())):
+		r.Fail("timed out waiting for batch task to exist")
+	}
+
+	// assert task exited successfully
+	finalState := tr.TaskState()
+	r.Equal(structs.TaskStateDead, finalState.State)
+	r.False(finalState.Failed)
+
+	// assert the token is on disk
+	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	r.NoError(err)
+	r.Equal(token, string(data))
+}
+
+func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	alloc := mock.BatchConnectAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// set a consul token on the Nomad client's consul config, because that is
+	// what gates the action of requesting SI token(s)
+	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+
+	// control when we get a Consul SI token (recoverable failure on first call)
+	token := uuid.Generate()
+	deriveCount := 0
+	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+		if deriveCount > 0 {
+
+			return map[string]string{task.Name: token}, nil
+		}
+		deriveCount++
+		return nil, structs.NewRecoverableError(errors.New("try again later"), true)
+	}
+	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient.DeriveTokenFn = deriveFn
+
+	// start the task runner
+	tr, err := NewTaskRunner(trConfig)
+	r.NoError(err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap
+	go tr.Run()
+
+	// assert task runner blocks on SI token
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		r.Fail("timed out waiting for task runner")
+	}
+
+	// assert task exited successfully
+	finalState := tr.TaskState()
+	r.Equal(structs.TaskStateDead, finalState.State)
+	r.False(finalState.Failed)
+
+	// assert the token is on disk
+	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
+	data, err := ioutil.ReadFile(tokenPath)
+	r.NoError(err)
+	r.Equal(token, string(data))
+}
+
+// TestTaskRunner_DeriveSIToken_Unrecoverable asserts that an unrecoverable error
+// from deriving a service identity token will fail a task.
+func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	alloc := mock.BatchConnectAlloc()
+	tg := alloc.Job.TaskGroups[0]
+	tg.RestartPolicy.Attempts = 0
+	tg.RestartPolicy.Interval = 0
+	tg.RestartPolicy.Delay = 0
+	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
+	task := tg.Tasks[0]
+	task.Config = map[string]interface{}{
+		"run_for": "0s",
+	}
+
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// set a consul token on the Nomad client's consul config, because that is
+	// what gates the action of requesting SI token(s)
+	trConfig.ClientConfig.ConsulConfig.Token = uuid.Generate()
+
+	// SI token derivation suffers a non-retryable error
+	siClient := trConfig.ConsulSI.(*consulapi.MockServiceIdentitiesClient)
+	siClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, errors.New("non-recoverable"))
+
+	tr, err := NewTaskRunner(trConfig)
+	r.NoError(err)
+
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap hook
+	go tr.Run()
+
+	// Wait for the task to die
+	select {
+	case <-tr.WaitCh():
+	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
+		require.Fail(t, "timed out waiting for task runner to fail")
+	}
+
+	// assert we have died and failed
+	finalState := tr.TaskState()
+	r.Equal(structs.TaskStateDead, finalState.State)
+	r.True(finalState.Failed)
+	r.Equal(5, len(finalState.Events))
+	/*
+	 + event: Task received by client
+	 + event: Building Task Directory
+	 + event: consul: failed to derive SI token: non-recoverable
+	 + event: consul_sids: context canceled
+	 + event: Policy allows no restarts
+	*/
+	r.Equal("true", finalState.Events[2].Details["fails_task"])
+}
+
+// TestTaskRunner_BlockForVaultToken asserts tasks do not start until a vault token
 // is derived.
-func TestTaskRunner_BlockForVault(t *testing.T) {
+func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.BatchAlloc()
@@ -1285,6 +1502,7 @@ func TestTaskRunner_Download_ChrootExec(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.RestartPolicy = &structs.RestartPolicy{}
 	task.Driver = "exec"
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
@@ -1324,6 +1542,7 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.RestartPolicy = &structs.RestartPolicy{}
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
@@ -1414,12 +1633,14 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	task.Artifacts = []*structs.TaskArtifact{&artifact}
 
 	// Make the restart policy retry once
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
 		Delay:    1 * time.Second,
 		Mode:     structs.RestartPolicyModeFail,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
@@ -1656,12 +1877,14 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 	}
 
 	// Make the restart policy retry once
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
 		Delay:    0,
 		Mode:     structs.RestartPolicyModeFail,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
@@ -2028,13 +2251,15 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 
 	alloc := mock.Alloc()
 	// Make the restart policy try one ctx.update
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
 		Delay:    time.Nanosecond,
 		Mode:     structs.RestartPolicyModeFail,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.RestartPolicy = rp
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"exit_code": "1",

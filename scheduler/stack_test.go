@@ -231,6 +231,79 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	}
 }
 
+func TestServiceStack_Select_CSI(t *testing.T) {
+	state, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	// Create a volume in the state store
+	index := uint64(999)
+	v := structs.NewCSIVolume("foo", index)
+	v.Namespace = structs.DefaultNamespace
+	v.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	v.PluginID = "bar"
+	err := state.CSIVolumeRegister(999, []*structs.CSIVolume{v})
+	require.NoError(t, err)
+
+	// Create a node with healthy fingerprints for both controller and node plugins
+	zero := nodes[0]
+	zero.CSIControllerPlugins = map[string]*structs.CSIInfo{"bar": {
+		PluginID:           "bar",
+		Healthy:            true,
+		RequiresTopologies: false,
+		ControllerInfo: &structs.CSIControllerInfo{
+			SupportsReadOnlyAttach: true,
+			SupportsListVolumes:    true,
+		},
+	}}
+	zero.CSINodePlugins = map[string]*structs.CSIInfo{"bar": {
+		PluginID:           "bar",
+		Healthy:            true,
+		RequiresTopologies: false,
+		NodeInfo: &structs.CSINodeInfo{
+			ID:                      zero.ID,
+			MaxVolumes:              2,
+			AccessibleTopology:      nil,
+			RequiresNodeStageVolume: false,
+		},
+	}}
+
+	// Add the node to the state store to index the healthy plugins and mark the volume "foo" healthy
+	err = state.UpsertNode(1000, zero)
+	require.NoError(t, err)
+
+	// Use the node to build the stack and test
+	if err := zero.ComputeClass(); err != nil {
+		t.Fatalf("ComputedClass() failed: %v", err)
+	}
+
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
+
+	job := mock.Job()
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"foo": {
+		Name:     "bar",
+		Type:     structs.VolumeTypeCSI,
+		Source:   "foo",
+		ReadOnly: true,
+	}}
+
+	stack.SetJob(job)
+
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+}
+
 func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{

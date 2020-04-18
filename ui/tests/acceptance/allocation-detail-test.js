@@ -88,30 +88,48 @@ module('Acceptance | allocation detail', function(hooks) {
       .sortBy('name')[0];
     const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
     const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
-    const taskRow = Allocation.tasks.objectAt(0);
     const events = server.db.taskEvents.where({ taskStateId: task.id });
     const event = events[events.length - 1];
 
-    assert.equal(taskRow.name, task.name, 'Name');
-    assert.equal(taskRow.state, task.state, 'State');
-    assert.equal(taskRow.message, event.displayMessage, 'Event Message');
-    assert.equal(
-      taskRow.time,
-      moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'Event Time'
-    );
+    const taskGroup = server.schema.taskGroups.where({
+      jobId: allocation.jobId,
+      name: allocation.taskGroup,
+    }).models[0];
 
-    assert.ok(reservedPorts.length, 'The task has reserved ports');
-    assert.ok(dynamicPorts.length, 'The task has dynamic ports');
+    const jobTask = taskGroup.tasks.models.find(m => m.name === task.name);
+    const volumes = jobTask.volumeMounts.map(volume => ({
+      name: volume.Volume,
+      source: taskGroup.volumes[volume.Volume].Source,
+    }));
 
-    const addressesText = taskRow.ports;
-    reservedPorts.forEach(port => {
-      assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
-    });
-    dynamicPorts.forEach(port => {
-      assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+    Allocation.tasks[0].as(taskRow => {
+      assert.equal(taskRow.name, task.name, 'Name');
+      assert.equal(taskRow.state, task.state, 'State');
+      assert.equal(taskRow.message, event.displayMessage, 'Event Message');
+      assert.equal(
+        taskRow.time,
+        moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
+        'Event Time'
+      );
+
+      assert.ok(reservedPorts.length, 'The task has reserved ports');
+      assert.ok(dynamicPorts.length, 'The task has dynamic ports');
+
+      const addressesText = taskRow.ports;
+      reservedPorts.forEach(port => {
+        assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
+        assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+      });
+      dynamicPorts.forEach(port => {
+        assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
+        assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+      });
+
+      const volumesText = taskRow.volumes;
+      volumes.forEach(volume => {
+        assert.ok(volumesText.includes(volume.name), `Found label ${volume.name}`);
+        assert.ok(volumesText.includes(volume.source), `Found value ${volume.source}`);
+      });
     });
   });
 

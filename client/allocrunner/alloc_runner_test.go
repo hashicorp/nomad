@@ -54,6 +54,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create two tasks in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -147,6 +148,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create a group service
 	tg := alloc.Job.TaskGroups[0]
@@ -276,6 +278,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create 3 tasks in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -374,6 +377,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create a leader and follower task in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -423,6 +427,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	// Wait for tasks to be stopped because leader is dead
 	testutil.WaitForResult(func() (bool, error) {
 		alloc := ar2.Alloc()
+		// TODO: this test does not test anything!!! alloc.TaskStates is an empty map
 		for task, state := range alloc.TaskStates {
 			if state.State != structs.TaskStateDead {
 				return false, fmt.Errorf("Task %q should be dead: %v", task, state.State)
@@ -442,6 +447,44 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatalf("timed out waiting for AR to GC")
 	}
+}
+
+func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.LifecycleAlloc()
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	// Use a memory backed statedb
+	conf.StateDB = state.NewMemDB(conf.Logger)
+
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+
+	// We should see all tasks with Prestart hooks are not blocked from running:
+	// i.e. the "init" and "side" task hook coordinator channels are closed
+	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["init"].Task())), "init channel was open, should be closed")
+	require.Truef(t, isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task())), "side channel was open, should be closed")
+
+	isChannelClosed(ar.taskHookCoordinator.startConditionForTask(ar.tasks["side"].Task()))
+
+	// Mimic client dies while init task running, and client restarts after init task finished
+	ar.tasks["init"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskTerminated))
+	ar.tasks["side"].UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
+
+	// Create a new AllocRunner to test RestoreState and Run
+	ar2, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+
+	if err := ar2.Restore(); err != nil {
+		t.Fatalf("error restoring state: %v", err)
+	}
+
+	// We want to see Restore resume execution with correct hook ordering:
+	// i.e. we should see the "web" main task hook coordinator channel is closed
+	require.Truef(t, isChannelClosed(ar2.taskHookCoordinator.startConditionForTask(ar.tasks["web"].Task())), "web channel was open, should be closed")
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
@@ -861,12 +904,14 @@ func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
 	t.Parallel()
 
 	alloc := mock.BatchAlloc()
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Mode:     structs.RestartPolicyModeFail,
 		Attempts: 1,
 		Delay:    time.Nanosecond,
 		Interval: time.Hour,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 
 	// Create a new task with a bad artifact
 	badtask := alloc.Job.TaskGroups[0].Tasks[0].Copy()
@@ -919,6 +964,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	alloc := mock.Alloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create two tasks in the task group
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -1048,6 +1094,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 	// Ensure task takes some time
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"

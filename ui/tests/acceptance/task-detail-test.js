@@ -128,6 +128,44 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.events.length, events.length, `Lists ${events.length} events`);
   });
 
+  test('when a task has volumes, the volumes table is shown', async function(assert) {
+    const taskGroup = server.schema.taskGroups.where({
+      jobId: allocation.jobId,
+      name: allocation.taskGroup,
+    }).models[0];
+
+    const jobTask = taskGroup.tasks.models.find(m => m.name === task.name);
+
+    assert.ok(Task.hasVolumes);
+    assert.equal(Task.volumes.length, jobTask.volumeMounts.length);
+  });
+
+  test('when a task does not have volumes, the volumes table is not shown', async function(assert) {
+    const job = server.create('job', { createAllocations: false, noHostVolumes: true });
+    allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
+    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+
+    await Task.visit({ id: allocation.id, name: task.name });
+    assert.notOk(Task.hasVolumes);
+  });
+
+  test('each volume in the volumes table shows information about the volume', async function(assert) {
+    const taskGroup = server.schema.taskGroups.where({
+      jobId: allocation.jobId,
+      name: allocation.taskGroup,
+    }).models[0];
+
+    const jobTask = taskGroup.tasks.models.find(m => m.name === task.name);
+    const volume = jobTask.volumeMounts[0];
+
+    Task.volumes[0].as(volumeRow => {
+      assert.equal(volumeRow.name, volume.Volume);
+      assert.equal(volumeRow.destination, volume.Destination);
+      assert.equal(volumeRow.permissions, volume.ReadOnly ? 'Read' : 'Read/Write');
+      assert.equal(volumeRow.clientSource, taskGroup.volumes[volume.Volume].Source);
+    });
+  });
+
   test('each recent event should list the time, type, and description of the event', async function(assert) {
     const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
     const recentEvent = Task.events.objectAt(Task.events.length - 1);
@@ -213,6 +251,10 @@ module('Acceptance | task detail', function(hooks) {
     await Task.inlineError.dismiss();
 
     assert.notOk(Task.inlineError.isShown, 'Inline error is no longer shown');
+  });
+
+  test('exec button is present', async function(assert) {
+    assert.ok(Task.execButton.isPresent);
   });
 });
 
@@ -307,6 +349,10 @@ module('Acceptance | task detail (not running)', function(hooks) {
   test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function(assert) {
     assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
     assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
+  });
+
+  test('exec button is absent', async function(assert) {
+    assert.notOk(Task.execButton.isPresent);
   });
 });
 

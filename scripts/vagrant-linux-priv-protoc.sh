@@ -14,7 +14,7 @@ function install_protoc() {
     fi
 
     # Download
-    wget -q -O /tmp/protoc.zip ${DOWNLOAD}
+    curl -sSL --fail -o /tmp/protoc.zip ${DOWNLOAD}
 
     # Unzip
     unzip /tmp/protoc.zip -d /tmp/protoc3

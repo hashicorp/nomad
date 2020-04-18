@@ -47,7 +47,7 @@ func (tc *ConsulE2ETest) TestConsulRegistration(f *framework.F) {
 	jobId := "consul" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
 
-	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "consul/input/consul_example.nomad", jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "consul/input/consul_example.nomad", jobId, "")
 	consulClient := tc.Consul()
 	require := require.New(f.T())
 	require.Equal(3, len(allocs))
@@ -105,7 +105,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 	jobId := "consul" + uuid[0:8]
 	tc.jobIds = append(tc.jobIds, jobId)
 
-	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "consul/input/canary_tags.nomad", jobId)
+	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "consul/input/canary_tags.nomad", jobId, "")
 	consulClient := tc.Consul()
 	require := require.New(f.T())
 	require.Equal(2, len(allocs))

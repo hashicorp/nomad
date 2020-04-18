@@ -1,0 +1,42 @@
+---
+layout: docs
+page_title: Task Drivers
+sidebar_title: Task Drivers
+description: Task Drivers are used to integrate with the host OS to run tasks in Nomad.
+---
+
+# Task Drivers
+
+Task drivers are used by Nomad clients to execute a task and provide resource
+isolation. By having extensible task drivers, Nomad has the flexibility to
+support a broad set of workloads across all major operating systems.
+
+Starting with Nomad 0.9, task drivers are now pluggable. This gives users the
+flexibility to introduce their own drivers without having to recompile Nomad.
+You can view the [plugin stanza][plugin] documentation for examples on how to
+use the `plugin` stanza in Nomad's client configuration. Note that we have
+introduced new syntax when specifying driver options in the client configuration
+(see [docker][docker_plugin] for an example). Keep in mind that even though all
+built-in drivers are now plugins, Nomad remains a single binary and maintains
+backwards compatibility except with the `lxc` driver.
+
+The list of supported task drivers is provided on the left of this page. Each
+task driver documents the configuration available in a [job
+specification](/docs/job-specification), the environments it can be
+used in, and the resource isolation mechanisms available.
+
+For details on authoring a task driver plugin, please refer to the [plugin
+authoring guide][plugin_guide].
+
+Task driver resource isolation is intended to provide a degree of separation of
+Nomad client CPU / memory / storage between tasks. Resource isolation
+effectiveness is dependent upon individual task driver implementations and
+underlying client operating systems. Task drivers do include various
+security-related controls, but the Nomad client to task interface should not be
+considered a security boundary. See the [access control guide][acl_guide] for
+more information on how to protect Nomad cluster operations.
+
+[plugin]: /docs/configuration/plugin
+[docker_plugin]: /docs/drivers/docker#client-requirements
+[plugin_guide]: /docs/internals/plugins
+[acl_guide]: https://learn.hashicorp.com/nomad?track=acls#operations-and-development

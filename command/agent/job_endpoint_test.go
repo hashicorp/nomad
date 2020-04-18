@@ -666,6 +666,106 @@ func TestHTTP_JobDelete(t *testing.T) {
 	})
 }
 
+func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		require.NoError(s.Agent.RPC("Job.Register", &args, &resp))
+
+		newCount := job.TaskGroups[0].Count + 1
+		scaleReq := &api.ScalingRequest{
+			Count:   helper.Int64ToPtr(int64(newCount)),
+			Message: "testing",
+			Target: map[string]string{
+				"Job":   job.ID,
+				"Group": job.TaskGroups[0].Name,
+			},
+		}
+		buf := encodeReq(scaleReq)
+
+		// Make the HTTP request to scale the job group
+		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/scale", buf)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		require.NoError(err)
+
+		// Check the response
+		resp = obj.(structs.JobRegisterResponse)
+		require.NotEmpty(resp.EvalID)
+
+		// Check for the index
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+
+		// Check that the group count was changed
+		getReq := structs.JobSpecificRequest{
+			JobID: job.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var getResp structs.SingleJobResponse
+		err = s.Agent.RPC("Job.GetJob", &getReq, &getResp)
+		require.NoError(err)
+		require.NotNil(getResp.Job)
+		require.Equal(newCount, getResp.Job.TaskGroups[0].Count)
+	})
+}
+
+func TestHTTP_Job_ScaleStatus(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request to scale the job group
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/scale", nil)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		require.NoError(err)
+
+		// Check the response
+		status := obj.(*structs.JobScaleStatus)
+		require.NotEmpty(resp.EvalID)
+		require.Equal(job.TaskGroups[0].Count, status.TaskGroups[job.TaskGroups[0].Name].Desired)
+
+		// Check for the index
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+	})
+}
+
 func TestHTTP_JobForceEvaluate(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -1503,10 +1603,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Services: []*api.Service{
 					{
-						Name:       "groupserviceA",
-						Tags:       []string{"a", "b"},
-						CanaryTags: []string{"d", "e"},
-						PortLabel:  "1234",
+						Name:              "groupserviceA",
+						Tags:              []string{"a", "b"},
+						CanaryTags:        []string{"d", "e"},
+						EnableTagOverride: true,
+						PortLabel:         "1234",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -1573,14 +1674,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Weight:  helper.Int8ToPtr(50),
 							},
 						},
-
+						RestartPolicy: &api.RestartPolicy{
+							Interval: helper.TimeToPtr(2 * time.Second),
+							Attempts: helper.IntToPtr(10),
+							Delay:    helper.TimeToPtr(20 * time.Second),
+							Mode:     helper.StringToPtr("delay"),
+						},
 						Services: []*api.Service{
 							{
-								Id:         "id",
-								Name:       "serviceA",
-								Tags:       []string{"1", "2"},
-								CanaryTags: []string{"3", "4"},
-								PortLabel:  "foo",
+								Id:                "id",
+								Name:              "serviceA",
+								Tags:              []string{"1", "2"},
+								CanaryTags:        []string{"3", "4"},
+								EnableTagOverride: true,
+								PortLabel:         "foo",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -1704,7 +1811,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    helper.StringToPtr("abc"),
 								RightDelim:   helper.StringToPtr("def"),
 								Envvars:      helper.BoolToPtr(true),
-								VaultGrace:   helper.TimeToPtr(3 * time.Second),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -1714,7 +1820,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
-		VaultToken:        helper.StringToPtr("token"),
+		ConsulToken:       helper.StringToPtr("abc123"),
+		VaultToken:        helper.StringToPtr("def456"),
 		Status:            helper.StringToPtr("status"),
 		StatusDescription: helper.StringToPtr("status_desc"),
 		Version:           helper.Uint64ToPtr(10),
@@ -1853,11 +1960,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Services: []*structs.Service{
 					{
-						Name:        "groupserviceA",
-						Tags:        []string{"a", "b"},
-						CanaryTags:  []string{"d", "e"},
-						PortLabel:   "1234",
-						AddressMode: "auto",
+						Name:              "groupserviceA",
+						Tags:              []string{"a", "b"},
+						CanaryTags:        []string{"d", "e"},
+						EnableTagOverride: true,
+						PortLabel:         "1234",
+						AddressMode:       "auto",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -1920,13 +2028,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Env: map[string]string{
 							"hello": "world",
 						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 2 * time.Second,
+							Attempts: 10,
+							Delay:    20 * time.Second,
+							Mode:     "delay",
+						},
 						Services: []*structs.Service{
 							{
-								Name:        "serviceA",
-								Tags:        []string{"1", "2"},
-								CanaryTags:  []string{"3", "4"},
-								PortLabel:   "foo",
-								AddressMode: "auto",
+								Name:              "serviceA",
+								Tags:              []string{"1", "2"},
+								CanaryTags:        []string{"3", "4"},
+								EnableTagOverride: true,
+								PortLabel:         "foo",
+								AddressMode:       "auto",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -2049,7 +2164,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    "abc",
 								RightDelim:   "def",
 								Envvars:      true,
-								VaultGrace:   3 * time.Second,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{
@@ -2060,7 +2174,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 
-		VaultToken: "token",
+		ConsulToken: "abc123",
+		VaultToken:  "def456",
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)
@@ -2271,6 +2386,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 							},
 						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 1 * time.Second,
+							Attempts: 5,
+							Delay:    10 * time.Second,
+							Mode:     "delay",
+						},
 						Meta: map[string]string{
 							"lol": "code",
 						},
@@ -2420,4 +2541,170 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 		resp := obj.(structs.JobValidateResponse)
 		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
 	})
+}
+
+func TestConversion_dereferenceInt(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, 0, dereferenceInt(nil))
+	require.Equal(t, 42, dereferenceInt(helper.IntToPtr(42)))
+}
+
+func TestConversion_apiLogConfigToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiLogConfigToStructs(nil))
+	require.Equal(t, &structs.LogConfig{
+		MaxFiles:      2,
+		MaxFileSizeMB: 8,
+	}, apiLogConfigToStructs(&api.LogConfig{
+		MaxFiles:      helper.IntToPtr(2),
+		MaxFileSizeMB: helper.IntToPtr(8),
+	}))
+}
+
+func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	delay := time.Duration(200)
+	timeout := time.Duration(1000)
+	config := make(map[string]interface{})
+	env := make(map[string]string)
+	meta := make(map[string]string)
+	require.Equal(t, &structs.SidecarTask{
+		Name:   "name",
+		Driver: "driver",
+		User:   "user",
+		Config: config,
+		Env:    env,
+		Resources: &structs.Resources{
+			CPU:      1,
+			MemoryMB: 128,
+		},
+		Meta:        meta,
+		KillTimeout: &timeout,
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      2,
+			MaxFileSizeMB: 8,
+		},
+		ShutdownDelay: &delay,
+		KillSignal:    "SIGTERM",
+	}, apiConnectSidecarTaskToStructs(&api.SidecarTask{
+		Name:   "name",
+		Driver: "driver",
+		User:   "user",
+		Config: config,
+		Env:    env,
+		Resources: &api.Resources{
+			CPU:      helper.IntToPtr(1),
+			MemoryMB: helper.IntToPtr(128),
+		},
+		Meta:        meta,
+		KillTimeout: &timeout,
+		LogConfig: &api.LogConfig{
+			MaxFiles:      helper.IntToPtr(2),
+			MaxFileSizeMB: helper.IntToPtr(8),
+		},
+		ShutdownDelay: &delay,
+		KillSignal:    "SIGTERM",
+	}))
+}
+
+func TestConversion_apiConsulExposePathsToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConsulExposePathsToStructs(nil))
+	require.Nil(t, apiConsulExposePathsToStructs(make([]*api.ConsulExposePath, 0)))
+	require.Equal(t, []structs.ConsulExposePath{{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}}, apiConsulExposePathsToStructs([]*api.ConsulExposePath{{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}}))
+}
+
+func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConsulExposeConfigToStructs(nil))
+	require.Equal(t, &structs.ConsulExposeConfig{
+		Paths: []structs.ConsulExposePath{{Path: "/health"}},
+	}, apiConsulExposeConfigToStructs(&api.ConsulExposeConfig{
+		Path: []*api.ConsulExposePath{{Path: "/health"}},
+	}))
+}
+
+func TestConversion_apiUpstreamsToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiUpstreamsToStructs(nil))
+	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
+	require.Equal(t, []structs.ConsulUpstream{{
+		DestinationName: "upstream",
+		LocalBindPort:   8000,
+	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
+		DestinationName: "upstream",
+		LocalBindPort:   8000,
+	}}))
+}
+
+func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarServiceProxyToStructs(nil))
+	config := make(map[string]interface{})
+	require.Equal(t, &structs.ConsulProxy{
+		LocalServiceAddress: "192.168.30.1",
+		LocalServicePort:    9000,
+		Config:              config,
+		Upstreams: []structs.ConsulUpstream{{
+			DestinationName: "upstream",
+		}},
+		Expose: &structs.ConsulExposeConfig{
+			Paths: []structs.ConsulExposePath{{Path: "/health"}},
+		},
+	}, apiConnectSidecarServiceProxyToStructs(&api.ConsulProxy{
+		LocalServiceAddress: "192.168.30.1",
+		LocalServicePort:    9000,
+		Config:              config,
+		Upstreams: []*api.ConsulUpstream{{
+			DestinationName: "upstream",
+		}},
+		ExposeConfig: &api.ConsulExposeConfig{
+			Path: []*api.ConsulExposePath{{
+				Path: "/health",
+			}},
+		},
+	}))
+}
+
+func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	require.Equal(t, &structs.ConsulSidecarService{
+		Tags: []string{"foo"},
+		Port: "myPort",
+		Proxy: &structs.ConsulProxy{
+			LocalServiceAddress: "192.168.30.1",
+		},
+	}, apiConnectSidecarServiceToStructs(&api.ConsulSidecarService{
+		Tags: []string{"foo"},
+		Port: "myPort",
+		Proxy: &api.ConsulProxy{
+			LocalServiceAddress: "192.168.30.1",
+		},
+	}))
+}
+
+func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, ApiConsulConnectToStructs(nil))
+	require.Equal(t, &structs.ConsulConnect{
+		Native:         false,
+		SidecarService: &structs.ConsulSidecarService{Port: "myPort"},
+		SidecarTask:    &structs.SidecarTask{Name: "task"},
+	}, ApiConsulConnectToStructs(&api.ConsulConnect{
+		Native:         false,
+		SidecarService: &api.ConsulSidecarService{Port: "myPort"},
+		SidecarTask:    &api.SidecarTask{Name: "task"},
+	}))
 }

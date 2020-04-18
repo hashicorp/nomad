@@ -10,12 +10,13 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
-	"github.com/ugorji/go/codec"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -45,6 +46,12 @@ const (
 	ACLPolicySnapshot
 	ACLTokenSnapshot
 	SchedulerConfigSnapshot
+	ClusterMetadataSnapshot
+	ServiceIdentityTokenAccessorSnapshot
+	ScalingPolicySnapshot
+	CSIPluginSnapshot
+	CSIVolumeSnapshot
+	ScalingEventsSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -251,6 +258,20 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
 		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
+	case structs.ClusterMetadataRequestType:
+		return n.applyClusterMetadata(buf[1:], log.Index)
+	case structs.ServiceIdentityAccessorRegisterRequestType:
+		return n.applyUpsertSIAccessor(buf[1:], log.Index)
+	case structs.ServiceIdentityAccessorDeregisterRequestType:
+		return n.applyDeregisterSIAccessor(buf[1:], log.Index)
+	case structs.CSIVolumeRegisterRequestType:
+		return n.applyCSIVolumeRegister(buf[1:], log.Index)
+	case structs.CSIVolumeDeregisterRequestType:
+		return n.applyCSIVolumeDeregister(buf[1:], log.Index)
+	case structs.CSIVolumeClaimRequestType:
+		return n.applyCSIVolumeClaim(buf[1:], log.Index)
+	case structs.ScalingEventRegisterRequestType:
+		return n.applyUpsertScalingEvent(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -265,6 +286,24 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	}
 
 	panic(fmt.Errorf("failed to apply request: %#v", buf))
+}
+
+func (n *nomadFSM) applyClusterMetadata(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "cluster_meta"}, time.Now())
+
+	var req structs.ClusterMetadata
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.ClusterSetMetadata(index, &req); err != nil {
+		n.logger.Error("ClusterSetMetadata failed", "error", err)
+		return err
+	}
+
+	n.logger.Trace("ClusterSetMetadata", "cluster_id", req.ClusterID, "create_time", req.CreateTime)
+
+	return nil
 }
 
 func (n *nomadFSM) applyUpsertNode(buf []byte, index uint64) interface{} {
@@ -681,22 +720,23 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	// prior to being inserted into MemDB.
 	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
 
-	// COMPAT(0.11): Remove in 0.11
-	// Calculate the total resources of allocations. It is pulled out in the
-	// payload to avoid encoding something that can be computed, but should be
-	// denormalized prior to being inserted into MemDB.
 	for _, alloc := range req.Alloc {
-		if alloc.Resources != nil {
-			continue
+		// COMPAT(0.11): Remove in 0.11
+		// Calculate the total resources of allocations. It is pulled out in the
+		// payload to avoid encoding something that can be computed, but should be
+		// denormalized prior to being inserted into MemDB.
+		if alloc.Resources == nil {
+			alloc.Resources = new(structs.Resources)
+			for _, task := range alloc.TaskResources {
+				alloc.Resources.Add(task)
+			}
+
+			// Add the shared resources
+			alloc.Resources.Add(alloc.SharedResources)
 		}
 
-		alloc.Resources = new(structs.Resources)
-		for _, task := range alloc.TaskResources {
-			alloc.Resources.Add(task)
-		}
-
-		// Add the shared resources
-		alloc.Resources.Add(alloc.SharedResources)
+		// Handle upgrade path
+		alloc.Canonicalize()
 	}
 
 	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
@@ -838,6 +878,36 @@ func (n *nomadFSM) applyDeregisterVaultAccessor(buf []byte, index uint64) interf
 
 	if err := n.state.DeleteVaultAccessors(index, req.Accessors); err != nil {
 		n.logger.Error("DeregisterVaultAccessor failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyUpsertSIAccessor(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_si_accessor"}, time.Now())
+	var request structs.SITokenAccessorsRequest
+	if err := structs.Decode(buf, &request); err != nil {
+		panic(errors.Wrap(err, "failed to decode request"))
+	}
+
+	if err := n.state.UpsertSITokenAccessors(index, request.Accessors); err != nil {
+		n.logger.Error("UpsertSITokenAccessors failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeregisterSIAccessor(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_si_accessor"}, time.Now())
+	var request structs.SITokenAccessorsRequest
+	if err := structs.Decode(buf, &request); err != nil {
+		panic(errors.Wrap(err, "failed to decode request"))
+	}
+
+	if err := n.state.DeleteSITokenAccessors(index, request.Accessors); err != nil {
+		n.logger.Error("DeregisterSITokenAccessor failed", "error", err)
 		return err
 	}
 
@@ -1056,6 +1126,66 @@ func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interfac
 	return n.state.SchedulerSetConfig(index, &req.Config)
 }
 
+func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} {
+	var req structs.CSIVolumeRegisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_register"}, time.Now())
+
+	if err := n.state.CSIVolumeRegister(index, req.Volumes); err != nil {
+		n.logger.Error("CSIVolumeRegister failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{} {
+	var req structs.CSIVolumeDeregisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_deregister"}, time.Now())
+
+	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs); err != nil {
+		n.logger.Error("CSIVolumeDeregister failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
+	var req structs.CSIVolumeClaimRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_claim"}, time.Now())
+
+	ws := memdb.NewWatchSet()
+	alloc, err := n.state.AllocByID(ws, req.AllocationID)
+	if err != nil {
+		n.logger.Error("AllocByID failed", "error", err)
+		return err
+	}
+	if alloc == nil {
+		n.logger.Error("AllocByID failed to find alloc", "alloc_id", req.AllocationID)
+		if err != nil {
+			return err
+		}
+
+		return structs.ErrUnknownAllocationPrefix
+	}
+
+	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, alloc, req.Claim); err != nil {
+		n.logger.Error("CSIVolumeClaim failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -1166,6 +1296,9 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+			// Handle upgrade path
+			alloc.Canonicalize()
+
 			if err := restore.AllocRestore(alloc); err != nil {
 				return err
 			}
@@ -1205,6 +1338,15 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.VaultAccessorRestore(accessor); err != nil {
+				return err
+			}
+
+		case ServiceIdentityTokenAccessorSnapshot:
+			accessor := new(structs.SITokenAccessor)
+			if err := dec.Decode(accessor); err != nil {
+				return err
+			}
+			if err := restore.SITokenAccessorRestore(accessor); err != nil {
 				return err
 			}
 
@@ -1252,6 +1394,55 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 			if err := restore.SchedulerConfigRestore(schedConfig); err != nil {
+				return err
+			}
+
+		case ClusterMetadataSnapshot:
+			meta := new(structs.ClusterMetadata)
+			if err := dec.Decode(meta); err != nil {
+				return err
+			}
+			if err := restore.ClusterMetadataRestore(meta); err != nil {
+				return err
+			}
+
+		case ScalingEventsSnapshot:
+			jobScalingEvents := new(structs.JobScalingEvents)
+			if err := dec.Decode(jobScalingEvents); err != nil {
+				return err
+			}
+
+			if err := restore.ScalingEventsRestore(jobScalingEvents); err != nil {
+				return err
+			}
+
+		case ScalingPolicySnapshot:
+			scalingPolicy := new(structs.ScalingPolicy)
+			if err := dec.Decode(scalingPolicy); err != nil {
+				return err
+			}
+
+			if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
+				return err
+			}
+
+		case CSIPluginSnapshot:
+			plugin := new(structs.CSIPlugin)
+			if err := dec.Decode(plugin); err != nil {
+				return err
+			}
+
+			if err := restore.CSIPluginRestore(plugin); err != nil {
+				return err
+			}
+
+		case CSIVolumeSnapshot:
+			plugin := new(structs.CSIVolume)
+			if err := dec.Decode(plugin); err != nil {
+				return err
+			}
+
+			if err := restore.CSIVolumeRestore(plugin); err != nil {
 				return err
 			}
 
@@ -1451,6 +1642,21 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	return nil
 }
 
+func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_scaling_event"}, time.Now())
+	var req structs.ScalingEventRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertScalingEvent(index, &req); err != nil {
+		n.logger.Error("UpsertScalingEvent failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "persist"}, time.Now())
 	// Register the nodes
@@ -1503,11 +1709,31 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
+	if err := s.persistSITokenAccessors(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
 	if err := s.persistJobVersions(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
 	if err := s.persistDeployments(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistScalingPolicies(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistScalingEvents(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistCSIPlugins(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistCSIVolumes(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1524,6 +1750,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistSchedulerConfig(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistClusterMetadata(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -1747,6 +1977,23 @@ func (s *nomadSnapshot) persistVaultAccessors(sink raft.SnapshotSink,
 	return nil
 }
 
+func (s *nomadSnapshot) persistSITokenAccessors(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	ws := memdb.NewWatchSet()
+	accessors, err := s.snap.SITokenAccessors(ws)
+	if err != nil {
+		return err
+	}
+
+	for raw := accessors.Next(); raw != nil; raw = accessors.Next() {
+		accessor := raw.(*structs.SITokenAccessor)
+		sink.Write([]byte{byte(ServiceIdentityTokenAccessorSnapshot)})
+		if err := encoder.Encode(accessor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *nomadSnapshot) persistJobVersions(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the jobs
@@ -1870,6 +2117,138 @@ func (s *nomadSnapshot) persistSchedulerConfig(sink raft.SnapshotSink,
 	sink.Write([]byte{byte(SchedulerConfigSnapshot)})
 	if err := encoder.Encode(schedConfig); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get the cluster metadata
+	clusterMetadata, err := s.snap.ClusterMetadata()
+	if err != nil {
+		return err
+	}
+
+	// Write out the cluster metadata
+	sink.Write([]byte{byte(ClusterMetadataSnapshot)})
+	if err := encoder.Encode(clusterMetadata); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *nomadSnapshot) persistScalingPolicies(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the scaling policies
+	ws := memdb.NewWatchSet()
+	scalingPolicies, err := s.snap.ScalingPolicies(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := scalingPolicies.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		scalingPolicy := raw.(*structs.ScalingPolicy)
+
+		// Write out a scaling policy snapshot
+		sink.Write([]byte{byte(ScalingPolicySnapshot)})
+		if err := encoder.Encode(scalingPolicy); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistScalingEvents(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	// Get all the scaling events
+	ws := memdb.NewWatchSet()
+	iter, err := s.snap.ScalingEvents(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		events := raw.(*structs.JobScalingEvents)
+
+		// Write out a scaling events snapshot
+		sink.Write([]byte{byte(ScalingEventsSnapshot)})
+		if err := encoder.Encode(events); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistCSIPlugins(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the CSI plugins
+	ws := memdb.NewWatchSet()
+	plugins, err := s.snap.CSIPlugins(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := plugins.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		plugin := raw.(*structs.CSIPlugin)
+
+		// Write out a plugin snapshot
+		sink.Write([]byte{byte(CSIPluginSnapshot)})
+		if err := encoder.Encode(plugin); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+
+	// Get all the CSI volumes
+	ws := memdb.NewWatchSet()
+	volumes, err := s.snap.CSIVolumes(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := volumes.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		volume := raw.(*structs.CSIVolume)
+
+		// Write out a volume snapshot
+		sink.Write([]byte{byte(CSIVolumeSnapshot)})
+		if err := encoder.Encode(volume); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
@@ -22,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 func TestMonitor_Monitor_Remote_Client(t *testing.T) {
@@ -30,10 +31,12 @@ func TestMonitor_Monitor_Remote_Client(t *testing.T) {
 	require := require.New(t)
 
 	// start server and client
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
@@ -122,17 +125,27 @@ OUTER:
 
 func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 	t.Parallel()
+	foreignRegion := "foo"
 
 	// start servers
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanupS2()
-	TestJoin(t, s1, s2)
+
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
+		c.Region = foreignRegion
+	})
+	defer cleanupS3()
+
+	TestJoin(t, s1, s2, s3)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
+	testutil.WaitForLeader(t, s3.RPC)
 
 	// determine leader and nonleader
 	servers := []*Server{s1, s2}
@@ -152,6 +165,8 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 		expectedLog string
 		logger      hclog.InterceptLogger
 		origin      *Server
+		region      string
+		expectedErr string
 	}{
 		{
 			desc:        "remote leader",
@@ -159,13 +174,23 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			expectedLog: "leader log",
 			logger:      leader.logger,
 			origin:      nonLeader,
+			region:      "global",
 		},
 		{
-			desc:        "remote server",
+			desc:        "remote server, server name",
 			serverID:    nonLeader.serf.LocalMember().Name,
 			expectedLog: "nonleader log",
 			logger:      nonLeader.logger,
 			origin:      leader,
+			region:      "global",
+		},
+		{
+			desc:        "remote server, server UUID",
+			serverID:    nonLeader.serf.LocalMember().Tags["id"],
+			expectedLog: "nonleader log",
+			logger:      nonLeader.logger,
+			origin:      leader,
+			region:      "global",
 		},
 		{
 			desc:        "serverID is current leader",
@@ -173,6 +198,7 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			expectedLog: "leader log",
 			logger:      leader.logger,
 			origin:      leader,
+			region:      "global",
 		},
 		{
 			desc:        "serverID is current server",
@@ -180,6 +206,24 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			expectedLog: "non leader log",
 			logger:      nonLeader.logger,
 			origin:      nonLeader,
+			region:      "global",
+		},
+		{
+			desc:        "remote server, different region",
+			serverID:    s3.serf.LocalMember().Name,
+			expectedLog: "remote region logger",
+			logger:      s3.logger,
+			origin:      nonLeader,
+			region:      foreignRegion,
+		},
+		{
+			desc:        "different region, region mismatch",
+			serverID:    s3.serf.LocalMember().Name,
+			expectedLog: "remote region logger",
+			logger:      s3.logger,
+			origin:      nonLeader,
+			region:      "bar",
+			expectedErr: "No path to region",
 		},
 	}
 
@@ -188,11 +232,13 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			require := require.New(t)
 
 			// send some specific logs
-			doneCh := make(chan struct{})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			go func() {
 				for {
 					select {
-					case <-doneCh:
+					case <-ctx.Done():
 						return
 					default:
 						tc.logger.Warn(tc.expectedLog)
@@ -204,6 +250,9 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			req := cstructs.MonitorRequest{
 				LogLevel: "warn",
 				ServerID: tc.serverID,
+				QueryOptions: structs.QueryOptions{
+					Region: tc.region,
+				},
 			}
 
 			handler, err := tc.origin.StreamingRpcHandler("Agent.Monitor")
@@ -246,23 +295,28 @@ func TestMonitor_Monitor_RemoteServer(t *testing.T) {
 			for {
 				select {
 				case <-timeout:
-					t.Fatal("timeout waiting for logs")
+					require.Fail("timeout waiting for logs")
 				case err := <-errCh:
-					t.Fatal(err)
+					require.Fail(err.Error())
 				case msg := <-streamMsg:
 					if msg.Error != nil {
-						t.Fatalf("Got error: %v", msg.Error.Error())
-					}
+						if tc.expectedErr != "" {
+							require.Contains(msg.Error.Error(), tc.expectedErr)
+							break OUTER
+						} else {
+							require.Failf("Got error: %v", msg.Error.Error())
+						}
+					} else {
+						var frame sframer.StreamFrame
+						err := json.Unmarshal(msg.Payload, &frame)
+						assert.NoError(t, err)
 
-					var frame sframer.StreamFrame
-					err := json.Unmarshal(msg.Payload, &frame)
-					assert.NoError(t, err)
-
-					received += string(frame.Data)
-					if strings.Contains(received, tc.expectedLog) {
-						close(doneCh)
-						require.Nil(p2.Close())
-						break OUTER
+						received += string(frame.Data)
+						if strings.Contains(received, tc.expectedLog) {
+							cancel()
+							require.Nil(p2.Close())
+							break OUTER
+						}
 					}
 				}
 			}
@@ -282,6 +336,9 @@ func TestMonitor_MonitorServer(t *testing.T) {
 	// No node ID to monitor the remote server
 	req := cstructs.MonitorRequest{
 		LogLevel: "debug",
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
 	}
 
 	handler, err := s.StreamingRpcHandler("Agent.Monitor")
@@ -465,12 +522,12 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 
 	// start server and client
 	s1, cleanup := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanup()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 	})
 	defer cleanup()
 
@@ -541,7 +598,7 @@ func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
 	reply := structs.AgentPprofResponse{}
 
 	err := s1.RPC("Agent.Profile", &req, &reply)
-	require.Contains(err.Error(), "does not exist in requested region")
+	require.Contains(err.Error(), "unknown Nomad server")
 	require.Nil(reply.Payload)
 }
 
@@ -589,12 +646,13 @@ func TestAgentProfile_Server(t *testing.T) {
 
 	// start servers
 	s1, cleanup := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 		c.EnableDebug = true
 	})
 	defer cleanup()
 
 	s2, cleanup := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 2
 		c.EnableDebug = true
 	})
 	defer cleanup()
@@ -656,7 +714,7 @@ func TestAgentProfile_Server(t *testing.T) {
 			serverID:        uuid.Generate(),
 			origin:          nonLeader,
 			reqType:         pprof.CmdReq,
-			expectedErr:     "unknown nomad server",
+			expectedErr:     "unknown Nomad server",
 			expectedAgentID: "",
 		},
 	}

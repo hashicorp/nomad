@@ -10,14 +10,16 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
@@ -119,19 +121,15 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	job.TaskGroups[0].Networks = structs.Networks{
-		{
-			Mode: "bridge",
-		},
-	}
-	job.TaskGroups[0].Services = []*structs.Service{
-		{
-			Name:      "backend",
-			PortLabel: "8080",
-			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
-			},
-		},
+	job.TaskGroups[0].Networks = structs.Networks{{
+		Mode: "bridge",
+	}}
+	job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "backend",
+		PortLabel: "8080",
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{},
+		}},
 	}
 	req := &structs.JobRegisterRequest{
 		Job: job,
@@ -176,7 +174,118 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	require.Len(out.TaskGroups[0].Tasks, 2)
 	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
+}
 
+func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Setup the job we are going to register
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{{
+		Mode: "bridge",
+		DynamicPorts: []structs.Port{{
+			Label: "hcPort",
+			To:    -1,
+		}, {
+			Label: "v2Port",
+			To:    -1,
+		}},
+	}}
+	job.TaskGroups[0].Services = []*structs.Service{{
+		Name:      "backend",
+		PortLabel: "8080",
+		Checks: []*structs.ServiceCheck{{
+			Name:      "check1",
+			Type:      "http",
+			Protocol:  "http",
+			Path:      "/health",
+			Expose:    true,
+			PortLabel: "hcPort",
+			Interval:  1 * time.Second,
+			Timeout:   1 * time.Second,
+		}, {
+			Name:     "check2",
+			Type:     "script",
+			Command:  "/bin/true",
+			Interval: 1 * time.Second,
+			Timeout:  1 * time.Second,
+		}, {
+			Name:      "check3",
+			Type:      "grpc",
+			Protocol:  "grpc",
+			Path:      "/v2/health",
+			Expose:    true,
+			PortLabel: "v2Port",
+			Interval:  1 * time.Second,
+			Timeout:   1 * time.Second,
+		}},
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{}},
+	}}
+
+	// Create the register request
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the new expose paths got created
+	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
+	httpPath := out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths[0]
+	r.Equal(structs.ConsulExposePath{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}, httpPath)
+	grpcPath := out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths[1]
+	r.Equal(structs.ConsulExposePath{
+		Path:          "/v2/health",
+		Protocol:      "grpc",
+		LocalPathPort: 8080,
+		ListenerPort:  "v2Port",
+	}, grpcPath)
+
+	// make sure round tripping does not create duplicate expose paths
+	out.Meta["test"] = "abc"
+	req.Job = out
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the new node in the FSM
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// make sure we are not re-adding what has already been added
+	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
 }
 
 func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
@@ -275,6 +384,96 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 
 }
 
+// TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse asserts that a job
+// submission fails allow_unauthenticated is false, and either an invalid or no
+// operator Consul token is provided.
+func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.ConsulConfig.AllowUnauthenticated = helper.BoolToPtr(false)
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "service1", // matches consul.ExamplePolicyID1
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+
+	newRequest := func(job *structs.Job) *structs.JobRegisterRequest {
+		return &structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: job.Namespace,
+			},
+		}
+	}
+
+	noTokenOnJob := func(t *testing.T) {
+		fsmState := s1.State()
+		ws := memdb.NewWatchSet()
+		storedJob, err := fsmState.JobByID(ws, job.Namespace, job.ID)
+		require.NoError(t, err)
+		require.NotNil(t, storedJob)
+		require.Empty(t, storedJob.ConsulToken)
+	}
+
+	// Each variation of the provided Consul operator token
+	noOpToken := ""
+	unrecognizedOpToken := uuid.Generate()
+	unauthorizedOpToken := consul.ExampleOperatorTokenID3
+	authorizedOpToken := consul.ExampleOperatorTokenID1
+
+	t.Run("no token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = noOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.EqualError(t, err, "operator token denied: missing consul token")
+	})
+
+	t.Run("unknown token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = unrecognizedOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.EqualError(t, err, "operator token denied: unable to validate operator consul token: no such token")
+	})
+
+	t.Run("unauthorized token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = unauthorizedOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.EqualError(t, err, "operator token denied: permission denied for \"service1\"")
+	})
+
+	t.Run("authorized token provided", func(t *testing.T) {
+		request := newRequest(job)
+		request.Job.ConsulToken = authorizedOpToken
+		var response structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
+		require.NoError(t, err)
+		noTokenOnJob(t)
+	})
+}
+
 func TestJobEndpoint_Register_ACL(t *testing.T) {
 	t.Parallel()
 
@@ -293,6 +492,10 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 				Source:   "prod-ca-certs",
 				ReadOnly: readonlyVolume,
 			},
+			"csi": {
+				Type:   structs.VolumeTypeCSI,
+				Source: "prod-db",
+			},
 		}
 
 		tg.Tasks[0].VolumeMounts = []*structs.VolumeMount{
@@ -307,17 +510,37 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 		return j
 	}
 
+	newCSIPluginJob := func() *structs.Job {
+		j := mock.Job()
+		t := j.TaskGroups[0].Tasks[0]
+		t.CSIPluginConfig = &structs.TaskCSIPluginConfig{
+			ID:   "foo",
+			Type: "node",
+		}
+		return j
+	}
+
 	submitJobPolicy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob, acl.NamespaceCapabilitySubmitJob})
 
 	submitJobToken := mock.CreatePolicyAndToken(t, s1.State(), 1001, "test-submit-job", submitJobPolicy)
 
 	volumesPolicyReadWrite := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadWrite})
 
-	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+"\n"+volumesPolicyReadWrite)
+	volumesPolicyCSIMount := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
+
+	submitJobWithVolumesReadWriteToken := mock.CreatePolicyAndToken(t, s1.State(), 1002, "test-submit-volumes", submitJobPolicy+
+		volumesPolicyReadWrite+
+		volumesPolicyCSIMount)
 
 	volumesPolicyReadOnly := mock.HostVolumePolicy("prod-*", "", []string{acl.HostVolumeCapabilityMountReadOnly})
 
-	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+"\n"+volumesPolicyReadOnly)
+	submitJobWithVolumesReadOnlyToken := mock.CreatePolicyAndToken(t, s1.State(), 1003, "test-submit-volumes-readonly", submitJobPolicy+
+		volumesPolicyReadOnly+
+		volumesPolicyCSIMount)
+
+	pluginPolicy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityCSIRegisterPlugin})
+	pluginToken := mock.CreatePolicyAndToken(t, s1.State(), 1005, "test-csi-register-plugin", submitJobPolicy+pluginPolicy)
 
 	cases := []struct {
 		Name        string
@@ -359,6 +582,18 @@ func TestJobEndpoint_Register_ACL(t *testing.T) {
 			Name:        "with a token that can submit a job, and readonly volume access is enough",
 			Job:         newVolumeJob(true),
 			Token:       submitJobWithVolumesReadOnlyToken.SecretID,
+			ErrExpected: false,
+		},
+		{
+			Name:        "with a token that can submit a job, plugin rejected",
+			Job:         newCSIPluginJob(),
+			Token:       submitJobToken.SecretID,
+			ErrExpected: true,
+		},
+		{
+			Name:        "with a token that also has csi-register-plugin, accepted",
+			Job:         newCSIPluginJob(),
+			Token:       pluginToken.SecretID,
 			ErrExpected: false,
 		},
 	}
@@ -2329,30 +2564,33 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 	req.AuthToken = validToken.SecretID
 
-	var validResp2 structs.JobDeregisterResponse
-	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
-	require.Nil(err)
-	require.NotEqual(validResp2.Index, 0)
-
 	// Check for the job in the FSM
 	out, err := state.JobByID(nil, job.Namespace, job.ID)
 	require.Nil(err)
 	require.Nil(out)
 
 	// Lookup the evaluation
-	eval, err := state.EvalByID(nil, validResp2.EvalID)
+	eval, err := state.EvalByID(nil, validResp.EvalID)
 	require.Nil(err)
 	require.NotNil(eval, nil)
 
-	require.Equal(eval.CreateIndex, validResp2.EvalCreateIndex)
+	require.Equal(eval.CreateIndex, validResp.EvalCreateIndex)
 	require.Equal(eval.Priority, structs.JobDefaultPriority)
 	require.Equal(eval.Type, structs.JobTypeService)
 	require.Equal(eval.TriggeredBy, structs.EvalTriggerJobDeregister)
 	require.Equal(eval.JobID, job.ID)
-	require.Equal(eval.JobModifyIndex, validResp2.JobModifyIndex)
+	require.Equal(eval.JobModifyIndex, validResp.JobModifyIndex)
 	require.Equal(eval.Status, structs.EvalStatusPending)
 	require.NotZero(eval.CreateTime)
 	require.NotZero(eval.ModifyTime)
+
+	// Deregistration is not idempotent, produces a new eval after the job is
+	// deregistered. TODO(langmartin) make it idempotent.
+	var validResp2 structs.JobDeregisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
+	require.NoError(err)
+	require.NotEqual("", validResp2.EvalID)
+	require.NotEqual(validResp.EvalID, validResp2.EvalID)
 }
 
 func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
@@ -5138,5 +5376,383 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestJobEndpoint_Scale(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	count := job.TaskGroups[0].Count
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+		},
+		Count:   helper.Int64ToPtr(int64(count + 1)),
+		Message: "because of the load",
+		Meta: map[string]interface{}{
+			"metrics": map[string]string{
+				"1": "a",
+				"2": "b",
+			},
+			"other": "value",
+		},
+		PolicyOverride: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.NoError(err)
+	require.NotEmpty(resp.EvalID)
+	require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
+}
+
+func TestJobEndpoint_Scale_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+		},
+		Message: "because of the load",
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Scale without a token should fail
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	scale.AuthToken = invalidToken.SecretID
+	var invalidResp structs.JobRegisterResponse
+	require.NotNil(err)
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &invalidResp)
+	require.Contains(err.Error(), "Permission denied")
+
+	type testCase struct {
+		authToken string
+		name      string
+	}
+	cases := []testCase{
+		{
+			name:      "mgmt token should succeed",
+			authToken: root.SecretID,
+		},
+		{
+			name: "write disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-write",
+				mock.NamespacePolicy(structs.DefaultNamespace, "write", nil)).
+				SecretID,
+		},
+		{
+			name: "autoscaler disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-autoscaler",
+				mock.NamespacePolicy(structs.DefaultNamespace, "scale", nil)).
+				SecretID,
+		},
+		{
+			name: "submit-job capability should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-submit-job",
+				mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})).SecretID,
+		},
+		{
+			name: "scale-job capability should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-scale-job",
+				mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityScaleJob})).
+				SecretID,
+		},
+	}
+
+	for _, tc := range cases {
+		scale.AuthToken = tc.authToken
+		var resp structs.JobRegisterResponse
+		err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+		require.NoError(err, tc.name)
+		require.NotNil(resp.EvalID)
+	}
+
+}
+
+func TestJobEndpoint_Scale_Invalid(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	count := job.TaskGroups[0].Count
+
+	// check before job registration
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+		},
+		Count:   helper.Int64ToPtr(int64(count) + 1),
+		Message: "this should fail",
+		Meta: map[string]interface{}{
+			"metrics": map[string]string{
+				"1": "a",
+				"2": "b",
+			},
+			"other": "value",
+		},
+		PolicyOverride: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "not found")
+
+	// register the job
+	err = state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	scale.Count = helper.Int64ToPtr(10)
+	scale.Message = "error message"
+	scale.Error = true
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "should not contain count if error is true")
+}
+
+func TestJobEndpoint_Scale_NoEval(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	groupName := job.TaskGroups[0].Name
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &resp)
+	jobCreateIndex := resp.Index
+	require.NoError(err)
+
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: groupName,
+		},
+		Count:   nil, // no count => no eval
+		Message: "something informative",
+		Meta: map[string]interface{}{
+			"metrics": map[string]string{
+				"1": "a",
+				"2": "b",
+			},
+			"other": "value",
+		},
+		PolicyOverride: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.NoError(err)
+	require.Empty(resp.EvalID)
+	require.Empty(resp.EvalCreateIndex)
+
+	jobEvents, eventsIndex, err := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(jobEvents)
+	require.Len(jobEvents, 1)
+	require.Contains(jobEvents, groupName)
+	groupEvents := jobEvents[groupName]
+	require.Len(groupEvents, 1)
+	event := groupEvents[0]
+	require.Nil(event.EvalID)
+	require.Greater(eventsIndex, jobCreateIndex)
+}
+
+func TestJobEndpoint_GetScaleStatus(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+
+	// check before job registration
+	// Fetch the scaling status
+	get := &structs.JobScaleStatusRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobScaleStatusResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp2))
+	require.Nil(resp2.JobScaleStatus)
+
+	// Create the register request
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	// check after job registration
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp2))
+	require.NotNil(resp2.JobScaleStatus)
+
+	expectedStatus := structs.JobScaleStatus{
+		JobID:          job.ID,
+		JobCreateIndex: job.CreateIndex,
+		JobModifyIndex: job.ModifyIndex,
+		JobStopped:     job.Stop,
+		TaskGroups: map[string]*structs.TaskGroupScaleStatus{
+			job.TaskGroups[0].Name: {
+				Desired:   job.TaskGroups[0].Count,
+				Placed:    0,
+				Running:   0,
+				Healthy:   0,
+				Unhealthy: 0,
+				Events:    nil,
+			},
+		},
+	}
+
+	require.True(reflect.DeepEqual(*resp2.JobScaleStatus, expectedStatus))
+}
+
+func TestJobEndpoint_GetScaleStatus_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the job
+	job := mock.Job()
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	// Get the job scale status
+	get := &structs.JobScaleStatusRequest{
+		JobID: job.ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Get without a token should fail
+	var resp structs.JobScaleStatusResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "Permission denied")
+
+	// Expect failure for request with an invalid token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	get.AuthToken = invalidToken.SecretID
+	require.NotNil(err)
+	err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp)
+	require.Contains(err.Error(), "Permission denied")
+
+	type testCase struct {
+		authToken string
+		name      string
+	}
+	cases := []testCase{
+		{
+			name:      "mgmt token should succeed",
+			authToken: root.SecretID,
+		},
+		{
+			name: "read disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-read",
+				mock.NamespacePolicy(structs.DefaultNamespace, "read", nil)).
+				SecretID,
+		},
+		{
+			name: "write disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-write",
+				mock.NamespacePolicy(structs.DefaultNamespace, "write", nil)).
+				SecretID,
+		},
+		{
+			name: "autoscaler disposition should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-autoscaler",
+				mock.NamespacePolicy(structs.DefaultNamespace, "scale", nil)).
+				SecretID,
+		},
+		{
+			name: "read-job capability should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-read-job",
+				mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})).SecretID,
+		},
+		{
+			name: "read-job-scaling capability should succeed",
+			authToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-read-job-scaling",
+				mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJobScaling})).
+				SecretID,
+		},
+	}
+
+	for _, tc := range cases {
+		get.AuthToken = tc.authToken
+		var validResp structs.JobScaleStatusResponse
+		err = msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &validResp)
+		require.NoError(err, tc.name)
+		require.NotNil(validResp.JobScaleStatus)
 	}
 }

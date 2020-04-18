@@ -153,10 +153,6 @@ def configureLinuxProvisioners(vmCfg)
 		path: './scripts/vagrant-linux-priv-vault.sh'
 
 	vmCfg.vm.provision "shell",
-		privileged: true,
-		path: './scripts/vagrant-linux-priv-rkt.sh'
-
-	vmCfg.vm.provision "shell",
 		privileged: false,
 		path: './scripts/vagrant-linux-unpriv-ui.sh'
 
@@ -183,7 +179,7 @@ def configureProviders(vmCfg, cpus: "2", memory: "2048")
 	end
 
 	vmCfg.vm.provider "virtualbox" do |v|
-		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+		v.customize ["modifyvm", :id, "--cableconnected1", "on", "--audio", "none"]
 		v.memory = memory
 		v.cpus = cpus
 	end

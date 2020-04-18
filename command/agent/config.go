@@ -166,6 +166,12 @@ type Config struct {
 	// Plugins is the set of configured plugins
 	Plugins []*config.PluginConfig `hcl:"plugin"`
 
+	// Limits contains the configuration for timeouts.
+	Limits config.Limits `hcl:"limits"`
+
+	// Audit contains the configuration for audit logging.
+	Audit *config.AuditConfig `hcl:"audit"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -267,9 +273,6 @@ type ClientConfig struct {
 	// available to jobs running on this node.
 	HostVolumes []*structs.ClientHostVolumeConfig `hcl:"host_volume"`
 
-	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-
 	// CNIPath is the path to search for CNI plugins, multiple paths can be
 	// specified colon delimited
 	CNIPath string `hcl:"cni_path"`
@@ -282,6 +285,9 @@ type ClientConfig struct {
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
@@ -443,6 +449,11 @@ type ServerConfig struct {
 
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
+
+	// DefaultSchedulerConfig configures the initial scheduler config to be persisted in Raft.
+	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API),
+	// This value is ignored.
+	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -732,6 +743,11 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 }
 
 func (mode *devModeConfig) networkConfig() error {
+	if runtime.GOOS == "windows" {
+		mode.bindAddr = "127.0.0.1"
+		mode.iface = "Loopback Pseudo-Interface 1"
+		return nil
+	}
 	if runtime.GOOS == "darwin" {
 		mode.bindAddr = "127.0.0.1"
 		mode.iface = "lo0"
@@ -770,7 +786,8 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
-	conf.DevMode = mode != nil
+	conf.DevMode = true
+	conf.Server.BootstrapExpect = 1
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
 	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
@@ -856,7 +873,9 @@ func DefaultConfig() *Config {
 		Sentinel:           &config.SentinelConfig{},
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
+		Audit:              &config.AuditConfig{},
 		DisableUpdateCheck: helper.BoolToPtr(false),
+		Limits:             config.DefaultLimits(),
 	}
 }
 
@@ -986,6 +1005,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.ACL = result.ACL.Merge(b.ACL)
 	}
 
+	// Apply the Audit config
+	if result.Audit == nil && b.Audit != nil {
+		audit := *b.Audit
+		result.Audit = &audit
+	} else if b.ACL != nil {
+		result.Audit = result.Audit.Merge(b.Audit)
+	}
+
 	// Apply the ports config
 	if result.Ports == nil && b.Ports != nil {
 		ports := *b.Ports
@@ -1060,6 +1087,8 @@ func (c *Config) Merge(b *Config) *Config {
 	for k, v := range b.HTTPAPIResponseHeaders {
 		result.HTTPAPIResponseHeaders[k] = v
 	}
+
+	result.Limits = c.Limits.Merge(b.Limits)
 
 	return &result
 }
@@ -1337,6 +1366,11 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
+	if b.DefaultSchedulerConfig != nil {
+		c := *b.DefaultSchedulerConfig
+		result.DefaultSchedulerConfig = &c
+	}
+
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
 
@@ -1462,6 +1496,16 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.HostVolumes = structs.CopySliceClientHostVolumeConfig(b.HostVolumes)
 	} else if len(b.HostVolumes) != 0 {
 		result.HostVolumes = structs.HostVolumeSliceMerge(a.HostVolumes, b.HostVolumes)
+	}
+
+	if b.CNIPath != "" {
+		result.CNIPath = b.CNIPath
+	}
+	if b.BridgeNetworkName != "" {
+		result.BridgeNetworkName = b.BridgeNetworkName
+	}
+	if b.BridgeNetworkSubnet != "" {
+		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
 	}
 
 	return &result

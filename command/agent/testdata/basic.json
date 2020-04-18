@@ -7,6 +7,34 @@
       "token_ttl": "60s"
     }
   ],
+  "audit": {
+    "enabled": true,
+    "sink": [
+      {
+        "file": {
+          "type": "file",
+          "format": "json",
+          "delivery_guarantee": "enforced",
+          "path": "/opt/nomad/audit.log",
+          "rotate_bytes": 100,
+          "rotate_duration": "24h",
+          "rotate_max_files": 10
+        }
+      }
+    ],
+    "filter": [
+      {
+        "default": [
+          {
+            "endpoints": ["/v1/metrics"],
+            "operations": ["*"],
+            "stages": ["*"],
+            "type": "HTTPEvent"
+          }
+        ]
+      }
+    ]
+  },
   "addresses": [
     {
       "http": "127.0.0.1",
@@ -28,6 +56,7 @@
       "enable_redundancy_zones": true,
       "last_contact_threshold": "12705s",
       "max_trailing_logs": 17849,
+      "min_quorum": 3,
       "server_stabilization_time": "23057s"
     }
   ],
@@ -35,6 +64,8 @@
   "client": [
     {
       "alloc_dir": "/tmp/alloc",
+      "bridge_network_name": "custom_bridge_name",
+      "bridge_network_subnet": "custom_bridge_subnet",
       "chroot_env": [
         {
           "/opt/myapp/bin": "/bin",
@@ -43,6 +74,7 @@
       ],
       "client_max_port": 2000,
       "client_min_port": 1000,
+      "cni_path": "/tmp/cni_path",
       "cpu_total_compute": 4444,
       "disable_remote_exec": true,
       "enabled": true,
@@ -111,6 +143,7 @@
   "consul": [
     {
       "address": "127.0.0.1:9500",
+      "allow_unauthenticated": true,
       "auth": "username:pass",
       "auto_advertise": true,
       "ca_file": "/path/to/ca/file",
@@ -263,6 +296,13 @@
         "1.1.1.1",
         "2.2.2.2"
       ],
+      "default_scheduler_config": [{
+        "preemption_config": [{
+          "batch_scheduler_enabled": true,
+          "system_scheduler_enabled": true,
+          "service_scheduler_enabled": true
+        }]
+      }],
       "upgrade_version": "0.8.0"
     }
   ],

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
@@ -81,6 +82,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/stable"):
 		jobName := strings.TrimSuffix(path, "/stable")
 		return s.jobStable(resp, req, jobName)
+	case strings.HasSuffix(path, "/scale"):
+		jobName := strings.TrimSuffix(path, "/scale")
+		return s.jobScale(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -453,6 +457,82 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
+func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	switch req.Method {
+	case "GET":
+		return s.jobScaleStatus(resp, req, jobName)
+	case "PUT", "POST":
+		return s.jobScaleAction(resp, req, jobName)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	args := structs.JobScaleStatusRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobScaleStatusResponse
+	if err := s.agent.RPC("Job.ScaleStatus", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.JobScaleStatus == nil {
+		return nil, CodedError(404, "job not found")
+	}
+
+	return out.JobScaleStatus, nil
+}
+
+func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var args api.ScalingRequest
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	namespace := args.Target[structs.ScalingTargetNamespace]
+	targetJob := args.Target[structs.ScalingTargetJob]
+	if targetJob != "" && targetJob != jobName {
+		return nil, CodedError(400, "job ID in payload did not match URL")
+	}
+
+	scaleReq := structs.JobScaleRequest{
+		JobID:          jobName,
+		Namespace:      namespace,
+		Target:         args.Target,
+		Count:          args.Count,
+		PolicyOverride: args.PolicyOverride,
+		Message:        args.Message,
+		Error:          args.Error,
+		Meta:           args.Meta,
+	}
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
+	s.parseWriteRequest(req, &scaleReq.WriteRequest)
+
+	var out structs.JobRegisterResponse
+	if err := s.agent.RPC("Job.Scale", &scaleReq, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 
@@ -633,6 +713,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Datacenters: job.Datacenters,
 		Payload:     job.Payload,
 		Meta:        job.Meta,
+		ConsulToken: *job.ConsulToken,
 		VaultToken:  *job.VaultToken,
 		Constraints: ApiConstraintsToStructs(job.Constraints),
 		Affinities:  ApiAffinitiesToStructs(job.Affinities),
@@ -684,7 +765,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		j.TaskGroups = make([]*structs.TaskGroup, l)
 		for i, taskGroup := range job.TaskGroups {
 			tg := &structs.TaskGroup{}
-			ApiTgToStructsTG(taskGroup, tg)
+			ApiTgToStructsTG(j, taskGroup, tg)
 			j.TaskGroups[i] = tg
 		}
 	}
@@ -692,7 +773,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	return j
 }
 
-func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
+func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
@@ -732,6 +813,10 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		}
 	}
 
+	if taskGroup.Scaling != nil {
+		tg.Scaling = ApiScalingPolicyToStructs(tg.Count, taskGroup.Scaling).TargetTaskGroup(job, tg)
+	}
+
 	tg.EphemeralDisk = &structs.EphemeralDisk{
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
@@ -748,8 +833,9 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	if l := len(taskGroup.Volumes); l != 0 {
 		tg.Volumes = make(map[string]*structs.VolumeRequest, l)
 		for k, v := range taskGroup.Volumes {
-			if v.Type != structs.VolumeTypeHost {
-				// Ignore non-host volumes in this iteration currently.
+			if v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI {
+				// Ignore volumes we don't understand in this iteration currently.
+				// - This is because we don't currently have a way to return errors here.
 				continue
 			}
 
@@ -758,6 +844,13 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
 				Source:   v.Source,
+			}
+
+			if v.MountOptions != nil {
+				vol.MountOptions = &structs.CSIMountOptions{
+					FSType:     v.MountOptions.FSType,
+					MountFlags: v.MountOptions.MountFlags,
+				}
 			}
 
 			tg.Volumes[k] = vol
@@ -811,6 +904,16 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Kind = structs.TaskKind(apiTask.Kind)
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
+	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
+
+	if apiTask.RestartPolicy != nil {
+		structsTask.RestartPolicy = &structs.RestartPolicy{
+			Attempts: *apiTask.RestartPolicy.Attempts,
+			Interval: *apiTask.RestartPolicy.Interval,
+			Delay:    *apiTask.RestartPolicy.Delay,
+			Mode:     *apiTask.RestartPolicy.Mode,
+		}
+	}
 
 	if l := len(apiTask.VolumeMounts); l != 0 {
 		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
@@ -828,12 +931,14 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		structsTask.Services = make([]*structs.Service, l)
 		for i, service := range apiTask.Services {
 			structsTask.Services[i] = &structs.Service{
-				Name:        service.Name,
-				PortLabel:   service.PortLabel,
-				Tags:        service.Tags,
-				CanaryTags:  service.CanaryTags,
-				AddressMode: service.AddressMode,
-				Meta:        helper.CopyMapStringString(service.Meta),
+				Name:              service.Name,
+				PortLabel:         service.PortLabel,
+				Tags:              service.Tags,
+				CanaryTags:        service.CanaryTags,
+				EnableTagOverride: service.EnableTagOverride,
+				AddressMode:       service.AddressMode,
+				Meta:              helper.CopyMapStringString(service.Meta),
+				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
 			}
 
 			if l := len(service.Checks); l != 0 {
@@ -921,6 +1026,25 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			File: apiTask.DispatchPayload.File,
 		}
 	}
+
+	if apiTask.Lifecycle != nil {
+		structsTask.Lifecycle = &structs.TaskLifecycleConfig{
+			Hook:    apiTask.Lifecycle.Hook,
+			Sidecar: apiTask.Lifecycle.Sidecar,
+		}
+	}
+}
+
+func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConfig) *structs.TaskCSIPluginConfig {
+	if apiConfig == nil {
+		return nil
+	}
+
+	sc := &structs.TaskCSIPluginConfig{}
+	sc.ID = apiConfig.ID
+	sc.Type = structs.CSIPluginType(apiConfig.Type)
+	sc.MountDir = apiConfig.MountDir
+	return sc
 }
 
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
@@ -1006,12 +1130,14 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 	out := make([]*structs.Service, len(in))
 	for i, s := range in {
 		out[i] = &structs.Service{
-			Name:        s.Name,
-			PortLabel:   s.PortLabel,
-			Tags:        s.Tags,
-			CanaryTags:  s.CanaryTags,
-			AddressMode: s.AddressMode,
-			Meta:        helper.CopyMapStringString(s.Meta),
+			Name:              s.Name,
+			PortLabel:         s.PortLabel,
+			Tags:              s.Tags,
+			CanaryTags:        s.CanaryTags,
+			EnableTagOverride: s.EnableTagOverride,
+			AddressMode:       s.AddressMode,
+			Meta:              helper.CopyMapStringString(s.Meta),
+			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -1025,6 +1151,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					Path:          check.Path,
 					Protocol:      check.Protocol,
 					PortLabel:     check.PortLabel,
+					Expose:        check.Expose,
 					AddressMode:   check.AddressMode,
 					Interval:      check.Interval,
 					Timeout:       check.Timeout,
@@ -1059,67 +1186,110 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	if in == nil {
 		return nil
 	}
-
-	out := &structs.ConsulConnect{
-		Native: in.Native,
+	return &structs.ConsulConnect{
+		Native:         in.Native,
+		SidecarService: apiConnectSidecarServiceToStructs(in.SidecarService),
+		SidecarTask:    apiConnectSidecarTaskToStructs(in.SidecarTask),
 	}
+}
 
-	if in.SidecarService != nil {
-
-		out.SidecarService = &structs.ConsulSidecarService{
-			Tags: helper.CopySliceString(in.SidecarService.Tags),
-			Port: in.SidecarService.Port,
-		}
-
-		if in.SidecarService.Proxy != nil {
-
-			out.SidecarService.Proxy = &structs.ConsulProxy{
-				LocalServiceAddress: in.SidecarService.Proxy.LocalServiceAddress,
-				LocalServicePort:    in.SidecarService.Proxy.LocalServicePort,
-				Config:              in.SidecarService.Proxy.Config,
-			}
-
-			upstreams := make([]structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))
-			for i, p := range in.SidecarService.Proxy.Upstreams {
-				upstreams[i] = structs.ConsulUpstream{
-					DestinationName: p.DestinationName,
-					LocalBindPort:   p.LocalBindPort,
-				}
-			}
-
-			out.SidecarService.Proxy.Upstreams = upstreams
-		}
+func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.ConsulSidecarService {
+	if in == nil {
+		return nil
 	}
+	return &structs.ConsulSidecarService{
+		Port:  in.Port,
+		Tags:  helper.CopySliceString(in.Tags),
+		Proxy: apiConnectSidecarServiceProxyToStructs(in.Proxy),
+	}
+}
 
-	if in.SidecarTask != nil {
-		out.SidecarTask = &structs.SidecarTask{
-			Name:          in.SidecarTask.Name,
-			Driver:        in.SidecarTask.Driver,
-			Config:        in.SidecarTask.Config,
-			User:          in.SidecarTask.User,
-			Env:           in.SidecarTask.Env,
-			Resources:     ApiResourcesToStructs(in.SidecarTask.Resources),
-			Meta:          in.SidecarTask.Meta,
-			LogConfig:     &structs.LogConfig{},
-			ShutdownDelay: in.SidecarTask.ShutdownDelay,
-			KillSignal:    in.SidecarTask.KillSignal,
-		}
+func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.ConsulProxy {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulProxy{
+		LocalServiceAddress: in.LocalServiceAddress,
+		LocalServicePort:    in.LocalServicePort,
+		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
+		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
+		Config:              in.Config,
+	}
+}
 
-		if in.SidecarTask.KillTimeout != nil {
-			out.SidecarTask.KillTimeout = in.SidecarTask.KillTimeout
-		}
-		if in.SidecarTask.LogConfig != nil {
-			out.SidecarTask.LogConfig = &structs.LogConfig{}
-			if in.SidecarTask.LogConfig.MaxFiles != nil {
-				out.SidecarTask.LogConfig.MaxFiles = *in.SidecarTask.LogConfig.MaxFiles
-			}
-			if in.SidecarTask.LogConfig.MaxFileSizeMB != nil {
-				out.SidecarTask.LogConfig.MaxFileSizeMB = *in.SidecarTask.LogConfig.MaxFileSizeMB
-			}
+func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
+	if len(in) == 0 {
+		return nil
+	}
+	upstreams := make([]structs.ConsulUpstream, len(in))
+	for i, upstream := range in {
+		upstreams[i] = structs.ConsulUpstream{
+			DestinationName: upstream.DestinationName,
+			LocalBindPort:   upstream.LocalBindPort,
 		}
 	}
+	return upstreams
+}
 
-	return out
+func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulExposeConfig {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulExposeConfig{
+		Paths: apiConsulExposePathsToStructs(in.Path),
+	}
+}
+
+func apiConsulExposePathsToStructs(in []*api.ConsulExposePath) []structs.ConsulExposePath {
+	if len(in) == 0 {
+		return nil
+	}
+	paths := make([]structs.ConsulExposePath, len(in))
+	for i, path := range in {
+		paths[i] = structs.ConsulExposePath{
+			Path:          path.Path,
+			Protocol:      path.Protocol,
+			LocalPathPort: path.LocalPathPort,
+			ListenerPort:  path.ListenerPort,
+		}
+	}
+	return paths
+}
+
+func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
+	if in == nil {
+		return nil
+	}
+	return &structs.SidecarTask{
+		Name:          in.Name,
+		Driver:        in.Driver,
+		User:          in.User,
+		Config:        in.Config,
+		Env:           in.Env,
+		Resources:     ApiResourcesToStructs(in.Resources),
+		Meta:          in.Meta,
+		ShutdownDelay: in.ShutdownDelay,
+		KillSignal:    in.KillSignal,
+		KillTimeout:   in.KillTimeout,
+		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+	}
+}
+
+func apiLogConfigToStructs(in *api.LogConfig) *structs.LogConfig {
+	if in == nil {
+		return nil
+	}
+	return &structs.LogConfig{
+		MaxFiles:      dereferenceInt(in.MaxFiles),
+		MaxFileSizeMB: dereferenceInt(in.MaxFileSizeMB),
+	}
+}
+
+func dereferenceInt(in *int) int {
+	if in == nil {
+		return 0
+	}
+	return *in
 }
 
 func ApiConstraintsToStructs(in []*api.Constraint) []*structs.Constraint {

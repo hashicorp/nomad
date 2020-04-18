@@ -1,0 +1,58 @@
+{{title "Exec"}}
+<nav class="navbar is-popup">
+  <div class="navbar-brand">
+    <div class="navbar-item is-logo">
+      {{partial "partials/nomad-logo"}}
+    </div>
+  </div>
+    {{#if system.shouldShowRegions}}
+      <div class="navbar-item">
+        <span class="navbar-label">Region</span>
+        <span data-test-region>{{model.region}}</span>
+      </div>
+    {{/if}}
+
+    {{#if system.shouldShowNamespaces}}
+      <div class="navbar-item">
+        <span class="navbar-label">Namespace</span>
+        <span data-test-namespace>{{model.namespace.id}}</span>
+      </div>
+    {{/if}}
+
+    <div class="navbar-item">
+      <span class="navbar-label">Job</span>
+      <span data-test-job>{{model.name}}</span>
+    </div>
+  <div class="navbar-end">
+    <a href="https://nomadproject.io/docs" target="_blank" rel="noopener" class="navbar-item">Documentation</a>
+    {{x-icon "lock-closed"}}
+  </div>
+</nav>
+
+{{#if (eq model.status "dead")}}
+  <div class="tree-and-terminal" data-test-exec-job-dead>
+    <div class="task-group-tree">
+    </div>
+    <div class="terminal-container" data-test-exec-job-dead-message>
+      Job <code>{{model.name}}</code> is dead and cannot host an exec session.
+    </div>
+  </div>
+{{else}}
+  <div class="tree-and-terminal">
+    <div class="task-group-tree">
+      <h4 class="title is-6">Tasks</h4>
+      <ul>
+        {{#each sortedTaskGroups as |taskGroup|}}
+          <li data-test-task-group>
+            {{exec/task-group-parent
+              taskGroup=taskGroup
+              openInNewWindow=socketOpen
+              activeTaskName=taskName
+              activeTaskGroupName=taskGroupName}}
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+    {{exec-terminal terminal=terminal}}
+  </div>
+{{/if}}

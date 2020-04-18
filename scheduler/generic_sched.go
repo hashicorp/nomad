@@ -134,7 +134,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		structs.EvalTriggerRollingUpdate, structs.EvalTriggerQueuedAllocs,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
-		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption:
+		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption,
+		structs.EvalTriggerScaling:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -484,7 +485,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Set fields based on if we found an allocation option
 			if option != nil {
 				resources := &structs.AllocatedResources{
-					Tasks: option.TaskResources,
+					Tasks:          option.TaskResources,
+					TaskLifecycles: option.TaskLifecycles,
 					Shared: structs.AllocatedSharedResources{
 						DiskMB: int64(tg.EphemeralDisk.SizeMB),
 					},
@@ -529,10 +531,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If we are placing a canary and we found a match, add the canary
 				// to the deployment state object and mark it as a canary.
 				if missing.Canary() && s.deployment != nil {
-					if state, ok := s.deployment.TaskGroups[tg.Name]; ok {
-						state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
-					}
-
 					alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 						Canary: true,
 					}

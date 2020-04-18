@@ -10,6 +10,8 @@ import Clients from 'nomad-ui/tests/pages/clients/list';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
 
 let node;
+let managementToken;
+let clientToken;
 
 const wasPreemptedFilter = allocation => !!allocation.preemptedByAllocation;
 
@@ -20,6 +22,11 @@ module('Acceptance | client detail', function(hooks) {
   hooks.beforeEach(function() {
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
+
+    managementToken = server.create('token');
+    clientToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
 
     // Related models
     server.create('agent');
@@ -143,6 +150,7 @@ module('Acceptance | client detail', function(hooks) {
     assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
     assert.ok(allocationRow.taskGroup, 'Task group name');
     assert.ok(allocationRow.jobVersion, 'Job Version');
+    assert.equal(allocationRow.volume, 'Yes', 'Volume');
     assert.equal(
       allocationRow.cpu,
       Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
@@ -884,6 +892,52 @@ module('Acceptance | client detail', function(hooks) {
     await ClientDetail.visit({ id: node2.id });
 
     assert.notOk(ClientDetail.eligibilityError.isPresent);
+  });
+
+  test('toggling eligibility and node drain are disabled when the active ACL token does not permit node write', async function(assert) {
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await ClientDetail.visit({ id: node.id });
+    assert.ok(ClientDetail.eligibilityToggle.isDisabled);
+    assert.ok(ClientDetail.drainPopover.isDisabled);
+  });
+
+  test('the host volumes table lists all host volumes in alphabetical order by name', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+
+    const sortedHostVolumes = Object.keys(node.hostVolumes)
+      .map(key => node.hostVolumes[key])
+      .sortBy('Name');
+
+    assert.ok(ClientDetail.hasHostVolumes);
+    assert.equal(ClientDetail.hostVolumes.length, Object.keys(node.hostVolumes).length);
+
+    ClientDetail.hostVolumes.forEach((volume, index) => {
+      assert.equal(volume.name, sortedHostVolumes[index].Name);
+    });
+  });
+
+  test('each host volume row contains information about the host volume', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+
+    const sortedHostVolumes = Object.keys(node.hostVolumes)
+      .map(key => node.hostVolumes[key])
+      .sortBy('Name');
+
+    ClientDetail.hostVolumes[0].as(volume => {
+      const volumeRow = sortedHostVolumes[0];
+      assert.equal(volume.name, volumeRow.Name);
+      assert.equal(volume.path, volumeRow.Path);
+      assert.equal(volume.permissions, volumeRow.ReadOnly ? 'Read' : 'Read/Write');
+    });
+  });
+
+  test('the host volumes table is not shown if the client has no host volumes', async function(assert) {
+    node = server.create('node', 'noHostVolumes');
+
+    await ClientDetail.visit({ id: node.id });
+
+    assert.notOk(ClientDetail.hasHostVolumes);
   });
 });
 

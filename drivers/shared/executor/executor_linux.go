@@ -573,6 +573,9 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	// set the new root directory for the container
 	cfg.Rootfs = command.TaskDir
 
+	// disable pivot_root if set in the driver's configuration
+	cfg.NoPivotRoot = command.NoPivotRoot
+
 	// launch with mount namespace
 	cfg.Namespaces = lconfigs.Namespaces{
 		{Type: lconfigs.NEWNS},

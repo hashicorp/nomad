@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 
-	"github.com/ugorji/go/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 type Agent struct {
@@ -149,24 +149,30 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		return
 	}
 
-	currentServer := a.srv.serf.LocalMember().Name
-	var forwardServer bool
-	// Targeting a remote server which is not the leader and not this server
-	if args.ServerID != "" && args.ServerID != "leader" && args.ServerID != currentServer {
-		forwardServer = true
-	}
-
-	// Targeting leader and this server is not current leader
-	if args.ServerID == "leader" && !a.srv.IsLeader() {
-		forwardServer = true
-	}
-
-	if forwardServer {
-		a.forwardMonitorServer(conn, args, encoder, decoder)
+	region := args.RequestRegion()
+	if region == "" {
+		handleStreamResultError(fmt.Errorf("missing target RPC"), helper.Int64ToPtr(400), encoder)
 		return
 	}
+	if region != a.srv.config.Region {
+		// Mark that we are forwarding
+		args.SetForwarded()
+	}
 
-	// NodeID was empty, so monitor this current server
+	// Try to forward request to remote region/server
+	if args.ServerID != "" {
+		serverToFwd, err := a.forwardFor(args.ServerID, region)
+		if err != nil {
+			handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
+			return
+		}
+		if serverToFwd != nil {
+			a.forwardMonitorServer(conn, serverToFwd, args, encoder, decoder)
+			return
+		}
+	}
+
+	// NodeID was empty, ServerID was equal to this server,  monitor this server
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -273,6 +279,7 @@ OUTER:
 // serverID and region so the request should not be forwarded.
 func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 	var target *serverParts
+	var err error
 
 	if serverID == "leader" {
 		isLeader, remoteLeader := a.srv.getLeader()
@@ -285,19 +292,9 @@ func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 			return nil, nil
 		}
 	} else {
-		members := a.srv.Members()
-		for _, mem := range members {
-			if mem.Name == serverID || mem.Tags["id"] == serverID {
-				if ok, srv := isNomadServer(mem); ok {
-					if srv.Region != region {
-						return nil,
-							fmt.Errorf(
-								"Requested server:%s region:%s does not exist in requested region: %s",
-								serverID, srv.Region, region)
-					}
-					target = srv
-				}
-			}
+		target, err = a.srv.getServer(region, serverID)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -384,42 +381,11 @@ func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.Moni
 	return
 }
 
-func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
-	var target *serverParts
-	serverID := args.ServerID
-
+func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverParts, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	// empty ServerID to prevent forwarding loop
 	args.ServerID = ""
 
-	if serverID == "leader" {
-		isLeader, remoteServer := a.srv.getLeader()
-		if !isLeader && remoteServer != nil {
-			target = remoteServer
-		}
-		if !isLeader && remoteServer == nil {
-			handleStreamResultError(structs.ErrNoLeader, helper.Int64ToPtr(400), encoder)
-			return
-		}
-	} else {
-		// See if the server ID is a known member
-		serfMembers := a.srv.Members()
-		for _, mem := range serfMembers {
-			if mem.Name == serverID {
-				if ok, srv := isNomadServer(mem); ok {
-					target = srv
-				}
-			}
-		}
-	}
-
-	// Unable to find a server
-	if target == nil {
-		err := fmt.Errorf("unknown nomad server %s", serverID)
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
-		return
-	}
-
-	serverConn, err := a.srv.streamingRpc(target, "Agent.Monitor")
+	serverConn, err := a.srv.streamingRpc(server, "Agent.Monitor")
 	if err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function install_go() {
-	local go_version=1.12.13
+	local go_version="1.14.1"
 	local download=
 
 	download="https://storage.googleapis.com/golang/go${go_version}.linux-amd64.tar.gz"
@@ -10,7 +10,7 @@ function install_go() {
 		return
 	fi
 
-	wget -q -O /tmp/go.tar.gz ${download}
+	curl -sSL --fail -o /tmp/go.tar.gz ${download}
 
 	tar -C /tmp -xf /tmp/go.tar.gz
 	sudo mv /tmp/go /usr/local
