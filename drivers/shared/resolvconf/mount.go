@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	dresolvconf "github.com/docker/libnetwork/resolvconf"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -32,18 +33,8 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		return mount, nil
 	}
 
-	f, err := os.Create(path)
+	_, err := dresolvconf.Build(path, conf.Servers, conf.Searches, conf.Options)
 	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	rc, err := New(conf.Servers, conf.Searches, conf.Options)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := f.Write(rc.Content()); err != nil {
 		return nil, err
 	}
 
