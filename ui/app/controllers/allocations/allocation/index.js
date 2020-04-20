@@ -2,7 +2,7 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { alias, sort } from '@ember/object/computed';
+import { alias, mapBy, sort } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
@@ -21,6 +21,45 @@ export default Controller.extend(Sortable, {
 
   listToSort: alias('model.states'),
   sortedStates: alias('listSorted'),
+
+  stateTasks: mapBy('model.states', 'task'),
+
+  lifecyclePhases: computed('stateTasks.@each.lifecycle', function() {
+    const lifecycleTaskStateLists = this.get('model.states').reduce(
+      (lists, state) => {
+        const lifecycle = state.task.lifecycle;
+
+        if (lifecycle) {
+          if (lifecycle.sidecar) {
+            lists.sidecars.push(state);
+          } else {
+            lists.prestarts.push(state);
+          }
+        } else {
+          lists.mains.push(state);
+        }
+
+        return lists;
+      },
+      {
+        prestarts: [],
+        sidecars: [],
+        mains: [],
+      }
+    );
+
+    const phases = [];
+
+    if (lifecycleTaskStateLists.prestarts.length || lifecycleTaskStateLists.sidecars.length) {
+      phases.push({ name: 'PreStart' });
+    }
+
+    if (lifecycleTaskStateLists.sidecars.length || lifecycleTaskStateLists.mains.length) {
+      phases.push({ name: 'Main' });
+    }
+
+    return phases;
+  }),
 
   sortedLifecycleTaskStates: sort('model.states', function(a, b) {
     // FIXME sorts prestart, sidecar, main, secondary by name, correct?

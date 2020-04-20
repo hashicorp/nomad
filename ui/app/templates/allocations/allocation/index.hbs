@@ -95,6 +95,12 @@
     </div>
     <div class="boxed-section-body">
 
+      {{#each lifecyclePhases as |phase|}}
+        <div data-test-lifecycle-phase>
+          phase: {{phase.name}}
+        </div>
+      {{/each}}
+
       {{#each sortedLifecycleTaskStates as |state|}}
         <div class="lifecycle-chart {{if state.task.lifecycle (if state.task.lifecycle.sidecar "sidecar" "prestart") "main"}} {{if (eq state.state "running") "is-active"}}" data-test-lifecycle-chart>
           <div class="row">

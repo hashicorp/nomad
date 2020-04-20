@@ -37,6 +37,12 @@ export default create({
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
 
+  lifecyclePhases: collection('[data-test-lifecycle-phase]', {
+    name: text('[data-test-name]'),
+
+    isActive: hasClass('is-active'),
+  }),
+
   lifecycleCharts: collection('[data-test-lifecycle-chart]', {
     name: text('[data-test-name]'),
     lifecycle: text('[data-test-lifecycle]'),

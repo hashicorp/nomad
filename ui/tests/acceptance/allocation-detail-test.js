@@ -87,6 +87,41 @@ module('Acceptance | allocation detail', function(hooks) {
       );
     });
 
+    const taskStatePhases = serverStates.reduce(
+      (phases, state) => {
+        const lifecycle = server.db.tasks.findBy({ name: state.name }).Lifecycle;
+
+        if (lifecycle) {
+          if (lifecycle.Sidecar) {
+            phases.sidecars.push(state);
+          } else {
+            phases.prestarts.push(state);
+          }
+        } else {
+          phases.mains.push(state);
+        }
+
+        return phases;
+      },
+      {
+        prestarts: [],
+        sidecars: [],
+        mains: [],
+      }
+    );
+
+    let expectedPhaseCount = 0;
+
+    if (taskStatePhases.sidecars.length || taskStatePhases.prestarts.length) {
+      expectedPhaseCount++;
+    }
+
+    if (taskStatePhases.sidecars.length || taskStatePhases.mains.length) {
+      expectedPhaseCount++;
+    }
+
+    assert.equal(Allocation.lifecyclePhases.length, expectedPhaseCount);
+
     sortedServerStates.forEach((state, index) => {
       const lifecycle = server.db.tasks.where({ name: state.name })[0].Lifecycle;
 
