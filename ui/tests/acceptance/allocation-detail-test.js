@@ -79,7 +79,7 @@ module('Acceptance | allocation detail', function(hooks) {
     );
 
     const getTaskSortPrefix = task =>
-      `${task.lifecycle ? (task.lifecycle.sidecar ? '1' : '0') : '2'}-${task.name}`;
+      `${task.Lifecycle ? (task.Lifecycle.Sidecar ? '1' : '0') : '2'}-${task.name}`;
     const serverStates = server.db.taskStates.where({ allocationId: allocation.id });
     const sortedServerStates = serverStates.sort((a, b) => {
       return getTaskSortPrefix(server.db.tasks.findBy({ name: a.name })).localeCompare(
