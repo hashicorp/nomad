@@ -1,39 +1,93 @@
 .lifecycle-chart {
-  .row {
-    margin: 0.5em;
-    padding: 0.4em 0.65em;
-    border: 1px solid $grey-blue;
-    border-radius: $radius;
+  padding-top: 2rem;
+  position: relative;
+
+  .lifecycle-phases-header {
+    height: 2rem;
+  }
+
+  .lifecycle-phases {
+    top: 1.5em;
+    bottom: 1.5em;
+    right: 1.5em;
+    left: 1.5em;
+    position: absolute;
+  }
+
+  .lifecycle-phase {
+    position: absolute;
+    bottom: 0;
+    top: 0;
+
+    border-top: 2px solid transparent;
 
     .name {
-      font-weight: $weight-semibold;
-    }
-
-    .lifecycle {
       font-size: $size-7;
-      color: $grey;
+      padding: 0.5rem 0.75rem;
+    }
+
+    &.is-active {
+      background: $white-bis;
+      border-top: 2px solid $vagrant-blue;
+
+      .name {
+        color: $vagrant-blue;
+      }
+    }
+
+    &.prestart {
+      left: 0;
+      right: 75%;
+
+      &.is-active {
+        // FIXME (and below) dashing is more dense than design
+        border-right: 1px dashed $grey-blue;
+      }
+    }
+
+    &.main {
+      left: 25%;
+      right: 0;
+
+      &.is-active {
+        border-left: 1px dashed $grey-blue;
+      }
     }
   }
 
-  &.is-active {
+  .lifecycle-chart-row {
+    // FIXME ugh z-index nightmares?!?!
+    opacity: 0.99;
+
     .row {
-      border-color: $nomad-green;
-      background: lighten($nomad-green, 50%);
+      margin: 0.5em;
+      padding: 0.4em 0.65em;
+      border: 1px solid $grey-blue;
+      border-radius: $radius;
+
+      .name {
+        font-weight: $weight-semibold;
+      }
+
+      .lifecycle {
+        font-size: $size-7;
+        color: $grey;
+      }
     }
-  }
 
-  &.main {
-    margin-left: 25%;
-  }
+    &.is-active {
+      .row {
+        border-color: $nomad-green;
+        background: lighten($nomad-green, 50%);
+      }
+    }
 
-  &.prestart {
-    margin-right: 75%;
-  }
-}
+    &.main {
+      margin-left: 25%;
+    }
 
-// FIXME move into hierarchy
-.lifecycle-phase {
-  &.is-active {
-    background-color: $grey-blue;
+    &.prestart {
+      margin-right: 75%;
+    }
   }
 }
