@@ -3,6 +3,7 @@
 BUG FIXES:
 
  * core: Fixed a bug that only ran a task `shutdown_delay` if the task had a registered service [[GH-7663](https://github.com/hashicorp/nomad/issues/7663)]
+ * driver/docker: Fixed a bug where retrying failed docker creation may in rare cases trigger a panic [[GH-7749](https://github.com/hashicorp/nomad/issues/7749)]
  * vault: Upgrade http2 library to fix Vault API calls that fail with `http2: no cached connection was available` [[GH-7673](https://github.com/hashicorp/nomad/issues/7673)]
 
 ## 0.11.0 (April 8, 2020)
