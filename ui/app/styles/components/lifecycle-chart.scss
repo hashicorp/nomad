@@ -15,6 +15,13 @@
     }
   }
 
+  &.is-active {
+    .row {
+      border-color: $nomad-green;
+      background: lighten($nomad-green, 50%);
+    }
+  }
+
   &.main {
     margin-left: 25%;
   }

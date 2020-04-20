@@ -92,6 +92,13 @@ module('Acceptance | allocation detail', function(hooks) {
 
       Allocation.lifecycleCharts[index].as(ChartRow => {
         assert.equal(Allocation.lifecycleCharts[index].name, state.name);
+
+        if (state.state === 'running') {
+          assert.ok(ChartRow.isActive);
+        } else {
+          assert.notOk(ChartRow.isActive);
+        }
+
         if (lifecycle) {
           if (lifecycle.Sidecar) {
             assert.ok(ChartRow.isSidecar);

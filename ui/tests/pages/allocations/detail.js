@@ -40,6 +40,9 @@ export default create({
   lifecycleCharts: collection('[data-test-lifecycle-chart]', {
     name: text('[data-test-name]'),
     lifecycle: text('[data-test-lifecycle]'),
+
+    isActive: hasClass('is-active'),
+
     isMain: hasClass('main'),
     isPrestart: hasClass('prestart'),
     isSidecar: hasClass('sidecar'),
