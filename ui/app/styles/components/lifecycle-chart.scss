@@ -48,6 +48,7 @@
     &.main {
       left: 25%;
       right: 0;
+      border-left: 1px dashed transparent;
 
       &.is-active {
         border-left: 1px dashed $grey-blue;
