@@ -122,6 +122,27 @@ module('Acceptance | allocation detail', function(hooks) {
 
     assert.equal(Allocation.lifecyclePhases.length, expectedPhaseCount);
 
+    if (taskStatePhases.prestarts.length) {
+      if (taskStatePhases.prestarts.some(state => state.state === 'running')) {
+        assert.ok(Allocation.lifecyclePhases[0].isActive);
+      } else {
+        assert.notOk(Allocation.lifecyclePhases[0].isActive);
+      }
+    }
+
+    if (taskStatePhases.mains.length) {
+      const MainPhase =
+        Allocation.lifecyclePhases.length == 2
+          ? Allocation.lifecyclePhases[1]
+          : Allocation.lifecyclePhases[0];
+
+      if (taskStatePhases.mains.some(state => state.state === 'running')) {
+        assert.ok(MainPhase.isActive);
+      } else {
+        assert.notOk(MainPhase.isActive);
+      }
+    }
+
     sortedServerStates.forEach((state, index) => {
       const lifecycle = server.db.tasks.where({ name: state.name })[0].Lifecycle;
 

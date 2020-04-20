@@ -96,7 +96,7 @@
     <div class="boxed-section-body">
 
       {{#each lifecyclePhases as |phase|}}
-        <div data-test-lifecycle-phase>
+        <div class="lifecycle-phase {{if phase.isActive "is-active"}}" data-test-lifecycle-phase>
           phase: {{phase.name}}
         </div>
       {{/each}}

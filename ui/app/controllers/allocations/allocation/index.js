@@ -24,7 +24,7 @@ export default Controller.extend(Sortable, {
 
   stateTasks: mapBy('model.states', 'task'),
 
-  lifecyclePhases: computed('stateTasks.@each.lifecycle', function() {
+  lifecyclePhases: computed('stateTasks.@each.lifecycle', 'model.states.@each.state', function() {
     const lifecycleTaskStateLists = this.get('model.states').reduce(
       (lists, state) => {
         const lifecycle = state.task.lifecycle;
@@ -51,11 +51,17 @@ export default Controller.extend(Sortable, {
     const phases = [];
 
     if (lifecycleTaskStateLists.prestarts.length || lifecycleTaskStateLists.sidecars.length) {
-      phases.push({ name: 'PreStart' });
+      phases.push({
+        name: 'PreStart',
+        isActive: lifecycleTaskStateLists.prestarts.some(state => state.state === 'running'),
+      });
     }
 
     if (lifecycleTaskStateLists.sidecars.length || lifecycleTaskStateLists.mains.length) {
-      phases.push({ name: 'Main' });
+      phases.push({
+        name: 'Main',
+        isActive: lifecycleTaskStateLists.mains.some(state => state.state === 'running'),
+      });
     }
 
     return phases;

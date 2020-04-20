@@ -30,3 +30,10 @@
     margin-right: 75%;
   }
 }
+
+// FIXME move into hierarchy
+.lifecycle-phase {
+  &.is-active {
+    background-color: $grey-blue;
+  }
+}
