@@ -1187,15 +1187,14 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	plugins := map[string]*structs.CSIPlugin{}
 
 	for _, a := range allocs {
-		tg := job.LookupTaskGroup(a.TaskGroup)
 		// if its nil, we can just panic
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		for _, t := range tg.Tasks {
 			if t.CSIPluginConfig != nil {
 				plugAllocs = append(plugAllocs, &pair{
 					pluginID: t.CSIPluginConfig.ID,
 					alloc:    a,
 				})
-
 			}
 		}
 	}
