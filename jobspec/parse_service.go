@@ -320,6 +320,24 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 	}
 
 	var proxy api.ConsulProxy
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "upstreams")
+	delete(m, "expose")
+	delete(m, "config")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &proxy,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("proxy: %v", err)
+	}
 
 	var listVal *ast.ObjectList
 	if ot, ok := o.Val.(*ast.ObjectType); ok {

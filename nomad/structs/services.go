@@ -889,7 +889,9 @@ type ConsulProxy struct {
 
 	// Expose configures the consul proxy.expose stanza to "open up" endpoints
 	// used by task-group level service checks using HTTP or gRPC protocols.
-	Expose *ConsulExposeConfig
+	//
+	// Use json tag to match with field name in api/
+	Expose *ConsulExposeConfig `json:"ExposeConfig"`
 
 	// Config is a proxy configuration. It is opaque to Nomad and passed
 	// directly to Consul.
@@ -905,7 +907,7 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	newP := &ConsulProxy{
 		LocalServiceAddress: p.LocalServiceAddress,
 		LocalServicePort:    p.LocalServicePort,
-		Expose:              p.Expose,
+		Expose:              p.Expose.Copy(),
 	}
 
 	if n := len(p.Upstreams); n > 0 {
@@ -1009,7 +1011,8 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 
 // ExposeConfig represents a Consul Connect expose jobspec stanza.
 type ConsulExposeConfig struct {
-	Paths []ConsulExposePath
+	// Use json tag to match with field name in api/
+	Paths []ConsulExposePath `json:"Path"`
 }
 
 type ConsulExposePath struct {
