@@ -43,7 +43,7 @@ export default create({
     isActive: hasClass('is-active'),
   }),
 
-  lifecycleCharts: collection('[data-test-lifecycle-chart]', {
+  lifecycleCharts: collection('[data-test-lifecycle-chart-row]', {
     name: text('[data-test-name]'),
     lifecycle: text('[data-test-lifecycle]'),
 
