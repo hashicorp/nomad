@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	dresolvconf "github.com/docker/libnetwork/resolvconf"
+	"github.com/docker/libnetwork/types"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -33,6 +34,27 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		return mount, nil
 	}
 
+	currRC, err := dresolvconf.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		err            error
+		dnsList        = dresolvconf.GetNameservers(currRC.Content, types.IP)
+		dnsSearchList  = dresolvconf.GetSearchDomains(currRC.Content)
+		dnsOptionsList = dresolvconf.GetOptions(currRC.Content)
+	)
+	if nServers > 0 {
+		dnsList = conf.Servers
+	}
+	if nSearches > 0 {
+		dnsSearchList = conf.Searches
+	}
+	if nOptions > 0 {
+		dnsOptionsList = conf.Options
+	}
+
 	_, err := dresolvconf.Build(path, conf.Servers, conf.Searches, conf.Options)
 	if err != nil {
 		return nil, err
@@ -42,7 +64,7 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 }
 
 func copySystemDNS(dest string) error {
-	in, err := os.Open("/etc/resolv.conf")
+	in, err := os.Open(dresolvconf.Path())
 	if err != nil {
 		return err
 	}
