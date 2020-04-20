@@ -69,6 +69,12 @@ $ curl \
 }
 ```
 
+#### Field Reference
+
+- `Matches` - A map of contexts to matching arrays of identifiers.
+
+- `Truncations` - Search results are capped at 20; if more matches were found for a particular context, it will be `true`.
+
 ### Sample Payload (for all contexts)
 
 ```javascript
