@@ -1708,7 +1708,7 @@ type Node struct {
 	// COMPAT: Remove in Nomad 0.9
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
-	// allocations will be drained. Superceded by DrainStrategy in Nomad
+	// allocations will be drained. Superseded by DrainStrategy in Nomad
 	// 0.8 but kept for backward compat.
 	Drain bool
 
