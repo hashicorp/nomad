@@ -1478,15 +1478,9 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	// Delete any job scaling policies
-	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", namespace, jobID)
-	if err != nil {
+	// Delete any remaining job scaling policies
+	if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
-	}
-	if numDeletedScalingPolicies > 0 {
-		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
-			return fmt.Errorf("index update failed: %v", err)
-		}
 	}
 
 	// Delete the scaling events
@@ -1503,6 +1497,20 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("deleting job from plugin: %v", err)
 	}
 
+	return nil
+}
+
+// deleteJobScalingPolicies deletes any scaling policies associated with the job
+func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", job.Namespace, job.ID)
+	if err != nil {
+		return fmt.Errorf("deleting job scaling policies failed: %v", err)
+	}
+	if numDeletedScalingPolicies > 0 {
+		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -4246,6 +4254,13 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
 
 	ws := memdb.NewWatchSet()
+
+	if job.Stop {
+		if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
+			return fmt.Errorf("deleting job scaling policies failed: %v", err)
+		}
+		return nil
+	}
 
 	scalingPolicies := job.GetScalingPolicies()
 	newTargets := map[string]struct{}{}
