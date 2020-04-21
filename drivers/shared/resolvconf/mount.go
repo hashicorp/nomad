@@ -40,7 +40,6 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 	}
 
 	var (
-		err            error
 		dnsList        = dresolvconf.GetNameservers(currRC.Content, types.IP)
 		dnsSearchList  = dresolvconf.GetSearchDomains(currRC.Content)
 		dnsOptionsList = dresolvconf.GetOptions(currRC.Content)
@@ -55,7 +54,7 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		dnsOptionsList = conf.Options
 	}
 
-	_, err := dresolvconf.Build(path, conf.Servers, conf.Searches, conf.Options)
+	_, err = dresolvconf.Build(path, dnsList, dnsSearchList, dnsOptionsList)
 	if err != nil {
 		return nil, err
 	}
