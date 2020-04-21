@@ -105,7 +105,7 @@
       </div>
 
       {{#each sortedLifecycleTaskStates as |state|}}
-        <div class="lifecycle-chart-row {{if state.task.lifecycle (if state.task.lifecycle.sidecar "sidecar" "prestart") "main"}} {{if (eq state.state "running") "is-active"}}" data-test-lifecycle-chart-row>
+        <div class="lifecycle-chart-row {{if state.task.lifecycle (if state.task.lifecycle.sidecar "sidecar" "prestart") "main"}} {{if (eq state.state "running") "is-active"}} {{if state.finishedAt "is-finished"}}" data-test-lifecycle-chart-row>
           <div class="row">
             <div class="name" data-test-name>{{state.name}}</div>
             <div class="lifecycle" data-test-lifecycle>

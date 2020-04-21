@@ -48,6 +48,7 @@ export default create({
     lifecycle: text('[data-test-lifecycle]'),
 
     isActive: hasClass('is-active'),
+    isFinished: hasClass('is-finished'),
 
     isMain: hasClass('main'),
     isPrestart: hasClass('prestart'),

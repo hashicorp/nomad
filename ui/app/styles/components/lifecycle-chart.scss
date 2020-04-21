@@ -74,7 +74,7 @@
 
       .lifecycle {
         font-size: $size-7;
-        color: $grey;
+        color: $ui-gray-400;
       }
     }
 
@@ -82,6 +82,16 @@
       .row {
         border-color: $nomad-green;
         background: lighten($nomad-green, 50%);
+
+        .lifecycle {
+          color: $ui-gray-500;
+        }
+      }
+    }
+
+    &.is-finished {
+      .row {
+        color: $ui-gray-400;
       }
     }
 

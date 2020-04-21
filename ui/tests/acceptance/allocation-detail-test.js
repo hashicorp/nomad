@@ -155,6 +155,13 @@ module('Acceptance | allocation detail', function(hooks) {
           assert.notOk(ChartRow.isActive);
         }
 
+        // Task state factory uses invalid dates for tasks that aren’t finished
+        if (isNaN(state.finishedAt)) {
+          assert.notOk(ChartRow.isFinished);
+        } else {
+          assert.ok(ChartRow.isFinished);
+        }
+
         if (lifecycle) {
           if (lifecycle.Sidecar) {
             assert.ok(ChartRow.isSidecar);
