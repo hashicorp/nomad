@@ -59,8 +59,7 @@
   }
 
   .lifecycle-chart-row {
-    // FIXME ugh z-index nightmares?!?!
-    opacity: 0.99;
+    position: relative;
 
     .task {
       margin: 0.55em 0.9em;
