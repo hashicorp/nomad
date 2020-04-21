@@ -9,6 +9,7 @@ BUG FIXES:
  * connect: Fixed a bug where some connect proxy fields would be dropped from 'job inspect' output [[GH-7397](https://github.com/hashicorp/nomad/issues/7397)]
  * connect: Fixed a bug where an absent connect sidecar_service stanza would trigger panic [[GH-7683](https://github.com/hashicorp/nomad/pull/7683)]
  * connect: Fixed bugs where some connect parameters would be ignored [[GH-7690](https://github.com/hashicorp/nomad/pull/7690)] [[GH-7684](https://github.com/hashicorp/nomad/pull/7684)]
+ * scheduler: Fixed a bug in managing allocated devices for a job allocation in in-place update scenarios [[GH-7762](https://github.com/hashicorp/nomad/issues/7762)]
 
 ## 0.11.0 (April 8, 2020)
 
