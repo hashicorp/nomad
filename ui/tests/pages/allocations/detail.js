@@ -37,23 +37,27 @@ export default create({
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
 
-  lifecyclePhases: collection('[data-test-lifecycle-phase]', {
-    name: text('[data-test-name]'),
+  lifecycleChart: {
+    scope: '[data-test-lifecycle-chart]',
 
-    isActive: hasClass('is-active'),
-  }),
+    phases: collection('[data-test-lifecycle-phase]', {
+      name: text('[data-test-name]'),
 
-  lifecycleCharts: collection('[data-test-lifecycle-chart-row]', {
-    name: text('[data-test-name]'),
-    lifecycle: text('[data-test-lifecycle]'),
+      isActive: hasClass('is-active'),
+    }),
 
-    isActive: hasClass('is-active'),
-    isFinished: hasClass('is-finished'),
+    tasks: collection('[data-test-lifecycle-task]', {
+      name: text('[data-test-name]'),
+      lifecycle: text('[data-test-lifecycle]'),
 
-    isMain: hasClass('main'),
-    isPrestart: hasClass('prestart'),
-    isSidecar: hasClass('sidecar'),
-  }),
+      isActive: hasClass('is-active'),
+      isFinished: hasClass('is-finished'),
+
+      isMain: hasClass('main'),
+      isPrestart: hasClass('prestart'),
+      isSidecar: hasClass('sidecar'),
+    }),
+  },
 
   tasks: collection('[data-test-task-row]', {
     name: text('[data-test-name]'),
