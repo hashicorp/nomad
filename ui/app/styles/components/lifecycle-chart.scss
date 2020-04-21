@@ -62,7 +62,7 @@
     // FIXME ugh z-index nightmares?!?!
     opacity: 0.99;
 
-    .row {
+    .task {
       margin: 0.55em 0.9em;
       padding: 0.3em 0.55em;
       border: 1px solid $grey-blue;
@@ -79,7 +79,7 @@
     }
 
     &.is-active {
-      .row {
+      .task {
         border-color: $nomad-green;
         background: lighten($nomad-green, 50%);
 
@@ -90,7 +90,7 @@
     }
 
     &.is-finished {
-      .row {
+      .task {
         color: $ui-gray-400;
       }
     }
@@ -103,7 +103,7 @@
       margin-right: 75%;
     }
 
-    &:last-child .row {
+    &:last-child .task {
       margin-bottom: 0.9em;
     }
   }
