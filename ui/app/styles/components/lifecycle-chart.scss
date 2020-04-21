@@ -3,7 +3,7 @@
   position: relative;
 
   .lifecycle-phases-header {
-    height: 2rem;
+    height: 2.5rem;
   }
 
   .lifecycle-phases {
@@ -22,8 +22,10 @@
     border-top: 2px solid transparent;
 
     .name {
+      padding: 0.5rem 0.9rem;
       font-size: $size-7;
-      padding: 0.5rem 0.75rem;
+      font-weight: $weight-semibold;
+      color: $ui-gray-500;
     }
 
     &.is-active {
@@ -41,7 +43,7 @@
 
       &.is-active {
         // FIXME (and below) dashing is more dense than design
-        border-right: 1px dashed $grey-blue;
+        border-right: 1px dashed $ui-gray-200;
       }
     }
 
@@ -51,7 +53,7 @@
       border-left: 1px dashed transparent;
 
       &.is-active {
-        border-left: 1px dashed $grey-blue;
+        border-left: 1px dashed $ui-gray-200;
       }
     }
   }
@@ -61,8 +63,8 @@
     opacity: 0.99;
 
     .row {
-      margin: 0.5em;
-      padding: 0.4em 0.65em;
+      margin: 0.55em 0.9em;
+      padding: 0.3em 0.55em;
       border: 1px solid $grey-blue;
       border-radius: $radius;
 
@@ -89,6 +91,10 @@
 
     &.prestart {
       margin-right: 75%;
+    }
+
+    &:last-child .row {
+      margin-bottom: 0.9em;
     }
   }
 }
