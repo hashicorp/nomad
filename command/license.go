@@ -9,6 +9,8 @@ import (
 	"github.com/mitchellh/cli"
 )
 
+var _ cli.Command = &LicenseCommand{}
+
 type LicenseCommand struct {
 	Meta
 }

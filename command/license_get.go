@@ -2,7 +2,11 @@ package command
 
 import (
 	"fmt"
+
+	"github.com/mitchellh/cli"
 )
+
+var _ cli.Command = &LicenseGetCommand{}
 
 type LicenseGetCommand struct {
 	Meta
@@ -43,6 +47,7 @@ func (c *LicenseGetCommand) Run(args []string) int {
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return 0
 	}
 
 	if signed {
@@ -57,6 +62,7 @@ func (c *LicenseGetCommand) Run(args []string) int {
 	resp, _, err := client.Operator().LicenseGet(nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error putting license: %v", err))
+		return 0
 	}
 
 	return OutputLicenseReply(c.Ui, resp)

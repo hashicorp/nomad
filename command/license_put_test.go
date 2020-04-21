@@ -1,13 +1,28 @@
 package command
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 var _ cli.Command = &LicensePutCommand{}
 
-func TestCommand_LicensePut(t *testing.T) {
-	// TODO create test once http endpoints are configured
+func TestCommand_LicensePut_OSSErr(t *testing.T) {
+	t.Parallel()
+
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := new(cli.MockUi)
+	cmd := &LicensePutCommand{Meta: Meta{Ui: ui}, testStdin: strings.NewReader("testlicenseblob")}
+
+	if code := cmd.Run([]string{"-address=" + url, "-"}); code != 1 {
+		require.Equal(t, code, 1)
+	}
+
+	require.Contains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+
 }
