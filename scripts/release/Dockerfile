@@ -4,6 +4,9 @@
 
 FROM ubuntu:16.04
 
+# use local mirror if possible
+RUN sed -i'' 's|deb http://.*.ubuntu.com/ubuntu/|deb mirror://mirrors.ubuntu.com/mirrors.txt|g' /etc/apt/sources.list
+
 RUN apt-get update; apt-get install -y \
             apt-transport-https \
             ca-certificates \
