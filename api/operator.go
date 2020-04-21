@@ -1,6 +1,9 @@
 package api
 
-import "strconv"
+import (
+	"strconv"
+	"time"
+)
 
 // Operator can be used to perform low-level operator tasks for Nomad.
 type Operator struct {
@@ -175,4 +178,86 @@ func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *W
 	}
 
 	return &out, wm, nil
+}
+
+type License struct {
+	// The unique identifier of the license
+	LicenseID string `json:"license_id"`
+
+	// The customer ID associated with the license
+	CustomerID string `json:"customer_id"`
+
+	// If set, an identifier that should be used to lock the license to a
+	// particular site, cluster, etc.
+	InstallationID string `json:"installation_id"`
+
+	// The time at which the license was issued
+	IssueTime time.Time `json:"issue_time"`
+
+	// The time at which the license starts being valid
+	StartTime time.Time `json:"start_time"`
+
+	// The time after which the license expires
+	ExpirationTime time.Time `json:"expiration_time"`
+
+	// The time at which the license ceases to function and can
+	// no longer be used in any capacity
+	TerminationTime time.Time `json:"termination_time"`
+
+	// The product the license is valid for
+	Product string `json:"product"`
+
+	// License Specific Flags
+	Flags map[string]interface{} `json:"flags"`
+
+	// Modules is a list of the licensed enterprise modules
+	Modules []string `json:"modules"`
+
+	// List of features enabled by the license
+	Features []string `json:"features"`
+}
+
+type LicenseReply struct {
+	Valid    bool
+	License  *License
+	Warnings []string
+	QueryMeta
+}
+
+func (op *Operator) LicensePut(license string, q *WriteOptions) (*LicenseReply, *WriteMeta, error) {
+	var resp LicenseReply
+	wm, err := op.c.write("/v1/operator/license", license, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, error) {
+	var reply LicenseReply
+	qm, err := op.c.query("/v1/operator/license", &reply, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &reply, qm, nil
+}
+
+func (op *Operator) LicenseGetSigned(q *QueryOptions) (string, *QueryMeta, error) {
+	var reply string
+	qm, err := op.c.query("/v1/operator/license?signed=true", &reply, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return reply, qm, nil
+}
+
+// LicenseReset will reset the license to the builtin one if it is still valid.
+// If the builtin license is invalid, the current license stays active
+func (op *Operator) LicenseReset(q *WriteOptions) (*LicenseReply, *WriteMeta, error) {
+	var reply LicenseReply
+	wm, err := op.c.delete("/v1/operator/license", &reply, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &reply, wm, nil
 }
