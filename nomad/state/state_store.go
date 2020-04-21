@@ -2143,14 +2143,16 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	return vol, nil
 }
 
-// csiVolumeDenormalizeAllocs returns a CSIVolume with allocations
+// CSIVolumeDenormalize returns a CSIVolume with allocations
 func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
 	for id := range vol.ReadAllocs {
 		a, err := s.AllocByID(ws, id)
 		if err != nil {
 			return nil, err
 		}
-		vol.ReadAllocs[id] = a
+		if a != nil {
+			vol.ReadAllocs[id] = a
+		}
 	}
 
 	for id := range vol.WriteAllocs {
@@ -2158,7 +2160,9 @@ func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVol
 		if err != nil {
 			return nil, err
 		}
-		vol.WriteAllocs[id] = a
+		if a != nil {
+			vol.WriteAllocs[id] = a
+		}
 	}
 
 	return vol, nil

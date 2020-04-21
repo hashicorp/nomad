@@ -368,6 +368,9 @@ func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) error {
 
 // ClaimRead marks an allocation as using a volume read-only
 func (v *CSIVolume) ClaimRead(alloc *Allocation) error {
+	if alloc == nil {
+		return fmt.Errorf("allocation missing")
+	}
 	if _, ok := v.ReadAllocs[alloc.ID]; ok {
 		return nil
 	}
@@ -385,6 +388,9 @@ func (v *CSIVolume) ClaimRead(alloc *Allocation) error {
 
 // ClaimWrite marks an allocation as using a volume as a writer
 func (v *CSIVolume) ClaimWrite(alloc *Allocation) error {
+	if alloc == nil {
+		return fmt.Errorf("allocation missing")
+	}
 	if _, ok := v.WriteAllocs[alloc.ID]; ok {
 		return nil
 	}
@@ -411,6 +417,9 @@ func (v *CSIVolume) ClaimWrite(alloc *Allocation) error {
 
 // ClaimRelease is called when the allocation has terminated and already stopped using the volume
 func (v *CSIVolume) ClaimRelease(alloc *Allocation) error {
+	if alloc == nil {
+		return fmt.Errorf("allocation missing")
+	}
 	delete(v.ReadAllocs, alloc.ID)
 	delete(v.WriteAllocs, alloc.ID)
 	return nil
