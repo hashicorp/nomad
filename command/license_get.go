@@ -2,11 +2,7 @@ package command
 
 import (
 	"fmt"
-
-	"github.com/mitchellh/cli"
 )
-
-var _ cli.Command = &LicenseGetCommand{}
 
 type LicenseGetCommand struct {
 	Meta
@@ -14,7 +10,7 @@ type LicenseGetCommand struct {
 
 func (c *LicenseGetCommand) Help() string {
 	helpText := `
-Usage: nomad license put [options]
+Usage: nomad license get [options]
 
 Gets a new license in Servers and Clients
 General Options:
@@ -44,16 +40,22 @@ func (c *LicenseGetCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&signed, "signed", false, "Gets the signed license blob instead of a parsed license")
 
+	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
+		return 1
+	}
+
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 0
+		return 1
 	}
 
 	if signed {
 		resp, _, err := client.Operator().LicenseGetSigned(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error getting signed license: %v", err))
+			return 1
 		}
 		c.Ui.Output(resp)
 		return 0
@@ -61,8 +63,8 @@ func (c *LicenseGetCommand) Run(args []string) int {
 
 	resp, _, err := client.Operator().LicenseGet(nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error putting license: %v", err))
-		return 0
+		c.Ui.Error(fmt.Sprintf("Error getting license: %v", err))
+		return 1
 	}
 
 	return OutputLicenseReply(c.Ui, resp)
