@@ -761,9 +761,9 @@ plugin "docker" {
     (`volume_driver`). Binding relative paths is always allowed and will be
     resolved relative to the allocation's directory.
   - `selinuxlabel` - Allows the operator to set a SELinux label to the
-    allocation and task local bind-mounts to containers. If used with
-    `docker.volumes.enabled` set to false, the labels will still be applied to
-    the standard binds in the container.
+    allocation bind-mounts to containers. When `selinux-enabled` is `true` on
+    the Docker daemon and SELinux is enforced, this should be set to `Z` (or
+    `z`) in order to have access to `/local` and `/secrets`.
 
 - `infra_image` - This is the Docker image to use when creating the parent
   container necessary when sharing network namespaces between tasks. Defaults
