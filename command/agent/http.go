@@ -146,6 +146,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		Addr:      srv.Addr,
 		Handler:   gzip(mux),
 		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+		ErrorLog:  newHTTPServerLogger(srv.logger),
 	}
 
 	go func() {

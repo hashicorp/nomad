@@ -1187,15 +1187,14 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	plugins := map[string]*structs.CSIPlugin{}
 
 	for _, a := range allocs {
-		tg := job.LookupTaskGroup(a.TaskGroup)
 		// if its nil, we can just panic
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		for _, t := range tg.Tasks {
 			if t.CSIPluginConfig != nil {
 				plugAllocs = append(plugAllocs, &pair{
 					pluginID: t.CSIPluginConfig.ID,
 					alloc:    a,
 				})
-
 			}
 		}
 	}
@@ -1479,15 +1478,9 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	// Delete any job scaling policies
-	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", namespace, jobID)
-	if err != nil {
+	// Delete any remaining job scaling policies
+	if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
-	}
-	if numDeletedScalingPolicies > 0 {
-		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
-			return fmt.Errorf("index update failed: %v", err)
-		}
 	}
 
 	// Delete the scaling events
@@ -1504,6 +1497,20 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("deleting job from plugin: %v", err)
 	}
 
+	return nil
+}
+
+// deleteJobScalingPolicies deletes any scaling policies associated with the job
+func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", job.Namespace, job.ID)
+	if err != nil {
+		return fmt.Errorf("deleting job scaling policies failed: %v", err)
+	}
+	if numDeletedScalingPolicies > 0 {
+		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -2144,14 +2151,16 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	return vol, nil
 }
 
-// csiVolumeDenormalizeAllocs returns a CSIVolume with allocations
+// CSIVolumeDenormalize returns a CSIVolume with allocations
 func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
 	for id := range vol.ReadAllocs {
 		a, err := s.AllocByID(ws, id)
 		if err != nil {
 			return nil, err
 		}
-		vol.ReadAllocs[id] = a
+		if a != nil {
+			vol.ReadAllocs[id] = a
+		}
 	}
 
 	for id := range vol.WriteAllocs {
@@ -2159,7 +2168,9 @@ func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVol
 		if err != nil {
 			return nil, err
 		}
-		vol.WriteAllocs[id] = a
+		if a != nil {
+			vol.WriteAllocs[id] = a
+		}
 	}
 
 	return vol, nil
@@ -4243,6 +4254,13 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
 
 	ws := memdb.NewWatchSet()
+
+	if job.Stop {
+		if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
+			return fmt.Errorf("deleting job scaling policies failed: %v", err)
+		}
+		return nil
+	}
 
 	scalingPolicies := job.GetScalingPolicies()
 	newTargets := map[string]struct{}{}

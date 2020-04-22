@@ -166,7 +166,7 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 	// CSI NodeStageVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeStageVolume(ctx,
-		vol.ID,
+		vol.RemoteID(),
 		publishContext,
 		pluginStagingPath,
 		capability,
