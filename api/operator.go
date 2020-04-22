@@ -241,23 +241,3 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	}
 	return &reply, qm, nil
 }
-
-func (op *Operator) LicenseGetSigned(q *QueryOptions) (string, *QueryMeta, error) {
-	var reply string
-	qm, err := op.c.query("/v1/operator/license?signed=true", &reply, q)
-	if err != nil {
-		return "", nil, err
-	}
-	return reply, qm, nil
-}
-
-// LicenseReset will reset the license to the builtin one if it is still valid.
-// If the builtin license is invalid, the current license stays active
-func (op *Operator) LicenseReset(q *WriteOptions) (*LicenseReply, *WriteMeta, error) {
-	var reply LicenseReply
-	wm, err := op.c.delete("/v1/operator/license", &reply, q)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &reply, wm, nil
-}

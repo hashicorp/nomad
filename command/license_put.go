@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -38,7 +39,7 @@ Install a new license from a string:
 
 	$ nomad license put "<license blob>"
 	`
-	return helpText
+	return strings.TrimSpace(helpText)
 }
 
 func (c *LicensePutCommand) Synopsis() string {
