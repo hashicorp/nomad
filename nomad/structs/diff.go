@@ -1085,11 +1085,9 @@ func (c *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "DNS"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	if c == nil {
-		c = &DNSConfig{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatten(other)
 	} else if other == nil {
-		other = &DNSConfig{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatten(c)
 	} else {
