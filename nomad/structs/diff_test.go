@@ -2822,6 +2822,9 @@ func TestTaskGroupDiff(t *testing.T) {
 								To:    8081,
 							},
 						},
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
+						},
 					},
 				},
 			},
@@ -2861,6 +2864,18 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "To",
 										Old:  "",
 										New:  "8081",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DNS",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Servers",
+										Old:  "",
+										New:  "1.1.1.1",
 									},
 								},
 							},
