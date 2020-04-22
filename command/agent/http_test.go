@@ -1082,6 +1082,18 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 	}
 }
 
+func Test_IsAPIClientError(t *testing.T) {
+	trueCases := []int{400, 403, 404, 499}
+	for _, c := range trueCases {
+		require.Truef(t, isAPIClientError(c), "code: %v", c)
+	}
+
+	falseCases := []int{100, 300, 500, 501, 505}
+	for _, c := range falseCases {
+		require.Falsef(t, isAPIClientError(c), "code: %v", c)
+	}
+}
+
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {
 	s := makeHTTPServer(t, cb)
 	defer s.Shutdown()
