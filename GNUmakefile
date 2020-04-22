@@ -233,7 +233,7 @@ generate-structs: ## Update generated code
 .PHONY: proto
 proto:
 	@echo "--> Generating proto bindings..."
-	@for file in $$(git ls-files "*.proto" | grep -v "vendor\/.*.proto"); do \
+	@for file in $$(git ls-files "*.proto" | grep -E -v -- "vendor\/.*.proto|demo\/.*.proto"); do \
 		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
 	done
 
