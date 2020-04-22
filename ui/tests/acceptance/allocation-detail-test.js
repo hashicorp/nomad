@@ -72,28 +72,34 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.equal(Allocation.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 
-  test('/allocation/:id should present task lifecycles when there is more than one phase', async function(assert) {
-    const getTaskSortPrefix = task =>
-      `${task.Lifecycle ? (task.Lifecycle.Sidecar ? '1' : '0') : '2'}-${task.name}`;
-    const serverStates = server.db.taskStates.where({ allocationId: allocation.id });
-    const sortedServerStates = serverStates.sort((a, b) => {
-      return getTaskSortPrefix(server.db.tasks.findBy({ name: a.name })).localeCompare(
-        getTaskSortPrefix(server.db.tasks.findBy({ name: b.name }))
-      );
+  test('/allocation/:id should present task lifecycles', async function(assert) {
+    const job = server.create('job', {
+      groupsCount: 1,
+      groupTaskCount: 3,
+      withGroupServices: true,
+      createAllocations: false,
     });
 
-    const taskStatePhases = serverStates.reduce(
+    const allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+      clientStatus: 'running',
+      jobId: job.id,
+    });
+
+    const taskStatePhases = server.db.taskStates.where({ allocationId: allocation.id }).reduce(
       (phases, state) => {
         const lifecycle = server.db.tasks.findBy({ name: state.name }).Lifecycle;
 
         if (lifecycle) {
           if (lifecycle.Sidecar) {
             phases.sidecars.push(state);
+            state.lifecycleString = 'Sidecar';
           } else {
             phases.prestarts.push(state);
+            state.lifecycleString = 'PreStart';
           }
         } else {
           phases.mains.push(state);
+          state.lifecycleString = 'Main';
         }
 
         return phases;
@@ -105,83 +111,68 @@ module('Acceptance | allocation detail', function(hooks) {
       }
     );
 
-    let expectedPhaseCount = 0;
+    taskStatePhases.prestarts = taskStatePhases.prestarts.sortBy('name');
+    taskStatePhases.sidecars = taskStatePhases.sidecars.sortBy('name');
+    taskStatePhases.mains = taskStatePhases.mains.sortBy('name');
 
-    if (taskStatePhases.sidecars.length || taskStatePhases.prestarts.length) {
-      expectedPhaseCount++;
-    }
+    const sortedServerStates = taskStatePhases.prestarts.concat(
+      taskStatePhases.sidecars,
+      taskStatePhases.mains
+    );
 
-    if (taskStatePhases.sidecars.length || taskStatePhases.mains.length) {
-      expectedPhaseCount++;
-    }
+    await Allocation.visit({ id: allocation.id });
 
-    if (expectedPhaseCount > 1) {
-      assert.ok(Allocation.lifecycleChart.isPresent);
+    assert.ok(Allocation.lifecycleChart.isPresent);
 
-      assert.equal(
-        Allocation.lifecycleChart.tasks.length,
-        server.db.taskStates.where({ allocationId: allocation.id }).length
-      );
+    assert.equal(Allocation.lifecycleChart.tasks.length, sortedServerStates.length);
 
-      assert.equal(Allocation.lifecycleChart.phases.length, expectedPhaseCount);
+    assert.equal(Allocation.lifecycleChart.phases.length, 2);
 
-      if (taskStatePhases.prestarts.length) {
-        if (taskStatePhases.prestarts.some(state => state.state === 'running')) {
-          assert.ok(Allocation.lifecycleChart.phases[0].isActive);
-        } else {
-          assert.notOk(Allocation.lifecycleChart.phases[0].isActive);
-        }
-      }
+    const stateActiveIterator = state => state.state === 'running';
+    const anyPrestartsActive = taskStatePhases.prestarts.some(stateActiveIterator);
 
-      if (taskStatePhases.mains.length) {
-        const MainPhase =
-          Allocation.lifecycleChart.phases.length == 2
-            ? Allocation.lifecycleChart.phases[1]
-            : Allocation.lifecycleChart.phases[0];
-
-        if (taskStatePhases.mains.some(state => state.state === 'running')) {
-          assert.ok(MainPhase.isActive);
-        } else {
-          assert.notOk(MainPhase.isActive);
-        }
-      }
-
-      sortedServerStates.forEach((state, index) => {
-        const lifecycle = server.db.tasks.where({ name: state.name })[0].Lifecycle;
-
-        Allocation.lifecycleChart.tasks[index].as(ChartRow => {
-          assert.equal(Allocation.lifecycleChart.tasks[index].name, state.name);
-
-          if (state.state === 'running') {
-            assert.ok(ChartRow.isActive);
-          } else {
-            assert.notOk(ChartRow.isActive);
-          }
-
-          // Task state factory uses invalid dates for tasks that aren’t finished
-          if (isNaN(state.finishedAt)) {
-            assert.notOk(ChartRow.isFinished);
-          } else {
-            assert.ok(ChartRow.isFinished);
-          }
-
-          if (lifecycle) {
-            if (lifecycle.Sidecar) {
-              assert.ok(ChartRow.isSidecar);
-              assert.equal(ChartRow.lifecycle, 'Sidecar Task');
-            } else {
-              assert.ok(ChartRow.isPrestart);
-              assert.equal(ChartRow.lifecycle, 'PreStart Task');
-            }
-          } else {
-            assert.ok(ChartRow.isMain);
-            assert.equal(ChartRow.lifecycle, 'Main Task');
-          }
-        });
-      });
+    if (anyPrestartsActive) {
+      assert.ok(Allocation.lifecycleChart.phases[0].isActive);
     } else {
-      assert.notOk(Allocation.lifecycleChart.isPresent);
+      assert.notOk(Allocation.lifecycleChart.phases[0].isActive);
     }
+
+    const anyMainsActive = taskStatePhases.mains.some(stateActiveIterator);
+
+    if (anyMainsActive) {
+      assert.ok(Allocation.lifecycleChart.phases[1].isActive);
+    } else {
+      assert.notOk(Allocation.lifecycleChart.phases[1].isActive);
+    }
+
+    Allocation.lifecycleChart.tasks.forEach((Task, index) => {
+      const serverState = sortedServerStates[index];
+
+      assert.equal(Task.name, serverState.name);
+
+      if (serverState.lifecycleString === 'Sidecar') {
+        assert.ok(Task.isSidecar);
+      } else if (serverState.lifecycleString === 'PreStart') {
+        assert.ok(Task.isPrestart);
+      } else {
+        assert.ok(Task.isMain);
+      }
+
+      assert.equal(Task.lifecycle, `${serverState.lifecycleString} Task`);
+
+      if (serverState.state === 'running') {
+        assert.ok(Task.isActive);
+      } else {
+        assert.notOk(Task.isActive);
+      }
+
+      // Task state factory uses invalid dates for tasks that aren’t finished
+      if (isNaN(serverState.finishedAt)) {
+        assert.notOk(Task.isFinished);
+      } else {
+        assert.ok(Task.isFinished);
+      }
+    });
   });
 
   test('/allocation/:id should list all tasks for the allocation', async function(assert) {

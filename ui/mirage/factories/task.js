@@ -18,11 +18,15 @@ export default Factory.extend({
 
   Resources: generateResources,
 
-  Lifecycle: () => {
-    if (faker.random.boolean()) {
-      return { Hook: 'prestart', Sidecar: faker.random.boolean() };
-    } else {
+  Lifecycle: i => {
+    const cycle = i % 3;
+
+    if (cycle === 0) {
       return null;
+    } else if (cycle === 1) {
+      return { Hook: 'prestart', Sidecar: false };
+    } else {
+      return { Hook: 'prestart', Sidecar: true };
     }
   },
 });
