@@ -12,17 +12,23 @@ func TestCSIVolumeClaim(t *testing.T) {
 	vol.Schedulable = true
 
 	alloc := &Allocation{ID: "a1", Namespace: "n", JobID: "j"}
+	claim := &CSIVolumeClaim{
+		AllocationID: alloc.ID,
+		NodeID:       "foo",
+		Mode:         CSIVolumeClaimRead,
+	}
 
-	require.NoError(t, vol.ClaimRead(alloc))
+	require.NoError(t, vol.ClaimRead(claim, alloc))
 	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteSchedulable())
-	require.NoError(t, vol.ClaimRead(alloc))
+	require.NoError(t, vol.ClaimRead(claim, alloc))
 
-	require.NoError(t, vol.ClaimWrite(alloc))
+	claim.Mode = CSIVolumeClaimWrite
+	require.NoError(t, vol.ClaimWrite(claim, alloc))
 	require.True(t, vol.ReadSchedulable())
 	require.False(t, vol.WriteFreeClaims())
 
-	vol.ClaimRelease(alloc)
+	vol.ClaimRelease(claim)
 	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteFreeClaims())
 }

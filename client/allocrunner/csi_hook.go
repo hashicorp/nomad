@@ -104,6 +104,7 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 		req := &structs.CSIVolumeClaimRequest{
 			VolumeID:     pair.request.Source,
 			AllocationID: c.alloc.ID,
+			NodeID:       c.alloc.NodeID,
 			Claim:        claimType,
 		}
 		req.Region = c.alloc.Job.Region

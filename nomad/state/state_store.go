@@ -2025,9 +2025,10 @@ func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) 
 }
 
 // CSIVolumeClaim updates the volume's claim count and allocation list
-func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *structs.Allocation, claim structs.CSIVolumeClaimMode) error {
+func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *structs.CSIVolumeClaim) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+	ws := memdb.NewWatchSet()
 
 	row, err := txn.First("csi_volumes", "id", namespace, id)
 	if err != nil {
@@ -2042,7 +2043,21 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *s
 		return fmt.Errorf("volume row conversion error")
 	}
 
-	ws := memdb.NewWatchSet()
+	var alloc *structs.Allocation
+	if claim.Mode != structs.CSIVolumeClaimRelease {
+		alloc, err = s.AllocByID(ws, claim.AllocationID)
+		if err != nil {
+			s.logger.Error("AllocByID failed", "error", err)
+			return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+		}
+		if alloc == nil {
+			s.logger.Error("AllocByID failed to find alloc", "alloc_id", claim.AllocationID)
+			if err != nil {
+				return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+			}
+		}
+	}
+
 	volume, err := s.CSIVolumeDenormalizePlugins(ws, orig.Copy())
 	if err != nil {
 		return err

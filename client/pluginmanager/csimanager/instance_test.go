@@ -2,7 +2,6 @@ package csimanager
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -47,7 +46,6 @@ func TestInstanceManager_Shutdown(t *testing.T) {
 	im.shutdownCtxCancelFn = cancelFn
 	im.shutdownCh = make(chan struct{})
 	im.updater = func(_ string, info *structs.CSIInfo) {
-		fmt.Println(info)
 		lock.Lock()
 		defer lock.Unlock()
 		pluginHealth = info.Healthy

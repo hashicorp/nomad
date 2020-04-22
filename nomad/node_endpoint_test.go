@@ -2381,9 +2381,17 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 	require.NoError(t, err)
 
 	// Claim the volumes and verify the claims were set
-	err = state.CSIVolumeClaim(105, ns, volId0, alloc1, structs.CSIVolumeClaimWrite)
+	err = state.CSIVolumeClaim(105, ns, volId0, &structs.CSIVolumeClaim{
+		AllocationID: alloc1.ID,
+		NodeID:       alloc1.NodeID,
+		Mode:         structs.CSIVolumeClaimWrite,
+	})
 	require.NoError(t, err)
-	err = state.CSIVolumeClaim(106, ns, volId0, alloc2, structs.CSIVolumeClaimRead)
+	err = state.CSIVolumeClaim(106, ns, volId0, &structs.CSIVolumeClaim{
+		AllocationID: alloc2.ID,
+		NodeID:       alloc2.NodeID,
+		Mode:         structs.CSIVolumeClaimRead,
+	})
 	require.NoError(t, err)
 	vol, err = state.CSIVolumeByID(ws, ns, volId0)
 	require.NoError(t, err)

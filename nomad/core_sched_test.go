@@ -2286,12 +2286,22 @@ func TestCSI_GCVolumeClaims_Collection(t *testing.T) {
 	require.NoError(t, err)
 
 	// Claim the volumes and verify the claims were set
-	err = state.CSIVolumeClaim(index, ns, volId0, alloc1, structs.CSIVolumeClaimWrite)
+	err = state.CSIVolumeClaim(index, ns, volId0, &structs.CSIVolumeClaim{
+		AllocationID: alloc1.ID,
+		NodeID:       alloc1.NodeID,
+		Mode:         structs.CSIVolumeClaimWrite,
+	})
 	index++
 	require.NoError(t, err)
-	err = state.CSIVolumeClaim(index, ns, volId0, alloc2, structs.CSIVolumeClaimRead)
+
+	err = state.CSIVolumeClaim(index, ns, volId0, &structs.CSIVolumeClaim{
+		AllocationID: alloc2.ID,
+		NodeID:       alloc2.NodeID,
+		Mode:         structs.CSIVolumeClaimRead,
+	})
 	index++
 	require.NoError(t, err)
+
 	vol, err = state.CSIVolumeByID(ws, ns, volId0)
 	require.NoError(t, err)
 	require.Len(t, vol.ReadAllocs, 1)
@@ -2306,9 +2316,9 @@ func TestCSI_GCVolumeClaims_Collection(t *testing.T) {
 	vol, err = state.CSIVolumeDenormalize(ws, vol)
 	require.NoError(t, err)
 
-	gcClaims, nodeClaims := collectClaimsToGCImpl(vol, false)
+	nodeClaims := collectClaimsToGCImpl(vol, false)
 	require.Equal(t, nodeClaims[node.ID], 2)
-	require.Len(t, gcClaims, 2)
+	require.Len(t, vol.PastClaims, 2)
 }
 
 func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
@@ -2326,7 +2336,6 @@ func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
 
 	cases := []struct {
 		Name                                string
-		Claim                               gcClaimRequest
 		ClaimsCount                         map[string]int
 		ControllerRequired                  bool
 		ExpectedErr                         string
@@ -2338,12 +2347,7 @@ func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
 		srv                                 *MockRPCServer
 	}{
 		{
-			Name: "NodeDetachVolume fails",
-			Claim: gcClaimRequest{
-				allocID: alloc.ID,
-				nodeID:  node.ID,
-				mode:    structs.CSIVolumeClaimRead,
-			},
+			Name:                          "NodeDetachVolume fails",
 			ClaimsCount:                   map[string]int{node.ID: 1},
 			ControllerRequired:            true,
 			ExpectedErr:                   "node plugin missing",
@@ -2355,36 +2359,26 @@ func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
 			},
 		},
 		{
-			Name: "ControllerDetachVolume no controllers",
-			Claim: gcClaimRequest{
-				allocID: alloc.ID,
-				nodeID:  node.ID,
-				mode:    structs.CSIVolumeClaimRead,
-			},
-			ClaimsCount:        map[string]int{node.ID: 1},
-			ControllerRequired: true,
-			ExpectedErr: fmt.Sprintf(
-				"Unknown node: %s", node.ID),
+			Name:                                "ControllerDetachVolume no controllers",
+			ClaimsCount:                         map[string]int{node.ID: 1},
+			ControllerRequired:                  true,
+			ExpectedErr:                         fmt.Sprintf("Unknown node: %s", node.ID),
 			ExpectedClaimsCount:                 0,
 			ExpectedNodeDetachVolumeCount:       1,
 			ExpectedControllerDetachVolumeCount: 0,
+			ExpectedVolumeClaimCount:            1,
 			srv: &MockRPCServer{
 				state: s.State(),
 			},
 		},
 		{
-			Name: "ControllerDetachVolume node-only",
-			Claim: gcClaimRequest{
-				allocID: alloc.ID,
-				nodeID:  node.ID,
-				mode:    structs.CSIVolumeClaimRead,
-			},
+			Name:                                "ControllerDetachVolume node-only",
 			ClaimsCount:                         map[string]int{node.ID: 1},
 			ControllerRequired:                  false,
 			ExpectedClaimsCount:                 0,
 			ExpectedNodeDetachVolumeCount:       1,
 			ExpectedControllerDetachVolumeCount: 0,
-			ExpectedVolumeClaimCount:            1,
+			ExpectedVolumeClaimCount:            2,
 			srv: &MockRPCServer{
 				state: s.State(),
 			},
@@ -2394,12 +2388,16 @@ func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			vol.ControllerRequired = tc.ControllerRequired
+			claim := &structs.CSIVolumeClaim{
+				AllocationID: alloc.ID,
+				NodeID:       node.ID,
+				State:        structs.CSIVolumeClaimStateTaken,
+				Mode:         structs.CSIVolumeClaimRead,
+			}
 			nodeClaims, err := volumeClaimReapImpl(tc.srv, &volumeClaimReapArgs{
 				vol:        vol,
 				plug:       plugin,
-				allocID:    tc.Claim.allocID,
-				nodeID:     tc.Claim.nodeID,
-				mode:       tc.Claim.mode,
+				claim:      claim,
 				region:     "global",
 				namespace:  "default",
 				leaderACL:  "not-in-use",
@@ -2411,7 +2409,7 @@ func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
 				require.NoError(err)
 			}
 			require.Equal(tc.ExpectedClaimsCount,
-				nodeClaims[tc.Claim.nodeID], "expected claims")
+				nodeClaims[claim.NodeID], "expected claims remaining")
 			require.Equal(tc.ExpectedNodeDetachVolumeCount,
 				tc.srv.countCSINodeDetachVolume, "node detach RPC count")
 			require.Equal(tc.ExpectedControllerDetachVolumeCount,

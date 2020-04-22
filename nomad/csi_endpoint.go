@@ -400,6 +400,7 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		return nil
 	}
 
+	// get Nomad's ID for the client node (not the storage provider's ID)
 	targetNode, err := state.NodeByID(ws, alloc.NodeID)
 	if err != nil {
 		return err
@@ -407,15 +408,19 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 	if targetNode == nil {
 		return fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, alloc.NodeID)
 	}
+
+	// get the the storage provider's ID for the client node (not
+	// Nomad's ID for the node)
 	targetCSIInfo, ok := targetNode.CSINodePlugins[plug.ID]
 	if !ok {
 		return fmt.Errorf("Failed to find NodeInfo for node: %s", targetNode.ID)
 	}
+	externalNodeID := targetCSIInfo.NodeInfo.ID
 
 	method := "ClientCSI.ControllerAttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		VolumeID:        vol.RemoteID(),
-		ClientCSINodeID: targetCSIInfo.NodeInfo.ID,
+		ClientCSINodeID: externalNodeID,
 		AttachmentMode:  vol.AttachmentMode,
 		AccessMode:      vol.AccessMode,
 		ReadOnly:        req.Claim == structs.CSIVolumeClaimRead,
