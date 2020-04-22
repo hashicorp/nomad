@@ -1,3 +1,5 @@
+## 0.11.2 (Unreleased)
+
 ## 0.11.1 (April 22, 2020)
 
 BUG FIXES:
@@ -70,7 +72,7 @@ BUG FIXES:
 
 SECURITY:
 
- * server: Override content-type headers for unsafe content. CVE-TBD [[GH-7468](https://github.com/hashicorp/nomad/issues/7468)]
+ * server: Override content-type headers for unsafe content. CVE-2020-10944 [[GH-7468](https://github.com/hashicorp/nomad/issues/7468)]
 
 ## 0.10.4 (February 19, 2020)
 
