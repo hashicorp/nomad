@@ -48,12 +48,10 @@ export default Component.extend({
   }),
 
   sortedLifecycleTaskStates: sort('taskStates', function(a, b) {
-    // FIXME sorts prestart, sidecar, main, secondary by name, correct?
     return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
   }),
 
   sortedLifecycleTasks: sort('tasks', function(a, b) {
-    // FIXME same
     return getTaskSortPrefix(a).localeCompare(getTaskSortPrefix(b));
   }),
 });
