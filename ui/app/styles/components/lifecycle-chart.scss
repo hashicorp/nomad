@@ -41,7 +41,8 @@
       left: 0;
       right: 75%;
 
-      border-right: 1px dashed $ui-gray-200;
+      // Adapted from https://kovart.github.io/dashed-border-generator/
+      background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3cline x1='100%25' y1='0' x2='100%25' y2='100%25' fill='none' stroke='#{encode-color($ui-gray-200)}' stroke-width='3' stroke-dasharray='1%2c 7' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
     }
 
     &.main {
