@@ -3,7 +3,6 @@ import {
   clickable,
   create,
   collection,
-  hasClass,
   isPresent,
   text,
   visitable,
@@ -11,6 +10,7 @@ import {
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
+import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
 export default create({
   visit: visitable('/allocations/:id'),
@@ -37,27 +37,7 @@ export default create({
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
 
-  lifecycleChart: {
-    scope: '[data-test-lifecycle-chart]',
-
-    phases: collection('[data-test-lifecycle-phase]', {
-      name: text('[data-test-name]'),
-
-      isActive: hasClass('is-active'),
-    }),
-
-    tasks: collection('[data-test-lifecycle-task]', {
-      name: text('[data-test-name]'),
-      lifecycle: text('[data-test-lifecycle]'),
-
-      isActive: hasClass('is-active'),
-      isFinished: hasClass('is-finished'),
-
-      isMain: hasClass('main'),
-      isPrestart: hasClass('prestart'),
-      isSidecar: hasClass('sidecar'),
-    }),
-  },
+  lifecycleChart: LifecycleChart,
 
   tasks: collection('[data-test-task-row]', {
     name: text('[data-test-name]'),

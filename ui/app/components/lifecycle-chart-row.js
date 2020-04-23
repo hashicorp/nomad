@@ -1,11 +1,8 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
 
 export default Component.extend({
   tagName: '',
-
-  task: alias('taskState.task'),
 
   lifecycleString: computed('task.lifecycle', 'task.lifecycle.sidecar', function() {
     if (this.task.lifecycle) {
@@ -24,13 +21,13 @@ export default Component.extend({
   }),
 
   activeClass: computed('taskState.state', function() {
-    if (this.taskState.state === 'running') {
+    if (this.taskState && this.taskState.state === 'running') {
       return 'is-active';
     }
   }),
 
   finishedClass: computed('taskState.finishedAt', function() {
-    if (this.taskState.finishedAt) {
+    if (this.taskState && this.taskState.finishedAt) {
       return 'is-finished';
     }
   }),

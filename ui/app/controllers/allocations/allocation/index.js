@@ -22,56 +22,6 @@ export default Controller.extend(Sortable, {
   listToSort: alias('model.states'),
   sortedStates: alias('listSorted'),
 
-  stateTasks: mapBy('model.states', 'task'),
-
-  lifecyclePhases: computed('stateTasks.@each.lifecycle', 'model.states.@each.state', function() {
-    const lifecycleTaskStateLists = this.get('model.states').reduce(
-      (lists, state) => {
-        const lifecycle = state.task.lifecycle;
-
-        if (lifecycle) {
-          if (lifecycle.sidecar) {
-            lists.sidecars.push(state);
-          } else {
-            lists.prestarts.push(state);
-          }
-        } else {
-          lists.mains.push(state);
-        }
-
-        return lists;
-      },
-      {
-        prestarts: [],
-        sidecars: [],
-        mains: [],
-      }
-    );
-
-    const phases = [];
-
-    if (lifecycleTaskStateLists.prestarts.length || lifecycleTaskStateLists.sidecars.length) {
-      phases.push({
-        name: 'PreStart',
-        isActive: lifecycleTaskStateLists.prestarts.some(state => state.state === 'running'),
-      });
-    }
-
-    if (lifecycleTaskStateLists.sidecars.length || lifecycleTaskStateLists.mains.length) {
-      phases.push({
-        name: 'Main',
-        isActive: lifecycleTaskStateLists.mains.some(state => state.state === 'running'),
-      });
-    }
-
-    return phases;
-  }),
-
-  sortedLifecycleTaskStates: sort('model.states', function(a, b) {
-    // FIXME sorts prestart, sidecar, main, secondary by name, correct?
-    return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
-  }),
-
   // Set in the route
   preempter: null,
 
@@ -135,7 +85,3 @@ export default Controller.extend(Sortable, {
     },
   },
 });
-
-function getTaskSortPrefix(task) {
-  return `${task.lifecycle ? (task.lifecycle.sidecar ? '1' : '0') : '2'}-${task.name}`;
-}

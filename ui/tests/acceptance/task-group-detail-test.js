@@ -241,6 +241,31 @@ module('Acceptance | task group detail', function(hooks) {
     assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
   });
 
+  test('/jobs/:id/:task-group should present task lifecycles', async function(assert) {
+    job = server.create('job', {
+      groupsCount: 2,
+      groupTaskCount: 3,
+    });
+
+    const taskGroups = server.db.taskGroups.where({ jobId: job.id });
+    taskGroup = taskGroups[0];
+
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
+    assert.ok(TaskGroup.lifecycleChart.isPresent);
+
+    tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
+    const taskNames = tasks.mapBy('name');
+
+    // This is thoroughly tested in allocation detail acceptance tests, so this is shallow
+
+    assert.equal(TaskGroup.lifecycleChart.tasks.length, 3);
+
+    TaskGroup.lifecycleChart.tasks.forEach(Task => {
+      assert.ok(taskNames.includes(Task.name));
+    });
+  });
+
   test('when the task group depends on volumes, the volumes table is shown', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 

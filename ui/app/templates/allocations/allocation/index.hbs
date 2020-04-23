@@ -89,29 +89,7 @@
   </div>
 
   {{!-- FIXME should this only show when the allocation is running? --}}
-  {{#if (gt lifecyclePhases.length 1)}}
-    <div class="boxed-section" data-test-lifecycle-chart>
-      <div class="boxed-section-head">
-        Task Lifecycle Status
-      </div>
-      <div class="boxed-section-body lifecycle-chart">
-
-        <div class="lifecycle-phases-header"></div>
-        <div class="lifecycle-phases">
-          {{#each lifecyclePhases as |phase|}}
-            <div class="lifecycle-phase {{if phase.isActive "is-active"}} {{if (eq phase.name "Main") "main" "prestart"}}" data-test-lifecycle-phase>
-              <div class="name">{{phase.name}}</div>
-            </div>
-          {{/each}}
-        </div>
-
-        {{#each sortedLifecycleTaskStates as |state|}}
-          {{lifecycle-chart-row taskState=state}}
-        {{/each}}
-
-      </div>
-    </div>
-  {{/if}}
+  {{lifecycleChart taskStates=model.states}}
 
   <div class="boxed-section">
     <div class="boxed-section-head">
