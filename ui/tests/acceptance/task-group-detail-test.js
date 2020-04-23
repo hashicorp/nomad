@@ -253,6 +253,7 @@ module('Acceptance | task group detail', function(hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.lifecycleChart.isPresent);
+    assert.equal(TaskGroup.lifecycleChart.title, 'Task Lifecycle Configuration');
 
     tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
     const taskNames = tasks.mapBy('name');

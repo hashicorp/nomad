@@ -123,6 +123,7 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.visit({ id: allocation.id });
 
     assert.ok(Allocation.lifecycleChart.isPresent);
+    assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
 
     assert.equal(Allocation.lifecycleChart.tasks.length, sortedServerStates.length);
 

@@ -3,6 +3,8 @@ import { collection, hasClass, text } from 'ember-cli-page-object';
 export default {
   scope: '[data-test-lifecycle-chart]',
 
+  title: text('.boxed-section-head'),
+
   phases: collection('[data-test-lifecycle-phase]', {
     name: text('[data-test-name]'),
 

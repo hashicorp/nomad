@@ -1,7 +1,7 @@
   {{#if (gt lifecyclePhases.length 1)}}
     <div class="boxed-section" data-test-lifecycle-chart>
       <div class="boxed-section-head">
-        Task Lifecycle Status
+        Task Lifecycle {{if taskStates "Status" "Configuration"}}
       </div>
       <div class="boxed-section-body lifecycle-chart">
 
