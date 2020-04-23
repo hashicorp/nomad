@@ -15,6 +15,22 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.11.2
+
+### Scheduler Scoring Changes
+
+Prior to Nomad 0.11.2 the scheduler algorithm used a [node's reserved
+resources][reserved]
+incorrectly during scoring. The result of this bug was that scoring biased in
+favor of nodes with reserved resources vs nodes without reserved resources.
+
+Placements will be more correct but slightly different in v0.11.2 vs earlier
+versions of Nomad. Operators do *not* need to take any actions as the impact of
+the bug and fix only minimally affect scoring.
+
+Feasability (whether a node is capable of running a job at all) is *not*
+affected.
+
 ## Nomad 0.11.0
 
 ### client.template: `vault_grace` deprecation
@@ -466,21 +482,22 @@ draining the node so no tasks are running on it. This can be verified by running
 state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
+[dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node
 [drain-cli]: /docs/commands/node/drain
-[dangling-containers]: /docs/drivers/docker#dangling-containers
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits
 [lxc]: /docs/drivers/external/lxc
 [migrate]: /docs/job-specification/migrate
-[plugins]: /docs/drivers/external
 [plugin-stanza]: /docs/configuration/plugin
-[preemption]: /docs/internals/scheduling/preemption
+[plugins]: /docs/drivers/external
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
+[preemption]: /docs/internals/scheduling/preemption
+[reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
-[validate]: /docs/commands/job/validate
-[vault_grace]: /docs/job-specification/template
-[update]: /docs/job-specification/update
 [tls-guide]: https://learn.hashicorp.com/nomad/transport-security/enable-tls
 [tls-vault-guide]: https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad
+[update]: /docs/job-specification/update
+[validate]: /docs/commands/job/validate
+[vault_grace]: /docs/job-specification/template
