@@ -1,54 +1,46 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
-import { mapBy, sort } from '@ember/object/computed';
+import { sort } from '@ember/object/computed';
 
 export default Component.extend({
   tagName: '',
 
-  stateTasks: mapBy('taskStates', 'task'),
+  tasks: null,
+  taskStates: null,
 
-  lifecyclePhases: computed('stateTasks.@each.lifecycle', 'taskStates.@each.state', function() {
-    // FIXME OOC obvsy
-    let tasksOrTaskStates = this.get('taskStates') || this.get('tasks');
+  lifecyclePhases: computed('tasks.@each.lifecycle', 'taskStates.@each.state', function() {
+    const tasksOrStates = this.taskStates || this.tasks;
+    const prestarts = [],
+      sidecars = [],
+      mains = [];
 
-    const lifecycleTaskStateLists = tasksOrTaskStates.reduce(
-      (lists, taskOrTaskState) => {
-        const lifecycle = taskOrTaskState.task
-          ? taskOrTaskState.task.lifecycle
-          : taskOrTaskState.lifecycle;
+    tasksOrStates.forEach(taskOrState => {
+      const lifecycle = taskOrState.task ? taskOrState.task.lifecycle : taskOrState.lifecycle;
 
-        if (lifecycle) {
-          if (lifecycle.sidecar) {
-            lists.sidecars.push(taskOrTaskState);
-          } else {
-            lists.prestarts.push(taskOrTaskState);
-          }
+      if (lifecycle) {
+        if (lifecycle.sidecar) {
+          sidecars.push(taskOrState);
         } else {
-          lists.mains.push(taskOrTaskState);
+          prestarts.push(taskOrState);
         }
-
-        return lists;
-      },
-      {
-        prestarts: [],
-        sidecars: [],
-        mains: [],
+      } else {
+        mains.push(taskOrState);
       }
-    );
+    });
 
     const phases = [];
 
-    if (lifecycleTaskStateLists.prestarts.length || lifecycleTaskStateLists.sidecars.length) {
+    if (prestarts.length || sidecars.length) {
       phases.push({
         name: 'Prestart',
-        isActive: lifecycleTaskStateLists.prestarts.some(state => state.state === 'running'),
+        isActive: prestarts.some(state => state.state === 'running'),
       });
     }
 
-    if (lifecycleTaskStateLists.sidecars.length || lifecycleTaskStateLists.mains.length) {
+    if (sidecars.length || mains.length) {
       phases.push({
         name: 'Main',
-        isActive: lifecycleTaskStateLists.mains.some(state => state.state === 'running'),
+        isActive: mains.some(state => state.state === 'running'),
       });
     }
 
