@@ -54,7 +54,7 @@ export default create({
     name: text('[data-test-name]'),
     state: text('[data-test-state]'),
     lifecycle: text('[data-test-lifecycle]'),
-    isBlocking: isPresent('.icon-is-alert-triangle'),
+    isBlocking: isPresent('.icon-is-warning'),
   }),
 
   hasAddresses: isPresent('[data-test-task-addresses]'),
