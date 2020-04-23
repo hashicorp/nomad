@@ -41,20 +41,12 @@
       left: 0;
       right: 75%;
 
-      &.is-active {
-        // FIXME (and below) dashing is more dense than design
-        border-right: 1px dashed $ui-gray-200;
-      }
+      border-right: 1px dashed $ui-gray-200;
     }
 
     &.main {
       left: 25%;
       right: 0;
-      border-left: 1px dashed transparent;
-
-      &.is-active {
-        border-left: 1px dashed $ui-gray-200;
-      }
     }
   }
 
