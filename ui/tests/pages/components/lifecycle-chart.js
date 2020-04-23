@@ -1,4 +1,4 @@
-import { collection, hasClass, text } from 'ember-cli-page-object';
+import { clickable, collection, hasClass, text } from 'ember-cli-page-object';
 
 export default {
   scope: '[data-test-lifecycle-chart]',
@@ -21,5 +21,7 @@ export default {
     isMain: hasClass('main'),
     isPrestart: hasClass('prestart'),
     isSidecar: hasClass('sidecar'),
+
+    visit: clickable('a'),
   }),
 };

@@ -172,6 +172,9 @@ module('Acceptance | allocation detail', function(hooks) {
         assert.ok(Task.isFinished);
       }
     });
+
+    await Allocation.lifecycleChart.tasks[0].visit();
+    assert.equal(currentURL(), `/allocations/${allocation.id}/${sortedServerStates[0].name}`);
   });
 
   test('/allocation/:id should list all tasks for the allocation', async function(assert) {

@@ -63,6 +63,17 @@
 
       .name {
         font-weight: $weight-semibold;
+
+        a {
+          color: inherit;
+          text-decoration: none;
+        }
+      }
+
+      &:hover {
+        .name a {
+          text-decoration: underline;
+        }
       }
 
       .lifecycle {
