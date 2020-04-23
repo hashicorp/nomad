@@ -4,19 +4,23 @@ job "service-connect-proxy" {
   group "group" {
     service {
       name = "example"
+
       connect {
         sidecar_service {
           proxy {
             local_service_port    = 8080
             local_service_address = "10.0.1.2"
+
             upstreams {
               destination_name = "upstream1"
               local_bind_port  = 2001
             }
+
             upstreams {
               destination_name = "upstream2"
               local_bind_port  = 2002
             }
+
             expose {
               path {
                 path            = "/metrics"
@@ -24,6 +28,7 @@ job "service-connect-proxy" {
                 local_path_port = 9001
                 listener_port   = "metrics"
               }
+
               path {
                 path            = "/health"
                 protocol        = "http"
@@ -31,6 +36,7 @@ job "service-connect-proxy" {
                 listener_port   = "health"
               }
             }
+
             config {
               foo = "bar"
             }

@@ -4,6 +4,7 @@ job "connect-proxy-local-service" {
   group "group" {
     service {
       name = "example"
+
       connect {
         sidecar_service {
           proxy {
