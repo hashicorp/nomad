@@ -67,7 +67,7 @@
         <span class="term">Lifecycle</span>
         <span data-test-lifecycle>
           {{#if model.task.lifecycle}}
-            {{model.task.lifecycle.hook}}-{{if model.task.lifecycle.sidecar "sidecar" "ephemeral"}}
+            {{if model.task.lifecycle.sidecar "sidecar" "prestart"}}
           {{else}}
             main
           {{/if}}
