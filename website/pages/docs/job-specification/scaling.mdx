@@ -35,11 +35,11 @@ job "example" {
 
 ## `scaling` Parameters
 
-- `min` - <code>(int: nil)</code> - The minimum acceptible count for the task group.
+- `min` - <code>(int: nil)</code> - The minimum acceptable count for the task group.
   This should be honored by the external autoscaler. It will also be honored by Nomad
   during job updates and scaling operations. Defaults to the specified task group [count][].
 
-- `max` - <code>(int: &lt;required&gt;)</code> - The maximum acceptible count for the task group.
+- `max` - <code>(int: &lt;required&gt;)</code> - The maximum acceptable count for the task group.
   This should be honored by the external autoscaler. It will also be honored by Nomad
   during job updates and scaling operations.
 

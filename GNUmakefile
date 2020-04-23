@@ -200,7 +200,7 @@ check: ## Lint the source code
 	@golangci-lint run -j 1
 
 	@echo "==> Spell checking website..."
-	@misspell -error -source=text website/source/
+	@misspell -error -source=text website/pages/
 
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
