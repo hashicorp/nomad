@@ -95,7 +95,7 @@ module('Acceptance | allocation detail', function(hooks) {
             state.lifecycleString = 'Sidecar';
           } else {
             phases.prestarts.push(state);
-            state.lifecycleString = 'PreStart';
+            state.lifecycleString = 'Prestart';
           }
         } else {
           phases.mains.push(state);
@@ -153,7 +153,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
       if (serverState.lifecycleString === 'Sidecar') {
         assert.ok(Task.isSidecar);
-      } else if (serverState.lifecycleString === 'PreStart') {
+      } else if (serverState.lifecycleString === 'Prestart') {
         assert.ok(Task.isPrestart);
       } else {
         assert.ok(Task.isMain);

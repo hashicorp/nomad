@@ -9,7 +9,7 @@ export default Component.extend({
       if (this.task.lifecycle.sidecar) {
         return 'Sidecar';
       } else {
-        return 'PreStart';
+        return 'Prestart';
       }
     } else {
       return 'Main';

@@ -40,7 +40,7 @@ export default Component.extend({
 
     if (lifecycleTaskStateLists.prestarts.length || lifecycleTaskStateLists.sidecars.length) {
       phases.push({
-        name: 'PreStart',
+        name: 'Prestart',
         isActive: lifecycleTaskStateLists.prestarts.some(state => state.state === 'running'),
       });
     }
