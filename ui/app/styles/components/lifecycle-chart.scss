@@ -2,10 +2,6 @@
   padding-top: 2rem;
   position: relative;
 
-  .lifecycle-phases-header {
-    height: 2.5rem;
-  }
-
   .lifecycle-phases {
     top: 1.5em;
     bottom: 1.5em;
@@ -49,6 +45,10 @@
       left: 25%;
       right: 0;
     }
+  }
+
+  .lifecycle-chart-rows {
+    margin-top: 2.5em;
   }
 
   .lifecycle-chart-row {
