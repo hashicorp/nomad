@@ -1,17 +1,18 @@
 import React from 'react'
-import bugsnag from '@bugsnag/js'
-import bugsnagReact from '@bugsnag/plugin-react'
+import Bugsnag from '@bugsnag/js'
+import BugsnagReact from '@bugsnag/plugin-react'
 
 const apiKey =
   typeof window === 'undefined'
-    ? '61141296f1ba00a95a8788b7871e1184'
-    : '4fa712dfcabddd05da29fd1f5ea5a4c0'
+    ? '61141296f1ba00a95a8788b7871e1184' // server key
+    : '4fa712dfcabddd05da29fd1f5ea5a4c0' // client key
 
-const bugsnagClient = bugsnag({
-  apiKey,
-  releaseStage: process.env.NODE_ENV || 'development'
-})
+if (!Bugsnag._client) {
+  Bugsnag.start({
+    apiKey,
+    plugins: [new BugsnagReact(React)],
+    otherOptions: { releaseStage: process.env.NODE_ENV || 'development' },
+  })
+}
 
-bugsnagClient.use(bugsnagReact, React)
-
-export default bugsnagClient
+export default Bugsnag
