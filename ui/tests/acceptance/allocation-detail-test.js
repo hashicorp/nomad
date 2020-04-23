@@ -124,10 +124,8 @@ module('Acceptance | allocation detail', function(hooks) {
 
     assert.ok(Allocation.lifecycleChart.isPresent);
     assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
-
-    assert.equal(Allocation.lifecycleChart.tasks.length, sortedServerStates.length);
-
     assert.equal(Allocation.lifecycleChart.phases.length, 2);
+    assert.equal(Allocation.lifecycleChart.tasks.length, sortedServerStates.length);
 
     const stateActiveIterator = state => state.state === 'running';
     const anyPrestartsActive = taskStatePhases.prestarts.some(stateActiveIterator);
