@@ -12,9 +12,8 @@ job "elastic" {
 
       policy {
         foo = "wrong"
-        c = false
+        c   = false
       }
-
     }
   }
 }
