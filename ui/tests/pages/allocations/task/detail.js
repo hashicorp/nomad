@@ -49,7 +49,7 @@ export default create({
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
 
-  hasPrestartTasks: isPresent('[data-test-prestart-tasks'),
+  hasPrestartTasks: isPresent('[data-test-prestart-tasks]'),
   prestartTasks: collection('[data-test-prestart-task]', {
     name: text('[data-test-name]'),
     state: text('[data-test-state]'),
