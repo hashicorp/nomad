@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/raft"
@@ -132,28 +133,17 @@ type SchedulerAlgorithm string
 const (
 	// SchedulerAlgorithmBinpack indicates that the scheduler should spread
 	// allocations as evenly as possible over the available hardware.
-	SchedulerAlgorithmBinpack string = "binpack"
+	SchedulerAlgorithmBinpack SchedulerAlgorithm = "binpack"
 
 	// SchedulerAlgorithmSpread indicates that the scheduler should spread
 	// allocations as evenly as possible over the available hardware.
-	SchedulerAlgorithmSpread string = "spread"
+	SchedulerAlgorithmSpread SchedulerAlgorithm = "spread"
 )
-
-// SchedulerAlgorithmIsValid validates the given SchedulerAlgorithm string and
-// returns true only when a correct algorithm is specified.
-func SchedulerAlgorithmIsValid(alg string) bool {
-	switch alg {
-	case SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
-		return true
-	default:
-		return false
-	}
-}
 
 // SchedulerConfiguration is the config for controlling scheduler behavior
 type SchedulerConfiguration struct {
 	// SchedulerAlgorithm lets you select between available scheduling algorithms.
-	SchedulerAlgorithm string `hcl:"scheduler_algorithm"`
+	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm"`
 
 	// PreemptionConfig specifies whether to enable eviction of lower
 	// priority jobs to place higher priority jobs.
@@ -162,6 +152,28 @@ type SchedulerConfiguration struct {
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+func (s *SchedulerConfiguration) EffectiveSchedulerAlgorithm() SchedulerAlgorithm {
+	if s == nil || s.SchedulerAlgorithm == "" {
+		return SchedulerAlgorithmBinpack
+	}
+
+	return s.SchedulerAlgorithm
+}
+
+func (s *SchedulerConfiguration) Validate() error {
+	if s == nil {
+		return nil
+	}
+
+	switch s.SchedulerAlgorithm {
+	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
+	default:
+		return fmt.Errorf("invalid scheduler algorithm: %v", s.SchedulerAlgorithm)
+	}
+
+	return nil
 }
 
 // SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration

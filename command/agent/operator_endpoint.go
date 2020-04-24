@@ -253,16 +253,16 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing scheduler config: %v", err))
 	}
 
-	if !structs.SchedulerAlgorithmIsValid(conf.SchedulerAlgorithm) {
-		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Invalid scheduler algorithm selected."))
-	}
-
 	args.Config = structs.SchedulerConfiguration{
-		SchedulerAlgorithm: conf.SchedulerAlgorithm,
+		SchedulerAlgorithm: structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
 		PreemptionConfig: structs.PreemptionConfig{
 			SystemSchedulerEnabled:  conf.PreemptionConfig.SystemSchedulerEnabled,
 			BatchSchedulerEnabled:   conf.PreemptionConfig.BatchSchedulerEnabled,
 			ServiceSchedulerEnabled: conf.PreemptionConfig.ServiceSchedulerEnabled},
+	}
+
+	if err := args.Config.Validate(); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	// Check for cas value

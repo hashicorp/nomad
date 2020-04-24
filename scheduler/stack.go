@@ -237,11 +237,10 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// by a particular task group. Enable eviction as system jobs are high
 	// priority.
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+	schedulerAlgorithm := schedConfig.EffectiveSchedulerAlgorithm()
 	enablePreemption := true
-	schedulerAlgorithm := "binpack"
 	if schedConfig != nil {
 		enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
-		schedulerAlgorithm = schedConfig.SchedulerAlgorithm
 	}
 
 	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedulerAlgorithm)

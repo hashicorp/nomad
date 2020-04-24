@@ -506,7 +506,7 @@ func TestAllocsFit_Devices(t *testing.T) {
 }
 
 // COMPAT(0.11): Remove in 0.11
-func TestScoreFit_Old(t *testing.T) {
+func TestScoreFitBinPack_Old(t *testing.T) {
 	node := &Node{}
 	node.Resources = &Resources{
 		CPU:      4096,
@@ -528,7 +528,7 @@ func TestScoreFit_Old(t *testing.T) {
 			},
 		},
 	}
-	score := ScoreFit(node, util)
+	score := ScoreFitBinPack(node, util)
 	if score != 18.0 {
 		t.Fatalf("bad: %v", score)
 	}
@@ -544,7 +544,7 @@ func TestScoreFit_Old(t *testing.T) {
 			},
 		},
 	}
-	score = ScoreFit(node, util)
+	score = ScoreFitBinPack(node, util)
 	if score != 0.0 {
 		t.Fatalf("bad: %v", score)
 	}
@@ -560,13 +560,13 @@ func TestScoreFit_Old(t *testing.T) {
 			},
 		},
 	}
-	score = ScoreFit(node, util)
+	score = ScoreFitBinPack(node, util)
 	if score < 10.0 || score > 16.0 {
 		t.Fatalf("bad: %v", score)
 	}
 }
 
-func TestScoreFit(t *testing.T) {
+func TestScoreFitBinPack(t *testing.T) {
 	node := &Node{}
 	node.NodeResources = &NodeResources{
 		Cpu: NodeCpuResources{
@@ -585,52 +585,53 @@ func TestScoreFit(t *testing.T) {
 		},
 	}
 
-	// Test a perfect fit
-	util := &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: 2048,
+	cases := []struct {
+		name         string
+		flattened    AllocatedTaskResources
+		binPackScore float64
+		spreadScore  float64
+	}{
+		{
+			name: "almost filled node, but with just enough whole",
+			flattened: AllocatedTaskResources{
+				Cpu:    AllocatedCpuResources{CpuShares: 2048},
+				Memory: AllocatedMemoryResources{MemoryMB: 4096},
 			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: 4096,
-			},
+			binPackScore: 18,
+			spreadScore:  0,
 		},
-	}
-	score := ScoreFit(node, util)
-	if score != 18.0 {
-		t.Fatalf("bad: %v", score)
+		{
+			name: "unutilized node",
+			flattened: AllocatedTaskResources{
+				Cpu:    AllocatedCpuResources{CpuShares: 0},
+				Memory: AllocatedMemoryResources{MemoryMB: 0},
+			},
+			binPackScore: 0,
+			spreadScore:  18,
+		},
+		{
+			name: "mid-case scnario",
+			flattened: AllocatedTaskResources{
+				Cpu:    AllocatedCpuResources{CpuShares: 1024},
+				Memory: AllocatedMemoryResources{MemoryMB: 2048},
+			},
+			binPackScore: 13.675,
+			spreadScore:  4.325,
+		},
 	}
 
-	// Test the worst fit
-	util = &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: 0,
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: 0,
-			},
-		},
-	}
-	score = ScoreFit(node, util)
-	if score != 0.0 {
-		t.Fatalf("bad: %v", score)
-	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			util := &ComparableResources{Flattened: c.flattened}
 
-	// Test a mid-case scenario
-	util = &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: 1024,
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: 2048,
-			},
-		},
-	}
-	score = ScoreFit(node, util)
-	if score < 10.0 || score > 16.0 {
-		t.Fatalf("bad: %v", score)
+			binPackScore := ScoreFitBinPack(node, util)
+			require.InDelta(t, c.binPackScore, binPackScore, 0.001, "binpack score")
+
+			spreadScore := ScoreFitSpread(node, util)
+			require.InDelta(t, c.spreadScore, spreadScore, 0.001, "spread score")
+
+			require.InDelta(t, 18, binPackScore+spreadScore, 0.001, "score sum")
+		})
 	}
 }
 

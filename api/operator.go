@@ -115,7 +115,7 @@ func (op *Operator) RaftRemovePeerByID(id string, q *WriteOptions) error {
 // SchedulerConfiguration is the config for controlling scheduler behavior
 type SchedulerConfiguration struct {
 	// SchedulerAlgorithm lets you select between available scheduling algorithms.
-	SchedulerAlgorithm string
+	SchedulerAlgorithm SchedulerAlgorithm
 
 	// PreemptionConfig specifies whether to enable eviction of lower
 	// priority jobs to place higher priority jobs.
@@ -148,6 +148,11 @@ type SchedulerSetConfigurationResponse struct {
 // SchedulerConfiguration stanza's SchedulerAlgorithm. These modes will allow the
 // scheduler to be user-selectable.
 type SchedulerAlgorithm string
+
+const (
+	SchedulerAlgorithmBinpack SchedulerAlgorithm = "binpack"
+	SchedulerAlgorithmSpread  SchedulerAlgorithm = "spread"
+)
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {

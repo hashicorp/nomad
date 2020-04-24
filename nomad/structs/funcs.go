@@ -148,10 +148,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	return true, "", used, nil
 }
 
-// ScoreFit is used to score the fit based on the Google work published here:
-// http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
-// This is equivalent to their BestFit v3
-func ScoreFit(node *Node, util *ComparableResources, algorithm string) float64 {
+func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, freePctRam float64) {
 	// COMPAT(0.11): Remove in 0.11
 	reserved := node.ComparableReservedResources()
 	res := node.ComparableResources()
@@ -165,8 +162,18 @@ func ScoreFit(node *Node, util *ComparableResources, algorithm string) float64 {
 	}
 
 	// Compute the free percentage
-	freePctCpu := 1 - (float64(util.Flattened.Cpu.CpuShares) / nodeCpu)
-	freePctRam := 1 - (float64(util.Flattened.Memory.MemoryMB) / nodeMem)
+	freePctCpu = 1 - (float64(util.Flattened.Cpu.CpuShares) / nodeCpu)
+	freePctRam = 1 - (float64(util.Flattened.Memory.MemoryMB) / nodeMem)
+	return freePctCpu, freePctRam
+}
+
+// ScoreFitBinPack computes a fit score to achieve pinbacking behavior.
+// Score is in [0, 18]
+//
+// It's the BestFit v3 on the Google work published here:
+// http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
+func ScoreFitBinPack(node *Node, util *ComparableResources) float64 {
+	freePctCpu, freePctRam := computeFreePercentage(node, util)
 
 	// Total will be "maximized" the smaller the value is.
 	// At 100% utilization, the total is 2, while at 0% util it is 20.
@@ -176,12 +183,27 @@ func ScoreFit(node *Node, util *ComparableResources, algorithm string) float64 {
 	// score. Because the floor is 20, we simply use that as an anchor.
 	// This means at a perfect fit, we return 18 as the score.
 	score := 20.0 - total
-	if algorithm == "spread" {
-		score = total - 2
-	}
 
 	// Bound the score, just in case
 	// If the score is over 18, that means we've overfit the node.
+	if score > 18.0 {
+		score = 18.0
+	} else if score < 0 {
+		score = 0
+	}
+	return score
+}
+
+// ScoreFitBinSpread computes a fit score to achieve spread behavior.
+// Score is in [0, 18]
+//
+// This is equivalent to Worst Fit of
+// http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
+func ScoreFitSpread(node *Node, util *ComparableResources) float64 {
+	freePctCpu, freePctRam := computeFreePercentage(node, util)
+	total := math.Pow(10, freePctCpu) + math.Pow(10, freePctRam)
+	score := total - 2
+
 	if score > 18.0 {
 		score = 18.0
 	} else if score < 0 {

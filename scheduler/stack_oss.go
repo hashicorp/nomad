@@ -61,10 +61,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group.
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
-	schedulerAlgorithm := "binpack"
-	if schedConfig != nil {
-		schedulerAlgorithm = schedConfig.SchedulerAlgorithm
-	}
+	schedulerAlgorithm := schedConfig.EffectiveSchedulerAlgorithm()
 
 	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedulerAlgorithm)
 
