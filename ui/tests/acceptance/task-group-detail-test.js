@@ -258,12 +258,14 @@ module('Acceptance | task group detail', function(hooks) {
     tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
     const taskNames = tasks.mapBy('name');
 
-    // This is thoroughly tested in allocation detail acceptance tests, so this is shallow
+    // This is thoroughly tested in allocation detail tests, so this mostly checks what’s different
 
     assert.equal(TaskGroup.lifecycleChart.tasks.length, 3);
 
     TaskGroup.lifecycleChart.tasks.forEach(Task => {
       assert.ok(taskNames.includes(Task.name));
+      assert.notOk(Task.isActive);
+      assert.notOk(Task.isFinished);
     });
   });
 
