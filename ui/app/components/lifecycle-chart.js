@@ -10,37 +10,30 @@ export default Component.extend({
 
   lifecyclePhases: computed('tasks.@each.lifecycle', 'taskStates.@each.state', function() {
     const tasksOrStates = this.taskStates || this.tasks;
-    const prestarts = [],
-      sidecars = [],
-      mains = [];
+    const lifecycles = {
+      prestarts: [],
+      sidecars: [],
+      mains: [],
+    };
 
     tasksOrStates.forEach(taskOrState => {
-      const lifecycle = taskOrState.task ? taskOrState.task.lifecycle : taskOrState.lifecycle;
-
-      if (lifecycle) {
-        if (lifecycle.sidecar) {
-          sidecars.push(taskOrState);
-        } else {
-          prestarts.push(taskOrState);
-        }
-      } else {
-        mains.push(taskOrState);
-      }
+      const task = taskOrState.task || taskOrState;
+      lifecycles[`${task.lifecycleName}s`].push(taskOrState);
     });
 
     const phases = [];
 
-    if (prestarts.length || sidecars.length) {
+    if (lifecycles.prestarts.length || lifecycles.sidecars.length) {
       phases.push({
         name: 'Prestart',
-        isActive: prestarts.some(state => state.state === 'running'),
+        isActive: lifecycles.prestarts.some(state => state.state === 'running'),
       });
     }
 
-    if (sidecars.length || mains.length) {
+    if (lifecycles.sidecars.length || lifecycles.mains.length) {
       phases.push({
         name: 'Main',
-        isActive: mains.some(state => state.state === 'running'),
+        isActive: lifecycles.mains.some(state => state.state === 'running'),
       });
     }
 

@@ -65,13 +65,7 @@
       </span>
       <span class="pair">
         <span class="term">Lifecycle</span>
-        <span data-test-lifecycle>
-          {{#if model.task.lifecycle}}
-            {{if model.task.lifecycle.sidecar "sidecar" "prestart"}}
-          {{else}}
-            main
-          {{/if}}
-        </span>
+        <span data-test-lifecycle>{{model.task.lifecycleName}}</span>
       </span>
     </div>
   </div>
@@ -115,7 +109,7 @@
           {{#t.body as |row|}}
             <tr data-test-prestart-task>
               <td class="is-narrow">
-                {{#if (and row.model.isRunning (not row.model.task.lifecycle.sidecar))}}
+                {{#if (and row.model.isRunning (eq row.model.task.lifecycleName "prestart"))}}
                   <span class="tooltip text-center" role="tooltip" aria-label="Lifecycle constraints not met">
                     {{x-icon "warning" class="is-warning"}}
                   </span>
@@ -123,7 +117,7 @@
               </td>
               <td data-test-name>{{row.model.task.name}}</td>
               <td data-test-state>{{row.model.state}}</td>
-              <td data-test-lifecycle>{{if row.model.task.lifecycle.sidecar "sidecar" "prestart"}}</td>
+              <td data-test-lifecycle>{{row.model.task.lifecycleName}}</td>
             </tr>
           {{/t.body}}
         {{/list-table}}

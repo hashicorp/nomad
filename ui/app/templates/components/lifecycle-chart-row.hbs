@@ -1,5 +1,5 @@
 <div
-  class="lifecycle-chart-row {{lifecycleClass}} {{activeClass}} {{finishedClass}}"
+  class="lifecycle-chart-row {{task.lifecycleName}} {{activeClass}} {{finishedClass}}"
   data-test-lifecycle-task>
   <div class="task">
     <div class="name" data-test-name>
@@ -11,6 +11,6 @@
         {{task.name}}
       {{/if}}
     </div>
-    <div class="lifecycle" data-test-lifecycle>{{lifecycleString}} Task</div>
+    <div class="lifecycle" data-test-lifecycle>{{capitalize task.lifecycleName}} Task</div>
   </div>
 </div>
