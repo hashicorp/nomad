@@ -1,9 +1,11 @@
 package nomad
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
 )
@@ -195,6 +197,21 @@ func checkIsExposable(check *structs.ServiceCheck) bool {
 func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *structs.ServiceCheck) (*structs.ConsulExposePath, error) {
 	if !checkIsExposable(check) {
 		return nil, nil
+	}
+
+	// If the check is exposable but doesn't have a port label set build
+	// a port with a generated label, add it to the group's Dynamic ports
+	// and set the check port label to the generated label.
+	//
+	// This lets PortLabel be optional for any exposed check.
+	if check.PortLabel == "" {
+		port := structs.Port{
+			Label: fmt.Sprintf("svc_%s_ck_%s", s.Name, uuid.Generate()[:6]),
+			To:    -1,
+		}
+
+		tg.Networks[0].DynamicPorts = append(tg.Networks[0].DynamicPorts, port)
+		check.PortLabel = port.Label
 	}
 
 	// Determine the local service port (i.e. what port the service is actually
