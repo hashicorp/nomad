@@ -14,8 +14,8 @@ job "foo" {
       }
 
       dns {
-        servers = ["8.8.8.8"],
-        options = ["ndots:2", "edns0"],
+        servers = ["8.8.8.8"]
+        options = ["ndots:2", "edns0"]
       }
     }
 
