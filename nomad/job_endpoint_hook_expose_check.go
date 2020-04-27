@@ -233,9 +233,7 @@ func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *struct
 	}
 
 	// The Path, Protocol, and PortLabel are just copied over from the service
-	// check definition. It is required that the user configure their own port
-	// mapping for each check, including setting the 'to = -1' sentinel value
-	// enabling the network namespace pass-through.
+	// check definition.
 	return &structs.ConsulExposePath{
 		Path:          check.Path,
 		Protocol:      check.Protocol,
