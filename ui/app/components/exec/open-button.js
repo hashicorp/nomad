@@ -16,7 +16,7 @@ export default Component.extend({
 
   generateUrl() {
     let urlSegments = {
-      job: this.job.get('name'),
+      job: this.job.get('plainId'),
     };
 
     if (this.taskGroup) {

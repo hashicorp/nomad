@@ -4,6 +4,7 @@ BUG FIXES:
 
  * api: autoscaling policies should not be returned for stopped jobs [[GH-7768](https://github.com/hashicorp/nomad/issues/7768)]
  * jobspec: autoscaling policy block should return a parsing error multiple `policy` blocks are provided [[GH-7716](https://github.com/hashicorp/nomad/issues/7716)]
+ * ui: Fixed a bug where exec popup had incorrect URL for jobs where name ≠ id [[GH-7814](https://github.com/hashicorp/nomad/issues/7814)]
 
 ## 0.11.1 (April 22, 2020)
 
