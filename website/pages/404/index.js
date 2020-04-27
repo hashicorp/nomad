@@ -3,18 +3,17 @@ import { useEffect } from 'react'
 
 function FourOhFour() {
   useEffect(() => {
-    /* eslint-disable no-undef */
     if (
-      typeof globalThis?.analytics?.track === 'function' &&
-      typeof globalThis?.document?.referrer === 'string' &&
-      typeof globalThis?.location?.href === 'string'
+      typeof window !== 'undefined' &&
+      typeof window?.analytics?.track === 'function' &&
+      typeof window?.document?.referrer === 'string' &&
+      typeof window?.location?.href === 'string'
     )
-      globalThis.analytics.track({
+      window.analytics.track({
         event: '404 Response',
-        action: globalThis.location.href,
-        label: globalThis.document.referrer,
+        action: window.location.href,
+        label: window.document.referrer,
       })
-    /* eslint-enable no-undef */
   }, [])
 
   return (
