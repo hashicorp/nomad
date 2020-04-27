@@ -2,7 +2,7 @@ package fingerprint
 
 import (
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // FingerprintRequest is a request which a fingerprinter accepts to fingerprint

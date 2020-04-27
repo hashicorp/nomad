@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
+	psstructs "github.com/hashicorp/nomad/sdk/plugins/structs"
 )
 
 func Node() *structs.Node {

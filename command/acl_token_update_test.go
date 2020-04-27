@@ -3,10 +3,10 @@ package command
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/sdk/acl"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 )

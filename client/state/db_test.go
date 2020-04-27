@@ -12,7 +12,7 @@ import (
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )

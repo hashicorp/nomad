@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/kr/pretty"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"

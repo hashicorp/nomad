@@ -3,11 +3,11 @@ package client
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/sdk/acl"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/mock"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	nstructs "github.com/hashicorp/nomad/sdk/structs"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	nstructs "github.com/hashicorp/nomad/sdk/structs"
 
 	"github.com/hashicorp/nomad/client/structs"
 )

@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
-	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	nconfig "github.com/hashicorp/nomad/sdk/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )

@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/servers"
 	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/hashicorp/yamux"
 )
 

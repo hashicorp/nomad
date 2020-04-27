@@ -7,7 +7,7 @@ import (
 
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a

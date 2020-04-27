@@ -6,7 +6,7 @@ import (
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 

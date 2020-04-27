@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 )
 
 // supportedTLSVersions are the current TLS versions that Nomad supports

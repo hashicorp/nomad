@@ -15,10 +15,9 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/command/agent/pprof"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/acl"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
 )
@@ -341,11 +340,11 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 		// no root index route
 		return nil, CodedError(404, ErrInvalidMethod)
 	case "cmdline":
-		return s.agentPprof(pprof.CmdReq, resp, req)
+		return s.agentPprof(structs.CmdReq, resp, req)
 	case "profile":
-		return s.agentPprof(pprof.CPUReq, resp, req)
+		return s.agentPprof(structs.CPUReq, resp, req)
 	case "trace":
-		return s.agentPprof(pprof.TraceReq, resp, req)
+		return s.agentPprof(structs.TraceReq, resp, req)
 	default:
 		// Add profile to request
 		values := req.URL.Query()
@@ -353,11 +352,11 @@ func (s *HTTPServer) AgentPprofRequest(resp http.ResponseWriter, req *http.Reque
 		req.URL.RawQuery = values.Encode()
 
 		// generic pprof profile request
-		return s.agentPprof(pprof.LookupReq, resp, req)
+		return s.agentPprof(structs.LookupReq, resp, req)
 	}
 }
 
-func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+func (s *HTTPServer) agentPprof(reqType structs.ReqType, resp http.ResponseWriter, req *http.Request) ([]byte, error) {
 
 	// Parse query param int values
 	// Errors are dropped here and default to their zero values.

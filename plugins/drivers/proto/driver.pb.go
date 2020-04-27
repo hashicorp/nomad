@@ -10,7 +10,7 @@ import (
 	duration "github.com/golang/protobuf/ptypes/duration"
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	hclspec "github.com/hashicorp/nomad/plugins/shared/hclspec"
-	proto1 "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	proto1 "github.com/hashicorp/nomad/sdk/plugins/structs/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

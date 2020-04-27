@@ -15,8 +15,8 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/mitchellh/mapstructure"
 

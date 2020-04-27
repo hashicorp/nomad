@@ -12,8 +12,8 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/lib/delayheap"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/lib/delayheap"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 const (

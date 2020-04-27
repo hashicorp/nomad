@@ -24,8 +24,8 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )

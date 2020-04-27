@@ -12,8 +12,8 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
-	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 	"github.com/zclconf/go-cty/cty/msgpack"
 )
 

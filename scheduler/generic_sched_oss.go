@@ -2,7 +2,7 @@
 
 package scheduler
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import "github.com/hashicorp/nomad/sdk/structs"
 
 // selectNextOption calls the stack to get a node for placement
 func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions *SelectOptions) *RankedNode {

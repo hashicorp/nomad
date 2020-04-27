@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	csifake "github.com/hashicorp/nomad/plugins/csi/fake"
 	"github.com/stretchr/testify/require"

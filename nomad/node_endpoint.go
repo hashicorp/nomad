@@ -15,10 +15,10 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	vapi "github.com/hashicorp/vault/api"
 
-	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/sdk/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
 )

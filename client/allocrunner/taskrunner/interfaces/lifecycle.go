@@ -3,7 +3,7 @@ package interfaces
 import (
 	"context"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 type TaskLifecycle interface {

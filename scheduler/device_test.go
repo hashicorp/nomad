@@ -5,8 +5,8 @@ import (
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
+	psstructs "github.com/hashicorp/nomad/sdk/plugins/structs"
 	"github.com/stretchr/testify/require"
 )
 

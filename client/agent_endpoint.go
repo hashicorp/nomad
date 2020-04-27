@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -51,13 +51,13 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	// Our RPC endpoints currently don't support context
 	// or request cancellation so stubbing with TODO
 	switch args.ReqType {
-	case pprof.CPUReq:
+	case structs.CPUReq:
 		resp, headers, err = pprof.CPUProfile(context.TODO(), args.Seconds)
-	case pprof.CmdReq:
+	case structs.CmdReq:
 		resp, headers, err = pprof.Cmdline()
-	case pprof.LookupReq:
+	case structs.LookupReq:
 		resp, headers, err = pprof.Profile(args.Profile, args.Debug, args.GC)
-	case pprof.TraceReq:
+	case structs.TraceReq:
 		resp, headers, err = pprof.Trace(context.TODO(), args.Seconds)
 	}
 

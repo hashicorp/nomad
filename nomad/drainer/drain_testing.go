@@ -3,7 +3,7 @@ package drainer
 import (
 	"sync"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 type MockNodeTrackerEvent struct {

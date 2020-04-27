@@ -2,7 +2,7 @@ package consul
 
 import (
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // ConsulServiceAPI is the interface the Nomad Client uses to register and

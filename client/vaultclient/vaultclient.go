@@ -11,8 +11,8 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 )
 

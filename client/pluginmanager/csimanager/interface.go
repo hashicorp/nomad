@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/client/pluginmanager"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 type MountInfo struct {

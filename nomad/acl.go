@@ -5,9 +5,9 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/sdk/acl"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // ResolveToken is used to translate an ACL Token Secret ID into

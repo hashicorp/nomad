@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // Txn is a transaction against a state store.

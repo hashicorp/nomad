@@ -13,7 +13,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/stretchr/testify/require"

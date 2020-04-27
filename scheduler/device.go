@@ -5,7 +5,7 @@ import (
 
 	"math"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // deviceAllocator is used to allocate devices to allocations. The allocator

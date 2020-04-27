@@ -3,7 +3,7 @@ package consul
 import (
 	"context"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 func NoopRestarter() WorkloadRestarter {

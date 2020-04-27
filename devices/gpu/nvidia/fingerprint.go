@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/devices/gpu/nvidia/nvml"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/device"
-	"github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/sdk/plugins/structs"
 )
 
 const (

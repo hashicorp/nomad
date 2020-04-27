@@ -3,7 +3,7 @@ package device
 import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/hashicorp/nomad/plugins/device/proto"
-	"github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/sdk/plugins/structs"
 )
 
 // convertProtoDeviceGroups converts between a list of proto and structs DeviceGroup

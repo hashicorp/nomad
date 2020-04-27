@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 func TestHTTP_EvalList(t *testing.T) {

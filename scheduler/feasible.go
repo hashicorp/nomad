@@ -10,8 +10,8 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
-	"github.com/hashicorp/nomad/nomad/structs"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
+	psstructs "github.com/hashicorp/nomad/sdk/plugins/structs"
 )
 
 const (

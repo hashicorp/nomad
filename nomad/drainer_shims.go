@@ -3,7 +3,7 @@ package nomad
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // drainerShim implements the drainer.RaftApplier interface required by the

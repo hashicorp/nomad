@@ -3,7 +3,7 @@ package state
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // State captures the state of the allocation runner.

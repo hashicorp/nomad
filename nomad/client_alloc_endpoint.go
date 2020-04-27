@@ -13,8 +13,8 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 
-	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/acl"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // ClientAllocations is used to forward RPC requests to the targed Nomad client's

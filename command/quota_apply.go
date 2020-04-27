@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/sdk/jobspec"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 )

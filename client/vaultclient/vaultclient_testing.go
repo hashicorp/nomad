@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 	vaultapi "github.com/hashicorp/vault/api"
 )
 

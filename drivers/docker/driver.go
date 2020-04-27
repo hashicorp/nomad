@@ -23,11 +23,11 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	nstructs "github.com/hashicorp/nomad/sdk/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/structs"
-	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/sdk/plugins/structs"
+	pstructs "github.com/hashicorp/nomad/sdk/plugins/structs"
 )
 
 var (

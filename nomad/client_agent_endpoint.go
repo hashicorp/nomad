@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 
 	"github.com/hashicorp/go-msgpack/codec"
 )
@@ -83,13 +83,13 @@ func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPpr
 	// or request cancellation so using server shutdownCtx as a
 	// best effort.
 	switch args.ReqType {
-	case pprof.CPUReq:
+	case structs.CPUReq:
 		resp, headers, err = pprof.CPUProfile(a.srv.shutdownCtx, args.Seconds)
-	case pprof.CmdReq:
+	case structs.CmdReq:
 		resp, headers, err = pprof.Cmdline()
-	case pprof.LookupReq:
+	case structs.LookupReq:
 		resp, headers, err = pprof.Profile(args.Profile, args.Debug, args.GC)
-	case pprof.TraceReq:
+	case structs.TraceReq:
 		resp, headers, err = pprof.Trace(a.srv.shutdownCtx, args.Seconds)
 	default:
 		err = structs.NewErrRPCCoded(404, "Unknown profile request type")

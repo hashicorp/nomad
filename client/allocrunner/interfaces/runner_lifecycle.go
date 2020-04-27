@@ -1,7 +1,7 @@
 package interfaces
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // RunnnerHook is a lifecycle hook into the life cycle of an allocation runner.

@@ -1,7 +1,7 @@
 package nomad
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // deploymentWatcherRaftShim is the shim that provides the state watching

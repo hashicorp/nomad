@@ -1,6 +1,6 @@
 package nomad
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import "github.com/hashicorp/nomad/sdk/structs"
 
 // systemEvals are handled specially, each job may have a blocked eval on each node
 type systemEvals struct {

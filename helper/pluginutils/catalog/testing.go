@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 )
 
 // TestPluginLoader returns a plugin loader populated only with internal plugins

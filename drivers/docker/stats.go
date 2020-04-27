@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	nstructs "github.com/hashicorp/nomad/sdk/structs"
 )
 
 const (

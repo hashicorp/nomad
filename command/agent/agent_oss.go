@@ -4,7 +4,7 @@ package agent
 
 import (
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 )
 
 func (a *Agent) setupEnterpriseAgent(log hclog.Logger) error {

@@ -5,7 +5,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/client/structs"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	nstructs "github.com/hashicorp/nomad/sdk/structs"
 )
 
 // ClientStats endpoint is used for retrieving stats about a client

@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/sdk/structs/config"
 )
 
 func ParseConfigFile(path string) (*Config, error) {

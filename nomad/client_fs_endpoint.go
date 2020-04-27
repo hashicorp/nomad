@@ -13,9 +13,9 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/sdk/acl"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // FileSystem endpoint is used for accessing the logs and filesystem of

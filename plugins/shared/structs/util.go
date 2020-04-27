@@ -3,7 +3,7 @@ package structs
 import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	"github.com/hashicorp/nomad/sdk/plugins/structs/proto"
 )
 
 func ConvertProtoAttribute(in *proto.Attribute) *Attribute {

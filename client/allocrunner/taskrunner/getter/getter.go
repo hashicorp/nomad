@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 var (

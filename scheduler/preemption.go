@@ -4,7 +4,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // maxParallelPenalty is a score penalty applied to allocations to mitigate against

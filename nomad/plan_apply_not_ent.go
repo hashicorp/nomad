@@ -4,7 +4,7 @@ package nomad
 
 import (
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // refreshIndex returns the index the scheduler should refresh to as the maximum

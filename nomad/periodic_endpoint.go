@@ -8,8 +8,8 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
-	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/acl"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // Periodic endpoint is used for periodic job interactions

@@ -13,7 +13,7 @@ import (
 
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/sdk/jobspec"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"

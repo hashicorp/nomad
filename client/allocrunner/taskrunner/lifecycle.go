@@ -3,7 +3,7 @@ package taskrunner
 import (
 	"context"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/sdk/structs"
 )
 
 // Restart a task. Returns immediately if no task is running. Blocks until
