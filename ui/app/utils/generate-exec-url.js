@@ -2,17 +2,17 @@ export default function generateExecUrl(router, { job, taskGroup, task, allocati
   const queryParams = router.currentRoute.queryParams;
 
   if (task) {
-    return router.urlFor('exec.task-group.task', job, taskGroup, task, {
+    return router.urlFor('exec.task-group.task', job.plainId, taskGroup.name, task.name, {
       queryParams: {
-        allocation,
+        allocation: allocation.shortId,
         ...queryParams,
       },
     });
   } else if (taskGroup) {
-    return router.urlFor('exec.task-group', job, taskGroup, { queryParams });
+    return router.urlFor('exec.task-group', job.plainId, taskGroup.name, { queryParams });
   } else if (allocation) {
-    return router.urlFor('exec', job, { queryParams: { allocation, ...queryParams } });
+    return router.urlFor('exec', job.plainId, { queryParams: { allocation: allocation.shortId, ...queryParams } });
   } else {
-    return router.urlFor('exec', job, { queryParams });
+    return router.urlFor('exec', job.plainId, { queryParams });
   }
 }
