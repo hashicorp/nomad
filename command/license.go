@@ -79,15 +79,27 @@ func OutputLicenseReply(ui cli.Ui, resp *api.LicenseReply) int {
 }
 
 func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool) {
-	ui.Output(fmt.Sprintf("License ID: %s", lic.LicenseID))
-	ui.Output(fmt.Sprintf("Customer ID: %s", lic.CustomerID))
+	expStr := ""
 	if expired {
-		ui.Output(fmt.Sprintf("Expired At: %s", lic.ExpirationTime.String()))
+		expStr = fmt.Sprintf("Expired At: %s", lic.ExpirationTime.String())
 	} else {
-		ui.Output(fmt.Sprintf("Expires At: %s", lic.ExpirationTime.String()))
+		expStr = fmt.Sprintf("Expires At: %s", lic.ExpirationTime.String())
 	}
-	ui.Output(fmt.Sprintf("Terminates At: %s", lic.TerminationTime.String()))
-	ui.Output(fmt.Sprintf("Datacenter: %s", lic.InstallationID))
+
+	output := []string{
+		fmt.Sprintf("License ID: %s", lic.LicenseID),
+		fmt.Sprintf("Customer ID: %s", lic.CustomerID),
+		expStr,
+		fmt.Sprintf("License ID: %s", lic.LicenseID),
+		fmt.Sprintf("Customer ID: %s", lic.CustomerID),
+		fmt.Sprintf("Terminates At: %s", lic.TerminationTime.String()),
+		fmt.Sprintf("Datacenter: %s", lic.InstallationID),
+	}
+	ui.Output(formatKV(output))
+	// ui.Output(fmt.Sprintf("License ID: %s", lic.LicenseID))
+	// ui.Output(fmt.Sprintf("Customer ID: %s", lic.CustomerID))
+	// ui.Output(fmt.Sprintf("Terminates At: %s", lic.TerminationTime.String()))
+	// ui.Output(fmt.Sprintf("Datacenter: %s", lic.InstallationID))
 	if len(lic.Modules) > 0 {
 		ui.Output("Modules:")
 		for _, mod := range lic.Modules {

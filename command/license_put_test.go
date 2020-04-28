@@ -10,7 +10,7 @@ import (
 
 var _ cli.Command = &LicensePutCommand{}
 
-func TestCommand_LicensePut_OSSErr(t *testing.T) {
+func TestCommand_LicensePut_Err(t *testing.T) {
 	t.Parallel()
 
 	srv, _, url := testServer(t, false, nil)
@@ -23,6 +23,10 @@ func TestCommand_LicensePut_OSSErr(t *testing.T) {
 		require.Equal(t, code, 1)
 	}
 
-	require.Contains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+	if srv.Enterprise {
+		require.Contains(t, ui.ErrorWriter.String(), "error validating license")
+	} else {
+		require.Contains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+	}
 
 }

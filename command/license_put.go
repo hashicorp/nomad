@@ -29,7 +29,7 @@ General Options:
 
 Install a new license from a file:
 
-	$ nomad license put @nomad.license
+	$ nomad license put <path>
 
 Install a new license from stdin:
 
@@ -111,21 +111,18 @@ func loadFromStdin(testStdin io.Reader) (string, error) {
 	return b.String(), nil
 }
 
-func LoadDataSource(data string, testStdin io.Reader) (string, error) {
+func LoadDataSource(file string, testStdin io.Reader) (string, error) {
 	// Handle empty quoted shell parameters
-	if len(data) == 0 {
+	if len(file) == 0 {
 		return "", nil
 	}
 
-	switch data[0] {
-	case '@':
-		return loadFromFile(data[1:])
-	case '-':
-		if len(data) > 1 {
-			return data, nil
+	if file == "-" {
+		if len(file) > 1 {
+			return file, nil
 		}
 		return loadFromStdin(testStdin)
-	default:
-		return data, nil
 	}
+
+	return loadFromFile(file)
 }
