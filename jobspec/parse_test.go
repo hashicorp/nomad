@@ -184,6 +184,7 @@ func TestParse(t *testing.T) {
 								},
 							},
 						},
+						StopAfterClientDisconnect: helper.TimeToPtr(120 * time.Second),
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: helper.TimeToPtr(12 * time.Hour),
 							Attempts: helper.IntToPtr(5),
