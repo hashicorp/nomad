@@ -2414,7 +2414,7 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 
 	// Verify the eval for the claim GC was emitted
 	// Lookup the evaluations
-	eval, err := state.EvalsByJob(ws, job.Namespace, structs.CoreJobCSIVolumeClaimGC+":"+volId0+":no")
+	eval, err := state.EvalsByJob(ws, job.Namespace, structs.CoreJobCSIVolumeClaimGC+":"+volId0)
 	require.NotNil(t, eval)
 	require.Nil(t, err)
 }
