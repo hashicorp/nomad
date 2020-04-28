@@ -5,6 +5,12 @@ import RSVP from 'rsvp';
 import { logger } from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
 
+class MockAbortController {
+  abort() {
+    /* noop */
+  }
+}
+
 export default Component.extend({
   token: service(),
 
@@ -45,11 +51,20 @@ export default Component.extend({
   logger: logger('logUrl', 'logParams', function logFetch() {
     // If the log request can't settle in one second, the client
     // must be unavailable and the server should be used instead
+
+    // AbortControllers don't exist in IE11, so provide a mock if it doesn't exist
+    const aborter = window.AbortController ? new AbortController() : new MockAbortController();
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
     return url =>
-      RSVP.race([this.token.authorizedRequest(url), timeout(timing)]).then(
-        response => response,
+      RSVP.race([
+        this.token.authorizedRequest(url, { signal: aborter.signal }),
+        timeout(timing),
+      ]).then(
+        response => {
+          return response;
+        },
         error => {
+          aborter.abort();
           if (this.useServer) {
             this.set('noConnection', true);
           } else {

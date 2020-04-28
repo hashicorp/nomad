@@ -219,6 +219,11 @@ module('Integration | Component | task log', function(hooks) {
       this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
       'Log request was later made to the server'
     );
+
+    assert.ok(
+      this.server.handledRequests.filter(req => clientUrlRegex.test(req.url))[0].aborted,
+      'Client log request was aborted'
+    );
   });
 
   test('When both the client and the server are inaccessible, an error message is shown', async function(assert) {
