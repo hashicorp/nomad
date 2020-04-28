@@ -621,6 +621,11 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
+		// Ignore other client agent registered service
+		if !c.checkServiceRegistrationOnClient(consulServices[id]){
+			continue
+		}
+
 		// Unknown Nomad managed service; kill
 		if err := c.client.ServiceDeregister(id); err != nil {
 			if isOldNomadService(id) {
@@ -678,6 +683,11 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
+		// Ignore other client agent registered check
+		if !c.checkServiceRegistrationOnClient(consulServices[check.ServiceID]){
+			continue
+		}
+
 		// Unknown Nomad managed check; remove
 		if err := c.client.CheckDeregister(id); err != nil {
 			if isOldNomadService(check.ServiceID) {
@@ -714,6 +724,17 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	}
 	return nil
 }
+
+// checkServiceRegistrationOnClient check service is registered on special Client.
+func (c *ServiceClient)checkServiceRegistrationOnClient(service *api.AgentService) bool{
+	var tags = make(map[string]struct{}, len(service.Tags))
+	for _, v := range service.Tags{
+		tags[v] = struct{}{}
+	}
+	_, ok := tags[c.agentName]
+	return ok
+}
+
 
 // RegisterAgent registers Nomad agents (client or server). The
 // Service.PortLabel should be a literal port to be parsed with SplitHostPort.
@@ -833,6 +854,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		tags = make([]string, len(service.Tags))
 		copy(tags, service.Tags)
 	}
+	tags = append(tags, workload.Node)
 
 	// newConnect returns (nil, nil) if there's no Connect-enabled service.
 	connect, err := newConnect(service.Name, service.Connect, workload.Networks)
