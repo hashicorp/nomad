@@ -1,6 +1,6 @@
 package structs
 
-//go:generate ./generate.sh
+//go:generate codecgen -c github.com/hashicorp/go-msgpack/codec -d 102 -t codegen_generated -o structs.generated.go structs.go
 
 import (
 	"errors"
