@@ -23,13 +23,6 @@ func TestHearbeatStop_allocHook(t *testing.T) {
 	})
 	defer cleanupC1()
 
-	// last heartbeat is persisted in the state db
-	err := client.registerNode()
-	require.NoError(t, err)
-	last, err := client.stateDB.GetLastHeartbeatOk()
-	require.NoError(t, err)
-	require.Empty(t, last)
-
 	// an allocation, with a tiny lease
 	d := 1 * time.Microsecond
 	alloc := &structs.Allocation{
@@ -51,7 +44,7 @@ func TestHearbeatStop_allocHook(t *testing.T) {
 	}
 
 	// alloc added to heartbeatStop.allocs
-	err = client.addAlloc(alloc, "")
+	err := client.addAlloc(alloc, "")
 	require.NoError(t, err)
 	testutil.WaitForResult(func() (bool, error) {
 		_, ok := client.heartbeatStop.allocInterval[alloc.ID]

@@ -1,8 +1,6 @@
 package state
 
 import (
-	"time"
-
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -77,13 +75,6 @@ type StateDB interface {
 
 	// PutDynamicPluginRegistryState is used to store the dynamic plugin managers's state.
 	PutDynamicPluginRegistryState(state *dynamicplugins.RegistryState) error
-
-	// GetLastHeartbeatOk retrieves the stored last known good heartbeat
-	GetLastHeartbeatOk() (time.Time, error)
-
-	// PutLastHeartbeatOk stores the last heartbeat known to have made the round trip to
-	// the server
-	PutLastHeartbeatOk(time.Time) error
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.
