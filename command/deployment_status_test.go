@@ -1,13 +1,13 @@
 package command
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeploymentStatusCommand_Implements(t *testing.T) {
@@ -21,20 +21,23 @@ func TestDeploymentStatusCommand_Fails(t *testing.T) {
 	cmd := &DeploymentStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	require.Equal(t, 1, code)
+	out := ui.ErrorWriter.String()
+	require.Contains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=nope", "12"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error retrieving deployment") {
-		t.Fatalf("expected failed query error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "12"})
+	require.Equal(t, 1, code)
+	out = ui.ErrorWriter.String()
+	require.Contains(t, out, "Error retrieving deployment")
+	ui.ErrorWriter.Reset()
+
+	code = cmd.Run([]string{"-address=nope"})
+	require.Equal(t, 1, code)
+	out = ui.ErrorWriter.String()
+	// "deployments" indicates that we attempted to list all deployments
+	require.Contains(t, out, "Error retrieving deployments")
 	ui.ErrorWriter.Reset()
 }
 
