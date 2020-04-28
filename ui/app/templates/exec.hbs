@@ -30,7 +30,7 @@
 </nav>
 
 {{#if (eq model.status "dead")}}
-  <div class="tree-and-terminal" data-test-exec-job-dead>
+  <div class="exec-window" data-test-exec-job-dead>
     <div class="task-group-tree">
     </div>
     <div class="terminal-container" data-test-exec-job-dead-message>
@@ -38,7 +38,7 @@
     </div>
   </div>
 {{else}}
-  <div class="tree-and-terminal">
+  <div class="exec-window">
     <div class="task-group-tree">
       <h4 class="title is-6">Tasks</h4>
       <ul>
