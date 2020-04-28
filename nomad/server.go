@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -185,6 +186,9 @@ type Server struct {
 
 	// nodeDrainer is used to drain allocations from nodes.
 	nodeDrainer *drainer.NodeDrainer
+
+	// volumeWatcher is used to release volume claims
+	volumeWatcher *volumewatcher.Watcher
 
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
@@ -397,6 +401,12 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 	if err := s.setupDeploymentWatcher(); err != nil {
 		s.logger.Error("failed to create deployment watcher", "error", err)
 		return nil, fmt.Errorf("failed to create deployment watcher: %v", err)
+	}
+
+	// Setup the volume watcher
+	if err := s.setupVolumeWatcher(); err != nil {
+		s.logger.Error("failed to create volume watcher", "error", err)
+		return nil, fmt.Errorf("failed to create volume watcher: %v", err)
 	}
 
 	// Setup the node drainer.
@@ -989,6 +999,27 @@ func (s *Server) setupDeploymentWatcher() error {
 		s.logger, raftShim,
 		deploymentwatcher.LimitStateQueriesPerSecond,
 		deploymentwatcher.CrossDeploymentUpdateBatchDuration)
+
+	return nil
+}
+
+// setupVolumeWatcher creates a volume watcher that consumes the RPC
+// endpoints for state information and makes transitions via Raft through a
+// shim that provides the appropriate methods.
+func (s *Server) setupVolumeWatcher() error {
+
+	// Create the raft shim type to restrict the set of raft methods that can be
+	// made
+	raftShim := &volumeWatcherRaftShim{
+		apply: s.raftApply,
+	}
+
+	// Create the volume watcher
+	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
+		s.logger, raftShim,
+		s.staticEndpoints.ClientCSI,
+		volumewatcher.LimitStateQueriesPerSecond,
+		volumewatcher.CrossVolumeUpdateBatchDuration)
 
 	return nil
 }
