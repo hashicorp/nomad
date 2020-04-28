@@ -1088,6 +1088,7 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 		isClient = true
 	}
 	a.consulService = consul.NewServiceClient(client.Agent(), a.logger, isClient)
+	a.consulService.AgentName(a.config.NodeName)
 
 	// Run the Consul service client's sync'ing main loop
 	go a.consulService.Run()

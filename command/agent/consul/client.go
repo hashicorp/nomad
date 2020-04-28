@@ -319,6 +319,7 @@ func (s *ServiceRegistration) copy() *ServiceRegistration {
 type ServiceClient struct {
 	client           AgentAPI
 	logger           log.Logger
+	agentName        string
 	retryInterval    time.Duration
 	maxRetryInterval time.Duration
 	periodicInterval time.Duration
@@ -400,6 +401,10 @@ func NewServiceClient(consulClient AgentAPI, logger log.Logger, isNomadClient bo
 
 // seen is used by markSeen and hasSeen
 const seen = 1
+
+func (c *ServiceClient) AgentName(name string) {
+	c.agentName = name
+}
 
 // markSeen marks Consul as having been seen (meaning at least one operation
 // has succeeded).

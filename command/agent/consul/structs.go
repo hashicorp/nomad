@@ -17,6 +17,7 @@ type WorkloadServices struct {
 	// group based services, Task will be empty
 	Task  string
 	Group string
+	Node string
 
 	// Canary indicates whether or not the allocation is a canary
 	Canary bool

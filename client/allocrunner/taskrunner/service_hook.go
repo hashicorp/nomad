@@ -35,6 +35,7 @@ type serviceHook struct {
 	consul    consul.ConsulServiceAPI
 	allocID   string
 	taskName  string
+	nodeName  string
 	restarter agentconsul.WorkloadRestarter
 	logger    log.Logger
 
@@ -60,6 +61,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		consul:    c.consul,
 		allocID:   c.alloc.ID,
 		taskName:  c.task.Name,
+		nodeName:  c.alloc.NodeName,
 		services:  c.task.Services,
 		restarter: c.restarter,
 	}
@@ -189,6 +191,7 @@ func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	return &agentconsul.WorkloadServices{
 		AllocID:       h.allocID,
 		Task:          h.taskName,
+		Node:          h.nodeName,
 		Restarter:     h.restarter,
 		Services:      interpolatedServices,
 		DriverExec:    h.driverExec,
