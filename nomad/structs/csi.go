@@ -575,6 +575,10 @@ const (
 	CSIVolumeClaimRelease
 )
 
+type CSIVolumeClaimBatchRequest struct {
+	Claims []CSIVolumeClaimRequest
+}
+
 type CSIVolumeClaimRequest struct {
 	VolumeID     string
 	AllocationID string
