@@ -348,15 +348,31 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return structs.ErrPermissionDenied
 	}
 
-	// if this is a new claim, add a Volume and PublishContext from the
-	// controller (if any) to the reply
+	// COMPAT(1.0): the NodeID field was added after 0.11.0 and so we
+	// need to ensure it's been populated during upgrades from 0.11.0
+	// to later patch versions. Remove this block in 1.0
+	if args.Claim != structs.CSIVolumeClaimRelease && args.NodeID == "" {
+		state := v.srv.fsm.State()
+		ws := memdb.NewWatchSet()
+		alloc, err := state.AllocByID(ws, args.AllocationID)
+		if err != nil {
+			return err
+		}
+		if alloc == nil {
+			return fmt.Errorf("%s: %s",
+				structs.ErrUnknownAllocationPrefix, args.AllocationID)
+		}
+		args.NodeID = alloc.NodeID
+	}
+
 	if args.Claim != structs.CSIVolumeClaimRelease {
+		// if this is a new claim, add a Volume and PublishContext from the
+		// controller (if any) to the reply
 		err = v.controllerPublishVolume(args, reply)
 		if err != nil {
 			return fmt.Errorf("controller publish: %v", err)
 		}
 	}
-
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "claim")
