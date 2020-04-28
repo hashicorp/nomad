@@ -1095,6 +1095,14 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			MBits: *nw.MBits,
 		}
 
+		if nw.DNS != nil {
+			out[i].DNS = &structs.DNSConfig{
+				Servers:  nw.DNS.Servers,
+				Searches: nw.DNS.Searches,
+				Options:  nw.DNS.Options,
+			}
+		}
+
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
 			for j, dp := range nw.DynamicPorts {

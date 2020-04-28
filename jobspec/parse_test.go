@@ -1017,6 +1017,10 @@ func TestParse(t *testing.T) {
 										To:    8080,
 									},
 								},
+								DNS: &api.DNSConfig{
+									Servers: []string{"8.8.8.8"},
+									Options: []string{"ndots:2", "edns0"},
+								},
 							},
 						},
 						Services: []*api.Service{

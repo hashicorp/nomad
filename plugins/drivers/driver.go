@@ -202,6 +202,34 @@ type TerminalSize struct {
 	Width  int
 }
 
+type DNSConfig struct {
+	Servers  []string
+	Searches []string
+	Options  []string
+}
+
+func (c *DNSConfig) Copy() *DNSConfig {
+	if c == nil {
+		return nil
+	}
+
+	cfg := new(DNSConfig)
+	if len(c.Servers) > 0 {
+		cfg.Servers = make([]string, len(c.Servers))
+		copy(cfg.Servers, c.Servers)
+	}
+	if len(c.Searches) > 0 {
+		cfg.Searches = make([]string, len(c.Searches))
+		copy(cfg.Searches, c.Searches)
+	}
+	if len(c.Options) > 0 {
+		cfg.Options = make([]string, len(c.Options))
+		copy(cfg.Options, c.Options)
+	}
+
+	return cfg
+}
+
 type TaskConfig struct {
 	ID               string
 	JobName          string
@@ -219,6 +247,7 @@ type TaskConfig struct {
 	StderrPath       string
 	AllocID          string
 	NetworkIsolation *NetworkIsolationSpec
+	DNS              *DNSConfig
 }
 
 func (tc *TaskConfig) Copy() *TaskConfig {
@@ -230,6 +259,7 @@ func (tc *TaskConfig) Copy() *TaskConfig {
 	c.Env = helper.CopyMapStringString(c.Env)
 	c.DeviceEnv = helper.CopyMapStringString(c.DeviceEnv)
 	c.Resources = tc.Resources.Copy()
+	c.DNS = tc.DNS.Copy()
 
 	if c.Devices != nil {
 		dc := make([]*DeviceConfig, len(c.Devices))

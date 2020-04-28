@@ -89,6 +89,12 @@ type Port struct {
 	To    int `mapstructure:"to"`
 }
 
+type DNSConfig struct {
+	Servers  []string `mapstructure:"servers"`
+	Searches []string `mapstructure:"searches"`
+	Options  []string `mapstructure:"options"`
+}
+
 // NetworkResource is used to describe required network
 // resources of a given task.
 type NetworkResource struct {
@@ -97,6 +103,7 @@ type NetworkResource struct {
 	CIDR          string
 	IP            string
 	MBits         *int
+	DNS           *DNSConfig
 	ReservedPorts []Port
 	DynamicPorts  []Port
 }

@@ -1069,6 +1069,50 @@ func (r *NetworkResource) Diff(other *NetworkResource, contextual bool) *ObjectD
 		diff.Objects = append(diff.Objects, dynPorts...)
 	}
 
+	if dnsDiff := r.DNS.Diff(other.DNS, contextual); dnsDiff != nil {
+		diff.Objects = append(diff.Objects, dnsDiff)
+	}
+
+	return diff
+}
+
+// Diff returns a diff of two DNSConfig structs
+func (c *DNSConfig) Diff(other *DNSConfig, contextual bool) *ObjectDiff {
+	if reflect.DeepEqual(c, other) {
+		return nil
+	}
+
+	flatten := func(conf *DNSConfig) map[string]string {
+		m := map[string]string{}
+		if len(conf.Servers) > 0 {
+			m["Servers"] = strings.Join(conf.Servers, ",")
+		}
+		if len(conf.Searches) > 0 {
+			m["Searches"] = strings.Join(conf.Searches, ",")
+		}
+		if len(conf.Options) > 0 {
+			m["Options"] = strings.Join(conf.Options, ",")
+		}
+		return m
+	}
+
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "DNS"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+	if c == nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatten(other)
+	} else if other == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatten(c)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatten(c)
+		newPrimitiveFlat = flatten(other)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
 	return diff
 }
 
