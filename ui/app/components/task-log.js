@@ -55,6 +55,10 @@ export default Component.extend({
     // AbortControllers don't exist in IE11, so provide a mock if it doesn't exist
     const aborter = window.AbortController ? new AbortController() : new MockAbortController();
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
+
+    // Capture the state of useServer at logger create time to avoid a race
+    // between the stdout logger and stderr logger running at once.
+    const useServer = this.useServer;
     return url =>
       RSVP.race([
         this.token.authorizedRequest(url, { signal: aborter.signal }),
@@ -65,7 +69,7 @@ export default Component.extend({
         },
         error => {
           aborter.abort();
-          if (this.useServer) {
+          if (useServer) {
             this.set('noConnection', true);
           } else {
             this.send('failoverToServer');

@@ -280,4 +280,49 @@ module('Integration | Component | task log', function(hooks) {
     );
     assert.ok(find('[data-test-connection-error]'), 'An error message is shown');
   });
+
+  test('When the client is inaccessible, the server is accessible, and stderr is pressed before the client timeout occurs, the no connection error is not shown', async function(assert) {
+    // override client response to timeout
+    this.server.get(
+      `http://${HOST}/v1/client/fs/logs/:allocation_id`,
+      () => [400, {}, ''],
+      allowedConnectionTime * 2
+    );
+
+    // Click stderr before the client request responds
+    run.later(() => {
+      click('[data-test-log-action="stderr"]');
+      run.later(run, run.cancelTimers, commonProps.interval * 5);
+    }, allowedConnectionTime / 2);
+
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log
+      allocation=allocation
+      task=task
+      clientTimeout=clientTimeout
+      serverTimeout=serverTimeout}}`);
+
+    await settled();
+
+    const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
+    const clientRequests = this.server.handledRequests.filter(req => clientUrlRegex.test(req.url));
+    assert.ok(
+      clientRequests.find(req => req.queryParams.type === 'stdout'),
+      'Client request for stdout'
+    );
+    assert.ok(
+      clientRequests.find(req => req.queryParams.type === 'stderr'),
+      'Client request for stderr'
+    );
+
+    const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
+    assert.ok(
+      this.server.handledRequests
+        .filter(req => req.url.startsWith(serverUrl))
+        .find(req => req.queryParams.type === 'stderr'),
+      'Server request for stderr'
+    );
+
+    assert.notOk(find('[data-test-connection-error]'), 'An error message is not shown');
+  });
 });
