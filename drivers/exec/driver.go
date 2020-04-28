@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -367,6 +368,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	user := cfg.User
 	if user == "" {
 		user = "nobody"
+	}
+
+	if cfg.DNS != nil {
+		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
+		}
+		cfg.Mounts = append(cfg.Mounts, dnsMount)
 	}
 
 	execCmd := &executor.ExecCommand{

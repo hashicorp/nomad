@@ -805,3 +805,59 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	dtestutil.ExecTaskStreamingConformanceTests(t, d, task.ID)
 
 }
+
+// Tests that a given DNSConfig properly configures dns
+func Test_dnsConfig(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	require := require.New(t)
+	harness := dockerDriverHarness(t, nil)
+	defer harness.Kill()
+
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
+		task := &drivers.TaskConfig{
+			ID:        uuid.Generate(),
+			Name:      "nc-demo",
+			AllocID:   uuid.Generate(),
+			Resources: basicResources,
+			DNS:       c.cfg,
+		}
+		require.NoError(task.EncodeConcreteDriverConfig(&taskCfg))
+
+		cleanup := harness.MkAllocDir(task, false)
+		defer cleanup()
+
+		_, _, err := harness.StartTask(task)
+		require.NoError(err)
+		defer harness.DestroyTask(task.ID, true)
+
+		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+	}
+
+}

@@ -12,6 +12,11 @@ job "foo" {
         static = 80
         to     = 8080
       }
+
+      dns {
+        servers = ["8.8.8.8"]
+        options = ["ndots:2", "edns0"]
+      }
     }
 
     service {
