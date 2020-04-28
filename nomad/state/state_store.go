@@ -2068,9 +2068,14 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 		return err
 	}
 
-	err = volume.Claim(claim, alloc)
-	if err != nil {
-		return err
+	// in the case of a job deregistration, there will be no allocation ID
+	// for the claim but we still want to write an updated index to the volume
+	// so that volume reaping is triggered
+	if claim.AllocationID != "" {
+		err = volume.Claim(claim, alloc)
+		if err != nil {
+			return err
+		}
 	}
 
 	volume.ModifyIndex = index
