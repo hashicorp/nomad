@@ -13,7 +13,7 @@
             openInNewWindow=openInNewWindow}}
         </a>
       {{else}}
-        {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
+        {{#link-to "exec.task-group.task" taskGroup.job.plainId taskGroup.name task.name class="task-item" data-test-task=true}}
           {{exec/task-contents
             task=task
             active=(and currentRouteIsThisTaskGroup (eq task.name activeTaskName))
