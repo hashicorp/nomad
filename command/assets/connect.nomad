@@ -256,6 +256,12 @@ job "countdash" {
       # port "http" {
       #   to = "8080"
       # }
+
+      # The "dns" stanza allows operators to override the DNS configuration
+      # inherited by the host client.
+      # dns {
+      #   servers = ["1.1.1.1"] 
+      # }
     }
     # The "service" stanza enables Consul Connect.
     service {

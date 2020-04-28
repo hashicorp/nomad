@@ -65,6 +65,7 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		StderrPath:       pb.StderrPath,
 		AllocID:          pb.AllocId,
 		NetworkIsolation: NetworkIsolationSpecFromProto(pb.NetworkIsolationSpec),
+		DNS:              dnsConfigFromProto(pb.Dns),
 	}
 }
 
@@ -89,6 +90,7 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		StderrPath:           cfg.StderrPath,
 		AllocId:              cfg.AllocID,
 		NetworkIsolationSpec: NetworkIsolationSpecToProto(cfg.NetworkIsolation),
+		Dns:                  dnsConfigToProto(cfg.DNS),
 	}
 	return pb
 }
@@ -623,5 +625,29 @@ func NetworkIsolationSpecFromProto(pb *proto.NetworkIsolationSpec) *NetworkIsola
 		Path:   pb.Path,
 		Labels: pb.Labels,
 		Mode:   netIsolationModeFromProto(pb.Mode),
+	}
+}
+
+func dnsConfigToProto(dns *DNSConfig) *proto.DNSConfig {
+	if dns == nil {
+		return nil
+	}
+
+	return &proto.DNSConfig{
+		Servers:  dns.Servers,
+		Searches: dns.Searches,
+		Options:  dns.Options,
+	}
+}
+
+func dnsConfigFromProto(pb *proto.DNSConfig) *DNSConfig {
+	if pb == nil {
+		return nil
+	}
+
+	return &DNSConfig{
+		Servers:  pb.Servers,
+		Searches: pb.Searches,
+		Options:  pb.Options,
 	}
 }
