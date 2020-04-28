@@ -74,6 +74,10 @@ job "docs" {
   - `host` - Each task will join the host network namespace and a shared network
     namespace is not created. This matches the current behavior in Nomad 0.9.
 
+ - `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
+   for the allocations. By default all DNS configuration is inherited from the client host.
+   DNS configuration is only supported on Linux clients at this time.
+
 ### `port` Parameters
 
 - `static` `(int: nil)` - Specifies the static TCP/UDP port to allocate. If omitted, a dynamic port is chosen. We **do not recommend** using static ports, except
@@ -97,6 +101,12 @@ When the task starts, it will be passed the following environment variables:
   <tt>ip:port</tt> that can be used for convenience.
 
 The label of the port is just text - it has no special meaning to Nomad.
+
+## `dns` Parameters
+
+- `servers` `(array<string>: nil)` - Sets the DNS nameservers the allocation uses for name resolution.
+- `searches` `(array<string>: nil)` - Sets the search list for hostname lookup
+- `options` `(array<string>: nil)` - Sets internal resolver variables.
 
 ## `network` Examples
 
@@ -199,6 +209,18 @@ network {
       static = 9002
       to     = 9002
     }
+}
+```
+
+### DNS
+
+The following example configures the allocation to use Google's DNS resolvers 8.8.8.8 and 8.8.4.4.
+
+```hcl
+network {
+  dns {
+    servers = ["8.8.8.8", "8.8.4.4"]
+  }
 }
 ```
 

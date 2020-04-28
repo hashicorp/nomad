@@ -445,6 +445,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 			return true
 		}
 
+		if !reflect.DeepEqual(an.DNS, bn.DNS) {
+			return true
+		}
+
 		aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
 		if !reflect.DeepEqual(aPorts, bPorts) {
 			return true

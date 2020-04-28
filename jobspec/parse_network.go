@@ -22,6 +22,7 @@ func ParseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
 	valid := []string{
 		"mode",
 		"mbits",
+		"dns",
 		"port",
 	}
 	if err := helper.CheckHCLKeys(o.Items[0].Val, valid); err != nil {
@@ -33,6 +34,8 @@ func ParseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
 	if err := hcl.DecodeObject(&m, o.Items[0].Val); err != nil {
 		return nil, err
 	}
+
+	delete(m, "dns")
 	if err := mapstructure.WeakDecode(m, &r); err != nil {
 		return nil, err
 	}
@@ -47,26 +50,40 @@ func ParseNetwork(o *ast.ObjectList) (*api.NetworkResource, error) {
 		return nil, multierror.Prefix(err, "network, ports ->")
 	}
 
+	// Filter dns
+	if dns := networkObj.Filter("dns"); len(dns.Items) > 0 {
+		if len(dns.Items) > 1 {
+			return nil, multierror.Prefix(fmt.Errorf("cannot have more than 1 dns stanza"), "network ->")
+		}
+
+		d, err := parseDNS(dns.Items[0])
+		if err != nil {
+			return nil, multierror.Prefix(err, "network ->")
+		}
+
+		r.DNS = d
+	}
+
 	return &r, nil
 }
 
 func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
-	// Check for invalid keys
-	valid := []string{
-		"mbits",
-		"port",
-		"mode",
-	}
-	if err := helper.CheckHCLKeys(networkObj, valid); err != nil {
-		return err
-	}
-
 	portsObjList := networkObj.Filter("port")
 	knownPortLabels := make(map[string]bool)
 	for _, port := range portsObjList.Items {
 		if len(port.Keys) == 0 {
 			return fmt.Errorf("ports must be named")
 		}
+
+		// check for invalid keys
+		valid := []string{
+			"static",
+			"to",
+		}
+		if err := helper.CheckHCLKeys(port.Val, valid); err != nil {
+			return err
+		}
+
 		label := port.Keys[0].Token.Value().(string)
 		if !reDynamicPorts.MatchString(label) {
 			return errPortLabel
@@ -92,4 +109,28 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 		knownPortLabels[l] = true
 	}
 	return nil
+}
+
+func parseDNS(dns *ast.ObjectItem) (*api.DNSConfig, error) {
+	valid := []string{
+		"servers",
+		"searches",
+		"options",
+	}
+
+	if err := helper.CheckHCLKeys(dns.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "dns ->")
+	}
+
+	var dnsCfg api.DNSConfig
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, dns.Val); err != nil {
+		return nil, err
+	}
+
+	if err := mapstructure.WeakDecode(m, &dnsCfg); err != nil {
+		return nil, err
+	}
+
+	return &dnsCfg, nil
 }
