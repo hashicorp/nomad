@@ -5,42 +5,34 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type heartbeatStop struct {
 	lastOk        time.Time
+	startupGrace  time.Time
 	allocInterval map[string]time.Duration
 	allocHookCh   chan *structs.Allocation
 	getRunner     func(string) (AllocRunner, error)
 	logger        hclog.InterceptLogger
-	state         state.StateDB
 	shutdownCh    chan struct{}
 	lock          *sync.RWMutex
 }
 
 func newHeartbeatStop(
-	state state.StateDB,
 	getRunner func(string) (AllocRunner, error),
+	timeout time.Duration,
 	logger hclog.InterceptLogger,
 	shutdownCh chan struct{}) *heartbeatStop {
 
 	h := &heartbeatStop{
+		startupGrace:  time.Now().Add(timeout),
 		allocInterval: make(map[string]time.Duration),
 		allocHookCh:   make(chan *structs.Allocation),
 		getRunner:     getRunner,
 		logger:        logger,
-		state:         state,
 		shutdownCh:    shutdownCh,
 		lock:          &sync.RWMutex{},
-	}
-
-	if state != nil {
-		lastOk, err := state.GetLastHeartbeatOk()
-		if err == nil && !lastOk.IsZero() {
-			h.lastOk = lastOk
-		}
 	}
 
 	return h
@@ -60,10 +52,17 @@ func (h *heartbeatStop) allocHook(alloc *structs.Allocation) {
 func (h *heartbeatStop) shouldStop(alloc *structs.Allocation) bool {
 	tg := allocTaskGroup(alloc)
 	if tg.StopAfterClientDisconnect != nil {
-		now := time.Now()
-		return now.After(h.lastOk.Add(*tg.StopAfterClientDisconnect))
+		return h.shouldStopAfter(time.Now(), *tg.StopAfterClientDisconnect)
 	}
 	return false
+}
+
+func (h *heartbeatStop) shouldStopAfter(now time.Time, interval time.Duration) bool {
+	lastOk := h.getLastOk()
+	if lastOk.IsZero() {
+		return h.startupGrace.After(now)
+	}
+	return now.After(lastOk.Add(interval))
 }
 
 // watch is a loop that checks for allocations that should be stopped. It also manages the
@@ -116,7 +115,7 @@ func (h *heartbeatStop) watch() {
 
 		now = time.Now()
 		for allocID, d := range h.allocInterval {
-			if now.After(h.lastOk.Add(d)) {
+			if h.shouldStopAfter(now, d) {
 				stop <- allocID
 			}
 		}
@@ -124,16 +123,10 @@ func (h *heartbeatStop) watch() {
 }
 
 // setLastOk sets the last known good heartbeat time to the current time, and persists that time to disk
-func (h *heartbeatStop) setLastOk() error {
+func (h *heartbeatStop) setLastOk(t time.Time) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	t := time.Now()
 	h.lastOk = t
-	// We may encounter an error here, but want to update the running time
-	// unconditionally, since we'll actively terminate stateful tasks if it ages too
-	// much. We only use the state value when restarting the client itself after a
-	// crash, so it's better to update the runtime value and have the stored value stale
-	return h.state.PutLastHeartbeatOk(t)
 }
 
 func (h *heartbeatStop) getLastOk() time.Time {

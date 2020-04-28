@@ -371,9 +371,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
 		})
 
-	// create heartbeatStop, and restore its previous state from the state store. Post init for the stateDB
-	c.heartbeatStop = newHeartbeatStop(c.stateDB, c.getAllocRunner, logger, c.shutdownCh)
-
 	// Setup the clients RPC server
 	c.setupClientRpc()
 
@@ -448,8 +445,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.pluginManagers.RegisterAndRun(devManager)
 
 	// Batching of initial fingerprints is done to reduce the number of node
-	// updates sent to the server on startup.
+	// updates sent to the server on startup. This is the first RPC to the servers
 	go c.batchFirstFingerprints()
+
+	// create heartbeatStop. We go after the first attempt to connect to the server, so
+	// that our grace period for connection goes for the full time
+	c.heartbeatStop = newHeartbeatStop(c.getAllocRunner, batchFirstFingerprintsTimeout, logger, c.shutdownCh)
 
 	// Watch for disconnection, and heartbeatStopAllocs configured to have a maximum
 	// lifetime when out of touch with the server
@@ -1764,7 +1765,7 @@ func (c *Client) registerNode() error {
 
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
-	c.heartbeatStop.setLastOk()
+	c.heartbeatStop.setLastOk(time.Now())
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
 }
@@ -1793,7 +1794,7 @@ func (c *Client) updateNodeStatus() error {
 	last := c.lastHeartbeat()
 	oldTTL := c.heartbeatTTL
 	haveHeartbeated := c.haveHeartbeated
-	c.heartbeatStop.setLastOk()
+	c.heartbeatStop.setLastOk(time.Now())
 	c.heartbeatTTL = resp.HeartbeatTTL
 	c.haveHeartbeated = true
 	c.heartbeatLock.Unlock()

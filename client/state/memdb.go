@@ -2,7 +2,6 @@ package state
 
 import (
 	"sync"
-	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
@@ -33,9 +32,6 @@ type MemDB struct {
 
 	// dynamicmanager -> registry-state
 	dynamicManagerPs *dynamicplugins.RegistryState
-
-	// lastHeartbeatOk -> last_heartbeat_ok
-	lastHeartbeatOk time.Time
 
 	logger hclog.Logger
 
@@ -90,19 +86,6 @@ func (m *MemDB) PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentS
 	m.mu.Lock()
 	m.deployStatus[allocID] = ds
 	defer m.mu.Unlock()
-	return nil
-}
-
-func (m *MemDB) GetLastHeartbeatOk() (time.Time, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.lastHeartbeatOk, nil
-}
-
-func (m *MemDB) PutLastHeartbeatOk(t time.Time) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.lastHeartbeatOk = t
 	return nil
 }
 
