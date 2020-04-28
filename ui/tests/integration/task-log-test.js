@@ -190,6 +190,25 @@ module('Integration | Component | task log', function(hooks) {
     );
   });
 
+  test('Clicking stderr/stdout mode buttons does nothing when the mode remains the same', async function(assert) {
+    const { interval } = commonProps;
+
+    run.later(() => {
+      click('[data-test-log-action="stdout"]');
+      run.later(run, run.cancelTimers, interval * 6);
+    }, interval * 2);
+
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task}}`);
+
+    await settled();
+    assert.equal(
+      find('[data-test-log-cli]').textContent,
+      streamFrames[0] + streamFrames[0] + streamFrames[1],
+      'Now includes second frame'
+    );
+  });
+
   test('When the client is inaccessible, task-log falls back to requesting logs through the server', async function(assert) {
     run.later(run, run.cancelTimers, allowedConnectionTime * 2);
 

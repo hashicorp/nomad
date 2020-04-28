@@ -77,6 +77,7 @@ export default Component.extend({
 
   actions: {
     setMode(mode) {
+      if (this.mode === mode) return;
       this.logger.stop();
       this.set('mode', mode);
     },
