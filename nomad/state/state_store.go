@@ -2175,6 +2175,17 @@ func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVol
 		}
 		if a != nil {
 			vol.ReadAllocs[id] = a
+			// COMPAT(1.0): the CSIVolumeClaim fields were added
+			// after 0.11.1, so claims made before that may be
+			// missing this value. (same for WriteAlloc below)
+			if _, ok := vol.ReadClaims[id]; !ok {
+				vol.ReadClaims[id] = &structs.CSIVolumeClaim{
+					AllocationID: a.ID,
+					NodeID:       a.NodeID,
+					Mode:         structs.CSIVolumeClaimRead,
+					State:        structs.CSIVolumeClaimStateTaken,
+				}
+			}
 		}
 	}
 
@@ -2185,6 +2196,14 @@ func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVol
 		}
 		if a != nil {
 			vol.WriteAllocs[id] = a
+			if _, ok := vol.WriteClaims[id]; !ok {
+				vol.WriteClaims[id] = &structs.CSIVolumeClaim{
+					AllocationID: a.ID,
+					NodeID:       a.NodeID,
+					Mode:         structs.CSIVolumeClaimWrite,
+					State:        structs.CSIVolumeClaimStateTaken,
+				}
+			}
 		}
 	}
 
