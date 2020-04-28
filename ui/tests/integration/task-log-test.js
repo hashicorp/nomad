@@ -279,6 +279,9 @@ module('Integration | Component | task log', function(hooks) {
       'Log request was later made to the server'
     );
     assert.ok(find('[data-test-connection-error]'), 'An error message is shown');
+
+    await click('[data-test-connection-error-dismiss]');
+    assert.notOk(find('[data-test-connection-error]'), 'The error message is dismissable');
   });
 
   test('When the client is inaccessible, the server is accessible, and stderr is pressed before the client timeout occurs, the no connection error is not shown', async function(assert) {
