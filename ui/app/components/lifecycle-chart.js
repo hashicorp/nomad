@@ -49,7 +49,13 @@ export default Component.extend({
   }),
 });
 
+const lifecycleNameSortPrefix = {
+  prestart: 0,
+  sidecar: 1,
+  main: 2,
+};
+
 function getTaskSortPrefix(task) {
   // Prestarts first, then sidecars, then mains
-  return `${task.lifecycle ? (task.lifecycle.sidecar ? '1' : '0') : '2'}-${task.name}`;
+  return `${lifecycleNameSortPrefix[task.lifecycleName]}-${task.name}`;
 }
