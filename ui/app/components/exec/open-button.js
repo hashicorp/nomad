@@ -15,22 +15,11 @@ export default Component.extend({
   },
 
   generateUrl() {
-    let urlSegments = {
-      job: this.job.get('name'),
-    };
-
-    if (this.taskGroup) {
-      urlSegments.taskGroup = this.taskGroup.get('name');
-    }
-
-    if (this.task) {
-      urlSegments.task = this.task.get('name');
-    }
-
-    if (this.allocation) {
-      urlSegments.allocation = this.allocation.get('shortId');
-    }
-
-    return generateExecUrl(this.router, urlSegments);
+    return generateExecUrl(this.router, {
+      job: this.job,
+      taskGroup: this.taskGroup,
+      task: this.task,
+      allocation: this.task
+    });
   },
 });

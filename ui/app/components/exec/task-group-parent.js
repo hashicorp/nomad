@@ -70,9 +70,9 @@ export default Component.extend({
 
     openInNewWindow(job, taskGroup, task) {
       let url = generateExecUrl(this.router, {
-        job: job.name,
-        taskGroup: taskGroup.name,
-        task: task.name,
+        job,
+        taskGroup,
+        task,
       });
 
       openExecUrl(url);
