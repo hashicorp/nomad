@@ -541,7 +541,7 @@ func (f *EnvAWSFingerprint) instanceType(ec2meta *ec2metadata.EC2Metadata) (stri
 func (f *EnvAWSFingerprint) lookupCPU(ec2meta *ec2metadata.EC2Metadata) *ec2Specs {
 	instanceType, err := f.instanceType(ec2meta)
 	if err != nil {
-		f.logger.Error("error reading instance-type", "error", err)
+		f.logger.Warn("failed to read EC2 metadata instance-type", "error", err)
 		return nil
 	}
 	for iType, specs := range ec2ProcSpeedTable {
