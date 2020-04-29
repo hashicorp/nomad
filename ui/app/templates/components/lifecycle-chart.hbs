@@ -8,7 +8,7 @@
         <div class="lifecycle-phases">
           {{#each lifecyclePhases as |phase|}}
             <div class="lifecycle-phase {{if phase.isActive "is-active"}} {{if (eq phase.name "Main") "main" "prestart"}}" data-test-lifecycle-phase>
-              <div class="name">{{phase.name}}</div>
+              <div class="name" data-test-name>{{phase.name}}</div>
             </div>
           {{/each}}
           <svg class="divider">
