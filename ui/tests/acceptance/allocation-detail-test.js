@@ -349,8 +349,10 @@ module('Acceptance | allocation detail (not running)', function(hooks) {
     );
   });
 
-  test('the exec button is absent', async function(assert) {
+  test('the exec and stop/restart buttons are absent', async function(assert) {
     assert.notOk(Allocation.execButton.isPresent);
+    assert.notOk(Allocation.stop.isPresent);
+    assert.notOk(Allocation.restart.isPresent);
   });
 });
 
