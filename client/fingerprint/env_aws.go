@@ -515,7 +515,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 			nodeResources.Cpu = structs.NodeCpuResources{CpuShares: int64(ticks)}
 		}
 	} else {
-		f.logger.Warn("no cpu specification found for this instance type")
+		f.logger.Warn("failed to find the cpu specification for this instance type")
 	}
 
 	response.Resources = resources
