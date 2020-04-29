@@ -496,13 +496,9 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	// copy over CPU speed information
 	if specs := f.lookupCPU(ec2meta); specs != nil {
 		response.AddAttribute("cpu.modelname", specs.model)
-		f.logger.Debug("lookup ec2 cpu model name", "model", specs.model)
-
 		response.AddAttribute("cpu.frequency", fmt.Sprintf("%.0f", specs.mhz))
-		f.logger.Debug("lookup ec2 cpu frequency", "MHz", log.Fmt("%.0f", specs.mhz))
-
 		response.AddAttribute("cpu.numcores", fmt.Sprintf("%d", specs.cores))
-		f.logger.Debug("lookup ec2 cpu cores", "cores", specs.cores)
+		f.logger.Debug("lookup ec2 cpu", "cores", specs.cores, "MHz", log.Fmt("%.0f", specs.mhz), "model", specs.model)
 
 		if ticks := specs.ticks(); request.Config.CpuCompute <= 0 {
 			response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", ticks))
