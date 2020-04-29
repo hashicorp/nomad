@@ -8,6 +8,18 @@
     bottom: 1.5em;
     right: 1.5em;
     left: 1.5em;
+
+    .divider {
+      position: absolute;
+      left: 25%;
+      height: 100%;
+
+      stroke: $ui-gray-200;
+      stroke-width: 3px;
+      stroke-dasharray: 1, 7;
+      stroke-dashoffset: 1;
+      stroke-linecap: square;
+    }
   }
 
   .lifecycle-phase {
@@ -36,9 +48,6 @@
     &.prestart {
       left: 0;
       right: 75%;
-
-      // Adapted from https://kovart.github.io/dashed-border-generator/
-      background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3cline x1='100%25' y1='0' x2='100%25' y2='100%25' fill='none' stroke='#{encode-color($ui-gray-200)}' stroke-width='3' stroke-dasharray='1%2c 7' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
     }
 
     &.main {
