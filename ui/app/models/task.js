@@ -13,15 +13,9 @@ export default Fragment.extend({
   lifecycle: fragment('lifecycle'),
 
   lifecycleName: computed('lifecycle', 'lifecycle.sidecar', function() {
-    if (this.lifecycle) {
-      if (this.lifecycle.sidecar) {
-        return 'sidecar';
-      } else {
-        return 'prestart';
-      }
-    } else {
-      return 'main';
-    }
+    if (this.lifecycle && this.lifecycle.sidecar) return 'sidecar';
+    if (this.lifecycle) return 'prestart';
+    return 'main';
   }),
 
   reservedMemory: attr('number'),
