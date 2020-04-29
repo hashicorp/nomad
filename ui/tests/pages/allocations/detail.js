@@ -19,6 +19,10 @@ export default create({
   stop: twoStepButton('[data-test-stop]'),
   restart: twoStepButton('[data-test-restart]'),
 
+  execButton: {
+    scope: '[data-test-exec-button]',
+  },
+
   details: {
     scope: '[data-test-allocation-details]',
 
