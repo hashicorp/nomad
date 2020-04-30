@@ -12,6 +12,7 @@ import {
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import error from 'nomad-ui/tests/pages/components/error';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
+import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
 export default create({
   pageSize: 25,
@@ -38,6 +39,8 @@ export default create({
   ...allocations(),
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
+
+  lifecycleChart: LifecycleChart,
 
   hasVolumes: isPresent('[data-test-volumes]'),
   volumes: collection('[data-test-volumes] [data-test-volume]', {

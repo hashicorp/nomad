@@ -1,5 +1,8 @@
 ## 0.11.2 (Unreleased)
 
+FEATURES:
+ * **Task dependencies UI**: task lifecycle charts and details
+
 BUG FIXES:
 
  * api: autoscaling policies should not be returned for stopped jobs [[GH-7768](https://github.com/hashicorp/nomad/issues/7768)]
