@@ -4,8 +4,8 @@ import {
   collection,
   clickable,
   fillable,
-  is,
   isPresent,
+  property,
   text,
   visitable,
 } from 'ember-cli-page-object';
@@ -22,7 +22,7 @@ export default create({
 
   runJobButton: {
     scope: '[data-test-run-job]',
-    isDisabled: is('[disabled]'),
+    isDisabled: property('disabled'),
   },
 
   jobs: collection('[data-test-job-row]', {
