@@ -3027,10 +3027,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 func TestStateStore_CSIPluginNodes(t *testing.T) {
 	index := uint64(999)
 	state := testStateStore(t)
+	ws := memdb.NewWatchSet()
+	plugID := "foo"
 
-	// Create Nodes fingerprinting the plugins
+	// Create Nomad client Nodes
 	ns := []*structs.Node{mock.Node(), mock.Node()}
-
 	for _, n := range ns {
 		index++
 		err := state.UpsertNode(index, n)
@@ -3038,10 +3039,10 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	}
 
 	// Fingerprint a running controller plugin
-	n0 := ns[0].Copy()
+	n0, _ := state.NodeByID(ws, ns[0].ID)
 	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"foo": {
-			PluginID:                 "foo",
+		plugID: {
+			PluginID:                 plugID,
 			Healthy:                  true,
 			UpdateTime:               time.Now(),
 			RequiresControllerPlugin: true,
@@ -3052,17 +3053,16 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 			},
 		},
 	}
-
 	index++
 	err := state.UpsertNode(index, n0)
 	require.NoError(t, err)
 
 	// Fingerprint two running node plugins
 	for _, n := range ns[:] {
-		n = n.Copy()
+		n, _ := state.NodeByID(ws, n.ID)
 		n.CSINodePlugins = map[string]*structs.CSIInfo{
-			"foo": {
-				PluginID:                 "foo",
+			plugID: {
+				PluginID:                 plugID,
 				Healthy:                  true,
 				UpdateTime:               time.Now(),
 				RequiresControllerPlugin: true,
@@ -3070,24 +3070,38 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 				NodeInfo:                 &structs.CSINodeInfo{},
 			},
 		}
-
 		index++
 		err = state.UpsertNode(index, n)
 		require.NoError(t, err)
 	}
 
-	ws := memdb.NewWatchSet()
-	plug, err := state.CSIPluginByID(ws, "foo")
+	plug, err := state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.True(t, plug.ControllerRequired)
+	require.Equal(t, 1, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
+
+	// Volume using the plugin
+	index++
+	vol := &structs.CSIVolume{
+		ID:        uuid.Generate(),
+		Namespace: structs.DefaultNamespace,
+		PluginID:  plugID,
+	}
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 
-	require.Equal(t, "foo", plug.ID)
-	require.Equal(t, 1, plug.ControllersHealthy)
-	require.Equal(t, 2, plug.NodesHealthy)
+	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
+	require.NoError(t, err)
+	require.True(t, vol.Schedulable, "volume should be schedulable")
 
 	// Controller is unhealthy
+	n0, _ = state.NodeByID(ws, ns[0].ID)
 	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"foo": {
-			PluginID:                 "foo",
+		plugID: {
+			PluginID:                 plugID,
 			Healthy:                  false,
 			UpdateTime:               time.Now(),
 			RequiresControllerPlugin: true,
@@ -3103,51 +3117,98 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	err = state.UpsertNode(index, n0)
 	require.NoError(t, err)
 
-	plug, err = state.CSIPluginByID(ws, "foo")
+	plug, err = state.CSIPluginByID(ws, plugID)
 	require.NoError(t, err)
-	require.Equal(t, "foo", plug.ID)
-	require.Equal(t, 0, plug.ControllersHealthy)
-	require.Equal(t, 2, plug.NodesHealthy)
-
-	// Volume using the plugin
-	index++
-	vol := &structs.CSIVolume{
-		ID:        uuid.Generate(),
-		Namespace: structs.DefaultNamespace,
-		PluginID:  "foo",
-	}
-	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
-	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
 
 	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
 	require.NoError(t, err)
-	require.True(t, vol.Schedulable)
+	require.False(t, vol.Schedulable, "volume should not be schedulable")
 
 	// Node plugin is removed
-	n1 := ns[1].Copy()
+	n1, _ := state.NodeByID(ws, ns[1].ID)
 	n1.CSINodePlugins = map[string]*structs.CSIInfo{}
 	index++
 	err = state.UpsertNode(index, n1)
 	require.NoError(t, err)
 
-	plug, err = state.CSIPluginByID(ws, "foo")
+	plug, err = state.CSIPluginByID(ws, plugID)
 	require.NoError(t, err)
-	require.Equal(t, "foo", plug.ID)
-	require.Equal(t, 0, plug.ControllersHealthy)
-	require.Equal(t, 1, plug.NodesHealthy)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 1, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 1, len(plug.Nodes), "nodes expected")
 
-	// Last plugin is removed
-	n0 = ns[0].Copy()
+	// Last node plugin is removed
+	n0, _ = state.NodeByID(ws, ns[0].ID)
 	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
 	index++
 	err = state.UpsertNode(index, n0)
 	require.NoError(t, err)
 
-	plug, err = state.CSIPluginByID(ws, "foo")
+	// Nodes plugins should be gone but controllers left
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 0, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 0, len(plug.Nodes), "nodes expected")
+
+	// A node plugin is restored
+	n0, _ = state.NodeByID(ws, n0.ID)
+	n0.CSINodePlugins = map[string]*structs.CSIInfo{
+		plugID: {
+			PluginID:                 plugID,
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			NodeInfo:                 &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Nodes plugin should be replaced and healthy
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 1, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 1, len(plug.Nodes), "nodes expected")
+
+	// Remove node again
+	n0, _ = state.NodeByID(ws, ns[0].ID)
+	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Nodes plugins should be gone but controllers left
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 0, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 0, len(plug.Nodes), "nodes expected")
+
+	// controller is removed
+	n0, _ = state.NodeByID(ws, ns[0].ID)
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Plugin has been removed entirely
+	plug, err = state.CSIPluginByID(ws, plugID)
 	require.NoError(t, err)
 	require.Nil(t, plug)
 
-	// Volume exists and is safe to query, but unschedulable
+	// Volume still exists and is safe to query, but unschedulable
 	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
 	require.NoError(t, err)
 	require.False(t, vol.Schedulable)
