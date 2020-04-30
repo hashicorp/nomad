@@ -90,6 +90,7 @@ const (
 	CSIVolumeRegisterRequestType
 	CSIVolumeDeregisterRequestType
 	CSIVolumeClaimRequestType
+	CSIVolumeClaimBatchRequestType
 	ScalingEventRegisterRequestType
 )
 

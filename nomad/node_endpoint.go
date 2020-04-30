@@ -1149,7 +1149,7 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			Priority:    structs.CoreJobPriority,
 			Type:        structs.JobTypeCore,
 			TriggeredBy: structs.EvalTriggerAllocStop,
-			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + volAndNamespace[0] + ":no",
+			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + volAndNamespace[0],
 			LeaderACL:   n.srv.getLeaderAcl(),
 			Status:      structs.EvalStatusPending,
 			CreateTime:  now.UTC().UnixNano(),
