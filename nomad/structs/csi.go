@@ -701,7 +701,8 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 	if info.ControllerInfo != nil {
 		p.ControllerRequired = info.RequiresControllerPlugin &&
-			info.ControllerInfo.SupportsAttachDetach
+			(info.ControllerInfo.SupportsAttachDetach ||
+				info.ControllerInfo.SupportsReadOnlyAttach)
 
 		prev, ok := p.Controllers[nodeID]
 		if ok {
