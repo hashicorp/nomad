@@ -24,20 +24,15 @@ For more detailed examples see:
 https://www.nomadproject.io/docs/commands/license/
 
 Install a new license from a file:
-	$ nomad license put @nomad.license
+	$ nomad license put <path>
 
 Install a new license from stdin:
 	$ nomad license put -
-
-Install a new license from a string:
-	$ nomad license put "<license blob>"
 
 Retrieve the current license:
 
 	$ nomad license get
 
-Reset the current license:
-	$ nomad license reset
 	`
 	return strings.TrimSpace(helpText)
 }
@@ -53,21 +48,22 @@ func (l *LicenseCommand) Run(args []string) int {
 }
 
 func OutputLicenseReply(ui cli.Ui, resp *api.LicenseReply) int {
+	var validity string
 	if resp.Valid {
-		ui.Output("License is valid")
-		outputLicenseInfo(ui, resp.License, false)
+		validity = "valid"
+		outputLicenseInfo(ui, resp.License, false, validity)
 		return 0
 	} else if resp.License != nil {
 		now := time.Now()
 		if resp.License.ExpirationTime.Before(now) {
-			ui.Output("License has expired!")
-			outputLicenseInfo(ui, resp.License, true)
+			validity = "expired!"
+			outputLicenseInfo(ui, resp.License, true, validity)
 		} else {
-			ui.Output("License is invalid!")
+			validity = "invalid!"
 			for _, warn := range resp.Warnings {
 				ui.Output(fmt.Sprintf("   %s", warn))
 			}
-			outputLicenseInfo(ui, resp.License, false)
+			outputLicenseInfo(ui, resp.License, false, validity)
 		}
 		return 1
 	} else {
@@ -78,28 +74,26 @@ func OutputLicenseReply(ui cli.Ui, resp *api.LicenseReply) int {
 	}
 }
 
-func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool) {
+func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool, validity string) {
 	expStr := ""
 	if expired {
-		expStr = fmt.Sprintf("Expired At: %s", lic.ExpirationTime.String())
+		expStr = fmt.Sprintf("Expired At|%s", lic.ExpirationTime.String())
 	} else {
-		expStr = fmt.Sprintf("Expires At: %s", lic.ExpirationTime.String())
+		expStr = fmt.Sprintf("Expires At|%s", lic.ExpirationTime.String())
 	}
 
 	output := []string{
-		fmt.Sprintf("License ID: %s", lic.LicenseID),
-		fmt.Sprintf("Customer ID: %s", lic.CustomerID),
+		fmt.Sprintf("License Status|%s", validity),
+		fmt.Sprintf("License ID|%s", lic.LicenseID),
+		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
 		expStr,
-		fmt.Sprintf("License ID: %s", lic.LicenseID),
-		fmt.Sprintf("Customer ID: %s", lic.CustomerID),
-		fmt.Sprintf("Terminates At: %s", lic.TerminationTime.String()),
-		fmt.Sprintf("Datacenter: %s", lic.InstallationID),
+		fmt.Sprintf("License ID|%s", lic.LicenseID),
+		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
+		fmt.Sprintf("Terminates At|%s", lic.TerminationTime.String()),
+		fmt.Sprintf("Datacenter|%s", lic.InstallationID),
 	}
 	ui.Output(formatKV(output))
-	// ui.Output(fmt.Sprintf("License ID: %s", lic.LicenseID))
-	// ui.Output(fmt.Sprintf("Customer ID: %s", lic.CustomerID))
-	// ui.Output(fmt.Sprintf("Terminates At: %s", lic.TerminationTime.String()))
-	// ui.Output(fmt.Sprintf("Datacenter: %s", lic.InstallationID))
+
 	if len(lic.Modules) > 0 {
 		ui.Output("Modules:")
 		for _, mod := range lic.Modules {

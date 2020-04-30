@@ -18,10 +18,13 @@ func TestCommand_LicenseGet_OSSErr(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &LicenseGetCommand{Meta: Meta{Ui: ui}}
 
-	if code := cmd.Run([]string{"-address=" + url}); code != 1 {
-		require.Equal(t, 1, code)
-	}
+	code := cmd.Run([]string{"-address=" + url})
+	require.Equal(t, 1, code)
 
-	require.Contains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+	if srv.Enterprise {
+		require.Contains(t, ui.OutputWriter.String(), "License Status")
+	} else {
+		require.Contains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
+	}
 
 }

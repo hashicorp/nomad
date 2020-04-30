@@ -35,9 +35,6 @@ Install a new license from stdin:
 
 	$ nomad license put -
 
-Install a new license from a string:
-
-	$ nomad license put "<license blob>"
 	`
 	return strings.TrimSpace(helpText)
 }
