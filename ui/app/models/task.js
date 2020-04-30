@@ -14,7 +14,7 @@ export default Fragment.extend({
 
   lifecycleName: computed('lifecycle', 'lifecycle.sidecar', function() {
     if (this.lifecycle && this.lifecycle.sidecar) return 'sidecar';
-    if (this.lifecycle) return 'prestart';
+    if (this.lifecycle && this.lifecycle.hook === 'prestart') return 'prestart';
     return 'main';
   }),
 
