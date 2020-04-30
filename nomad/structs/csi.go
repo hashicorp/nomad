@@ -465,12 +465,11 @@ func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 // ClaimRelease is called when the allocation has terminated and
 // already stopped using the volume
 func (v *CSIVolume) ClaimRelease(claim *CSIVolumeClaim) error {
-	delete(v.ReadAllocs, claim.AllocationID)
-	delete(v.WriteAllocs, claim.AllocationID)
-	delete(v.ReadClaims, claim.AllocationID)
-	delete(v.WriteClaims, claim.AllocationID)
-
 	if claim.State == CSIVolumeClaimStateReadyToFree {
+		delete(v.ReadAllocs, claim.AllocationID)
+		delete(v.WriteAllocs, claim.AllocationID)
+		delete(v.ReadClaims, claim.AllocationID)
+		delete(v.WriteClaims, claim.AllocationID)
 		delete(v.PastClaims, claim.AllocationID)
 	} else {
 		v.PastClaims[claim.AllocationID] = claim
