@@ -172,7 +172,7 @@ func (vw *volumeWatcher) isUnclaimed(vol *structs.CSIVolume) bool {
 func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 	var result *multierror.Error
 	nodeClaims := map[string]int{} // node IDs -> count
-	jobs := map[string]bool{}      // namespace+jobID -> stopped
+	jobs := map[string]bool{}      // jobID -> stopped
 
 	// if a job is purged, the subsequent alloc updates can't
 	// trigger a GC job because there's no job for them to query.
@@ -181,7 +181,7 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 	// for each job so that we don't requery in this pass
 	checkStopped := func(jobID string) bool {
 		namespace := vw.v.Namespace
-		isStopped, ok := jobs[namespace+jobID]
+		isStopped, ok := jobs[jobID]
 		if !ok {
 			ws := memdb.NewWatchSet()
 			job, err := vw.state.JobByID(ws, namespace, jobID)
@@ -191,7 +191,7 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 			if job == nil || job.Stopped() {
 				isStopped = true
 			}
-			jobs[namespace+jobID] = isStopped
+			jobs[jobID] = isStopped
 		}
 		return isStopped
 	}
