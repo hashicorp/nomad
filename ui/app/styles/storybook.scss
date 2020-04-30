@@ -99,4 +99,21 @@
       }
     }
   }
+
+  .typeface {
+    .hero,
+    .sample {
+      font-family: inherit;
+    }
+
+    .hero {
+      font-size: 140px;
+      line-height: 1.05;
+    }
+
+    .sample {
+      font-size: 15px;
+      margin: 0;
+    }
+  }
 }
