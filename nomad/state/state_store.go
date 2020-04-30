@@ -1057,13 +1057,15 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		return nil
 	}
 
-	inUse := map[string]struct{}{}
+	inUseController := map[string]struct{}{}
+	inUseNode := map[string]struct{}{}
+
 	for _, info := range node.CSIControllerPlugins {
 		err := loop(info)
 		if err != nil {
 			return err
 		}
-		inUse[info.PluginID] = struct{}{}
+		inUseController[info.PluginID] = struct{}{}
 	}
 
 	for _, info := range node.CSINodePlugins {
@@ -1071,7 +1073,7 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		if err != nil {
 			return err
 		}
-		inUse[info.PluginID] = struct{}{}
+		inUseNode[info.PluginID] = struct{}{}
 	}
 
 	// remove the client node from any plugin that's not
@@ -1086,15 +1088,33 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			break
 		}
 		plug := raw.(*structs.CSIPlugin)
-		_, ok := inUse[plug.ID]
-		if !ok {
-			_, asController := plug.Controllers[node.ID]
-			_, asNode := plug.Nodes[node.ID]
-			if asController || asNode {
-				err = deleteNodeFromPlugin(txn, plug.Copy(), node, index)
+
+		var hadDelete bool
+		if _, ok := inUseController[plug.ID]; !ok {
+			if _, asController := plug.Controllers[node.ID]; asController {
+				err := plug.DeleteNodeForType(node.ID, structs.CSIPluginTypeController)
 				if err != nil {
 					return err
 				}
+				hadDelete = true
+			}
+		}
+		if _, ok := inUseNode[plug.ID]; !ok {
+			if _, asNode := plug.Nodes[node.ID]; asNode {
+				err := plug.DeleteNodeForType(node.ID, structs.CSIPluginTypeNode)
+				if err != nil {
+					return err
+				}
+				hadDelete = true
+			}
+		}
+		// we check this flag both for performance and to make sure we
+		// don't delete a plugin when registering a node plugin but
+		// no controller
+		if hadDelete {
+			err = updateOrGCPlugin(index, txn, plug)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -2137,7 +2157,6 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	if vol == nil {
 		return nil, nil
 	}
-
 	// Lookup CSIPlugin, the health records, and calculate volume health
 	txn := s.db.Txn(false)
 	defer txn.Abort()
