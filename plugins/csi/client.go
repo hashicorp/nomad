@@ -82,6 +82,7 @@ type client struct {
 	identityClient   csipbv1.IdentityClient
 	controllerClient CSIControllerClient
 	nodeClient       CSINodeClient
+	logger           hclog.Logger
 }
 
 func (c *client) Close() error {
@@ -106,6 +107,7 @@ func NewClient(addr string, logger hclog.Logger) (CSIPlugin, error) {
 		identityClient:   csipbv1.NewIdentityClient(conn),
 		controllerClient: csipbv1.NewControllerClient(conn),
 		nodeClient:       csipbv1.NewNodeClient(conn),
+		logger:           logger,
 	}, nil
 }
 
@@ -318,15 +320,48 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID st
 		return err
 	}
 
-	if resp.Confirmed == nil {
-		if resp.Message != "" {
-			return fmt.Errorf("Volume validation failed, message: %s", resp.Message)
-		}
+	if resp.Message != "" {
+		// this should only ever be set if Confirmed isn't set, but
+		// it's not a validation failure.
+		c.logger.Debug(resp.Message)
+	}
 
-		return fmt.Errorf("Volume validation failed")
+	// The protobuf accessors below safely handle nil pointers.
+	// The CSI spec says we can only assert the plugin has
+	// confirmed the volume capabilities, not that it hasn't
+	// confirmed them, so if the field is nil we have to assume
+	// the volume is ok.
+	confirmedCaps := resp.GetConfirmed().GetVolumeCapabilities()
+	if confirmedCaps != nil {
+		for _, requestedCap := range req.VolumeCapabilities {
+			if !compareCapabilities(requestedCap, confirmedCaps) {
+				return fmt.Errorf("volume capability validation failed: missing %v", req)
+			}
+		}
 	}
 
 	return nil
+}
+
+// compareCapabilities returns true if the 'got' capabilities contains
+// the 'expected' capability
+func compareCapabilities(expected *csipbv1.VolumeCapability, got []*csipbv1.VolumeCapability) bool {
+	for _, cap := range got {
+		if expected.GetAccessMode().GetMode() != cap.GetAccessMode().GetMode() {
+			continue
+		}
+		// AccessType Block is an empty struct even if set, so the
+		// only way to test for it is to check that the AccessType
+		// isn't Mount.
+		if expected.GetMount() == nil && cap.GetMount() != nil {
+			continue
+		}
+		if expected.GetMount() != cap.GetMount() {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 //
