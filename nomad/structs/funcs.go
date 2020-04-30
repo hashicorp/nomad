@@ -101,11 +101,8 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 // ensured there are no collisions. If checkDevices is set to true, we check if
 // there is a device oversubscription.
 func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
-	// Compute the utilization from zero
+	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
-
-	// Add the reserved resources of the node
-	used.Add(node.ComparableReservedResources())
 
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
@@ -117,9 +114,11 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		used.Add(alloc.ComparableResources())
 	}
 
-	// Check that the node resources are a super set of those
-	// that are being allocated
-	if superset, dimension := node.ComparableResources().Superset(used); !superset {
+	// Check that the node resources (after subtracting reserved) are a
+	// super set of those that are being allocated
+	available := node.ComparableResources()
+	available.Subtract(node.ComparableReservedResources())
+	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
 

@@ -188,8 +188,8 @@ func TestAllocsFit_Old(t *testing.T) {
 	require.True(fit)
 
 	// Sanity check the used resources
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
 	// Should not fit second allocation
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
@@ -197,8 +197,8 @@ func TestAllocsFit_Old(t *testing.T) {
 	require.False(fit)
 
 	// Sanity check the used resources
-	require.EqualValues(3000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(3072, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
 
 // COMPAT(0.11): Remove in 0.11
@@ -255,8 +255,8 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	require.True(fit)
 
 	// Sanity check the used resources
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
@@ -266,8 +266,8 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	require.True(fit)
 
 	// Sanity check the used resources
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
 
 func TestAllocsFit(t *testing.T) {
@@ -340,8 +340,8 @@ func TestAllocsFit(t *testing.T) {
 	require.True(fit)
 
 	// Sanity check the used resources
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
 	// Should not fit second allocation
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
@@ -349,8 +349,8 @@ func TestAllocsFit(t *testing.T) {
 	require.False(fit)
 
 	// Sanity check the used resources
-	require.EqualValues(3000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(3072, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
 
 func TestAllocsFit_TerminalAlloc(t *testing.T) {
@@ -424,8 +424,8 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	require.True(fit)
 
 	// Sanity check the used resources
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
@@ -435,8 +435,8 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	require.True(fit, dim)
 
 	// Sanity check the used resources
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
 
 // Tests that AllocsFit detects device collisions
