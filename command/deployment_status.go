@@ -85,13 +85,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 
 	// Check that we got exactly one argument
 	args = flags.Args()
-	if l := len(args); l != 1 {
+	if l := len(args); l > 1 {
 		c.Ui.Error("This command takes one argument: <deployment id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-
-	dID := args[0]
 
 	// Truncate the id unless full length is requested
 	length := shortId
@@ -106,7 +104,20 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// List if no arguments are provided
+	if len(args) == 0 {
+		deploys, _, err := client.Deployments().List(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
+			return 1
+		}
+
+		c.Ui.Output(formatDeployments(deploys, length))
+		return 0
+	}
+
 	// Do a prefix lookup
+	dID := args[0]
 	deploy, possible, err := getDeployment(client.Deployments(), dID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployment: %s", err))

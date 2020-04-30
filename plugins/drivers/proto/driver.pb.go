@@ -426,7 +426,7 @@ var xxx_messageInfo_FingerprintRequest proto.InternalMessageInfo
 
 type FingerprintResponse struct {
 	// Attributes are key/value pairs that annotate the nomad client and can be
-	// used in scheduling contraints and affinities.
+	// used in scheduling constraints and affinities.
 	Attributes map[string]*proto1.Attribute `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Health is used to determine the state of the health the driver is in.
 	// Health can be one of the following states:

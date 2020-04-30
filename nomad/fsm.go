@@ -270,6 +270,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyCSIVolumeDeregister(buf[1:], log.Index)
 	case structs.CSIVolumeClaimRequestType:
 		return n.applyCSIVolumeClaim(buf[1:], log.Index)
+	case structs.CSIVolumeClaimBatchRequestType:
+		return n.applyCSIVolumeBatchClaim(buf[1:], log.Index)
 	case structs.ScalingEventRegisterRequestType:
 		return n.applyUpsertScalingEvent(buf[1:], log.Index)
 	}
@@ -1156,6 +1158,24 @@ func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{
 	return nil
 }
 
+func (n *nomadFSM) applyCSIVolumeBatchClaim(buf []byte, index uint64) interface{} {
+	var batch *structs.CSIVolumeClaimBatchRequest
+	if err := structs.Decode(buf, &batch); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_batch_claim"}, time.Now())
+
+	for _, req := range batch.Claims {
+		err := n.state.CSIVolumeClaim(index, req.RequestNamespace(),
+			req.VolumeID, req.ToClaim())
+		if err != nil {
+			n.logger.Error("CSIVolumeClaim for batch failed", "error", err)
+			return err // note: fails the remaining batch
+		}
+	}
+	return nil
+}
+
 func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 	var req structs.CSIVolumeClaimRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1163,26 +1183,10 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_claim"}, time.Now())
 
-	ws := memdb.NewWatchSet()
-	alloc, err := n.state.AllocByID(ws, req.AllocationID)
-	if err != nil {
-		n.logger.Error("AllocByID failed", "error", err)
-		return err
-	}
-	if alloc == nil {
-		n.logger.Error("AllocByID failed to find alloc", "alloc_id", req.AllocationID)
-		if err != nil {
-			return err
-		}
-
-		return structs.ErrUnknownAllocationPrefix
-	}
-
-	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, alloc, req.Claim); err != nil {
+	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
 		n.logger.Error("CSIVolumeClaim failed", "error", err)
 		return err
 	}
-
 	return nil
 }
 

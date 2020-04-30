@@ -25,7 +25,7 @@ Prior to Nomad 0.9, when a cluster is at capacity, any allocations that result f
 job remain in the pending state until sufficient resources become available - regardless of the defined priority.
 This leads to priority inversion, where a low priority task can prevent high priority tasks from completing.
 
-Nomad 0.9 brings preemption capabilities to system jobs. The Nomad scheduler will evict lower priority running allocations
+Nomad has preemption capabilities for service, batch, and system jobs. The Nomad scheduler can be configured to evict lower priority running allocations
 to free up capacity for new allocations resulting from relatively higher priority jobs, sending evicted allocations back
 into the plan queue.
 

@@ -737,19 +737,13 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	for _, vol := range volumesToGC {
 		// we have to build this eval by hand rather than calling srv.CoreJob
 		// here because we need to use the volume's namespace
-
-		runningAllocs := ":ok"
-		if args.Purge {
-			runningAllocs = ":purge"
-		}
-
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   job.Namespace,
 			Priority:    structs.CoreJobPriority,
 			Type:        structs.JobTypeCore,
 			TriggeredBy: structs.EvalTriggerAllocStop,
-			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + vol.Source + runningAllocs,
+			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + vol.Source,
 			LeaderACL:   j.srv.getLeaderAcl(),
 			Status:      structs.EvalStatusPending,
 			CreateTime:  now,
@@ -1806,10 +1800,6 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				reply.JobScaleStatus = nil
 				return nil
 			}
-			deployment, err := state.LatestDeploymentByJobID(ws, args.RequestNamespace(), args.JobID)
-			if err != nil {
-				return err
-			}
 
 			events, eventsIndex, err := state.ScalingEventsByJob(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
@@ -1817,6 +1807,13 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 			}
 			if events == nil {
 				events = make(map[string][]*structs.ScalingEvent)
+			}
+
+			var allocs []*structs.Allocation
+			var allocsIndex uint64
+			allocs, err = state.AllocsByJob(ws, job.Namespace, job.ID, false)
+			if err != nil {
+				return err
 			}
 
 			// Setup the output
@@ -1832,23 +1829,44 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				tgScale := &structs.TaskGroupScaleStatus{
 					Desired: tg.Count,
 				}
-				if deployment != nil {
-					if ds, ok := deployment.TaskGroups[tg.Name]; ok {
-						tgScale.Placed = ds.PlacedAllocs
-						tgScale.Healthy = ds.HealthyAllocs
-						tgScale.Unhealthy = ds.UnhealthyAllocs
-					}
-				}
 				tgScale.Events = events[tg.Name]
 				reply.JobScaleStatus.TaskGroups[tg.Name] = tgScale
 			}
 
-			maxIndex := job.ModifyIndex
-			if deployment != nil && deployment.ModifyIndex > maxIndex {
-				maxIndex = deployment.ModifyIndex
+			for _, alloc := range allocs {
+				// TODO: ignore canaries until we figure out what we should do with canaries
+				if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
+					continue
+				}
+				if alloc.TerminalStatus() {
+					continue
+				}
+				tgScale, ok := reply.JobScaleStatus.TaskGroups[alloc.TaskGroup]
+				if !ok || tgScale == nil {
+					continue
+				}
+				tgScale.Placed++
+				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					tgScale.Running++
+				}
+				if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.HasHealth() {
+					if alloc.DeploymentStatus.IsHealthy() {
+						tgScale.Healthy++
+					} else if alloc.DeploymentStatus.IsUnhealthy() {
+						tgScale.Unhealthy++
+					}
+				}
+				if alloc.ModifyIndex > allocsIndex {
+					allocsIndex = alloc.ModifyIndex
+				}
 			}
+
+			maxIndex := job.ModifyIndex
 			if eventsIndex > maxIndex {
 				maxIndex = eventsIndex
+			}
+			if allocsIndex > maxIndex {
+				maxIndex = allocsIndex
 			}
 			reply.Index = maxIndex
 

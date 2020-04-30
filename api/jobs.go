@@ -45,7 +45,7 @@ type Jobs struct {
 	client *Client
 }
 
-// JobsParseRequest is used for arguments of the /vi/jobs/parse endpoint
+// JobsParseRequest is used for arguments of the /v1/jobs/parse endpoint
 type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
@@ -60,7 +60,7 @@ func (c *Client) Jobs() *Jobs {
 	return &Jobs{client: c}
 }
 
-// Parse is used to convert the HCL repesentation of a Job to JSON server side.
+// ParseHCL is used to convert the HCL repesentation of a Job to JSON server side.
 // To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
 func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
 	var job Job

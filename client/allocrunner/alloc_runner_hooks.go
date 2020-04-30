@@ -125,7 +125,7 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.allocBroadcaster.Send(calloc)
 }
 
-// initRunnerHooks intializes the runners hooks.
+// initRunnerHooks initializes the runners hooks.
 func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	hookLogger := ar.logger.Named("runner_hook")
 

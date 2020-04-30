@@ -44,10 +44,11 @@ func (f *IdentityClient) Probe(ctx context.Context, in *csipbv1.ProbeRequest, op
 
 // ControllerClient is a CSI controller client used for testing
 type ControllerClient struct {
-	NextErr                     error
-	NextCapabilitiesResponse    *csipbv1.ControllerGetCapabilitiesResponse
-	NextPublishVolumeResponse   *csipbv1.ControllerPublishVolumeResponse
-	NextUnpublishVolumeResponse *csipbv1.ControllerUnpublishVolumeResponse
+	NextErr                                error
+	NextCapabilitiesResponse               *csipbv1.ControllerGetCapabilitiesResponse
+	NextPublishVolumeResponse              *csipbv1.ControllerPublishVolumeResponse
+	NextUnpublishVolumeResponse            *csipbv1.ControllerUnpublishVolumeResponse
+	NextValidateVolumeCapabilitiesResponse *csipbv1.ValidateVolumeCapabilitiesResponse
 }
 
 // NewControllerClient returns a new ControllerClient
@@ -60,6 +61,7 @@ func (f *ControllerClient) Reset() {
 	f.NextCapabilitiesResponse = nil
 	f.NextPublishVolumeResponse = nil
 	f.NextUnpublishVolumeResponse = nil
+	f.NextValidateVolumeCapabilitiesResponse = nil
 }
 
 func (c *ControllerClient) ControllerGetCapabilities(ctx context.Context, in *csipbv1.ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetCapabilitiesResponse, error) {
@@ -75,7 +77,7 @@ func (c *ControllerClient) ControllerUnpublishVolume(ctx context.Context, in *cs
 }
 
 func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *csipbv1.ValidateVolumeCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ValidateVolumeCapabilitiesResponse, error) {
-	panic("not implemented") // TODO: Implement
+	return c.NextValidateVolumeCapabilitiesResponse, c.NextErr
 }
 
 // NodeClient is a CSI Node client used for testing

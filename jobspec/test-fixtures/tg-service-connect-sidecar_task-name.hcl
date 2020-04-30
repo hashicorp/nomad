@@ -4,8 +4,10 @@ job "sidecar_task_name" {
   group "group" {
     service {
       name = "example"
+
       connect {
-        sidecar_service {}
+        sidecar_service = {}
+
         sidecar_task {
           name = "my-sidecar"
         }

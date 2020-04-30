@@ -146,6 +146,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		Addr:      srv.Addr,
 		Handler:   gzip(mux),
 		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+		ErrorLog:  newHTTPServerLogger(srv.logger),
 	}
 
 	go func() {
@@ -466,7 +467,11 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 
 			resp.WriteHeader(code)
 			resp.Write([]byte(errMsg))
-			s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			if isAPIClientError(code) {
+				s.logger.Debug("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			} else {
+				s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			}
 			return
 		}
 
@@ -520,7 +525,11 @@ func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *htt
 			code, errMsg := errCodeFromHandler(err)
 			resp.WriteHeader(code)
 			resp.Write([]byte(errMsg))
-			s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			if isAPIClientError(code) {
+				s.logger.Debug("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			} else {
+				s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			}
 			return
 		}
 
@@ -530,6 +539,11 @@ func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *htt
 		}
 	}
 	return f
+}
+
+// isAPIClientError returns true if the passed http code represents a client error
+func isAPIClientError(code int) bool {
+	return 400 <= code && code <= 499
 }
 
 // decodeBody is used to decode a JSON request body

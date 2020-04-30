@@ -8,13 +8,15 @@
 @import './components/ember-power-select';
 @import './components/empty-message';
 @import './components/error-container';
-@import './components/exec';
+@import './components/exec-button';
+@import './components/exec-window';
 @import './components/fs-explorer';
 @import './components/gutter';
 @import './components/gutter-toggle';
 @import './components/image-file.scss';
 @import './components/inline-definitions';
 @import './components/job-diff';
+@import './components/lifecycle-chart';
 @import './components/loading-spinner';
 @import './components/metrics';
 @import './components/node-status-light';

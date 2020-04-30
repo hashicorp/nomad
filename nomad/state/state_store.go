@@ -1187,15 +1187,14 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	plugins := map[string]*structs.CSIPlugin{}
 
 	for _, a := range allocs {
-		tg := job.LookupTaskGroup(a.TaskGroup)
 		// if its nil, we can just panic
+		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		for _, t := range tg.Tasks {
 			if t.CSIPluginConfig != nil {
 				plugAllocs = append(plugAllocs, &pair{
 					pluginID: t.CSIPluginConfig.ID,
 					alloc:    a,
 				})
-
 			}
 		}
 	}
@@ -1479,15 +1478,9 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	// Delete any job scaling policies
-	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", namespace, jobID)
-	if err != nil {
+	// Delete any remaining job scaling policies
+	if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
-	}
-	if numDeletedScalingPolicies > 0 {
-		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
-			return fmt.Errorf("index update failed: %v", err)
-		}
 	}
 
 	// Delete the scaling events
@@ -1504,6 +1497,20 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("deleting job from plugin: %v", err)
 	}
 
+	return nil
+}
+
+// deleteJobScalingPolicies deletes any scaling policies associated with the job
+func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
+	numDeletedScalingPolicies, err := txn.DeleteAll("scaling_policy", "target_prefix", job.Namespace, job.ID)
+	if err != nil {
+		return fmt.Errorf("deleting job scaling policies failed: %v", err)
+	}
+	if numDeletedScalingPolicies > 0 {
+		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -2018,9 +2025,10 @@ func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) 
 }
 
 // CSIVolumeClaim updates the volume's claim count and allocation list
-func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *structs.Allocation, claim structs.CSIVolumeClaimMode) error {
+func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *structs.CSIVolumeClaim) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
+	ws := memdb.NewWatchSet()
 
 	row, err := txn.First("csi_volumes", "id", namespace, id)
 	if err != nil {
@@ -2035,7 +2043,21 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *s
 		return fmt.Errorf("volume row conversion error")
 	}
 
-	ws := memdb.NewWatchSet()
+	var alloc *structs.Allocation
+	if claim.Mode != structs.CSIVolumeClaimRelease {
+		alloc, err = s.AllocByID(ws, claim.AllocationID)
+		if err != nil {
+			s.logger.Error("AllocByID failed", "error", err)
+			return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+		}
+		if alloc == nil {
+			s.logger.Error("AllocByID failed to find alloc", "alloc_id", claim.AllocationID)
+			if err != nil {
+				return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+			}
+		}
+	}
+
 	volume, err := s.CSIVolumeDenormalizePlugins(ws, orig.Copy())
 	if err != nil {
 		return err
@@ -2046,9 +2068,14 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, alloc *s
 		return err
 	}
 
-	err = volume.Claim(claim, alloc)
-	if err != nil {
-		return err
+	// in the case of a job deregistration, there will be no allocation ID
+	// for the claim but we still want to write an updated index to the volume
+	// so that volume reaping is triggered
+	if claim.AllocationID != "" {
+		err = volume.Claim(claim, alloc)
+		if err != nil {
+			return err
+		}
 	}
 
 	volume.ModifyIndex = index
@@ -2144,14 +2171,27 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	return vol, nil
 }
 
-// csiVolumeDenormalizeAllocs returns a CSIVolume with allocations
+// CSIVolumeDenormalize returns a CSIVolume with allocations
 func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
 	for id := range vol.ReadAllocs {
 		a, err := s.AllocByID(ws, id)
 		if err != nil {
 			return nil, err
 		}
-		vol.ReadAllocs[id] = a
+		if a != nil {
+			vol.ReadAllocs[id] = a
+			// COMPAT(1.0): the CSIVolumeClaim fields were added
+			// after 0.11.1, so claims made before that may be
+			// missing this value. (same for WriteAlloc below)
+			if _, ok := vol.ReadClaims[id]; !ok {
+				vol.ReadClaims[id] = &structs.CSIVolumeClaim{
+					AllocationID: a.ID,
+					NodeID:       a.NodeID,
+					Mode:         structs.CSIVolumeClaimRead,
+					State:        structs.CSIVolumeClaimStateTaken,
+				}
+			}
+		}
 	}
 
 	for id := range vol.WriteAllocs {
@@ -2159,7 +2199,17 @@ func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVol
 		if err != nil {
 			return nil, err
 		}
-		vol.WriteAllocs[id] = a
+		if a != nil {
+			vol.WriteAllocs[id] = a
+			if _, ok := vol.WriteClaims[id]; !ok {
+				vol.WriteClaims[id] = &structs.CSIVolumeClaim{
+					AllocationID: a.ID,
+					NodeID:       a.NodeID,
+					Mode:         structs.CSIVolumeClaimWrite,
+					State:        structs.CSIVolumeClaimStateTaken,
+				}
+			}
+		}
 	}
 
 	return vol, nil
@@ -4243,6 +4293,13 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, txn *memdb.Txn) error {
 
 	ws := memdb.NewWatchSet()
+
+	if job.Stop {
+		if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
+			return fmt.Errorf("deleting job scaling policies failed: %v", err)
+		}
+		return nil
+	}
 
 	scalingPolicies := job.GetScalingPolicies()
 	newTargets := map[string]struct{}{}
