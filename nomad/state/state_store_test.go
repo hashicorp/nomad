@@ -2996,10 +2996,12 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// release claims to unblock deregister
 	index++
+	claim0.State = structs.CSIVolumeClaimStateReadyToFree
 	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
 	require.NoError(t, err)
 	index++
 	claim1.Mode = u
+	claim1.State = structs.CSIVolumeClaimStateReadyToFree
 	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
 	require.NoError(t, err)
 

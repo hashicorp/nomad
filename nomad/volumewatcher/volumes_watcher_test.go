@@ -178,6 +178,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	err = srv.State().UpsertAllocs(index, []*structs.Allocation{alloc})
 	require.NoError(err)
 	index++
+	claim.State = structs.CSIVolumeClaimStateReadyToFree
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
 	require.NoError(err)
 

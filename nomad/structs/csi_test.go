@@ -30,6 +30,11 @@ func TestCSIVolumeClaim(t *testing.T) {
 
 	vol.ClaimRelease(claim)
 	require.True(t, vol.ReadSchedulable())
+	require.False(t, vol.WriteFreeClaims())
+
+	claim.State = CSIVolumeClaimStateReadyToFree
+	vol.ClaimRelease(claim)
+	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteFreeClaims())
 }
 
