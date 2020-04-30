@@ -190,6 +190,25 @@ module('Integration | Component | task log', function(hooks) {
     );
   });
 
+  test('Clicking stderr/stdout mode buttons does nothing when the mode remains the same', async function(assert) {
+    const { interval } = commonProps;
+
+    run.later(() => {
+      click('[data-test-log-action="stdout"]');
+      run.later(run, run.cancelTimers, interval * 6);
+    }, interval * 2);
+
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log allocation=allocation task=task}}`);
+
+    await settled();
+    assert.equal(
+      find('[data-test-log-cli]').textContent,
+      streamFrames[0] + streamFrames[0] + streamFrames[1],
+      'Now includes second frame'
+    );
+  });
+
   test('When the client is inaccessible, task-log falls back to requesting logs through the server', async function(assert) {
     run.later(run, run.cancelTimers, allowedConnectionTime * 2);
 
@@ -218,6 +237,11 @@ module('Integration | Component | task log', function(hooks) {
     assert.ok(
       this.server.handledRequests.filter(req => req.url.startsWith(serverUrl)).length,
       'Log request was later made to the server'
+    );
+
+    assert.ok(
+      this.server.handledRequests.filter(req => clientUrlRegex.test(req.url))[0].aborted,
+      'Client log request was aborted'
     );
   });
 
@@ -255,5 +279,53 @@ module('Integration | Component | task log', function(hooks) {
       'Log request was later made to the server'
     );
     assert.ok(find('[data-test-connection-error]'), 'An error message is shown');
+
+    await click('[data-test-connection-error-dismiss]');
+    assert.notOk(find('[data-test-connection-error]'), 'The error message is dismissable');
+  });
+
+  test('When the client is inaccessible, the server is accessible, and stderr is pressed before the client timeout occurs, the no connection error is not shown', async function(assert) {
+    // override client response to timeout
+    this.server.get(
+      `http://${HOST}/v1/client/fs/logs/:allocation_id`,
+      () => [400, {}, ''],
+      allowedConnectionTime * 2
+    );
+
+    // Click stderr before the client request responds
+    run.later(() => {
+      click('[data-test-log-action="stderr"]');
+      run.later(run, run.cancelTimers, commonProps.interval * 5);
+    }, allowedConnectionTime / 2);
+
+    this.setProperties(commonProps);
+    await render(hbs`{{task-log
+      allocation=allocation
+      task=task
+      clientTimeout=clientTimeout
+      serverTimeout=serverTimeout}}`);
+
+    await settled();
+
+    const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
+    const clientRequests = this.server.handledRequests.filter(req => clientUrlRegex.test(req.url));
+    assert.ok(
+      clientRequests.find(req => req.queryParams.type === 'stdout'),
+      'Client request for stdout'
+    );
+    assert.ok(
+      clientRequests.find(req => req.queryParams.type === 'stderr'),
+      'Client request for stderr'
+    );
+
+    const serverUrl = `/v1/client/fs/logs/${commonProps.allocation.id}`;
+    assert.ok(
+      this.server.handledRequests
+        .filter(req => req.url.startsWith(serverUrl))
+        .find(req => req.queryParams.type === 'stderr'),
+      'Server request for stderr'
+    );
+
+    assert.notOk(find('[data-test-connection-error]'), 'An error message is not shown');
   });
 });
