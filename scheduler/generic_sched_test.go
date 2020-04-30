@@ -2072,6 +2072,15 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
 	require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), d))
 
+	taskName := job.TaskGroups[0].Tasks[0].Name
+
+	adr := structs.AllocatedDeviceResource{
+		Type:      "gpu",
+		Vendor:    "nvidia",
+		Name:      "1080ti",
+		DeviceIDs: []string{uuid.Generate()},
+	}
+
 	// Create allocs that are part of the old deployment
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -2082,6 +2091,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
+		alloc.AllocatedResources.Tasks[taskName].Devices = []*structs.AllocatedDeviceResource{&adr}
 		allocs = append(allocs, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
@@ -2155,12 +2165,15 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	}
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
-	// Verify the network did not change
+	// Verify the allocated networks and devices did not change
 	rp := structs.Port{Label: "admin", Value: 5000}
 	for _, alloc := range out {
-		for _, resources := range alloc.TaskResources {
+		for _, resources := range alloc.AllocatedResources.Tasks {
 			if resources.Networks[0].ReservedPorts[0] != rp {
 				t.Fatalf("bad: %#v", alloc)
+			}
+			if len(resources.Devices) == 0 || reflect.DeepEqual(resources.Devices[0], adr) {
+				t.Fatalf("bad devices has changed: %#v", alloc)
 			}
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -40,7 +39,6 @@ type serviceHook struct {
 	logger    log.Logger
 
 	// The following fields may be updated
-	delay      time.Duration
 	driverExec tinterfaces.ScriptExecutor
 	driverNet  *drivers.DriverNetwork
 	canary     bool
@@ -64,7 +62,6 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		taskName:  c.task.Name,
 		services:  c.task.Services,
 		restarter: c.restarter,
-		delay:     c.task.ShutdownDelay,
 	}
 
 	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
@@ -140,7 +137,6 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 	}
 
 	// Update service hook fields
-	h.delay = task.ShutdownDelay
 	h.taskEnv = req.TaskEnv
 	h.services = task.Services
 	h.networks = networks
@@ -156,16 +152,6 @@ func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKil
 	// Deregister before killing task
 	h.deregister()
 
-	// If there's no shutdown delay, exit early
-	if h.delay == 0 {
-		return nil
-	}
-
-	h.logger.Debug("waiting before killing task", "shutdown_delay", h.delay)
-	select {
-	case <-ctx.Done():
-	case <-time.After(h.delay):
-	}
 	return nil
 }
 

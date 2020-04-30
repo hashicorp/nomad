@@ -5627,42 +5627,104 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	state := s1.fsm.State()
 
-	job := mock.Job()
+	jobV1 := mock.Job()
 
-	// check before job registration
+	// check before registration
 	// Fetch the scaling status
 	get := &structs.JobScaleStatusRequest{
-		JobID: job.ID,
+		JobID: jobV1.ID,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
-			Namespace: job.Namespace,
+			Namespace: jobV1.Namespace,
 		},
 	}
 	var resp2 structs.JobScaleStatusResponse
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp2))
 	require.Nil(resp2.JobScaleStatus)
 
-	// Create the register request
-	err := state.UpsertJob(1000, job)
-	require.Nil(err)
+	// stopped (previous version)
+	require.NoError(state.UpsertJob(1000, jobV1), "UpsertJob")
+	a0 := mock.Alloc()
+	a0.Job = jobV1
+	a0.Namespace = jobV1.Namespace
+	a0.JobID = jobV1.ID
+	a0.ClientStatus = structs.AllocClientStatusComplete
+	require.NoError(state.UpsertAllocs(1010, []*structs.Allocation{a0}), "UpsertAllocs")
+
+	jobV2 := jobV1.Copy()
+	require.NoError(state.UpsertJob(1100, jobV2), "UpsertJob")
+	a1 := mock.Alloc()
+	a1.Job = jobV2
+	a1.Namespace = jobV2.Namespace
+	a1.JobID = jobV2.ID
+	a1.ClientStatus = structs.AllocClientStatusRunning
+	// healthy
+	a1.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+	}
+	a2 := mock.Alloc()
+	a2.Job = jobV2
+	a2.Namespace = jobV2.Namespace
+	a2.JobID = jobV2.ID
+	a2.ClientStatus = structs.AllocClientStatusPending
+	// unhealthy
+	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(false),
+	}
+	a3 := mock.Alloc()
+	a3.Job = jobV2
+	a3.Namespace = jobV2.Namespace
+	a3.JobID = jobV2.ID
+	a3.ClientStatus = structs.AllocClientStatusRunning
+	// canary
+	a3.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: helper.BoolToPtr(true),
+		Canary:  true,
+	}
+	// no health
+	a4 := mock.Alloc()
+	a4.Job = jobV2
+	a4.Namespace = jobV2.Namespace
+	a4.JobID = jobV2.ID
+	a4.ClientStatus = structs.AllocClientStatusRunning
+	// upsert allocations
+	require.NoError(state.UpsertAllocs(1110, []*structs.Allocation{a1, a2, a3, a4}), "UpsertAllocs")
+
+	event := &structs.ScalingEvent{
+		Time:    time.Now().Unix(),
+		Count:   helper.Int64ToPtr(5),
+		Message: "message",
+		Error:   false,
+		Meta: map[string]interface{}{
+			"a": "b",
+		},
+		EvalID: nil,
+	}
+
+	require.NoError(state.UpsertScalingEvent(1003, &structs.ScalingEventRequest{
+		Namespace:    jobV2.Namespace,
+		JobID:        jobV2.ID,
+		TaskGroup:    jobV2.TaskGroups[0].Name,
+		ScalingEvent: event,
+	}), "UpsertScalingEvent")
 
 	// check after job registration
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.ScaleStatus", get, &resp2))
 	require.NotNil(resp2.JobScaleStatus)
 
 	expectedStatus := structs.JobScaleStatus{
-		JobID:          job.ID,
-		JobCreateIndex: job.CreateIndex,
-		JobModifyIndex: job.ModifyIndex,
-		JobStopped:     job.Stop,
+		JobID:          jobV2.ID,
+		JobCreateIndex: jobV2.CreateIndex,
+		JobModifyIndex: a1.CreateIndex,
+		JobStopped:     jobV2.Stop,
 		TaskGroups: map[string]*structs.TaskGroupScaleStatus{
-			job.TaskGroups[0].Name: {
-				Desired:   job.TaskGroups[0].Count,
-				Placed:    0,
-				Running:   0,
-				Healthy:   0,
-				Unhealthy: 0,
-				Events:    nil,
+			jobV2.TaskGroups[0].Name: {
+				Desired:   jobV2.TaskGroups[0].Count,
+				Placed:    3,
+				Running:   2,
+				Healthy:   1,
+				Unhealthy: 1,
+				Events:    []*structs.ScalingEvent{event},
 			},
 		},
 	}

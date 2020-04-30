@@ -366,15 +366,16 @@ func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
 
 	// If we have policy, then parse that
 	if o := listVal.Filter("policy"); len(o.Items) > 0 {
-		for _, o := range o.Elem().Items {
-			var m map[string]interface{}
-			if err := hcl.DecodeObject(&m, o.Val); err != nil {
-				return err
-			}
-
-			if err := mapstructure.WeakDecode(m, &result.Policy); err != nil {
-				return err
-			}
+		if len(o.Elem().Items) > 1 {
+			return fmt.Errorf("only one 'policy' block allowed per 'scaling' block")
+		}
+		p := o.Elem().Items[0]
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, p.Val); err != nil {
+			return err
+		}
+		if err := mapstructure.WeakDecode(m, &result.Policy); err != nil {
+			return err
 		}
 	}
 

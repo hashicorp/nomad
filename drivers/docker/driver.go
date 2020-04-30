@@ -439,16 +439,21 @@ CREATE:
 			return container, nil
 		}
 
-		// Delete matching containers
-		err = client.RemoveContainer(docker.RemoveContainerOptions{
-			ID:    container.ID,
-			Force: true,
-		})
-		if err != nil {
-			d.logger.Error("failed to purge container", "container_id", container.ID)
-			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
-		} else {
-			d.logger.Info("purged container", "container_id", container.ID)
+		// Purge conflicting container if found.
+		// If container is nil here, the conflicting container was
+		// deleted in our check here, so retry again.
+		if container != nil {
+			// Delete matching containers
+			err = client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:    container.ID,
+				Force: true,
+			})
+			if err != nil {
+				d.logger.Error("failed to purge container", "container_id", container.ID)
+				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
+			} else {
+				d.logger.Info("purged container", "container_id", container.ID)
+			}
 		}
 
 		if attempted < 5 {

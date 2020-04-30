@@ -319,6 +319,8 @@
 # Redirect old LXC driver doc to new one in /docs/external
 /docs/drivers/lxc.html                        /docs/drivers/external/lxc 301!
 /docs/drivers/lxc                             /docs/drivers/external/lxc 301!
+/docs/drivers/rkt.html                        /docs/drivers/external/rkt 301!
+/docs/drivers/rkt                             /docs/drivers/external/rkt 301!
 
 # API
 /docs/http/agent-force-leave            /api-docs/agent 301!

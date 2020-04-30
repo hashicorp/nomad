@@ -2941,18 +2941,33 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
+	// Allocs
+	a0 := mock.Alloc()
+	a1 := mock.Alloc()
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{a0, a1})
+	require.NoError(t, err)
+
 	// Claims
-	a0 := &structs.Allocation{ID: uuid.Generate()}
-	a1 := &structs.Allocation{ID: uuid.Generate()}
 	r := structs.CSIVolumeClaimRead
 	w := structs.CSIVolumeClaimWrite
 	u := structs.CSIVolumeClaimRelease
+	claim0 := &structs.CSIVolumeClaim{
+		AllocationID: a0.ID,
+		NodeID:       node.ID,
+		Mode:         r,
+	}
+	claim1 := &structs.CSIVolumeClaim{
+		AllocationID: a1.ID,
+		NodeID:       node.ID,
+		Mode:         w,
+	}
 
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a0, r)
+	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a1, w)
+	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
@@ -2961,7 +2976,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.False(t, vs[0].WriteFreeClaims())
 
-	err = state.CSIVolumeClaim(2, ns, vol0, a0, u)
+	claim0.Mode = u
+	err = state.CSIVolumeClaim(2, ns, vol0, claim0)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
 	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
@@ -2980,10 +2996,11 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// release claims to unblock deregister
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a0, u)
+	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, a1, u)
+	claim1.Mode = u
+	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	index++
@@ -8427,7 +8444,96 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 	require.False(watchFired(ws))
 }
 
-func TestStateStore_DeleteJob_ChildScalingPolicies(t *testing.T) {
+func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job := mock.Job()
+
+	err := state.UpsertJob(1000, job)
+	require.NoError(err)
+
+	policy := mock.ScalingPolicy()
+	policy.Target[structs.ScalingTargetJob] = job.ID
+	err = state.UpsertScalingPolicies(1100, []*structs.ScalingPolicy{policy})
+	require.NoError(err)
+
+	// Ensure the scaling policy is present and start some watches
+	wsGet := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(wsGet, policy.Target)
+	require.NoError(err)
+	require.NotNil(out)
+	wsList := memdb.NewWatchSet()
+	_, err = state.ScalingPolicies(wsList)
+	require.NoError(err)
+
+	// Stop the job
+	job, err = state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	job.Stop = true
+	err = state.UpsertJob(1200, job)
+	require.NoError(err)
+
+	// Ensure:
+	// * the scaling policy was deleted
+	// * the watches were fired
+	// * the table index was advanced
+	require.True(watchFired(wsGet))
+	require.True(watchFired(wsList))
+	out, err = state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+	index, err := state.Index("scaling_policy")
+	require.GreaterOrEqual(index, uint64(1200))
+}
+
+func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job, policy := mock.JobWithScalingPolicy()
+	job.Stop = true
+
+	// establish watcher, verify there are no scaling policies yet
+	ws := memdb.NewWatchSet()
+	list, err := state.ScalingPolicies(ws)
+	require.NoError(err)
+	require.Nil(list.Next())
+
+	// upsert a stopped job, verify that we don't fire the watcher or add any scaling policies
+	err = state.UpsertJob(1000, job)
+	require.NoError(err)
+	require.False(watchFired(ws))
+	// stopped job should have no scaling policies, watcher doesn't fire
+	list, err = state.ScalingPolicies(ws)
+	require.NoError(err)
+	require.Nil(list.Next())
+
+	// Establish a new watcher
+	ws = memdb.NewWatchSet()
+	_, err = state.ScalingPolicies(ws)
+	require.NoError(err)
+	// Unstop this job, say you'll run it again...
+	job.Stop = false
+	err = state.UpsertJob(1100, job)
+	require.NoError(err)
+
+	// Ensure the scaling policy was added, watch was fired, index was advanced
+	require.True(watchFired(ws))
+	out, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.NotNil(out)
+	index, err := state.Index("scaling_policy")
+	require.GreaterOrEqual(index, uint64(1100))
+}
+
+func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
 	t.Parallel()
 
 	require := require.New(t)

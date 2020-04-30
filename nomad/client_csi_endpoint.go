@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -10,8 +9,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ClientCSI is used to forward RPC requests to the targed Nomad client's
@@ -23,22 +20,12 @@ type ClientCSI struct {
 
 func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAttachVolumeRequest, reply *cstructs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "attach_volume"}, time.Now())
-
-	// Verify the arguments.
-	if args.ControllerNodeID == "" {
-		return errors.New("missing ControllerNodeID")
-	}
-
-	// Make sure Node is valid and new enough to support RPC
-	snap, err := a.srv.State().Snapshot()
+	// Get a Nomad client node for the controller
+	nodeID, err := a.nodeForController(args.PluginID, args.ControllerNodeID)
 	if err != nil {
 		return err
 	}
-
-	_, err = getNodeForRpc(snap, args.ControllerNodeID)
-	if err != nil {
-		return err
-	}
+	args.ControllerNodeID = nodeID
 
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(args.ControllerNodeID)
@@ -57,21 +44,12 @@ func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAtt
 func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerValidateVolumeRequest, reply *cstructs.ClientCSIControllerValidateVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "validate_volume"}, time.Now())
 
-	// Verify the arguments.
-	if args.ControllerNodeID == "" {
-		return errors.New("missing ControllerNodeID")
-	}
-
-	// Make sure Node is valid and new enough to support RPC
-	snap, err := a.srv.State().Snapshot()
+	// Get a Nomad client node for the controller
+	nodeID, err := a.nodeForController(args.PluginID, args.ControllerNodeID)
 	if err != nil {
 		return err
 	}
-
-	_, err = getNodeForRpc(snap, args.ControllerNodeID)
-	if err != nil {
-		return err
-	}
+	args.ControllerNodeID = nodeID
 
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(args.ControllerNodeID)
@@ -90,21 +68,12 @@ func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerV
 func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDetachVolumeRequest, reply *cstructs.ClientCSIControllerDetachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "detach_volume"}, time.Now())
 
-	// Verify the arguments.
-	if args.ControllerNodeID == "" {
-		return errors.New("missing ControllerNodeID")
-	}
-
-	// Make sure Node is valid and new enough to support RPC
-	snap, err := a.srv.State().Snapshot()
+	// Get a Nomad client node for the controller
+	nodeID, err := a.nodeForController(args.PluginID, args.ControllerNodeID)
 	if err != nil {
 		return err
 	}
-
-	_, err = getNodeForRpc(snap, args.ControllerNodeID)
-	if err != nil {
-		return err
-	}
+	args.ControllerNodeID = nodeID
 
 	// Get the connection to the client
 	state, ok := a.srv.getNodeConn(args.ControllerNodeID)
@@ -150,44 +119,42 @@ func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeReq
 
 }
 
-func (srv *Server) volAndPluginLookup(namespace, volID string) (*structs.CSIPlugin, *structs.CSIVolume, error) {
-	state := srv.fsm.State()
+// nodeForController validates that the Nomad client node ID for
+// a plugin exists and is new enough to support client RPC. If no node
+// ID is passed, select a random node ID for the controller to load-balance
+// long blocking RPCs across client nodes.
+func (a *ClientCSI) nodeForController(pluginID, nodeID string) (string, error) {
+
+	snap, err := a.srv.State().Snapshot()
+	if err != nil {
+		return "", err
+	}
+
+	if nodeID != "" {
+		_, err = getNodeForRpc(snap, nodeID)
+		if err == nil {
+			return nodeID, nil
+		}
+	}
+
+	if pluginID == "" {
+		return "", fmt.Errorf("missing plugin ID")
+	}
 	ws := memdb.NewWatchSet()
 
-	vol, err := state.CSIVolumeByID(ws, namespace, volID)
+	// note: plugin IDs are not scoped to region/DC but volumes are.
+	// so any node we get for a controller is already in the same
+	// region/DC for the volume.
+	plugin, err := snap.CSIPluginByID(ws, pluginID)
 	if err != nil {
-		return nil, nil, err
+		return "", fmt.Errorf("error getting plugin: %s, %v", pluginID, err)
 	}
-	if vol == nil {
-		return nil, nil, fmt.Errorf("volume not found: %s", volID)
+	if plugin == nil {
+		return "", fmt.Errorf("plugin missing: %s %v", pluginID, err)
 	}
-	if !vol.ControllerRequired {
-		return nil, vol, nil
-	}
-
-	// note: we do this same lookup in CSIVolumeByID but then throw
-	// away the pointer to the plugin rather than attaching it to
-	// the volume so we have to do it again here.
-	plug, err := state.CSIPluginByID(ws, vol.PluginID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if plug == nil {
-		return nil, nil, fmt.Errorf("plugin not found: %s", vol.PluginID)
-	}
-	return plug, vol, nil
-}
-
-// nodeForControllerPlugin returns the node ID for a random controller
-// to load-balance long-blocking RPCs across client nodes.
-func nodeForControllerPlugin(state *state.StateStore, plugin *structs.CSIPlugin) (string, error) {
 	count := len(plugin.Controllers)
 	if count == 0 {
 		return "", fmt.Errorf("no controllers available for plugin %q", plugin.ID)
-	}
-	snap, err := state.Snapshot()
-	if err != nil {
-		return "", err
 	}
 
 	// iterating maps is "random" but unspecified and isn't particularly

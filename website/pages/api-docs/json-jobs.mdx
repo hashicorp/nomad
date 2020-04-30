@@ -312,6 +312,9 @@ attributes:
   If omitted, a default policy is used for batch and service jobs. System jobs are not eligible
   for rescheduling. See the [reschedule policy reference](#reschedule_policy) for more details.
 
+- `Scaling` - Specifies the autoscaling policy for the task group. This is primarily for supporting
+  external autoscalers. See the [scaling policy reference](#scaling_policy) for more details.
+
 - `EphemeralDisk` - Specifies the group's ephemeral disk requirements. See the
   [ephemeral disk reference](#ephemeral_disk) for more details.
 
@@ -391,6 +394,11 @@ The `Task` object supports the following keys:
 
 - `Resources` - Provides the resource requirements of the task.
   See the resources reference for more details.
+
+- `RestartPolicy` - Specifies the task-specific restart policy.
+  If omitted, the restart policy from the encapsulating task group is used. If both
+  are present, they are merged. See the [restart policy reference](#restart_policy)
+  for more details.
 
 - `Services` - `Services` is a list of `Service` objects. Nomad integrates with
   Consul for service discovery. A `Service` object represents a routable and
@@ -1027,6 +1035,31 @@ The `Spread` object supports the following keys:
 
 - `Weight` - A non zero weight, valid values are from -100 to 100. Used to express
   relative preference when there is more than one spread or affinity.
+
+<a id="scaling_policy"></a>
+
+### Scaling
+
+Scaling policies allow operators to attach autoscaling configuration to a task group. This information
+can be queried by [external autoscalers](https://github.com/hashicorp/nomad-autoscaler).
+
+The `Scaling` object supports the following keys:
+
+- `Min` - The minimum allowable count for the task group. This is optional; if absent, the default
+  is the `Count` specified in the task group. Attempts to set the task group `Count` below `Min` will
+  result in a 400 error during job registration.
+
+- `Max` - The maximum allowable count for the task group. This is required if a scaling policy is provided.
+   This must be larger than `Min`. Attempts to set the task group `Count` above `Max` wil result in a 400
+   error during job registration.
+
+- `Enabled` - An optional boolean (default: `true`). This indicates to the autoscaler that this
+   scaling policy should be ignored. It is intended to allow autoscaling to be temporarily disabled
+   for a task group.
+
+- `Policy` - An optional JSON block. This is opaque to Nomad; see the documentation for the external
+   autoscaler (e.g., [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)).
+
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [drain]: /docs/commands/node/drain

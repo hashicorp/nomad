@@ -490,7 +490,9 @@ client {
 plugin "docker" {
   config {
     auth {
-      helper = "docker-credential-ecr"
+      # Nomad will prepend "docker-credential-" to the helper value and call 
+      # that script name.  
+      helper = "ecr"
     }
   }
 }

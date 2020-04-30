@@ -185,7 +185,7 @@ type SystemStack struct {
 	scoreNorm                  *ScoreNormalizationIterator
 }
 
-// NewSystemStack constructs a stack used for selecting service placements
+// NewSystemStack constructs a stack used for selecting system job placements.
 func NewSystemStack(ctx Context) *SystemStack {
 	// Create a new stack
 	s := &SystemStack{ctx: ctx}

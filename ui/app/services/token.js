@@ -72,7 +72,8 @@ export default Service.extend({
   // This authorizedRawRequest is necessary in order to fetch data
   // with the guarantee of a token but without the automatic region
   // param since the region cannot be known at this point.
-  authorizedRawRequest(url, options = { credentials: 'include' }) {
+  authorizedRawRequest(url, options = {}) {
+    const credentials = 'include';
     const headers = {};
     const token = this.secret;
 
@@ -80,7 +81,7 @@ export default Service.extend({
       headers['X-Nomad-Token'] = token;
     }
 
-    return fetch(url, assign(options, { headers }));
+    return fetch(url, assign(options, { headers, credentials }));
   },
 
   authorizedRequest(url, options) {

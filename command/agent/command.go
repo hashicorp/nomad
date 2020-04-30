@@ -640,10 +640,12 @@ func (c *Command) Run(args []string) int {
 		logGate.Flush()
 		return 1
 	}
-	defer c.agent.Shutdown()
 
-	// Shutdown the HTTP server at the end
 	defer func() {
+		c.agent.Shutdown()
+
+		// Shutdown the http server at the end, to ease debugging if
+		// the agent takes long to shutdown
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
 		}

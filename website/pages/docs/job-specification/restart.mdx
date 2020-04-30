@@ -7,9 +7,14 @@ description: The "restart" stanza configures a group's behavior on task failure.
 
 # `restart` Stanza
 
-<Placement groups={['job', 'group', 'restart']} />
+<Placement
+  groups={[
+    ['job', 'group', 'restart'],
+    ['job', 'group', 'task', 'restart']
+  ]}
+/>
 
-The `restart` stanza configures a group's behavior on task failure. Restarts
+The `restart` stanza configures a tasks's behavior on task failure. Restarts
 happen on the client that is running the task.
 
 ```hcl
@@ -20,6 +25,35 @@ job "docs" {
       delay    = "30s"
     }
   }
+}
+```
+
+If specified at the group level, the configuration is inherited by all
+tasks in the group. If present on the task, the policy is merged with
+the restart policy from the encapsulating task group.
+
+For example, assuming that the task group restart policy is: 
+```hcl
+restart {
+  interval = "30m"
+  attempts = 2
+  delay    = "15s"
+  mode     = "fail"
+}
+```
+and the individual task restart policy is: 
+```hcl
+restart {
+  attempts = 5
+}
+```
+then the effective restart policy for the task will be: 
+```hcl
+restart {
+  interval = "30m"
+  attempts = 5
+  delay    = "15s"
+  mode     = "fail"
 }
 ```
 

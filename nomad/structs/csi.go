@@ -185,6 +185,22 @@ func (v *CSIMountOptions) GoString() string {
 	return v.String()
 }
 
+type CSIVolumeClaim struct {
+	AllocationID string
+	NodeID       string
+	Mode         CSIVolumeClaimMode
+	State        CSIVolumeClaimState
+}
+
+type CSIVolumeClaimState int
+
+const (
+	CSIVolumeClaimStateTaken CSIVolumeClaimState = iota
+	CSIVolumeClaimStateNodeDetached
+	CSIVolumeClaimStateControllerDetached
+	CSIVolumeClaimStateReadyToFree
+)
+
 // CSIVolume is the full representation of a CSI Volume
 type CSIVolume struct {
 	// ID is a namespace unique URL safe identifier for the volume
@@ -200,8 +216,12 @@ type CSIVolume struct {
 	MountOptions   *CSIMountOptions
 
 	// Allocations, tracking claim status
-	ReadAllocs  map[string]*Allocation
-	WriteAllocs map[string]*Allocation
+	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
+	WriteAllocs map[string]*Allocation // AllocID -> Allocation
+
+	ReadClaims  map[string]*CSIVolumeClaim // AllocID -> claim
+	WriteClaims map[string]*CSIVolumeClaim // AllocID -> claim
+	PastClaims  map[string]*CSIVolumeClaim // AllocID -> claim
 
 	// Schedulable is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
@@ -262,6 +282,10 @@ func (v *CSIVolume) newStructs() {
 
 	v.ReadAllocs = map[string]*Allocation{}
 	v.WriteAllocs = map[string]*Allocation{}
+
+	v.ReadClaims = map[string]*CSIVolumeClaim{}
+	v.WriteClaims = map[string]*CSIVolumeClaim{}
+	v.PastClaims = map[string]*CSIVolumeClaim{}
 }
 
 func (v *CSIVolume) RemoteID() string {
@@ -350,26 +374,42 @@ func (v *CSIVolume) Copy() *CSIVolume {
 		out.WriteAllocs[k] = v
 	}
 
+	for k, v := range v.ReadClaims {
+		claim := *v
+		out.ReadClaims[k] = &claim
+	}
+	for k, v := range v.WriteClaims {
+		claim := *v
+		out.WriteClaims[k] = &claim
+	}
+	for k, v := range v.PastClaims {
+		claim := *v
+		out.PastClaims[k] = &claim
+	}
+
 	return out
 }
 
 // Claim updates the allocations and changes the volume state
-func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) error {
-	switch claim {
+func (v *CSIVolume) Claim(claim *CSIVolumeClaim, alloc *Allocation) error {
+	switch claim.Mode {
 	case CSIVolumeClaimRead:
-		return v.ClaimRead(alloc)
+		return v.ClaimRead(claim, alloc)
 	case CSIVolumeClaimWrite:
-		return v.ClaimWrite(alloc)
+		return v.ClaimWrite(claim, alloc)
 	case CSIVolumeClaimRelease:
-		return v.ClaimRelease(alloc)
+		return v.ClaimRelease(claim)
 	}
 	return nil
 }
 
 // ClaimRead marks an allocation as using a volume read-only
-func (v *CSIVolume) ClaimRead(alloc *Allocation) error {
-	if _, ok := v.ReadAllocs[alloc.ID]; ok {
+func (v *CSIVolume) ClaimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
+	if _, ok := v.ReadAllocs[claim.AllocationID]; ok {
 		return nil
+	}
+	if alloc == nil {
+		return fmt.Errorf("allocation missing: %s", claim.AllocationID)
 	}
 
 	if !v.ReadSchedulable() {
@@ -378,15 +418,23 @@ func (v *CSIVolume) ClaimRead(alloc *Allocation) error {
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
 	// pointer. We'll get it from the db in denormalize.
-	v.ReadAllocs[alloc.ID] = nil
-	delete(v.WriteAllocs, alloc.ID)
+	v.ReadAllocs[claim.AllocationID] = nil
+	delete(v.WriteAllocs, claim.AllocationID)
+
+	v.ReadClaims[claim.AllocationID] = claim
+	delete(v.WriteClaims, claim.AllocationID)
+	delete(v.PastClaims, claim.AllocationID)
+
 	return nil
 }
 
 // ClaimWrite marks an allocation as using a volume as a writer
-func (v *CSIVolume) ClaimWrite(alloc *Allocation) error {
-	if _, ok := v.WriteAllocs[alloc.ID]; ok {
+func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
+	if _, ok := v.WriteAllocs[claim.AllocationID]; ok {
 		return nil
+	}
+	if alloc == nil {
+		return fmt.Errorf("allocation missing: %s", claim.AllocationID)
 	}
 
 	if !v.WriteSchedulable() {
@@ -406,13 +454,27 @@ func (v *CSIVolume) ClaimWrite(alloc *Allocation) error {
 	// pointer. We'll get it from the db in denormalize.
 	v.WriteAllocs[alloc.ID] = nil
 	delete(v.ReadAllocs, alloc.ID)
+
+	v.WriteClaims[alloc.ID] = claim
+	delete(v.ReadClaims, alloc.ID)
+	delete(v.PastClaims, alloc.ID)
+
 	return nil
 }
 
-// ClaimRelease is called when the allocation has terminated and already stopped using the volume
-func (v *CSIVolume) ClaimRelease(alloc *Allocation) error {
-	delete(v.ReadAllocs, alloc.ID)
-	delete(v.WriteAllocs, alloc.ID)
+// ClaimRelease is called when the allocation has terminated and
+// already stopped using the volume
+func (v *CSIVolume) ClaimRelease(claim *CSIVolumeClaim) error {
+	delete(v.ReadAllocs, claim.AllocationID)
+	delete(v.WriteAllocs, claim.AllocationID)
+	delete(v.ReadClaims, claim.AllocationID)
+	delete(v.WriteClaims, claim.AllocationID)
+
+	if claim.State == CSIVolumeClaimStateReadyToFree {
+		delete(v.PastClaims, claim.AllocationID)
+	} else {
+		v.PastClaims[claim.AllocationID] = claim
+	}
 	return nil
 }
 
@@ -516,8 +578,19 @@ const (
 type CSIVolumeClaimRequest struct {
 	VolumeID     string
 	AllocationID string
+	NodeID       string
 	Claim        CSIVolumeClaimMode
+	State        CSIVolumeClaimState
 	WriteRequest
+}
+
+func (req *CSIVolumeClaimRequest) ToClaim() *CSIVolumeClaim {
+	return &CSIVolumeClaim{
+		AllocationID: req.AllocationID,
+		NodeID:       req.NodeID,
+		Mode:         req.Claim,
+		State:        req.State,
+	}
 }
 
 type CSIVolumeClaimResponse struct {
