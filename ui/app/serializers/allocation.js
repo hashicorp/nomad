@@ -2,6 +2,12 @@ import { inject as service } from '@ember/service';
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 
+const taskGroupFromJob = (job, taskGroupName) => {
+  const taskGroups = job && job.TaskGroups;
+  const taskGroup = taskGroups && taskGroups.find(group => group.Name === taskGroupName);
+  return taskGroup ? taskGroup : null;
+};
+
 export default ApplicationSerializer.extend({
   system: service(),
 
@@ -53,6 +59,9 @@ export default ApplicationSerializer.extend({
 
     // When present, the resources are nested under AllocatedResources.Shared
     hash.AllocatedResources = hash.AllocatedResources && hash.AllocatedResources.Shared;
+
+    // The Job definition for an allocation is only included in findRecord responses.
+    hash.AllocationTaskGroup = !hash.Job ? null : taskGroupFromJob(hash.Job, hash.TaskGroup);
 
     return this._super(typeHash, hash);
   },

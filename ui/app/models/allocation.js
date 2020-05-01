@@ -66,10 +66,21 @@ export default Model.extend({
     return classMap[this.clientStatus] || 'is-dark';
   }),
 
-  taskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
+  isOld: computed('jobVersion', 'job.version', function() {
+    return this.jobVersion !== this.get('job.version');
+  }),
+
+  taskGroup: computed('isOld', 'jobTaskGroup', 'allocationTaskGroup', function() {
+    if (!this.isOld) return this.jobTaskGroup;
+    return this.allocationTaskGroup;
+  }),
+
+  jobTaskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
     const taskGroups = this.get('job.taskGroups');
     return taskGroups && taskGroups.findBy('name', this.taskGroupName);
   }),
+
+  allocationTaskGroup: fragment('task-group', { defaultValue: null }),
 
   unhealthyDrivers: computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]', function() {
     const taskGroupUnhealthyDrivers = this.get('taskGroup.drivers');
