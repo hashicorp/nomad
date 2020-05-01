@@ -31,8 +31,7 @@ for backwards compatibility and should not be relied on.
 
 Display the status of a job:
 
-```shell
-$ nomad status example
+```shell-sessionnomad status example
 ID            = example
 Name          = example
 Submit Date   = 08/28/17 23:01:39 UTC
@@ -63,8 +62,7 @@ e1d14a39  f9dabe93  cache       0        run      running  08/28/17 23:01:39 UTC
 
 Display the status of an allocation:
 
-```shell
-$ nomad status e1d14a39
+```shell-sessionnomad status e1d14a39
 ID                  = e1d14a39
 Eval ID             = cc882755
 Name                = example.cache[0]
@@ -99,8 +97,7 @@ Time                   Type        Description
 
 Display the status of a deployment:
 
-```shell
-$ nomad status f5506391
+```shell-sessionnomad status f5506391
 ID          = f5506391
 Job ID      = example
 Job Version = 0
@@ -114,8 +111,7 @@ cache       1        1       1        0
 
 Display the status of a node:
 
-```shell
-$ nomad status f9dabe93
+```shell-sessionnomad status f9dabe93
 ID      = f9dabe93
 Name    = nomad-server01
 Class   = <none>

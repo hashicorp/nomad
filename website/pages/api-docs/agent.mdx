@@ -31,7 +31,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session-session
 $ curl \
     https://localhost:4646/v1/agent/members
 ```
@@ -92,7 +92,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     https://localhost:4646/v1/agent/servers
 ```
@@ -127,7 +127,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     --request POST \
     https://localhost:4646/v1/agent/servers?address=1.2.3.4:4647&address=5.6.7.8:4647
@@ -151,7 +151,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     https://localhost:4646/v1/agent/self
 ```
@@ -410,7 +410,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     --request POST \
     https://localhost:4646/v1/agent/join?address=1.2.3.4&address=5.6.7.8
@@ -449,7 +449,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     --request POST \
     https://localhost:4646/v1/agent/force-leave?node=client-ab2e23dc
@@ -477,7 +477,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     https://localhost:4646/v1/agent/health
 ```
@@ -534,7 +534,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     https://localhost:4646/v1/agent/monitor?log_level=debug&server_id=leader
 
@@ -623,7 +623,7 @@ The following table explains when each endpoint is available:
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl -O -J \
     --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
     https://localhost:4646/v1/agent/pprof/goroutine?server_id=leader

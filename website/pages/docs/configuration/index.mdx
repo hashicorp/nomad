@@ -21,8 +21,8 @@ and merged in lexicographical order. Directories are not loaded recursively.
 
 For example:
 
-```shell
-$ nomad agent -config=server.conf -config=/etc/nomad -config=extra.json
+```shell-sessionnomad agent -config=server.conf -config=/etc/nomad -config=extra.json
+
 ```
 
 This will load configuration from `server.conf`, from `.hcl` and `.json` files
@@ -120,7 +120,7 @@ testing.
     this address. Nomad servers will communicate to each other over RPC using
     the advertised Serf IP and advertised RPC Port.
 
-- `audit` `(`[`Audit`]`: nil)` - Enterprise-only. Specifies audit logging 
+- `audit` `(`[`Audit`]`: nil)` - Enterprise-only. Specifies audit logging
   configuration.
 
 - `bind_addr` `(string: "0.0.0.0")` - Specifies which address the Nomad

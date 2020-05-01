@@ -43,8 +43,7 @@ will be evaluated, forcing a scheduler run.
 
 Evaluate the job with ID "job1":
 
-```shell
-$ nomad job eval job1
+```shell-sessionnomad job eval job1
 ==> Monitoring evaluation "0f3bc0f3"
     Evaluation triggered by job "test"
     Evaluation within deployment: "51baf5c8"
@@ -54,15 +53,13 @@ $ nomad job eval job1
 
 Evaluate the job with ID "job1" and return immediately:
 
-```shell
-$ nomad job eval -detach job1
+```shell-sessionnomad job eval -detach job1
 Created eval ID: "4947e728"
 ```
 
 Evaluate the job with ID "job1", and reschedule any eligible failed allocations:
 
-```shell
-$ nomad job eval -force-reschedule job1
+```shell-sessionnomad job eval -force-reschedule job1
 ==> Monitoring evaluation "0f3bc0f3"
     Evaluation triggered by job "test"
     Evaluation within deployment: "51baf5c8"

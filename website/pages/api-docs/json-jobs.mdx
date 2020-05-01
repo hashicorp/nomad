@@ -12,8 +12,8 @@ description: |-
 This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
 for generating valid JSON versions of HCL jobs is:
 
-```shell
-$ nomad job run -output my-job.nomad
+```shell-sessionnomad job run -output my-job.nomad
+
 ```
 
 ## Syntax
@@ -139,8 +139,7 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
 
 The example JSON could be submitted as a job using the following:
 
-```shell
-$ curl -XPUT -d @example.json http://127.0.0.1:4646/v1/job/example
+```shell-sessioncurl -XPUT -d @example.json http://127.0.0.1:4646/v1/job/example
 {
   "EvalID": "5d6ded54-0b2a-8858-6583-be5f476dec9d",
   "EvalCreateIndex": 12,
@@ -244,10 +243,9 @@ The `Job` object supports the following keys:
     [here](https://github.com/gorhill/cronexpr#implementation) for full
     documentation of supported cron specs and the predefined expressions.
 
-  - <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can
-    be set to true to enforce that the periodic job doesn't spawn a new
-    instance of the job if any of the previous jobs are still running. It is
-    defaulted to false.
+  - <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can be set
+    to true to enforce that the periodic job doesn't spawn a new instance of the
+    job if any of the previous jobs are still running. It is defaulted to false.
 
   An example `periodic` block:
 
@@ -1050,16 +1048,15 @@ The `Scaling` object supports the following keys:
   result in a 400 error during job registration.
 
 - `Max` - The maximum allowable count for the task group. This is required if a scaling policy is provided.
-   This must be larger than `Min`. Attempts to set the task group `Count` above `Max` wil result in a 400
-   error during job registration.
+  This must be larger than `Min`. Attempts to set the task group `Count` above `Max` wil result in a 400
+  error during job registration.
 
 - `Enabled` - An optional boolean (default: `true`). This indicates to the autoscaler that this
-   scaling policy should be ignored. It is intended to allow autoscaling to be temporarily disabled
-   for a task group.
+  scaling policy should be ignored. It is intended to allow autoscaling to be temporarily disabled
+  for a task group.
 
 - `Policy` - An optional JSON block. This is opaque to Nomad; see the documentation for the external
-   autoscaler (e.g., [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)).
-
+  autoscaler (e.g., [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)).
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [drain]: /docs/commands/node/drain

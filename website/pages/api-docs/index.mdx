@@ -37,7 +37,7 @@ The default port for the Nomad HTTP API is `4646`. This can be overridden via
 the Nomad configuration block. Here is an example curl request to query a Nomad
 server with the default configuration:
 
-```shell
+```shell-session
 $ curl http://127.0.0.1:4646/v1/agent/members
 ```
 
@@ -84,7 +84,7 @@ When ACLs are enabled, a Nomad token should be provided to API requests using th
 
 Here is an example using curl:
 
-```shell
+```shell-session
 $ curl \
     --header "X-Nomad-Token: aa534e09-6a07-0a45-2295-a7f77063d429" \
     https://localhost:4646/v1/jobs
@@ -164,7 +164,7 @@ serviced by a server in the requested region.
 The HTTP API will gzip the response if the HTTP request denotes that the client
 accepts gzip compression. This is achieved by passing the accept encoding:
 
-```shell
+```shell-session
 $ curl \
     --header "Accept-Encoding: gzip" \
     https://localhost:4646/v1/...
@@ -179,7 +179,7 @@ In general, clients should prefer a client-side parser like `jq` instead of
 server-formatted data. Asking the server to format the data takes away
 processing cycles from more important tasks.
 
-```shell
+```shell-session
 $ curl https://localhost:4646/v1/page?pretty
 ```
 
