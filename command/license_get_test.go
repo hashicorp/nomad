@@ -22,7 +22,8 @@ func TestCommand_LicenseGet_OSSErr(t *testing.T) {
 	require.Equal(t, 1, code)
 
 	if srv.Enterprise {
-		require.Contains(t, ui.OutputWriter.String(), "License Status")
+		// TODO update assertion once ent licensing implemented
+		require.Contains(t, ui.ErrorWriter.String(), "404")
 	} else {
 		require.Contains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
 	}
