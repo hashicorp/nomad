@@ -592,7 +592,7 @@ func TestScoreFitBinPack(t *testing.T) {
 		spreadScore  float64
 	}{
 		{
-			name: "almost filled node, but with just enough whole",
+			name: "almost filled node, but with just enough hole",
 			flattened: AllocatedTaskResources{
 				Cpu:    AllocatedCpuResources{CpuShares: 2048},
 				Memory: AllocatedMemoryResources{MemoryMB: 4096},

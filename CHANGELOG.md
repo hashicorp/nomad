@@ -3,6 +3,10 @@
 FEATURES:
  * **Task dependencies UI**: task lifecycle charts and details
 
+IMPROVEMENTS:
+
+ * core: Allow spreading allocations as an alternative to binpacking [[GH-7810](https://github.com/hashicorp/nomad/issues/7810)]
+
 BUG FIXES:
 
  * api: autoscaling policies should not be returned for stopped jobs [[GH-7768](https://github.com/hashicorp/nomad/issues/7768)]
