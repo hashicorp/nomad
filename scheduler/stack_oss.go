@@ -50,7 +50,10 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group.
-	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0)
+	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+	schedulerAlgorithm := schedConfig.EffectiveSchedulerAlgorithm()
+
+	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedulerAlgorithm)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job.

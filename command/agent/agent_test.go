@@ -272,6 +272,7 @@ func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
 			"default case",
 			nil,
 			structs.SchedulerConfiguration{
+				SchedulerAlgorithm: "binpack",
 				PreemptionConfig: structs.PreemptionConfig{
 					SystemSchedulerEnabled: true,
 				},

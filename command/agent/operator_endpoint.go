@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+// OperatorRequest is used route operator/raft API requests to the implementing
+// functions.
 func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/operator/raft/")
 	switch {
@@ -250,10 +252,15 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 	}
 
 	args.Config = structs.SchedulerConfiguration{
+		SchedulerAlgorithm: structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
 		PreemptionConfig: structs.PreemptionConfig{
 			SystemSchedulerEnabled:  conf.PreemptionConfig.SystemSchedulerEnabled,
 			BatchSchedulerEnabled:   conf.PreemptionConfig.BatchSchedulerEnabled,
 			ServiceSchedulerEnabled: conf.PreemptionConfig.ServiceSchedulerEnabled},
+	}
+
+	if err := args.Config.Validate(); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	// Check for cas value
