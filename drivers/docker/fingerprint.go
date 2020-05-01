@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -166,7 +167,18 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		fp.Attributes["driver.docker.runtimes"] = pstructs.NewStringAttribute(
 			strings.Join(runtimeNames, ","))
 		fp.Attributes["driver.docker.os_type"] = pstructs.NewStringAttribute(dockerInfo.OSType)
-		fp.Attributes["driver.docker.kernel_version"] = pstructs.NewStringAttribute(dockerInfo.KernelVersion)
+
+		if runtime.GOOS == "windows" && dockerInfo.OSType == "linux" {
+			if d.fingerprintSuccessful() {
+				d.logger.Warn("detected Linux docker containers on Windows; docker containers on Windows are only supported on Windows Server 2019 or above")
+			}
+
+			d.setFingerprintFailure()
+			return &drivers.Fingerprint{
+				Health:            drivers.HealthStateUnhealthy,
+				HealthDescription: "Docker is configured with Linux containers; docker containers on Windows are only supported on Windows Server 2019 or above",
+			}
+		}
 	}
 
 	d.setFingerprintSuccess()

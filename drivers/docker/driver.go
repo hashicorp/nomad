@@ -616,9 +616,12 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 		imageConfig, _ := client.InspectImage(driverConfig.Image)
 		// LCOW If we are running a Linux Container on Windows, we need to mount it correctly, as c:\ does not exist on unix
 		if imageConfig.OS == "linux" {
-			task.Env[taskenv.AllocDir] = strings.ReplaceAll(task.Env[taskenv.AllocDir], "c:\\", "/")
-			task.Env[taskenv.TaskLocalDir] = strings.ReplaceAll(task.Env[taskenv.TaskLocalDir], "c:\\", "/")
-			task.Env[taskenv.SecretsDir] = strings.ReplaceAll(task.Env[taskenv.SecretsDir], "c:\\", "/")
+			a := []rune(task.Env[taskenv.AllocDir])
+			task.Env[taskenv.AllocDir] = strings.ReplaceAll(string(a[2:]), "\\", "/")
+			l := []rune(task.Env[taskenv.TaskLocalDir])
+			task.Env[taskenv.TaskLocalDir] = strings.ReplaceAll(string(l[2:]), "\\", "/")
+			s := []rune(task.Env[taskenv.SecretsDir])
+			task.Env[taskenv.SecretsDir] = strings.ReplaceAll(string(s[2:]), "\\", "/")
 		}
 	}
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
