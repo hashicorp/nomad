@@ -377,6 +377,11 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
 	}
 
+	if err := config.Server.DefaultSchedulerConfig.Validate(); err != nil {
+		c.Ui.Error(err.Error())
+		return false
+	}
+
 	return true
 }
 

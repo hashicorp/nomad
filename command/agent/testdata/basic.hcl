@@ -135,6 +135,8 @@ server {
   }
 
   default_scheduler_config {
+    scheduler_algorithm = "spread"
+
     preemption_config {
       batch_scheduler_enabled   = true
       system_scheduler_enabled  = true

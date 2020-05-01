@@ -126,6 +126,7 @@ var basicConfig = &Config{
 			RetryMaxAttempts: 3,
 		},
 		DefaultSchedulerConfig: &structs.SchedulerConfiguration{
+			SchedulerAlgorithm: "spread",
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled:  true,
 				BatchSchedulerEnabled:   true,
