@@ -341,7 +341,7 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
