@@ -60,6 +60,7 @@ const (
 	// rxDestination is the regex expression for the mount destination
 	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `)|([/].*))`
 
+	// rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
 	// Destination (aka container path):
 	//    -  Variation on hostdir but can be a drive followed by colon as well
 	//    -  If a path, must be absolute. Can include spaces

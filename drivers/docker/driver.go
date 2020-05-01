@@ -612,7 +612,13 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 }
 
 func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
-
+	imageConfig, _ := client.InspectImage(driverConfig.Image)
+	// LCOW If we are running a Linux Container on Windows, we need to mount it correctly, as c:\ does not exist on unix
+	if imageConfig.OS == "linux" {
+		task.Env[taskenv.AllocDir] = strings.ReplaceAll(task.Env[taskenv.AllocDir], "c:\\", "/")
+		task.Env[taskenv.TaskLocalDir] = strings.ReplaceAll(task.Env[taskenv.TaskLocalDir], "c:\\", "/")
+		task.Env[taskenv.SecretsDir] = strings.ReplaceAll(task.Env[taskenv.SecretsDir], "c:\\", "/")
+	}
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
@@ -718,12 +724,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		logger.Error("task.Resources is empty")
 		return c, fmt.Errorf("task.Resources is empty")
 	}
-
 	binds, err := d.containerBinds(task, driverConfig)
 	if err != nil {
 		return c, err
 	}
-	logger.Trace("binding volumes", "volumes", binds)
+	logger.Debug("binding volumes", "volumes", binds)
 
 	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
@@ -812,6 +817,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	logger.Debug("configured resources", "memory", hostConfig.Memory,
 		"cpu_shares", hostConfig.CPUShares, "cpu_quota", hostConfig.CPUQuota,
 		"cpu_period", hostConfig.CPUPeriod)
+
 	logger.Debug("binding directories", "binds", hclog.Fmt("%#v", hostConfig.Binds))
 
 	//  set privileged mode
