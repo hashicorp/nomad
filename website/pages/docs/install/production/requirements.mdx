@@ -82,8 +82,7 @@ you should tune the OS to avoid this overlap.
 
 On Linux this can be checked and set as follows:
 
-```shell
-$ cat /proc/sys/net/ipv4/ip_local_port_range
+```shell-sessioncat /proc/sys/net/ipv4/ip_local_port_range
 32768   60999
 $ echo "49152 65535" > /proc/sys/net/ipv4/ip_local_port_range
 ```
@@ -94,8 +93,7 @@ Nomad's task group networks and Consul Connect integration use bridge networking
 
 These tunables can be set to allow iptables processing for the bridge network as follows:
 
-```shell
-$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+```shell-sessionecho 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 ```

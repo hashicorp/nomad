@@ -10,10 +10,10 @@ description: >-
 # Consul Connect
 
 ~> **Note:** This guide requires Nomad 0.10.0 or later and Consul 1.6.0 or
-   later.
+later.
 
 ~> **Note:** Nomad's Connect integration requires Linux network namespaces.
-   Nomad Connect will not run on Windows or macOS.
+Nomad Connect will not run on Windows or macOS.
 
 [Consul Connect](https://www.consul.io/docs/connect) provides
 service-to-service connection authorization and encryption using mutual
@@ -61,8 +61,8 @@ run in dev mode with the following command:
 
 **Note**: Nomad's Connect integration requires Consul in your `$PATH`
 
-```shell
-$ consul agent -dev
+```shell-sessionconsul agent -dev
+
 ```
 
 To use Connect on a non-dev Consul agent, you will minimally need to enable the
@@ -103,8 +103,8 @@ Nomad must schedule onto a routable interface in order for the proxies to
 connect to each other. The following steps show how to start a Nomad dev agent
 configured for Connect.
 
-```shell
-$ sudo nomad agent -dev-connect
+```shell-sessionsudo nomad agent -dev-connect
+
 ```
 
 ### CNI Plugins
@@ -115,8 +115,7 @@ must have CNI plugins installed.
 
 The following commands install CNI plugins:
 
-```shell
-$ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.4/cni-plugins-linux-amd64-v0.8.4.tgz
+```shell-sessioncurl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.4/cni-plugins-linux-amd64-v0.8.4.tgz
 $ sudo mkdir -p /opt/cni/bin
 $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
@@ -125,8 +124,7 @@ Ensure the your Linux operating system distribution has been configured to allow
 container traffic through the bridge network to be routed via iptables. These
 tunables can be set as follows:
 
-```shell
-$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+```shell-sessionecho 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 ```

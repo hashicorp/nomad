@@ -139,8 +139,7 @@ tested or documented by Nomad.
 
 Inspect a node with a GPU:
 
-```shell
-$ nomad node status 4d46e59f
+```shell-sessionnomad node status 4d46e59f
 ID            = 4d46e59f
 Name          = nomad
 Class         = <none>
@@ -176,8 +175,7 @@ No allocations placed
 
 Display detailed statistics on a node with a GPU:
 
-```shell
-$ nomad node status -stats 4d46e59f
+```shell-sessionnomad node status -stats 4d46e59f
 ID            = 4d46e59f
 Name          = nomad
 Class         = <none>
@@ -261,8 +259,7 @@ job "gpu-test" {
 }
 ```
 
-```shell
-$ nomad run example.nomad
+```shell-sessionnomad run example.nomad
 ==> Monitoring evaluation "21bd7584"
     Evaluation triggered by job "gpu-test"
     Allocation "d250baed" created: node "4d46e59f", group "smi"

@@ -50,8 +50,7 @@ the request. It is safe to exit the monitor early using ctrl+c.
 
 Stop the job with ID "job1":
 
-```shell
-$ nomad job stop job1
+```shell-sessionnomad job stop job1
 ==> Monitoring evaluation "43bfe672"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "43bfe672" finished with status "complete"
@@ -59,8 +58,7 @@ $ nomad job stop job1
 
 Stop the job with ID "job1" and return immediately:
 
-```shell
-$ nomad job stop -detach job1
+```shell-sessionnomad job stop -detach job1
 507d26cb
 ```
 

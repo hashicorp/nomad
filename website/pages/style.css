@@ -230,7 +230,7 @@ pre > code[class*='language-'] {
 
 pre[class*='language-'],
 :not(pre) > code[class*='language-'] {
-  background: #2a2a2a;
+  background: #262930;
 }
 
 pre[class*='language-'] {
@@ -346,6 +346,14 @@ code.language-markup .token.script {
 
 code.language-markup .token.script .token.keyword {
   color: #76d9e6;
+}
+
+code.language-json .operator {
+  color: white;
+}
+
+code.language-json .property {
+  color: #ef3b7d;
 }
 
 /* Line highlight plugin */

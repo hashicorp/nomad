@@ -42,8 +42,7 @@ allocations and information will be displayed.
 
 Short status of an alloc:
 
-```shell
-$ nomad alloc status --short 0af996ed
+```shell-sessionnomad alloc status --short 0af996ed
 ID                  = 0af996ed
 Eval ID             = be9bde98
 Name                = example.cache[0]
@@ -66,8 +65,7 @@ web    running  Started     07/25/17 16:12:49 UTC
 
 Full status of an alloc, which shows one of the tasks dying and then being restarted:
 
-```shell
-$ nomad alloc status 0af996ed
+```shell-sessionnomad alloc status 0af996ed
 ID                   = 0af996ed
 Eval ID              = be9bde98
 Name                 = example.cache[0]
@@ -125,8 +123,7 @@ Recent Events:
 
 Verbose status can also be accessed:
 
-```shell
-$ nomad alloc status -verbose 0af996ed
+```shell-sessionnomad alloc status -verbose 0af996ed
 ID                     = 0af996ed-aff4-8ddb-a566-e55ebf8969c9
 Eval ID                = be9bde98-0490-1beb-ced0-012d10ddf22e
 Name                   = example.cache[0]

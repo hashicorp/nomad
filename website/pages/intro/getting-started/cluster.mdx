@@ -42,8 +42,7 @@ corresponding `bootstrap_expect` value.
 
 Once the file is created, start the agent in a new tab:
 
-```shell
-$ nomad agent -config server.hcl
+```shell-sessionnomad agent -config server.hcl
 ==> WARNING: Bootstrap mode enabled! Potentially unsafe operation.
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
@@ -113,8 +112,7 @@ Copy that file to `client2.hcl`. Change the `data_dir` to be `/tmp/client2`,
 the `name` to `client2`, and the `http` port to 5657. Once you have created
 both `client1.hcl` and `client2.hcl`, open a tab for each and start the agents:
 
-```shell
-$ sudo nomad agent -config client1.hcl
+```shell-sessionsudo nomad agent -config client1.hcl
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
 
@@ -139,8 +137,7 @@ in managing the cluster or making scheduling decisions.
 Using the [`node status` command](/docs/commands/node/status)
 we should see both nodes in the `ready` state:
 
-```shell
-$ nomad node status
+```shell-sessionnomad node status
 ID        DC   Name     Class   Drain  Eligibility  Status
 fca62612  dc1  client1  <none>  false  eligible     ready
 c887deef  dc1  client2  <none>  false  eligible     ready
@@ -158,8 +155,7 @@ verify that the `count` is still set to 3.
 
 Then, use the [`job run` command](/docs/commands/job/run) to submit the job:
 
-```shell
-$ nomad job run example.nomad
+```shell-sessionnomad job run example.nomad
 ==> Monitoring evaluation "8e0a7cf9"
     Evaluation triggered by job "example"
     Evaluation within deployment: "0917b771"
@@ -176,8 +172,7 @@ second client.
 
 We can again use the [`status` command](/docs/commands/status) to verify:
 
-```shell
-$ nomad status example
+```shell-sessionnomad status example
 ID          = example
 Name        = example
 Submit Date   = 07/26/17 16:34:58 UTC
