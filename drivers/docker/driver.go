@@ -728,7 +728,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if err != nil {
 		return c, err
 	}
-	logger.Debug("binding volumes", "volumes", binds)
+	logger.Trace("binding volumes", "volumes", binds)
 
 	// create the config block that will later be consumed by go-dockerclient
 	config := &docker.Config{
