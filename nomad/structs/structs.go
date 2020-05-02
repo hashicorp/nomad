@@ -6516,6 +6516,13 @@ func (t *Template) Warnings() error {
 	return mErr.ErrorOrNil()
 }
 
+// AllocState records a single event that changes the state of the whole allocation
+type AllocState struct {
+	Field string
+	Value string
+	Time  time.Time
+}
+
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
@@ -8152,6 +8159,9 @@ type Allocation struct {
 	// TaskStates stores the state of each task,
 	TaskStates map[string]*TaskState
 
+	// AllocStates track meta data associated with changes to the state of the whole allocation, like becoming lost
+	AllocStates []*AllocState
+
 	// PreviousAllocation is the allocation that this allocation is replacing
 	PreviousAllocation string
 
@@ -8420,6 +8430,49 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	return nextRescheduleTime, rescheduleEligible
 }
 
+// ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
+func (a *Allocation) ShouldClientStop() bool {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil ||
+		tg.StopAfterClientDisconnect == nil ||
+		*tg.StopAfterClientDisconnect == 0*time.Nanosecond {
+		return false
+	}
+	return true
+}
+
+// WaitClientStop uses the reschedule delay mechanism to block rescheduling until
+// StopAfterClientDisconnect's block interval passes
+func (a *Allocation) WaitClientStop() time.Time {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	// An alloc can only be marked lost once, so use the first lost transition
+	var t time.Time
+	for _, s := range a.AllocStates {
+		if s.Field == "ClientStatus" &&
+			s.Value == AllocClientStatusLost {
+			t = s.Time
+			break
+		}
+	}
+
+	// On the first pass, the alloc hasn't been marked lost yet, and so we start
+	// counting from now
+	if t.IsZero() {
+		t = time.Now().UTC()
+	}
+
+	// Find the max kill timeout
+	kill := DefaultKillTimeout
+	for _, t := range tg.Tasks {
+		if t.KillTimeout > kill {
+			kill = t.KillTimeout
+		}
+	}
+
+	return t.Add(*tg.StopAfterClientDisconnect + kill)
+}
+
 // NextDelay returns a duration after which the allocation can be rescheduled.
 // It is calculated according to the delay function and previous reschedule attempts.
 func (a *Allocation) NextDelay() time.Duration {
@@ -8474,6 +8527,24 @@ func (a *Allocation) Terminated() bool {
 		return true
 	}
 	return false
+}
+
+// SetStopped updates the allocation in place to a DesiredStatus stop, with the ClientStatus
+func (a *Allocation) SetStop(clientStatus, clientDesc string) {
+	a.DesiredStatus = AllocDesiredStatusStop
+	a.ClientStatus = clientStatus
+	a.ClientDescription = clientDesc
+	a.AppendState("ClientStatus", clientStatus)
+}
+
+// AppendState creates and appends an AllocState entry recording the time of the state
+// transition. Used to mark the transition to lost
+func (a *Allocation) AppendState(field, value string) {
+	a.AllocStates = append(a.AllocStates, &AllocState{
+		Field: field,
+		Value: value,
+		Time:  time.Now().UTC(),
+	})
 }
 
 // RanSuccessfully returns whether the client has ran the allocation and all
@@ -9383,6 +9454,8 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus s
 	if clientStatus != "" {
 		newAlloc.ClientStatus = clientStatus
 	}
+
+	newAlloc.AppendState("ClientStatus", clientStatus)
 
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]

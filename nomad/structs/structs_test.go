@@ -4372,6 +4372,65 @@ func TestAllocation_NextDelay(t *testing.T) {
 
 }
 
+func TestAllocation_WaitClientStop(t *testing.T) {
+	type testCase struct {
+		desc                   string
+		stop                   time.Duration
+		status                 string
+		expectedShould         bool
+		expectedRescheduleTime time.Time
+	}
+	now := time.Now().UTC()
+	testCases := []testCase{
+		{
+			desc:           "running",
+			stop:           2 * time.Second,
+			status:         AllocClientStatusRunning,
+			expectedShould: true,
+		},
+		{
+			desc:           "no stop_after_client_disconnect",
+			status:         AllocClientStatusLost,
+			expectedShould: false,
+		},
+		{
+			desc:                   "stop",
+			status:                 AllocClientStatusLost,
+			stop:                   2 * time.Second,
+			expectedShould:         true,
+			expectedRescheduleTime: now.Add((2 + 5) * time.Second),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			j := testJob()
+			a := &Allocation{
+				ClientStatus: tc.status,
+				Job:          j,
+				TaskStates:   map[string]*TaskState{},
+			}
+
+			if tc.status == AllocClientStatusLost {
+				a.AppendState("ClientStatus", AllocClientStatusLost)
+			}
+
+			j.TaskGroups[0].StopAfterClientDisconnect = &tc.stop
+			a.TaskGroup = j.TaskGroups[0].Name
+
+			require.Equal(t, tc.expectedShould, a.ShouldClientStop())
+
+			if !tc.expectedShould || tc.status != AllocClientStatusLost {
+				return
+			}
+
+			// the reschedTime is close to the expectedRescheduleTime
+			reschedTime := a.WaitClientStop()
+			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
+			require.Less(t, e, int64(2))
+		})
+	}
+}
+
 func TestAllocation_Canonicalize_Old(t *testing.T) {
 	alloc := MockAlloc()
 	alloc.AllocatedResources = nil
