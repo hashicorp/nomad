@@ -1,0 +1,13 @@
+{{title "CSI Plugins"}}
+<div class="tabs is-subnav">
+  <ul>
+    <li data-test-tab="volumes">{{#link-to "csi.volumes.index" activeClass="is-active"}}Volumes{{/link-to}}</li>
+    <li data-test-tab="plugins">{{#link-to "csi.plugins.index" activeClass="is-active"}}Plugins{{/link-to}}</li>
+  </ul>
+</div>
+<section class="section">
+  {{#if isForbidden}}
+    {{partial "partials/forbidden-message"}}
+  {{else}}
+  {{/if}}
+</section>
