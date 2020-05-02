@@ -37,6 +37,10 @@ Router.map(function() {
     this.route('volumes', function() {
       this.route('volume', { path: '/:volume_name' });
     });
+
+    this.route('plugins', function() {
+      this.route('plugin', { path: '/:plugin-name' });
+    });
   });
 
   this.route('allocations', function() {
