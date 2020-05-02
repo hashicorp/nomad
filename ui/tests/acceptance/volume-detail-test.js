@@ -172,6 +172,13 @@ module('Acceptance | volume detail', function(hooks) {
     assert.ok(VolumeDetail.readTableIsEmpty);
     assert.equal(VolumeDetail.readEmptyState.headline, 'No Read Allocations');
   });
+
+  test('the constraints table shows access mode and attachment mode', async function(assert) {
+    await VolumeDetail.visit({ id: volume.id });
+
+    assert.equal(VolumeDetail.constraints.accessMode, volume.accessMode);
+    assert.equal(VolumeDetail.constraints.attachmentMode, volume.attachmentMode);
+  });
 });
 
 // Namespace test: details shows the namespace
