@@ -1,6 +1,6 @@
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
-// import { fragmentArray } from 'ember-data-model-fragments/attributes';
+import { fragmentArray } from 'ember-data-model-fragments/attributes';
 
 export default Model.extend({
   topologies: attr(),
@@ -8,6 +8,6 @@ export default Model.extend({
   version: attr('string'),
   controllerRequired: attr('boolean'),
 
-  // controllers: fragmentArray('storage-controller', { defaultValue: () => [] }),
-  // nodes: fragmentArray('storage-node', { defaultValue: () => [] }),
+  controllers: fragmentArray('storage-controller', { defaultValue: () => [] }),
+  nodes: fragmentArray('storage-node', { defaultValue: () => [] }),
 });
