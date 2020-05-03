@@ -39,7 +39,7 @@ Router.map(function() {
     });
 
     this.route('plugins', function() {
-      this.route('plugin', { path: '/:plugin-name' });
+      this.route('plugin', { path: '/:plugin_name' });
     });
   });
 

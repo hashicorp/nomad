@@ -1,0 +1,24 @@
+{{title "CSI Plugin " model.id}}
+<section class="section with-headspace">
+  <h1 class="title" data-test-title>{{model.plainId}}</h1>
+
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Plugin Details</span>
+      <span class="pair" data-test-volume-health>
+        <span class="term">Controller Health</span>
+        {{format-percentage model.controllersHealthy total=model.controllersExpected}}
+        ({{model.controllersHealthy}}/{{model.controllersExpected}})
+      </span>
+      <span class="pair" data-test-volume-health>
+        <span class="term">Node Health</span>
+        {{format-percentage model.nodesHealthy total=model.nodesExpected}}
+        ({{model.nodesHealthy}}/{{model.nodesExpected}})
+      </span>
+      <span class="pair" data-test-volume-provider>
+        <span class="term">Provider</span>
+        {{model.provider}}
+      </span>
+    </div>
+  </div>
+</section>
