@@ -1,12 +1,12 @@
 {{title "CSI Volume " model.name}}
-<section class="section">
-<h1 class="title" data-test-title>{{model.name}}</h1>
+<section class="section with-headspace">
+  <h1 class="title" data-test-title>{{model.name}}</h1>
 
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Volume Details</span>
       <span class="pair" data-test-volume-health>
-        <span class="term">health</span>
+        <span class="term">Health</span>
         {{if model.schedulable "Schedulable" "Unschedulable"}}
       </span>
       <span class="pair" data-test-volume-provider>
