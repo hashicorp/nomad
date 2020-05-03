@@ -9,5 +9,58 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
+    {{#if sortedPlugins}}
+      {{#list-pagination
+        source=sortedPlugins
+        size=pageSize
+        page=currentPage as |p|}}
+        {{#list-table
+          source=p.list
+          sortProperty=sortProperty
+          sortDescending=sortDescending
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            {{#t.sort-by prop="plainId"}}ID{{/t.sort-by}}
+            {{#t.sort-by prop="controllersHealthyProportion"}}Controller Health{{/t.sort-by}}
+            {{#t.sort-by prop="nodesHealthyProportion"}}Node Health{{/t.sort-by}}
+            {{#t.sort-by prop="provider"}}Provider{{/t.sort-by}}
+          {{/t.head}}
+          {{#t.body key="model.id" as |row|}}
+            <tr class="is-interactive" data-test-plugin-row {{on "click" (action "gotoPlugin" row.model)}}>
+              <td data-test-plugin-id>
+                {{#link-to "csi.plugins.plugin" row.model.plainId class="is-primary"}}{{row.model.plainId}}{{/link-to}}
+              </td>
+              <td data-test-volume-controller-health>
+                {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
+              </td>
+              <td data-test-volume-node-health>
+                {{if (gt row.model.nodesHealthy 0) "Healthy" "Unhealthy"}}
+                ({{row.model.nodesHealthy}}/{{row.model.nodesExpected}})
+              </td>
+              <td data-test-plugin-provider>{{row.model.provider}}</td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+        <div class="table-foot">
+          {{page-size-select onChange=(action resetPagination)}}
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedPlugins.length}}
+            </div>
+            {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
+            {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      {{/list-pagination}}
+    {{else}}
+      <div data-test-empty-volumes-list class="empty-message">
+        <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Plugins</h3>
+        <p class="empty-message-body">
+          The cluster currently has no registered CSI Plugins.
+        </p>
+      </div>
+    {{/if}}
   {{/if}}
 </section>

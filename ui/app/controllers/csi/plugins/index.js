@@ -34,7 +34,7 @@ export default Controller.extend(SortableFactory([]), {
 
   actions: {
     gotoPlugin(plugin) {
-      this.transitionToRoute('csi.plugins.plugin', plugin.id);
+      this.transitionToRoute('csi.plugins.plugin', plugin.plainId);
     },
   },
 });
