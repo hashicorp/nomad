@@ -13,8 +13,14 @@ export default Factory.extend({
   version: '1.0.1',
   controllerRequired: faker.random.boolean,
   controllersHealthy: () => faker.random.number(10),
+  controllersExpected() {
+    return this.controllersHealthy + faker.random.number(10);
+  },
 
   nodesHealthy: () => faker.random.number(10),
+  nodesExpected() {
+    return this.nodesHealthy + faker.random.number(10);
+  },
 
   // Internal property to determine whether or not this plugin
   // Should create one or two Jobs to represent Node and
@@ -52,7 +58,7 @@ export default Factory.extend({
     });
 
     if (plugin.createVolumes) {
-      server.createList('csi-volume', faker.random.number(5), {
+      server.createList('csi-volume', faker.random.number({ min: 1, max: 5 }), {
         plugin,
         provider: plugin.provider,
       });

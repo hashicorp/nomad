@@ -14,7 +14,7 @@ const unmap = (hash, propKey) =>
 
 export default ApplicationSerializer.extend({
   normalize(typeHash, hash) {
-    hash.PlainID = hash.ID;
+    hash.PlainId = hash.ID;
 
     // TODO This shouldn't hardcode `csi/` as part of the ID,
     // but it is necessary to make the correct find request and the
