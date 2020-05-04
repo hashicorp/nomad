@@ -1,0 +1,70 @@
+{{#if allocation}}
+  <td data-test-indicators class="is-narrow">
+    {{#if allocation.unhealthyDrivers.length}}
+      <span data-test-icon="unhealthy-driver" class="tooltip text-center" role="tooltip" aria-label="Allocation depends on unhealthy drivers">
+        {{x-icon "warning" class="is-warning"}}
+      </span>
+    {{/if}}
+    {{#if allocation.nextAllocation}}
+      <span data-test-icon="reschedule" class="tooltip text-center" role="tooltip" aria-label="Allocation was rescheduled">
+        {{x-icon "history" class="is-faded"}}
+      </span>
+    {{/if}}
+    {{#if allocation.wasPreempted}}
+      <span data-test-icon="preemption" class="tooltip text-center" role="tooltip" aria-label="Allocation was preempted">
+        {{x-icon "boot" class="is-faded"}}
+      </span>
+    {{/if}}
+  </td>
+
+  <td data-test-short-id>
+    {{#link-to "allocations.allocation" allocation class="is-primary"}}
+      {{allocation.shortId}}
+    {{/link-to}}
+  </td>
+
+  <td data-test-create-time>
+    <span class="tooltip" aria-label="{{format-month-ts allocation.createTime}}">
+      {{format-month-ts allocation.createTime short=true}}
+    </span>
+  </td>
+
+  <td data-test-modify-time>
+    <span class="tooltip" aria-label="{{format-month-ts allocation.modifyTime}}">
+      {{moment-from-now allocation.modifyTime}}
+    </span>
+  </td>
+
+  <td data-test-healthy>{{if pluginAllocation.healthy "Healthy" "Unhealthy"}}</td>
+
+  <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
+  <td>
+    {{#if (or allocation.job.isPending allocation.job.isReloading)}}
+      ...
+    {{else}}
+      {{#link-to "jobs.job" allocation.job (query-params jobNamespace=allocation.job.namespace.id) data-test-job}}{{allocation.job.name}}{{/link-to}}
+      <span class="is-faded" data-test-task-group>/ {{allocation.taskGroup.name}}</span>
+    {{/if}}
+  </td>
+  <td data-test-job-version class="is-1">{{allocation.jobVersion}}</td>
+  <td data-test-volume>{{if allocation.taskGroup.volumes.length "Yes"}}</td>
+
+  <td data-test-cpu class="is-1 has-text-centered">
+    {{allocation-stat
+      metric="cpu"
+      allocation=allocation
+      statsTracker=stats
+      isLoading=fetchStats.isRunning
+      error=statsError}}
+  </td>
+  <td data-test-mem class="is-1 has-text-centered">
+    {{allocation-stat
+      metric="memory"
+      allocation=allocation
+      statsTracker=stats
+      isLoading=fetchStats.isRunning
+      error=statsError}}
+  </td>
+{{else}}
+  <td colspan="10">&hellip;</td>
+{{/if}}
