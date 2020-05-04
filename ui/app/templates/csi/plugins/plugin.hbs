@@ -21,4 +21,60 @@
       </span>
     </div>
   </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Controller Allocations
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{#list-table
+        source=model.controllers
+        class="with-foot" as |t|}}
+        {{#t.head}}
+          <th class="is-narrow"></th>
+          <td>ID</td>
+          <th>Created</th>
+          <th>Modified</th>
+          <th>Health</th>
+          <th>Client</th>
+          <th>Job</th>
+          <th>Version</th>
+          <th>Volumes</th>
+          <th>CPU</th>
+          <th>Memory</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          {{plugin-allocation-row pluginAllocation=row.model}}
+        {{/t.body}}
+      {{/list-table}}
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Node Allocations
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      {{#list-table
+        source=model.nodes
+        class="with-foot" as |t|}}
+        {{#t.head}}
+          <th class="is-narrow"></th>
+          <td>ID</td>
+          <th>Created</th>
+          <th>Modified</th>
+          <th>Health</th>
+          <th>Client</th>
+          <th>Job</th>
+          <th>Version</th>
+          <th>Volumes</th>
+          <th>CPU</th>
+          <th>Memory</th>
+        {{/t.head}}
+        {{#t.body as |row|}}
+          {{plugin-allocation-row pluginAllocation=row.model}}
+        {{/t.body}}
+      {{/list-table}}
+    </div>
+  </div>
 </section>
