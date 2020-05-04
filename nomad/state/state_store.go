@@ -1037,6 +1037,12 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		if raw != nil {
 			plug = raw.(*structs.CSIPlugin).Copy()
 		} else {
+			if !info.Healthy {
+				// we don't want to create new plugins for unhealthy
+				// allocs, otherwise we'd recreate the plugin when we
+				// get the update for the alloc becoming terminal
+				return nil
+			}
 			plug = structs.NewCSIPlugin(info.PluginID, index)
 			plug.Provider = info.Provider
 			plug.Version = info.ProviderVersion
