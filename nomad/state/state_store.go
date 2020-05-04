@@ -2816,6 +2816,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *memdb.Txn, index uint64, a
 		return err
 	}
 
+	if err := s.updatePluginWithAlloc(index, copyAlloc, txn); err != nil {
+		return err
+	}
+
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
@@ -2919,6 +2923,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 		}
 
 		if err := s.updateEntWithAlloc(index, alloc, exist, txn); err != nil {
+			return err
+		}
+
+		if err := s.updatePluginWithAlloc(index, alloc, txn); err != nil {
 			return err
 		}
 
@@ -4573,6 +4581,42 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 
 		if err := txn.Insert("job_summary", jobSummary); err != nil {
 			return fmt.Errorf("updating job summary failed: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// updatePluginWithAlloc updates the CSI plugins for an alloc when the
+// allocation is updated or inserted with a terminal server status.
+func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocation,
+	txn *memdb.Txn) error {
+	if !alloc.ServerTerminalStatus() {
+		return nil
+	}
+
+	ws := memdb.NewWatchSet()
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	for _, t := range tg.Tasks {
+		if t.CSIPluginConfig != nil {
+			pluginID := t.CSIPluginConfig.ID
+			plug, err := s.CSIPluginByID(ws, pluginID)
+			if err != nil {
+				return err
+			}
+			if plug == nil {
+				// plugin may not have been created because it never
+				// became healthy, just move on
+				return nil
+			}
+			err = plug.DeleteAlloc(alloc.ID, alloc.NodeID)
+			if err != nil {
+				return err
+			}
+			err = updateOrGCPlugin(index, txn, plug)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
