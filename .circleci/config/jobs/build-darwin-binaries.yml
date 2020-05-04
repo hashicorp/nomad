@@ -8,6 +8,7 @@ steps:
 
   - install-golang:
       target_directory: ~/goinstall
+      os: darwin
   - run: source ${BASH_ENV} && make deps
   - run: brew install protobuf
   - run: sudo -E PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs

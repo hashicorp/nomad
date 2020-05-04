@@ -1,0 +1,22 @@
+parameters:
+  version:
+    type: string
+    default: 0.4.2
+  os:
+    type: string
+    default: linux
+steps:
+  - run:
+      name: Install gotestsum
+      command: |
+        set -x 
+
+        if [[ << parameters.os >> == "windows" ]]
+        then
+          if [[ ! -f "c:\Windows\gotestsum.exe" ]]
+          then
+            echo "Cache not found, installing gotestsum"
+            curl -SL --fail -o /tmp/gotestsum.tar.gz https://github.com/gotestyourself/gotestsum/releases/download/v"<< parameters.version >>"/gotestsum_"<< parameters.version >>"_"<< parameters.os >>"_amd64.tar.gz
+            tar -C "/c/Windows" -xzf /tmp/gotestsum.tar.gz
+          fi
+        fi

@@ -11,8 +11,7 @@ import (
 func newTaskConfig(variant string, command []string) TaskConfig {
 	// busyboxImageID is an id of an image containing nanoserver windows and
 	// a busybox exe.
-	// See https://github.com/dantoml/windows/blob/81cff1ed77729d1fa36721abd6cb6efebff2f8ef/docker/busybox/Dockerfile
-	busyboxImageID := "dantoml/busybox-windows:08012019"
+	busyboxImageID := "stefanscherer/busybox-windows:latest"
 
 	return TaskConfig{
 		Image:   busyboxImageID,

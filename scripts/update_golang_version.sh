@@ -16,9 +16,6 @@ sed -i'' -e "s|GOLANG_VERSION:[ \"]*[.0-9]*\"*|GOLANG_VERSION: ${golang_version}
 sed -i'' -e "s|\\(golang.org.*version\\) [.0-9]*|\\1 ${golang_version}|g" \
 	README.md
 
-sed -i'' -e "s|go[.0-9]*.windows-amd64.zip|go${golang_version}.windows-amd64.zip|g" \
-	appveyor.yml
-
 sed -i'' -e "s|go_version=\"*[^\"]*\"*$|go_version=\"${golang_version}\"|g" \
 	scripts/vagrant-linux-priv-go.sh scripts/release/mac-remote-build
 

@@ -1,7 +1,7 @@
 # OpenCensus Libraries for Go
 
 [![Build Status][travis-image]][travis-url]
-[![Windows Build Status][appveyor-image]][appveyor-url]
+[![Windows Build Status][circleci-image]][circleci-url]
 [![GoDoc][godoc-image]][godoc-url]
 [![Gitter chat][gitter-image]][gitter-url]
 
@@ -242,13 +242,12 @@ release in which the functionality was marked *Deprecated*.
 
 [travis-image]: https://travis-ci.org/census-instrumentation/opencensus-go.svg?branch=master
 [travis-url]: https://travis-ci.org/census-instrumentation/opencensus-go
-[appveyor-image]: https://ci.appveyor.com/api/projects/status/vgtt29ps1783ig38?svg=true
-[appveyor-url]: https://ci.appveyor.com/project/opencensusgoteam/opencensus-go/branch/master
+[circleci-image]: https://circleci.com/gh/hashicorp/nomad/tree/master.svg?style=svg
+[circleci-url]: https://circleci.com/gh/hashicorp/nomad/tree/master
 [godoc-image]: https://godoc.org/go.opencensus.io?status.svg
 [godoc-url]: https://godoc.org/go.opencensus.io
 [gitter-image]: https://badges.gitter.im/census-instrumentation/lobby.svg
 [gitter-url]: https://gitter.im/census-instrumentation/lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-
 
 [new-ex]: https://godoc.org/go.opencensus.io/tag#example-NewMap
 [new-replace-ex]: https://godoc.org/go.opencensus.io/tag#example-NewMap--Replace

@@ -13,8 +13,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./nomad/...
@@ -26,18 +26,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -52,10 +59,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -98,8 +120,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./api/...
@@ -111,18 +133,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -137,10 +166,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -183,8 +227,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./drivers/exec
@@ -196,18 +240,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -222,10 +273,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -268,8 +334,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./client/...
@@ -281,18 +347,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -307,10 +380,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -344,6 +432,140 @@ jobs:
         path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/test-reports
+  test-windows:
+    machine:
+      image: windows-server-2019-vs2019:stable
+    working_directory: c:\gopath\src\github.com\hashicorp\nomad
+    steps:
+    - run:
+        command: git config --global core.autocrlf false
+    - checkout
+    - run:
+        command: |
+          mkdir -p $GOBIN
+          mkdir -p $GOTESTSUM_PATH
+          echo "$GOLANG_VERSION" > ~/GOLANG_VERSION.txt
+          echo "$GOTESTSUM_VERSION" > ~/GOTESTSUM_VERSION.txt
+          echo "$VAULT_VERSION" > ~/VAULT_VERSION.txt
+        name: Setup
+    - restore_cache:
+        keys:
+        - win-golang-cache-{{ .Branch }}-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
+    - restore_cache:
+        keys:
+        - win-gotestsum-cache-{{ .Branch }}-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
+    - restore_cache:
+        keys:
+        - win-vault-cache-{{ .Branch }}-{{ checksum "~/VAULT_VERSION.txt" }}-v1
+    - restore_cache:
+        keys:
+        - win-gobuild-cache-{{ .Branch }}-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
+    - run:
+        command: |
+          set -x
+
+          echo installing golang ${GOLANG_VERSION}
+
+          if [[ windows != "windows" ]]
+          then
+            sudo rm -rf c:/go
+            sudo mkdir -p c:
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.tar.gz
+            sudo tar -C c: -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf c:/go
+              mkdir -p c:
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
+        name: install golang
+    - run:
+        command: go version
+    - save_cache:
+        key: win-golang-cache-{{ .Branch }}-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
+        paths:
+        - /go
+    - run:
+        command: go version
+    - run:
+        command: "set -x \n\nif [[ windows == \"windows\" ]]\nthen\n  if [[ ! -f \"c:\\Windows\\gotestsum.exe\" ]]\n  then\n    echo \"Cache not found, installing gotestsum\"\n    curl -SL --fail -o /tmp/gotestsum.tar.gz https://github.com/gotestyourself/gotestsum/releases/download/v\"$GOTESTSUM_VERSION\"/gotestsum_\"$GOTESTSUM_VERSION\"_\"windows\"_amd64.tar.gz\n    tar -C \"/c/Windows\" -xzf /tmp/gotestsum.tar.gz\n  fi\nfi\n"
+        name: Install gotestsum
+    - save_cache:
+        key: win-gotestsum-cache-{{ .Branch }}-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
+        paths:
+        - c:\Windows\gotestsum.exe
+    - run:
+        command: |
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"$VAULT_VERSION"/vault_"$VAULT_VERSION"_"windows"_amd64.zip
+
+          if [[ windows == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ windows == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
+    - save_cache:
+        key: win-vault-cache-{{ .Branch }}-{{ checksum "~/VAULT_VERSION.txt" }}-v1
+        paths:
+        - c:\Windows\vault.exe
+    - run:
+        command: vault version
+    - run:
+        command: choco install make
+    - run:
+        command: |
+          export PATH=$PATH:c/gopath/bin
+          go get -u github.com/kardianos/govendor
+          go get -u github.com/ugorji/go/codec/codecgen
+          go get -u github.com/hashicorp/go-bindata/go-bindata
+          go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
+          go get -u github.com/a8m/tree/cmd/tree
+          go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
+          go get -u github.com/golang/protobuf/protoc-gen-go
+          go get -u gotest.tools/gotestsum
+        name: Install golang dependencies
+    - run:
+        command: |
+          go build -o $GOBIN\nomad.exe
+        name: Build nomad
+    - save_cache:
+        key: win-gobuild-cache-{{ .Branch }}-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
+        paths:
+        - c:\Users\circleci\AppData\Local\go-build
+    - run:
+        command: |
+          # Only test docker driver tests for now
+          gotestsum --format=short-verbose --junitfile $GOTESTSUM_PATH/results.xml github.com/hashicorp/nomad/drivers/docker github.com/hashicorp/nomad/client/lib/fifo github.com/hashicorp/nomad/client/logmon
+        name: Run tests with gotestsum
+    - store_test_results:
+        path: c:\tmp\test-reports
+    - store_artifacts:
+        path: c:\tmp\test-reports
+    environment:
+    - GOBIN: c:\gopath\bin
+    - GOLANG_VERSION: 1.14.1
+    - GOPATH: c:\gopath
+    - GOTESTSUM_PATH: c:\tmp\test-reports
+    - GOTESTSUM_VERSION: 0.4.2
+    - VAULT_VERSION: 1.4.1
+    resource_class: windows.medium
+    shell: bash --login -eo pipefail
   test-shared-exec:
     machine:
       image: ubuntu-1604:201903-01
@@ -353,8 +575,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./drivers/shared/executor
@@ -366,18 +588,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -392,10 +621,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -489,8 +733,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
   website-docker-image:
@@ -529,8 +773,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ''
@@ -542,18 +786,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -568,10 +819,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -613,8 +879,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./devices/...
@@ -639,10 +905,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ -z $GOTEST_PKGS_EXCLUDE ];
@@ -678,18 +959,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf ~/goinstall/go
-          sudo mkdir -p ~/goinstall
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ darwin != "windows" ]]
+          then
+            sudo rm -rf ~/goinstall/go
+            sudo mkdir -p ~/goinstall
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.darwin-amd64.tar.gz
+            sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf ~/goinstall/go
+              mkdir -p ~/goinstall
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.darwin-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: source ${BASH_ENV} && make deps
@@ -707,8 +995,8 @@ jobs:
     - GOLANG_VERSION: 1.14
     - GOMAXPROCS: 1
     - GOPATH: /Users/distiller/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
   test-docker:
@@ -720,8 +1008,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./drivers/docker
@@ -733,18 +1021,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -759,10 +1054,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -804,8 +1114,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GO_TAGS: codegen_generated
@@ -854,8 +1164,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
   test-32bit:
@@ -867,8 +1177,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./client/fingerprint
@@ -880,18 +1190,25 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
+
+          if [[ linux != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            if [[ ! -d "c:\go" ]]
+            then
+              echo "Cache not found, doing a fresh install of go"
+              rm -rf /usr/local/go
+              mkdir -p /usr/local
+              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
+              unzip -o go.zip -d "/c"
+            fi
+          fi
         name: install golang
     - run:
         command: |
@@ -906,10 +1223,25 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+
+          if [[ linux == "linux" ]]
+          then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          fi
+          if [[ linux == "windows" ]]
+          then
+            if [[ ! -f "c:\Windows\vault.exe" ]]
+            then
+              echo "Cache not found, doing a fresh install of vault"
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -1042,6 +1374,12 @@ workflows:
             ignore:
             - stable-website
             - /^docs-.*/
+    - test-windows:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - stable-website
   website:
     jobs:
     - website-docker-image:

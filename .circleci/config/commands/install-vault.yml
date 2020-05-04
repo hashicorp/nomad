@@ -2,10 +2,28 @@ parameters:
   version:
     type: string
     default: 1.2.4
+  os:
+    type: string
+    default: linux
 steps:
   - run:
-      name: Install Vault << parameters.version >>
+      name: Install Vault
       command: |
-        curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/<< parameters.version >>/vault_<< parameters.version>>_linux_amd64.zip
-        sudo unzip -d /usr/local/bin /tmp/vault.zip
-        rm -rf /tmp/vault*
+        set -x
+
+        curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"<< parameters.version >>"/vault_"<< parameters.version >>"_"<< parameters.os >>"_amd64.zip
+
+        if [[ << parameters.os >> == "linux" ]]
+        then
+          sudo unzip -d /usr/local/bin /tmp/vault.zip
+          rm -rf /tmp/vault*
+        fi
+        if [[ << parameters.os >> == "windows" ]]
+        then
+          if [[ ! -f "c:\Windows\vault.exe" ]]
+          then
+            echo "Cache not found, doing a fresh install of vault"
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        fi
