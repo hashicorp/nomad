@@ -31,7 +31,7 @@ export default Factory.extend({
     });
 
     storageNode.update({
-      allocId: alloc.id,
+      allocID: alloc.id,
       nodeId: alloc.nodeId,
     });
   },

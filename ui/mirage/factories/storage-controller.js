@@ -27,11 +27,11 @@ export default Factory.extend({
   afterCreate(storageController, server) {
     const alloc = server.create('allocation', {
       jobId: storageController.job.id,
+      forceRunningClientStatus: true,
     });
 
     storageController.update({
-      allocation: alloc,
-      allocId: alloc.id,
+      allocID: alloc.id,
       nodeId: alloc.nodeId,
     });
   },
