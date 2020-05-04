@@ -15,8 +15,8 @@ export default Route.extend(WithWatchers, {
       args: ['csi.plugins'],
     },
     {
-      label: plugin.name,
-      args: ['csi.plugins.plugin', plugin.name],
+      label: plugin.plainId,
+      args: ['csi.plugins.plugin', plugin.plainId],
     },
   ],
 
