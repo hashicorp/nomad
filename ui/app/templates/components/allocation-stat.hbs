@@ -1,0 +1,18 @@
+{{#if allocation.isRunning}}
+  {{#if (and (not stat) isLoading)}}
+    &hellip;
+  {{else if error}}
+    <span class="tooltip is-small text-center" role="tooltip" aria-label="Couldn't collect stats">
+      {{x-icon "warning" class="is-warning"}}
+    </span>
+  {{else}}
+    <div class="inline-chart tooltip" role="tooltip" aria-label="{{formattedStat}} / {{formattedReserved}}">
+      <progress
+        class="progress is-small {{statClass}}"
+        value="{{stat.percent}}"
+        max="1">
+        {{stat.percent}}
+      </progress>
+    </div>
+  {{/if}}
+{{/if}}
