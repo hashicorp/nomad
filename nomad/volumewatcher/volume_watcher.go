@@ -117,7 +117,7 @@ func (vw *volumeWatcher) watch() {
 		case vol := <-vw.updateCh:
 			// while we won't make raft writes if we get a stale update,
 			// we can still fire extra CSI RPC calls if we don't check this
-			if vol == nil || vw.v == nil || vol.ModifyIndex >= vw.v.ModifyIndex {
+			if vol.ModifyIndex >= vw.v.ModifyIndex {
 				vol = vw.getVolume(vol)
 				if vol == nil {
 					return
