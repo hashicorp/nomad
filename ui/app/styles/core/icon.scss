@@ -42,6 +42,7 @@ $icon-dimensions-large: 2rem;
 
     &.is-#{$name} {
       fill: $color;
+      color: $color;
     }
   }
 }
