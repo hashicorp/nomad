@@ -151,6 +151,8 @@
 /guides/security/index.html                  https://learn.hashicorp.com/nomad?track=acls#acls 301!
 /guides/security/securing-nomad              https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
 /guides/security/securing-nomad.html         https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
+/guides/security/vault-pki-integration       https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad 301!
+/guides/security/vault-pki-integration.html  https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad 301!
 
 # Multi-part UI guides
 /guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui 301!
@@ -437,6 +439,12 @@
 /guides/operations/upgrade/index.html             /docs/upgrade 301!
 /guides/operations/upgrade/upgrade-specific.html  /docs/upgrade/upgrade-specific 301!
 /guides/operations/upgrade/upgrade-specific       /docs/upgrade/upgrade-specific 301!
+/guides/upgrade                                   /docs/upgrade 301!
+/guides/upgrade/index.html                        /docs/upgrade 301!
+/guides/upgrade/upgrade-specific.html             /docs/upgrade/upgrade-specific 301!
+/guides/upgrade/upgrade-specific                  /docs/upgrade/upgrade-specific 301!
+
+
 
 # Enterprise
 
