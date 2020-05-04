@@ -611,9 +611,12 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 	return dockerImage.ID, nil
 }
 
-func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
+func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image string) {
 	if runtime.GOOS == "windows" {
-		imageConfig, _ := client.InspectImage(driverConfig.Image)
+		imageConfig, err := client.InspectImage(image)
+		if err != nil {
+			fmt.Errorf("the image does not exist: %v", image)
+		}
 		// LCOW If we are running a Linux Container on Windows, we need to mount it correctly, as c:\ does not exist on unix
 		if imageConfig.OS == "linux" {
 			a := []rune(task.Env[taskenv.AllocDir])
@@ -624,6 +627,10 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 			task.Env[taskenv.SecretsDir] = strings.ReplaceAll(string(s[2:]), "\\", "/")
 		}
 	}
+}
+
+func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
+	d.convertAllocPathsForWindowsLCOW(task, driverConfig.Image)
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
