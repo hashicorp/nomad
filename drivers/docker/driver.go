@@ -274,6 +274,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, err
 	}
 
+	if runtime.GOOS == "windows" {
+		err = d.convertAllocPathsForWindowsLCOW(cfg, driverConfig.Image)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	containerCfg, err := d.createContainerConfig(cfg, &driverConfig, driverConfig.Image)
 	if err != nil {
 		d.logger.Error("failed to create container configuration", "image_name", driverConfig.Image,
@@ -611,26 +618,24 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 	return dockerImage.ID, nil
 }
 
-func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image string) {
-	if runtime.GOOS == "windows" {
-		imageConfig, err := client.InspectImage(image)
-		if err != nil {
-			fmt.Errorf("the image does not exist: %v", image)
-		}
-		// LCOW If we are running a Linux Container on Windows, we need to mount it correctly, as c:\ does not exist on unix
-		if imageConfig.OS == "linux" {
-			a := []rune(task.Env[taskenv.AllocDir])
-			task.Env[taskenv.AllocDir] = strings.ReplaceAll(string(a[2:]), "\\", "/")
-			l := []rune(task.Env[taskenv.TaskLocalDir])
-			task.Env[taskenv.TaskLocalDir] = strings.ReplaceAll(string(l[2:]), "\\", "/")
-			s := []rune(task.Env[taskenv.SecretsDir])
-			task.Env[taskenv.SecretsDir] = strings.ReplaceAll(string(s[2:]), "\\", "/")
-		}
+func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image string) error {
+	imageConfig, err := client.InspectImage(image)
+	if err != nil {
+		return fmt.Errorf("the image does not exist: %v", err)
 	}
+	// LCOW If we are running a Linux Container on Windows, we need to mount it correctly, as c:\ does not exist on unix
+	if imageConfig.OS == "linux" {
+		a := []rune(task.Env[taskenv.AllocDir])
+		task.Env[taskenv.AllocDir] = strings.ReplaceAll(string(a[2:]), "\\", "/")
+		l := []rune(task.Env[taskenv.TaskLocalDir])
+		task.Env[taskenv.TaskLocalDir] = strings.ReplaceAll(string(l[2:]), "\\", "/")
+		s := []rune(task.Env[taskenv.SecretsDir])
+		task.Env[taskenv.SecretsDir] = strings.ReplaceAll(string(s[2:]), "\\", "/")
+	}
+	return nil
 }
 
 func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
-	d.convertAllocPathsForWindowsLCOW(task, driverConfig.Image)
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
