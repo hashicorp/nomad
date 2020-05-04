@@ -1156,7 +1156,11 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		}
 
 		plug := raw.(*structs.CSIPlugin).Copy()
-		err = deleteNodeFromPlugin(txn, plug, node, index)
+		err = plug.DeleteNode(node.ID)
+		if err != nil {
+			return err
+		}
+		err = updateOrGCPlugin(index, txn, plug)
 		if err != nil {
 			return err
 		}
@@ -1167,14 +1171,6 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 	}
 
 	return nil
-}
-
-func deleteNodeFromPlugin(txn *memdb.Txn, plug *structs.CSIPlugin, node *structs.Node, index uint64) error {
-	err := plug.DeleteNode(node.ID)
-	if err != nil {
-		return err
-	}
-	return updateOrGCPlugin(index, txn, plug)
 }
 
 // updateOrGCPlugin updates a plugin but will delete it if the plugin is empty
@@ -1213,7 +1209,6 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	plugins := map[string]*structs.CSIPlugin{}
 
 	for _, a := range allocs {
-		// if its nil, we can just panic
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		for _, t := range tg.Tasks {
 			if t.CSIPluginConfig != nil {
