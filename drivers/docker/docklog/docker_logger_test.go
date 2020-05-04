@@ -18,9 +18,9 @@ import (
 
 func testContainerDetails() (image string, imageName string, imageTag string) {
 	if runtime.GOOS == "windows" {
-		return "dantoml/busybox-windows:08012019",
-			"dantoml/busybox-windows",
-			"08012019"
+		return "stefanscherer/busybox-windows:latest",
+			"stefanscherer/busybox-windows",
+			"latest"
 	}
 
 	return "busybox:1", "busybox", "1"
