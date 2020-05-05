@@ -772,7 +772,8 @@ func getRunningAllocs(client *api.Client, nodeID string) ([]*api.Allocation, err
 	nodeAllocs, _, err := client.Nodes().Allocations(nodeID, nil)
 	// Filter list to only running allocations
 	for _, alloc := range nodeAllocs {
-		if alloc.ClientStatus == "running" {
+		switch alloc.ClientStatus {
+		case api.AllocClientStatusRunning, api.AllocClientStatusPending:
 			allocs = append(allocs, alloc)
 		}
 	}

@@ -47,8 +47,10 @@ export default Model.extend({
   completeAllocations: computed('allocations.@each.clientStatus', function() {
     return this.allocations.filterBy('clientStatus', 'complete');
   }),
-  runningAllocations: computed('allocations.@each.isRunning', function() {
-    return this.allocations.filterBy('isRunning');
+  runningAllocations: computed('allocations.@each.clientStatus', function() {
+    return this.allocations.filter(
+      a => a.get('clientStatus') === 'pending' || a.get('clientStatus') === 'running'
+    );
   }),
   migratingAllocations: computed('allocations.@each.{isMigrating,isRunning}', function() {
     return this.allocations.filter(alloc => alloc.isRunning && alloc.isMigrating);
