@@ -30,11 +30,11 @@
               <td data-test-plugin-id>
                 {{#link-to "csi.plugins.plugin" row.model.plainId class="is-primary"}}{{row.model.plainId}}{{/link-to}}
               </td>
-              <td data-test-volume-controller-health>
+              <td data-test-plugin-controller-health>
                 {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
                 ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
               </td>
-              <td data-test-volume-node-health>
+              <td data-test-plugin-node-health>
                 {{if (gt row.model.nodesHealthy 0) "Healthy" "Unhealthy"}}
                 ({{row.model.nodesHealthy}}/{{row.model.nodesExpected}})
               </td>
@@ -55,8 +55,8 @@
         </div>
       {{/list-pagination}}
     {{else}}
-      <div data-test-empty-volumes-list class="empty-message">
-        <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Plugins</h3>
+      <div data-test-empty-plugins-list class="empty-message">
+        <h3 data-test-empty-plugins-list-headline class="empty-message-headline">No Plugins</h3>
         <p class="empty-message-body">
           The cluster currently has no registered CSI Plugins.
         </p>
