@@ -719,7 +719,7 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 		// client, they also conflict on the client so this should be
 		// ok
 		p.Controllers[nodeID] = info
-		if prev != nil || prev == nil && info.Healthy {
+		if prev != nil || info.Healthy {
 			p.Controllers[nodeID] = info
 		}
 		if info.Healthy {
@@ -737,7 +737,7 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.NodesHealthy -= 1
 			}
 		}
-		if prev != nil || prev == nil && info.Healthy {
+		if prev != nil || info.Healthy {
 			p.Nodes[nodeID] = info
 		}
 		if info.Healthy {
