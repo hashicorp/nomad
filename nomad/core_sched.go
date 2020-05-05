@@ -54,6 +54,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.deploymentGC(eval)
 	case structs.CoreJobCSIVolumeClaimGC:
 		return c.csiVolumeClaimGC(eval)
+	case structs.CoreJobCSIPluginGC:
+		return c.csiPluginGC(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -735,4 +737,10 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 
 	err := c.srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
 	return err
+}
+
+// csiPluginGC is used to garbage collect unused plugins
+func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
+	c.logger.Trace("garbage collecting unused CSI plugins")
+	return nil
 }
