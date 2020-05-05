@@ -13,6 +13,9 @@ export default create({
     controllerHealth: text('[data-test-plugin-controller-health]'),
     nodeHealth: text('[data-test-plugin-node-health]'),
     provider: text('[data-test-plugin-provider]'),
+
+    clickRow: clickable(),
+    clickName: clickable('[data-test-plugin-id] a'),
   }),
 
   nextPage: clickable('[data-test-pager="next"]'),
