@@ -28,7 +28,7 @@ module('Acceptance | volume detail', function(hooks) {
     volume = server.create('csi-volume');
   });
 
-  test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and CSI', async function(assert) {
+  test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.equal(VolumeDetail.breadcrumbFor('csi.index').text, 'Storage');

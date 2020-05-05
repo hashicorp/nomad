@@ -1,4 +1,4 @@
-{{title "CSI Plugin " model.id}}
+{{title "CSI Plugin " model.plainId}}
 <section class="section with-headspace">
   <h1 class="title" data-test-title>{{model.plainId}}</h1>
 
@@ -26,7 +26,7 @@
     <div class="boxed-section-head">
       Controller Allocations
     </div>
-    <div class="boxed-section-body is-full-bleed">
+    <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
       {{#if model.controllers}}
         {{#list-table
           source=sortedControllers
@@ -46,7 +46,7 @@
           {{/t.head}}
           {{#t.body as |row|}}
             {{plugin-allocation-row
-              data-test-controller-allocation=row.model.id
+              data-test-controller-allocation=row.model.allocID
               pluginAllocation=row.model}}
           {{/t.body}}
         {{/list-table}}
@@ -63,7 +63,7 @@
     <div class="boxed-section-head">
       Node Allocations
     </div>
-    <div class="boxed-section-body is-full-bleed">
+    <div class="boxed-section-body {{if model.nodes "is-full-bleed"}}">
       {{#if model.nodes}}
         {{#list-table
           source=sortedNodes
@@ -83,7 +83,7 @@
           {{/t.head}}
           {{#t.body as |row|}}
             {{plugin-allocation-row
-              data-test-node-allocation=row.model.id
+              data-test-node-allocation=row.model.allocID
               pluginAllocation=row.model}}
           {{/t.body}}
         {{/list-table}}
