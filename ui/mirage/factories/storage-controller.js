@@ -12,7 +12,7 @@ export default Factory.extend({
     this.healthy ? 'healthy' : 'unhealthy';
   },
 
-  updateTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+  updateTime: () => faker.date.past(2 / 365, REF_TIME),
 
   requiresControllerPlugin: true,
   requiresTopologies: true,
@@ -28,6 +28,7 @@ export default Factory.extend({
     const alloc = server.create('allocation', {
       jobId: storageController.job.id,
       forceRunningClientStatus: true,
+      modifyTime: storageController.updateTime * 1000000,
     });
 
     storageController.update({

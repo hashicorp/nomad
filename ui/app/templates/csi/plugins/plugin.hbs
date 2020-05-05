@@ -5,17 +5,17 @@
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Plugin Details</span>
-      <span class="pair" data-test-volume-health>
+      <span class="pair" data-test-plugin-controller-health>
         <span class="term">Controller Health</span>
         {{format-percentage model.controllersHealthy total=model.controllersExpected}}
         ({{model.controllersHealthy}}/{{model.controllersExpected}})
       </span>
-      <span class="pair" data-test-volume-health>
+      <span class="pair" data-test-plugin-node-health>
         <span class="term">Node Health</span>
         {{format-percentage model.nodesHealthy total=model.nodesExpected}}
         ({{model.nodesHealthy}}/{{model.nodesExpected}})
       </span>
-      <span class="pair" data-test-volume-provider>
+      <span class="pair" data-test-plugin-provider>
         <span class="term">Provider</span>
         {{model.provider}}
       </span>
@@ -27,26 +27,35 @@
       Controller Allocations
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{#list-table
-        source=model.controllers
-        class="with-foot" as |t|}}
-        {{#t.head}}
-          <th class="is-narrow"></th>
-          <td>ID</td>
-          <th>Created</th>
-          <th>Modified</th>
-          <th>Health</th>
-          <th>Client</th>
-          <th>Job</th>
-          <th>Version</th>
-          <th>Volumes</th>
-          <th>CPU</th>
-          <th>Memory</th>
-        {{/t.head}}
-        {{#t.body as |row|}}
-          {{plugin-allocation-row pluginAllocation=row.model}}
-        {{/t.body}}
-      {{/list-table}}
+      {{#if model.controllers}}
+        {{#list-table
+          source=sortedControllers
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <td>ID</td>
+            <th>Created</th>
+            <th>Modified</th>
+            <th>Health</th>
+            <th>Client</th>
+            <th>Job</th>
+            <th>Version</th>
+            <th>Volumes</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{plugin-allocation-row
+              data-test-controller-allocation=row.model.id
+              pluginAllocation=row.model}}
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div class="empty-message" data-test-empty-controller-allocations>
+          <h3 class="empty-message-headline" data-test-empty-controller-allocations-headline>No Controller Plugin Allocations</h3>
+          <p class="empty-message-body" data-test-empty-controller-allocations-message>No allocations are providing controller plugin service.</p>
+        </div>
+      {{/if}}
     </div>
   </div>
 
@@ -55,26 +64,35 @@
       Node Allocations
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{#list-table
-        source=model.nodes
-        class="with-foot" as |t|}}
-        {{#t.head}}
-          <th class="is-narrow"></th>
-          <td>ID</td>
-          <th>Created</th>
-          <th>Modified</th>
-          <th>Health</th>
-          <th>Client</th>
-          <th>Job</th>
-          <th>Version</th>
-          <th>Volumes</th>
-          <th>CPU</th>
-          <th>Memory</th>
-        {{/t.head}}
-        {{#t.body as |row|}}
-          {{plugin-allocation-row pluginAllocation=row.model}}
-        {{/t.body}}
-      {{/list-table}}
+      {{#if model.nodes}}
+        {{#list-table
+          source=sortedNodes
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <td>ID</td>
+            <th>Created</th>
+            <th>Modified</th>
+            <th>Health</th>
+            <th>Client</th>
+            <th>Job</th>
+            <th>Version</th>
+            <th>Volumes</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            {{plugin-allocation-row
+              data-test-node-allocation=row.model.id
+              pluginAllocation=row.model}}
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div class="empty-message" data-test-empty-node-allocations>
+          <h3 class="empty-message-headline" data-test-empty-node-allocations-headline>No Node Plugin Allocations</h3>
+          <p class="empty-message-body" data-test-empty-node-allocations-message>No allocations are providing node plugin service.</p>
+        </div>
+      {{/if}}
     </div>
   </div>
 </section>
