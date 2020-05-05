@@ -27,7 +27,6 @@ func (c *LicenseGetCommand) Synopsis() string {
 func (c *LicenseGetCommand) Name() string { return "license get" }
 
 func (c *LicenseGetCommand) Run(args []string) int {
-
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 

@@ -49,29 +49,15 @@ func (l *LicenseCommand) Run(args []string) int {
 
 func OutputLicenseReply(ui cli.Ui, resp *api.LicenseReply) int {
 	var validity string
-	if resp.Valid {
-		validity = "valid"
-		outputLicenseInfo(ui, resp.License, false, validity)
-		return 0
-	} else if resp.License != nil {
-		now := time.Now()
-		if resp.License.ExpirationTime.Before(now) {
-			validity = "expired!"
-			outputLicenseInfo(ui, resp.License, true, validity)
-		} else {
-			validity = "invalid!"
-			for _, warn := range resp.Warnings {
-				ui.Output(fmt.Sprintf("   %s", warn))
-			}
-			outputLicenseInfo(ui, resp.License, false, validity)
-		}
+	now := time.Now()
+	if resp.License.ExpirationTime.Before(now) {
+		validity = "expired!"
+		outputLicenseInfo(ui, resp.License, true, validity)
 		return 1
-	} else {
-		// TODO - remove the expired message here in the future
-		//        once the go-licensing library is updated post 1.1
-		ui.Output("Nomad is unlicensed or the license has expired")
-		return 0
 	}
+	validity = "valid"
+	outputLicenseInfo(ui, resp.License, false, validity)
+	return 0
 }
 
 func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool, validity string) {
@@ -83,6 +69,7 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool, validity strin
 	}
 
 	output := []string{
+		fmt.Sprintf("Product|%s", lic.Product),
 		fmt.Sprintf("License Status|%s", validity),
 		fmt.Sprintf("License ID|%s", lic.LicenseID),
 		fmt.Sprintf("Customer ID|%s", lic.CustomerID),

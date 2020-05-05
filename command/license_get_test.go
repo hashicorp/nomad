@@ -19,13 +19,11 @@ func TestCommand_LicenseGet_OSSErr(t *testing.T) {
 	cmd := &LicenseGetCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{"-address=" + url})
-	require.Equal(t, 1, code)
-
 	if srv.Enterprise {
-		// TODO update assertion once ent licensing implemented
-		require.Contains(t, ui.ErrorWriter.String(), "404")
+		require.Equal(t, 0, code)
+		require.Contains(t, ui.OutputWriter.String(), "License Status = valid")
 	} else {
+		require.Equal(t, 1, code)
 		require.Contains(t, ui.ErrorWriter.String(), "Nomad Enterprise only endpoint")
 	}
-
 }
