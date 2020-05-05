@@ -3,6 +3,7 @@ import { computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
+import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 
 export default Controller.extend(
   SortableFactory([
@@ -58,8 +59,11 @@ export default Controller.extend(
     },
 
     actions: {
-      gotoVolume(volume) {
-        this.transitionToRoute('csi.volumes.volume', volume.get('plainId'));
+      gotoVolume(volume, event) {
+        lazyClick([
+          () => this.transitionToRoute('csi.volumes.volume', volume.get('plainId')),
+          event,
+        ]);
       },
     },
   }

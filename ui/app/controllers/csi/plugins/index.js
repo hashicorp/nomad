@@ -2,6 +2,7 @@ import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
+import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 
 export default Controller.extend(SortableFactory([]), {
   userSettings: service(),
@@ -32,8 +33,8 @@ export default Controller.extend(SortableFactory([]), {
   },
 
   actions: {
-    gotoPlugin(plugin) {
-      this.transitionToRoute('csi.plugins.plugin', plugin.plainId);
+    gotoPlugin(plugin, event) {
+      lazyClick([() => this.transitionToRoute('csi.plugins.plugin', plugin.plainId), event]);
     },
   },
 });
