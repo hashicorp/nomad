@@ -35,11 +35,13 @@
     </span>
   </td>
 
-  <td data-test-healthy>
-    {{x-icon
-      (if pluginAllocation.healthy "check-circle-outline" "minus-circle-outline")
-      class=(if pluginAllocation.healthy "is-success" "is-danger")}}
-    {{if pluginAllocation.healthy "Healthy" "Unhealthy"}}
+  <td data-test-health>
+    <span class="nowrap">
+      {{x-icon
+        (if pluginAllocation.healthy "check-circle-outline" "minus-circle-outline")
+        class=(if pluginAllocation.healthy "is-success" "is-danger")}}
+      {{if pluginAllocation.healthy "Healthy" "Unhealthy"}}
+    </span>
   </td>
 
   <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
