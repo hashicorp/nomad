@@ -51,6 +51,8 @@ var (
 
 type MessageType uint8
 
+// note: new raft message types need to be added to the end of this
+// list of contents
 const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
@@ -90,8 +92,8 @@ const (
 	CSIVolumeRegisterRequestType
 	CSIVolumeDeregisterRequestType
 	CSIVolumeClaimRequestType
-	CSIVolumeClaimBatchRequestType
 	ScalingEventRegisterRequestType
+	CSIVolumeClaimBatchRequestType
 )
 
 const (
