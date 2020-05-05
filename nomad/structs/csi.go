@@ -701,7 +701,8 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 	if info.ControllerInfo != nil {
 		p.ControllerRequired = info.RequiresControllerPlugin &&
-			info.ControllerInfo.SupportsAttachDetach
+			(info.ControllerInfo.SupportsAttachDetach ||
+				info.ControllerInfo.SupportsReadOnlyAttach)
 
 		prev, ok := p.Controllers[nodeID]
 		if ok {
@@ -712,11 +713,14 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.ControllersHealthy -= 1
 			}
 		}
+
 		// note: for this to work as expected, only a single
 		// controller for a given plugin can be on a given Nomad
 		// client, they also conflict on the client so this should be
 		// ok
-		p.Controllers[nodeID] = info
+		if prev != nil || info.Healthy {
+			p.Controllers[nodeID] = info
+		}
 		if info.Healthy {
 			p.ControllersHealthy += 1
 		}
@@ -732,7 +736,9 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.NodesHealthy -= 1
 			}
 		}
-		p.Nodes[nodeID] = info
+		if prev != nil || info.Healthy {
+			p.Nodes[nodeID] = info
+		}
 		if info.Healthy {
 			p.NodesHealthy += 1
 		}

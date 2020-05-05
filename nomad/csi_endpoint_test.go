@@ -560,10 +560,12 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 
 	// Create a client node with a plugin
 	node := mock.Node()
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
 		"minnie": {PluginID: "minnie", Healthy: true, RequiresControllerPlugin: true,
 			ControllerInfo: &structs.CSIControllerInfo{SupportsAttachDetach: true},
 		},
+	}
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
 		"adam": {PluginID: "adam", Healthy: true},
 	}
 	err := state.UpsertNode(3, node)
