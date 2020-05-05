@@ -712,6 +712,10 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.ControllersHealthy -= 1
 			}
 		}
+		// note: for this to work as expected, only a single
+		// controller for a given plugin can be on a given Nomad
+		// client, they also conflict on the client so this should be
+		// ok
 		p.Controllers[nodeID] = info
 		if info.Healthy {
 			p.ControllersHealthy += 1
