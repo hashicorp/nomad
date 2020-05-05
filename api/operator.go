@@ -232,19 +232,16 @@ type License struct {
 }
 
 type LicenseReply struct {
-	Valid    bool
-	License  *License
-	Warnings []string
+	License *License
 	QueryMeta
 }
 
-func (op *Operator) LicensePut(license string, q *WriteOptions) (*LicenseReply, *WriteMeta, error) {
-	var resp LicenseReply
-	wm, err := op.c.write("/v1/operator/license", license, &resp, q)
+func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, error) {
+	wm, err := op.c.write("/v1/operator/license", license, nil, q)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return &resp, wm, nil
+	return wm, nil
 }
 
 func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, error) {

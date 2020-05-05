@@ -67,13 +67,14 @@ func (c *LicensePutCommand) Run(args []string) int {
 		return 1
 	}
 
-	resp, _, err := client.Operator().LicensePut(data, nil)
+	_, err = client.Operator().LicensePut(data, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error putting license: %v", err))
 		return 1
 	}
 
-	return OutputLicenseReply(c.Ui, resp)
+	c.Ui.Output("Successfully applied license")
+	return 0
 }
 
 func (c *LicensePutCommand) dataFromArgs(args []string) (string, error) {
