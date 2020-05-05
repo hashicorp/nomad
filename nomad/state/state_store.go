@@ -2340,6 +2340,37 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 	return nil
 }
 
+// DeleteCSIPlugin deletes the plugin if it's not in use.
+func (s *StateStore) DeleteCSIPlugin(index uint64, id string) error {
+	txn := s.db.Txn(true)
+	defer txn.Abort()
+	ws := memdb.NewWatchSet()
+
+	plug, err := s.CSIPluginByID(ws, id)
+	if err != nil {
+		return err
+	}
+
+	if plug == nil {
+		return nil
+	}
+
+	plug, err = s.CSIPluginDenormalize(ws, plug.Copy())
+	if err != nil {
+		return err
+	}
+	if !plug.IsEmpty() {
+		return fmt.Errorf("plugin in use")
+	}
+
+	err = txn.Delete("csi_plugins", plug)
+	if err != nil {
+		return fmt.Errorf("csi_plugins delete error: %v", err)
+	}
+	txn.Commit()
+	return nil
+}
+
 // UpsertPeriodicLaunch is used to register a launch or update it.
 func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.PeriodicLaunch) error {
 	txn := s.db.Txn(true)

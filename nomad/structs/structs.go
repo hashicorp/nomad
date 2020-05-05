@@ -94,6 +94,7 @@ const (
 	CSIVolumeClaimRequestType
 	ScalingEventRegisterRequestType
 	CSIVolumeClaimBatchRequestType
+	CSIPluginDeleteRequestType
 )
 
 const (
