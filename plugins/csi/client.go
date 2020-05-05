@@ -9,6 +9,7 @@ import (
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/grpc-middleware/logging"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -334,8 +335,9 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID st
 	confirmedCaps := resp.GetConfirmed().GetVolumeCapabilities()
 	if confirmedCaps != nil {
 		for _, requestedCap := range req.VolumeCapabilities {
-			if !compareCapabilities(requestedCap, confirmedCaps) {
-				return fmt.Errorf("volume capability validation failed: missing %v", req)
+			err := compareCapabilities(requestedCap, confirmedCaps)
+			if err != nil {
+				return fmt.Errorf("volume capability validation failed: %v", err)
 			}
 		}
 	}
@@ -343,25 +345,67 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID st
 	return nil
 }
 
-// compareCapabilities returns true if the 'got' capabilities contains
-// the 'expected' capability
-func compareCapabilities(expected *csipbv1.VolumeCapability, got []*csipbv1.VolumeCapability) bool {
+// compareCapabilities returns an error if the 'got' capabilities does not
+// contain the 'expected' capability
+func compareCapabilities(expected *csipbv1.VolumeCapability, got []*csipbv1.VolumeCapability) error {
+	var err multierror.Error
 	for _, cap := range got {
-		if expected.GetAccessMode().GetMode() != cap.GetAccessMode().GetMode() {
+
+		expectedMode := expected.GetAccessMode().GetMode()
+		capMode := cap.GetAccessMode().GetMode()
+
+		if expectedMode != capMode {
+			multierror.Append(&err,
+				fmt.Errorf("requested AccessMode %v, got %v", expectedMode, capMode))
 			continue
 		}
+
 		// AccessType Block is an empty struct even if set, so the
 		// only way to test for it is to check that the AccessType
 		// isn't Mount.
-		if expected.GetMount() == nil && cap.GetMount() != nil {
+		expectedMount := expected.GetMount()
+		capMount := cap.GetMount()
+
+		if expectedMount == nil {
+			if capMount == nil {
+				return nil
+			}
+			multierror.Append(&err, fmt.Errorf(
+				"requested AccessType Block but got AccessType Mount"))
 			continue
 		}
-		if expected.GetMount() != cap.GetMount() {
+
+		if capMount == nil {
+			multierror.Append(&err, fmt.Errorf(
+				"requested AccessType Mount but got AccessType Block"))
 			continue
 		}
-		return true
+
+		if expectedMount.FsType != capMount.FsType {
+			multierror.Append(&err, fmt.Errorf(
+				"requested AccessType mount filesystem type %v, got %v",
+				expectedMount.FsType, capMount.FsType))
+			continue
+		}
+
+		for _, expectedFlag := range expectedMount.MountFlags {
+			var ok bool
+			for _, flag := range capMount.MountFlags {
+				if expectedFlag == flag {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				// mount flags can contain sensitive data, so we can't log details
+				multierror.Append(&err, fmt.Errorf(
+					"requested mount flags did not match available capabilities"))
+				continue
+			}
+		}
+		return nil
 	}
-	return false
+	return err.ErrorOrNil()
 }
 
 //

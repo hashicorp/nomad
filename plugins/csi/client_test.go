@@ -500,8 +500,11 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 					VolumeContext: map[string]string{},
 					VolumeCapabilities: []*csipbv1.VolumeCapability{
 						{
-							AccessType: &csipbv1.VolumeCapability_Block{
-								Block: &csipbv1.VolumeCapability_BlockVolume{},
+							AccessType: &csipbv1.VolumeCapability_Mount{
+								Mount: &csipbv1.VolumeCapability_MountVolume{
+									FsType:     "ext4",
+									MountFlags: []string{"errors=remount-ro", "noatime"},
+								},
 							},
 							AccessMode: &csipbv1.VolumeCapability_AccessMode{
 								Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
@@ -514,7 +517,7 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			ExpectedErr: nil,
 		},
 		{
-			Name: "handles validation failure",
+			Name: "handles validation failure block mismatch",
 			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
 				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
 					VolumeContext: map[string]string{},
@@ -533,6 +536,29 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			ResponseErr: nil,
 			ExpectedErr: fmt.Errorf("volume capability validation failed"),
 		},
+		{
+			Name: "handles validation failure mount flags",
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeContext: map[string]string{},
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessType: &csipbv1.VolumeCapability_Mount{
+								Mount: &csipbv1.VolumeCapability_MountVolume{
+									FsType:     "ext4",
+									MountFlags: []string{},
+								},
+							},
+							AccessMode: &csipbv1.VolumeCapability_AccessMode{
+								Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			ExpectedErr: fmt.Errorf("volume capability validation failed"),
+		},
 	}
 
 	for _, c := range cases {
@@ -541,7 +567,7 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			defer client.Close()
 
 			requestedCaps := &VolumeCapability{
-				AccessType: VolumeAccessTypeBlock,
+				AccessType: VolumeAccessTypeMount,
 				AccessMode: VolumeAccessModeMultiNodeMultiWriter,
 				MountVolume: &structs.CSIMountOptions{ // should be ignored
 					FSType:     "ext4",
