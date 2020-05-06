@@ -73,6 +73,9 @@ export default Component.extend({
 
 function qualifyAllocation() {
   const allocation = this.allocation;
+
+  // Make sure the allocation is a complete record and not a partial so we
+  // can show information such as preemptions and rescheduled allocation.
   return allocation.reload().then(() => {
     this.fetchStats.perform();
 
