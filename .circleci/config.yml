@@ -13,8 +13,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./nomad/...
@@ -45,7 +45,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -120,8 +120,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./api/...
@@ -152,7 +152,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -227,8 +227,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./drivers/exec
@@ -259,7 +259,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -334,8 +334,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./client/...
@@ -366,7 +366,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -483,7 +483,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: go version
     - save_cache:
@@ -575,8 +575,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./drivers/shared/executor
@@ -607,7 +607,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -733,8 +733,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
   website-docker-image:
@@ -773,8 +773,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ''
@@ -805,7 +805,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -879,8 +879,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./devices/...
@@ -978,7 +978,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: source ${BASH_ENV} && make deps
     - run:
@@ -995,8 +995,8 @@ jobs:
     - GOLANG_VERSION: 1.14
     - GOMAXPROCS: 1
     - GOPATH: /Users/distiller/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
   test-docker:
@@ -1008,8 +1008,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./drivers/docker
@@ -1040,7 +1040,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -1114,8 +1114,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GO_TAGS: codegen_generated
@@ -1164,8 +1164,8 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
   test-32bit:
@@ -1177,8 +1177,8 @@ jobs:
     - GOLANG_VERSION: 1.14.1
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
-    - GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
-    - GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
     - GOTEST_PKGS: ./client/fingerprint
@@ -1209,7 +1209,7 @@ jobs:
               unzip -o go.zip -d "/c"
             fi
           fi
-        name: install golang
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
