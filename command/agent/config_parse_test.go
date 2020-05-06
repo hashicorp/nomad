@@ -104,6 +104,7 @@ var basicConfig = &Config{
 		JobGCInterval:          "3m",
 		JobGCThreshold:         "12h",
 		DeploymentGCThreshold:  "12h",
+		CSIPluginGCThreshold:   "12h",
 		HeartbeatGrace:         30 * time.Second,
 		HeartbeatGraceHCL:      "30s",
 		MinHeartbeatTTL:        33 * time.Second,
