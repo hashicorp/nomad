@@ -726,7 +726,8 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 
 	// COMPAT(1.0): 0.11.0 shipped with 3 fields. tighten this check to len == 2
 	if len(evalVolID) < 2 {
-		c.logger.Error("volume gc called without volID")
+		// TODO(tgross): implement this
+		c.logger.Trace("garbage collecting CSI volume claims")
 		return nil
 	}
 
