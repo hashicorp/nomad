@@ -7,7 +7,7 @@ parameters:
     default: linux
 steps:
   - run:
-      name: install golang
+      name: Install golang
       command: |
         set -x
 

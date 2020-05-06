@@ -7,14 +7,14 @@ references:
   go-machine-recent-image: &go_machine_recent_image
     ubuntu-1604:201903-01
   go-windows-image: &go_windows_image
-    'windows-server-2019-vs2019:stable'
+    windows-server-2019-vs2019:stable
 
   # common references
   common_envs: &common_envs
     GOMAXPROCS: 1
     NOMAD_SLOW_TEST: 1
-    GOTESTSUM_JUNITFILE: /tmp/test-reports/nomad/results.xml
-    GOTESTSUM_JSONFILE: /tmp/test-reports/nomad/testjsonfile.json
+    GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     # disable implicit git paging.  CircleCI runs commands with in a tty
     # making git assume it's an interactive session.
     PAGER: cat
