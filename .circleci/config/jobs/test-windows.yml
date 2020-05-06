@@ -13,22 +13,22 @@ steps:
         echo "$VAULT_VERSION" > ~/VAULT_VERSION.txt
   - restore_cache:
       keys: 
-        - win-golang-cache-{{ .Branch }}-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
+        - win-golang-cache-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
   - restore_cache:
       keys: 
-        - win-gotestsum-cache-{{ .Branch }}-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
+        - win-gotestsum-cache-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
   - restore_cache:
       keys: 
-        - win-vault-cache-{{ .Branch }}-{{ checksum "~/VAULT_VERSION.txt" }}-v1
+        - win-vault-cache-{{ checksum "~/VAULT_VERSION.txt" }}-v1
   - restore_cache:
       keys: 
-        - win-gobuild-cache-{{ .Branch }}-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
+        - win-gobuild-cache-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
   - install-golang:
       target_directory: "c:"
       os: windows
   - run: go version
   - save_cache:
-      key: win-golang-cache-{{ .Branch }}-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
+      key: win-golang-cache-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
       paths:
         - /go
   - run: go version
@@ -36,14 +36,14 @@ steps:
       os: windows
       version: $GOTESTSUM_VERSION
   - save_cache:
-      key: win-gotestsum-cache-{{ .Branch }}-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
+      key: win-gotestsum-cache-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
       paths:
         - c:\Windows\gotestsum.exe
   - install-vault:
       os: windows
       version: $VAULT_VERSION
   - save_cache:
-      key: win-vault-cache-{{ .Branch }}-{{ checksum "~/VAULT_VERSION.txt" }}-v1
+      key: win-vault-cache-{{ checksum "~/VAULT_VERSION.txt" }}-v1
       paths:
         - c:\Windows\vault.exe
   - run: vault version
@@ -65,7 +65,7 @@ steps:
       command: | 
         go build -o $GOBIN\nomad.exe
   - save_cache:
-      key: win-gobuild-cache-{{ .Branch }}-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
+      key: win-gobuild-cache-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
       paths:
         - c:\Users\circleci\AppData\Local\go-build
   - run:

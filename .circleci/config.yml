@@ -450,16 +450,16 @@ jobs:
         name: Setup
     - restore_cache:
         keys:
-        - win-golang-cache-{{ .Branch }}-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
+        - win-golang-cache-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
     - restore_cache:
         keys:
-        - win-gotestsum-cache-{{ .Branch }}-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
+        - win-gotestsum-cache-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
     - restore_cache:
         keys:
-        - win-vault-cache-{{ .Branch }}-{{ checksum "~/VAULT_VERSION.txt" }}-v1
+        - win-vault-cache-{{ checksum "~/VAULT_VERSION.txt" }}-v1
     - restore_cache:
         keys:
-        - win-gobuild-cache-{{ .Branch }}-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
+        - win-gobuild-cache-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
     - run:
         command: |
           set -x
@@ -487,7 +487,7 @@ jobs:
     - run:
         command: go version
     - save_cache:
-        key: win-golang-cache-{{ .Branch }}-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
+        key: win-golang-cache-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
         paths:
         - /go
     - run:
@@ -496,7 +496,7 @@ jobs:
         command: "set -x \n\nif [[ windows == \"windows\" ]]\nthen\n  if [[ ! -f \"c:\\Windows\\gotestsum.exe\" ]]\n  then\n    echo \"Cache not found, installing gotestsum\"\n    curl -SL --fail -o /tmp/gotestsum.tar.gz https://github.com/gotestyourself/gotestsum/releases/download/v\"$GOTESTSUM_VERSION\"/gotestsum_\"$GOTESTSUM_VERSION\"_\"windows\"_amd64.tar.gz\n    tar -C \"/c/Windows\" -xzf /tmp/gotestsum.tar.gz\n  fi\nfi\n"
         name: Install gotestsum
     - save_cache:
-        key: win-gotestsum-cache-{{ .Branch }}-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
+        key: win-gotestsum-cache-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
         paths:
         - c:\Windows\gotestsum.exe
     - run:
@@ -521,7 +521,7 @@ jobs:
           fi
         name: Install Vault
     - save_cache:
-        key: win-vault-cache-{{ .Branch }}-{{ checksum "~/VAULT_VERSION.txt" }}-v1
+        key: win-vault-cache-{{ checksum "~/VAULT_VERSION.txt" }}-v1
         paths:
         - c:\Windows\vault.exe
     - run:
@@ -545,7 +545,7 @@ jobs:
           go build -o $GOBIN\nomad.exe
         name: Build nomad
     - save_cache:
-        key: win-gobuild-cache-{{ .Branch }}-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
+        key: win-gobuild-cache-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
         paths:
         - c:\Users\circleci\AppData\Local\go-build
     - run:
