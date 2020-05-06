@@ -74,6 +74,9 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.deploymentGC(eval); err != nil {
 		return err
 	}
+	if err := c.csiPluginGC(eval); err != nil {
+		return err
+	}
 
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
@@ -741,6 +744,48 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 
 // csiPluginGC is used to garbage collect unused plugins
 func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
-	c.logger.Trace("garbage collecting unused CSI plugins")
+
+	ws := memdb.NewWatchSet()
+
+	iter, err := c.snap.CSIPlugins(ws)
+	if err != nil {
+		return err
+	}
+
+	// Get the time table to calculate GC cutoffs.
+	var oldThreshold uint64
+	if eval.JobID == structs.CoreJobForceGC {
+		// The GC was forced, so set the threshold to its maximum so
+		// everything will GC.
+		oldThreshold = math.MaxUint64
+		c.logger.Debug("forced plugin GC")
+	} else {
+		tt := c.srv.fsm.TimeTable()
+		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIPluginGCThreshold)
+		oldThreshold = tt.NearestIndex(cutoff)
+	}
+
+	c.logger.Debug("CSI plugin GC scanning before cutoff index",
+		"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
+
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		plugin := i.(*structs.CSIPlugin)
+
+		// Ignore new plugins
+		if plugin.CreateIndex > oldThreshold {
+			continue
+		}
+
+		req := &structs.CSIPluginDeleteRequest{ID: plugin.ID}
+		req.Region = c.srv.Region()
+		err := c.srv.RPC("CSIPlugin.Delete", req, &structs.CSIPluginDeleteResponse{})
+		if err != nil {
+			if err.Error() == "plugin in use" {
+				continue
+			}
+			c.logger.Error("failed to GC plugin", "plugin_id", plugin.ID, "error", err)
+			return err
+		}
+	}
 	return nil
 }

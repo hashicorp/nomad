@@ -8,6 +8,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -2192,4 +2193,58 @@ func TestAllocation_GCEligible(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 	require.True(allocGCEligible(alloc, nil, time.Now(), 1000))
+}
+
+func TestCoreScheduler_CSIPluginGC(t *testing.T) {
+	t.Parallel()
+
+	srv, cleanupSRV := TestServer(t, nil)
+	defer cleanupSRV()
+	testutil.WaitForLeader(t, srv.RPC)
+	require := require.New(t)
+
+	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
+	defer deleteNodes()
+	state := srv.fsm.State()
+
+	// Update the time tables to make this work
+	tt := srv.fsm.TimeTable()
+	index := uint64(2000)
+	tt.Witness(index, time.Now().UTC().Add(-1*srv.config.DeploymentGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	require.NoError(err)
+	core := NewCoreScheduler(srv, snap)
+
+	// Attempt the GC
+	index++
+	gc := srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
+	require.NoError(core.Process(gc))
+
+	// Should not be gone (plugin in use)
+	ws := memdb.NewWatchSet()
+	plug, err := state.CSIPluginByID(ws, "foo")
+	require.NotNil(plug)
+	require.NoError(err)
+
+	// Empty the plugin
+	plug.Controllers = map[string]*structs.CSIInfo{}
+	plug.Nodes = map[string]*structs.CSIInfo{}
+
+	index++
+	err = state.UpsertCSIPlugin(index, plug)
+	require.NoError(err)
+
+	// Retry
+	index++
+	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
+	require.NoError(core.Process(gc))
+
+	// Should be gone
+	plug, err = state.CSIPluginByID(ws, "foo")
+	require.Nil(plug)
+	require.NoError(err)
 }
