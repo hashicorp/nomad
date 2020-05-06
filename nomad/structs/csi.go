@@ -868,3 +868,12 @@ type CSIPluginGetResponse struct {
 	Plugin *CSIPlugin
 	QueryMeta
 }
+
+type CSIPluginDeleteRequest struct {
+	ID string
+	QueryOptions
+}
+
+type CSIPluginDeleteResponse struct {
+	QueryMeta
+}

@@ -115,6 +115,7 @@ server {
   job_gc_threshold          = "12h"
   eval_gc_threshold         = "12h"
   deployment_gc_threshold   = "12h"
+  csi_plugin_gc_threshold   = "12h"
   heartbeat_grace           = "30s"
   min_heartbeat_ttl         = "33s"
   max_heartbeats_per_second = 11.0

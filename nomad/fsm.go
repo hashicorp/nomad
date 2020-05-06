@@ -270,10 +270,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyCSIVolumeDeregister(buf[1:], log.Index)
 	case structs.CSIVolumeClaimRequestType:
 		return n.applyCSIVolumeClaim(buf[1:], log.Index)
-	case structs.CSIVolumeClaimBatchRequestType:
-		return n.applyCSIVolumeBatchClaim(buf[1:], log.Index)
 	case structs.ScalingEventRegisterRequestType:
 		return n.applyUpsertScalingEvent(buf[1:], log.Index)
+	case structs.CSIVolumeClaimBatchRequestType:
+		return n.applyCSIVolumeBatchClaim(buf[1:], log.Index)
+	case structs.CSIPluginDeleteRequestType:
+		return n.applyCSIPluginDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1185,6 +1187,24 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 
 	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
 		n.logger.Error("CSIVolumeClaim failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyCSIPluginDelete(buf []byte, index uint64) interface{} {
+	var req structs.CSIPluginDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_plugin_delete"}, time.Now())
+
+	if err := n.state.DeleteCSIPlugin(index, req.ID); err != nil {
+		// "plugin in use" is an error for the state store but not for typical
+		// callers, so reduce log noise by not logging that case here
+		if err.Error() != "plugin in use" {
+			n.logger.Error("DeleteCSIPlugin failed", "error", err)
+		}
 		return err
 	}
 	return nil

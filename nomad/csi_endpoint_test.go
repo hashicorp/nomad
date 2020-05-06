@@ -548,6 +548,87 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	require.Nil(t, resp2.Plugin)
 }
 
+func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
+	defer deleteNodes()
+
+	state := srv.fsm.State()
+	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+	srv.config.ACLEnabled = true
+	codec := rpcClient(t, srv)
+
+	// Get the plugin back out
+	listJob := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
+	policy := mock.PluginPolicy("read") + listJob
+	getToken := mock.CreatePolicyAndToken(t, state, 1001, "plugin-read", policy)
+
+	reqGet := &structs.CSIPluginGetRequest{
+		ID: "foo",
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: getToken.SecretID,
+		},
+	}
+	respGet := &structs.CSIPluginGetResponse{}
+	err := msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
+	require.NoError(t, err)
+	require.NotNil(t, respGet.Plugin)
+
+	// Delete plugin
+	reqDel := &structs.CSIPluginDeleteRequest{
+		ID: "foo",
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: getToken.SecretID,
+		},
+	}
+	respDel := &structs.CSIPluginDeleteResponse{}
+
+	// Improper permissions
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
+	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+
+	// Retry with management permissions
+	reqDel.AuthToken = srv.getLeaderAcl()
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
+	require.EqualError(t, err, "plugin in use")
+
+	// Plugin was not deleted
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
+	require.NoError(t, err)
+	require.NotNil(t, respGet.Plugin)
+
+	// Empty the plugin
+	plugin := respGet.Plugin.Copy()
+	plugin.Controllers = map[string]*structs.CSIInfo{}
+	plugin.Nodes = map[string]*structs.CSIInfo{}
+
+	index, _ := state.LatestIndex()
+	index++
+	err = state.UpsertCSIPlugin(index, plugin)
+	require.NoError(t, err)
+
+	// Retry now that it's empty
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
+	require.NoError(t, err)
+
+	// Plugin is deleted
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", reqGet, respGet)
+	require.NoError(t, err)
+	require.Nil(t, respGet.Plugin)
+
+	// Safe to call on already-deleted plugnis
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel)
+	require.NoError(t, err)
+}
+
 func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	srv, shutdown := TestServer(t, func(c *Config) {})
 	defer shutdown()
