@@ -13,13 +13,10 @@
 
 /* Global Transpiled Components */
 @import '~@hashicorp/react-mega-nav/style.css';
-@import '~@hashicorp/react-newsletter-signup-form/dist/style.css';
 @import '~@hashicorp/react-text-input/dist/style.css';
 @import '~@hashicorp/react-button/dist/style.css';
-@import '~@hashicorp/react-footer/dist/style.css';
 @import '~@hashicorp/react-use-cases/dist/style.css';
 @import '~@hashicorp/react-consent-manager/dist/style.css';
-@import '~@hashicorp/react-checkbox-input/dist/style.css';
 @import '~@hashicorp/react-hero/dist/style.css';
 @import '~@hashicorp/react-section-header/dist/style.css';
 @import '~@hashicorp/react-logo-grid/dist/style.css';
@@ -31,6 +28,7 @@
 @import '~@hashicorp/react-text-and-content/dist/style.css';
 @import '~@hashicorp/react-code-block/dist/style.css';
 @import '~@hashicorp/react-consent-manager/dist/style.css';
+@import '~@hashicorp/react-toggle/dist/style.css';
 @import '~@hashicorp/react-alert/dist/style.css';
 @import '~@hashicorp/react-call-to-action/dist/style.css';
 @import '~@hashicorp/react-text-split/dist/style.css';
@@ -48,6 +46,7 @@
 @import '../components/featured-slider-section/style.css';
 @import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
+@import '../components/footer/style.css';
 
 /* Local Pages */
 @import './home/style.css';
@@ -58,6 +57,15 @@
 
 /* Print Styles */
 @import './print.css';
+
+/* Sticky Footer */
+.__next > .content {
+  min-height: calc(100vh - 260px);
+
+  &.banner {
+    min-height: calc(100vh - 315px);
+  }
+}
 
 /* Layout Styles */
 .g-section-block section {

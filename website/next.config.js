@@ -4,20 +4,22 @@ const path = require('path')
 module.exports = withHashicorp({
   defaultLayout: true,
   transpileModules: ['is-absolute-url', '@hashicorp/react-mega-nav'],
-  mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') }
+  mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') },
 })({
+  exportTrailingSlash: true,
   experimental: {
-    css: true,
     modern: true,
     rewrites: () => [
       {
         source: '/api/:path*',
-        destination: '/api-docs/:path*'
-      }
-    ]
+        destination: '/api-docs/:path*',
+      },
+    ],
   },
-  exportTrailingSlash: true,
   env: {
-    HASHI_ENV: process.env.HASHI_ENV
-  }
+    HASHI_ENV: process.env.HASHI_ENV || 'development',
+    SEGMENT_WRITE_KEY: 'qW11yxgipKMsKFKQUCpTVgQUYftYsJj0',
+    BUGSNAG_CLIENT_KEY: '4fa712dfcabddd05da29fd1f5ea5a4c0',
+    BUGSNAG_SERVER_KEY: '61141296f1ba00a95a8788b7871e1184',
+  },
 })
