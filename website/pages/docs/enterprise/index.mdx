@@ -16,6 +16,14 @@ Nomad Enterprise adds collaboration, operational, and governance capabilities to
 
 Please navigate the sub-sections for more information about each package and its features in detail.
 
+## Nomad Enterprise Licensing
+
+Nomad Enterprise requires a license to run. When a Enterprise server first starts it will be set with a temporary license that includes all features. This will be valid for 6 hours and allows users to test enterprise features and provide enough time for operators to apply their enterprise license.
+
+If a server is never given a valid license and the temporary license expires, the server will shutdown. If a valid (non-temporary) license expires, the cluster will continue to function, but write operations to enterprise features will be disabled.
+
+See the [License commands](/docs/commands/license) for more information on interacting with the Enterprise License.
+
 ## Nomad Enterprise Platform
 
 Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as enhances performance and availability through Advanced Autopilot features such as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
