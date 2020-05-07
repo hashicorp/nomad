@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"

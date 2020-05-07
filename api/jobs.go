@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/cronexpr"
 )
 
 const (
