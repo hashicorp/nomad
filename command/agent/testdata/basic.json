@@ -257,6 +257,7 @@
       "authoritative_region": "foobar",
       "bootstrap_expect": 5,
       "csi_plugin_gc_threshold": "12h",
+      "csi_volume_claim_gc_threshold": "12h",
       "data_dir": "/tmp/data",
       "deployment_gc_threshold": "12h",
       "enabled": true,
