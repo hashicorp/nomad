@@ -16,7 +16,7 @@ description: |-
 The `expose` stanza allows configuration of additional listeners for the default Envoy sidecar
 proxy managed by Nomad for [Consul Connect](/guides/integrations/consul-connect). These
 listeners create a bypass of the Connect TLS and network namespace isolation, enabling
-non-Connect enabled services to make requests to specific paths through the sidecar proxy.
+non-Connect enabled services to make requests to specific HTTP paths through the sidecar proxy.
 
 The `expose` configuration is valid within the context of a `proxy` stanza. Additional
 information about Expose Path configurations for Envoy can be found in Consul's
@@ -27,18 +27,63 @@ configurations can use their [expose](/docs/job-specification/service#expose)
 parameter to automatically generate expose path configurations for HTTP and gRPC checks.
 
 ```hcl
-job "expose-example" {
+job "expose-check-example" {
   datacenters = ["dc1"]
-  group "dashboard" {
+
+  group "api" {
     network {
       mode = "bridge"
-      port "expose" {
+    }
+
+    service {
+      name = "count-api"
+      port = "9001"
+
+      connect {
+        sidecar_service {}
+      }
+
+      check {
+        expose   = true
+        name     = "api-health"
+        type     = "http"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "3s"
+      }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+    }
+  }
+}
+```
+
+For uses other than Consul service checks, use the `expose` configuration in the
+`proxy` stanza. The example below effectively demonstrates exposing the `/health`
+endpoint similar to the example above, but using the fully flexible `expose`
+configuration.
+
+```hcl
+job "expose-example" {
+  datacenters = ["dc1"]
+
+  group "api" {
+    network {
+      mode = "bridge"
+
+      port "api_expose_healthcheck" {
         to = -1
       }
     }
 
     service {
-      name = "count-dashboard"
+      name = "count-api"
       port = "9001"
 
       connect {
@@ -46,10 +91,10 @@ job "expose-example" {
           proxy {
             expose {
               path {
-                path            = "/metrics"
+                path            = "/health"
                 protocol        = "http"
                 local_path_port = 9001
-                listener_port   = "expose"
+                listener_port   = "api_expose_healthcheck"
               }
             }
           }
@@ -57,14 +102,23 @@ job "expose-example" {
       }
 
       check {
-        name     = "dashboard-health"
+        name     = "api-health"
         type     = "http"
-        port     = "expose"
         path     = "/health"
+        port     = "api_expose_healthcheck"
         interval = "10s"
         timeout  = "3s"
-        expose   = true
       }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+
+      # e.g. reference ${NOMAD_PORT_api_expose_healthcheck} for other uses
     }
   }
 }
@@ -149,17 +203,17 @@ proxy {
 A common use case for `expose` is for exposing endpoints used in Consul service check
 definitions. For these cases the [expose](/docs/job-specification/service#expose)
 parameter in the service check stanza can be used to automatically generate the
-expose path configuration.
+expose path configuration. Configuring a port for use by the check is optional,
+as a dynamic port will be automatically generated if not provided.
 
 ```hcl
 check {
+  expose   = true
   type     = "http"
   name     = "dashboard-health"
-  port     = "expose"
   path     = "/health"
   interval = "10s"
   timeout  = "3s"
-  expose   = true
 }
 ```
 
