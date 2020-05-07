@@ -272,6 +272,8 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 		}
 
 	RELEASE_CLAIM:
+		// advance a CSIVolumeClaimStateControllerDetached claim
+		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		err = vw.checkpoint(vol, claim)
 		if err != nil {
 			result = multierror.Append(result, err)
