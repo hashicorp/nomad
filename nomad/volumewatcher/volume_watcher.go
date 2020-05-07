@@ -72,7 +72,7 @@ func (vw *volumeWatcher) Notify(v *structs.CSIVolume) {
 }
 
 func (vw *volumeWatcher) Start() {
-	vw.logger.Trace("starting watcher", "id", vw.v.ID, "namespace", vw.v.Namespace)
+	vw.logger.Trace("starting watcher")
 	vw.wLock.Lock()
 	defer vw.wLock.Unlock()
 	vw.running = true
@@ -85,7 +85,7 @@ func (vw *volumeWatcher) Start() {
 // Stop stops watching the volume. This should be called whenever a
 // volume's claims are fully reaped or the watcher is no longer needed.
 func (vw *volumeWatcher) Stop() {
-	vw.logger.Trace("no more claims", "id", vw.v.ID, "namespace", vw.v.Namespace)
+	vw.logger.Trace("no more claims")
 	vw.exitFn()
 }
 
@@ -155,7 +155,7 @@ func (vw *volumeWatcher) getVolume(vol *structs.CSIVolume) *structs.CSIVolume {
 // volumeReap collects errors for logging but doesn't return them
 // to the main loop.
 func (vw *volumeWatcher) volumeReap(vol *structs.CSIVolume) {
-	vw.logger.Trace("releasing unused volume claims", "id", vol.ID, "namespace", vol.Namespace)
+	vw.logger.Trace("releasing unused volume claims")
 	err := vw.volumeReapImpl(vol)
 	if err != nil {
 		vw.logger.Error("error releasing volume claims", "error", err)
@@ -289,7 +289,7 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 // nodeDetach makes the client NodePublish / NodeUnstage RPCs, which
 // must be completed before controller operations or releasing the claim.
 func (vw *volumeWatcher) nodeDetach(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
-	vw.logger.Trace("detaching node", "id", vol.ID, "namespace", vol.Namespace)
+	vw.logger.Trace("detaching node")
 	nReq := &cstructs.ClientCSINodeDetachVolumeRequest{
 		PluginID:       vol.PluginID,
 		VolumeID:       vol.ID,
@@ -318,7 +318,7 @@ func (vw *volumeWatcher) controllerDetach(vol *structs.CSIVolume, claim *structs
 		claim.State = structs.CSIVolumeClaimStateReadyToFree
 		return nil
 	}
-	vw.logger.Trace("detaching controller", "id", vol.ID, "namespace", vol.Namespace)
+	vw.logger.Trace("detaching controller")
 	// note: we need to get the CSI Node ID, which is not the same as
 	// the Nomad Node ID
 	ws := memdb.NewWatchSet()
@@ -357,7 +357,7 @@ func (vw *volumeWatcher) controllerDetach(vol *structs.CSIVolume, claim *structs
 }
 
 func (vw *volumeWatcher) checkpoint(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
-	vw.logger.Trace("checkpointing claim", "id", vol.ID, "namespace", vol.Namespace)
+	vw.logger.Trace("checkpointing claim")
 	req := structs.CSIVolumeClaimRequest{
 		VolumeID:     vol.ID,
 		AllocationID: claim.AllocationID,
