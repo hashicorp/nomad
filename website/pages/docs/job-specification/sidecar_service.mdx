@@ -17,30 +17,32 @@ Connect](/docs/integrations/consul-connect) integration. It is
 valid only within the context of a connect stanza.
 
 ```hcl
- job "countdash" {
-   datacenters = ["dc1"]
-   group "api" {
-     network {
-       mode = "bridge"
-     }
+job "countdash" {
+  datacenters = ["dc1"]
 
-     service {
-       name = "count-api"
-       port = "9001"
+  group "api" {
+    network {
+      mode = "bridge"
+    }
 
-       connect {
-         sidecar_service {}
-       }
-     }
-     task "web" {
-         driver = "docker"
-         config {
-           image = "test/test:v1"
-         }
-     }
-   }
- }
+    service {
+      name = "count-api"
+      port = "9001"
 
+      connect {
+        sidecar_service {}
+      }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+    }
+  }
+}
 ```
 
 ## `sidecar_service` Parameters
