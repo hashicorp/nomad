@@ -84,11 +84,13 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool, validity strin
 	if len(lic.Modules) > 0 {
 		ui.Output("Modules:")
 		for _, mod := range lic.Modules {
-			ui.Output(fmt.Sprintf("\t%v", mod))
+			ui.Output(fmt.Sprintf("\t%s", mod))
 		}
 	}
-	ui.Output("Licensed Features:")
-	for _, f := range lic.Features {
-		ui.Output(fmt.Sprintf("\t%s", f))
+	if len(lic.Features) > 0 {
+		ui.Output("Licensed Features:")
+		for _, f := range lic.Features {
+			ui.Output(fmt.Sprintf("\t%s", f))
+		}
 	}
 }
