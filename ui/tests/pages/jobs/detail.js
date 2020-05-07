@@ -9,6 +9,7 @@ import {
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
+import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 
 export default create({
   visit: visitable('/jobs/:id'),
@@ -20,6 +21,13 @@ export default create({
 
   tabFor(id) {
     return this.tabs.toArray().findBy('id', id);
+  },
+
+  stop: twoStepButton('[data-test-stop]'),
+  start: twoStepButton('[data-test-start]'),
+
+  execButton: {
+    scope: '[data-test-exec-button]',
   },
 
   stats: collection('[data-test-job-stat]', {
