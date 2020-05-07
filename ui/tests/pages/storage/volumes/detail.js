@@ -43,4 +43,9 @@ export default create({
   readEmptyState: {
     headline: text('[data-test-empty-read-allocations-headline]'),
   },
+
+  constraints: {
+    accessMode: text('[data-test-access-mode]'),
+    attachmentMode: text('[data-test-attachment-mode]'),
+  },
 });

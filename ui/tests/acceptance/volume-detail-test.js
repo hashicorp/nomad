@@ -28,7 +28,7 @@ module('Acceptance | volume detail', function(hooks) {
     volume = server.create('csi-volume');
   });
 
-  test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and CSI', async function(assert) {
+  test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {
     await VolumeDetail.visit({ id: volume.id });
 
     assert.equal(VolumeDetail.breadcrumbFor('csi.index').text, 'Storage');
@@ -171,6 +171,13 @@ module('Acceptance | volume detail', function(hooks) {
 
     assert.ok(VolumeDetail.readTableIsEmpty);
     assert.equal(VolumeDetail.readEmptyState.headline, 'No Read Allocations');
+  });
+
+  test('the constraints table shows access mode and attachment mode', async function(assert) {
+    await VolumeDetail.visit({ id: volume.id });
+
+    assert.equal(VolumeDetail.constraints.accessMode, volume.accessMode);
+    assert.equal(VolumeDetail.constraints.attachmentMode, volume.attachmentMode);
   });
 });
 

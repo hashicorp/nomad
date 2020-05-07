@@ -1,8 +1,8 @@
 import moment from 'moment';
 import Helper from '@ember/component/helper';
 
-export function formatTs([date]) {
-  const format = "MMM DD, 'YY HH:mm:ss ZZ";
+export function formatTs([date], options = {}) {
+  const format = options.short ? 'MMM D' : "MMM DD, 'YY HH:mm:ss ZZ";
   return moment(date).format(format);
 }
 
