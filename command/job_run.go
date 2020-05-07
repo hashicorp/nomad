@@ -74,6 +74,11 @@ Run Options:
     known state. The use of this flag is most common in conjunction with plan
     command.
 
+  -context
+    Path to additional local files referred to in the job definition, to be
+    loaded and included when loading the job spec. If unset, and job file
+    definition is not stdin, defaults to the current working directory.
+
   -detach
     Return immediately instead of entering monitor mode. After job submission,
     the evaluation ID will be printed to the screen, which can be used to
@@ -112,6 +117,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-check-index":     complete.PredictNothing,
+			"-context":         complete.PredictFiles("*"),
 			"-detach":          complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
 			"-consul-token":    complete.PredictNothing,
@@ -138,6 +144,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.BoolVar(&output, "output", false, "")
 	flags.BoolVar(&override, "policy-override", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
+	flags.StringVar(&c.ContextPath, "context", "", "")
 	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 

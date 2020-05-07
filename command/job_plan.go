@@ -67,6 +67,11 @@ General Options:
 
 Plan Options:
 
+  -context
+    Path to additional local files referred to in the job definition, to be
+    loaded and included when loading the job spec. If unset, and job file
+    definition is not stdin, defaults to the current working directory.
+
   -diff
     Determines whether the diff between the remote job and planned job is shown.
     Defaults to true.
@@ -87,6 +92,7 @@ func (c *JobPlanCommand) Synopsis() string {
 func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
+			"-context":         complete.PredictFiles("*"),
 			"-diff":            complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
@@ -106,6 +112,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flags.BoolVar(&diff, "diff", true, "")
 	flags.BoolVar(&policyOverride, "policy-override", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&c.ContextPath, "context", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 255

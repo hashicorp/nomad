@@ -752,6 +752,7 @@ type Template struct {
 	SourcePath   *string        `mapstructure:"source"`
 	DestPath     *string        `mapstructure:"destination"`
 	EmbeddedTmpl *string        `mapstructure:"data"`
+	LocalSource  *string        `mapstructure:"local_source"`
 	ChangeMode   *string        `mapstructure:"change_mode"`
 	ChangeSignal *string        `mapstructure:"change_signal"`
 	Splay        *time.Duration `mapstructure:"splay"`

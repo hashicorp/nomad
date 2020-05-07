@@ -27,6 +27,13 @@ Alias: nomad validate
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
   it is read from the file at the supplied path or downloaded and
   read from URL specified.
+
+Validate Options:
+
+  -context
+    Path to additional local files referred to in the job definition, to be
+    loaded and included when loading the job spec. If unset, and job file
+    definition is not stdin, defaults to the current working directory.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -36,7 +43,11 @@ func (c *JobValidateCommand) Synopsis() string {
 }
 
 func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-context": complete.PredictFiles("*"),
+		},
+	)
 }
 
 func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
@@ -46,8 +57,9 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet(c.Name(), FlagSetNone)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.StringVar(&c.ContextPath, "context", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
