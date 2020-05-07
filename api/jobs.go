@@ -648,9 +648,11 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if *p.SpecType == PeriodicSpecCron {
-		if e, err := cronexpr.Parse(*p.Spec); err == nil {
-			return cronParseNext(e, fromTime, *p.Spec)
+		e, err := cronexpr.Parse(*p.Spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", *p.Spec, err)
 		}
+		return cronParseNext(e, fromTime, *p.Spec)
 	}
 
 	return time.Time{}, nil
@@ -670,6 +672,7 @@ func cronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t t
 
 	return e.Next(fromTime), nil
 }
+
 func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
 	if p.TimeZone == nil || *p.TimeZone == "" {
 		return time.UTC, nil
