@@ -5617,6 +5617,36 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	require.Greater(eventsIndex, jobCreateIndex)
 }
 
+func TestJobEndpoint_InvalidCount(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job := mock.Job()
+	err := state.UpsertJob(1000, job)
+	require.Nil(err)
+
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+		},
+		Count: helper.Int64ToPtr(int64(-1)),
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.Error(err)
+}
+
 func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
