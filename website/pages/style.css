@@ -34,6 +34,8 @@
 @import '~@hashicorp/react-text-split/dist/style.css';
 @import '~@hashicorp/react-text-split-with-code/dist/style.css';
 @import '~@hashicorp/react-docs-page/dist/style.css';
+@import '~@hashicorp/react-enterprise-alert/dist/style.css';
+@import '~@hashicorp/react-tabs/dist/style.css';
 
 /* Local Components */
 @import '../components/placement-table/style.css';
@@ -47,6 +49,7 @@
 @import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
 @import '../components/footer/style.css';
+@import '../components/tabs/style.css';
 
 /* Local Pages */
 @import './home/style.css';

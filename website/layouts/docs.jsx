@@ -5,8 +5,10 @@ import { MDXProvider } from '@mdx-js/react'
 import Placement from '../components/placement-table'
 import Head from 'next/head'
 import Link from 'next/link'
+import EnterpriseAlert from '../components/enterprise-alert'
+import { Tabs, Tab } from '../components/tabs'
 
-const DEFAULT_COMPONENTS = { Placement }
+const DEFAULT_COMPONENTS = { Placement, EnterpriseAlert, Tab, Tabs }
 
 function DocsLayoutWrapper(pageMeta) {
   function DocsLayout(props) {
@@ -19,14 +21,14 @@ function DocsLayoutWrapper(pageMeta) {
             is: Head,
             title: `${pageMeta.page_title} | Nomad by HashiCorp`,
             description: pageMeta.description,
-            siteName: 'Nomad by HashiCorp'
+            siteName: 'Nomad by HashiCorp',
           }}
           sidenav={{
             Link,
             category: 'docs',
             currentPage: props.path,
             data: frontMatter,
-            order
+            order,
           }}
           resourceURL={`https://github.com/hashicorp/nomad/blob/master/website/pages/${pageMeta.__resourcePath}`}
         />

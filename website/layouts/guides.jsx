@@ -14,14 +14,14 @@ function GuidesLayoutWrapper(pageMeta) {
           is: Head,
           title: `${pageMeta.page_title} | Nomad by HashiCorp`,
           description: pageMeta.description,
-          siteName: 'Nomad by HashiCorp'
+          siteName: 'Nomad by HashiCorp',
         }}
         sidenav={{
           Link,
           category: 'guides',
           currentPage: props.path,
           data,
-          order
+          order,
         }}
         resourceURL={`https://github.com/hashicorp/nomad/blob/master/website/pages/${pageMeta.__resourcePath}`}
       />
