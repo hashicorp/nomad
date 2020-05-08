@@ -18,36 +18,39 @@ resource requirements, kill timeouts and more as defined below. It is valid
 only within the context of a [`connect`][connect] stanza.
 
 ```hcl
- job "countdash" {
-   datacenters = ["dc1"]
-   group "api" {
-     network {
-       mode = "bridge"
-     }
+job "countdash" {
+  datacenters = ["dc1"]
 
-     service {
-       name = "count-api"
-       port = "9001"
+  group "api" {
+    network {
+      mode = "bridge"
+    }
 
-       connect {
-         sidecar_service {}
-         sidecar_task {
-            resources {
-               cpu = 500
-               memory = 1024
-            }
-         }
-       }
-     }
-     task "web" {
-         driver = "docker"
-         config {
-           image = "test/test:v1"
-         }
-     }
-   }
- }
+    service {
+      name = "count-api"
+      port = "9001"
 
+      connect {
+        sidecar_service = {}
+
+        sidecar_task {
+          resources {
+            cpu    = 500
+            memory = 1024
+          }
+        }
+      }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+    }
+  }
+}
 ```
 
 ## Default Envoy proxy sidecar
