@@ -24,6 +24,7 @@ func TestVolumeWatch_Batcher(t *testing.T) {
 	srv := &MockBatchingRPCServer{}
 	srv.state = state.TestStateStore(t)
 	srv.volumeUpdateBatcher = NewVolumeUpdateBatcher(CrossVolumeUpdateBatchDuration, srv, ctx)
+	srv.nextCSIControllerDetachError = fmt.Errorf("some controller plugin error")
 
 	plugin := mock.CSIPlugin()
 	node := testNode(nil, plugin, srv.State())
@@ -53,8 +54,6 @@ func TestVolumeWatch_Batcher(t *testing.T) {
 		logger:       testlog.HCLogger(t),
 	}
 
-	srv.nextCSIControllerDetachError = fmt.Errorf("some controller plugin error")
-
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -63,23 +62,35 @@ func TestVolumeWatch_Batcher(t *testing.T) {
 		wg.Done()
 	}()
 	go func() {
-		w1.volumeReapImpl(vol1)
+		// send an artificial updateClaim rather than doing a full
+		// reap so that we can guarantee we exercise deduplication
+		w1.updateClaims([]structs.CSIVolumeClaimRequest{{
+			VolumeID: vol1.ID,
+			WriteRequest: structs.WriteRequest{
+				Namespace: vol1.Namespace,
+			},
+		},
+			{
+				VolumeID: vol1.ID,
+				WriteRequest: structs.WriteRequest{
+					Namespace: vol1.Namespace,
+				},
+			}})
 		wg.Done()
 	}()
 
 	wg.Wait()
 
 	require.Equal(structs.CSIVolumeClaimStateNodeDetached, vol0.PastClaims[alloc0.ID].State)
-	require.Equal(structs.CSIVolumeClaimStateNodeDetached, vol1.PastClaims[alloc1.ID].State)
-	require.Equal(2, srv.countCSINodeDetachVolume)
-	require.Equal(2, srv.countCSIControllerDetachVolume)
+	require.Equal(1, srv.countCSINodeDetachVolume)
+	require.Equal(1, srv.countCSIControllerDetachVolume)
 	require.Equal(2, srv.countUpdateClaims)
 
-	// note: it's technically possible that the volumeReapImpl
-	// goroutines get de-scheduled and we don't write both updates in
-	// the same batch. but this seems really unlikely, so we're
-	// testing for both cases here so that if we start seeing a flake
-	// here in the future we have a clear cause for it.
+	// note: it's technically possible that the goroutines under test
+	// get de-scheduled and we don't write both updates in the same
+	// batch. but this seems really unlikely, so we're testing for
+	// both cases here so that if we start seeing a flake here in the
+	// future we have a clear cause for it.
 	require.GreaterOrEqual(srv.countUpsertVolumeClaims, 1)
 	require.Equal(1, srv.countUpsertVolumeClaims)
 }

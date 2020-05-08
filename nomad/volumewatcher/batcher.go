@@ -7,10 +7,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// encoding a 100 claim batch is about 31K on the wire, which
+// is a reasonable batch size
+const maxBatchSize = 100
+
 // VolumeUpdateBatcher is used to batch the updates for volume claims
 type VolumeUpdateBatcher struct {
-	// batch is the batching duration
-	batch time.Duration
+	// batchDuration is the batching duration
+	batchDuration time.Duration
 
 	// raft is used to actually commit the updates
 	raft VolumeRaftEndpoints
@@ -27,10 +31,10 @@ type VolumeUpdateBatcher struct {
 // exits the batcher when the passed exit channel is closed.
 func NewVolumeUpdateBatcher(batchDuration time.Duration, raft VolumeRaftEndpoints, ctx context.Context) *VolumeUpdateBatcher {
 	b := &VolumeUpdateBatcher{
-		batch:  batchDuration,
-		raft:   raft,
-		ctx:    ctx,
-		workCh: make(chan *updateWrapper, 10),
+		batchDuration: batchDuration,
+		raft:          raft,
+		ctx:           ctx,
+		workCh:        make(chan *updateWrapper, 10),
 	}
 
 	go b.batcher()
@@ -38,7 +42,10 @@ func NewVolumeUpdateBatcher(batchDuration time.Duration, raft VolumeRaftEndpoint
 }
 
 // CreateUpdate batches the volume claim update and returns a future
-// that tracks the completion of the request.
+// that can be used to track the completion of the batch. Note we
+// only return the *last* future if the claims gets broken up across
+// multiple batches because only the last one has useful information
+// for the caller.
 func (b *VolumeUpdateBatcher) CreateUpdate(claims []structs.CSIVolumeClaimRequest) *BatchFuture {
 	wrapper := &updateWrapper{
 		claims: claims,
@@ -54,11 +61,23 @@ type updateWrapper struct {
 	f      chan *BatchFuture
 }
 
+type claimBatch struct {
+	claims map[string]structs.CSIVolumeClaimRequest
+	future *BatchFuture
+}
+
 // batcher is the long lived batcher goroutine
 func (b *VolumeUpdateBatcher) batcher() {
 	var timerCh <-chan time.Time
-	claims := make(map[string]structs.CSIVolumeClaimRequest)
-	future := NewBatchFuture()
+
+	// we track claimBatches rather than a slice of
+	// CSIVolumeClaimBatchRequest so that we can deduplicate updates
+	// for the same volume
+	batches := []*claimBatch{{
+		claims: make(map[string]structs.CSIVolumeClaimRequest),
+		future: NewBatchFuture(),
+	}}
+
 	for {
 		select {
 		case <-b.ctx.Done():
@@ -67,30 +86,62 @@ func (b *VolumeUpdateBatcher) batcher() {
 			return
 		case w := <-b.workCh:
 			if timerCh == nil {
-				timerCh = time.After(b.batch)
+				timerCh = time.After(b.batchDuration)
 			}
 
+			future := NewBatchFuture()
+
+		NEXT_CLAIM:
 			// de-dupe and store the claim update, and attach the future
 			for _, upd := range w.claims {
-				claims[upd.VolumeID+upd.RequestNamespace()] = upd
+				id := upd.VolumeID + upd.RequestNamespace()
+
+				for _, batch := range batches {
+					// first see if we can dedupe the update
+					_, ok := batch.claims[id]
+					if ok {
+						batch.claims[id] = upd
+						future = batch.future
+						continue NEXT_CLAIM
+					}
+					// otherwise append to the first non-full batch
+					if len(batch.claims) < maxBatchSize {
+						batch.claims[id] = upd
+						future = batch.future
+						continue NEXT_CLAIM
+					}
+				}
+				// all batches were full, so add a new batch
+				newBatch := &claimBatch{
+					claims: map[string]structs.CSIVolumeClaimRequest{id: upd},
+					future: NewBatchFuture(),
+				}
+				batches = append(batches, newBatch)
+				future = newBatch.future
 			}
+
+			// we send batches to raft FIFO, so we return the last
+			// future to the caller so that it can wait until the
+			// last batch has been sent
 			w.f <- future
+
 		case <-timerCh:
 			// Capture the future and create a new one
-			f := future
-			future = NewBatchFuture()
 
-			// Create the batch request
+			batch := batches[0]
+			f := batch.future
+
+			// Create the batch request for the oldest batch
 			req := structs.CSIVolumeClaimBatchRequest{}
-			for _, claim := range claims {
+			for _, claim := range batch.claims {
 				req.Claims = append(req.Claims, claim)
 			}
 
 			// Upsert the claims in a go routine
 			go f.Set(b.raft.UpsertVolumeClaims(&req))
 
-			// Reset the claims list and timer
-			claims = make(map[string]structs.CSIVolumeClaimRequest)
+			// Reset the batches list and timer
+			batches = batches[1:]
 			timerCh = nil
 		}
 	}
