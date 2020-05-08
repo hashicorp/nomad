@@ -76,14 +76,11 @@ module('Acceptance | clients list', function(hooks) {
     const nodeRow = ClientsList.nodes.objectAt(0);
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
-    assert.equal(nodeRow.name, node.name, 'Name');
     assert.equal(
       nodeRow.compositeStatus.text,
       'ready',
       'Combined status, draining, and eligbility'
     );
-    assert.equal(nodeRow.address, node.httpAddr);
-    assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, running.length, '# Allocations');
   });
 
