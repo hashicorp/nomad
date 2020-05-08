@@ -370,6 +370,28 @@ func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
 	return
 }
 
+// delayByStopAfterClientDisconnect returns a delay for any lost allocation that's got a
+// stop_after_client_disconnect configured
+func (as allocSet) delayByStopAfterClientDisconnect() (later []*delayedRescheduleInfo) {
+	now := time.Now().UTC()
+	for _, a := range as {
+		if !a.ShouldClientStop() {
+			continue
+		}
+
+		t := a.WaitClientStop()
+
+		if t.After(now) {
+			later = append(later, &delayedRescheduleInfo{
+				allocID:        a.ID,
+				alloc:          a,
+				rescheduleTime: t,
+			})
+		}
+	}
+	return later
+}
+
 // allocNameIndex is used to select allocation names for placement or removal
 // given an existing set of placed allocations.
 type allocNameIndex struct {
