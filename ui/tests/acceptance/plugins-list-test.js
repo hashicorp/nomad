@@ -77,6 +77,30 @@ module('Acceptance | plugins list', function(hooks) {
     assert.equal(PluginsList.emptyState.headline, 'No Plugins');
   });
 
+  test('when there are plugins, but no matches for a search, there is an empty message', async function(assert) {
+    server.create('csi-plugin', { id: 'cat 1' });
+    server.create('csi-plugin', { id: 'cat 2' });
+
+    await PluginsList.visit();
+
+    await PluginsList.search('dog');
+    assert.ok(PluginsList.isEmpty);
+    assert.equal(PluginsList.emptyState.headline, 'No Matches');
+  });
+
+  test('search resets the current page', async function(assert) {
+    server.createList('csi-plugin', PluginsList.pageSize + 1);
+
+    await PluginsList.visit();
+    await PluginsList.nextPage();
+
+    assert.equal(currentURL(), '/csi/plugins?page=2');
+
+    await PluginsList.search('foobar');
+
+    assert.equal(currentURL(), '/csi/plugins?search=foobar');
+  });
+
   test('when accessing plugins is forbidden, a message is shown with a link to the tokens page', async function(assert) {
     server.pretender.get('/v1/plugins', () => [403, {}, null]);
 

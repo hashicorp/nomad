@@ -101,7 +101,7 @@ module('Acceptance | volumes list', function(hooks) {
     assert.equal(VolumesList.emptyState.headline, 'No Volumes');
   });
 
-  test('when there are volumes, but no matches for a search result, there is an empty message', async function(assert) {
+  test('when there are volumes, but no matches for a search, there is an empty message', async function(assert) {
     server.create('csi-volume', { id: 'cat 1' });
     server.create('csi-volume', { id: 'cat 2' });
 
