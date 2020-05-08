@@ -77,6 +77,7 @@ func (b *VolumeUpdateBatcher) batcher() {
 		future: NewBatchFuture(),
 	}}
 	ticker := time.NewTicker(b.batchDuration)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-b.ctx.Done():
