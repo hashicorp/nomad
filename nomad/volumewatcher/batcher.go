@@ -68,7 +68,6 @@ type claimBatch struct {
 
 // batcher is the long lived batcher goroutine
 func (b *VolumeUpdateBatcher) batcher() {
-	var timerCh <-chan time.Time
 
 	// we track claimBatches rather than a slice of
 	// CSIVolumeClaimBatchRequest so that we can deduplicate updates
@@ -77,7 +76,7 @@ func (b *VolumeUpdateBatcher) batcher() {
 		claims: make(map[string]structs.CSIVolumeClaimRequest),
 		future: NewBatchFuture(),
 	}}
-
+	ticker := time.NewTicker(b.batchDuration)
 	for {
 		select {
 		case <-b.ctx.Done():
@@ -85,10 +84,6 @@ func (b *VolumeUpdateBatcher) batcher() {
 			// longer the leader
 			return
 		case w := <-b.workCh:
-			if timerCh == nil {
-				timerCh = time.After(b.batchDuration)
-			}
-
 			future := NewBatchFuture()
 
 		NEXT_CLAIM:
@@ -125,24 +120,24 @@ func (b *VolumeUpdateBatcher) batcher() {
 			// last batch has been sent
 			w.f <- future
 
-		case <-timerCh:
-			// Capture the future and create a new one
+		case <-ticker.C:
+			if len(batches) > 0 && len(batches[0].claims) > 0 {
+				batch := batches[0]
 
-			batch := batches[0]
-			f := batch.future
+				f := batch.future
 
-			// Create the batch request for the oldest batch
-			req := structs.CSIVolumeClaimBatchRequest{}
-			for _, claim := range batch.claims {
-				req.Claims = append(req.Claims, claim)
+				// Create the batch request for the oldest batch
+				req := structs.CSIVolumeClaimBatchRequest{}
+				for _, claim := range batch.claims {
+					req.Claims = append(req.Claims, claim)
+				}
+
+				// Upsert the claims in a go routine
+				go f.Set(b.raft.UpsertVolumeClaims(&req))
+
+				// Reset the batches list
+				batches = batches[1:]
 			}
-
-			// Upsert the claims in a go routine
-			go f.Set(b.raft.UpsertVolumeClaims(&req))
-
-			// Reset the batches list and timer
-			batches = batches[1:]
-			timerCh = nil
 		}
 	}
 }
