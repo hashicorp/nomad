@@ -17,6 +17,8 @@ export default Factory.extend({
   requiresControllerPlugin: true,
   requiresTopologies: true,
 
+  shallow: false,
+
   nodeInfo: () => ({
     MaxVolumes: 51,
     AccessibleTopology: {
@@ -29,6 +31,7 @@ export default Factory.extend({
     const alloc = server.create('allocation', {
       jobId: storageNode.job.id,
       modifyTime: storageNode.updateTime * 1000000,
+      shallow: storageNode.shallow,
     });
 
     storageNode.update({

@@ -17,6 +17,8 @@ export default Factory.extend({
   requiresControllerPlugin: true,
   requiresTopologies: true,
 
+  shallow: false,
+
   controllerInfo: () => ({
     SupportsReadOnlyAttach: true,
     SupportsAttachDetach: true,
@@ -29,6 +31,7 @@ export default Factory.extend({
       jobId: storageController.job.id,
       forceRunningClientStatus: true,
       modifyTime: storageController.updateTime * 1000000,
+      shallow: storageController.shallow,
     });
 
     storageController.update({

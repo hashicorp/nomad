@@ -23,7 +23,7 @@ module('Acceptance | plugins list', function(hooks) {
 
   test('/csi/plugins should list the first page of plugins sorted by id', async function(assert) {
     const pluginCount = PluginsList.pageSize + 1;
-    server.createList('csi-plugin', pluginCount);
+    server.createList('csi-plugin', pluginCount, { shallow: true });
 
     await PluginsList.visit();
 
@@ -35,7 +35,7 @@ module('Acceptance | plugins list', function(hooks) {
   });
 
   test('each plugin row should contain information about the plugin', async function(assert) {
-    const plugin = server.create('csi-plugin');
+    const plugin = server.create('csi-plugin', { shallow: true });
 
     await PluginsList.visit();
 
@@ -56,7 +56,7 @@ module('Acceptance | plugins list', function(hooks) {
   });
 
   test('each plugin row should link to the corresponding plugin', async function(assert) {
-    const plugin = server.create('csi-plugin');
+    const plugin = server.create('csi-plugin', { shallow: true });
 
     await PluginsList.visit();
 
@@ -78,8 +78,8 @@ module('Acceptance | plugins list', function(hooks) {
   });
 
   test('when there are plugins, but no matches for a search, there is an empty message', async function(assert) {
-    server.create('csi-plugin', { id: 'cat 1' });
-    server.create('csi-plugin', { id: 'cat 2' });
+    server.create('csi-plugin', { id: 'cat 1', shallow: true });
+    server.create('csi-plugin', { id: 'cat 2', shallow: true });
 
     await PluginsList.visit();
 
@@ -89,7 +89,7 @@ module('Acceptance | plugins list', function(hooks) {
   });
 
   test('search resets the current page', async function(assert) {
-    server.createList('csi-plugin', PluginsList.pageSize + 1);
+    server.createList('csi-plugin', PluginsList.pageSize + 1, { shallow: true });
 
     await PluginsList.visit();
     await PluginsList.nextPage();
@@ -116,7 +116,7 @@ module('Acceptance | plugins list', function(hooks) {
     pageObject: PluginsList,
     pageObjectList: PluginsList.plugins,
     async setup() {
-      server.createList('csi-plugin', PluginsList.pageSize);
+      server.createList('csi-plugin', PluginsList.pageSize, { shallow: true });
       await PluginsList.visit();
     },
   });
