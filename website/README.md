@@ -96,7 +96,7 @@ To add a prerelease, an extra `prerelease` property can be added to the componen
   prerelease={{
     type: 'release candidate', // the type of prerelease: beta, release candidate, etc.
     name: 'v1.0.0', // the name displayed in text on the website
-    version: '1.0.0-rc1' // the actual version tag that was pushed to releases.hashicorp.com
+    version: '1.0.0-rc1', // the actual version tag that was pushed to releases.hashicorp.com
   }}
 />
 ```
@@ -133,6 +133,11 @@ There are several custom markdown plugins that are available by default that enh
   ```
 
   ...while it perhaps would not be an improved user experience, no links would break because of it. The best approach is to **avoid changing headlines and inline code at the start of a list item**. If you must change one of these items, make sure to tag someone from the digital marketing development team on your pull request, they will help to ensure as much compatibility as possible.
+
+There are also several custom components available for use within the docs. Check out their readmes for more details.
+
+- [EnterpriseAlert](components/enterprise-alert/README.md)
+- [Tabs](components/tabs/README.md)
 
 ## Deployment
 
