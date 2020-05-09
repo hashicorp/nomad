@@ -7,6 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -21,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +54,7 @@ type MockTaskHooks struct {
 	KillCh    chan struct{}
 
 	Events      []*structs.TaskEvent
-	EmitEventCh chan struct{}
+	EmitEventCh chan *structs.TaskEvent
 }
 
 func NewMockTaskHooks() *MockTaskHooks {
@@ -58,7 +63,7 @@ func NewMockTaskHooks() *MockTaskHooks {
 		RestartCh:   make(chan struct{}, 1),
 		SignalCh:    make(chan struct{}, 1),
 		KillCh:      make(chan struct{}, 1),
-		EmitEventCh: make(chan struct{}, 1),
+		EmitEventCh: make(chan *structs.TaskEvent, 1),
 	}
 }
 func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
@@ -94,8 +99,9 @@ func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) erro
 func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
 	m.Events = append(m.Events, event)
 	select {
-	case m.EmitEventCh <- struct{}{}:
-	default:
+	case m.EmitEventCh <- event:
+	case <-m.EmitEventCh:
+		m.EmitEventCh <- event
 	}
 }
 
@@ -1372,6 +1378,10 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 }
 
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
+	// The tests sets a template that need keys 0, 1, 2, 3, 4,
+	// then subsequently sets 0, 1, 2 keys
+	// then asserts that templates are still blocked on 3 and 4,
+	// and check that we got the relevant task events
 	t.Parallel()
 	require := require.New(t)
 
@@ -1393,6 +1403,27 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	harness.start(t)
 	defer harness.stop()
 
+	missingKeys := func(e *structs.TaskEvent) ([]string, int) {
+		missingRexp := regexp.MustCompile(`kv.block\(([0-9]*)\)`)
+		moreRexp := regexp.MustCompile(`and ([0-9]*) more`)
+
+		missingMatch := missingRexp.FindAllStringSubmatch(e.DisplayMessage, -1)
+		moreMatch := moreRexp.FindAllStringSubmatch(e.DisplayMessage, -1)
+
+		missing := make([]string, len(missingMatch))
+		for i, v := range missingMatch {
+			missing[i] = v[1]
+		}
+		sort.Strings(missing)
+
+		more := 0
+		if len(moreMatch) != 0 {
+			more, _ = strconv.Atoi(moreMatch[0][1])
+		}
+		return missing, more
+
+	}
+
 	// Ensure that we get a blocked event
 	select {
 	case <-harness.mockHooks.UnblockCh:
@@ -1403,27 +1434,44 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	}
 
 	// Check to see we got a correct message
+	// assert that all 0-4 keys are missing
 	require.Len(harness.mockHooks.Events, 1)
+	t.Logf("first message: %v", harness.mockHooks.Events[0])
+	missing, more := missingKeys(harness.mockHooks.Events[0])
+	require.Equal(5, len(missing)+more)
 	require.Contains(harness.mockHooks.Events[0].DisplayMessage, "and 2 more")
 
-	// Write 3 keys to Consul
+	// Write 0-2 keys to Consul
 	for i := 0; i < 3; i++ {
 		harness.consul.SetKV(t, fmt.Sprintf("%d", i), []byte{0xa})
 	}
 
 	// Ensure that we get a blocked event
-	select {
-	case <-harness.mockHooks.UnblockCh:
-		t.Fatalf("Task unblock should have not have been called")
-	case <-harness.mockHooks.EmitEventCh:
-	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("timeout")
+	isExpectedFinalEvent := func(e *structs.TaskEvent) bool {
+		missing, more := missingKeys(e)
+		return reflect.DeepEqual(missing, []string{"3", "4"}) && more == 0
+	}
+	timeout := time.After(time.Second * time.Duration(testutil.TestMultiplier()))
+WAIT_LOOP:
+	for {
+		select {
+		case <-harness.mockHooks.UnblockCh:
+			t.Errorf("Task unblock should have not have been called")
+		case e := <-harness.mockHooks.EmitEventCh:
+			t.Logf("received event: %v", e.DisplayMessage)
+			if isExpectedFinalEvent(e) {
+				break WAIT_LOOP
+			}
+		case <-timeout:
+			t.Errorf("timeout")
+		}
 	}
 
-	// TODO
 	// Check to see we got a correct message
-	eventMsg := harness.mockHooks.Events[len(harness.mockHooks.Events)-1].DisplayMessage
-	if !strings.Contains(eventMsg, "Missing") || strings.Contains(eventMsg, "more") {
-		t.Fatalf("bad event: %q", eventMsg)
+	event := harness.mockHooks.Events[len(harness.mockHooks.Events)-1]
+	if !isExpectedFinalEvent(event) {
+		t.Logf("received all events: %v", pretty.Sprint(harness.mockHooks.Events))
+
+		t.Fatalf("bad event, expected only 3 and 5 blocked got: %q", event.DisplayMessage)
 	}
 }
