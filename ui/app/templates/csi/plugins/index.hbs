@@ -9,6 +9,17 @@
   {{#if isForbidden}}
     {{partial "partials/forbidden-message"}}
   {{else}}
+    <div class="toolbar">
+      <div class="toolbar-item">
+        {{#if model.length}}
+          {{search-box
+            data-test-plugins-search
+            searchTerm=(mut searchTerm)
+            onChange=(action resetPagination)
+            placeholder="Search plugins..."}}
+        {{/if}}
+      </div>
+    </div>
     {{#if sortedPlugins}}
       {{#list-pagination
         source=sortedPlugins
@@ -56,10 +67,17 @@
       {{/list-pagination}}
     {{else}}
       <div data-test-empty-plugins-list class="empty-message">
-        <h3 data-test-empty-plugins-list-headline class="empty-message-headline">No Plugins</h3>
-        <p class="empty-message-body">
-          The cluster currently has no registered CSI Plugins.
-        </p>
+        {{#if (eq model.length 0)}}
+          <h3 data-test-empty-plugins-list-headline class="empty-message-headline">No Plugins</h3>
+          <p class="empty-message-body">
+            The cluster currently has no registered CSI Plugins.
+          </p>
+        {{else if searchTerm}}
+          <h3 data-test-empty-plugins-list-headline class="empty-message-headline">No Matches</h3>
+          <p class="empty-message-body">
+            No plugins match the term <strong>{{searchTerm}}</strong>
+          </p>
+        {{/if}}
       </div>
     {{/if}}
   {{/if}}

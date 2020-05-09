@@ -1,4 +1,12 @@
-import { clickable, collection, create, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  clickable,
+  collection,
+  create,
+  fillable,
+  isPresent,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 import error from 'nomad-ui/tests/pages/components/error';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
@@ -7,6 +15,8 @@ export default create({
   pageSize: 25,
 
   visit: visitable('/csi/plugins'),
+
+  search: fillable('[data-test-plugins-search] input'),
 
   plugins: collection('[data-test-plugin-row]', {
     id: text('[data-test-plugin-id]'),

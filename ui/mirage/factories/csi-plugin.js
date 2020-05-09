@@ -30,6 +30,9 @@ export default Factory.extend({
   // When false, the plugin will not make its own volumes
   createVolumes: true,
 
+  // When true, doesn't create any resources, state, or events for associated allocations
+  shallow: false,
+
   afterCreate(plugin, server) {
     let storageNodes;
     let storageControllers;
@@ -37,16 +40,32 @@ export default Factory.extend({
     if (plugin.isMonolith) {
       const pluginJob = server.create('job', { type: 'service', createAllocations: false });
       const count = plugin.nodesExpected;
-      storageNodes = server.createList('storage-node', count, { job: pluginJob });
-      storageControllers = server.createList('storage-controller', count, { job: pluginJob });
+      storageNodes = server.createList('storage-node', count, {
+        job: pluginJob,
+        shallow: plugin.shallow,
+      });
+      storageControllers = server.createList('storage-controller', count, {
+        job: pluginJob,
+        shallow: plugin.shallow,
+      });
     } else {
-      const controllerJob = server.create('job', { type: 'service', createAllocations: false });
-      const nodeJob = server.create('job', { type: 'service', createAllocations: false });
+      const controllerJob = server.create('job', {
+        type: 'service',
+        createAllocations: false,
+        shallow: plugin.shallow,
+      });
+      const nodeJob = server.create('job', {
+        type: 'service',
+        createAllocations: false,
+        shallow: plugin.shallow,
+      });
       storageNodes = server.createList('storage-node', plugin.nodesExpected, {
         job: nodeJob,
+        shallow: plugin.shallow,
       });
       storageControllers = server.createList('storage-controller', plugin.controllersExpected, {
         job: controllerJob,
+        shallow: plugin.shallow,
       });
     }
 
