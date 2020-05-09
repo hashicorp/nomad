@@ -1120,6 +1120,8 @@ func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interfac
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_scheduler_config"}, time.Now())
 
+	req.Config.Canonicalize()
+
 	if req.CAS {
 		applied, err := n.state.SchedulerCASConfig(index, req.Config.ModifyIndex, &req.Config)
 		if err != nil {
@@ -1417,6 +1419,7 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := dec.Decode(schedConfig); err != nil {
 				return err
 			}
+			schedConfig.Canonicalize()
 			if err := restore.SchedulerConfigRestore(schedConfig); err != nil {
 				return err
 			}
