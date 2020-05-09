@@ -10,4 +10,8 @@
       flex-grow: 0;
     }
   }
+
+  &.is-bottom-aligned {
+    align-items: flex-end;
+  }
 }
