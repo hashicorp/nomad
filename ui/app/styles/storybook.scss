@@ -66,7 +66,7 @@
     }
 
     .description {
-      font-size: .8rem;
+      font-size: 0.8rem;
       padding-bottom: 5px;
     }
 
@@ -114,6 +114,32 @@
     .sample {
       font-size: 15px;
       margin: 0;
+    }
+  }
+
+  .multiples {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chart-container {
+    width: 150px;
+    padding: 15px;
+    border: 1px solid $ui-gray-200;
+    display: inline-block;
+
+    &.is-small {
+      width: 100px;
+    }
+
+    &.is-large {
+      width: 200px;
+    }
+
+    &.is-xlarge {
+      width: 300px;
     }
   }
 }
