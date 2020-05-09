@@ -356,6 +356,7 @@ The table below shows this endpoint's support for
   "SchedulerConfig": {
     "CreateIndex": 5,
     "ModifyIndex": 5,
+    "SchedulerAlgorithm": "spread",
     "PreemptionConfig": {
       "SystemSchedulerEnabled": true,
       "BatchSchedulerEnabled": false,
@@ -373,10 +374,19 @@ The table below shows this endpoint's support for
 - `SchedulerConfig` `(SchedulerConfig)` - The returned `SchedulerConfig` object has configuration
   settings mentioned below.
 
-  - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers. - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
-    this defaults to true. - `BatchSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
-    this defaults to false and must be explicitly enabled. - `ServiceSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+  - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler binpacks or spreads allocations on available nodes.
+
+  - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
+
+    - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
+    this defaults to true.
+
+    - `BatchSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
     this defaults to false and must be explicitly enabled.
+
+    - `ServiceSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+    this defaults to false and must be explicitly enabled.
+
   - `CreateIndex` - The Raft index at which the config was created.
   - `ModifyIndex` - The Raft index at which the config was modified.
 
@@ -406,6 +416,7 @@ The table below shows this endpoint's support for
 
 ```json
 {
+  "SchedulerAlgorithm": "spread",
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
     "BatchSchedulerEnabled": false,
@@ -414,6 +425,7 @@ The table below shows this endpoint's support for
 }
 ```
 
+- `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler binpacks or spreads allocations on available nodes.  Possible values are `"binpack"` and `"spread"`
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
 - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
   if this is set to true, then system jobs can preempt any other jobs.
