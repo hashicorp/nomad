@@ -125,17 +125,17 @@
   }
 
   .chart-container {
-    width: 150px;
+    width: 200px;
     padding: 15px;
     border: 1px solid $ui-gray-200;
     display: inline-block;
 
     &.is-small {
-      width: 100px;
+      width: 150px;
     }
 
     &.is-large {
-      width: 200px;
+      width: 250px;
     }
 
     &.is-xlarge {
