@@ -92,6 +92,7 @@ type TaskGroupScaleStatus struct {
 }
 
 type ScalingEvent struct {
+	Count       *int64
 	Error       bool
 	Message     string
 	Meta        map[string]interface{}
