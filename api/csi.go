@@ -165,7 +165,6 @@ type CSIVolumeListStub struct {
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
-	MountOptions        *CSIMountOptions
 	Schedulable         bool
 	PluginID            string
 	Provider            string

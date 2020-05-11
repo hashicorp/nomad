@@ -271,7 +271,6 @@ type CSIVolListStub struct {
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
-	MountOptions        *CSIMountOptions
 	CurrentReaders      int
 	CurrentWriters      int
 	Schedulable         bool
@@ -329,7 +328,6 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		Topologies:          v.Topologies,
 		AccessMode:          v.AccessMode,
 		AttachmentMode:      v.AttachmentMode,
-		MountOptions:        v.MountOptions,
 		CurrentReaders:      len(v.ReadAllocs),
 		CurrentWriters:      len(v.WriteAllocs),
 		Schedulable:         v.Schedulable,
