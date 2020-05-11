@@ -25,7 +25,6 @@ import (
 
 	"github.com/gorhill/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
-	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/copystructure"
@@ -9562,6 +9561,9 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	// nil interface{}.
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
 
+	// only review struct codec tags
+	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
+
 	return h
 }()
 
@@ -9576,23 +9578,6 @@ var (
 		Indent:        4,
 	}
 )
-
-// TODO Figure out if we can remove this. This is our fork that is just way
-// behind. I feel like its original purpose was to pin at a stable version but
-// now we can accomplish this with vendoring.
-var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
-	h := &hcodec.MsgpackHandle{}
-	h.RawToString = true
-
-	// maintain binary format from time prior to upgrading latest ugorji
-	h.BasicHandle.TimeNotBuiltin = true
-
-	// Sets the default type for decoding a map into a nil interface{}.
-	// This is necessary in particular because we store the driver configs as a
-	// nil interface{}.
-	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
-	return h
-}()
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {

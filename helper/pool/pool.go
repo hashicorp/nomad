@@ -21,12 +21,12 @@ import (
 
 // NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls.
 func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.MsgpackHandle)
 }
 
 // NewServerCodec returns a new rpc.ServerCodec to be used to handle RPCs.
 func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.HashiMsgpackHandle)
+	return msgpackrpc.NewCodecFromHandle(true, true, conn, structs.MsgpackHandle)
 }
 
 // streamClient is used to wrap a stream with an RPC client
