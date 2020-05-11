@@ -16,7 +16,7 @@
 <td data-test-client-datacenter>{{node.datacenter}}</td>
 <td data-test-client-volumes>{{if node.hostVolumes.length node.hostVolumes.length}}</td>
 <td data-test-client-allocations>
-  {{#if node.runningAllocations.isPending}}
+  {{#if node.allocations.isPending}}
     ...
   {{else}}
     {{node.runningAllocations.length}}
