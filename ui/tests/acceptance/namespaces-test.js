@@ -1,8 +1,13 @@
+import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { selectChoose } from 'ember-power-select/test-support';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
+import ClientsList from 'nomad-ui/tests/pages/clients/list';
+import Allocation from 'nomad-ui/tests/pages/allocations/detail';
+import PluginsList from 'nomad-ui/tests/pages/storage/plugins/list';
+import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
 
 module('Acceptance | namespaces (disabled)', function(hooks) {
   setupApplicationTest(hooks);
@@ -36,6 +41,10 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     server.create('agent');
     server.create('node');
     server.createList('job', 5);
+  });
+
+  hooks.afterEach(function() {
+    window.localStorage.clear();
   });
 
   test('the namespace switcher lists all namespaces', async function(assert) {
@@ -104,5 +113,52 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
       namespace.name,
       'Namespace query param on second request'
     );
+  });
+
+  test('changing the namespace in the clients hierarchy navigates to the jobs page', async function(assert) {
+    const namespace = server.db.namespaces[1];
+
+    await ClientsList.visit();
+    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+
+    assert.equal(currentURL(), `/jobs?namespace=${namespace.name}`);
+  });
+
+  test('changing the namespace in the allocations hierarchy navigates to the jobs page', async function(assert) {
+    const namespace = server.db.namespaces[1];
+    const allocation = server.create('allocation', { job: server.db.jobs[0] });
+
+    await Allocation.visit({ id: allocation.id });
+    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+
+    assert.equal(currentURL(), `/jobs?namespace=${namespace.name}`);
+  });
+
+  test('changing the namespace in the storage hierarchy navigates to the volumes page', async function(assert) {
+    const namespace = server.db.namespaces[1];
+
+    await PluginsList.visit();
+    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+
+    assert.equal(currentURL(), `/csi/volumes?namespace=${namespace.name}`);
+  });
+
+  test('changing the namespace refreshes the volumes list when on the volumes page', async function(assert) {
+    const namespace = server.db.namespaces[1];
+
+    await VolumesList.visit();
+
+    let requests = server.pretender.handledRequests.filter(req =>
+      req.url.startsWith('/v1/volumes')
+    );
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].queryParams.namespace, undefined);
+
+    // TODO: handle this with Page Objects
+    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+
+    requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/volumes'));
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].queryParams.namespace, namespace.name);
   });
 });
