@@ -285,6 +285,8 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
+	config.Server.DefaultSchedulerConfig.Canonicalize()
+
 	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}

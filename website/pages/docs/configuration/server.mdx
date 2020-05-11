@@ -246,6 +246,8 @@ This example shows enabling preemption for all schedulers.
 ```hcl
 server {
   default_scheduler_config {
+    scheduler_algorithm = "binpack"
+
     preemption_config {
       batch_scheduler_enabled   = true
       system_scheduler_enabled  = true

@@ -162,6 +162,12 @@ func (s *SchedulerConfiguration) EffectiveSchedulerAlgorithm() SchedulerAlgorith
 	return s.SchedulerAlgorithm
 }
 
+func (s *SchedulerConfiguration) Canonicalize() {
+	if s != nil && s.SchedulerAlgorithm == "" {
+		s.SchedulerAlgorithm = SchedulerAlgorithmBinpack
+	}
+}
+
 func (s *SchedulerConfiguration) Validate() error {
 	if s == nil {
 		return nil
