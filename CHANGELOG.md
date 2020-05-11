@@ -9,6 +9,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+ * api: validate scale count value is not negative [[GH-7902](https://github.com/hashicorp/nomad/issues/7902)]
  * api: autoscaling policies should not be returned for stopped jobs [[GH-7768](https://github.com/hashicorp/nomad/issues/7768)]
  * core: job scale status endpoint was returning incorrect counts [[GH-7789](https://github.com/hashicorp/nomad/issues/7789)]
  * core: Fixed a bug where scores for allocations were biased toward nodes with resource reservations [[GH-7730](https://github.com/hashicorp/nomad/issues/7730)]
