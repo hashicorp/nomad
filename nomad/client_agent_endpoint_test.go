@@ -378,11 +378,18 @@ func TestMonitor_MonitorServer(t *testing.T) {
 	expected := "[DEBUG]"
 	received := ""
 
+	done := make(chan struct{})
+	defer close(done)
+
 	// send logs
 	go func() {
 		for {
-			s.logger.Debug("test log")
-			time.Sleep(100 * time.Millisecond)
+			select {
+			case <-time.After(100 * time.Millisecond):
+				s.logger.Debug("test log")
+			case <-done:
+				return
+			}
 		}
 	}()
 

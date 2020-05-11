@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2484,33 +2485,16 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 			expJobID = job.ID
 		}
 
-		if eval.CreateIndex != index {
-			t.Fatalf("CreateIndex mis-match on type %v: %#v", schedType, eval)
-		}
-		if eval.TriggeredBy != structs.EvalTriggerNodeUpdate {
-			t.Fatalf("TriggeredBy incorrect on type %v: %#v", schedType, eval)
-		}
-		if eval.NodeID != alloc.NodeID {
-			t.Fatalf("NodeID incorrect on type %v: %#v", schedType, eval)
-		}
-		if eval.NodeModifyIndex != 1 {
-			t.Fatalf("NodeModifyIndex incorrect on type %v: %#v", schedType, eval)
-		}
-		if eval.Status != structs.EvalStatusPending {
-			t.Fatalf("Status incorrect on type %v: %#v", schedType, eval)
-		}
-		if eval.Priority != expPriority {
-			t.Fatalf("Priority incorrect on type %v: %#v", schedType, eval)
-		}
-		if eval.JobID != expJobID {
-			t.Fatalf("JobID incorrect on type %v: %#v", schedType, eval)
-		}
-		if eval.CreateTime == 0 {
-			t.Fatalf("CreateTime is unset on type %v: %#v", schedType, eval)
-		}
-		if eval.ModifyTime == 0 {
-			t.Fatalf("ModifyTime is unset on type %v: %#v", schedType, eval)
-		}
+		t.Logf("checking eval: %v", pretty.Sprint(eval))
+		require.Equal(t, index, eval.CreateIndex)
+		require.Equal(t, structs.EvalTriggerNodeUpdate, eval.TriggeredBy)
+		require.Equal(t, alloc.NodeID, eval.NodeID)
+		require.Equal(t, uint64(1), eval.NodeModifyIndex)
+		require.Equal(t, structs.EvalStatusPending, eval.Status)
+		require.Equal(t, expPriority, eval.Priority)
+		require.Equal(t, expJobID, eval.JobID)
+		require.NotZero(t, eval.CreateTime)
+		require.NotZero(t, eval.ModifyTime)
 	}
 }
 
