@@ -124,6 +124,9 @@ func (vw *volumeWatcher) watch() {
 				}
 				vw.volumeReap(vol)
 			}
+		default:
+			vw.Stop() // no pending work
+			return
 		}
 	}
 }
