@@ -578,7 +578,7 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			cc.NextErr = c.ResponseErr
 
 			err := client.ControllerValidateCapabilities(
-				context.TODO(), "volumeID", requestedCaps)
+				context.TODO(), "volumeID", requestedCaps, structs.CSISecrets{})
 			if c.ExpectedErr != nil {
 				require.Error(t, c.ExpectedErr, err, c.Name)
 			} else {
@@ -616,7 +616,8 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 			nc.NextErr = c.ResponseErr
 			nc.NextStageVolumeResponse = c.Response
 
-			err := client.NodeStageVolume(context.TODO(), "foo", nil, "/foo", &VolumeCapability{})
+			err := client.NodeStageVolume(context.TODO(), "foo", nil, "/foo",
+				&VolumeCapability{}, structs.CSISecrets{})
 			if c.ExpectedErr != nil {
 				require.Error(t, c.ExpectedErr, err)
 			} else {

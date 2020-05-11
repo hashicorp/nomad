@@ -43,7 +43,7 @@ type CSIPlugin interface {
 
 	// ControllerValidateCapabilities is used to validate that a volume exists and
 	// supports the requested capability.
-	ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, opts ...grpc.CallOption) error
+	ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error
 
 	// NodeGetCapabilities is used to return the available capabilities from the
 	// Node Service.
@@ -56,7 +56,7 @@ type CSIPlugin interface {
 	// NodeStageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
 	// to prepare a volume for usage on a host. If err == nil, the response should
 	// be assumed to be successful.
-	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, opts ...grpc.CallOption) error
+	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error
 
 	// NodeUnstageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
 	// to undo the work performed by NodeStageVolume. If a volume has been staged,
@@ -111,8 +111,9 @@ type NodePublishVolumeRequest struct {
 
 	Readonly bool
 
-	// Reserved for future use.
-	Secrets map[string]string
+	// Secrets required by plugins to complete the node publish volume
+	// request. This field is OPTIONAL.
+	Secrets structs.CSISecrets
 }
 
 func (r *NodePublishVolumeRequest) ToCSIRepresentation() *csipbv1.NodePublishVolumeRequest {
@@ -233,6 +234,8 @@ type ControllerPublishVolumeRequest struct {
 	NodeID           string
 	ReadOnly         bool
 	VolumeCapability *VolumeCapability
+	Secrets          structs.CSISecrets
+	// VolumeContext    map[string]string  // TODO: https://github.com/hashicorp/nomad/issues/7771
 }
 
 func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerPublishVolumeRequest {
@@ -245,6 +248,8 @@ func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.Controll
 		NodeId:           r.NodeID,
 		Readonly:         r.ReadOnly,
 		VolumeCapability: r.VolumeCapability.ToCSIRepresentation(),
+		Secrets:          r.Secrets,
+		// VolumeContext:    r.VolumeContext, https://github.com/hashicorp/nomad/issues/7771
 	}
 }
 
@@ -265,6 +270,7 @@ type ControllerPublishVolumeResponse struct {
 type ControllerUnpublishVolumeRequest struct {
 	VolumeID string
 	NodeID   string
+	Secrets  structs.CSISecrets
 }
 
 func (r *ControllerUnpublishVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerUnpublishVolumeRequest {
@@ -275,6 +281,7 @@ func (r *ControllerUnpublishVolumeRequest) ToCSIRepresentation() *csipbv1.Contro
 	return &csipbv1.ControllerUnpublishVolumeRequest{
 		VolumeId: r.VolumeID,
 		NodeId:   r.NodeID,
+		Secrets:  r.Secrets,
 	}
 }
 

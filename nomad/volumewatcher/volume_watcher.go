@@ -350,6 +350,7 @@ func (vw *volumeWatcher) controllerDetach(vol *structs.CSIVolume, claim *structs
 	cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
 		VolumeID:        vol.RemoteID(),
 		ClientCSINodeID: targetCSIInfo.NodeInfo.ID,
+		Secrets:         vol.Secrets,
 	}
 	cReq.PluginID = plug.ID
 	err = vw.rpc.ControllerDetachVolume(cReq,

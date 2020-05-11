@@ -37,6 +37,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "minnie",
+		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
@@ -84,6 +85,7 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "minnie",
+		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
@@ -139,6 +141,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 
 	// Create the register request
@@ -255,6 +258,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		Topologies: []*structs.CSITopology{{
 			Segments: map[string]string{"foo": "bar"},
 		}},
+		Secrets: structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 	index++
 	err = state.CSIVolumeRegister(index, vols)
@@ -373,6 +377,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 		ControllerRequired: true,
 		AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
+		Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 	err = state.CSIVolumeRegister(1003, vols)
 
@@ -439,6 +444,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		PluginID:       "minnie",
+		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
 	}, {
 		ID:             id1,
 		Namespace:      structs.DefaultNamespace,

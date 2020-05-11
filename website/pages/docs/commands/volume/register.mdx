@@ -46,6 +46,9 @@ mount_options {
    fs_type = "ext4"
    mount_flags = ["ro"]
 }
+secrets {
+   example_secret = "xyzzy"
+}
 ```
 
 ## Volume Specification Parameters
@@ -83,6 +86,10 @@ mount_options {
   mounting `block-device`volumes without a pre-formatted file system.
   - `fs_type`: file system type (ex. `"ext4"`)
   - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
+
+- `secrets` <code>(map:nil)</code> - An optional key-value map of
+  strings used as credentials for publishing and unpublishing volumes.
+
 
 [volume_specification]: #volume-specification
 [csi]: https://github.com/container-storage-interface/spec

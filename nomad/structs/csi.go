@@ -185,6 +185,27 @@ func (v *CSIMountOptions) GoString() string {
 	return v.String()
 }
 
+// CSISecrets contain optional additional configuration that can be used
+// when specifying that a Volume should be used with VolumeAccessTypeMount.
+type CSISecrets map[string]string
+
+// CSISecrets implements the Stringer and GoStringer interfaces to prevent
+// accidental leakage of secrets via logs.
+var _ fmt.Stringer = &CSISecrets{}
+var _ fmt.GoStringer = &CSISecrets{}
+
+func (s *CSISecrets) String() string {
+	redacted := map[string]string{}
+	for k := range *s {
+		redacted[k] = "[REDACTED]"
+	}
+	return fmt.Sprintf("csi.CSISecrets(%v)", redacted)
+}
+
+func (s *CSISecrets) GoString() string {
+	return s.String()
+}
+
 type CSIVolumeClaim struct {
 	AllocationID string
 	NodeID       string
@@ -214,6 +235,7 @@ type CSIVolume struct {
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
 	MountOptions   *CSIMountOptions
+	Secrets        CSISecrets
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
@@ -278,6 +300,9 @@ func NewCSIVolume(volumeID string, index uint64) *CSIVolume {
 func (v *CSIVolume) newStructs() {
 	if v.Topologies == nil {
 		v.Topologies = []*CSITopology{}
+	}
+	if v.Secrets == nil {
+		v.Secrets = CSISecrets{}
 	}
 
 	v.ReadAllocs = map[string]*Allocation{}
@@ -365,6 +390,9 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	copy := *v
 	out := &copy
 	out.newStructs()
+	for k, v := range v.Secrets {
+		out.Secrets[k] = v
+	}
 
 	for k, v := range v.ReadAllocs {
 		out.ReadAllocs[k] = v

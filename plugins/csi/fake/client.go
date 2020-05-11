@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -159,7 +160,7 @@ func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.Control
 	return c.NextControllerUnpublishVolumeResponse, c.NextControllerUnpublishVolumeErr
 }
 
-func (c *Client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *csi.VolumeCapability, opts ...grpc.CallOption) error {
+func (c *Client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *csi.VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 
@@ -191,7 +192,7 @@ func (c *Client) NodeGetInfo(ctx context.Context) (*csi.NodeGetInfoResponse, err
 // NodeStageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
 // to prepare a volume for usage on a host. If err == nil, the response should
 // be assumed to be successful.
-func (c *Client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *csi.VolumeCapability, opts ...grpc.CallOption) error {
+func (c *Client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *csi.VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 

@@ -12,6 +12,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/grpc-middleware/logging"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"google.golang.org/grpc"
@@ -293,7 +294,7 @@ func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerU
 	return &ControllerUnpublishVolumeResponse{}, nil
 }
 
-func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, opts ...grpc.CallOption) error {
+func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
@@ -314,6 +315,9 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID st
 		VolumeCapabilities: []*csipbv1.VolumeCapability{
 			capabilities.ToCSIRepresentation(),
 		},
+		// VolumeContext: map[string]string // TODO: https://github.com/hashicorp/nomad/issues/7771
+		// Parameters: map[string]string // TODO: https://github.com/hashicorp/nomad/issues/7670
+		Secrets: secrets,
 	}
 
 	resp, err := c.controllerClient.ValidateVolumeCapabilities(ctx, req, opts...)
@@ -461,7 +465,7 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 	return result, nil
 }
 
-func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, opts ...grpc.CallOption) error {
+func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
@@ -483,6 +487,7 @@ func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishCo
 		PublishContext:    publishContext,
 		StagingTargetPath: stagingTargetPath,
 		VolumeCapability:  capabilities.ToCSIRepresentation(),
+		Secrets:           secrets,
 	}
 
 	// NodeStageVolume's response contains no extra data. If err == nil, we were
