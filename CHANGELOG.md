@@ -6,6 +6,7 @@ FEATURES:
 IMPROVEMENTS:
 
  * core: Allow spreading allocations as an alternative to binpacking [[GH-7810](https://github.com/hashicorp/nomad/issues/7810)]
+ * ui: Add ACL-checking to conditionally turn off exec button [[GH-7919](https://github.com/hashicorp/nomad/commits?author=backspace)]
 
 BUG FIXES:
 
