@@ -85,6 +85,10 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 		return nil, CodedError(404, "volume not found")
 	}
 
+	// remove sensitive fields, as our redaction mechanism doesn't
+	// help serializing here
+	out.Volume.Secrets = nil
+	out.Volume.MountOptions = nil
 	return out.Volume, nil
 }
 

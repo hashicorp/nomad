@@ -35,6 +35,8 @@ type ClientCSIControllerValidateVolumeRequest struct {
 
 	AttachmentMode structs.CSIVolumeAttachmentMode
 	AccessMode     structs.CSIVolumeAccessMode
+	Secrets        structs.CSISecrets
+	// Parameters map[string]string // TODO: https://github.com/hashicorp/nomad/issues/7670
 
 	CSIControllerQuery
 }
@@ -66,6 +68,15 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	// only works when the Controller has the PublishReadonly capability.
 	ReadOnly bool
 
+	// Secrets required by plugin to complete the controller publish
+	// volume request. This field is OPTIONAL.
+	Secrets structs.CSISecrets
+
+	// TODO https://github.com/hashicorp/nomad/issues/7771
+	// Volume context as returned by storage provider in CreateVolumeResponse.
+	// This field is optional.
+	// VolumeContext map[string]string
+
 	CSIControllerQuery
 }
 
@@ -82,8 +93,10 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.Controller
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeID:         c.VolumeID,
 		NodeID:           c.ClientCSINodeID,
-		ReadOnly:         c.ReadOnly,
 		VolumeCapability: caps,
+		ReadOnly:         c.ReadOnly,
+		Secrets:          c.Secrets,
+		// VolumeContext:    c.VolumeContext, TODO: https://github.com/hashicorp/nomad/issues/7771
 	}, nil
 }
 
@@ -116,6 +129,10 @@ type ClientCSIControllerDetachVolumeRequest struct {
 	// This field is REQUIRED. This must match the NodeID that is fingerprinted
 	// by the target node for this plugin name.
 	ClientCSINodeID string
+
+	// Secrets required by plugin to complete the controller unpublish
+	// volume request. This field is OPTIONAL.
+	Secrets structs.CSISecrets
 
 	CSIControllerQuery
 }

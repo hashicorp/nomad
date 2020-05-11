@@ -1311,6 +1311,7 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		AccessMode:          structs.CSIVolumeAccessModeSingleNodeWriter,
 		AttachmentMode:      structs.CSIVolumeAttachmentModeFilesystem,
 		MountOptions:        &structs.CSIMountOptions{},
+		Secrets:             structs.CSISecrets{},
 		ReadAllocs:          map[string]*structs.Allocation{},
 		WriteAllocs:         map[string]*structs.Allocation{},
 		ReadClaims:          map[string]*structs.CSIVolumeClaim{},

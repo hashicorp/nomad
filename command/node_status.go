@@ -569,19 +569,17 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 
 	// Output the volumes in name order
 	output := make([]string, 0, len(names)+1)
-	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode|Mount Options")
+	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
 	for _, name := range names {
 		v := volumes[name]
-		r := requests[v.ID]
 		output = append(output, fmt.Sprintf(
-			"%s|%s|%s|%t|%s|%s|%s",
+			"%s|%s|%s|%t|%s|%s",
 			v.ID,
 			name,
 			v.PluginID,
 			v.Schedulable,
 			v.Provider,
 			v.AccessMode,
-			csiVolMountOption(v.MountOptions, r.MountOptions),
 		))
 	}
 

@@ -87,6 +87,8 @@ type CSIMountOptions struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"` // report unexpected keys
 }
 
+type CSISecrets map[string]string
+
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
 type CSIVolume struct {
 	ID             string
@@ -97,6 +99,7 @@ type CSIVolume struct {
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 	MountOptions   *CSIMountOptions        `hcl:"mount_options"`
+	Secrets        CSISecrets              `hcl:"secrets"`
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation
@@ -162,7 +165,6 @@ type CSIVolumeListStub struct {
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
-	MountOptions        *CSIMountOptions
 	Schedulable         bool
 	PluginID            string
 	Provider            string
