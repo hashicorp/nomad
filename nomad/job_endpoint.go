@@ -905,6 +905,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if args.Error && args.Count != nil {
 		return structs.NewErrRPCCoded(400, "scaling action should not contain count if error is true")
 	}
+	if args.Count != nil && *args.Count < 0 {
+		return structs.NewErrRPCCoded(400, "scaling action count can't be negative")
+	}
 
 	// Check for submit-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
