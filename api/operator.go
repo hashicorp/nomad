@@ -236,6 +236,7 @@ type LicenseReply struct {
 	QueryMeta
 }
 
+// Note: These api actions are not yet supported
 func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, error) {
 	wm, err := op.c.write("/v1/operator/license", license, nil, q)
 	if err != nil {
@@ -244,6 +245,7 @@ func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, err
 	return wm, nil
 }
 
+// Note: These api actions are not yet supported
 func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, error) {
 	var reply LicenseReply
 	qm, err := op.c.query("/v1/operator/license", &reply, q)
