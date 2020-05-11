@@ -6,6 +6,9 @@ FEATURES:
 IMPROVEMENTS:
 
  * core: Allow spreading allocations as an alternative to binpacking [[GH-7810](https://github.com/hashicorp/nomad/issues/7810)]
+ * csi: Added support for volume secrets [[GH-7923](https://github.com/hashicorp/nomad/issues/7923)]
+ * csi: Added periodic garbage collection of plugins and volume claims [[GH-7825](https://github.com/hashicorp/nomad/issues/7825)]
+ * csi: Improved performance of volume claim releases by moving work out of scheduler [[GH-7794](https://github.com/hashicorp/nomad/issues/7794)]
  * ui: Add ACL-checking to conditionally turn off exec button [[GH-7919](https://github.com/hashicorp/nomad/commits?author=backspace)]
 
 BUG FIXES:
@@ -14,6 +17,9 @@ BUG FIXES:
  * api: autoscaling policies should not be returned for stopped jobs [[GH-7768](https://github.com/hashicorp/nomad/issues/7768)]
  * core: job scale status endpoint was returning incorrect counts [[GH-7789](https://github.com/hashicorp/nomad/issues/7789)]
  * core: Fixed a bug where scores for allocations were biased toward nodes with resource reservations [[GH-7730](https://github.com/hashicorp/nomad/issues/7730)]
+ * csi: Fixed checking of volume validation responses from plugins [[GH-7831](https://github.com/hashicorp/nomad/issues/7831)]
+ * csi: Fixed counting of healthy and expected plugins after plugin job updates or stops [[GH-7844](https://github.com/hashicorp/nomad/issues/7844)]
+ * csi: Added checkpointing to volume claim release to avoid unreleased claims on plugin errors [[GH-7782](https://github.com/hashicorp/nomad/issues/7782)]
  * jobspec: autoscaling policy block should return a parsing error multiple `policy` blocks are provided [[GH-7716](https://github.com/hashicorp/nomad/issues/7716)]
  * ui: Fixed a bug where exec popup had incorrect URL for jobs where name ≠ id [[GH-7814](https://github.com/hashicorp/nomad/issues/7814)]
 
