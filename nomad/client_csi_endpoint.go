@@ -134,6 +134,9 @@ func (a *ClientCSI) nodeForController(pluginID, nodeID string) (string, error) {
 		_, err = getNodeForRpc(snap, nodeID)
 		if err == nil {
 			return nodeID, nil
+		} else {
+			// we'll fall-through and select a node at random
+			a.logger.Trace("%s could not be used for client RPC: %v", nodeID, err)
 		}
 	}
 
