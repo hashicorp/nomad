@@ -64,13 +64,16 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  let job;
+  let job, managementToken, clientToken;
 
   hooks.beforeEach(function() {
     server.createList('namespace', 2);
     server.create('node');
-    job = server.create('job', { type: 'service', namespaceId: server.db.namespaces[1].name });
+    job = server.create('job', { type: 'service', status: 'running', namespaceId: server.db.namespaces[1].name });
     server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
+
+    managementToken = server.create('token');
+    clientToken = server.create('token');
   });
 
   test('when there are namespaces, the job detail page states the namespace for the job', async function(assert) {
@@ -100,5 +103,59 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     JobsList.jobs.forEach((jobRow, index) => {
       assert.equal(jobRow.name, jobs[index].name, `Job ${index} is right`);
     });
+  });
+
+  test('the exec button state can change between namespaces', async function(assert) {
+    const job1 = server.create('job', { status: 'running', namespaceId: server.db.namespaces[0].id });
+    const job2 = server.create('job', { status: 'running', namespaceId: server.db.namespaces[1].id });
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: job1.namespaceId,
+            Capabilities: ['list-jobs', 'alloc-exec'],
+          },
+          {
+            Name: job2.namespaceId,
+            Capabilities: ['list-jobs'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    await JobDetail.visit({ id: job1.id });
+    assert.notOk(JobDetail.execButton.isDisabled);
+
+    const secondNamespace = server.db.namespaces[1];
+    await JobDetail.visit({ id: job2.id, namespace: secondNamespace.name });
+    assert.ok(JobDetail.execButton.isDisabled);
+  });
+
+  test('the anonymous policy is fetched to check whether to show the exec button', async function(assert) {
+    window.localStorage.removeItem('nomadTokenSecret');
+
+    server.create('policy', {
+      id: 'anonymous',
+      name: 'anonymous',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: 'default',
+            Capabilities: ['list-jobs', 'alloc-exec'],
+          },
+        ],
+      },
+    });
+
+    await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name  });
+    assert.notOk(JobDetail.execButton.isDisabled);
   });
 });
