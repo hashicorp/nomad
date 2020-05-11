@@ -8,7 +8,7 @@ Set-Location C:\opt
 
 Try {
     $releases = "https://releases.hashicorp.com"
-    $version = "1.6.1"
+    $version = "1.7.3"
     $url = "${releases}/consul/${version}/consul_${version}_windows_amd64.zip"
 
     $configDir = "C:\opt\consul.d"
