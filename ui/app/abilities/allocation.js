@@ -3,12 +3,12 @@ import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';
 
 export default AbstractAbility.extend({
-  canRun: or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportRunning'),
+  canExec: or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportExec'),
 
-  policiesSupportRunning: computed('rulesForActiveNamespace.@each.capabilities', function() {
+  policiesSupportExec: computed('rulesForActiveNamespace.@each.capabilities', function() {
     return this.rulesForActiveNamespace.some(rules => {
       let capabilities = get(rules, 'Capabilities') || [];
-      return capabilities.includes('submit-job');
+      return capabilities.includes('alloc-exec');
     });
   }),
 });

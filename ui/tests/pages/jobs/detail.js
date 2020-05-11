@@ -3,7 +3,9 @@ import {
   create,
   collection,
   clickable,
+  hasClass,
   isPresent,
+  property,
   text,
   visitable,
 } from 'ember-cli-page-object';
@@ -28,6 +30,9 @@ export default create({
 
   execButton: {
     scope: '[data-test-exec-button]',
+    isDisabled: property('disabled'),
+    hasTooltip: hasClass('tooltip'),
+    tooltipText: attribute('aria-label'),
   },
 
   stats: collection('[data-test-job-stat]', {
