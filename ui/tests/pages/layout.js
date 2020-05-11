@@ -27,5 +27,6 @@ export default create({
     visitJobs: clickable('[data-test-gutter-link="jobs"]'),
     visitClients: clickable('[data-test-gutter-link="clients"]'),
     visitServers: clickable('[data-test-gutter-link="servers"]'),
+    visitStorage: clickable('[data-test-gutter-link="storage"]'),
   },
 });
