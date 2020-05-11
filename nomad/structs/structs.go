@@ -9561,6 +9561,9 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	// nil interface{}.
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
 
+	// only review struct codec tags
+	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
+
 	return h
 }()
 
