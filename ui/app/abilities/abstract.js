@@ -1,7 +1,7 @@
 import { Ability } from 'ember-can';
 import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
-import { equal, or, not } from '@ember/object/computed';
+import { equal, not } from '@ember/object/computed';
 
 export default Ability.extend({
   system: service(),

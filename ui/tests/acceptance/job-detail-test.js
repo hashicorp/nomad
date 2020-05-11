@@ -64,7 +64,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  let job, managementToken, clientToken;
+  let job, clientToken;
 
   hooks.beforeEach(function() {
     server.createList('namespace', 2);
@@ -72,7 +72,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     job = server.create('job', { type: 'service', status: 'running', namespaceId: server.db.namespaces[1].name });
     server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
 
-    managementToken = server.create('token');
+    server.create('token');
     clientToken = server.create('token');
   });
 
