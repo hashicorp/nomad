@@ -51,6 +51,8 @@ var (
 
 type MessageType uint8
 
+// note: new raft message types need to be added to the end of this
+// list of contents
 const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
@@ -91,6 +93,8 @@ const (
 	CSIVolumeDeregisterRequestType
 	CSIVolumeClaimRequestType
 	ScalingEventRegisterRequestType
+	CSIVolumeClaimBatchRequestType
+	CSIPluginDeleteRequestType
 )
 
 const (
@@ -5205,6 +5209,10 @@ type TaskGroup struct {
 	// ShutdownDelay is the amount of time to wait between deregistering
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
+
+	// StopAfterClientDisconnect, if set, configures the client to stop the task group
+	// after this duration since the last known good heartbeat
+	StopAfterClientDisconnect *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -8982,6 +8990,11 @@ const (
 	// volume claims. We periodically scan volumes to see if no allocs are
 	// claiming them. If so, we unclaim the volume.
 	CoreJobCSIVolumeClaimGC = "csi-volume-claim-gc"
+
+	// CoreJobCSIPluginGC is use for the garbage collection of CSI plugins.
+	// We periodically scan plugins to see if they have no associated volumes
+	// or allocs running them. If so, we delete the plugin.
+	CoreJobCSIPluginGC = "csi-plugin-gc"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"

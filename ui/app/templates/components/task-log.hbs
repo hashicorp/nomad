@@ -1,7 +1,14 @@
 {{#if noConnection}}
   <div data-test-connection-error class="notification is-error">
-    <h3 class="title is-4">Cannot fetch logs</h3>
-    <p>The logs for this task are inaccessible. Check the condition of the node the allocation is on.</p>
+    <div class="columns">
+      <div class="column">
+        <h3 class="title is-4">Cannot fetch logs</h3>
+        <p>The logs for this task are inaccessible. Check the condition of the node the allocation is on.</p>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button data-test-connection-error-dismiss class="button is-danger" onclick={{action (mut noConnection) false}}>Okay</button>
+      </div>
+    </div>
   </div>
 {{/if}}
 <div class="boxed-section-head">

@@ -1,4 +1,4 @@
----
+--
 layout: docs
 page_title: server Stanza - Agent Configuration
 sidebar_title: server
@@ -89,6 +89,14 @@ server {
 - `deployment_gc_threshold` `(string: "1h")` - Specifies the minimum time a
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
+
+- `csi_volume_claim_gc_threshold` `(string: "1h")` - Specifies the minimum age of
+  a CSI volume before it is eligible to have its claims garbage collected.
+  This is specified using a label suffix like "30s" or "1h".
+
+- `csi_plugin_gc_threshold` `(string: "1h")` - Specifies the minimum age of a
+  CSI plugin before it is eligible for garbage collection if not in use.
+  This is specified using a label suffix like "30s" or "1h".
 
 - `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
   nil)</code> - Specifies the initial default scheduler config when
@@ -238,6 +246,8 @@ This example shows enabling preemption for all schedulers.
 ```hcl
 server {
   default_scheduler_config {
+    scheduler_algorithm = "binpack"
+
     preemption_config {
       batch_scheduler_enabled   = true
       system_scheduler_enabled  = true

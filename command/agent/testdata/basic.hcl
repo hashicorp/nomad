@@ -102,31 +102,33 @@ client {
 }
 
 server {
-  enabled                   = true
-  authoritative_region      = "foobar"
-  bootstrap_expect          = 5
-  data_dir                  = "/tmp/data"
-  protocol_version          = 3
-  raft_protocol             = 3
-  num_schedulers            = 2
-  enabled_schedulers        = ["test"]
-  node_gc_threshold         = "12h"
-  job_gc_interval           = "3m"
-  job_gc_threshold          = "12h"
-  eval_gc_threshold         = "12h"
-  deployment_gc_threshold   = "12h"
-  heartbeat_grace           = "30s"
-  min_heartbeat_ttl         = "33s"
-  max_heartbeats_per_second = 11.0
-  retry_join                = ["1.1.1.1", "2.2.2.2"]
-  start_join                = ["1.1.1.1", "2.2.2.2"]
-  retry_max                 = 3
-  retry_interval            = "15s"
-  rejoin_after_leave        = true
-  non_voting_server         = true
-  redundancy_zone           = "foo"
-  upgrade_version           = "0.8.0"
-  encrypt                   = "abc"
+  enabled                       = true
+  authoritative_region          = "foobar"
+  bootstrap_expect              = 5
+  data_dir                      = "/tmp/data"
+  protocol_version              = 3
+  raft_protocol                 = 3
+  num_schedulers                = 2
+  enabled_schedulers            = ["test"]
+  node_gc_threshold             = "12h"
+  job_gc_interval               = "3m"
+  job_gc_threshold              = "12h"
+  eval_gc_threshold             = "12h"
+  deployment_gc_threshold       = "12h"
+  csi_volume_claim_gc_threshold = "12h"
+  csi_plugin_gc_threshold       = "12h"
+  heartbeat_grace               = "30s"
+  min_heartbeat_ttl             = "33s"
+  max_heartbeats_per_second     = 11.0
+  retry_join                    = ["1.1.1.1", "2.2.2.2"]
+  start_join                    = ["1.1.1.1", "2.2.2.2"]
+  retry_max                     = 3
+  retry_interval                = "15s"
+  rejoin_after_leave            = true
+  non_voting_server             = true
+  redundancy_zone               = "foo"
+  upgrade_version               = "0.8.0"
+  encrypt                       = "abc"
 
   server_join {
     retry_join     = ["1.1.1.1", "2.2.2.2"]
@@ -135,6 +137,8 @@ server {
   }
 
   default_scheduler_config {
+    scheduler_algorithm = "spread"
+
     preemption_config {
       batch_scheduler_enabled   = true
       system_scheduler_enabled  = true

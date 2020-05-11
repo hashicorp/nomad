@@ -285,6 +285,8 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
+	config.Server.DefaultSchedulerConfig.Canonicalize()
+
 	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}
@@ -375,6 +377,11 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	}
 	if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
 		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+	}
+
+	if err := config.Server.DefaultSchedulerConfig.Validate(); err != nil {
+		c.Ui.Error(err.Error())
+		return false
 	}
 
 	return true

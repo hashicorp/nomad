@@ -81,6 +81,9 @@ type TestAgent struct {
 	// ports that are reserved through freeport that must be returned at
 	// the end of a test, done when Shutdown() is called.
 	ports []int
+
+	// Enterprise specifies if the agent is enterprise or not
+	Enterprise bool
 }
 
 // NewTestAgent returns a started agent with the given name and
@@ -91,6 +94,7 @@ func NewTestAgent(t testing.T, name string, configCallback func(*Config)) *TestA
 		T:              t,
 		Name:           name,
 		ConfigCallback: configCallback,
+		Enterprise:     EnterpriseTestAgent,
 	}
 
 	a.Start()

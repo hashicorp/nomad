@@ -256,6 +256,8 @@
     {
       "authoritative_region": "foobar",
       "bootstrap_expect": 5,
+      "csi_plugin_gc_threshold": "12h",
+      "csi_volume_claim_gc_threshold": "12h",
       "data_dir": "/tmp/data",
       "deployment_gc_threshold": "12h",
       "enabled": true,
@@ -297,6 +299,7 @@
         "2.2.2.2"
       ],
       "default_scheduler_config": [{
+        "scheduler_algorithm": "spread",
         "preemption_config": [{
           "batch_scheduler_enabled": true,
           "system_scheduler_enabled": true,

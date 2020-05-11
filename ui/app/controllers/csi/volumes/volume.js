@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  // Used in the template
   system: service(),
 
   sortedReadAllocations: computed('model.readAllocations.@each.modifyIndex', function() {

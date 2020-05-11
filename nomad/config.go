@@ -191,6 +191,21 @@ type Config struct {
 	// for GC. This gives users some time to view terminal deployments.
 	DeploymentGCThreshold time.Duration
 
+	// CSIPluginGCInterval is how often we dispatch a job to GC unused plugins.
+	CSIPluginGCInterval time.Duration
+
+	// CSIPluginGCThreshold is how "old" a plugin must be to be eligible
+	// for GC. This gives users some time to debug plugins.
+	CSIPluginGCThreshold time.Duration
+
+	// CSIVolumeClaimGCInterval is how often we dispatch a job to GC
+	// volume claims.
+	CSIVolumeClaimGCInterval time.Duration
+
+	// CSIVolumeClaimGCThreshold is how "old" a volume must be to be
+	// eligible for GC. This gives users some time to debug volumes.
+	CSIVolumeClaimGCThreshold time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -377,6 +392,10 @@ func DefaultConfig() *Config {
 		NodeGCThreshold:                  24 * time.Hour,
 		DeploymentGCInterval:             5 * time.Minute,
 		DeploymentGCThreshold:            1 * time.Hour,
+		CSIPluginGCInterval:              5 * time.Minute,
+		CSIPluginGCThreshold:             1 * time.Hour,
+		CSIVolumeClaimGCInterval:         5 * time.Minute,
+		CSIVolumeClaimGCThreshold:        1 * time.Hour,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
@@ -403,6 +422,7 @@ func DefaultConfig() *Config {
 		ServerHealthInterval: 2 * time.Second,
 		AutopilotInterval:    10 * time.Second,
 		DefaultSchedulerConfig: structs.SchedulerConfiguration{
+			SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled:  true,
 				BatchSchedulerEnabled:   false,

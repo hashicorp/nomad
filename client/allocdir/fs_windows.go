@@ -10,7 +10,7 @@ var (
 	// directory shared across tasks in a task group.
 	SharedAllocContainerPath = filepath.Join("c:\\", SharedAllocName)
 
-	// TaskLocalContainer is the path inside a container for mounted directory
+	// TaskLocalContainerPath is the path inside a container for mounted directory
 	// for local storage.
 	TaskLocalContainerPath = filepath.Join("c:\\", TaskLocal)
 

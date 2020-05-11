@@ -1,11 +1,11 @@
 /* Global Component Styles */
 @import '~@hashicorp/react-global-styles/style.css';
-@import '~@hashicorp/react-global-styles/code-highlighting.css';
 @import '~@hashicorp/react-global-styles/custom-properties/color.css';
 @import '~@hashicorp/react-global-styles/custom-properties/font.css';
 @import '~@hashicorp/react-global-styles/_temporary-to-remove/layout.css';
 @import '~@hashicorp/react-global-styles/_temporary-to-remove/tables.css';
 @import '~@hashicorp/react-alert-banner/dist/style.css';
+@import '~@hashicorp/nextjs-scripts/prism/style.css';
 
 :root {
   --highlight-color: var(--nomad);
@@ -197,4 +197,10 @@
     url('/fonts/dejavu/mono.woff') format('woff');
   font-style: normal;
   font-weight: 400;
+}
+
+/* overrides */
+
+.g-content pre code {
+  background: none;
 }

@@ -35,13 +35,11 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
-$ curl \
+```shell-sessioncurl \
     https://localhost:4646/v1/namespaces
 ```
 
-```shell
-$ curl \
+```shell-sessioncurl \
     https://localhost:4646/v1/namespaces?prefix=prod
 ```
 
@@ -88,8 +86,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
-$ curl \
+```shell-sessioncurl \
     https://localhost:4646/v1/namespace/api-prod
 ```
 
@@ -144,15 +141,13 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
-$ curl \
+```shell-sessioncurl \
     --request POST \
     --data @namespace.json \
     https://localhost:4646/v1/namespace/api-prod
 ```
 
-```shell
-$ curl \
+```shell-sessioncurl \
     --request POST \
     --data @namespace.json \
     https://localhost:4646/v1/namespace
@@ -180,8 +175,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
-$ curl \
+```shell-sessioncurl \
     --request DELETE \
     https://localhost:4646/v1/namespace/api-prod
 ```

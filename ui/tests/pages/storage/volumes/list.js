@@ -1,4 +1,12 @@
-import { clickable, collection, create, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  clickable,
+  collection,
+  create,
+  fillable,
+  isPresent,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 import error from 'nomad-ui/tests/pages/components/error';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
@@ -7,6 +15,8 @@ export default create({
   pageSize: 25,
 
   visit: visitable('/csi/volumes'),
+
+  search: fillable('[data-test-volumes-search] input'),
 
   volumes: collection('[data-test-volume-row]', {
     name: text('[data-test-volume-name]'),

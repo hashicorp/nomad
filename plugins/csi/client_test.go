@@ -8,6 +8,7 @@ import (
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/hashicorp/nomad/nomad/structs"
 	fake "github.com/hashicorp/nomad/plugins/csi/testing"
 	"github.com/stretchr/testify/require"
 )
@@ -471,6 +472,121 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 			require.Equal(t, c.ExpectedResponse, resp)
 		})
 	}
+}
+
+func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		ResponseErr error
+		Response    *csipbv1.ValidateVolumeCapabilitiesResponse
+		ExpectedErr error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			ResponseErr: fmt.Errorf("some grpc error"),
+			ExpectedErr: fmt.Errorf("some grpc error"),
+		},
+		{
+			Name:        "handles empty success",
+			Response:    &csipbv1.ValidateVolumeCapabilitiesResponse{},
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
+		{
+			Name: "handles validate success",
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeContext: map[string]string{},
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessType: &csipbv1.VolumeCapability_Mount{
+								Mount: &csipbv1.VolumeCapability_MountVolume{
+									FsType:     "ext4",
+									MountFlags: []string{"errors=remount-ro", "noatime"},
+								},
+							},
+							AccessMode: &csipbv1.VolumeCapability_AccessMode{
+								Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
+		{
+			Name: "handles validation failure block mismatch",
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeContext: map[string]string{},
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessType: &csipbv1.VolumeCapability_Block{
+								Block: &csipbv1.VolumeCapability_BlockVolume{},
+							},
+							AccessMode: &csipbv1.VolumeCapability_AccessMode{
+								Mode: csipbv1.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			ExpectedErr: fmt.Errorf("volume capability validation failed"),
+		},
+		{
+			Name: "handles validation failure mount flags",
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeContext: map[string]string{},
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessType: &csipbv1.VolumeCapability_Mount{
+								Mount: &csipbv1.VolumeCapability_MountVolume{
+									FsType:     "ext4",
+									MountFlags: []string{},
+								},
+							},
+							AccessMode: &csipbv1.VolumeCapability_AccessMode{
+								Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			ExpectedErr: fmt.Errorf("volume capability validation failed"),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			requestedCaps := &VolumeCapability{
+				AccessType: VolumeAccessTypeMount,
+				AccessMode: VolumeAccessModeMultiNodeMultiWriter,
+				MountVolume: &structs.CSIMountOptions{ // should be ignored
+					FSType:     "ext4",
+					MountFlags: []string{"noatime", "errors=remount-ro"},
+				},
+			}
+			cc.NextValidateVolumeCapabilitiesResponse = c.Response
+			cc.NextErr = c.ResponseErr
+
+			err := client.ControllerValidateCapabilities(
+				context.TODO(), "volumeID", requestedCaps)
+			if c.ExpectedErr != nil {
+				require.Error(t, c.ExpectedErr, err, c.Name)
+			} else {
+				require.NoError(t, err, c.Name)
+			}
+		})
+	}
+
 }
 
 func TestClient_RPC_NodeStageVolume(t *testing.T) {

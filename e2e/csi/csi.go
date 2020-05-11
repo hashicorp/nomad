@@ -102,15 +102,11 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	_, err = readFile(nomadClient, writeAlloc, expectedPath)
 	require.NoError(err)
 
-	// Shutdown the writer so we can run a reader.
+	// Shutdown (and purge) the writer so we can run a reader.
 	// we could mount the EBS volume with multi-attach, but we
 	// want this test to exercise the unpublish workflow.
-	//
-	// TODO(tgross): we should pass true here to run the equivalent
-	// of 'nomad job stop -purge' but this makes the test really
-	// racy. Once the unmount hang problem with -purge is fixed,
-	// we can restore this.
-	nomadClient.Jobs().Deregister(writeJobID, false, nil)
+	// this runs the equivalent of 'nomad job stop -purge'
+	nomadClient.Jobs().Deregister(writeJobID, true, nil)
 	// instead of waiting for the alloc to stop, wait for the volume claim gc run
 	require.Eventuallyf(func() bool {
 		vol, _, err := nomadClient.CSIVolumes().Info(volID, nil)

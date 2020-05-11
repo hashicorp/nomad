@@ -7,9 +7,6 @@ const isTest = environment === 'test';
 
 module.exports = function(defaults) {
   var app = new EmberApp(defaults, {
-    addons: {
-      blacklist: isProd ? ['ember-freestyle'] : [],
-    },
     svg: {
       paths: ['node_modules/@hashicorp/structure-icons/dist', 'public/images/icons'],
       optimize: {
@@ -18,13 +15,6 @@ module.exports = function(defaults) {
     },
     codemirror: {
       modes: ['javascript'],
-    },
-    funnel: {
-      enabled: isProd,
-      exclude: [
-        `${defaults.project.pkg.name}/components/freestyle/**/*`,
-        `${defaults.project.pkg.name}/templates/components/freestyle/**/*`,
-      ],
     },
     babel: {
       plugins: ['@babel/plugin-proposal-object-rest-spread'],

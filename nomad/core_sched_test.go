@@ -6,7 +6,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -2196,267 +2196,232 @@ func TestAllocation_GCEligible(t *testing.T) {
 	require.True(allocGCEligible(alloc, nil, time.Now(), 1000))
 }
 
-func TestCSI_GCVolumeClaims_Collection(t *testing.T) {
+func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	t.Parallel()
-	srv, shutdownSrv := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
-	defer shutdownSrv()
+
+	srv, cleanupSRV := TestServer(t, nil)
+	defer cleanupSRV()
 	testutil.WaitForLeader(t, srv.RPC)
+	require := require.New(t)
 
+	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
+
+	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
+	defer deleteNodes()
 	state := srv.fsm.State()
+
+	// Update the time tables to make this work
+	tt := srv.fsm.TimeTable()
+	index := uint64(2000)
+	tt.Witness(index, time.Now().UTC().Add(-1*srv.config.CSIPluginGCThreshold))
+
+	// Create a core scheduler
+	snap, err := state.Snapshot()
+	require.NoError(err)
+	core := NewCoreScheduler(srv, snap)
+
+	// Attempt the GC
+	index++
+	gc := srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
+	require.NoError(core.Process(gc))
+
+	// Should not be gone (plugin in use)
 	ws := memdb.NewWatchSet()
-	index := uint64(100)
+	plug, err := state.CSIPluginByID(ws, "foo")
+	require.NotNil(plug)
+	require.NoError(err)
 
-	// Create a client node, plugin, and volume
-	node := mock.Node()
-	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early version
-	node.CSINodePlugins = map[string]*structs.CSIInfo{
-		"csi-plugin-example": {
-			PluginID:                 "csi-plugin-example",
-			Healthy:                  true,
-			RequiresControllerPlugin: true,
-			NodeInfo:                 &structs.CSINodeInfo{},
-		},
-	}
-	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
-		"csi-plugin-example": {
-			PluginID:                 "csi-plugin-example",
-			Healthy:                  true,
-			RequiresControllerPlugin: true,
-			ControllerInfo: &structs.CSIControllerInfo{
-				SupportsReadOnlyAttach:           true,
-				SupportsAttachDetach:             true,
-				SupportsListVolumes:              true,
-				SupportsListVolumesAttachedNodes: false,
-			},
-		},
-	}
-	err := state.UpsertNode(99, node)
-	require.NoError(t, err)
-	volId0 := uuid.Generate()
-	ns := structs.DefaultNamespace
-	vols := []*structs.CSIVolume{{
-		ID:             volId0,
-		Namespace:      ns,
-		PluginID:       "csi-plugin-example",
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-	}}
+	// Empty the plugin
+	plug.Controllers = map[string]*structs.CSIInfo{}
+	plug.Nodes = map[string]*structs.CSIInfo{}
 
-	err = state.CSIVolumeRegister(index, vols)
 	index++
-	require.NoError(t, err)
-	vol, err := state.CSIVolumeByID(ws, ns, volId0)
+	err = state.UpsertCSIPlugin(index, plug)
+	require.NoError(err)
 
-	require.NoError(t, err)
-	require.True(t, vol.ControllerRequired)
-	require.Len(t, vol.ReadAllocs, 0)
-	require.Len(t, vol.WriteAllocs, 0)
-
-	// Create a job with 2 allocations
-	job := mock.Job()
-	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
-		"_": {
-			Name:     "someVolume",
-			Type:     structs.VolumeTypeCSI,
-			Source:   volId0,
-			ReadOnly: false,
-		},
-	}
-	err = state.UpsertJob(index, job)
+	// Retry
 	index++
-	require.NoError(t, err)
+	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
+	require.NoError(core.Process(gc))
 
-	alloc1 := mock.Alloc()
-	alloc1.JobID = job.ID
-	alloc1.NodeID = node.ID
-	err = state.UpsertJobSummary(index, mock.JobSummary(alloc1.JobID))
-	index++
-	require.NoError(t, err)
-	alloc1.TaskGroup = job.TaskGroups[0].Name
-
-	alloc2 := mock.Alloc()
-	alloc2.JobID = job.ID
-	alloc2.NodeID = node.ID
-	err = state.UpsertJobSummary(index, mock.JobSummary(alloc2.JobID))
-	index++
-	require.NoError(t, err)
-	alloc2.TaskGroup = job.TaskGroups[0].Name
-
-	err = state.UpsertAllocs(104, []*structs.Allocation{alloc1, alloc2})
-	require.NoError(t, err)
-
-	// Claim the volumes and verify the claims were set
-	err = state.CSIVolumeClaim(index, ns, volId0, &structs.CSIVolumeClaim{
-		AllocationID: alloc1.ID,
-		NodeID:       alloc1.NodeID,
-		Mode:         structs.CSIVolumeClaimWrite,
-	})
-	index++
-	require.NoError(t, err)
-
-	err = state.CSIVolumeClaim(index, ns, volId0, &structs.CSIVolumeClaim{
-		AllocationID: alloc2.ID,
-		NodeID:       alloc2.NodeID,
-		Mode:         structs.CSIVolumeClaimRead,
-	})
-	index++
-	require.NoError(t, err)
-
-	vol, err = state.CSIVolumeByID(ws, ns, volId0)
-	require.NoError(t, err)
-	require.Len(t, vol.ReadAllocs, 1)
-	require.Len(t, vol.WriteAllocs, 1)
-
-	// Update both allocs as failed/terminated
-	alloc1.ClientStatus = structs.AllocClientStatusFailed
-	alloc2.ClientStatus = structs.AllocClientStatusFailed
-	err = state.UpdateAllocsFromClient(index, []*structs.Allocation{alloc1, alloc2})
-	require.NoError(t, err)
-
-	vol, err = state.CSIVolumeDenormalize(ws, vol)
-	require.NoError(t, err)
-
-	nodeClaims := collectClaimsToGCImpl(vol, false)
-	require.Equal(t, nodeClaims[node.ID], 2)
-	require.Len(t, vol.PastClaims, 2)
+	// Should be gone
+	plug, err = state.CSIPluginByID(ws, "foo")
+	require.Nil(plug)
+	require.NoError(err)
 }
 
-func TestCSI_GCVolumeClaims_Reap(t *testing.T) {
+func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s, shutdownSrv := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
-	defer shutdownSrv()
-	testutil.WaitForLeader(t, s.RPC)
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
 
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+
+	index := uint64(1)
+	volID := uuid.Generate()
+	ns := structs.DefaultNamespace
+	pluginID := "foo"
+
+	state := srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	index, _ = state.LatestIndex()
+
+	// Create client node and plugin
 	node := mock.Node()
-	plugin := mock.CSIPlugin()
-	vol := mock.CSIVolume(plugin)
-	alloc := mock.Alloc()
-
-	cases := []struct {
-		Name                                string
-		ClaimsCount                         map[string]int
-		ControllerRequired                  bool
-		ExpectedErr                         string
-		ExpectedCount                       int
-		ExpectedClaimsCount                 int
-		ExpectedNodeDetachVolumeCount       int
-		ExpectedControllerDetachVolumeCount int
-		ExpectedVolumeClaimCount            int
-		srv                                 *MockRPCServer
-	}{
-		{
-			Name:                          "NodeDetachVolume fails",
-			ClaimsCount:                   map[string]int{node.ID: 1},
-			ControllerRequired:            true,
-			ExpectedErr:                   "node plugin missing",
-			ExpectedClaimsCount:           1,
-			ExpectedNodeDetachVolumeCount: 1,
-			srv: &MockRPCServer{
-				state:                        s.State(),
-				nextCSINodeDetachVolumeError: fmt.Errorf("node plugin missing"),
-			},
-		},
-		{
-			Name:                                "ControllerDetachVolume no controllers",
-			ClaimsCount:                         map[string]int{node.ID: 1},
-			ControllerRequired:                  true,
-			ExpectedErr:                         fmt.Sprintf("Unknown node: %s", node.ID),
-			ExpectedClaimsCount:                 0,
-			ExpectedNodeDetachVolumeCount:       1,
-			ExpectedControllerDetachVolumeCount: 0,
-			ExpectedVolumeClaimCount:            1,
-			srv: &MockRPCServer{
-				state: s.State(),
-			},
-		},
-		{
-			Name:                                "ControllerDetachVolume node-only",
-			ClaimsCount:                         map[string]int{node.ID: 1},
-			ControllerRequired:                  false,
-			ExpectedClaimsCount:                 0,
-			ExpectedNodeDetachVolumeCount:       1,
-			ExpectedControllerDetachVolumeCount: 0,
-			ExpectedVolumeClaimCount:            2,
-			srv: &MockRPCServer{
-				state: s.State(),
-			},
+	node.Attributes["nomad.version"] = "0.11.0" // needs client RPCs
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		pluginID: {
+			PluginID: pluginID,
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
+	index++
+	err := state.UpsertNode(index, node)
+	require.NoError(err)
 
-	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
-			vol.ControllerRequired = tc.ControllerRequired
-			claim := &structs.CSIVolumeClaim{
-				AllocationID: alloc.ID,
-				NodeID:       node.ID,
-				State:        structs.CSIVolumeClaimStateTaken,
-				Mode:         structs.CSIVolumeClaimRead,
-			}
-			nodeClaims, err := volumeClaimReapImpl(tc.srv, &volumeClaimReapArgs{
-				vol:        vol,
-				plug:       plugin,
-				claim:      claim,
-				region:     "global",
-				namespace:  "default",
-				leaderACL:  "not-in-use",
-				nodeClaims: tc.ClaimsCount,
-			})
-			if tc.ExpectedErr != "" {
-				require.EqualError(err, tc.ExpectedErr)
-			} else {
-				require.NoError(err)
-			}
-			require.Equal(tc.ExpectedClaimsCount,
-				nodeClaims[claim.NodeID], "expected claims remaining")
-			require.Equal(tc.ExpectedNodeDetachVolumeCount,
-				tc.srv.countCSINodeDetachVolume, "node detach RPC count")
-			require.Equal(tc.ExpectedControllerDetachVolumeCount,
-				tc.srv.countCSIControllerDetachVolume, "controller detach RPC count")
-			require.Equal(tc.ExpectedVolumeClaimCount,
-				tc.srv.countCSIVolumeClaim, "volume claim RPC count")
-		})
+	// Note that for volume writes in this test we need to use the
+	// RPCs rather than StateStore methods directly so that the GC
+	// job's RPC call updates a later index. otherwise the
+	// volumewatcher won't trigger for the final GC
+
+	// Register a volume
+	vols := []*structs.CSIVolume{{
+		ID:             volID,
+		Namespace:      ns,
+		PluginID:       pluginID,
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		Topologies:     []*structs.CSITopology{},
+	}}
+	volReq := &structs.CSIVolumeRegisterRequest{Volumes: vols}
+	volReq.Namespace = ns
+	volReq.Region = srv.config.Region
+
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register",
+		volReq, &structs.CSIVolumeRegisterResponse{})
+	require.NoError(err)
+
+	// Create a job with two allocations that claim the volume.
+	// We use two allocs here, one of which is not running, so
+	// that we can assert that the volumewatcher has made one
+	// complete pass (and removed the 2nd alloc) before running
+	// the GC.
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusFailed
+	index++
+	state.UpsertJobSummary(index, mock.JobSummary(eval.JobID))
+	index++
+	err = state.UpsertEvals(index, []*structs.Evaluation{eval})
+	require.Nil(err)
+
+	job := mock.Job()
+	job.ID = eval.JobID
+	job.Status = structs.JobStatusRunning
+	index++
+	err = state.UpsertJob(index, job)
+	require.NoError(err)
+
+	alloc1, alloc2 := mock.Alloc(), mock.Alloc()
+	alloc1.NodeID = node.ID
+	alloc1.ClientStatus = structs.AllocClientStatusRunning
+	alloc1.Job = job
+	alloc1.JobID = job.ID
+	alloc1.EvalID = eval.ID
+
+	alloc2.NodeID = node.ID
+	alloc2.ClientStatus = structs.AllocClientStatusComplete
+	alloc2.Job = job
+	alloc2.JobID = job.ID
+	alloc2.EvalID = eval.ID
+
+	summary := mock.JobSummary(alloc1.JobID)
+	index++
+	require.NoError(state.UpsertJobSummary(index, summary))
+	summary = mock.JobSummary(alloc2.JobID)
+	index++
+	require.NoError(state.UpsertJobSummary(index, summary))
+	index++
+	require.NoError(state.UpsertAllocs(index,
+		[]*structs.Allocation{alloc1, alloc2}))
+
+	// Claim the volume for the alloc
+	req := &structs.CSIVolumeClaimRequest{
+		AllocationID: alloc1.ID,
+		NodeID:       node.ID,
+		VolumeID:     volID,
+		Claim:        structs.CSIVolumeClaimWrite,
 	}
+	req.Namespace = ns
+	req.Region = srv.config.Region
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim",
+		req, &structs.CSIVolumeClaimResponse{})
+	require.NoError(err)
+
+	// ready-to-free claim; once it's gone we know the volumewatcher
+	// has run once and stopped
+	req.AllocationID = alloc2.ID
+	req.Claim = structs.CSIVolumeClaimRelease
+	req.State = structs.CSIVolumeClaimStateControllerDetached
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim",
+		req, &structs.CSIVolumeClaimResponse{})
+	require.NoError(err)
+
+	// wait for volumewatcher
+	var vol *structs.CSIVolume
+	require.Eventually(func() bool {
+		vol, _ = state.CSIVolumeByID(ws, ns, volID)
+		return len(vol.ReadAllocs) == 0 &&
+			len(vol.ReadClaims) == 0 &&
+			len(vol.PastClaims) == 0
+	}, time.Second*1, 10*time.Millisecond, "stale claim was not released")
+
+	// Delete allocation and job
+	index++
+	err = state.DeleteJob(index, ns, job.ID)
+	require.NoError(err)
+	index++
+	err = state.DeleteEval(index, []string{eval.ID}, []string{alloc1.ID, alloc2.ID})
+	require.NoError(err)
+
+	// Create a core scheduler and attempt the volume claim GC
+	snap, err := state.Snapshot()
+	require.NoError(err)
+	core := NewCoreScheduler(srv, snap)
+
+	index++
+	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
+	c := core.(*CoreScheduler)
+	require.NoError(c.csiVolumeClaimGC(gc))
+
+	// the volumewatcher will hit an error here because there's no
+	// path to the node.  but we can't update the claim to bypass the
+	// client RPCs without triggering the volumewatcher's normal code
+	// path.
+	require.Eventually(func() bool {
+		vol, _ = state.CSIVolumeByID(ws, ns, volID)
+		return len(vol.WriteClaims) == 1 &&
+			len(vol.WriteAllocs) == 1 &&
+			len(vol.PastClaims) == 0
+	}, time.Second*1, 10*time.Millisecond, "claims were released unexpectedly")
+
+	req.AllocationID = alloc1.ID
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim",
+		req, &structs.CSIVolumeClaimResponse{})
+	require.NoError(err)
+
+	// wait for volumewatcher
+	require.Eventually(func() bool {
+		vol, _ = state.CSIVolumeByID(ws, ns, volID)
+		return len(vol.WriteClaims) == 0 &&
+			len(vol.WriteAllocs) == 0 &&
+			len(vol.PastClaims) == 0
+	}, time.Second*1, 10*time.Millisecond, "claims were not released")
+
 }
-
-type MockRPCServer struct {
-	state *state.StateStore
-
-	// mock responses for ClientCSI.NodeDetachVolume
-	nextCSINodeDetachVolumeResponse *cstructs.ClientCSINodeDetachVolumeResponse
-	nextCSINodeDetachVolumeError    error
-	countCSINodeDetachVolume        int
-
-	// mock responses for ClientCSI.ControllerDetachVolume
-	nextCSIControllerDetachVolumeResponse *cstructs.ClientCSIControllerDetachVolumeResponse
-	nextCSIControllerDetachVolumeError    error
-	countCSIControllerDetachVolume        int
-
-	// mock responses for CSI.VolumeClaim
-	nextCSIVolumeClaimResponse *structs.CSIVolumeClaimResponse
-	nextCSIVolumeClaimError    error
-	countCSIVolumeClaim        int
-}
-
-func (srv *MockRPCServer) RPC(method string, args interface{}, reply interface{}) error {
-	switch method {
-	case "ClientCSI.NodeDetachVolume":
-		reply = srv.nextCSINodeDetachVolumeResponse
-		srv.countCSINodeDetachVolume++
-		return srv.nextCSINodeDetachVolumeError
-	case "ClientCSI.ControllerDetachVolume":
-		reply = srv.nextCSIControllerDetachVolumeResponse
-		srv.countCSIControllerDetachVolume++
-		return srv.nextCSIControllerDetachVolumeError
-	case "CSIVolume.Claim":
-		reply = srv.nextCSIVolumeClaimResponse
-		srv.countCSIVolumeClaim++
-		return srv.nextCSIVolumeClaimError
-	default:
-		return fmt.Errorf("unexpected method %q passed to mock", method)
-	}
-
-}
-
-func (srv *MockRPCServer) State() *state.StateStore { return srv.state }

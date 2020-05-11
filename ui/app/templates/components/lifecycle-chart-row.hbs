@@ -1,0 +1,16 @@
+<div
+  class="lifecycle-chart-row {{task.lifecycleName}} {{activeClass}} {{finishedClass}}"
+  data-test-lifecycle-task>
+  <div class="task">
+    <div class="name" data-test-name>
+      {{#if taskState}}
+        {{#link-to "allocations.allocation.task" taskState.allocation taskState}}
+          {{task.name}}
+        {{/link-to}}
+      {{else}}
+        {{task.name}}
+      {{/if}}
+    </div>
+    <div class="lifecycle" data-test-lifecycle>{{capitalize task.lifecycleName}} Task</div>
+  </div>
+</div>

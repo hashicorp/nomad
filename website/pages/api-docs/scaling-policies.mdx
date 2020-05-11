@@ -21,14 +21,13 @@ The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
 [required ACLs](/api-docs#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required                                                                                                                     |
-| ---------------- | ----------------- | ---------------------------------- |
-| `YES`            | `all`             |  `namespace:list-scaling-policies` |
+| Blocking Queries | Consistency Modes | ACL Required                      |
+| ---------------- | ----------------- | --------------------------------- |
+| `YES`            | `all`             | `namespace:list-scaling-policies` |
 
 ### Sample Request
 
-```shell
-$ curl \
+```shell-sessioncurl \
     https://localhost:4646/v1/scaling/policies
 ```
 
@@ -36,17 +35,17 @@ $ curl \
 
 ```json
 [
-    {
-        "CreateIndex": 10,
-        "Enabled": true,
-        "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
-        "ModifyIndex": 10,
-        "Target": {
-            "Group": "cache",
-            "Job": "example",
-            "Namespace": "default"
-        }
+  {
+    "CreateIndex": 10,
+    "Enabled": true,
+    "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
+    "ModifyIndex": 10,
+    "Target": {
+      "Group": "cache",
+      "Job": "example",
+      "Namespace": "default"
     }
+  }
 ]
 ```
 
@@ -62,19 +61,18 @@ The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
 [required ACLs](/api-docs#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required                                                                                                                     |
-| ---------------- | ----------------- | -------------------------------- |
-| `YES`            | `all`             |  `namespace:read-scaling-policy` |
+| Blocking Queries | Consistency Modes | ACL Required                    |
+| ---------------- | ----------------- | ------------------------------- |
+| `YES`            | `all`             | `namespace:read-scaling-policy` |
 
 ### Parameters
 
 - `:policy_id` `(string: <required>)` - Specifies the ID of the scaling policy (as returned
- by the scaling policy list endpoint). This is specified as part of the path.
+  by the scaling policy list endpoint). This is specified as part of the path.
 
 ### Sample Request
 
-```shell
-$ curl \
+```shell-sessioncurl \
     https://localhost:4646/v1/scaling/policy/5e9f9ef2-5223-6d35-bac1-be0f3cb974ad
 ```
 
@@ -82,23 +80,22 @@ $ curl \
 
 ```json
 {
-    "CreateIndex": 10,
-    "Enabled": true,
-    "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
-    "Max": 10,
-    "Min": 0,
-    "ModifyIndex": 10,
-    "Policy": {
-        "engage": true,
-        "foo": "bar",
-        "howdy": "doody",
-        "value": 6.0
-    },
-    "Target": {
-        "Group": "cache",
-        "Job": "example",
-        "Namespace": "default"
-    }
+  "CreateIndex": 10,
+  "Enabled": true,
+  "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
+  "Max": 10,
+  "Min": 0,
+  "ModifyIndex": 10,
+  "Policy": {
+    "engage": true,
+    "foo": "bar",
+    "howdy": "doody",
+    "value": 6.0
+  },
+  "Target": {
+    "Group": "cache",
+    "Job": "example",
+    "Namespace": "default"
+  }
 }
 ```
-

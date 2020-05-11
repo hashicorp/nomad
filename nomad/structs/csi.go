@@ -465,12 +465,11 @@ func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 // ClaimRelease is called when the allocation has terminated and
 // already stopped using the volume
 func (v *CSIVolume) ClaimRelease(claim *CSIVolumeClaim) error {
-	delete(v.ReadAllocs, claim.AllocationID)
-	delete(v.WriteAllocs, claim.AllocationID)
-	delete(v.ReadClaims, claim.AllocationID)
-	delete(v.WriteClaims, claim.AllocationID)
-
 	if claim.State == CSIVolumeClaimStateReadyToFree {
+		delete(v.ReadAllocs, claim.AllocationID)
+		delete(v.WriteAllocs, claim.AllocationID)
+		delete(v.ReadClaims, claim.AllocationID)
+		delete(v.WriteClaims, claim.AllocationID)
 		delete(v.PastClaims, claim.AllocationID)
 	} else {
 		v.PastClaims[claim.AllocationID] = claim
@@ -574,6 +573,10 @@ const (
 	CSIVolumeClaimWrite
 	CSIVolumeClaimRelease
 )
+
+type CSIVolumeClaimBatchRequest struct {
+	Claims []CSIVolumeClaimRequest
+}
 
 type CSIVolumeClaimRequest struct {
 	VolumeID     string
@@ -698,7 +701,8 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 	if info.ControllerInfo != nil {
 		p.ControllerRequired = info.RequiresControllerPlugin &&
-			info.ControllerInfo.SupportsAttachDetach
+			(info.ControllerInfo.SupportsAttachDetach ||
+				info.ControllerInfo.SupportsReadOnlyAttach)
 
 		prev, ok := p.Controllers[nodeID]
 		if ok {
@@ -709,7 +713,14 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.ControllersHealthy -= 1
 			}
 		}
-		p.Controllers[nodeID] = info
+
+		// note: for this to work as expected, only a single
+		// controller for a given plugin can be on a given Nomad
+		// client, they also conflict on the client so this should be
+		// ok
+		if prev != nil || info.Healthy {
+			p.Controllers[nodeID] = info
+		}
 		if info.Healthy {
 			p.ControllersHealthy += 1
 		}
@@ -725,7 +736,9 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.NodesHealthy -= 1
 			}
 		}
-		p.Nodes[nodeID] = info
+		if prev != nil || info.Healthy {
+			p.Nodes[nodeID] = info
+		}
 		if info.Healthy {
 			p.NodesHealthy += 1
 		}
@@ -853,5 +866,14 @@ type CSIPluginGetRequest struct {
 
 type CSIPluginGetResponse struct {
 	Plugin *CSIPlugin
+	QueryMeta
+}
+
+type CSIPluginDeleteRequest struct {
+	ID string
+	QueryOptions
+}
+
+type CSIPluginDeleteResponse struct {
 	QueryMeta
 }

@@ -241,6 +241,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the NodeDrainer
 	s.nodeDrainer.SetEnabled(true, s.State())
 
+	// Enable the volume watcher, since we are now the leader
+	s.volumeWatcher.SetEnabled(true, s.State())
+
 	// Restore the eval broker state
 	if err := s.restoreEvals(); err != nil {
 		return err
@@ -519,6 +522,10 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer jobGC.Stop()
 	deploymentGC := time.NewTicker(s.config.DeploymentGCInterval)
 	defer deploymentGC.Stop()
+	csiPluginGC := time.NewTicker(s.config.CSIPluginGCInterval)
+	defer csiPluginGC.Stop()
+	csiVolumeClaimGC := time.NewTicker(s.config.CSIVolumeClaimGCInterval)
+	defer csiVolumeClaimGC.Stop()
 
 	// getLatest grabs the latest index from the state store. It returns true if
 	// the index was retrieved successfully.
@@ -551,6 +558,15 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			if index, ok := getLatest(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobDeploymentGC, index))
 			}
+		case <-csiPluginGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIPluginGC, index))
+			}
+		case <-csiVolumeClaimGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
+			}
+
 		case <-stopCh:
 			return
 		}
@@ -869,6 +885,9 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the node drainer
 	s.nodeDrainer.SetEnabled(false, nil)
+
+	// Disable the volume watcher
+	s.volumeWatcher.SetEnabled(false, nil)
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {

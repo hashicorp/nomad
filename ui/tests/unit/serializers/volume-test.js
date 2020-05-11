@@ -255,6 +255,7 @@ module('Unit | Serializer | Volume', function(hooks) {
               taskGroupName: 'foobar',
               wasPreempted: false,
               states: [],
+              allocationTaskGroup: null,
             },
             relationships: {
               followUpEvaluation: {
@@ -286,6 +287,7 @@ module('Unit | Serializer | Volume', function(hooks) {
               taskGroupName: 'write-here',
               wasPreempted: false,
               states: [],
+              allocationTaskGroup: null,
             },
             relationships: {
               followUpEvaluation: {
@@ -317,6 +319,7 @@ module('Unit | Serializer | Volume', function(hooks) {
               taskGroupName: 'look-if-you-must',
               wasPreempted: false,
               states: [],
+              allocationTaskGroup: null,
             },
             relationships: {
               followUpEvaluation: {

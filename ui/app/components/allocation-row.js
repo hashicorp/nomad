@@ -71,21 +71,22 @@ export default Component.extend({
   }).drop(),
 });
 
-function qualifyAllocation() {
+async function qualifyAllocation() {
   const allocation = this.allocation;
-  return allocation.reload().then(() => {
-    this.fetchStats.perform();
 
+  // Make sure the allocation is a complete record and not a partial so we
+  // can show information such as preemptions and rescheduled allocation.
+  await allocation.reload();
+
+  if (allocation.get('job.isPending')) {
+    // Make sure the job is loaded before starting the stats tracker
+    await allocation.get('job');
+  } else if (!allocation.get('taskGroup')) {
     // Make sure that the job record in the store for this allocation
     // is complete and not a partial from the list endpoint
-    if (
-      allocation &&
-      allocation.get('job') &&
-      !allocation.get('job.isPending') &&
-      !allocation.get('taskGroup')
-    ) {
-      const job = allocation.get('job.content');
-      job && job.reload();
-    }
-  });
+    const job = allocation.get('job.content');
+    if (job) await job.reload();
+  }
+
+  this.fetchStats.perform();
 }

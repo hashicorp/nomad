@@ -198,13 +198,15 @@ type CSIPlugin struct {
 	Version            string
 	ControllerRequired bool
 	// Map Node.ID to CSIInfo fingerprint results
-	Controllers        map[string]*CSIInfo
-	Nodes              map[string]*CSIInfo
-	Allocations        []*AllocationListStub
-	ControllersHealthy int
-	NodesHealthy       int
-	CreateIndex        uint64
-	ModifyIndex        uint64
+	Controllers         map[string]*CSIInfo
+	Nodes               map[string]*CSIInfo
+	Allocations         []*AllocationListStub
+	ControllersHealthy  int
+	ControllersExpected int
+	NodesHealthy        int
+	NodesExpected       int
+	CreateIndex         uint64
+	ModifyIndex         uint64
 }
 
 type CSIPluginListStub struct {

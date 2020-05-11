@@ -737,19 +737,13 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	for _, vol := range volumesToGC {
 		// we have to build this eval by hand rather than calling srv.CoreJob
 		// here because we need to use the volume's namespace
-
-		runningAllocs := ":ok"
-		if args.Purge {
-			runningAllocs = ":purge"
-		}
-
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   job.Namespace,
 			Priority:    structs.CoreJobPriority,
 			Type:        structs.JobTypeCore,
 			TriggeredBy: structs.EvalTriggerAllocStop,
-			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + vol.Source + runningAllocs,
+			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + vol.Source,
 			LeaderACL:   j.srv.getLeaderAcl(),
 			Status:      structs.EvalStatusPending,
 			CreateTime:  now,
@@ -910,6 +904,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 	if args.Error && args.Count != nil {
 		return structs.NewErrRPCCoded(400, "scaling action should not contain count if error is true")
+	}
+	if args.Count != nil && *args.Count < 0 {
+		return structs.NewErrRPCCoded(400, "scaling action count can't be negative")
 	}
 
 	// Check for submit-job permissions

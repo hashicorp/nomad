@@ -63,6 +63,10 @@
         <span class="term">Driver</span>
         {{model.task.driver}}
       </span>
+      <span class="pair">
+        <span class="term">Lifecycle</span>
+        <span data-test-lifecycle>{{model.task.lifecycleName}}</span>
+      </span>
     </div>
   </div>
 
@@ -88,6 +92,38 @@
       {{/if}}
     </div>
   </div>
+
+  {{#if (and (not model.task.lifecycle) prestartTaskStates)}}
+    <div class="boxed-section" data-test-prestart-tasks>
+      <div class="boxed-section-head">
+        Prestart Tasks
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        {{#list-table source=prestartTaskStates as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <th>Task</th>
+            <th>State</th>
+            <th>Lifecycle</th>
+          {{/t.head}}
+          {{#t.body as |row|}}
+            <tr data-test-prestart-task>
+              <td class="is-narrow">
+                {{#if (and row.model.isRunning (eq row.model.task.lifecycleName "prestart"))}}
+                  <span class="tooltip text-center" role="tooltip" aria-label="Lifecycle constraints not met">
+                    {{x-icon "warning" class="is-warning"}}
+                  </span>
+                {{/if}}
+              </td>
+              <td data-test-name>{{row.model.task.name}}</td>
+              <td data-test-state>{{row.model.state}}</td>
+              <td data-test-lifecycle>{{row.model.task.lifecycleName}}</td>
+            </tr>
+          {{/t.body}}
+        {{/list-table}}
+      </div>
+    </div>
+  {{/if}}
 
   {{#if network.ports.length}}
     <div class="boxed-section" data-test-task-addresses>

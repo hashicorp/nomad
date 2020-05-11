@@ -12,7 +12,6 @@ module('Integration | Component | job-page/service', function(hooks) {
   setupRenderingTest(hooks);
 
   hooks.beforeEach(function() {
-    Job.setContext(this);
     fragmentSerializerInitializer(this.owner);
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');

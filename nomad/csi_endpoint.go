@@ -594,3 +594,34 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		}}
 	return v.srv.blockingRPC(&opts)
 }
+
+// Delete deletes a plugin if it is unused
+func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.CSIPluginDeleteResponse) error {
+	if done, err := v.srv.forward("CSIPlugin.Delete", args, args, reply); done {
+		return err
+	}
+
+	// Check that it is a management token.
+	if aclObj, err := v.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	metricsStart := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, metricsStart)
+
+	resp, index, err := v.srv.raftApply(structs.CSIPluginDeleteRequestType, args)
+	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "delete")
+		return err
+	}
+
+	if respErr, ok := resp.(error); ok {
+		return respErr
+	}
+
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}

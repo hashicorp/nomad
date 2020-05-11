@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -106,7 +107,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -122,9 +123,126 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	if out[0].FinalScore != 1.0 {
 		t.Fatalf("Bad Score: %v", out[0].FinalScore)
 	}
-	if out[1].FinalScore < 0.75 || out[1].FinalScore > 0.95 {
+	if out[1].FinalScore < 0.50 || out[1].FinalScore > 0.60 {
 		t.Fatalf("Bad Score: %v", out[1].FinalScore)
 	}
+}
+
+// TestBinPackIterator_NoExistingAlloc_MixedReserve asserts that node's with
+// reserved resources are scored equivalent to as if they had a lower amount of
+// resources.
+func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			// Best fit
+			Node: &structs.Node{
+				Name: "no-reserved",
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 1100,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 1100,
+					},
+				},
+			},
+		},
+		{
+			// Not best fit if reserve is calculated properly
+			Node: &structs.Node{
+				Name: "reserved",
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2000,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2000,
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 800,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 800,
+					},
+				},
+			},
+		},
+		{
+			// Even worse fit due to reservations
+			Node: &structs.Node{
+				Name: "reserved2",
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2000,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2000,
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 500,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 500,
+					},
+				},
+			},
+		},
+		{
+			Node: &structs.Node{
+				Name: "overloaded",
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 900,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 900,
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1000,
+					MemoryMB: 1000,
+				},
+			},
+		},
+	}
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+
+	// Sort descending (highest score to lowest) and log for debugging
+	sort.Slice(out, func(i, j int) bool { return out[i].FinalScore > out[j].FinalScore })
+	for i := range out {
+		t.Logf("Node: %-12s Score: %-1.4f", out[i].Node.Name, out[i].FinalScore)
+	}
+
+	// 3 nodes should be feasible
+	require.Len(t, out, 3)
+
+	// Node without reservations is the best fit
+	require.Equal(t, nodes[0].Node.Name, out[0].Node.Name)
+
+	// Node with smallest remaining resources ("best fit") should get a
+	// higher score than node with more remaining resources ("worse fit")
+	require.Equal(t, nodes[1].Node.Name, out[1].Node.Name)
+	require.Equal(t, nodes[2].Node.Name, out[2].Node.Name)
 }
 
 // Tests bin packing iterator with network resources at task and task group level
@@ -223,7 +341,7 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -239,7 +357,7 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 	// First node should have a perfect score
 	require.Equal(1.0, out[0].FinalScore)
 
-	if out[1].FinalScore < 0.75 || out[1].FinalScore > 0.95 {
+	if out[1].FinalScore < 0.50 || out[1].FinalScore > 0.60 {
 		t.Fatalf("Bad Score: %v", out[1].FinalScore)
 	}
 
@@ -353,7 +471,7 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -451,7 +569,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -567,7 +685,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -687,7 +805,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0)
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -992,7 +1110,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			}
 
 			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
-			binp := NewBinPackIterator(ctx, static, false, 0)
+			binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
 			binp.SetTaskGroup(c.TaskGroup)
 
 			out := binp.Next()
