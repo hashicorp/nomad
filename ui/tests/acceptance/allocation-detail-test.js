@@ -54,6 +54,7 @@ module('Acceptance | allocation detail', function(hooks) {
       node.id.split('-')[0],
       'Node short id is in the subheading'
     );
+    assert.ok(Allocation.execButton.isPresent);
 
     assert.equal(document.title, `Allocation ${allocation.name} - Nomad`);
 
@@ -451,6 +452,12 @@ module('Acceptance | allocation detail (not running)', function(hooks) {
       "Allocation isn't running",
       'Empty message is appropriate'
     );
+  });
+
+  test('the exec and stop/restart buttons are absent', async function(assert) {
+    assert.notOk(Allocation.execButton.isPresent);
+    assert.notOk(Allocation.stop.isPresent);
+    assert.notOk(Allocation.restart.isPresent);
   });
 });
 
