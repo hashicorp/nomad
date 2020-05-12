@@ -209,7 +209,7 @@
 		{"path":"github.com/hashicorp/consul/sdk/testutil","checksumSHA1":"BdbalXv3cKiFTZpRCy4fgIzHBEU=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
 		{"path":"github.com/hashicorp/consul/sdk/testutil/retry","checksumSHA1":"d3PJhffDKar25kzK0iEqssVMkck=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
 		{"path":"github.com/hashicorp/consul/version","checksumSHA1":"fRbV3oycM2uY4oOkDoSXtP4o6Tc=","revision":"b137060630b463d7ad5360f0d8f32f9347ae3b7d","revisionTime":"2020-02-13T19:55:27Z"},
-		{"path":"github.com/hashicorp/cronexpr","checksumSHA1":"WeBDLvdDp60EAfJO8kJKsQ0QPck=","revision":"921335d977b67fcda1de05136426559895b11ac4","revisionTime":"2020-05-07T21:28:57Z"},
+		{"path":"github.com/hashicorp/cronexpr","checksumSHA1":"lKpw2wPcDeImWS2fPAzfSJl+Gcc=","revision":"d968249ea977a46db0f3588b5c5e438243cca0cb","revisionTime":"2020-05-08T15:08:16Z","version":"v1.1.0","versionExact":"v1.1.0"},
 		{"path":"github.com/hashicorp/errwrap","checksumSHA1":"cdOCt0Yb+hdErz8NAQqayxPmRsY=","revision":"7554cd9344cec97297fa6649b055a8c98c2a1e55"},
 		{"path":"github.com/hashicorp/go-checkpoint","checksumSHA1":"D267IUMW2rcb+vNe3QU+xhfSrgY=","revision":"1545e56e46dec3bba264e41fde2c1e2aa65b5dd4","revisionTime":"2017-10-09T17:35:28Z"},
 		{"path":"github.com/hashicorp/go-cleanhttp","checksumSHA1":"6ihdHMkDfFx/rJ1A36com2F6bQk=","revision":"a45970658e51fea2c41445ff0f7e07106d007617","revisionTime":"2017-02-11T00:33:01Z"},

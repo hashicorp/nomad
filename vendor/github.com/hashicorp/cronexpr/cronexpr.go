@@ -1,6 +1,8 @@
 /*!
  * Copyright 2013 Raymond Hill
  *
+ * Modifications 2020 - HashiCorp
+ *
  * Project: github.com/gorhill/cronexpr
  * File: cronexpr.go
  * Version: 1.0
