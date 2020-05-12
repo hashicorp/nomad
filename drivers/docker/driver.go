@@ -739,6 +739,20 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		config.WorkingDir = driverConfig.WorkDir
 	}
 
+	containerRuntime := driverConfig.Runtime
+	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
+		if !d.gpuRuntime {
+			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
+		}
+		if containerRuntime != "" && containerRuntime != d.config.GPURuntimeName {
+			return c, fmt.Errorf("conflicting runtime requests: gpu runtime %q conflicts with task runtime %q", d.config.GPURuntimeName, containerRuntime)
+		}
+		containerRuntime = d.config.GPURuntimeName
+	}
+	if _, ok := d.config.allowedRuntimes[containerRuntime]; !ok && containerRuntime != "" {
+		return c, fmt.Errorf("requested runtime is not allowed: %q", containerRuntime)
+	}
+
 	hostConfig := &docker.HostConfig{
 		Memory:    task.Resources.LinuxResources.MemoryLimitBytes,
 		CPUShares: task.Resources.LinuxResources.CPUShares,
@@ -752,19 +766,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		VolumeDriver: driverConfig.VolumeDriver,
 
 		PidsLimit: &driverConfig.PidsLimit,
-	}
 
-	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
-		if !d.gpuRuntime {
-			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
-		}
-		hostConfig.Runtime = d.config.GPURuntimeName
-	}
-	if driverConfig.Runtime != "" && driverConfig.Runtime != hostConfig.Runtime {
-		if hostConfig.Runtime != "" {
-			return c, fmt.Errorf("runtime '%s' requested conflicts with gpu runtime '%s'", driverConfig.Runtime, hostConfig.Runtime)
-		}
-		hostConfig.Runtime = driverConfig.Runtime
+		Runtime: containerRuntime,
 	}
 
 	// Calculate CPU Quota
