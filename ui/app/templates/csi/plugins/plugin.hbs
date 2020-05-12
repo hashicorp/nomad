@@ -44,7 +44,7 @@
             <th>CPU</th>
             <th>Memory</th>
           {{/t.head}}
-          {{#t.body as |row|}}
+          {{#t.body key="model.allocID" as |row|}}
             {{plugin-allocation-row
               data-test-controller-allocation=row.model.allocID
               pluginAllocation=row.model}}
@@ -81,7 +81,7 @@
             <th>CPU</th>
             <th>Memory</th>
           {{/t.head}}
-          {{#t.body as |row|}}
+          {{#t.body key="model.allocID" as |row|}}
             {{plugin-allocation-row
               data-test-node-allocation=row.model.allocID
               pluginAllocation=row.model}}
