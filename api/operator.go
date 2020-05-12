@@ -196,39 +196,39 @@ func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *W
 
 type License struct {
 	// The unique identifier of the license
-	LicenseID string `json:"license_id"`
+	LicenseID string
 
 	// The customer ID associated with the license
-	CustomerID string `json:"customer_id"`
+	CustomerID string
 
 	// If set, an identifier that should be used to lock the license to a
 	// particular site, cluster, etc.
-	InstallationID string `json:"installation_id"`
+	InstallationID string
 
 	// The time at which the license was issued
-	IssueTime time.Time `json:"issue_time"`
+	IssueTime time.Time
 
 	// The time at which the license starts being valid
-	StartTime time.Time `json:"start_time"`
+	StartTime time.Time
 
 	// The time after which the license expires
-	ExpirationTime time.Time `json:"expiration_time"`
+	ExpirationTime time.Time
 
 	// The time at which the license ceases to function and can
 	// no longer be used in any capacity
-	TerminationTime time.Time `json:"termination_time"`
+	TerminationTime time.Time
 
 	// The product the license is valid for
-	Product string `json:"product"`
+	Product string
 
 	// License Specific Flags
-	Flags map[string]interface{} `json:"flags"`
+	Flags map[string]interface{}
 
 	// Modules is a list of the licensed enterprise modules
-	Modules []string `json:"modules"`
+	Modules []string
 
 	// List of features enabled by the license
-	Features []string `json:"features"`
+	Features []string
 }
 
 type LicenseReply struct {
