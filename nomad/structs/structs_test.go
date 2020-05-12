@@ -3595,13 +3595,21 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 
 	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost)
 
-	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
 	expectedAlloc := new(Allocation)
 	*expectedAlloc = *alloc
 	expectedAlloc.DesiredDescription = desiredDesc
 	expectedAlloc.DesiredStatus = AllocDesiredStatusStop
 	expectedAlloc.ClientStatus = AllocClientStatusLost
 	expectedAlloc.Job = nil
+	expectedAlloc.AllocStates = []*AllocState{{
+		Field: "ClientStatus",
+		Value: "lost",
+	}}
+
+	// This value is set to time.Now() in AppendStoppedAlloc, so clear it
+	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
+	appendedAlloc.AllocStates[0].Time = time.Time{}
+
 	assert.Equal(t, expectedAlloc, appendedAlloc)
 	assert.Equal(t, alloc.Job, plan.Job)
 }
