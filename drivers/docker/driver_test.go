@@ -1135,7 +1135,7 @@ func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
 		cfg.Runtime = "denied"
 		_, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "runtime is not allowed")
+		require.Contains(t, err.Error(), `runtime "denied" is not allowed`)
 	})
 
 }
@@ -1275,12 +1275,6 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
-	if runtime.GOOS != "linux" {
-		t.Skip("nvidia plugin supports only linux")
-	}
 	testCases := []struct {
 		description           string
 		gpuRuntimeSet         bool
@@ -1322,7 +1316,9 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 			task, cfg, ports := dockerTask(t)
 			defer freeport.Return(ports)
 
-			dh := dockerDriverHarness(t, nil)
+			dh := dockerDriverHarness(t, map[string]interface{}{
+				"allow_runtimes": []string{"runc", "nvidia", "nvidia-runtime-modified-name"},
+			})
 			driver := dh.Impl().(*Driver)
 
 			driver.gpuRuntime = testCase.gpuRuntimeSet
