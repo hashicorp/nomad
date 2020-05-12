@@ -9,7 +9,7 @@ IMPROVEMENTS:
  * csi: Added support for volume secrets [[GH-7923](https://github.com/hashicorp/nomad/issues/7923)]
  * csi: Added periodic garbage collection of plugins and volume claims [[GH-7825](https://github.com/hashicorp/nomad/issues/7825)]
  * csi: Improved performance of volume claim releases by moving work out of scheduler [[GH-7794](https://github.com/hashicorp/nomad/issues/7794)]
- * ui: Add ACL-checking to conditionally turn off exec button [[GH-7919](https://github.com/hashicorp/nomad/commits?author=backspace)]
+ * ui: Add ACL-checking to conditionally turn off exec button [[GH-7919](https://github.com/hashicorp/nomad/pull/7919]
 
 BUG FIXES:
 
