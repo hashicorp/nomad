@@ -1,6 +1,8 @@
 /*!
  * Copyright 2013 Raymond Hill
  *
+ * Modifications 2020 - HashiCorp
+ *
  * Project: github.com/gorhill/cronexpr
  * File: cronexpr.go
  * Version: 1.0
@@ -160,78 +162,122 @@ func (expr *Expression) Next(fromTime time.Time) time.Time {
 		return fromTime
 	}
 
-	// Since expr.nextSecond()-expr.nextMonth() expects that the
-	// supplied time stamp is a perfect match to the underlying cron
-	// expression, and since this function is an entry point where `fromTime`
-	// does not necessarily matches the underlying cron expression,
-	// we first need to ensure supplied time stamp matches
-	// the cron expression. If not, this means the supplied time
-	// stamp falls in between matching time stamps, thus we move
-	// to closest future matching immediately upon encountering a mismatching
-	// time stamp.
+	loc := fromTime.Location()
+	t := fromTime.Add(time.Second - time.Duration(fromTime.Nanosecond())*time.Nanosecond)
 
-	// year
-	v := fromTime.Year()
-	i := sort.SearchInts(expr.yearList, v)
-	if i == len(expr.yearList) {
+WRAP:
+
+	// let's find the next date that satisfies condition
+	v := t.Year()
+	if i := sort.SearchInts(expr.yearList, v); i == len(expr.yearList) {
 		return time.Time{}
-	}
-	if v != expr.yearList[i] {
-		return expr.nextYear(fromTime)
-	}
-	// month
-	v = int(fromTime.Month())
-	i = sort.SearchInts(expr.monthList, v)
-	if i == len(expr.monthList) {
-		return expr.nextYear(fromTime)
-	}
-	if v != expr.monthList[i] {
-		return expr.nextMonth(fromTime)
+	} else if v != expr.yearList[i] {
+		t = time.Date(expr.yearList[i], time.Month(expr.monthList[0]), 1, 0, 0, 0, 0, loc)
 	}
 
-	expr.actualDaysOfMonthList = expr.calculateActualDaysOfMonth(fromTime.Year(), int(fromTime.Month()))
+	v = int(t.Month())
+	if i := sort.SearchInts(expr.monthList, v); i == len(expr.monthList) {
+		// try again with a new year
+		t = time.Date(t.Year()+1, time.Month(expr.monthList[0]), 1, 0, 0, 0, 0, loc)
+		goto WRAP
+	} else if v != expr.monthList[i] {
+		t = time.Date(t.Year(), time.Month(expr.monthList[i]), 1, 0, 0, 0, 0, loc)
+	}
+
+	expr.actualDaysOfMonthList = expr.calculateActualDaysOfMonth(t.Year(), int(t.Month()))
 	if len(expr.actualDaysOfMonthList) == 0 {
-		return expr.nextMonth(fromTime)
+		t = time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, loc)
+		goto WRAP
 	}
 
-	// day of month
-	v = fromTime.Day()
-	i = sort.SearchInts(expr.actualDaysOfMonthList, v)
-	if i == len(expr.actualDaysOfMonthList) {
-		return expr.nextMonth(fromTime)
-	}
-	if v != expr.actualDaysOfMonthList[i] {
-		return expr.nextDayOfMonth(fromTime)
-	}
-	// hour
-	v = fromTime.Hour()
-	i = sort.SearchInts(expr.hourList, v)
-	if i == len(expr.hourList) {
-		return expr.nextDayOfMonth(fromTime)
-	}
-	if v != expr.hourList[i] {
-		return expr.nextHour(fromTime)
-	}
-	// minute
-	v = fromTime.Minute()
-	i = sort.SearchInts(expr.minuteList, v)
-	if i == len(expr.minuteList) {
-		return expr.nextHour(fromTime)
-	}
-	if v != expr.minuteList[i] {
-		return expr.nextMinute(fromTime)
-	}
-	// second
-	v = fromTime.Second()
-	i = sort.SearchInts(expr.secondList, v)
-	if i == len(expr.secondList) {
-		return expr.nextMinute(fromTime)
+	v = t.Day()
+	if i := sort.SearchInts(expr.actualDaysOfMonthList, v); i == len(expr.actualDaysOfMonthList) {
+		t = time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, loc)
+		goto WRAP
+	} else if v != expr.actualDaysOfMonthList[i] {
+		t = time.Date(t.Year(), t.Month(), expr.actualDaysOfMonthList[i], 0, 0, 0, 0, loc)
+
+		// in San Palo, before 2019, there may be no midnight (or multiple midnights)
+		// due to DST
+		if t.Hour() != 0 {
+			if t.Hour() > 12 {
+				t = t.Add(time.Duration(24-t.Hour()) * time.Hour)
+			} else {
+				t = t.Add(time.Duration(-t.Hour()) * time.Hour)
+			}
+		}
 	}
 
-	// If we reach this point, there is nothing better to do
-	// than to move to the next second
+	if timeZoneInDay(t) {
+		goto SLOW_CLOCK
+	}
 
-	return expr.nextSecond(fromTime)
+	// Fast path where hours/minutes behave as expected trivially
+	v = t.Hour()
+	if i := sort.SearchInts(expr.hourList, v); i == len(expr.hourList) {
+		t = time.Date(t.Year(), t.Month(), t.Day()+1, 0, 0, 0, 0, loc)
+		goto WRAP
+	} else if v != expr.hourList[i] {
+		t = time.Date(t.Year(), t.Month(), t.Day(), expr.hourList[i], expr.minuteList[0], expr.secondList[0], 0, loc)
+	}
+
+	v = t.Minute()
+	if i := sort.SearchInts(expr.minuteList, v); i == len(expr.minuteList) {
+		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour()+1, 0, 0, 0, loc)
+		goto WRAP
+	} else if v != expr.minuteList[i] {
+		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), expr.minuteList[i], expr.secondList[0], 0, loc)
+	}
+
+	v = t.Second()
+	if i := sort.SearchInts(expr.secondList, v); i == len(expr.secondList) {
+		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute()+1, 0, 0, loc)
+		goto WRAP
+	} else if v != expr.secondList[i] {
+		t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), expr.secondList[i], 0, loc)
+	}
+
+	return t
+
+SLOW_CLOCK:
+	// daylight saving effect is here, where odd things happen:
+	// An hour may have 60 minutes, 30 minutes or 90 minutes;
+	// partial hours may "repeat"!
+	for !sortContains(expr.hourList, t.Hour()) {
+		hourBefore := t.Hour()
+		t = t.Add(time.Hour)
+		if hourBefore == t.Hour() {
+			t = t.Add(time.Hour)
+		}
+		t = t.Truncate(time.Minute)
+		if t.Minute() != 0 {
+			t = t.Add(-1 * time.Minute * time.Duration(t.Minute()))
+		}
+
+		if t.Hour() == 0 {
+			t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
+			goto WRAP
+		}
+	}
+
+	for !sortContains(expr.minuteList, t.Minute()) {
+		hoursBefore := t.Hour()
+		t = t.Truncate(time.Minute).Add(time.Minute)
+		if hoursBefore != t.Hour() {
+			goto WRAP
+		}
+	}
+
+	v = t.Second()
+	t = t.Truncate(time.Minute)
+	if i := sort.SearchInts(expr.secondList, v); i == len(expr.secondList) {
+		t = t.Add(time.Minute)
+		goto WRAP
+	} else {
+		t = t.Add(time.Duration(expr.secondList[i]) * time.Second)
+	}
+
+	return t
 }
 
 /******************************************************************************/
@@ -259,7 +305,7 @@ func (expr *Expression) NextN(fromTime time.Time, n uint) []time.Time {
 			if n == 0 {
 				break
 			}
-			fromTime = expr.nextSecond(fromTime)
+			fromTime = expr.Next(fromTime)
 		}
 	}
 	return nextTimes

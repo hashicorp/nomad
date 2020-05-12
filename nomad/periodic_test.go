@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockJobEvalDispatcher struct {
@@ -173,29 +174,22 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher(t)
 	job := mock.PeriodicJob()
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
+	err := p.Add(job)
+	require.NoError(t, err)
 
 	tracked := p.Tracked()
-	if len(tracked) != 1 {
-		t.Fatalf("Add didn't track the job: %v", tracked)
-	}
+	require.Lenf(t, tracked, 1, "did not track the job")
 
 	// Update the job and add it again.
 	job.Periodic.Spec = "foo"
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
+	err = p.Add(job)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed parsing cron expression")
 
 	tracked = p.Tracked()
-	if len(tracked) != 1 {
-		t.Fatalf("Add didn't update: %v", tracked)
-	}
+	require.Lenf(t, tracked, 1, "did not update")
 
-	if !reflect.DeepEqual(job, tracked[0]) {
-		t.Fatalf("Add didn't properly update: got %v; want %v", tracked[0], job)
-	}
+	require.Equalf(t, job, tracked[0], "add did not properly update")
 }
 
 func TestPeriodicDispatch_Add_Remove_Namespaced(t *testing.T) {

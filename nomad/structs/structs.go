@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
@@ -4424,9 +4424,11 @@ func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t t
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
-		if e, err := cronexpr.Parse(p.Spec); err == nil {
-			return CronParseNext(e, fromTime, p.Spec)
+		e, err := cronexpr.Parse(p.Spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", p.Spec, err)
 		}
+		return CronParseNext(e, fromTime, p.Spec)
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")
 		if len(split) == 1 && split[0] == "" {

@@ -2903,45 +2903,42 @@ func TestPeriodicConfig_ValidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_NextCron(t *testing.T) {
-	require := require.New(t)
-
-	type testExpectation struct {
-		Time     time.Time
-		HasError bool
-		ErrorMsg string
-	}
-
 	from := time.Date(2009, time.November, 10, 23, 22, 30, 0, time.UTC)
-	specs := []string{"0 0 29 2 * 1980",
-		"*/5 * * * *",
-		"1 15-0 * * 1-5"}
-	expected := []*testExpectation{
+
+	cases := []struct {
+		spec     string
+		nextTime time.Time
+		errorMsg string
+	}{
 		{
-			Time:     time.Time{},
-			HasError: false,
+			spec:     "0 0 29 2 * 1980",
+			nextTime: time.Time{},
 		},
 		{
-			Time:     time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC),
-			HasError: false,
+			spec:     "*/5 * * * *",
+			nextTime: time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC),
 		},
 		{
-			Time:     time.Time{},
-			HasError: true,
-			ErrorMsg: "failed parsing cron expression",
+			spec:     "1 15-0 *",
+			nextTime: time.Time{},
+			errorMsg: "failed parsing cron expression",
 		},
 	}
 
-	for i, spec := range specs {
-		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
-		p.Canonicalize()
-		n, err := p.Next(from)
-		nextExpected := expected[i]
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("case: %d: %s", i, c.spec), func(t *testing.T) {
+			p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: c.spec}
+			p.Canonicalize()
+			n, err := p.Next(from)
 
-		require.Equal(nextExpected.Time, n)
-		require.Equal(err != nil, nextExpected.HasError)
-		if err != nil {
-			require.True(strings.Contains(err.Error(), nextExpected.ErrorMsg))
-		}
+			require.Equal(t, c.nextTime, n)
+			if c.errorMsg == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.errorMsg)
+			}
+		})
 	}
 }
 
@@ -2963,7 +2960,7 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	p := &PeriodicConfig{
 		Enabled:  true,
 		SpecType: PeriodicSpecCron,
-		Spec:     "0 2 11-12 3 * 2017",
+		Spec:     "0 2 11-13 3 * 2017",
 		TimeZone: "America/Los_Angeles",
 	}
 	p.Canonicalize()
@@ -2973,7 +2970,7 @@ func TestPeriodicConfig_DST(t *testing.T) {
 
 	// E1 is an 8 hour adjustment, E2 is a 7 hour adjustment
 	e1 := time.Date(2017, time.March, 11, 10, 0, 0, 0, time.UTC)
-	e2 := time.Date(2017, time.March, 12, 9, 0, 0, 0, time.UTC)
+	e2 := time.Date(2017, time.March, 13, 9, 0, 0, 0, time.UTC)
 
 	n1, err := p.Next(t1)
 	require.Nil(err)

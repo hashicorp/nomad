@@ -1,6 +1,8 @@
 /*!
  * Copyright 2013 Raymond Hill
  *
+ * Modifications 2020 - HashiCorp
+ *
  * Project: github.com/gorhill/cronexpr
  * File: cronexpr_next.go
  * Version: 1.0
@@ -29,160 +31,6 @@ var dowNormalizedOffsets = [][]int{
 	{5, 12, 19, 26},
 	{6, 13, 20, 27},
 	{7, 14, 21, 28},
-}
-
-/******************************************************************************/
-
-func (expr *Expression) nextYear(t time.Time) time.Time {
-	// Find index at which item in list is greater or equal to
-	// candidate year
-	i := sort.SearchInts(expr.yearList, t.Year()+1)
-	if i == len(expr.yearList) {
-		return time.Time{}
-	}
-	// Year changed, need to recalculate actual days of month
-	expr.actualDaysOfMonthList = expr.calculateActualDaysOfMonth(expr.yearList[i], expr.monthList[0])
-	if len(expr.actualDaysOfMonthList) == 0 {
-		return expr.nextMonth(time.Date(
-			expr.yearList[i],
-			time.Month(expr.monthList[0]),
-			1,
-			expr.hourList[0],
-			expr.minuteList[0],
-			expr.secondList[0],
-			0,
-			t.Location()))
-	}
-	return time.Date(
-		expr.yearList[i],
-		time.Month(expr.monthList[0]),
-		expr.actualDaysOfMonthList[0],
-		expr.hourList[0],
-		expr.minuteList[0],
-		expr.secondList[0],
-		0,
-		t.Location())
-}
-
-/******************************************************************************/
-
-func (expr *Expression) nextMonth(t time.Time) time.Time {
-	// Find index at which item in list is greater or equal to
-	// candidate month
-	i := sort.SearchInts(expr.monthList, int(t.Month())+1)
-	if i == len(expr.monthList) {
-		return expr.nextYear(t)
-	}
-	// Month changed, need to recalculate actual days of month
-	expr.actualDaysOfMonthList = expr.calculateActualDaysOfMonth(t.Year(), expr.monthList[i])
-	if len(expr.actualDaysOfMonthList) == 0 {
-		return expr.nextMonth(time.Date(
-			t.Year(),
-			time.Month(expr.monthList[i]),
-			1,
-			expr.hourList[0],
-			expr.minuteList[0],
-			expr.secondList[0],
-			0,
-			t.Location()))
-	}
-
-	return time.Date(
-		t.Year(),
-		time.Month(expr.monthList[i]),
-		expr.actualDaysOfMonthList[0],
-		expr.hourList[0],
-		expr.minuteList[0],
-		expr.secondList[0],
-		0,
-		t.Location())
-}
-
-/******************************************************************************/
-
-func (expr *Expression) nextDayOfMonth(t time.Time) time.Time {
-	// Find index at which item in list is greater or equal to
-	// candidate day of month
-	i := sort.SearchInts(expr.actualDaysOfMonthList, t.Day()+1)
-	if i == len(expr.actualDaysOfMonthList) {
-		return expr.nextMonth(t)
-	}
-
-	return time.Date(
-		t.Year(),
-		t.Month(),
-		expr.actualDaysOfMonthList[i],
-		expr.hourList[0],
-		expr.minuteList[0],
-		expr.secondList[0],
-		0,
-		t.Location())
-}
-
-/******************************************************************************/
-
-func (expr *Expression) nextHour(t time.Time) time.Time {
-	// Find index at which item in list is greater or equal to
-	// candidate hour
-	i := sort.SearchInts(expr.hourList, t.Hour()+1)
-	if i == len(expr.hourList) {
-		return expr.nextDayOfMonth(t)
-	}
-
-	return time.Date(
-		t.Year(),
-		t.Month(),
-		t.Day(),
-		expr.hourList[i],
-		expr.minuteList[0],
-		expr.secondList[0],
-		0,
-		t.Location())
-}
-
-/******************************************************************************/
-
-func (expr *Expression) nextMinute(t time.Time) time.Time {
-	// Find index at which item in list is greater or equal to
-	// candidate minute
-	i := sort.SearchInts(expr.minuteList, t.Minute()+1)
-	if i == len(expr.minuteList) {
-		return expr.nextHour(t)
-	}
-
-	return time.Date(
-		t.Year(),
-		t.Month(),
-		t.Day(),
-		t.Hour(),
-		expr.minuteList[i],
-		expr.secondList[0],
-		0,
-		t.Location())
-}
-
-/******************************************************************************/
-
-func (expr *Expression) nextSecond(t time.Time) time.Time {
-	// nextSecond() assumes all other fields are exactly matched
-	// to the cron expression
-
-	// Find index at which item in list is greater or equal to
-	// candidate second
-	i := sort.SearchInts(expr.secondList, t.Second()+1)
-	if i == len(expr.secondList) {
-		return expr.nextMinute(t)
-	}
-
-	return time.Date(
-		t.Year(),
-		t.Month(),
-		t.Day(),
-		t.Hour(),
-		t.Minute(),
-		expr.secondList[i],
-		0,
-		t.Location())
 }
 
 /******************************************************************************/
@@ -289,4 +137,19 @@ func workdayOfMonth(targetDom, lastDom time.Time) int {
 		}
 	}
 	return dom
+}
+
+func sortContains(a []int, x int) bool {
+	i := sort.SearchInts(a, x)
+	return i < len(a) && a[i] == x
+}
+
+func timeZoneInDay(t time.Time) bool {
+	if t.Location() == time.UTC {
+		return false
+	}
+
+	_, off := t.AddDate(0, 0, -1).Zone()
+	_, ndoff := t.AddDate(0, 0, 1).Zone()
+	return off != ndoff
 }
