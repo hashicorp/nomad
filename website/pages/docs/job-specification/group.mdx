@@ -68,6 +68,18 @@ job "docs" {
   own [`shutdown_delay`](/docs/job-specification/task#shutdown_delay)
   which waits between deregistering task services and stopping the task.
 
+- `stop_after_client_disconnect` `(string: "")` - Specifies the
+  duration to wait when the Nomad client is disconnected from the server
+  after the [`heartbeat_grace`] window before terminating this group. By
+  default, Nomad runs tasks indefinitely on clients even if the client
+  has crashed or can't communicate with the server. After the
+  [`heartbeat_grace`] window, the server marks allocations on the node
+  as "lost" and reschedules them. But the task is left running on the
+  client. For some workloads, operators may want to ensure that the
+  allocations on the clients are also stopped (for example, they require
+  exclusive access to an external resource). The group level
+  `stop_after_client_disconnect` opts the group into being terminated.
+
 - `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.
@@ -129,12 +141,35 @@ group "example" {
 }
 ```
 
+### Stop on Client Disconnect
+
+This example shows how `stop_on_client_disconnect` interacts with
+other group stanzas. After the default 10 second [`heartbeat_grace`]
+window expires, the server will reschedule both workloads. The client
+will wait 90 seconds before sending a stop signal (`SIGTERM`) to the
+`first` group. After 15 more seconds because of the `shutdown_delay`,
+the client will send `SIGKILL`. The `second` group does not have
+`stop_on_client_disconnect` and will not be stopped on the client no
+matter how long the client is out of touch.
+
+```hcl
+group "first" {
+  shutdown_delay = "15s"
+  stop_after_client_disconnect = "90s"
+}
+
+group "second" {
+  shutdown_delay = "5s"
+}
+```
+
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
 [spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
 [affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
+[`heartbeat_grace`]: /docs/configuration/server/#heartbeat_grace
 [meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
 [migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
 [reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
