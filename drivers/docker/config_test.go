@@ -270,6 +270,7 @@ config {
   }
   privileged = true
   readonly_rootfs = true
+  runtime = "runc"
   security_opt = [
     "credentialspec=file://gmsaUser.json"
   ],
@@ -398,6 +399,7 @@ config {
 		},
 		Privileged:     true,
 		ReadonlyRootfs: true,
+		Runtime:        "runc",
 		SecurityOpt: []string{
 			"credentialspec=file://gmsaUser.json",
 		},
@@ -550,4 +552,35 @@ func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
 			require.Equal(t, c.expected, tc.PullActivityTimeout)
 		})
 	}
+}
+
+func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected map[string]struct{}
+	}{
+		{
+			name:     "pure default",
+			config:   `{}`,
+			expected: map[string]struct{}{"runc": struct{}{}, "nvidia": struct{}{}},
+		},
+		{
+			name:     "custom",
+			config:   `{ allow_runtimes = ["runc", "firecracker"]}`,
+			expected: map[string]struct{}{"runc": struct{}{}, "firecracker": struct{}{}},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc map[string]interface{}
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+
+			dh := dockerDriverHarness(t, tc)
+			d := dh.Impl().(*Driver)
+			require.Equal(t, c.expected, d.config.allowRuntimes)
+		})
+	}
+
 }

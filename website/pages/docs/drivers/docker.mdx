@@ -406,6 +406,17 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
 
+- `runtime` - (Optional) A string representing a configured runtime to pass to docker.
+  This is equivalent to the `--runtime` argument in the docker CLI
+  For example, to use gVisor:
+
+  ```hcl
+  config {
+    # gVisor runtime is runsc
+    runtime = "runsc"
+  }
+  ```
+
 - `pids_limit` - (Optional) An integer value that specifies the pid limit for
   the container. Defaults to unlimited.
 
@@ -700,6 +711,9 @@ plugin "docker" {
   operator to control which capabilities can be obtained by tasks using cap_add
   and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting
   all capabilities.
+
+- `allow_runtimes` - defaults to `["runc", "nvidia"]` - A list of the allowed
+  docker runtimes a task may use.
 
 - `auth` stanza:
 

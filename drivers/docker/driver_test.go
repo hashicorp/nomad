@@ -1029,6 +1029,29 @@ func TestDockerDriver_SecurityOptFromFile(t *testing.T) {
 	require.Contains(t, container.HostConfig.SecurityOpt[0], "reboot")
 }
 
+func TestDockerDriver_Runtime(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	cfg.Runtime = "runc"
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	require.Exactly(t, cfg.Runtime, container.HostConfig.Runtime)
+}
+
 func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	t.Parallel()
 
@@ -1051,6 +1074,70 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	// Container name should be /<task_name>-<alloc_id> for backward compat
 	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	require.Equal(t, containerName, c.Name)
+}
+
+func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	task.DeviceEnv[nvidia.NvidiaVisibleDevices] = "GPU_UUID_1"
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.gpuRuntime = true
+
+	// Should error if a runtime was explicitly set that doesn't match gpu runtime
+	cfg.Runtime = "nvidia"
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+	require.Equal(t, "nvidia", c.HostConfig.Runtime)
+
+	cfg.Runtime = "custom"
+	_, err = driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "conflicting runtime requests")
+}
+
+func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
+	t.Parallel()
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.gpuRuntime = true
+	driver.config.allowRuntimes = map[string]struct{}{
+		"runc":   struct{}{},
+		"custom": struct{}{},
+	}
+
+	allowRuntime := []string{
+		"", // default always works
+		"runc",
+		"custom",
+	}
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	for _, runtime := range allowRuntime {
+		t.Run(runtime, func(t *testing.T) {
+			cfg.Runtime = runtime
+			c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+			require.NoError(t, err)
+			require.Equal(t, runtime, c.HostConfig.Runtime)
+		})
+	}
+
+	t.Run("not allowed: denied", func(t *testing.T) {
+		cfg.Runtime = "denied"
+		_, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `runtime "denied" is not allowed`)
+	})
+
 }
 
 func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
@@ -1188,12 +1275,6 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
 	}
-	if !testutil.DockerIsConnected(t) {
-		t.Skip("Docker not connected")
-	}
-	if runtime.GOOS != "linux" {
-		t.Skip("nvidia plugin supports only linux")
-	}
 	testCases := []struct {
 		description           string
 		gpuRuntimeSet         bool
@@ -1235,7 +1316,9 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 			task, cfg, ports := dockerTask(t)
 			defer freeport.Return(ports)
 
-			dh := dockerDriverHarness(t, nil)
+			dh := dockerDriverHarness(t, map[string]interface{}{
+				"allow_runtimes": []string{"runc", "nvidia", "nvidia-runtime-modified-name"},
+			})
 			driver := dh.Impl().(*Driver)
 
 			driver.gpuRuntime = testCase.gpuRuntimeSet

@@ -251,7 +251,11 @@ var (
 			hclspec.NewAttr("nvidia_runtime", "string", false),
 			hclspec.NewLiteral(`"nvidia"`),
 		),
-
+		// list of docker runtimes allowed to be used
+		"allow_runtimes": hclspec.NewDefault(
+			hclspec.NewAttr("allow_runtimes", "list(string)", false),
+			hclspec.NewLiteral(`["runc", "nvidia"]`),
+		),
 		// image to use when creating a network namespace parent container
 		"infra_image": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image", "string", false),
@@ -341,6 +345,7 @@ var (
 		})),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
+		"runtime":         hclspec.NewAttr("runtime", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
 		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
@@ -404,6 +409,7 @@ type TaskConfig struct {
 	Mounts            []DockerMount      `codec:"mounts"`
 	NetworkAliases    []string           `codec:"network_aliases"`
 	NetworkMode       string             `codec:"network_mode"`
+	Runtime           string             `codec:"runtime"`
 	PidsLimit         int64              `codec:"pids_limit"`
 	PidMode           string             `codec:"pid_mode"`
 	PortMap           hclutils.MapStrInt `codec:"port_map"`
@@ -572,6 +578,9 @@ type DriverConfig struct {
 	DisableLogCollection        bool          `codec:"disable_log_collection"`
 	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
 	pullActivityTimeoutDuration time.Duration `codec:"-"`
+
+	AllowRuntimesList []string            `codec:"allow_runtimes"`
+	allowRuntimes     map[string]struct{} `codec:"-"`
 }
 
 type AuthConfig struct {
@@ -655,6 +664,11 @@ func (d *Driver) SetConfig(c *base.Config) error {
 			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
 		}
 		d.config.pullActivityTimeoutDuration = dur
+	}
+
+	d.config.allowRuntimes = make(map[string]struct{}, len(d.config.AllowRuntimesList))
+	for _, r := range d.config.AllowRuntimesList {
+		d.config.allowRuntimes[r] = struct{}{}
 	}
 
 	if c.AgentConfig != nil {
