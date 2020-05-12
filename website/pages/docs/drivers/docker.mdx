@@ -407,12 +407,12 @@ The `docker` driver supports the following configuration in the job spec. Only
   the container's filesystem as read only.
 
 - `runtime` - (Optional) A string representing a configured runtime to pass to docker.
-  This is equivilent to the --runtime argument in the docker CLI
+  This is equivalent to the `--runtime` argument in the docker CLI
   For example, to use gvisor:
 
   ```hcl
   config {
-    runtime = "runsc"
+    runtime = "runc"
   }
   ```
 

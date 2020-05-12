@@ -742,7 +742,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	containerRuntime := driverConfig.Runtime
 	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
 		if !d.gpuRuntime {
-			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
+			return c, fmt.Errorf("requested docker runtime %q was not found", d.config.GPURuntimeName)
 		}
 		if containerRuntime != "" && containerRuntime != d.config.GPURuntimeName {
 			return c, fmt.Errorf("conflicting runtime requests: gpu runtime %q conflicts with task runtime %q", d.config.GPURuntimeName, containerRuntime)
@@ -750,7 +750,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		containerRuntime = d.config.GPURuntimeName
 	}
 	if _, ok := d.config.allowedRuntimes[containerRuntime]; !ok && containerRuntime != "" {
-		return c, fmt.Errorf("requested runtime is not allowed: %q", containerRuntime)
+		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
 	hostConfig := &docker.HostConfig{
