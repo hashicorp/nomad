@@ -252,8 +252,8 @@ var (
 			hclspec.NewLiteral(`"nvidia"`),
 		),
 		// list of docker runtimes allowed to be used
-		"allowed_runtimes": hclspec.NewDefault(
-			hclspec.NewAttr("allowed_runtimes", "list(string)", false),
+		"allow_runtimes": hclspec.NewDefault(
+			hclspec.NewAttr("allow_runtimes", "list(string)", false),
 			hclspec.NewLiteral(`["runc", "nvidia"]`),
 		),
 		// image to use when creating a network namespace parent container
@@ -579,8 +579,8 @@ type DriverConfig struct {
 	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
 	pullActivityTimeoutDuration time.Duration `codec:"-"`
 
-	AllowedRuntimesList []string            `codec:"allowed_runtimes"`
-	allowedRuntimes     map[string]struct{} `codec:"-"`
+	AllowRuntimesList []string            `codec:"allow_runtimes"`
+	allowRuntimes     map[string]struct{} `codec:"-"`
 }
 
 type AuthConfig struct {
@@ -666,9 +666,9 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.config.pullActivityTimeoutDuration = dur
 	}
 
-	d.config.allowedRuntimes = make(map[string]struct{}, len(d.config.AllowedRuntimesList))
-	for _, r := range d.config.AllowedRuntimesList {
-		d.config.allowedRuntimes[r] = struct{}{}
+	d.config.allowRuntimes = make(map[string]struct{}, len(d.config.AllowRuntimesList))
+	for _, r := range d.config.AllowRuntimesList {
+		d.config.allowRuntimes[r] = struct{}{}
 	}
 
 	if c.AgentConfig != nil {

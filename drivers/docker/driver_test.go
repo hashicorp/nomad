@@ -1101,18 +1101,18 @@ func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 	require.Contains(t, err.Error(), "conflicting runtime requests")
 }
 
-func TestDockerDriver_CreateContainerConfig_ChecksAllowedRuntimes(t *testing.T) {
+func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
 	t.Parallel()
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
 	driver.gpuRuntime = true
-	driver.config.allowedRuntimes = map[string]struct{}{
+	driver.config.allowRuntimes = map[string]struct{}{
 		"runc":   struct{}{},
 		"custom": struct{}{},
 	}
 
-	allowedRuntime := []string{
+	allowRuntime := []string{
 		"", // default always works
 		"runc",
 		"custom",
@@ -1122,7 +1122,7 @@ func TestDockerDriver_CreateContainerConfig_ChecksAllowedRuntimes(t *testing.T) 
 	defer freeport.Return(ports)
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	for _, runtime := range allowedRuntime {
+	for _, runtime := range allowRuntime {
 		t.Run(runtime, func(t *testing.T) {
 			cfg.Runtime = runtime
 			c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")

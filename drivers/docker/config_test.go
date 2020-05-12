@@ -554,7 +554,7 @@ func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
 	}
 }
 
-func TestConfig_DriverConfig_AllowedRuntimes(t *testing.T) {
+func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
 	cases := []struct {
 		name     string
 		config   string
@@ -567,7 +567,7 @@ func TestConfig_DriverConfig_AllowedRuntimes(t *testing.T) {
 		},
 		{
 			name:     "custom",
-			config:   `{ allowed_runtimes = ["runc", "firecracker"]}`,
+			config:   `{ allow_runtimes = ["runc", "firecracker"]}`,
 			expected: map[string]struct{}{"runc": struct{}{}, "firecracker": struct{}{}},
 		},
 	}
@@ -579,7 +579,7 @@ func TestConfig_DriverConfig_AllowedRuntimes(t *testing.T) {
 
 			dh := dockerDriverHarness(t, tc)
 			d := dh.Impl().(*Driver)
-			require.Equal(t, c.expected, d.config.allowedRuntimes)
+			require.Equal(t, c.expected, d.config.allowRuntimes)
 		})
 	}
 

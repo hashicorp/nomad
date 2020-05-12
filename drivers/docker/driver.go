@@ -749,7 +749,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 		containerRuntime = d.config.GPURuntimeName
 	}
-	if _, ok := d.config.allowedRuntimes[containerRuntime]; !ok && containerRuntime != "" {
+	if _, ok := d.config.allowRuntimes[containerRuntime]; !ok && containerRuntime != "" {
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
