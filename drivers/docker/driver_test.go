@@ -1091,12 +1091,53 @@ func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 
 	// Should error if a runtime was explicitly set that doesn't match gpu runtime
 	cfg.Runtime = "nvidia"
-	_, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	require.NoError(t, err)
+	require.Equal(t, "nvidia", c.HostConfig.Runtime)
 
 	cfg.Runtime = "custom"
 	_, err = driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "conflicting runtime requests")
+}
+
+func TestDockerDriver_CreateContainerConfig_ChecksAllowedRuntimes(t *testing.T) {
+	t.Parallel()
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.gpuRuntime = true
+	driver.config.allowedRuntimes = map[string]struct{}{
+		"runc":   struct{}{},
+		"custom": struct{}{},
+	}
+
+	allowedRuntime := []string{
+		"", // default always works
+		"runc",
+		"custom",
+	}
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	for _, runtime := range allowedRuntime {
+		t.Run(runtime, func(t *testing.T) {
+			cfg.Runtime = runtime
+			c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+			require.NoError(t, err)
+			require.Equal(t, runtime, c.HostConfig.Runtime)
+		})
+	}
+
+	t.Run("not allowed: denied", func(t *testing.T) {
+		cfg.Runtime = "denied"
+		_, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "runtime is not allowed")
+	})
+
 }
 
 func TestDockerDriver_CreateContainerConfig_User(t *testing.T) {
