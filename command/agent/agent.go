@@ -201,6 +201,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.ACL.ReplicationToken != "" {
 		conf.ReplicationToken = agentConfig.ACL.ReplicationToken
 	}
+	if agentConfig.ACL.MasterToken != "" {
+		conf.ACLMasterToken = agentConfig.ACL.MasterToken
+	}
 	if agentConfig.Sentinel != nil {
 		conf.SentinelConfig = agentConfig.Sentinel
 	}

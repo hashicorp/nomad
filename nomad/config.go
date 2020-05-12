@@ -280,6 +280,11 @@ type Config struct {
 	// ACLEnabled controls if ACL enforcement and management is enabled.
 	ACLEnabled bool
 
+	// ACLMasterToken is used to bootstrap the ACL system. It should be specified
+	// on the servers in the AuthoritativeRegion. When the leader comes online, it ensures
+	// that the Master token is available. This provides the initial token.
+	ACLMasterToken string
+
 	// ReplicationBackoff is how much we backoff when replication errors.
 	// This is a tunable knob for testing primarily.
 	ReplicationBackoff time.Duration

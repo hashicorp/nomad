@@ -301,6 +301,11 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
+	if s.config.ACLEnabled {
+		if err := s.initializeMasterToken(); err != nil {
+			return err
+		}
+	}
 	// Start replication of ACLs and Policies if they are enabled,
 	// and we are not the authoritative region.
 	if s.config.ACLEnabled && s.config.Region != s.config.AuthoritativeRegion {
@@ -315,6 +320,60 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	s.setConsistentReadReady()
 
+	return nil
+}
+
+func (s *Server) initializeMasterToken() error {
+	if !s.config.ACLEnabled {
+		return nil
+	}
+
+	if s.config.Region != s.config.AuthoritativeRegion {
+		return nil
+	}
+	if master := s.config.ACLMasterToken; len(master) > 0 {
+		state, err := s.State().Snapshot()
+		if err != nil {
+			return err
+		}
+		token, err := state.ACLTokenBySecretID(nil, master)
+		if err != nil {
+			return fmt.Errorf("failed to get master token: %v", err)
+		}
+		if token == nil {
+			token = &structs.ACLToken{
+				AccessorID: uuid.Generate(),
+				SecretID:   master,
+				Name:       "Bootstrap Token",
+				Type:       structs.ACLManagementToken,
+				Global:     true,
+				CreateTime: time.Now().UTC(),
+			}
+			token.SetHash()
+
+			if canBootstrap, _, err := state.CanBootstrapACLToken(); err == nil && canBootstrap {
+				req := structs.ACLTokenBootstrapRequest{
+					Token:      token,
+					ResetIndex: 0,
+				}
+				if _, _, err := s.raftApply(structs.ACLTokenBootstrapRequestType, &req); err == nil {
+					s.logger.Info("Bootstrapped ACL master token from configuration")
+				} else {
+					return fmt.Errorf("Failed to bootstap master token: %v", err)
+				}
+			} else {
+				req := structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{token},
+				}
+				if _, _, err := s.raftApply(structs.ACLTokenUpsertRequestType, &req); err != nil {
+					return fmt.Errorf("Failed to create master token: %v", err)
+				}
+
+				s.logger.Info("Created ACL master token from configuration")
+			}
+
+		}
+	}
 	return nil
 }
 
