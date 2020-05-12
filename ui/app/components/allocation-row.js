@@ -46,6 +46,10 @@ export default Component.extend({
   },
 
   didReceiveAttrs() {
+    this.updateStatsTracker();
+  },
+
+  updateStatsTracker() {
     const allocation = this.allocation;
 
     if (allocation) {
