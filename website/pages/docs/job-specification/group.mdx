@@ -141,15 +141,15 @@ group "example" {
 }
 ```
 
-### Stop on Client Disconnect
+### Stop After Client Disconnect
 
-This example shows how `stop_on_client_disconnect` interacts with
+This example shows how `stop_after_client_disconnect` interacts with
 other group stanzas. After the default 10 second [`heartbeat_grace`]
 window expires, the server will reschedule both workloads. The client
 will wait 90 seconds before sending a stop signal (`SIGTERM`) to the
 `first` group. After 15 more seconds because of the `shutdown_delay`,
 the client will send `SIGKILL`. The `second` group does not have
-`stop_on_client_disconnect` and will not be stopped on the client no
+`stop_after_client_disconnect` and will not be stopped on the client no
 matter how long the client is out of touch.
 
 ```hcl
