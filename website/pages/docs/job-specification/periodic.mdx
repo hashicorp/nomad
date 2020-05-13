@@ -44,8 +44,9 @@ consistent evaluation when Nomad spans multiple time zones.
   it does not prevent other periodic jobs from running at the same time.
 
 - `time_zone` `(string: "UTC")` - Specifies the time zone to evaluate the next
-  launch interval against. This is useful when wanting to account for day light
-  savings in various time zones. The time zone must be parsable by Golang's
+  launch interval against. [Daylight Saving Time][dst] affects scheduling, so
+  please ensure the [behavior below][dst] meets your needs. The time zone must
+  be parsable by Golang's
   [LoadLocation](https://golang.org/pkg/time/#LoadLocation).
 
 ## `periodic` Examples
@@ -74,15 +75,18 @@ periodic {
 }
 ```
 
-## Periodic Jobs and Daylight Saving Time
+## Daylight Saving Time
 
-Though Nomad supports configuring time_zone, we strongly recommend that periodic
-jobs are specified with respect to UTC time_zone.
+Though Nomad supports configuring `time_zone`, we strongly recommend that periodic
+jobs are specified with respect to UTC `time_zone`. Only customize `time_zone`
+when the following daylight saving time behavior is *desired:*
 
-Daylight saving changes may cause jobs to run in times unexpected to operator: A
-2.30am nightly job with `America/New_York` time zone will not run on the day
-daylight saving time start; a 1.30am nightly job will run twice on the day
-daylight saving time ends.
+- When leaping forward, periodic jobs scheduled for the skipped hour (eg 2:30am
+  in `America/New_York`) will be *skipped* for that day (eg March 10th).
+
+- When falling back, periodic jobs scheduled for the duplicated hour (eg 1:30am
+  in `America/New_York`) will be *run twice* for that day (eg November 3rd).
 
 [batch-type]: /docs/job-specification/job#type 'Batch scheduler type'
 [cron]: https://github.com/gorhill/cronexpr#implementation 'List of cron expressions'
+[dst]: #daylight-saving-time
