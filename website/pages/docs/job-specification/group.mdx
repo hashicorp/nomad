@@ -68,17 +68,19 @@ job "docs" {
   own [`shutdown_delay`](/docs/job-specification/task#shutdown_delay)
   which waits between deregistering task services and stopping the task.
 
-- `stop_after_client_disconnect` `(string: "")` - Specifies the
-  duration to wait when the Nomad client is disconnected from the server
-  after the [`heartbeat_grace`] window before terminating this group. By
-  default, Nomad runs tasks indefinitely on clients even if the client
-  has crashed or can't communicate with the server. After the
-  [`heartbeat_grace`] window, the server marks allocations on the node
-  as "lost" and reschedules them. But the task is left running on the
-  client. For some workloads, operators may want to ensure that the
-  allocations on the clients are also stopped (for example, they require
-  exclusive access to an external resource). The group level
-  `stop_after_client_disconnect` opts the group into being terminated.
+- `stop_after_client_disconnect` `(string: "")` - Specifies a duration
+  after which a Nomad client that cannot communicate with the servers
+  will stop allocations based on this task group. By default, a client
+  will not stop an allocation until explicitly told to by a server. A
+  client that fails to heartbeat to a server within the
+  `hearbeat_grace` window and any allocations running on it will be
+  marked "lost" and Nomad will schedule replacement
+  allocations. However, these replaced allocations will continue to
+  run on the non-responsive client; an operator may desire that these
+  replaced allocations are also stopped in this case — for example,
+  allocations requiring exclusive access to an external resource. When
+  specified, the Nomad client will stop them after this duration. The
+  Nomad client process must be running for this to occur.
 
 - `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
@@ -149,8 +151,8 @@ window expires, the server will reschedule both workloads. The client
 will wait 90 seconds before sending a stop signal (`SIGTERM`) to the
 `first` group. After 15 more seconds because of the `shutdown_delay`,
 the client will send `SIGKILL`. The `second` group does not have
-`stop_after_client_disconnect` and will not be stopped on the client no
-matter how long the client is out of touch.
+`stop_after_client_disconnect` and will not be stopped on the client,
+regardless of how long the client is out of touch.
 
 ```hcl
 group "first" {
