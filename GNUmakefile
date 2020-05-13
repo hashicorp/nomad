@@ -180,7 +180,7 @@ deps:  ## Install build and development dependencies
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	GO111MODULE=on go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	GO111MODULE=on go get -u github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
 	GO111MODULE=on go get -u github.com/client9/misspell/cmd/misspell
 
 .PHONY: git-hooks
