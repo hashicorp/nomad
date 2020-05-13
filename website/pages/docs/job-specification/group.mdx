@@ -146,22 +146,36 @@ group "example" {
 ### Stop After Client Disconnect
 
 This example shows how `stop_after_client_disconnect` interacts with
-other group stanzas. After the default 10 second [`heartbeat_grace`]
-window expires, the server will reschedule both workloads. The client
-will wait 90 seconds before sending a stop signal (`SIGTERM`) to the
-`first` group. After 15 more seconds because of the `shutdown_delay`,
-the client will send `SIGKILL`. The `second` group does not have
-`stop_after_client_disconnect` and will not be stopped on the client,
-regardless of how long the client is out of touch.
+other stanzas. For the `first` group, after the default 10 second
+[`heartbeat_grace`] window expires and 90 more seconds passes, the
+server will reschedule the allocation. The client will wait 90 seconds
+before sending a stop signal (`SIGTERM`) to the `first-task`
+task. After 15 more seconds because of the task's `kill_timeout`, the
+client will send `SIGKILL`. The `second` group does not have
+`stop_after_client_disconnect`, so the server will reschedule the
+allocation after the 10 second [`heartbeat_grace`] expires. It will
+not be stopped on the client, regardless of how long the client is out
+of touch.
+
+Note that if the server's clock is not closely synchronized with the
+client's clock, the server may reschedule before the client has
+stopped the allocation. Operators should ensure that clock drift
+between clients and servers is as small as possible.
 
 ```hcl
 group "first" {
-  shutdown_delay = "15s"
   stop_after_client_disconnect = "90s"
+
+  task "first-task" {
+    kill_timeout = "15s"
+  }
 }
 
 group "second" {
-  shutdown_delay = "5s"
+
+  task "second-task" {
+    kill_timeout = "5s"
+  }
 }
 ```
 
