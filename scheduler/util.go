@@ -812,8 +812,8 @@ func adjustQueuedAllocations(logger log.Logger, result *structs.PlanResult, queu
 	}
 }
 
-// updateNonTerminalAllocsToLost updates the allocations which are in pending/running state on tainted node
-// to lost
+// updateNonTerminalAllocsToLost updates the allocations which are in pending/running state
+// on tainted node to lost, but only for allocs already DesiredStatus stop or evict
 func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*structs.Node, allocs []*structs.Allocation) {
 	for _, alloc := range allocs {
 		node, ok := tainted[alloc.NodeID]
@@ -826,8 +826,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			continue
 		}
 
-		// If the scheduler has marked it as stop or evict already but the alloc
-		// wasn't terminal on the client change the status to lost.
+		// If the alloc is already correctly marked lost, we're done
 		if (alloc.DesiredStatus == structs.AllocDesiredStatusStop ||
 			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||

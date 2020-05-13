@@ -4623,7 +4623,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			}
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
-			s.logger.Error("invalid old client status for allocatio",
+			s.logger.Error("invalid old client status for allocation",
 				"alloc_id", existingAlloc.ID, "client_status", existingAlloc.ClientStatus)
 		}
 		summaryChanged = true

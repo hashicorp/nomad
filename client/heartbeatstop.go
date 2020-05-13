@@ -91,7 +91,7 @@ func (h *heartbeatStop) watch() {
 		select {
 		case allocID := <-stop:
 			if err := h.stopAlloc(allocID); err != nil {
-				h.logger.Warn("stopping alloc %s on heartbeat timeout failed: %v", allocID, err)
+				h.logger.Warn("error stopping on heartbeat timeout", "alloc", allocID, "error", err)
 				continue
 			}
 			delete(h.allocInterval, allocID)
@@ -141,6 +141,8 @@ func (h *heartbeatStop) stopAlloc(allocID string) error {
 	if err != nil {
 		return err
 	}
+
+	h.logger.Debug("stopping alloc for stop_after_client_disconnect", "alloc", allocID)
 
 	runner.Destroy()
 	return nil
