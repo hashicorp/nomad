@@ -6517,8 +6517,14 @@ func (t *Template) Warnings() error {
 }
 
 // AllocState records a single event that changes the state of the whole allocation
+type AllocStateField uint8
+
+const (
+	AllocStateFieldClientStatus AllocStateField = iota
+)
+
 type AllocState struct {
-	Field string
+	Field AllocStateField
 	Value string
 	Time  time.Time
 }
@@ -8449,7 +8455,7 @@ func (a *Allocation) WaitClientStop() time.Time {
 	// An alloc can only be marked lost once, so use the first lost transition
 	var t time.Time
 	for _, s := range a.AllocStates {
-		if s.Field == "ClientStatus" &&
+		if s.Field == AllocStateFieldClientStatus &&
 			s.Value == AllocClientStatusLost {
 			t = s.Time
 			break
@@ -8534,12 +8540,12 @@ func (a *Allocation) SetStop(clientStatus, clientDesc string) {
 	a.DesiredStatus = AllocDesiredStatusStop
 	a.ClientStatus = clientStatus
 	a.ClientDescription = clientDesc
-	a.AppendState("ClientStatus", clientStatus)
+	a.AppendState(AllocStateFieldClientStatus, clientStatus)
 }
 
 // AppendState creates and appends an AllocState entry recording the time of the state
 // transition. Used to mark the transition to lost
-func (a *Allocation) AppendState(field, value string) {
+func (a *Allocation) AppendState(field AllocStateField, value string) {
 	a.AllocStates = append(a.AllocStates, &AllocState{
 		Field: field,
 		Value: value,
@@ -9455,7 +9461,7 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus s
 		newAlloc.ClientStatus = clientStatus
 	}
 
-	newAlloc.AppendState("ClientStatus", clientStatus)
+	newAlloc.AppendState(AllocStateFieldClientStatus, clientStatus)
 
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]

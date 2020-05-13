@@ -3602,7 +3602,7 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	expectedAlloc.ClientStatus = AllocClientStatusLost
 	expectedAlloc.Job = nil
 	expectedAlloc.AllocStates = []*AllocState{{
-		Field: "ClientStatus",
+		Field: AllocStateFieldClientStatus,
 		Value: "lost",
 	}}
 
@@ -4419,7 +4419,7 @@ func TestAllocation_WaitClientStop(t *testing.T) {
 			}
 
 			if tc.status == AllocClientStatusLost {
-				a.AppendState("ClientStatus", AllocClientStatusLost)
+				a.AppendState(AllocStateFieldClientStatus, AllocClientStatusLost)
 			}
 
 			j.TaskGroups[0].StopAfterClientDisconnect = &tc.stop

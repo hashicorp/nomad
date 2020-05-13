@@ -2819,7 +2819,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			alloc.ClientStatus = structs.AllocClientStatusRunning
 			if !tc.when.IsZero() {
 				alloc.AllocStates = []*structs.AllocState{{
-					Field: "ClientStatus",
+					Field: structs.AllocStateFieldClientStatus,
 					Value: structs.AllocClientStatusLost,
 					Time:  tc.when,
 				}}
