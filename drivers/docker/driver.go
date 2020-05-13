@@ -519,8 +519,6 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	image := driverConfig.Image
 	repo, tag := parseDockerImage(image)
 
-	callerID := fmt.Sprintf("%s-%s", task.ID, task.Name)
-
 	// We're going to check whether the image is already downloaded. If the tag
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
 	// bother to check and cache the id here. We'll download first, then cache.
@@ -529,7 +527,7 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	} else if tag != "latest" {
 		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
 			// Image exists so just increment its reference count
-			d.coordinator.IncrementImageReference(dockerImage.ID, image, callerID)
+			d.coordinator.IncrementImageReference(dockerImage.ID, image, task.ID)
 			return dockerImage.ID, nil
 		}
 	}
