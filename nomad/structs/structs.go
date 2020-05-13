@@ -3799,6 +3799,10 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 		}
 
+		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect < 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect must be a positive value"))
+		}
+
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
@@ -5263,6 +5267,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	if tg.ShutdownDelay != nil {
 		ntg.ShutdownDelay = tg.ShutdownDelay
+	}
+
+	if tg.StopAfterClientDisconnect != nil {
+		ntg.StopAfterClientDisconnect = tg.StopAfterClientDisconnect
 	}
 
 	return ntg
