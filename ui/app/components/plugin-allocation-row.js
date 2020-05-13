@@ -5,6 +5,8 @@ export default AllocationRow.extend({
   allocation: null,
 
   didReceiveAttrs() {
+    // Allocation is always set through pluginAllocation
+    this.set('allocation', null);
     this.setAllocation();
   },
 
