@@ -31,6 +31,17 @@ the bug fix will only minimally affect scoring.
 Feasability (whether a node is capable of running a job at all) is *not*
 affected.
 
+### Periodic Jobs and Daylight Saving Time
+
+Nomad 0.11.2 fixed a long outstanding bug affecting periodic jobs that are
+scheduled to run during daylight saving transition time.
+
+Nomad 0.11.2 provides a more defined behvior: nomad evaluates the cron
+expression with respect to specified time zone during transition. A 2.30am
+nightly job with `America/New_York` time zone will not run on the day daylight
+saving time start; similarly, a 1.30am nightly job will run twice on the day
+daylight saving time ends.
+
 ## Nomad 0.11.0
 
 ### client.template: `vault_grace` deprecation

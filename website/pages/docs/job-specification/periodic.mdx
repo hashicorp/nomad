@@ -74,5 +74,15 @@ periodic {
 }
 ```
 
+## Periodic Jobs and Daylight Saving Time
+
+Though Nomad supports configuring time_zone, we strongly recommend that periodic
+jobs are specified with respect to UTC time_zone.
+
+Daylight saving changes may cause jobs to run in times unexpected to operator: A
+2.30am nightly job with `America/New_York` time zone will not run on the day
+daylight saving time start; a 1.30am nightly job will run twice on the day
+daylight saving time ends.
+
 [batch-type]: /docs/job-specification/job#type 'Batch scheduler type'
 [cron]: https://github.com/gorhill/cronexpr#implementation 'List of cron expressions'

@@ -16,11 +16,14 @@ BUG FIXES:
 
  * api: validate scale count value is not negative [[GH-7902](https://github.com/hashicorp/nomad/issues/7902)]
  * api: autoscaling policies should not be returned for stopped jobs [[GH-7768](https://github.com/hashicorp/nomad/issues/7768)]
+ * client: Fixed a bug where an multi-task allocation maybe considered unhealthy if some tasks are slow to start [[GH-7944](https://github.com/hashicorp/nomad/issues/7944)]
  * core: job scale status endpoint was returning incorrect counts [[GH-7789](https://github.com/hashicorp/nomad/issues/7789)]
+ * core: Fixed bugs related to periodic jobs scheduled during daylight saving transition periods [[GH-7894](https://github.com/hashicorp/nomad/issues/7894)]
  * core: Fixed a bug where scores for allocations were biased toward nodes with resource reservations [[GH-7730](https://github.com/hashicorp/nomad/issues/7730)]
  * csi: Fixed checking of volume validation responses from plugins [[GH-7831](https://github.com/hashicorp/nomad/issues/7831)]
  * csi: Fixed counting of healthy and expected plugins after plugin job updates or stops [[GH-7844](https://github.com/hashicorp/nomad/issues/7844)]
  * csi: Added checkpointing to volume claim release to avoid unreleased claims on plugin errors [[GH-7782](https://github.com/hashicorp/nomad/issues/7782)]
+ * driver/docker: Fixed a bug preventing garbage collecting unused docker images [[GH-7947](https://github.com/hashicorp/nomad/issues/7947)]
  * jobspec: autoscaling policy block should return a parsing error multiple `policy` blocks are provided [[GH-7716](https://github.com/hashicorp/nomad/issues/7716)]
  * ui: Fixed a bug where exec popup had incorrect URL for jobs where name ≠ id [[GH-7814](https://github.com/hashicorp/nomad/issues/7814)]
 
