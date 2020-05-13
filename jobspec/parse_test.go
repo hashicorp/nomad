@@ -1168,7 +1168,7 @@ func TestParse(t *testing.T) {
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
-							Native:         false,
+							Native:         "",
 							SidecarService: &api.ConsulSidecarService{},
 							SidecarTask: &api.SidecarTask{
 								Name: "my-sidecar",
@@ -1190,7 +1190,7 @@ func TestParse(t *testing.T) {
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
-							Native: false,
+							Native: "",
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
 									LocalServiceAddress: "10.0.1.2",
@@ -1237,7 +1237,7 @@ func TestParse(t *testing.T) {
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
-							Native: false,
+							Native: "",
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
 									LocalServiceAddress: "10.0.1.2",
@@ -1271,6 +1271,23 @@ func TestParse(t *testing.T) {
 							Name:   "example-check2",
 							Expose: false,
 						}},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-native.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("connect_native_service"),
+				Name: helper.StringToPtr("connect_native_service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native: "foo",
+						},
 					}},
 				}},
 			},

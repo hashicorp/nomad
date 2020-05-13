@@ -814,13 +814,20 @@ func TestTask_UsesConnect(t *testing.T) {
 	t.Run("sidecar proxy", func(t *testing.T) {
 		task := &Task{
 			Name: "connect-proxy-task1",
-			Kind: "connect-proxy:task1",
+			Kind: NewTaskKind(ConnectProxyPrefix, "task1"),
 		}
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
 
-	// todo(shoenig): add native case
+	t.Run("native task", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectNativePrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
@@ -835,7 +842,7 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 		try(t, &TaskGroup{
 			Services: []*Service{
 				{Connect: nil},
-				{Connect: &ConsulConnect{Native: true}},
+				{Connect: &ConsulConnect{Native: "foo"}},
 			},
 		}, true)
 	})
@@ -2709,7 +2716,7 @@ func TestService_Validate(t *testing.T) {
 
 	// Native Connect should be valid
 	s.Connect = &ConsulConnect{
-		Native: true,
+		Native: "testtask",
 	}
 	require.NoError(t, s.Validate())
 
@@ -2756,7 +2763,7 @@ func TestService_Equals(t *testing.T) {
 	o.Checks = []*ServiceCheck{{Name: "diff"}}
 	assertDiff()
 
-	o.Connect = &ConsulConnect{Native: true}
+	o.Connect = &ConsulConnect{Native: "testtask"}
 	assertDiff()
 
 	o.EnableTagOverride = true

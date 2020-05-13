@@ -85,6 +85,12 @@ type ConsulConfig struct {
 	// Uses Consul's default and env var.
 	EnableSSL *bool `hcl:"ssl"`
 
+	// ShareSSL enables Consul Connect Native applications to use the TLS
+	// configuration of the Nomad Client for establishing connections to Consul.
+	//
+	// Does not include sharing of ACL tokens.
+	ShareSSL *bool `hcl:"share_ssl"`
+
 	// VerifySSL enables or disables SSL verification when the transport scheme
 	// for the consul api client is https
 	//
@@ -200,6 +206,9 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.VerifySSL != nil {
 		result.VerifySSL = helper.BoolToPtr(*b.VerifySSL)
 	}
+	if b.ShareSSL != nil {
+		result.ShareSSL = helper.BoolToPtr(*b.ShareSSL)
+	}
 	if b.CAFile != "" {
 		result.CAFile = b.CAFile
 	}
@@ -300,6 +309,9 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 	}
 	if nc.VerifySSL != nil {
 		nc.VerifySSL = helper.BoolToPtr(*nc.VerifySSL)
+	}
+	if nc.ShareSSL != nil {
+		nc.ShareSSL = helper.BoolToPtr(*nc.ShareSSL)
 	}
 	if nc.ServerAutoJoin != nil {
 		nc.ServerAutoJoin = helper.BoolToPtr(*nc.ServerAutoJoin)

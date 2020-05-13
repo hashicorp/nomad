@@ -22,7 +22,7 @@ import (
 
 const envoyBootstrapHookName = "envoy_bootstrap"
 
-type envoyBootstrapConsulConfig struct {
+type consulTransportConfig struct {
 	HTTPAddr  string // required
 	Auth      string // optional, env CONSUL_HTTP_AUTH
 	SSL       string // optional, env CONSUL_HTTP_SSL
@@ -33,8 +33,20 @@ type envoyBootstrapConsulConfig struct {
 	// CAPath (dir) not supported by Nomad's config object
 }
 
+func newConsulTransportConfig(consul *config.ConsulConfig) consulTransportConfig {
+	return consulTransportConfig{
+		HTTPAddr:  consul.Addr,
+		Auth:      consul.Auth,
+		SSL:       decodeTriState(consul.EnableSSL),
+		VerifySSL: decodeTriState(consul.VerifySSL),
+		CAFile:    consul.CAFile,
+		CertFile:  consul.CertFile,
+		KeyFile:   consul.KeyFile,
+	}
+}
+
 type envoyBootstrapHookConfig struct {
-	consul envoyBootstrapConsulConfig
+	consul consulTransportConfig
 	alloc  *structs.Allocation
 	logger hclog.Logger
 }
@@ -54,15 +66,7 @@ func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.Consu
 	return &envoyBootstrapHookConfig{
 		alloc:  alloc,
 		logger: logger,
-		consul: envoyBootstrapConsulConfig{
-			HTTPAddr:  consul.Addr,
-			Auth:      consul.Auth,
-			SSL:       decodeTriState(consul.EnableSSL),
-			VerifySSL: decodeTriState(consul.VerifySSL),
-			CAFile:    consul.CAFile,
-			CertFile:  consul.CertFile,
-			KeyFile:   consul.KeyFile,
-		},
+		consul: newConsulTransportConfig(consul),
 	}
 }
 
@@ -81,7 +85,7 @@ type envoyBootstrapHook struct {
 	// the bootstrap.json config. Runtime Envoy configuration is done via
 	// Consul's gRPC endpoint. There are many security parameters to configure
 	// before contacting Consul.
-	consulConfig envoyBootstrapConsulConfig
+	consulConfig consulTransportConfig
 
 	// logger is used to log things
 	logger hclog.Logger
@@ -269,7 +273,7 @@ func (h *envoyBootstrapHook) execute(cmd *exec.Cmd) (string, error) {
 // along to the exec invocation of consul which will then generate the bootstrap
 // configuration file for envoy.
 type envoyBootstrapArgs struct {
-	consulConfig   envoyBootstrapConsulConfig
+	consulConfig   consulTransportConfig
 	sidecarFor     string
 	grpcAddr       string
 	envoyAdminBind string

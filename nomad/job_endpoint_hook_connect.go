@@ -97,6 +97,15 @@ func isSidecarForService(t *structs.Task, svc string) bool {
 	return t.Kind == structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, svc))
 }
 
+func getNamedTaskForNativeService(tg *structs.TaskGroup, taskName string) *structs.Task {
+	for _, t := range tg.Tasks {
+		if t.Name == taskName {
+			return t
+		}
+	}
+	return nil
+}
+
 // probably need to hack this up to look for checks on the service, and if they
 // qualify, configure a port for envoy to use to expose their paths.
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
@@ -145,10 +154,15 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 			// create a port for the sidecar task's proxy port
 			makePort(fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name))
-			// todo(shoenig) magic port for 'expose.checks'
+		} else if service.Connect.IsNative() {
+			nativeTaskName := service.Connect.Native
+			if t := getNamedTaskForNativeService(g, nativeTaskName); t != nil {
+				t.Kind = structs.NewTaskKind(structs.ConnectNativePrefix, service.Name)
+			} else {
+				return fmt.Errorf("native task %s named by %s->%s does not exist", nativeTaskName, g.Name, service.Name)
+			}
 		}
 	}
-
 	return nil
 }
 

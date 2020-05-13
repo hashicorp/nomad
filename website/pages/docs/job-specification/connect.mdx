@@ -47,13 +47,19 @@ job "countdash" {
 
 ## `connect` Parameters
 
+- `native` - `(string: "")` - If non-empty, this indicates the task represented
+  by this service, for use with [Connect Native](https://www.consul.io/docs/connect/native)
+  applications. Incompatible with `sidecar_service` and `sidecar_task`.
+
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to configure the sidecar
-  service injected by Nomad for Consul Connect.
+  service injected by Nomad for Consul Connect. Incompatible with `native`.
 
 - `sidecar_task` - <code>([sidecar_task][]:nil)</code> - This modifies the configuration of the Envoy
-  proxy task.
+  proxy task. Incompatible with `native`.
 
 ## `connect` Examples
+
+### Using Sidecar Service
 
 The following example is a minimal connect stanza with defaults and is
 sufficient to start an Envoy proxy sidecar for allowing incoming connections
@@ -161,10 +167,21 @@ job "countdash" {
 }
 ```
 
+### Using Connect Native
+
+The following example is a minimal connect stanza for a
+[Consul Connect Native](https://www.consul.io/docs/connect/native)
+application with task name `myTask`.
+
+```hcl
+connect {
+  native = "myTask"
+}
+```
+
 ### Limitations
 
-[Consul Connect Native services][native] and [Nomad variable
-interpolation][interpolation] are _not_ yet supported.
+[Nomad variable interpolation][interpolation] is _not_ yet supported.
 
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [group]: /docs/job-specification/group 'Nomad group Job Specification'

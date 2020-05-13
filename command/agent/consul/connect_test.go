@@ -32,7 +32,7 @@ func TestConnect_newConnect(t *testing.T) {
 
 	t.Run("native", func(t *testing.T) {
 		asr, err := newConnect("", &structs.ConsulConnect{
-			Native: true,
+			Native: "foo",
 		}, nil)
 		require.NoError(t, err)
 		require.True(t, asr.Native)
@@ -41,7 +41,7 @@ func TestConnect_newConnect(t *testing.T) {
 
 	t.Run("with sidecar", func(t *testing.T) {
 		asr, err := newConnect("redis", &structs.ConsulConnect{
-			Native: false,
+			Native: "",
 			SidecarService: &structs.ConsulSidecarService{
 				Tags: []string{"foo", "bar"},
 				Port: "sidecarPort",
