@@ -1,6 +1,6 @@
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { equal } from '@ember/object/computed';
+import { equal, none } from '@ember/object/computed';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
@@ -42,6 +42,11 @@ export default Model.extend({
 
   isRunning: equal('clientStatus', 'running'),
   isMigrating: attr('boolean'),
+
+  // An allocation model created from any allocation list response will be lacking
+  // many properties (some of which can always be null). This is an indicator that
+  // the allocation needs to be reloaded to get the complete allocation state.
+  isPartial: none('allocationTaskGroup'),
 
   // When allocations are server-side rescheduled, a paper trail
   // is left linking all reschedule attempts.

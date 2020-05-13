@@ -46,6 +46,10 @@ export default Component.extend({
   },
 
   didReceiveAttrs() {
+    this.updateStatsTracker();
+  },
+
+  updateStatsTracker() {
     const allocation = this.allocation;
 
     if (allocation) {
@@ -76,7 +80,9 @@ async function qualifyAllocation() {
 
   // Make sure the allocation is a complete record and not a partial so we
   // can show information such as preemptions and rescheduled allocation.
-  await allocation.reload();
+  if (allocation.isPartial) {
+    await allocation.reload();
+  }
 
   if (allocation.get('job.isPending')) {
     // Make sure the job is loaded before starting the stats tracker
