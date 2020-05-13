@@ -5,13 +5,13 @@ FEATURES:
 
 IMPROVEMENTS:
 
+ * core: Added support for a per-group policy to stop tasks when a client is disconnected [[GH-2185](https://github.com/hashicorp/nomad/issues/2185)]
  * core: Allow spreading allocations as an alternative to binpacking [[GH-7810](https://github.com/hashicorp/nomad/issues/7810)]
  * client: Improve AWS CPU performance fingerprinting [[GH-7681](https://github.com/hashicorp/nomad/issues/7681)]
  * csi: Added support for volume secrets [[GH-7923](https://github.com/hashicorp/nomad/issues/7923)]
  * csi: Added periodic garbage collection of plugins and volume claims [[GH-7825](https://github.com/hashicorp/nomad/issues/7825)]
  * csi: Improved performance of volume claim releases by moving work out of scheduler [[GH-7794](https://github.com/hashicorp/nomad/issues/7794)]
  * driver/docker: Added support for custom runtimes [[GH-7932](https://github.com/hashicorp/nomad/pull/7932)]
- * jobspec: Added support for a per-group policy to stop tasks when a client is disconnected [GH-2185]
  * ui: Added ACL-checking to conditionally turn off exec button [[GH-7919](https://github.com/hashicorp/nomad/pull/7919)]
 
 BUG FIXES:
