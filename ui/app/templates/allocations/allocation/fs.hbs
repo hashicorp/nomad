@@ -1,0 +1,49 @@
+{{title pathWithLeadingSlash " -  Task " task.name " filesystem"}}
+{{allocation-subnav allocation=allocation}}
+<section class="section is-closer {{if isFile "full-width-section"}}">
+  {{#if allocation.isRunning}}
+    {{#if isFile}}
+      {{#task-file allocation=allocation file=path stat=stat class="fs-explorer"}}
+        {{alloc-fs-breadcrumbs allocation=allocation path=path}}
+      {{/task-file}}
+    {{else}}
+      <div class="fs-explorer boxed-section">
+        <div class="boxed-section-head">
+          {{alloc-fs-breadcrumbs allocation=allocation path=path}}
+        </div>
+        {{#if directoryEntries}}
+          {{#list-table
+            source=sortedDirectoryEntries
+            sortProperty=sortProperty
+            sortDescending=sortDescending
+            class="boxed-section-body is-full-bleed is-compact" as |t|}}
+            {{#t.head}}
+              {{#t.sort-by prop="Name" class="is-two-thirds"}}Name{{/t.sort-by}}
+              {{#t.sort-by prop="Size" class="has-text-right"}}File Size{{/t.sort-by}}
+              {{#t.sort-by prop="ModTime" class="has-text-right"}}Last Modified{{/t.sort-by}}
+            {{/t.head}}
+            {{#t.body as |row|}}
+              {{fs-directory-entry path=path allocation=allocation entry=row.model}}
+            {{/t.body}}
+          {{/list-table}}
+        {{else}}
+          <div class="boxed-section-body">
+            <div data-test-empty-directory class="empty-message">
+              <h3 data-test-empty-directory-headline class="empty-message-headline">No Files</h3>
+              <p data-test-empty-directory-body class="empty-message-body">
+                Directory is currently empty.
+              </p>
+            </div>
+          </div>
+        {{/if}}
+      </div>
+    {{/if}}
+  {{else}}
+    <div data-test-not-running class="empty-message">
+      <h3 data-test-not-running-headline class="empty-message-headline">Task is not Running</h3>
+      <p data-test-not-running-body class="empty-message-body">
+        Cannot access files of a task that is not running.
+      </p>
+    </div>
+  {{/if}}
+</section>

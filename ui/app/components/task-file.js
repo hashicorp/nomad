@@ -49,7 +49,8 @@ export default Component.extend({
   isStreaming: false,
 
   catUrl: computed('allocation.id', 'task.name', 'file', function() {
-    const encodedPath = encodeURIComponent(`${this.task.name}/${this.file}`);
+    const taskUrlPrefix = this.task ? `${this.task.name}/` : '';
+    const encodedPath = encodeURIComponent(`${taskUrlPrefix}${this.file}`);
     return `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
   }),
 
@@ -79,7 +80,8 @@ export default Component.extend({
 
   fileParams: computed('task.name', 'file', 'mode', function() {
     // The Log class handles encoding query params
-    const path = `${this.task.name}/${this.file}`;
+    const taskUrlPrefix = this.task ? `${this.task.name}/` : '';
+    const path = `${taskUrlPrefix}${this.file}`;
 
     switch (this.mode) {
       case 'head':

@@ -125,4 +125,12 @@ export default Model.extend({
   restart(taskName) {
     return this.store.adapterFor('allocation').restart(this, taskName);
   },
+
+  ls(path) {
+    return this.store.adapterFor('allocation').ls(this, path);
+  },
+
+  stat(path) {
+    return this.store.adapterFor('allocation').stat(this, path);
+  },
 });
