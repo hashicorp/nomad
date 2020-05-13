@@ -157,10 +157,16 @@ allocation after the 10 second [`heartbeat_grace`] expires. It will
 not be stopped on the client, regardless of how long the client is out
 of touch.
 
-Note that if the server's clock is not closely synchronized with the
-client's clock, the server may reschedule before the client has
+Note that if the server's clocks are not closely synchronized with
+each other, the server may reschedule the group before the client has
 stopped the allocation. Operators should ensure that clock drift
-between clients and servers is as small as possible.
+between servers is as small as possible.
+
+Note also that a group using this feature will be stopped on the
+client if the Nomad server cluster fails, since the client will be
+unable to contact any server in that case. Groups opting in to this
+feature are therefore exposed to an additional runtime dependency and
+potential point of failure.
 
 ```hcl
 group "first" {
