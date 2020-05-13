@@ -210,7 +210,8 @@ func (t *Tracker) setTaskHealth(healthy, terminal bool) {
 }
 
 // setCheckHealth is used to mark the checks as either healthy or unhealthy.
-func (t *Tracker) setCheckHealth(healthy bool) {
+// returns true if health is propagated and no more health monitoring is needed
+func (t *Tracker) setCheckHealth(healthy bool) bool {
 	t.l.Lock()
 	defer t.l.Unlock()
 
@@ -220,7 +221,7 @@ func (t *Tracker) setCheckHealth(healthy bool) {
 
 	// Only signal if we are healthy and so is the tasks
 	if !t.checksHealthy {
-		return
+		return false
 	}
 
 	select {
@@ -230,6 +231,7 @@ func (t *Tracker) setCheckHealth(healthy bool) {
 
 	// Shutdown the tracker
 	t.cancelFn()
+	return true
 }
 
 // markAllocStopped is used to mark the allocation as having stopped.
@@ -379,7 +381,12 @@ OUTER:
 				allocReg = newAllocReg
 			}
 		case <-healthyTimer.C:
-			t.setCheckHealth(true)
+			if t.setCheckHealth(true) {
+				// final health set and propagated
+				return
+			}
+			// tasks are unhealthy, reset and wait until all is healthy
+			primed = false
 		}
 
 		if allocReg == nil {
