@@ -49,7 +49,7 @@ sudo mkdir -p /tmp/data
 # Install CNI plugins
 sudo mkdir -p /opt/cni/bin
 wget -q -O - \
-     https://github.com/containernetworking/plugins/releases/download/v0.8.4/cni-plugins-linux-amd64-v0.8.4.tgz \
+     https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
 # enable as a systemd service
