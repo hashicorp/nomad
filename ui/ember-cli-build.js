@@ -17,7 +17,10 @@ module.exports = function(defaults) {
       modes: ['javascript'],
     },
     babel: {
-      plugins: ['@babel/plugin-proposal-object-rest-spread'],
+      plugins: [
+        '@babel/plugin-proposal-object-rest-spread',
+        require.resolve('ember-auto-import/babel-plugin'),
+      ],
     },
     'ember-cli-babel': {
       includePolyfill: isProd,
