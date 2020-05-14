@@ -1,4 +1,4 @@
-## 0.11.2 (Unreleased)
+## 0.11.2 (May 14, 2020)
 
 FEATURES:
  * **Task dependencies UI**: task lifecycle charts and details
