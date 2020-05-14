@@ -41,6 +41,23 @@ type ClientCSIControllerValidateVolumeRequest struct {
 	CSIControllerQuery
 }
 
+func (c *ClientCSIControllerValidateVolumeRequest) ToCSIRequest() (*csi.ControllerValidateVolumeRequest, error) {
+	if c == nil {
+		return &csi.ControllerValidateVolumeRequest{}, nil
+	}
+
+	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode)
+	if err != nil {
+		return nil, err
+	}
+
+	return &csi.ControllerValidateVolumeRequest{
+		ExternalID:   c.VolumeID,
+		Secrets:      c.Secrets,
+		Capabilities: caps,
+	}, nil
+}
+
 type ClientCSIControllerValidateVolumeResponse struct {
 }
 

@@ -160,7 +160,7 @@ func (c *Client) ControllerUnpublishVolume(ctx context.Context, req *csi.Control
 	return c.NextControllerUnpublishVolumeResponse, c.NextControllerUnpublishVolumeErr
 }
 
-func (c *Client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *csi.VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error {
+func (c *Client) ControllerValidateCapabilities(ctx context.Context, req *csi.ControllerValidateVolumeRequest, opts ...grpc.CallOption) error {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
 

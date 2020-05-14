@@ -43,7 +43,7 @@ type CSIPlugin interface {
 
 	// ControllerValidateCapabilities is used to validate that a volume exists and
 	// supports the requested capability.
-	ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error
+	ControllerValidateCapabilities(ctx context.Context, req *ControllerValidateVolumeRequest, opts ...grpc.CallOption) error
 
 	// NodeGetCapabilities is used to return the available capabilities from the
 	// Node Service.
@@ -227,6 +227,26 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 	}
 
 	return cs
+}
+
+type ControllerValidateVolumeRequest struct {
+	ExternalID   string
+	Secrets      structs.CSISecrets
+	Capabilities *VolumeCapability
+}
+
+func (r *ControllerValidateVolumeRequest) ToCSIRepresentation() *csipbv1.ValidateVolumeCapabilitiesRequest {
+	if r == nil {
+		return nil
+	}
+
+	return &csipbv1.ValidateVolumeCapabilitiesRequest{
+		VolumeId: r.ExternalID,
+		VolumeCapabilities: []*csipbv1.VolumeCapability{
+			r.Capabilities.ToCSIRepresentation(),
+		},
+		Secrets: r.Secrets,
+	}
 }
 
 type ControllerPublishVolumeRequest struct {
