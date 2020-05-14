@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1135,7 +1136,9 @@ func (v *vaultClient) storeForRevocation(accessors []*structs.VaultAccessor) {
 
 	now := time.Now()
 	for _, a := range accessors {
-		v.revoking[a] = now.Add(time.Duration(a.CreationTTL) * time.Second)
+		if _, ok := v.revoking[a]; !ok {
+			v.revoking[a] = now.Add(time.Duration(a.CreationTTL) * time.Second)
+		}
 	}
 	v.revLock.Unlock()
 }
@@ -1176,7 +1179,8 @@ func (v *vaultClient) parallelRevoke(ctx context.Context, accessors []*structs.V
 						return nil
 					}
 
-					if err := v.auth.RevokeAccessor(va.Accessor); err != nil {
+					err := v.auth.RevokeAccessor(va.Accessor)
+					if err != nil && !strings.Contains(err.Error(), "invalid accessor") {
 						return fmt.Errorf("failed to revoke token (alloc: %q, node: %q, task: %q): %v", va.AllocID, va.NodeID, va.Task, err)
 					}
 				case <-pCtx.Done():

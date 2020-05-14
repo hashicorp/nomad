@@ -79,8 +79,8 @@ type CSIPlugin interface {
 }
 
 type NodePublishVolumeRequest struct {
-	// The ID of the volume to publish.
-	VolumeID string
+	// The external ID of the volume to publish.
+	ExternalID string
 
 	// If the volume was attached via a call to `ControllerPublishVolume` then
 	// we need to provide the returned PublishContext here.
@@ -122,7 +122,7 @@ func (r *NodePublishVolumeRequest) ToCSIRepresentation() *csipbv1.NodePublishVol
 	}
 
 	return &csipbv1.NodePublishVolumeRequest{
-		VolumeId:          r.VolumeID,
+		VolumeId:          r.ExternalID,
 		PublishContext:    r.PublishContext,
 		StagingTargetPath: r.StagingTargetPath,
 		TargetPath:        r.TargetPath,
@@ -133,8 +133,8 @@ func (r *NodePublishVolumeRequest) ToCSIRepresentation() *csipbv1.NodePublishVol
 }
 
 func (r *NodePublishVolumeRequest) Validate() error {
-	if r.VolumeID == "" {
-		return errors.New("missing VolumeID")
+	if r.ExternalID == "" {
+		return errors.New("missing volume ID")
 	}
 
 	if r.TargetPath == "" {
@@ -230,7 +230,7 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 }
 
 type ControllerPublishVolumeRequest struct {
-	VolumeID         string
+	ExternalID       string
 	NodeID           string
 	ReadOnly         bool
 	VolumeCapability *VolumeCapability
@@ -244,7 +244,7 @@ func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.Controll
 	}
 
 	return &csipbv1.ControllerPublishVolumeRequest{
-		VolumeId:         r.VolumeID,
+		VolumeId:         r.ExternalID,
 		NodeId:           r.NodeID,
 		Readonly:         r.ReadOnly,
 		VolumeCapability: r.VolumeCapability.ToCSIRepresentation(),
@@ -254,8 +254,8 @@ func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.Controll
 }
 
 func (r *ControllerPublishVolumeRequest) Validate() error {
-	if r.VolumeID == "" {
-		return errors.New("missing VolumeID")
+	if r.ExternalID == "" {
+		return errors.New("missing volume ID")
 	}
 	if r.NodeID == "" {
 		return errors.New("missing NodeID")
@@ -268,9 +268,9 @@ type ControllerPublishVolumeResponse struct {
 }
 
 type ControllerUnpublishVolumeRequest struct {
-	VolumeID string
-	NodeID   string
-	Secrets  structs.CSISecrets
+	ExternalID string
+	NodeID     string
+	Secrets    structs.CSISecrets
 }
 
 func (r *ControllerUnpublishVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerUnpublishVolumeRequest {
@@ -279,15 +279,15 @@ func (r *ControllerUnpublishVolumeRequest) ToCSIRepresentation() *csipbv1.Contro
 	}
 
 	return &csipbv1.ControllerUnpublishVolumeRequest{
-		VolumeId: r.VolumeID,
+		VolumeId: r.ExternalID,
 		NodeId:   r.NodeID,
 		Secrets:  r.Secrets,
 	}
 }
 
 func (r *ControllerUnpublishVolumeRequest) Validate() error {
-	if r.VolumeID == "" {
-		return errors.New("missing VolumeID")
+	if r.ExternalID == "" {
+		return errors.New("missing ExternalID")
 	}
 	if r.NodeID == "" {
 		// the spec allows this but it would unpublish the

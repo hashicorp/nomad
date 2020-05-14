@@ -91,7 +91,7 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.Controller
 	}
 
 	return &csi.ControllerPublishVolumeRequest{
-		VolumeID:         c.VolumeID,
+		ExternalID:       c.VolumeID,
 		NodeID:           c.ClientCSINodeID,
 		VolumeCapability: caps,
 		ReadOnly:         c.ReadOnly,
@@ -121,7 +121,7 @@ type ClientCSIControllerAttachVolumeResponse struct {
 }
 
 type ClientCSIControllerDetachVolumeRequest struct {
-	// The ID of the volume to be unpublished for the node
+	// The external ID of the volume to be unpublished for the node
 	// This field is REQUIRED.
 	VolumeID string
 
@@ -143,8 +143,8 @@ func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerU
 	}
 
 	return &csi.ControllerUnpublishVolumeRequest{
-		VolumeID: c.VolumeID,
-		NodeID:   c.ClientCSINodeID,
+		ExternalID: c.VolumeID,
+		NodeID:     c.ClientCSINodeID,
 	}
 }
 
