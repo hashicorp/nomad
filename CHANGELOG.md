@@ -1,5 +1,9 @@
 ## 0.11.3 (Unreleased)
 
+IMPROVEMENTS:
+
+ * build: Updated to Go 1.14.3 [[GH-7431](https://github.com/hashicorp/nomad/issues/7970)]
+
 ## 0.11.2 (May 14, 2020)
 
 FEATURES:
