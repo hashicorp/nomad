@@ -116,7 +116,7 @@
     "testem": "^3.0.3",
     "testem-multi-reporter": "^1.2.0",
     "text-encoder-lite": "^2.0.0",
-    "xterm": "^4.2.0-vscode1",
+    "xterm": "^4.6.0",
     "xterm-addon-fit": "^0.3.0"
   },
   "optionalDependencies": {

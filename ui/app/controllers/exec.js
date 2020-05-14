@@ -7,7 +7,7 @@ import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-e
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
-import { Terminal } from 'xterm-vendor';
+import { Terminal } from 'xterm';
 
 const ANSI_UI_GRAY_400 = '\x1b[38;2;142;150;163m';
 const ANSI_WHITE = '\x1b[0m';
