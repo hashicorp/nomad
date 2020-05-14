@@ -236,6 +236,8 @@ type CSIVolume struct {
 	AttachmentMode CSIVolumeAttachmentMode
 	MountOptions   *CSIMountOptions
 	Secrets        CSISecrets
+	Parameters     map[string]string
+	Context        map[string]string
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
@@ -299,6 +301,12 @@ func NewCSIVolume(volumeID string, index uint64) *CSIVolume {
 func (v *CSIVolume) newStructs() {
 	if v.Topologies == nil {
 		v.Topologies = []*CSITopology{}
+	}
+	if v.Context == nil {
+		v.Context = map[string]string{}
+	}
+	if v.Parameters == nil {
+		v.Parameters = map[string]string{}
 	}
 	if v.Secrets == nil {
 		v.Secrets = CSISecrets{}
@@ -388,6 +396,12 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	copy := *v
 	out := &copy
 	out.newStructs()
+	for k, v := range v.Parameters {
+		out.Parameters[k] = v
+	}
+	for k, v := range v.Context {
+		out.Context[k] = v
+	}
 	for k, v := range v.Secrets {
 		out.Secrets[k] = v
 	}

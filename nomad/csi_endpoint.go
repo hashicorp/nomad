@@ -238,7 +238,8 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 		AttachmentMode: vol.AttachmentMode,
 		AccessMode:     vol.AccessMode,
 		Secrets:        vol.Secrets,
-		// Parameters: TODO: https://github.com/hashicorp/nomad/issues/7670
+		Parameters:     vol.Parameters,
+		Context:        vol.Context,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerValidateVolumeResponse{}
@@ -443,7 +444,7 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		AccessMode:      vol.AccessMode,
 		ReadOnly:        req.Claim == structs.CSIVolumeClaimRead,
 		Secrets:         vol.Secrets,
-		// VolumeContext: TODO https://github.com/hashicorp/nomad/issues/7771
+		VolumeContext:   vol.Context,
 	}
 	cReq.PluginID = plug.ID
 	cResp := &cstructs.ClientCSIControllerAttachVolumeResponse{}

@@ -100,6 +100,8 @@ type CSIVolume struct {
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 	MountOptions   *CSIMountOptions        `hcl:"mount_options"`
 	Secrets        CSISecrets              `hcl:"secrets"`
+	Parameters     map[string]string       `hcl:"parameters"`
+	Context        map[string]string       `hcl:"context"`
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation

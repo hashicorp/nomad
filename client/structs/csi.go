@@ -36,7 +36,14 @@ type ClientCSIControllerValidateVolumeRequest struct {
 	AttachmentMode structs.CSIVolumeAttachmentMode
 	AccessMode     structs.CSIVolumeAccessMode
 	Secrets        structs.CSISecrets
-	// Parameters map[string]string // TODO: https://github.com/hashicorp/nomad/issues/7670
+
+	// Parameters as returned by storage provider in CreateVolumeResponse.
+	// This field is optional.
+	Parameters map[string]string
+
+	// Volume context as returned by storage provider in CreateVolumeResponse.
+	// This field is optional.
+	Context map[string]string
 
 	CSIControllerQuery
 }
@@ -55,6 +62,8 @@ func (c *ClientCSIControllerValidateVolumeRequest) ToCSIRequest() (*csi.Controll
 		ExternalID:   c.VolumeID,
 		Secrets:      c.Secrets,
 		Capabilities: caps,
+		Parameters:   c.Parameters,
+		Context:      c.Context,
 	}, nil
 }
 
@@ -89,10 +98,9 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	// volume request. This field is OPTIONAL.
 	Secrets structs.CSISecrets
 
-	// TODO https://github.com/hashicorp/nomad/issues/7771
 	// Volume context as returned by storage provider in CreateVolumeResponse.
 	// This field is optional.
-	// VolumeContext map[string]string
+	VolumeContext map[string]string
 
 	CSIControllerQuery
 }
@@ -113,7 +121,7 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.Controller
 		VolumeCapability: caps,
 		ReadOnly:         c.ReadOnly,
 		Secrets:          c.Secrets,
-		// VolumeContext:    c.VolumeContext, TODO: https://github.com/hashicorp/nomad/issues/7771
+		VolumeContext:    c.VolumeContext,
 	}, nil
 }
 

@@ -578,6 +578,8 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 				ExternalID:   "volumeID",
 				Secrets:      structs.CSISecrets{},
 				Capabilities: requestedCaps,
+				Parameters:   map[string]string{},
+				Context:      map[string]string{},
 			}
 
 			cc.NextValidateVolumeCapabilitiesResponse = c.Response

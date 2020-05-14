@@ -233,6 +233,8 @@ type ControllerValidateVolumeRequest struct {
 	ExternalID   string
 	Secrets      structs.CSISecrets
 	Capabilities *VolumeCapability
+	Parameters   map[string]string
+	Context      map[string]string
 }
 
 func (r *ControllerValidateVolumeRequest) ToCSIRepresentation() *csipbv1.ValidateVolumeCapabilitiesRequest {
@@ -241,11 +243,13 @@ func (r *ControllerValidateVolumeRequest) ToCSIRepresentation() *csipbv1.Validat
 	}
 
 	return &csipbv1.ValidateVolumeCapabilitiesRequest{
-		VolumeId: r.ExternalID,
+		VolumeId:      r.ExternalID,
+		VolumeContext: r.Context,
 		VolumeCapabilities: []*csipbv1.VolumeCapability{
 			r.Capabilities.ToCSIRepresentation(),
 		},
-		Secrets: r.Secrets,
+		Parameters: r.Parameters,
+		Secrets:    r.Secrets,
 	}
 }
 
@@ -255,7 +259,7 @@ type ControllerPublishVolumeRequest struct {
 	ReadOnly         bool
 	VolumeCapability *VolumeCapability
 	Secrets          structs.CSISecrets
-	// VolumeContext    map[string]string  // TODO: https://github.com/hashicorp/nomad/issues/7771
+	VolumeContext    map[string]string
 }
 
 func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerPublishVolumeRequest {
@@ -269,7 +273,7 @@ func (r *ControllerPublishVolumeRequest) ToCSIRepresentation() *csipbv1.Controll
 		Readonly:         r.ReadOnly,
 		VolumeCapability: r.VolumeCapability.ToCSIRepresentation(),
 		Secrets:          r.Secrets,
-		// VolumeContext:    r.VolumeContext, https://github.com/hashicorp/nomad/issues/7771
+		VolumeContext:    r.VolumeContext,
 	}
 }
 
