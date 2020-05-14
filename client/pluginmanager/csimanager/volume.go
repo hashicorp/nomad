@@ -203,7 +203,7 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 	// CSI NodePublishVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
 	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
-		VolumeID:          vol.RemoteID(),
+		ExternalID:        vol.RemoteID(),
 		PublishContext:    publishContext,
 		StagingTargetPath: pluginStagingPath,
 		TargetPath:        pluginTargetPath,

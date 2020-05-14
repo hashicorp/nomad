@@ -387,13 +387,13 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 
 		{
 			Name:             "Handles PublishContext == nil",
-			Request:          &ControllerPublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
+			Request:          &ControllerPublishVolumeRequest{ExternalID: "vol", NodeID: "node"},
 			Response:         &csipbv1.ControllerPublishVolumeResponse{},
 			ExpectedResponse: &ControllerPublishVolumeResponse{},
 		},
 		{
 			Name:    "Handles PublishContext != nil",
-			Request: &ControllerPublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
+			Request: &ControllerPublishVolumeRequest{ExternalID: "vol", NodeID: "node"},
 			Response: &csipbv1.ControllerPublishVolumeResponse{
 				PublishContext: map[string]string{
 					"com.hashicorp/nomad-node-id": "foobar",
@@ -450,7 +450,7 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 		},
 		{
 			Name:             "Handles successful response",
-			Request:          &ControllerUnpublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
+			Request:          &ControllerUnpublishVolumeRequest{ExternalID: "vol", NodeID: "node"},
 			ExpectedErr:      fmt.Errorf("missing NodeID"),
 			ExpectedResponse: &ControllerUnpublishVolumeResponse{},
 		},
@@ -675,7 +675,7 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 		{
 			Name: "handles underlying grpc errors",
 			Request: &NodePublishVolumeRequest{
-				VolumeID:         "foo",
+				ExternalID:       "foo",
 				TargetPath:       "/dev/null",
 				VolumeCapability: &VolumeCapability{},
 			},
@@ -685,7 +685,7 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 		{
 			Name: "handles success",
 			Request: &NodePublishVolumeRequest{
-				VolumeID:         "foo",
+				ExternalID:       "foo",
 				TargetPath:       "/dev/null",
 				VolumeCapability: &VolumeCapability{},
 			},
@@ -695,10 +695,10 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 		{
 			Name: "Performs validation of the publish volume request",
 			Request: &NodePublishVolumeRequest{
-				VolumeID: "",
+				ExternalID: "",
 			},
 			ResponseErr: nil,
-			ExpectedErr: errors.New("missing VolumeID"),
+			ExpectedErr: errors.New("missing volume ID"),
 		},
 	}
 
@@ -722,7 +722,7 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 	cases := []struct {
 		Name        string
-		VolumeID    string
+		ExternalID  string
 		TargetPath  string
 		ResponseErr error
 		Response    *csipbv1.NodeUnpublishVolumeResponse
@@ -730,26 +730,26 @@ func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 	}{
 		{
 			Name:        "handles underlying grpc errors",
-			VolumeID:    "foo",
+			ExternalID:  "foo",
 			TargetPath:  "/dev/null",
 			ResponseErr: fmt.Errorf("some grpc error"),
 			ExpectedErr: fmt.Errorf("some grpc error"),
 		},
 		{
 			Name:        "handles success",
-			VolumeID:    "foo",
+			ExternalID:  "foo",
 			TargetPath:  "/dev/null",
 			ResponseErr: nil,
 			ExpectedErr: nil,
 		},
 		{
-			Name:        "Performs validation of the request args - VolumeID",
+			Name:        "Performs validation of the request args - ExternalID",
 			ResponseErr: nil,
-			ExpectedErr: errors.New("missing VolumeID"),
+			ExpectedErr: errors.New("missing volume ID"),
 		},
 		{
 			Name:        "Performs validation of the request args - TargetPath",
-			VolumeID:    "foo",
+			ExternalID:  "foo",
 			ResponseErr: nil,
 			ExpectedErr: errors.New("missing TargetPath"),
 		},
@@ -763,7 +763,7 @@ func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 			nc.NextErr = c.ResponseErr
 			nc.NextUnpublishVolumeResponse = c.Response
 
-			err := client.NodeUnpublishVolume(context.TODO(), c.VolumeID, c.TargetPath)
+			err := client.NodeUnpublishVolume(context.TODO(), c.ExternalID, c.TargetPath)
 			if c.ExpectedErr != nil {
 				require.Error(t, c.ExpectedErr, err)
 			} else {
