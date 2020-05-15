@@ -11,7 +11,7 @@ import (
 func newTaskConfig(variant string, command []string) TaskConfig {
 	// busyboxImageID is an id of an image containing nanoserver windows and
 	// a busybox exe.
-	busyboxImageID := "stefanscherer/busybox-windows:latest"
+	busyboxImageID := "stefanscherer/busybox-windows@sha256:af396324c4c62e369a388ebb38d4efd44211dc7c95a438e6feb62b4ae4194c5b"
 
 	return TaskConfig{
 		Image:   busyboxImageID,
