@@ -50,7 +50,7 @@ func (c *CSI) ControllerValidateVolume(req *structs.ClientCSIControllerValidateV
 	}
 	defer plugin.Close()
 
-	caps, err := csi.VolumeCapabilityFromStructs(req.AttachmentMode, req.AccessMode)
+	csiReq, err := req.ToCSIRequest()
 	if err != nil {
 		return err
 	}
@@ -60,8 +60,7 @@ func (c *CSI) ControllerValidateVolume(req *structs.ClientCSIControllerValidateV
 
 	// CSI ValidateVolumeCapabilities errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
-	return plugin.ControllerValidateCapabilities(ctx, req.VolumeID, caps,
-		req.Secrets,
+	return plugin.ControllerValidateCapabilities(ctx, csiReq,
 		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))

@@ -574,11 +574,18 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 					MountFlags: []string{"noatime", "errors=remount-ro"},
 				},
 			}
+			req := &ControllerValidateVolumeRequest{
+				ExternalID:   "volumeID",
+				Secrets:      structs.CSISecrets{},
+				Capabilities: requestedCaps,
+				Parameters:   map[string]string{},
+				Context:      map[string]string{},
+			}
+
 			cc.NextValidateVolumeCapabilitiesResponse = c.Response
 			cc.NextErr = c.ResponseErr
 
-			err := client.ControllerValidateCapabilities(
-				context.TODO(), "volumeID", requestedCaps, structs.CSISecrets{})
+			err := client.ControllerValidateCapabilities(context.TODO(), req)
 			if c.ExpectedErr != nil {
 				require.Error(t, c.ExpectedErr, err, c.Name)
 			} else {
