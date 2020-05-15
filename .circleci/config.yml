@@ -1311,6 +1311,13 @@ workflows:
             - /^.-ui\b.*/
             - /^docs-.*/
             - stable-website
+    - test-windows:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - stable-website
     - test-client:
         filters:
           branches:
@@ -1387,12 +1394,6 @@ workflows:
             ignore:
             - stable-website
             - /^docs-.*/
-    - test-windows:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - stable-website
   website:
     jobs:
     - website-docker-image:
