@@ -40,6 +40,7 @@ BUG FIXES:
  * ui: Fixed a bug where clicking stdout or stderr when already on that clicked view would pause log streaming [[GH-7820](https://github.com/hashicorp/nomad/issues/7820)]
  * ui: Fixed a race condition that made swithing from stdout to stderr too quickly show an error [[GH-7820](https://github.com/hashicorp/nomad/issues/7820)]
  * ui: Switching namespaces now redirects to Volumes instead of Jobs when on a Storage page [[GH-7896](https://github.com/hashicorp/nomad/issues/7896)]
+ * ui: Allocations always report resource reservations based on thier own job version [[GH-7855](https://github.com/hashicorp/nomad/issues/7855)]
  * vault: Fixed a bug where nomad retries revoking tokens indefinitely [[GH-7959](https://github.com/hashicorp/nomad/issues/7959)]
 
 ## 0.11.1 (April 22, 2020)
