@@ -18,9 +18,9 @@ import (
 
 func testContainerDetails() (image string, imageName string, imageTag string) {
 	if runtime.GOOS == "windows" {
-		return "stefanscherer/busybox-windows@sha256:af396324c4c62e369a388ebb38d4efd44211dc7c95a438e6feb62b4ae4194c5b",
-			"stefanscherer/busybox-windows",
-			"sha256:af396324c4c62e369a388ebb38d4efd44211dc7c95a438e6feb62b4ae4194c5b"
+		return "hashicorpnomad/busybox-windows:server2016-0.1",
+			"hashicorpnomad/busybox-windows",
+			"server2016-0.1"
 	}
 
 	return "busybox:1", "busybox", "1"
