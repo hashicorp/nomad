@@ -1,6 +1,6 @@
 SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-THIS_OS := $(shell uname)
+THIS_OS := $(shell uname | cut -d- -f1)
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
@@ -8,7 +8,7 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 GO_TAGS ?= codegen_generated
 
-GO_TEST_CMD = $(if $(shell which gotestsum),gotestsum --,go test)
+GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
 GOTEST_PKGS ?= "./..."
@@ -18,8 +18,8 @@ endif
 
 default: help
 
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows))
-$(error Building Nomad is currently only supported on Darwin and Linux.)
+ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows MSYS_NT))
+$(error Building Nomad is currently only supported on Darwin and Linux; not $(THIS_OS))
 endif
 
 # On Linux we build for Linux and Windows
@@ -242,8 +242,7 @@ command/job_init.bindata_assetfs.go: command/assets/*
 .PHONY: vendorfmt
 vendorfmt:
 	@echo "--> Formatting vendor/vendor.json"
-	test -x $(GOPATH)/bin/vendorfmt || go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
-		vendorfmt
+	vendorfmt
 
 .PHONY: changelogfmt
 changelogfmt:
