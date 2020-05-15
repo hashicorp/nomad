@@ -28,22 +28,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -61,21 +65,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -135,22 +140,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -168,21 +177,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -242,22 +252,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -275,21 +289,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -349,22 +364,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -382,21 +401,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -444,114 +464,82 @@ jobs:
         command: |
           mkdir -p $GOBIN
           mkdir -p $GOTESTSUM_PATH
-          echo "$GOLANG_VERSION" > ~/GOLANG_VERSION.txt
-          echo "$GOTESTSUM_VERSION" > ~/GOTESTSUM_VERSION.txt
-          echo "$VAULT_VERSION" > ~/VAULT_VERSION.txt
         name: Setup
-    - restore_cache:
-        keys:
-        - win-golang-cache-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
-    - restore_cache:
-        keys:
-        - win-gotestsum-cache-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
-    - restore_cache:
-        keys:
-        - win-vault-cache-{{ checksum "~/VAULT_VERSION.txt" }}-v1
-    - restore_cache:
-        keys:
-        - win-gobuild-cache-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
     - run:
         command: |
           set -x
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ windows != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf c:/go
             sudo mkdir -p c:
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C c: -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf c:/go
-              mkdir -p c:
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf c:/go
+            mkdir -p c:
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d c:
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
         command: go version
-    - save_cache:
-        key: win-golang-cache-{{ checksum "~/GOLANG_VERSION.txt" }}-v1
-        paths:
-        - /go
-    - run:
-        command: go version
-    - run:
-        command: "set -x \n\nif [[ windows == \"windows\" ]]\nthen\n  if [[ ! -f \"c:\\Windows\\gotestsum.exe\" ]]\n  then\n    echo \"Cache not found, installing gotestsum\"\n    curl -SL --fail -o /tmp/gotestsum.tar.gz https://github.com/gotestyourself/gotestsum/releases/download/v\"$GOTESTSUM_VERSION\"/gotestsum_\"$GOTESTSUM_VERSION\"_\"windows\"_amd64.tar.gz\n    tar -C \"/c/Windows\" -xzf /tmp/gotestsum.tar.gz\n  fi\nfi\n"
-        name: Install gotestsum
-    - save_cache:
-        key: win-gotestsum-cache-{{ checksum "~/GOTESTSUM_VERSION.txt" }}-v1
-        paths:
-        - c:\Windows\gotestsum.exe
     - run:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"$VAULT_VERSION"/vault_"$VAULT_VERSION"_"windows"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ windows == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"$VAULT_VERSION"/vault_"$VAULT_VERSION"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ windows == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
-    - save_cache:
-        key: win-vault-cache-{{ checksum "~/VAULT_VERSION.txt" }}-v1
-        paths:
-        - c:\Windows\vault.exe
     - run:
         command: vault version
     - run:
         command: choco install make
     - run:
         command: |
-          export PATH=$PATH:c/gopath/bin
-          go get -u github.com/kardianos/govendor
-          go get -u github.com/ugorji/go/codec/codecgen
-          go get -u github.com/hashicorp/go-bindata/go-bindata
-          go get -u github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs
-          go get -u github.com/a8m/tree/cmd/tree
-          go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
-          go get -u github.com/golang/protobuf/protoc-gen-go
-          go get -u gotest.tools/gotestsum
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          make deps
         name: Install golang dependencies
     - run:
         command: |
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
           go build -o $GOBIN\nomad.exe
         name: Build nomad
-    - save_cache:
-        key: win-gobuild-cache-{{ checksum "/gopath/src/github.com/hashicorp/nomad/api/go.sum" }}-v1
-        paths:
-        - c:\Users\circleci\AppData\Local\go-build
     - run:
         command: |
           # Only test docker driver tests for now
-          gotestsum --format=short-verbose --junitfile $GOTESTSUM_PATH/results.xml github.com/hashicorp/nomad/drivers/docker github.com/hashicorp/nomad/client/lib/fifo github.com/hashicorp/nomad/client/logmon
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          gotestsum --format=short-verbose \
+            --junitfile $GOTESTSUM_PATH/results.xml \
+            github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/client/lib/fifo \
+            github.com/hashicorp/nomad/client/logmon
         name: Run tests with gotestsum
     - store_test_results:
         path: c:\tmp\test-reports
@@ -590,22 +578,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -623,21 +615,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -788,22 +781,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -821,21 +818,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -907,21 +905,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -961,22 +960,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ darwin != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf ~/goinstall/go
             sudo mkdir -p ~/goinstall
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.darwin-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf ~/goinstall/go
-              mkdir -p ~/goinstall
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.darwin-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf ~/goinstall/go
+            mkdir -p ~/goinstall
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d ~/goinstall
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -1023,22 +1026,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -1056,21 +1063,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:
@@ -1192,22 +1200,26 @@ jobs:
 
           echo installing golang ${GOLANG_VERSION}
 
-          if [[ linux != "windows" ]]
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
           then
             sudo rm -rf /usr/local/go
             sudo mkdir -p /usr/local
-            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
             sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
             rm -rf /tmp/golang.tar.gz
           else
-            if [[ ! -d "c:\go" ]]
-            then
-              echo "Cache not found, doing a fresh install of go"
-              rm -rf /usr/local/go
-              mkdir -p /usr/local
-              curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.zip
-              unzip -o go.zip -d "/c"
-            fi
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
           fi
         name: Install golang
     - run:
@@ -1225,21 +1237,22 @@ jobs:
         command: |
           set -x
 
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"linux"_amd64.zip
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
 
-          if [[ linux == "linux" ]]
-          then
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
             sudo unzip -d /usr/local/bin /tmp/vault.zip
             rm -rf /tmp/vault*
-          fi
-          if [[ linux == "windows" ]]
-          then
-            if [[ ! -f "c:\Windows\vault.exe" ]]
-            then
-              echo "Cache not found, doing a fresh install of vault"
-              unzip /tmp/vault.zip -d "/c/Windows"
-              rm -rf /tmp/vault*
-            fi
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
           fi
         name: Install Vault
     - run:

@@ -2,9 +2,6 @@ parameters:
   target_directory:
     type: string
     default: /usr/local
-  os:
-    type: string
-    default: linux
 steps:
   - run:
       name: Install golang
@@ -13,20 +10,24 @@ steps:
 
         echo installing golang ${GOLANG_VERSION}
 
-        if [[ << parameters.os >> != "windows" ]]
+        case "${OSTYPE}" in
+          linux*)  os="linux" ;;
+          darwin*) os="darwin" ;;
+          msys*)   os="windows" ;;
+          *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+        esac
+
+        if [[ "${os}" != "windows" ]]
         then
           sudo rm -rf << parameters.target_directory >>/go
           sudo mkdir -p << parameters.target_directory >>
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.<< parameters.os >>-amd64.tar.gz
+          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
           sudo tar -C << parameters.target_directory >> -xzf /tmp/golang.tar.gz
           rm -rf /tmp/golang.tar.gz
         else
-          if [[ ! -d "c:\go" ]]
-          then
-            echo "Cache not found, doing a fresh install of go"
-            rm -rf << parameters.target_directory >>/go
-            mkdir -p <<parameters.target_directory >>
-            curl -SL --fail -o go.zip https://dl.google.com/go/go${GOLANG_VERSION}.<< parameters.os >>-amd64.zip
-            unzip -o go.zip -d "/c"
-          fi
+          rm -rf << parameters.target_directory >>/go
+          mkdir -p <<parameters.target_directory >>
+          curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+          unzip -o /tmp/go.zip -d << parameters.target_directory >>
+          rm -rf /tmp/go.zip
         fi
