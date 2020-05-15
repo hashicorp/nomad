@@ -26,19 +26,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -52,10 +63,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -111,19 +138,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -137,10 +175,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -196,19 +250,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -222,10 +287,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -281,19 +362,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -307,10 +399,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -344,6 +452,111 @@ jobs:
         path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/test-reports
+  test-windows:
+    machine:
+      image: windows-server-2019-vs2019:stable
+    working_directory: c:\gopath\src\github.com\hashicorp\nomad
+    steps:
+    - run:
+        command: git config --global core.autocrlf false
+    - checkout
+    - run:
+        command: |
+          mkdir -p $GOBIN
+          mkdir -p $GOTESTSUM_PATH
+        name: Setup
+    - run:
+        command: |
+          set -x
+
+          echo installing golang ${GOLANG_VERSION}
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf c:/go
+            sudo mkdir -p c:
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C c: -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf c:/go
+            mkdir -p c:
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d c:
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
+    - run:
+        command: go version
+    - run:
+        command: |
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"$VAULT_VERSION"/vault_"$VAULT_VERSION"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
+    - run:
+        command: vault version
+    - run:
+        command: choco install make
+    - run:
+        command: |
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          make deps
+        name: Install golang dependencies
+    - run:
+        command: docker pull hashicorpnomad/busybox-windows:server2016-0.1
+        name: Pre-download docker test image
+    - run:
+        command: |
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          go build -o $GOBIN\nomad.exe
+        name: Build nomad
+    - run:
+        command: |
+          # Only test docker driver tests for now
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          gotestsum --format=short-verbose \
+            --junitfile $GOTESTSUM_PATH/results.xml \
+            github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/client/lib/fifo \
+            github.com/hashicorp/nomad/client/logmon
+        name: Run tests with gotestsum
+    - store_test_results:
+        path: c:\tmp\test-reports
+    - store_artifacts:
+        path: c:\tmp\test-reports
+    environment:
+    - GOBIN: c:\gopath\bin
+    - GOLANG_VERSION: 1.14.1
+    - GOPATH: c:\gopath
+    - GOTESTSUM_PATH: c:\tmp\test-reports
+    - GOTESTSUM_VERSION: 0.4.2
+    - VAULT_VERSION: 1.4.1
+    resource_class: windows.medium
+    shell: bash --login -eo pipefail
   test-shared-exec:
     machine:
       image: ubuntu-1604:201903-01
@@ -366,19 +579,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -392,10 +616,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -542,19 +782,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -568,10 +819,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -639,10 +906,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ -z $GOTEST_PKGS_EXCLUDE ];
@@ -678,19 +961,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf ~/goinstall/go
-          sudo mkdir -p ~/goinstall
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf ~/goinstall/go
+            sudo mkdir -p ~/goinstall
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf ~/goinstall/go
+            mkdir -p ~/goinstall
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d ~/goinstall
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: source ${BASH_ENV} && make deps
     - run:
@@ -733,19 +1027,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -759,10 +1064,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -880,19 +1201,30 @@ jobs:
         command: |
           set -x
 
-          os="linux"
-          if [[ "$OSTYPE" == "darwin"* ]]
-          then
-            os="darwin"
-          fi
-
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          sudo mkdir -p /usr/local
-          curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -906,10 +1238,26 @@ jobs:
         name: Install Consul 1.6.4
     - run:
         command: |
-          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.4/vault_1.2.4_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.4
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -960,6 +1308,13 @@ workflows:
             - /^docs-.*/
             - stable-website
     - build-darwin-binaries:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - stable-website
+    - test-windows:
         filters:
           branches:
             ignore:
