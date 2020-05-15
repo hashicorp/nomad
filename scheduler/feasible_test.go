@@ -397,6 +397,48 @@ func TestCSIVolumeChecker(t *testing.T) {
 	}
 }
 
+func TestNetworkChecker(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[0].NodeResources.Networks = append(nodes[0].NodeResources.Networks, &structs.NetworkResource{Mode: "bridge"})
+	nodes[1].NodeResources.Networks = append(nodes[1].NodeResources.Networks, &structs.NetworkResource{Mode: "bridge"})
+	nodes[2].NodeResources.Networks = append(nodes[2].NodeResources.Networks, &structs.NetworkResource{Mode: "cni/mynet"})
+
+	checker := NewNetworkChecker(ctx)
+	cases := []struct {
+		mode    string
+		results []bool
+	}{
+		{
+			mode:    "host",
+			results: []bool{true, true, true},
+		},
+		{
+			mode:    "bridge",
+			results: []bool{true, true, false},
+		},
+		{
+			mode:    "cni/mynet",
+			results: []bool{false, false, true},
+		},
+		{
+			mode:    "cni/nonexistent",
+			results: []bool{false, false, false},
+		},
+	}
+
+	for _, c := range cases {
+		checker.SetNetworkMode(c.mode)
+		for i, node := range nodes {
+			require.Equal(t, c.results[i], checker.Feasible(node), "mode=%q, idx=%d", c.mode, i)
+		}
+	}
+}
+
 func TestDriverChecker_DriverInfo(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{

@@ -132,6 +132,7 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 	for _, addr := range addrs {
 		// Create a new network resource
 		newNetwork := &structs.NetworkResource{
+			Mode:   "host",
 			Device: intf.Name,
 			MBits:  throughput,
 		}

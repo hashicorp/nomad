@@ -1436,7 +1436,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// if we still have node changes, merge them
 	if response.Resources != nil {
 		response.Resources.Networks = updateNetworks(
-			c.config.Node.Resources.Networks,
 			response.Resources.Networks,
 			c.config)
 		if !c.config.Node.Resources.Equals(response.Resources) {
@@ -1449,7 +1448,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {
 		response.NodeResources.Networks = updateNetworks(
-			c.config.Node.NodeResources.Networks,
 			response.NodeResources.Networks,
 			c.config)
 		if !c.config.Node.NodeResources.Equals(response.NodeResources) {
@@ -1465,33 +1463,40 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	return c.configCopy.Node
 }
 
-// updateNetworks preserves manually configured network options, but
-// applies fingerprint updates
-func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) structs.Networks {
-	if c.NetworkInterface == "" {
-		ns = up
-	} else {
-		// If a network device is configured, filter up to contain details for only
+// updateNetworks filters and overrides network speed of host networks based
+// on configured settings
+func updateNetworks(up structs.Networks, c *config.Config) structs.Networks {
+	if up == nil {
+		return nil
+	}
+
+	if c.NetworkInterface != "" {
+		// For host networks, if a network device is configured filter up to contain details for only
 		// that device
 		upd := []*structs.NetworkResource{}
 		for _, n := range up {
-			if c.NetworkInterface == n.Device {
+			switch n.Mode {
+			case "host":
+				if c.NetworkInterface == n.Device {
+					upd = append(upd, n)
+				}
+			default:
 				upd = append(upd, n)
+
 			}
 		}
-		// If updates, use them. Otherwise, ns contains the configured interfaces
-		if len(upd) > 0 {
-			ns = upd
-		}
+		up = upd
 	}
 
-	// ns is set, apply the config NetworkSpeed to all
+	// if set, apply the config NetworkSpeed to networks in host mode
 	if c.NetworkSpeed != 0 {
-		for _, n := range ns {
-			n.MBits = c.NetworkSpeed
+		for _, n := range up {
+			if n.Mode == "host" {
+				n.MBits = c.NetworkSpeed
+			}
 		}
 	}
-	return ns
+	return up
 }
 
 // retryIntv calculates a retry interval value given the base

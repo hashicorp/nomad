@@ -5239,3 +5239,47 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		require.Equal(out, tc.Parsed)
 	}
 }
+
+func TestNodeResources_Merge(t *testing.T) {
+	res := &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(64000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+		},
+	}
+
+	res.Merge(&NodeResources{
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Mode: "foo/bar",
+			},
+		},
+	})
+
+	require.Exactly(t, &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+			{
+				Mode: "foo/bar",
+			},
+		},
+	}, res)
+}
