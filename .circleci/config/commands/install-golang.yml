@@ -28,6 +28,6 @@ steps:
           rm -rf << parameters.target_directory >>/go
           mkdir -p <<parameters.target_directory >>
           curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-          unzip -o /tmp/go.zip -d << parameters.target_directory >>
+          unzip -q -o /tmp/go.zip -d << parameters.target_directory >>
           rm -rf /tmp/go.zip
         fi

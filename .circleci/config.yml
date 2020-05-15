@@ -46,7 +46,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -158,7 +158,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -270,7 +270,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -382,7 +382,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -489,7 +489,7 @@ jobs:
             rm -rf c:/go
             mkdir -p c:
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d c:
+            unzip -q -o /tmp/go.zip -d c:
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -599,7 +599,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -802,7 +802,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -981,7 +981,7 @@ jobs:
             rm -rf ~/goinstall/go
             mkdir -p ~/goinstall
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d ~/goinstall
+            unzip -q -o /tmp/go.zip -d ~/goinstall
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -1047,7 +1047,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
@@ -1221,7 +1221,7 @@ jobs:
             rm -rf /usr/local/go
             mkdir -p /usr/local
             curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
-            unzip -o /tmp/go.zip -d /usr/local
+            unzip -q -o /tmp/go.zip -d /usr/local
             rm -rf /tmp/go.zip
           fi
         name: Install golang
