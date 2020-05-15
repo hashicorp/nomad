@@ -527,6 +527,9 @@ jobs:
           make deps
         name: Install golang dependencies
     - run:
+        command: docker pull hashicorpnomad/busybox-windows:server2016-0.1
+        name: Pre-download docker test image
+    - run:
         command: |
           export PATH=$PATH:/c/go/bin:/c/gopath/bin
           go build -o $GOBIN\nomad.exe
