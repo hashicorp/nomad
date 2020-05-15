@@ -86,7 +86,7 @@
     <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
       {{#if model.controllers}}
         {{#list-table
-          source=sortedControllers
+          source=(take 10 sortedControllers)
           class="with-foot" as |t|}}
           {{#t.head}}
             <th class="is-narrow"></th>
@@ -123,7 +123,7 @@
     <div class="boxed-section-body {{if model.nodes "is-full-bleed"}}">
       {{#if model.nodes}}
         {{#list-table
-          source=sortedNodes
+          source=(take 10 sortedNodes)
           class="with-foot" as |t|}}
           {{#t.head}}
             <th class="is-narrow"></th>
