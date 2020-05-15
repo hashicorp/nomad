@@ -1,13 +1,19 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 
 export default Controller.extend({
-  sortedControllers: computed('model.controllers.@each.updateTime', function() {
-    return this.model.controllers.sortBy('updateTime').reverse();
+  controllerAllocation: alias('model.controllerAllocation'),
+  nodeAllocation: alias('model.nodeAllocation'),
+
+  plugin: alias('model.plugin'),
+
+  sortedControllers: computed('plugin.controllers.@each.updateTime', function() {
+    return this.plugin.controllers.sortBy('updateTime').reverse();
   }),
 
-  sortedNodes: computed('model.nodes.@each.updateTime', function() {
-    return this.model.nodes.sortBy('updateTime').reverse();
+  sortedNodes: computed('plugin.nodes.@each.updateTime', function() {
+    return this.plugin.nodes.sortBy('updateTime').reverse();
   }),
 
   actions: {

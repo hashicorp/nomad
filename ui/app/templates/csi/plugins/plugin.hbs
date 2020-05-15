@@ -1,23 +1,23 @@
-{{title "CSI Plugin " model.plainId}}
+{{title "CSI Plugin " plugin.plainId}}
 <section class="section with-headspace">
-  <h1 class="title" data-test-title>{{model.plainId}}</h1>
+  <h1 class="title" data-test-title>{{plugin.plainId}}</h1>
 
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Plugin Details</span>
       <span class="pair" data-test-plugin-controller-health>
         <span class="term">Controller Health</span>
-        {{format-percentage model.controllersHealthy total=model.controllersExpected}}
-        ({{model.controllersHealthy}}/{{model.controllersExpected}})
+        {{format-percentage plugin.controllersHealthy total=plugin.controllersExpected}}
+        ({{plugin.controllersHealthy}}/{{plugin.controllersExpected}})
       </span>
       <span class="pair" data-test-plugin-node-health>
         <span class="term">Node Health</span>
-        {{format-percentage model.nodesHealthy total=model.nodesExpected}}
-        ({{model.nodesHealthy}}/{{model.nodesExpected}})
+        {{format-percentage plugin.nodesHealthy total=plugin.nodesExpected}}
+        ({{plugin.nodesHealthy}}/{{plugin.nodesExpected}})
       </span>
       <span class="pair" data-test-plugin-provider>
         <span class="term">Provider</span>
-        {{model.provider}}
+        {{plugin.provider}}
       </span>
     </div>
   </div>
@@ -31,19 +31,19 @@
             <div class="column is-half">
               {{gauge-chart
                 label="Availability"
-                value=model.controllersHealthy
-                total=model.controllersExpected}}
+                value=plugin.controllersHealthy
+                total=plugin.controllersExpected}}
             </div>
             <div class="column">
               <div class="metric">
                 <h3 class="label">Available</h3>
-                <p class="value">{{model.controllersHealthy}}</p>
+                <p class="value">{{plugin.controllersHealthy}}</p>
               </div>
             </div>
             <div class="column">
               <div class="metric">
                 <h3 class="label">Expected</h3>
-                <p class="value">{{model.controllersExpected}}</p>
+                <p class="value">{{plugin.controllersExpected}}</p>
               </div>
             </div>
           </div>
@@ -58,19 +58,19 @@
             <div class="column is-half">
               {{gauge-chart
                 label="Availability"
-                value=model.nodesHealthy
-                total=model.nodesExpected}}
+                value=plugin.nodesHealthy
+                total=plugin.nodesExpected}}
             </div>
             <div class="column">
               <div class="metric">
                 <h3 class="label">Available</h3>
-                <p class="value">{{model.nodesHealthy}}</p>
+                <p class="value">{{plugin.nodesHealthy}}</p>
               </div>
             </div>
             <div class="column">
               <div class="metric">
                 <h3 class="label">Expected</h3>
-                <p class="value">{{model.nodesExpected}}</p>
+                <p class="value">{{plugin.nodesExpected}}</p>
               </div>
             </div>
           </div>
@@ -83,8 +83,8 @@
     <div class="boxed-section-head">
       Controller Allocations
     </div>
-    <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
-      {{#if model.controllers}}
+    <div class="boxed-section-body {{if plugin.controllers "is-full-bleed"}}">
+      {{#if plugin.controllers}}
         {{#list-table
           source=(take 10 sortedControllers)
           class="with-foot" as |t|}}
@@ -114,14 +114,25 @@
         </div>
       {{/if}}
     </div>
+    {{#if plugin.controllers}}
+      <div class="boxed-section-foot">
+        <p class="pull-right" data-test-go-to-controller-job>
+          {{#link-to "jobs.job"
+            controllerAllocation.job.plainId
+            (query-params jobNamespace=controllerAllocation.job.namespace.id)}}
+            View Controller Job
+          {{/link-to}}
+        </p>
+      </div>
+    {{/if}}
   </div>
 
   <div class="boxed-section">
     <div class="boxed-section-head">
       Node Allocations
     </div>
-    <div class="boxed-section-body {{if model.nodes "is-full-bleed"}}">
-      {{#if model.nodes}}
+    <div class="boxed-section-body {{if plugin.nodes "is-full-bleed"}}">
+      {{#if plugin.nodes}}
         {{#list-table
           source=(take 10 sortedNodes)
           class="with-foot" as |t|}}
@@ -151,5 +162,16 @@
         </div>
       {{/if}}
     </div>
+    {{#if plugin.controllers}}
+      <div class="boxed-section-foot">
+        <p class="pull-right" data-test-go-to-controller-job>
+          {{#link-to "jobs.job"
+          nodeAllocation.job.plainId
+          (query-params jobNamespace=nodeAllocation.job.namespace.id)}}
+            View Node Job
+          {{/link-to}}
+        </p>
+      </div>
+    {{/if}}
   </div>
 </section>

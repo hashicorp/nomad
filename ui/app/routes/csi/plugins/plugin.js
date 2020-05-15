@@ -9,14 +9,14 @@ export default Route.extend(WithWatchers, {
   store: service(),
   system: service(),
 
-  breadcrumbs: plugin => [
+  breadcrumbs: model => [
     {
       label: 'Plugins',
       args: ['csi.plugins'],
     },
     {
-      label: plugin.plainId,
-      args: ['csi.plugins.plugin', plugin.plainId],
+      label: model.plugin.plainId,
+      args: ['csi.plugins.plugin', model.plugin.plainId],
     },
   ],
 
@@ -32,8 +32,22 @@ export default Route.extend(WithWatchers, {
     return { plugin_name: model.get('plainId') };
   },
 
-  model(params) {
-    return this.store.findRecord('plugin', `csi/${params.plugin_name}`).catch(notifyError(this));
+  async model(params) {
+    const plugin = await this.store
+      .findRecord('plugin', `csi/${params.plugin_name}`)
+      .catch(notifyError(this));
+
+    const pluginController = plugin.get('controllers.firstObject');
+    const pluginNode = plugin.get('nodes.firstObject');
+
+    const controllerAllocation = pluginController && (await pluginController.getAllocation());
+    const nodeAllocation = pluginNode && (await pluginNode.getAllocation());
+
+    return {
+      plugin,
+      controllerAllocation,
+      nodeAllocation,
+    };
   },
 
   watch: watchRecord('plugin'),
