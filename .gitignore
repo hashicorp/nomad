@@ -81,6 +81,7 @@ rkt-*
 
 # misc
 /ui/.sass-cache
+/ui/.storybook/preview-head.html
 /ui/connect.lock
 /ui/coverage/*
 /ui/libpeerconnection.log
