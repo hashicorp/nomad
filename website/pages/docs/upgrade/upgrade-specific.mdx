@@ -39,7 +39,7 @@ scheduled to run during Daylight Saving Time transitions.
 Nomad 0.11.2 provides a more defined behavior: Nomad evaluates the cron
 expression with respect to specified time zone during transition. A 2:30am
 nightly job with `America/New_York` time zone will not run on the day daylight
-saving time start; similarly, a 1:30am nightly job will run twice on the day
+saving time starts; similarly, a 1:30am nightly job will run twice on the day
 daylight saving time ends. See the [Daylight Saving Time][dst] documentation
 for details.
 
