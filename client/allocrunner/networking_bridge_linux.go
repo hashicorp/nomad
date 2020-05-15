@@ -3,12 +3,7 @@ package allocrunner
 import (
 	"context"
 	"fmt"
-	"math/rand"
-	"os"
-	"path/filepath"
-	"time"
 
-	cni "github.com/containerd/go-cni"
 	"github.com/coreos/go-iptables/iptables"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -16,14 +11,6 @@ import (
 )
 
 const (
-	// envCNIPath is the environment variable name to use to derive the CNI path
-	// when it is not explicitly set by the client
-	envCNIPath = "CNI_PATH"
-
-	// defaultCNIPath is the CNI path to use when it is not set by the client
-	// and is not set by environment variable
-	defaultCNIPath = "/opt/cni/bin"
-
 	// defaultNomadBridgeName is the name of the bridge to use when not set by
 	// the client
 	defaultNomadBridgeName = "nomad"
@@ -45,11 +32,10 @@ const (
 // shared bridge, configures masquerading for egress traffic and port mapping
 // for ingress
 type bridgeNetworkConfigurator struct {
-	cni         cni.CNI
+	cni         *cniNetworkConfigurator
 	allocSubnet string
 	bridgeName  string
 
-	rand   *rand.Rand
 	logger hclog.Logger
 }
 
@@ -57,21 +43,8 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath
 	b := &bridgeNetworkConfigurator{
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
-		rand:        rand.New(rand.NewSource(time.Now().Unix())),
 		logger:      log,
 	}
-	if cniPath == "" {
-		if cniPath = os.Getenv(envCNIPath); cniPath == "" {
-			cniPath = defaultCNIPath
-		}
-	}
-
-	c, err := cni.New(cni.WithPluginDir(filepath.SplitList(cniPath)),
-		cni.WithInterfacePrefix(bridgeNetworkAllocIfPrefix))
-	if err != nil {
-		return nil, err
-	}
-	b.cni = c
 
 	if b.bridgeName == "" {
 		b.bridgeName = defaultNomadBridgeName
@@ -80,6 +53,12 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath
 	if b.allocSubnet == "" {
 		b.allocSubnet = defaultNomadAllocSubnet
 	}
+
+	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, buildNomadBridgeNetConfig(b.bridgeName, b.allocSubnet))
+	if err != nil {
+		return nil, err
+	}
+	b.cni = c
 
 	return b, nil
 }
@@ -148,72 +127,16 @@ func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Al
 		return fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
 
-	if err := b.ensureCNIInitialized(); err != nil {
-		return err
-	}
-
-	// Depending on the version of bridge cni plugin (< 0.8.4) a known race could occur
-	// where two alloc attempt to create the nomad bridge at the same time, resulting
-	// in one of them to fail. This retry attempts to overcome those erroneous failures.
-	const retry = 3
-	for attempt := 1; ; attempt++ {
-		//TODO eventually returning the IP from the result would be nice to have in the alloc
-		if _, err := b.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc))); err != nil {
-			b.logger.Warn("failed to configure bridge network", "err", err, "attempt", attempt)
-			if attempt == retry {
-				return fmt.Errorf("failed to configure bridge network: %v", err)
-			}
-			// Sleep for 1 second + jitter
-			time.Sleep(time.Second + (time.Duration(b.rand.Int63n(1000)) * time.Millisecond))
-			continue
-		}
-		break
-	}
-
-	return nil
-
+	return b.cni.Setup(ctx, alloc, spec)
 }
 
 // Teardown calls the CNI plugins with the delete action
 func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
-	if err := b.ensureCNIInitialized(); err != nil {
-		return err
-	}
-
-	return b.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc)))
+	return b.cni.Teardown(ctx, alloc, spec)
 }
 
-func (b *bridgeNetworkConfigurator) ensureCNIInitialized() error {
-	if err := b.cni.Status(); cni.IsCNINotInitialized(err) {
-		return b.cni.Load(cni.WithConfListBytes(b.buildNomadNetConfig()))
-	} else {
-		return err
-	}
-}
-
-// getPortMapping builds a list of portMapping structs that are used as the
-// portmapping capability arguments for the portmap CNI plugin
-func getPortMapping(alloc *structs.Allocation) []cni.PortMapping {
-	ports := []cni.PortMapping{}
-	for _, network := range alloc.AllocatedResources.Shared.Networks {
-		for _, port := range append(network.DynamicPorts, network.ReservedPorts...) {
-			if port.To < 1 {
-				continue
-			}
-			for _, proto := range []string{"tcp", "udp"} {
-				ports = append(ports, cni.PortMapping{
-					HostPort:      int32(port.Value),
-					ContainerPort: int32(port.To),
-					Protocol:      proto,
-				})
-			}
-		}
-	}
-	return ports
-}
-
-func (b *bridgeNetworkConfigurator) buildNomadNetConfig() []byte {
-	return []byte(fmt.Sprintf(nomadCNIConfigTemplate, b.bridgeName, b.allocSubnet, cniAdminChainName))
+func buildNomadBridgeNetConfig(bridgeName, subnet string) []byte {
+	return []byte(fmt.Sprintf(nomadCNIConfigTemplate, bridgeName, subnet, cniAdminChainName))
 }
 
 const nomadCNIConfigTemplate = `{

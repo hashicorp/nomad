@@ -5281,6 +5281,50 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 	require.False(old.Diff(nonEmptyOld))
 }
 
+func TestNodeResources_Merge(t *testing.T) {
+	res := &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(64000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+		},
+	}
+
+	res.Merge(&NodeResources{
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Mode: "foo/bar",
+			},
+		},
+	})
+
+	require.Exactly(t, &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+			{
+				Mode: "foo/bar",
+			},
+		},
+	}, res)
+}
+
 func TestMultiregion_Validate(t *testing.T) {
 	require := require.New(t)
 	cases := []struct {
