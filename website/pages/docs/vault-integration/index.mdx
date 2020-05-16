@@ -243,7 +243,8 @@ $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
 After the token role is created, a token suitable for the Nomad servers may be
 retrieved by issuing the following Vault command:
 
-```shell-sessionvault token create -policy nomad-server -period 72h -orphan
+```shell-session
+vault token create -policy nomad-server -period 72h -orphan
 Key             Value
 ---             -----
 token           f02f01c2-c0d1-7cb7-6b88-8a14fada58c0
