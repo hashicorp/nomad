@@ -1,5 +1,12 @@
 #!/bin/sh
 
+if [ -z "$1" ]; then
+    echo "usage: $0 GO_VERSION"
+    echo ""
+    echo "For example: $0 1.14.3"
+    exit 1
+fi
+
 golang_version="$1"
 
 current_version=$(grep -o -e 'golang:[.0-9]*' .circleci/config.yml | head -n1 | cut -d: -f2)
