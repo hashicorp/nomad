@@ -14,7 +14,6 @@ import (
 
 func TestACLTokenListCommand(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
 	}

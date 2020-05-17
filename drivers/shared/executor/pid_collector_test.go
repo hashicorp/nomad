@@ -7,7 +7,6 @@ import (
 )
 
 func TestScanPids(t *testing.T) {
-	t.Parallel()
 	p1 := NewFakeProcess(2, 5)
 	p2 := NewFakeProcess(10, 2)
 	p3 := NewFakeProcess(15, 6)

@@ -27,7 +27,6 @@ func tmpDir(t testing.TB) string {
 }
 
 func TestAgent_RPC_Ping(t *testing.T) {
-	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 
@@ -38,7 +37,6 @@ func TestAgent_RPC_Ping(t *testing.T) {
 }
 
 func TestAgent_ServerConfig(t *testing.T) {
-	t.Parallel()
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
 	conf.Server.Enabled = true
@@ -241,7 +239,6 @@ func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
 // cause errors. This is the server-only (RPC) counterpart to
 // TestHTTPServer_Limits_Error.
 func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		name        string
@@ -308,7 +305,6 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 // cause errors. This is the server-only (RPC) counterpart to
 // TestHTTPServer_Limits_OK.
 func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		name   string
@@ -363,7 +359,6 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 }
 
 func TestAgent_ClientConfig(t *testing.T) {
-	t.Parallel()
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
 
@@ -432,7 +427,6 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP
 // API health check depending on configuration.
 func TestAgent_HTTPCheck(t *testing.T) {
-	t.Parallel()
 	logger := testlog.HCLogger(t)
 	agent := func() *Agent {
 		return &Agent{
@@ -510,7 +504,6 @@ func TestAgent_HTTPCheck(t *testing.T) {
 // TestAgent_HTTPCheckPath asserts clients and servers use different endpoints
 // for healthchecks.
 func TestAgent_HTTPCheckPath(t *testing.T) {
-	t.Parallel()
 	// Agent.agentHTTPCheck only needs a config and logger
 	a := &Agent{
 		config: DevConfig(nil),
@@ -545,7 +538,6 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 // reloaded. I can't find a good way to fetch this from the logger itself, so
 // we pull it only from the agents configuration struct, not the logger.
 func TestAgent_Reload_LogLevel(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
@@ -567,7 +559,6 @@ func TestAgent_Reload_LogLevel(t *testing.T) {
 // across the Agent, Server, and Client. This is essential for certificate
 // reloading to work.
 func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	// We will start out with a bad cert and then reload with a good one.
@@ -635,7 +626,6 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_Certificate(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -684,7 +674,6 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -753,7 +742,6 @@ func Test_GetConfig(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	logger := testlog.HCLogger(t)
@@ -769,7 +757,6 @@ func TestServer_Reload_TLS_WithNilConfiguration(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -812,7 +799,6 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -855,7 +841,6 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -895,7 +880,6 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	const (
@@ -935,7 +919,6 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -975,7 +958,6 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -1017,7 +999,6 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	oldCertificate := `
@@ -1120,7 +1101,6 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 }
 
 func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	const (
@@ -1173,7 +1153,6 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 }
 
 func TestAgent_ProxyRPC_Dev(t *testing.T) {
-	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
 

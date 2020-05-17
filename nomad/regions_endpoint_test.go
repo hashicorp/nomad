@@ -10,7 +10,6 @@ import (
 )
 
 func TestRegionList(t *testing.T) {
-	t.Parallel()
 
 	// Make the servers
 	s1, cleanupS1 := TestServer(t, func(c *Config) {

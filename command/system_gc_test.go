@@ -7,12 +7,10 @@ import (
 )
 
 func TestSystemGCCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &SystemGCCommand{}
 }
 
 func TestSystemGCCommand_Good(t *testing.T) {
-	t.Parallel()
 
 	// Create a server
 	srv, _, url := testServer(t, true, nil)

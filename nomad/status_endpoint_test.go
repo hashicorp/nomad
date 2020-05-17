@@ -14,7 +14,6 @@ import (
 )
 
 func TestStatusVersion(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -46,7 +45,6 @@ func TestStatusVersion(t *testing.T) {
 }
 
 func TestStatusPing(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -60,7 +58,6 @@ func TestStatusPing(t *testing.T) {
 }
 
 func TestStatusLeader(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -83,7 +80,6 @@ func TestStatusLeader(t *testing.T) {
 }
 
 func TestStatusPeers(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -105,7 +101,6 @@ func TestStatusPeers(t *testing.T) {
 }
 
 func TestStatusMembers(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -125,7 +120,6 @@ func TestStatusMembers(t *testing.T) {
 }
 
 func TestStatusMembers_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -179,7 +173,6 @@ func TestStatusMembers_ACL(t *testing.T) {
 }
 
 func TestStatus_HasClientConn(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()

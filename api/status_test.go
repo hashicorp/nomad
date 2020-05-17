@@ -5,7 +5,6 @@ import (
 )
 
 func TestStatus_Leader(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	status := c.Status()

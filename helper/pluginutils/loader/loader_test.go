@@ -107,7 +107,6 @@ func (h *harness) cleanup() {
 }
 
 func TestPluginLoader_External(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -167,7 +166,6 @@ func TestPluginLoader_External(t *testing.T) {
 }
 
 func TestPluginLoader_External_ApiVersions(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -271,7 +269,6 @@ func TestPluginLoader_External_ApiVersions(t *testing.T) {
 }
 
 func TestPluginLoader_External_NoApiVersion(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -301,7 +298,6 @@ func TestPluginLoader_External_NoApiVersion(t *testing.T) {
 }
 
 func TestPluginLoader_External_Config(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -368,7 +364,6 @@ func TestPluginLoader_External_Config(t *testing.T) {
 
 // Pass a config but make sure it is fatal
 func TestPluginLoader_External_Config_Bad(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create a plugin
@@ -403,7 +398,6 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 }
 
 func TestPluginLoader_External_VersionOverlap(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -455,7 +449,6 @@ func TestPluginLoader_External_VersionOverlap(t *testing.T) {
 }
 
 func TestPluginLoader_Internal(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -517,7 +510,6 @@ func TestPluginLoader_Internal(t *testing.T) {
 }
 
 func TestPluginLoader_Internal_ApiVersions(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -599,7 +591,6 @@ func TestPluginLoader_Internal_ApiVersions(t *testing.T) {
 }
 
 func TestPluginLoader_Internal_NoApiVersion(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -630,7 +621,6 @@ func TestPluginLoader_Internal_NoApiVersion(t *testing.T) {
 }
 
 func TestPluginLoader_Internal_Config(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -701,7 +691,6 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 
 // Tests that an external config can override the config of an internal plugin
 func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -772,7 +761,6 @@ func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
 
 // Pass a config but make sure it is fatal
 func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create the harness
@@ -810,7 +798,6 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 }
 
 func TestPluginLoader_InternalOverrideExternal(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -867,7 +854,6 @@ func TestPluginLoader_InternalOverrideExternal(t *testing.T) {
 }
 
 func TestPluginLoader_ExternalOverrideInternal(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -924,7 +910,6 @@ func TestPluginLoader_ExternalOverrideInternal(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_External(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -971,7 +956,6 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_Internal(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -1030,7 +1014,6 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -1078,7 +1061,6 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 }
 
 func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins
@@ -1129,7 +1111,6 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 }
 
 func TestPluginLoader_Reattach_External(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create a plugin
@@ -1193,7 +1174,6 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 
 // Test the loader trying to launch a non-plugin binary
 func TestPluginLoader_Bad_Executable(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create a plugin
@@ -1225,7 +1205,6 @@ func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows currently does not skip non exe files")
 	}
-	t.Parallel()
 	require := require.New(t)
 
 	// Create two plugins

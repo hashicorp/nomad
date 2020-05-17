@@ -9,7 +9,6 @@ import (
 )
 
 func TestStatsFetcher(t *testing.T) {
-	t.Parallel()
 
 	conf := func(c *Config) {
 		c.Region = "region-a"

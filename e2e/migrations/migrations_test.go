@@ -218,7 +218,6 @@ func TestJobMigrations(t *testing.T) {
 		t.Skip("skipping test in non-integration mode.")
 	}
 
-	t.Parallel()
 	assert := assert.New(t)
 
 	clusterConfig := []string{"server.hcl", "client1.hcl", "client2.hcl"}
@@ -269,7 +268,6 @@ func TestMigrations_WithACLs(t *testing.T) {
 		t.Skip("skipping test in non-integration mode.")
 	}
 
-	t.Parallel()
 	assert := assert.New(t)
 
 	stopServer, secretID, err := startACLServer("server_acl.hcl")

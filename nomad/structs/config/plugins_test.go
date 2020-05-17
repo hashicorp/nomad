@@ -8,7 +8,6 @@ import (
 )
 
 func TestPluginConfig_Merge(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	a := &PluginConfig{
 		Name: "foo",
@@ -56,7 +55,6 @@ func TestPluginConfig_Merge(t *testing.T) {
 }
 
 func TestPluginConfigSet_Merge(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	a := &PluginConfig{

@@ -642,7 +642,6 @@ func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
 }
 
 func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -674,7 +673,6 @@ func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 }
 
 func TestLeader_ClusterID(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -690,7 +688,6 @@ func TestLeader_ClusterID(t *testing.T) {
 }
 
 func TestLeader_ClusterID_upgradePath(t *testing.T) {
-	t.Parallel()
 
 	before := version.Must(version.NewVersion("0.10.1")).String()
 	after := minClusterIDVersion.String()
@@ -798,7 +795,6 @@ func TestLeader_ClusterID_upgradePath(t *testing.T) {
 }
 
 func TestLeader_ClusterID_noUpgrade(t *testing.T) {
-	t.Parallel()
 
 	type server struct {
 		s       *Server
@@ -863,7 +859,6 @@ func agreeClusterID(t *testing.T, servers []*Server) {
 }
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
@@ -900,7 +895,6 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 }
 
 func TestLeader_DiffACLPolicies(t *testing.T) {
-	t.Parallel()
 
 	state := state.TestStateStore(t)
 
@@ -932,7 +926,6 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 }
 
 func TestLeader_ReplicateACLTokens(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.Region = "region1"
@@ -970,7 +963,6 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 }
 
 func TestLeader_DiffACLTokens(t *testing.T) {
-	t.Parallel()
 
 	state := state.TestStateStore(t)
 
@@ -1008,7 +1000,6 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 }
 
 func TestLeader_UpgradeRaftVersion(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Datacenter = "dc1"
@@ -1165,7 +1156,6 @@ func leaderElectionTest(t *testing.T, raftProtocol raft.ProtocolVersion) {
 }
 
 func TestLeader_RollRaftServer(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 2
@@ -1329,7 +1319,6 @@ func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
 // This verifies that removing the server and adding it back with a uuid works
 // even if the server's address stays the same.
 func TestServer_ReconcileMember(t *testing.T) {
-	t.Parallel()
 
 	// Create a three node cluster
 	s1, cleanupS1 := TestServer(t, func(c *Config) {

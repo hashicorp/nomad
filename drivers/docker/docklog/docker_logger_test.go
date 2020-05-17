@@ -29,7 +29,6 @@ func testContainerDetails() (image string, imageName string, imageTag string) {
 func TestDockerLogger_Success(t *testing.T) {
 	ctu.DockerCompatible(t)
 
-	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
@@ -110,7 +109,6 @@ func TestDockerLogger_Success(t *testing.T) {
 func TestDockerLogger_Success_TTY(t *testing.T) {
 	ctu.DockerCompatible(t)
 
-	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
@@ -207,7 +205,6 @@ func echoToContainer(t *testing.T, client *docker.Client, id string, line string
 func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 	ctu.DockerCompatible(t)
 
-	t.Parallel()
 	require := require.New(t)
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()

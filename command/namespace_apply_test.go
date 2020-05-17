@@ -11,12 +11,10 @@ import (
 )
 
 func TestNamespaceApplyCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &NamespaceApplyCommand{}
 }
 
 func TestNamespaceApplyCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &NamespaceApplyCommand{Meta: Meta{Ui: ui}}
 
@@ -39,7 +37,6 @@ func TestNamespaceApplyCommand_Fails(t *testing.T) {
 }
 
 func TestNamespaceApplyCommand_Good(t *testing.T) {
-	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)

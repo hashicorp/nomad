@@ -16,7 +16,6 @@ import (
 // TestVolumeWatch_EnableDisable tests the watcher registration logic that needs
 // to happen during leader step-up/step-down
 func TestVolumeWatch_EnableDisable(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	srv := &MockRPCServer{}
@@ -55,7 +54,6 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 // TestVolumeWatch_Checkpoint tests the checkpointing of progress across
 // leader leader step-up/step-down
 func TestVolumeWatch_Checkpoint(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	srv := &MockRPCServer{}
@@ -100,7 +98,6 @@ func TestVolumeWatch_Checkpoint(t *testing.T) {
 // TestVolumeWatch_StartStop tests the start and stop of the watcher when
 // it receives notifcations and has completed its work
 func TestVolumeWatch_StartStop(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	ctx, exitFn := context.WithCancel(context.Background())
@@ -252,7 +249,6 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 // TestVolumeWatch_RegisterDeregister tests the start and stop of
 // watchers around registration
 func TestVolumeWatch_RegisterDeregister(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	ctx, exitFn := context.WithCancel(context.Background())

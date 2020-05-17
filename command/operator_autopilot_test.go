@@ -7,6 +7,5 @@ import (
 )
 
 func TestOperator_Autopilot_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &OperatorAutopilotCommand{}
 }

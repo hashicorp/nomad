@@ -73,7 +73,6 @@ func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-
 // TestTaskRunner_StatsHook_PoststartExited asserts the stats hook starts and
 // stops.
 func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
-	t.Parallel()
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -105,7 +104,6 @@ func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
 // TestTaskRunner_StatsHook_Periodic asserts the stats hook collects stats on
 // an interval.
 func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
-	t.Parallel()
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)
@@ -161,7 +159,6 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 // TestTaskRunner_StatsHook_NotImplemented asserts the stats hook stops if the
 // driver returns NotImplemented.
 func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
-	t.Parallel()
 
 	require := require.New(t)
 	logger := testlog.HCLogger(t)

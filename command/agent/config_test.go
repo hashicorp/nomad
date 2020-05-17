@@ -1104,7 +1104,6 @@ func TestMergeServerJoin(t *testing.T) {
 }
 
 func TestTelemetry_PrefixFilters(t *testing.T) {
-	t.Parallel()
 	cases := []struct {
 		in       []string
 		expAllow []string

@@ -12,7 +12,6 @@ import (
 
 func TestHTTP_SearchWithIllegalMethod(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("DELETE", "/v1/search", nil)
 		assert.Nil(err)
@@ -40,7 +39,6 @@ func TestHTTP_Search_POST(t *testing.T) {
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
@@ -72,7 +70,6 @@ func TestHTTP_Search_PUT(t *testing.T) {
 
 	testJob := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJob, s, t)
 
@@ -108,7 +105,6 @@ func TestHTTP_Search_MultipleJobs(t *testing.T) {
 
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJobA, s, t)
 		createJobForTest(testJobB, s, t)
@@ -142,7 +138,6 @@ func TestHTTP_Search_MultipleJobs(t *testing.T) {
 func TestHTTP_Search_Evaluation(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		eval1 := mock.Eval()
@@ -178,7 +173,6 @@ func TestHTTP_Search_Evaluation(t *testing.T) {
 func TestHTTP_Search_Allocations(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
@@ -211,7 +205,6 @@ func TestHTTP_Search_Allocations(t *testing.T) {
 func TestHTTP_Search_Nodes(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		node := mock.Node()
@@ -244,7 +237,6 @@ func TestHTTP_Search_Nodes(t *testing.T) {
 func TestHTTP_Search_Deployments(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		deployment := mock.Deployment()
@@ -275,7 +267,6 @@ func TestHTTP_Search_Deployments(t *testing.T) {
 func TestHTTP_Search_NoJob(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		data := structs.SearchRequest{Prefix: "12345", Context: structs.Jobs}
 		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
@@ -300,7 +291,6 @@ func TestHTTP_Search_AllContext(t *testing.T) {
 
 	testJobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb89706"
 	testJobPrefix := "aaaaaaaa-e8f7-fd38"
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJobID, s, t)
 

@@ -11,12 +11,10 @@ import (
 )
 
 func TestPluginStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &PluginStatusCommand{}
 }
 
 func TestPluginStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -30,7 +28,6 @@ func TestPluginStatusCommand_Fails(t *testing.T) {
 }
 
 func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

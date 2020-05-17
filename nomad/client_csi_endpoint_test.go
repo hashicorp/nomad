@@ -16,7 +16,6 @@ import (
 )
 
 func TestClientCSIController_AttachVolume_Local(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -50,7 +49,6 @@ func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 }
 
 func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -94,7 +92,6 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 }
 
 func TestClientCSIController_DetachVolume_Local(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -128,7 +125,6 @@ func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 }
 
 func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Start a server and client
@@ -172,7 +168,6 @@ func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 }
 
 func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {})
 	testutil.WaitForLeader(t, srv.RPC)
 	defer shutdown()

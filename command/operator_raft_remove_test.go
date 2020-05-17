@@ -8,12 +8,10 @@ import (
 )
 
 func TestOperator_Raft_RemovePeers_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &OperatorRaftRemoveCommand{}
 }
 
 func TestOperator_Raft_RemovePeer(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
@@ -41,7 +39,6 @@ func TestOperator_Raft_RemovePeer(t *testing.T) {
 }
 
 func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
@@ -60,7 +57,6 @@ func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
 }
 
 func TestOperator_Raft_RemovePeerID(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()

@@ -7,12 +7,10 @@ import (
 )
 
 func TestSystemReconcileSummariesCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &SystemReconcileSummariesCommand{}
 }
 
 func TestSystemReconcileSummariesCommand_Good(t *testing.T) {
-	t.Parallel()
 
 	// Create a server
 	srv, _, url := testServer(t, true, nil)

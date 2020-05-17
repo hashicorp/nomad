@@ -7,7 +7,6 @@ import (
 )
 
 func TestBatchFuture(t *testing.T) {
-	t.Parallel()
 	bf := NewBatchFuture()
 
 	// Async respond to the future

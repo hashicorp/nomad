@@ -11,7 +11,6 @@ import (
 )
 
 func TestMonitor_Start(t *testing.T) {
-	t.Parallel()
 
 	logger := log.NewInterceptLogger(&log.LoggerOptions{
 		Level: log.Error,
@@ -42,7 +41,6 @@ func TestMonitor_Start(t *testing.T) {
 
 // Ensure number of dropped messages are logged
 func TestMonitor_DroppedMessages(t *testing.T) {
-	t.Parallel()
 
 	logger := log.NewInterceptLogger(&log.LoggerOptions{
 		Level: log.Warn,

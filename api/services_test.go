@@ -11,7 +11,6 @@ import (
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly
 // inherited by Checks.
 func TestService_CheckRestart(t *testing.T) {
-	t.Parallel()
 
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -61,7 +60,6 @@ func TestService_CheckRestart(t *testing.T) {
 // TestService_Connect asserts Service.Connect settings are properly
 // inherited by Checks.
 func TestService_Connect(t *testing.T) {
-	t.Parallel()
 
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -90,7 +88,6 @@ func TestService_Connect(t *testing.T) {
 }
 
 func TestService_Tags(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	// canonicalize does not modify eto or tags

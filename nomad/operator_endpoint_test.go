@@ -18,7 +18,6 @@ import (
 )
 
 func TestOperator_RaftGetConfiguration(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -62,7 +61,6 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -126,7 +124,6 @@ func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(2)
@@ -188,7 +185,6 @@ func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(2)
@@ -243,7 +239,6 @@ func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByID(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
@@ -305,7 +300,6 @@ func TestOperator_RaftRemovePeerByID(t *testing.T) {
 }
 
 func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
@@ -359,7 +353,6 @@ func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
 }
 
 func TestOperator_SchedulerGetConfiguration(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Build = "0.9.0+unittest"
@@ -383,7 +376,6 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 }
 
 func TestOperator_SchedulerSetConfiguration(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Build = "0.9.0+unittest"
@@ -425,7 +417,6 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 }
 
 func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3
@@ -472,7 +463,6 @@ func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
 }
 
 func TestOperator_SchedulerSetConfiguration_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3

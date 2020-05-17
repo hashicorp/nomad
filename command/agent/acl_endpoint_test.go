@@ -11,7 +11,6 @@ import (
 )
 
 func TestHTTP_ACLPolicyList(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLPolicy()
 		p2 := mock.ACLPolicy()
@@ -62,7 +61,6 @@ func TestHTTP_ACLPolicyList(t *testing.T) {
 }
 
 func TestHTTP_ACLPolicyQuery(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLPolicy()
 		args := structs.ACLPolicyUpsertRequest{
@@ -111,7 +109,6 @@ func TestHTTP_ACLPolicyQuery(t *testing.T) {
 }
 
 func TestHTTP_ACLPolicyCreate(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		p1 := mock.ACLPolicy()
@@ -146,7 +143,6 @@ func TestHTTP_ACLPolicyCreate(t *testing.T) {
 }
 
 func TestHTTP_ACLPolicyDelete(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLPolicy()
 		args := structs.ACLPolicyUpsertRequest{
@@ -188,7 +184,6 @@ func TestHTTP_ACLPolicyDelete(t *testing.T) {
 }
 
 func TestHTTP_ACLTokenBootstrap(t *testing.T) {
-	t.Parallel()
 	conf := func(c *Config) {
 		c.ACL.Enabled = true
 		c.ACL.PolicyTTL = 0 // Special flag to disable auto-bootstrap
@@ -220,7 +215,6 @@ func TestHTTP_ACLTokenBootstrap(t *testing.T) {
 }
 
 func TestHTTP_ACLTokenList(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
@@ -274,7 +268,6 @@ func TestHTTP_ACLTokenList(t *testing.T) {
 }
 
 func TestHTTP_ACLTokenQuery(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
@@ -323,7 +316,6 @@ func TestHTTP_ACLTokenQuery(t *testing.T) {
 }
 
 func TestHTTP_ACLTokenSelf(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""
@@ -372,7 +364,6 @@ func TestHTTP_ACLTokenSelf(t *testing.T) {
 }
 
 func TestHTTP_ACLTokenCreate(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
 		p1 := mock.ACLToken()
@@ -406,7 +397,6 @@ func TestHTTP_ACLTokenCreate(t *testing.T) {
 }
 
 func TestHTTP_ACLTokenDelete(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		p1 := mock.ACLToken()
 		p1.AccessorID = ""

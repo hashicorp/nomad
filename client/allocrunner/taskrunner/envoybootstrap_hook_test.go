@@ -44,7 +44,6 @@ func writeTmp(t *testing.T, s string, fm os.FileMode) string {
 }
 
 func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
-	t.Parallel()
 
 	// This test fails when running as root because the test case for checking
 	// the error condition when the file is unreadable fails (root can read the
@@ -85,7 +84,6 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 }
 
 func TestEnvoyBootstrapHook_decodeTriState(t *testing.T) {
-	t.Parallel()
 
 	require.Equal(t, "", decodeTriState(nil))
 	require.Equal(t, "true", decodeTriState(helper.BoolToPtr(true)))
@@ -109,7 +107,6 @@ var (
 )
 
 func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
-	t.Parallel()
 
 	t.Run("excluding SI token", func(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
@@ -170,7 +167,6 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 }
 
 func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
-	t.Parallel()
 
 	environment := []string{"foo=bar", "baz=1"}
 
@@ -217,7 +213,6 @@ type envoyConfig struct {
 // TestEnvoyBootstrapHook_with_SI_token asserts the bootstrap file written for
 // Envoy contains a Consul SI token.
 func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
-	t.Parallel()
 	testutil.RequireConsul(t)
 
 	testconsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {
@@ -325,7 +320,6 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 // creates Envoy's bootstrap.json configuration based on Connect proxy sidecars
 // registered for the task.
 func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
-	t.Parallel()
 	testutil.RequireConsul(t)
 
 	testconsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {
@@ -429,7 +423,6 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 // TestTaskRunner_EnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook
 // is a noop for non-Connect proxy sidecar tasks.
 func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
-	t.Parallel()
 	logger := testlog.HCLogger(t)
 
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
@@ -467,7 +460,6 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 // bootstrap hook returns a Recoverable error if the bootstrap command runs but
 // fails.
 func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
-	t.Parallel()
 	testutil.RequireConsul(t)
 
 	testconsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {

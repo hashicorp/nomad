@@ -8,7 +8,6 @@ import (
 )
 
 func TestDrainer_PartitionAllocDrain(t *testing.T) {
-	t.Parallel()
 	// Set the max ids per reap to something lower.
 	maxIdsPerTxn := 2
 
@@ -32,7 +31,6 @@ func TestDrainer_PartitionAllocDrain(t *testing.T) {
 }
 
 func TestDrainer_PartitionIds(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Set the max ids per reap to something lower.

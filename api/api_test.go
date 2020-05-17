@@ -65,7 +65,6 @@ func makeClient(t *testing.T, cb1 configCallback,
 }
 
 func TestRequestTime(t *testing.T) {
-	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		d, err := json.Marshal(struct{ Done bool }{true})
@@ -113,7 +112,6 @@ func TestRequestTime(t *testing.T) {
 }
 
 func TestDefaultConfig_env(t *testing.T) {
-	t.Parallel()
 	url := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}
 	region := "test"
@@ -163,7 +161,6 @@ func TestDefaultConfig_env(t *testing.T) {
 }
 
 func TestSetQueryOptions(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -199,7 +196,6 @@ func TestSetQueryOptions(t *testing.T) {
 }
 
 func TestSetWriteOptions(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -223,7 +219,6 @@ func TestSetWriteOptions(t *testing.T) {
 }
 
 func TestRequestToHTTP(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -251,7 +246,6 @@ func TestRequestToHTTP(t *testing.T) {
 }
 
 func TestParseQueryMeta(t *testing.T) {
-	t.Parallel()
 	resp := &http.Response{
 		Header: make(map[string][]string),
 	}
@@ -276,7 +270,6 @@ func TestParseQueryMeta(t *testing.T) {
 }
 
 func TestParseWriteMeta(t *testing.T) {
-	t.Parallel()
 	resp := &http.Response{
 		Header: make(map[string][]string),
 	}
@@ -293,7 +286,6 @@ func TestParseWriteMeta(t *testing.T) {
 }
 
 func TestQueryString(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 

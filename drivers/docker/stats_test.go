@@ -12,7 +12,6 @@ import (
 )
 
 func TestDriver_DockerStatsCollector(t *testing.T) {
-	t.Parallel()
 
 	require := require.New(t)
 	src := make(chan *docker.Stats)
@@ -67,7 +66,6 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 // TestDriver_DockerUsageSender asserts that the TaskResourceUsage chan wrapper
 // supports closing and sending on a chan from concurrent goroutines.
 func TestDriver_DockerUsageSender(t *testing.T) {
-	t.Parallel()
 
 	// sample payload
 	res := &cstructs.TaskResourceUsage{}

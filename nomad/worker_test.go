@@ -48,7 +48,6 @@ func init() {
 }
 
 func TestWorker_dequeueEvaluation(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -85,7 +84,6 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 // Test that the worker picks up the correct wait index when there are multiple
 // evals for the same job.
 func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -154,7 +152,6 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 }
 
 func TestWorker_dequeueEvaluation_paused(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -202,7 +199,6 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 }
 
 func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -232,7 +228,6 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 }
 
 func TestWorker_sendAck(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -280,7 +275,6 @@ func TestWorker_sendAck(t *testing.T) {
 }
 
 func TestWorker_waitForIndex(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -319,7 +313,6 @@ func TestWorker_waitForIndex(t *testing.T) {
 }
 
 func TestWorker_invokeScheduler(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -339,7 +332,6 @@ func TestWorker_invokeScheduler(t *testing.T) {
 }
 
 func TestWorker_SubmitPlan(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -405,7 +397,6 @@ func TestWorker_SubmitPlan(t *testing.T) {
 }
 
 func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -457,7 +448,6 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 }
 
 func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -528,7 +518,6 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 }
 
 func TestWorker_UpdateEval(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -576,7 +565,6 @@ func TestWorker_UpdateEval(t *testing.T) {
 }
 
 func TestWorker_CreateEval(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -625,7 +613,6 @@ func TestWorker_CreateEval(t *testing.T) {
 }
 
 func TestWorker_ReblockEval(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0

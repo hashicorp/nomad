@@ -9,7 +9,6 @@ import (
 // TestFlattenMapSlice asserts flattenMapSlice recursively flattens a slice of maps into a
 // single map.
 func TestFlattenMapSlice(t *testing.T) {
-	t.Parallel()
 
 	input := map[string]interface{}{
 		"foo": 123,

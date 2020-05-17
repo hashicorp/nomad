@@ -9,7 +9,6 @@ import (
 )
 
 func TestService_Hash(t *testing.T) {
-	t.Parallel()
 
 	original := &Service{
 		Name:      "myService",
@@ -116,7 +115,6 @@ func TestService_Hash(t *testing.T) {
 }
 
 func TestConsulConnect_Validate(t *testing.T) {
-	t.Parallel()
 
 	c := &ConsulConnect{}
 
@@ -137,7 +135,6 @@ func TestConsulConnect_Validate(t *testing.T) {
 }
 
 func TestConsulConnect_CopyEquals(t *testing.T) {
-	t.Parallel()
 
 	c := &ConsulConnect{
 		SidecarService: &ConsulSidecarService{
@@ -174,7 +171,6 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 }
 
 func TestSidecarTask_MergeIntoTask(t *testing.T) {
-	t.Parallel()
 
 	task := MockJob().TaskGroups[0].Tasks[0]
 	sTask := &SidecarTask{
@@ -230,7 +226,6 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 }
 
 func TestConsulUpstream_upstreamEquals(t *testing.T) {
-	t.Parallel()
 
 	up := func(name string, port int) ConsulUpstream {
 		return ConsulUpstream{
@@ -265,7 +260,6 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 }
 
 func TestConsulExposePath_exposePathsEqual(t *testing.T) {
-	t.Parallel()
 
 	expose := func(path, protocol, listen string, local int) ConsulExposePath {
 		return ConsulExposePath{
@@ -302,7 +296,6 @@ func TestConsulExposePath_exposePathsEqual(t *testing.T) {
 }
 
 func TestConsulExposeConfig_Copy(t *testing.T) {
-	t.Parallel()
 
 	require.Nil(t, (*ConsulExposeConfig)(nil).Copy())
 	require.Equal(t, &ConsulExposeConfig{
@@ -317,7 +310,6 @@ func TestConsulExposeConfig_Copy(t *testing.T) {
 }
 
 func TestConsulExposeConfig_Equals(t *testing.T) {
-	t.Parallel()
 
 	require.True(t, (*ConsulExposeConfig)(nil).Equals(nil))
 	require.True(t, (&ConsulExposeConfig{
@@ -332,7 +324,6 @@ func TestConsulExposeConfig_Equals(t *testing.T) {
 }
 
 func TestConsulSidecarService_Copy(t *testing.T) {
-	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		s := (*ConsulSidecarService)(nil)

@@ -18,14 +18,12 @@ var (
 )
 
 func TestFileRotator_IncorrectPath(t *testing.T) {
-	t.Parallel()
 	if _, err := NewFileRotator("/foo", baseFileName, 10, 10, testlog.HCLogger(t)); err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestFileRotator_CreateNewFile(t *testing.T) {
-	t.Parallel()
 	var path string
 	var err error
 	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
@@ -44,7 +42,6 @@ func TestFileRotator_CreateNewFile(t *testing.T) {
 }
 
 func TestFileRotator_OpenLastFile(t *testing.T) {
-	t.Parallel()
 	var path string
 	var err error
 	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
@@ -72,7 +69,6 @@ func TestFileRotator_OpenLastFile(t *testing.T) {
 }
 
 func TestFileRotator_WriteToCurrentFile(t *testing.T) {
-	t.Parallel()
 	var path string
 	var err error
 	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
@@ -110,7 +106,6 @@ func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 }
 
 func TestFileRotator_RotateFiles(t *testing.T) {
-	t.Parallel()
 	var path string
 	var err error
 	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
@@ -169,7 +164,6 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 }
 
 func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
-	t.Parallel()
 	var path string
 	var err error
 	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
@@ -228,7 +222,6 @@ func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 }
 
 func TestFileRotator_WriteRemaining(t *testing.T) {
-	t.Parallel()
 	var path string
 	var err error
 	if path, err = ioutil.TempDir("", pathPrefix); err != nil {
@@ -308,7 +301,6 @@ func TestFileRotator_WriteRemaining(t *testing.T) {
 }
 
 func TestFileRotator_PurgeOldFiles(t *testing.T) {
-	t.Parallel()
 	var path string
 	var err error
 	if path, err = ioutil.TempDir("", pathPrefix); err != nil {

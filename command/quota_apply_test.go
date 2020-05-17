@@ -10,12 +10,10 @@ import (
 )
 
 func TestQuotaApplyCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &QuotaApplyCommand{}
 }
 
 func TestQuotaApplyCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &QuotaApplyCommand{Meta: Meta{Ui: ui}}
 
@@ -38,7 +36,6 @@ func TestQuotaApplyCommand_Fails(t *testing.T) {
 }
 
 func TestQuotaApplyNetwork(t *testing.T) {
-	t.Parallel()
 
 	mbits := 20
 

@@ -9,7 +9,6 @@ import (
 )
 
 func TestPluginGroup_RegisterAndRun(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	var hasRun bool
@@ -27,7 +26,6 @@ func TestPluginGroup_RegisterAndRun(t *testing.T) {
 }
 
 func TestPluginGroup_Shutdown(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	var stack []int

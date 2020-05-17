@@ -17,7 +17,6 @@ import (
 )
 
 func TestAllocEndpoint_List(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -85,7 +84,6 @@ func TestAllocEndpoint_List(t *testing.T) {
 }
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -142,7 +140,6 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 }
 
 func TestAllocEndpoint_List_Blocking(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -218,7 +215,6 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -259,7 +255,6 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -370,7 +365,6 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -426,7 +420,6 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAllocs(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -474,7 +467,6 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 }
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -530,7 +522,6 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 }
 
 func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)
@@ -614,7 +605,6 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 }
 
 func TestAllocEndpoint_Stop_ACL(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)

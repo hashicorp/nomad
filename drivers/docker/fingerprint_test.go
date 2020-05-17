@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,9 +14,6 @@ import (
 //
 // In Linux CI and AppVeyor Windows environment, it should be enabled.
 func TestDockerDriver_FingerprintHealth(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
 	testutil.DockerCompatible(t)
 
 	d := NewDockerDriver(testlog.HCLogger(t)).(*Driver)

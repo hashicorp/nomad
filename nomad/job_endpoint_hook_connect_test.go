@@ -111,7 +111,6 @@ func Test_groupConnectHook(t *testing.T) {
 //
 // See https://github.com/hashicorp/nomad/issues/6853
 func TestJobEndpoint_ConnectInterpolation(t *testing.T) {
-	t.Parallel()
 
 	server := &Server{logger: testlog.HCLogger(t)}
 	jobEndpoint := NewJobEndpoints(server)

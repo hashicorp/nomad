@@ -6,7 +6,6 @@ import (
 )
 
 func TestConsulSupportsTLSSkipVerify(t *testing.T) {
-	t.Parallel()
 	assertSupport := func(expected bool, blob string) {
 		self := map[string]map[string]interface{}{}
 		if err := json.Unmarshal([]byte("{"+blob+"}"), &self); err != nil {

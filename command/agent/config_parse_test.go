@@ -408,7 +408,6 @@ var nonoptConfig = &Config{
 }
 
 func TestConfig_ParseMerge(t *testing.T) {
-	t.Parallel()
 
 	path, err := filepath.Abs(filepath.Join(".", "testdata", "basic.hcl"))
 	require.NoError(t, err)
@@ -432,7 +431,6 @@ func TestConfig_ParseMerge(t *testing.T) {
 }
 
 func TestConfig_Parse(t *testing.T) {
-	t.Parallel()
 
 	basicConfig.addDefaults()
 	pluginConfig.addDefaults()

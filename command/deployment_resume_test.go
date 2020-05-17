@@ -11,12 +11,10 @@ import (
 )
 
 func TestDeploymentResumeCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &DeploymentResumeCommand{}
 }
 
 func TestDeploymentResumeCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &DeploymentResumeCommand{Meta: Meta{Ui: ui}}
 
@@ -40,7 +38,6 @@ func TestDeploymentResumeCommand_Fails(t *testing.T) {
 
 func TestDeploymentResumeCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

@@ -11,12 +11,10 @@ import (
 )
 
 func TestQuotaListCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &QuotaListCommand{}
 }
 
 func TestQuotaListCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &QuotaListCommand{Meta: Meta{Ui: ui}}
 
@@ -39,7 +37,6 @@ func TestQuotaListCommand_Fails(t *testing.T) {
 }
 
 func TestQuotaListCommand_List(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	// Create a server

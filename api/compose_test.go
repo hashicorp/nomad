@@ -6,7 +6,6 @@ import (
 )
 
 func TestCompose(t *testing.T) {
-	t.Parallel()
 	// Compose a task
 	task := NewTask("task1", "exec").
 		SetConfig("foo", "bar").

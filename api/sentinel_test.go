@@ -9,7 +9,6 @@ import (
 )
 
 func TestSentinelPolicies_ListUpsert(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.SentinelPolicies()
@@ -50,7 +49,6 @@ func TestSentinelPolicies_ListUpsert(t *testing.T) {
 }
 
 func TestSentinelPolicies_Delete(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.SentinelPolicies()
@@ -84,7 +82,6 @@ func TestSentinelPolicies_Delete(t *testing.T) {
 }
 
 func TestSentinelPolicies_Info(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.SentinelPolicies()

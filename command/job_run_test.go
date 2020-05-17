@@ -12,12 +12,10 @@ import (
 )
 
 func TestRunCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &JobRunCommand{}
 }
 
 func TestRunCommand_Output_Json(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 
@@ -53,7 +51,6 @@ job "job1" {
 }
 
 func TestRunCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 
@@ -157,7 +154,6 @@ job "job1" {
 }
 
 func TestRunCommand_From_STDIN(t *testing.T) {
-	t.Parallel()
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -200,7 +196,6 @@ job "job1" {
 }
 
 func TestRunCommand_From_URL(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},

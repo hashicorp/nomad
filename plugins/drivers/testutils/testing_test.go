@@ -37,7 +37,6 @@ type testDriverState struct {
 }
 
 func TestBaseDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	fingerprints := []*drivers.Fingerprint{
@@ -98,7 +97,6 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 }
 
 func TestBaseDriver_RecoverTask(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// build driver state and encode it into proto msg
@@ -128,7 +126,6 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 }
 
 func TestBaseDriver_StartTask(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	cfg := &drivers.TaskConfig{
@@ -160,7 +157,6 @@ func TestBaseDriver_StartTask(t *testing.T) {
 }
 
 func TestBaseDriver_WaitTask(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	result := &drivers.ExitResult{ExitCode: 1, Signal: 9}
@@ -198,7 +194,6 @@ func TestBaseDriver_WaitTask(t *testing.T) {
 }
 
 func TestBaseDriver_TaskEvents(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	now := time.Now().UTC().Truncate(time.Millisecond)

@@ -78,7 +78,6 @@ func (m *mockConsulACLsAPI) RevokeTokens(_ context.Context, accessors []*structs
 }
 
 func TestConsulACLsAPI_CreateToken(t *testing.T) {
-	t.Parallel()
 
 	try := func(t *testing.T, expErr error) {
 		logger := testlog.HCLogger(t)
@@ -118,7 +117,6 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 }
 
 func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
-	t.Parallel()
 
 	setup := func(t *testing.T, exp error) (context.Context, ConsulACLsAPI, *structs.SIToken) {
 		logger := testlog.HCLogger(t)
@@ -169,7 +167,6 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 }
 
 func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
-	t.Parallel()
 
 	// manually create so the bg daemon does not run, letting us explicitly
 	// call and test bgRetryRevoke
@@ -228,7 +225,6 @@ func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
 }
 
 func TestConsulACLsAPI_Stop(t *testing.T) {
-	t.Parallel()
 
 	setup := func(t *testing.T) *consulACLsAPI {
 		logger := testlog.HCLogger(t)
@@ -246,7 +242,6 @@ func TestConsulACLsAPI_Stop(t *testing.T) {
 }
 
 func TestConsulACLsAPI_CheckSIPolicy(t *testing.T) {
-	t.Parallel()
 
 	try := func(t *testing.T, service, token string, expErr string) {
 		logger := testlog.HCLogger(t)

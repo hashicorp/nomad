@@ -167,7 +167,6 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 }
 
 func TestClient_ACL_ResolveSecretToken(t *testing.T) {
-	t.Parallel()
 
 	s1, _, _, cleanupS1 := testACLServer(t, nil)
 	defer cleanupS1()

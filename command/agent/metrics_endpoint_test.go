@@ -18,7 +18,6 @@ import (
 func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("DELETE", "/v1/metrics", nil)
 		assert.Nil(err)
@@ -32,7 +31,6 @@ func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
 func TestHTTP_Metrics(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// make a separate HTTP request first, to ensure Nomad has written metrics
 		// and prevent a race condition

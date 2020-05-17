@@ -101,7 +101,6 @@ func noopUpdater(string, *structs.DriverInfo)             {}
 func noopEventHandlerFactory(string, string) EventHandler { return nil }
 
 func TestManager_Fingerprint(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
 	var infos []*structs.DriverInfo
@@ -168,7 +167,6 @@ func TestManager_Fingerprint(t *testing.T) {
 }
 
 func TestManager_TaskEvents(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fpChan, evChan, mgr := testSetup(t)
 	go mgr.Run()
@@ -199,7 +197,6 @@ func TestManager_TaskEvents(t *testing.T) {
 }
 
 func TestManager_Run_AllowedDrivers(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
 	mgr.allowedDrivers = map[string]struct{}{"foo": {}}
@@ -219,7 +216,6 @@ func TestManager_Run_AllowedDrivers(t *testing.T) {
 }
 
 func TestManager_Run_BlockedDrivers(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fpChan, _, mgr := testSetup(t)
 	mgr.blockedDrivers = map[string]struct{}{"mock": {}}
@@ -239,7 +235,6 @@ func TestManager_Run_BlockedDrivers(t *testing.T) {
 }
 
 func TestManager_Run_AllowedBlockedDrivers_Combined(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	drvs := map[string]drivers.DriverPlugin{}
 	fpChs := map[string]chan *drivers.Fingerprint{}

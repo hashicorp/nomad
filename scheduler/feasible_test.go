@@ -232,7 +232,6 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 }
 
 func TestCSIVolumeChecker(t *testing.T) {
-	t.Parallel()
 	state, ctx := testContext(t)
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -873,7 +872,6 @@ func TestCheckLexicalOrder(t *testing.T) {
 }
 
 func TestCheckVersionConstraint(t *testing.T) {
-	t.Parallel()
 
 	type tcase struct {
 		lVal, rVal interface{}
@@ -926,7 +924,6 @@ func TestCheckVersionConstraint(t *testing.T) {
 }
 
 func TestCheckSemverConstraint(t *testing.T) {
-	t.Parallel()
 
 	type tcase struct {
 		name       string

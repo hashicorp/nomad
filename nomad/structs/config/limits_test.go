@@ -10,7 +10,6 @@ import (
 
 // TestLimits_Defaults asserts the default limits are valid.
 func TestLimits_Defaults(t *testing.T) {
-	t.Parallel()
 
 	l := DefaultLimits()
 	d, err := time.ParseDuration(l.HTTPSHandshakeTimeout)
@@ -24,7 +23,6 @@ func TestLimits_Defaults(t *testing.T) {
 
 // TestLimits_Copy asserts Limits structs are deep copied.
 func TestLimits_Copy(t *testing.T) {
-	t.Parallel()
 
 	o := DefaultLimits()
 	c := o.Copy()
@@ -52,7 +50,6 @@ func TestLimits_Copy(t *testing.T) {
 // TestLimits_Merge asserts non-zero fields from the method argument take
 // precedence over the existing limits.
 func TestLimits_Merge(t *testing.T) {
-	t.Parallel()
 
 	l := Limits{}
 	o := DefaultLimits()

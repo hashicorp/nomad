@@ -11,12 +11,10 @@ import (
 )
 
 func TestJobPromoteCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &JobPromoteCommand{}
 }
 
 func TestJobPromoteCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobPromoteCommand{Meta: Meta{Ui: ui}}
 
@@ -40,7 +38,6 @@ func TestJobPromoteCommand_Fails(t *testing.T) {
 
 func TestJobPromoteCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

@@ -280,7 +280,6 @@ func (panicWriter) Close() error {
 // TestLogmon_NewError asserts that newLogRotatorWrapper will return an error
 // if its unable to create the necessray files.
 func TestLogmon_NewError(t *testing.T) {
-	t.Parallel()
 
 	// Pick a path that does not exist
 	path := filepath.Join(uuid.Generate(), uuid.Generate(), uuid.Generate())

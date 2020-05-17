@@ -85,7 +85,6 @@ func TestTasklet_Exec_Cancel(t *testing.T) {
 // TestTasklet_Exec_Timeout asserts a tasklet script will be killed
 // when the timeout is reached.
 func TestTasklet_Exec_Timeout(t *testing.T) {
-	t.Parallel()
 	exec, cancel := newBlockingScriptExec()
 	defer cancel()
 

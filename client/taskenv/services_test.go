@@ -10,7 +10,6 @@ import (
 // TestInterpolateServices asserts that all service
 // and check fields are properly interpolated.
 func TestInterpolateServices(t *testing.T) {
-	t.Parallel()
 	services := []*structs.Service{
 		{
 			Name:      "${name}",

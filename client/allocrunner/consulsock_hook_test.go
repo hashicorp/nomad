@@ -24,7 +24,6 @@ import (
 // Consul unix socket hook's Prerun method is called and stopped with the
 // Postrun method is called.
 func TestConsulSockHook_PrerunPostrun_Ok(t *testing.T) {
-	t.Parallel()
 
 	// As of Consul 1.6.0 the test server does not support the gRPC
 	// endpoint so we have to fake it.
@@ -101,7 +100,6 @@ func TestConsulSockHook_PrerunPostrun_Ok(t *testing.T) {
 // TestConsulSockHook_Prerun_Error asserts that invalid Consul addresses cause
 // Prerun to return an error if the alloc requires a grpc proxy.
 func TestConsulSockHook_Prerun_Error(t *testing.T) {
-	t.Parallel()
 
 	logger := testlog.HCLogger(t)
 
@@ -153,7 +151,6 @@ func TestConsulSockHook_Prerun_Error(t *testing.T) {
 // TestConsulSockHook_proxy_Unix asserts that the destination can be a unix
 // socket path.
 func TestConsulSockHook_proxy_Unix(t *testing.T) {
-	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "nomadtest_proxy_Unix")
 	require.NoError(t, err)

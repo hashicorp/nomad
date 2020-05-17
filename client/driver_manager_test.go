@@ -16,7 +16,6 @@ import (
 // TestDriverManager_Fingerprint_Run asserts that node is populated with
 // driver fingerprints
 func TestDriverManager_Fingerprint_Run(t *testing.T) {
-	t.Parallel()
 
 	testClient, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -54,7 +53,6 @@ func TestDriverManager_Fingerprint_Run(t *testing.T) {
 // TestDriverManager_Fingerprint_Run asserts that node is populated with
 // driver fingerprints and it's updated periodically
 func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
-	t.Parallel()
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		pluginConfig := []*nconfig.PluginConfig{
@@ -124,7 +122,6 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 // TestDriverManager_NodeAttributes_Run asserts that node attributes are populated
 // in addition to node.Drivers until we fully deprecate it
 func TestDriverManager_NodeAttributes_Run(t *testing.T) {
-	t.Parallel()
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{

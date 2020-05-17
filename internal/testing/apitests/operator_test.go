@@ -9,7 +9,6 @@ import (
 )
 
 func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -46,7 +45,6 @@ func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
 }
 
 func TestAPI_OperatorSchedulerCASConfiguration(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

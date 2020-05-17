@@ -8,12 +8,10 @@ import (
 )
 
 func TestMonitorCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &MonitorCommand{}
 }
 
 func TestMonitorCommand_Fails(t *testing.T) {
-	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 

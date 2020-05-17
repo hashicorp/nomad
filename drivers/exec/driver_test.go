@@ -51,9 +51,6 @@ var testResources = &drivers.Resources{
 }
 
 func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 	require := require.New(t)
 	if runtime.GOOS == "linux" {
 		t.Skip("Test only available not on Linux")
@@ -73,7 +70,6 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 }
 
 func TestExecDriver_Fingerprint(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	ctestutils.ExecCompatible(t)
@@ -93,7 +89,6 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestExecDriver_StartWait(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -125,7 +120,6 @@ func TestExecDriver_StartWait(t *testing.T) {
 }
 
 func TestExecDriver_StartWaitStopKill(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -186,7 +180,6 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 }
 
 func TestExecDriver_StartWaitRecover(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -258,7 +251,6 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 // TestExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
 // task processes are cleaned up.
 func TestExecDriver_DestroyKillsAll(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -356,7 +348,6 @@ func TestExecDriver_DestroyKillsAll(t *testing.T) {
 }
 
 func TestExecDriver_Stats(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -399,7 +390,6 @@ func TestExecDriver_Stats(t *testing.T) {
 }
 
 func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -448,7 +438,6 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 }
 
 func TestExecDriver_User(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -482,7 +471,6 @@ func TestExecDriver_User(t *testing.T) {
 // TestExecDriver_HandlerExec ensures the exec driver's handle properly
 // executes commands inside the container.
 func TestExecDriver_HandlerExec(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -563,7 +551,6 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 }
 
 func TestExecDriver_DevicesAndMounts(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -674,7 +661,6 @@ config {
 }
 
 func TestExecDriver_NoPivotRoot(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 

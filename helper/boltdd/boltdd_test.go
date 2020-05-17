@@ -46,7 +46,6 @@ func setupBoltDB(t testingT) (*DB, func()) {
 }
 
 func TestDB_Open(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -56,7 +55,6 @@ func TestDB_Open(t *testing.T) {
 }
 
 func TestDB_Close(t *testing.T) {
-	t.Parallel()
 
 	db, cleanup := setupBoltDB(t)
 	defer cleanup()
@@ -75,7 +73,6 @@ func TestDB_Close(t *testing.T) {
 }
 
 func TestBucket_Create(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -112,7 +109,6 @@ func TestBucket_Create(t *testing.T) {
 }
 
 func TestBucket_DedupeWrites(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)
@@ -166,7 +162,6 @@ func TestBucket_DedupeWrites(t *testing.T) {
 }
 
 func TestBucket_Delete(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	db, cleanup := setupBoltDB(t)

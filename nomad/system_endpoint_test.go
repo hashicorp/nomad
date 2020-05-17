@@ -15,7 +15,6 @@ import (
 )
 
 func TestSystemEndpoint_GarbageCollect(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -66,7 +65,6 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 }
 
 func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -111,7 +109,6 @@ func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {
 }
 
 func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -174,7 +171,6 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 }
 
 func TestSystemEndpoint_ReconcileJobSummaries_ACL(t *testing.T) {
-	t.Parallel()
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()

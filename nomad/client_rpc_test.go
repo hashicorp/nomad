@@ -28,7 +28,6 @@ func (n namedConnWrapper) LocalAddr() net.Addr {
 }
 
 func TestServer_removeNodeConn_differentAddrs(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -85,7 +84,6 @@ func TestServer_removeNodeConn_differentAddrs(t *testing.T) {
 }
 
 func TestServerWithNodeConn_NoPath(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -107,7 +105,6 @@ func TestServerWithNodeConn_NoPath(t *testing.T) {
 }
 
 func TestServerWithNodeConn_NoPath_Region(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -121,7 +118,6 @@ func TestServerWithNodeConn_NoPath_Region(t *testing.T) {
 }
 
 func TestServerWithNodeConn_Path(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -149,7 +145,6 @@ func TestServerWithNodeConn_Path(t *testing.T) {
 }
 
 func TestServerWithNodeConn_Path_Region(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -175,7 +170,6 @@ func TestServerWithNodeConn_Path_Region(t *testing.T) {
 }
 
 func TestServerWithNodeConn_Path_Newest(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -211,7 +205,6 @@ func TestServerWithNodeConn_Path_Newest(t *testing.T) {
 }
 
 func TestServerWithNodeConn_PathAndErr(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -247,7 +240,6 @@ func TestServerWithNodeConn_PathAndErr(t *testing.T) {
 }
 
 func TestServerWithNodeConn_NoPathAndErr(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -281,7 +273,6 @@ func TestServerWithNodeConn_NoPathAndErr(t *testing.T) {
 }
 
 func TestNodeStreamingRpc_badEndpoint(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()

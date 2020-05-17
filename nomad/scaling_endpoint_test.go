@@ -14,7 +14,6 @@ import (
 )
 
 func TestScalingEndpoint_GetPolicy(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -49,7 +48,6 @@ func TestScalingEndpoint_GetPolicy(t *testing.T) {
 }
 
 func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -124,7 +122,6 @@ func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -154,7 +151,6 @@ func TestScalingEndpoint_ListPolicies(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
@@ -232,7 +228,6 @@ func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
 }
 
 func TestScalingEndpoint_ListPolicies_Blocking(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)

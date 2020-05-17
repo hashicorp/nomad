@@ -12,12 +12,10 @@ import (
 )
 
 func TestQuotaStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &QuotaStatusCommand{}
 }
 
 func TestQuotaStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &QuotaStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -40,7 +38,6 @@ func TestQuotaStatusCommand_Fails(t *testing.T) {
 }
 
 func TestQuotaStatusCommand_Good(t *testing.T) {
-	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -73,7 +70,6 @@ func TestQuotaStatusCommand_Good(t *testing.T) {
 
 func TestQuotaStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()

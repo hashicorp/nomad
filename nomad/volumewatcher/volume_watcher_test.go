@@ -14,7 +14,6 @@ import (
 
 // TestVolumeWatch_OneReap tests one pass through the reaper
 func TestVolumeWatch_OneReap(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	cases := []struct {
@@ -134,7 +133,6 @@ func TestVolumeWatch_OneReap(t *testing.T) {
 // COMPAT(1.0): the claim fields were added after 0.11.1; this test
 // can be removed for 1.0
 func TestVolumeWatch_OldVolume_OneReap(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	cases := []struct {
@@ -253,7 +251,6 @@ func TestVolumeWatch_OldVolume_OneReap(t *testing.T) {
 // TestVolumeWatch_OneReap tests multiple passes through the reaper,
 // updating state after each one
 func TestVolumeWatch_ReapStates(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	srv := &MockRPCServer{state: state.TestStateStore(t)}

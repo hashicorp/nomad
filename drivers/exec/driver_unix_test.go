@@ -19,7 +19,6 @@ import (
 )
 
 func TestExecDriver_StartWaitStop(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
@@ -79,7 +78,6 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	d := NewExecDriver(testlog.HCLogger(t))

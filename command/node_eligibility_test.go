@@ -12,12 +12,10 @@ import (
 )
 
 func TestNodeEligibilityCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &NodeEligibilityCommand{}
 }
 
 func TestNodeEligibilityCommand_Fails(t *testing.T) {
-	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -91,7 +89,6 @@ func TestNodeEligibilityCommand_Fails(t *testing.T) {
 
 func TestNodeEligibilityCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()

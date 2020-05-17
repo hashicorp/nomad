@@ -34,9 +34,6 @@ func javaCompatible(t *testing.T) {
 
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	d := NewDriver(testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -56,9 +53,6 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 
 func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	d := NewDriver(testlog.HCLogger(t))
@@ -96,9 +90,6 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 
 func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	d := NewDriver(testlog.HCLogger(t))
@@ -157,9 +148,6 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 
 func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	d := NewDriver(testlog.HCLogger(t))
@@ -245,9 +233,6 @@ func TestJavaCmdArgs(t *testing.T) {
 
 func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
 	javaCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	d := NewDriver(testlog.HCLogger(t))

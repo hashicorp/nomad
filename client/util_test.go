@@ -12,7 +12,6 @@ import (
 )
 
 func TestDiffAllocs(t *testing.T) {
-	t.Parallel()
 	alloc1 := mock.Alloc() // Ignore
 	alloc2 := mock.Alloc() // Update
 	alloc2u := new(structs.Allocation)
@@ -56,7 +55,6 @@ func TestDiffAllocs(t *testing.T) {
 }
 
 func TestShuffleStrings(t *testing.T) {
-	t.Parallel()
 	// Generate input
 	inp := make([]string, 10)
 	for idx := range inp {

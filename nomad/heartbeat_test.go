@@ -14,7 +14,6 @@ import (
 )
 
 func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -41,7 +40,6 @@ func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -64,7 +62,6 @@ func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -81,7 +78,6 @@ func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -103,7 +99,6 @@ func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
 }
 
 func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -143,7 +138,6 @@ func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 }
 
 func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -168,7 +162,6 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 }
 
 func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -189,7 +182,6 @@ func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
 }
 
 func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -212,7 +204,6 @@ func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
 }
 
 func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3

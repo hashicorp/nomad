@@ -7,7 +7,6 @@ import (
 )
 
 func TestACLPolicies_ListUpsert(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -49,7 +48,6 @@ func TestACLPolicies_ListUpsert(t *testing.T) {
 }
 
 func TestACLPolicies_Delete(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -84,7 +82,6 @@ func TestACLPolicies_Delete(t *testing.T) {
 }
 
 func TestACLPolicies_Info(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	ap := c.ACLPolicies()
@@ -110,7 +107,6 @@ func TestACLPolicies_Info(t *testing.T) {
 }
 
 func TestACLTokens_List(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -129,7 +125,6 @@ func TestACLTokens_List(t *testing.T) {
 }
 
 func TestACLTokens_CreateUpdate(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -158,7 +153,6 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 }
 
 func TestACLTokens_Info(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -183,7 +177,6 @@ func TestACLTokens_Info(t *testing.T) {
 }
 
 func TestACLTokens_Self(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()
@@ -213,7 +206,6 @@ func TestACLTokens_Self(t *testing.T) {
 }
 
 func TestACLTokens_Delete(t *testing.T) {
-	t.Parallel()
 	c, s, _ := makeACLClient(t, nil, nil)
 	defer s.Stop()
 	at := c.ACLTokens()

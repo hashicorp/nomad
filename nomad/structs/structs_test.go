@@ -605,7 +605,6 @@ func TestJob_VaultPolicies(t *testing.T) {
 }
 
 func TestJob_ConnectTasks(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	// todo(shoenig): this will need some updates when we support connect native
@@ -803,7 +802,6 @@ func TestJob_PartEqual(t *testing.T) {
 }
 
 func TestTask_UsesConnect(t *testing.T) {
-	t.Parallel()
 
 	t.Run("normal task", func(t *testing.T) {
 		task := testJob().TaskGroups[0].Tasks[0]
@@ -824,7 +822,6 @@ func TestTask_UsesConnect(t *testing.T) {
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
-	t.Parallel()
 
 	try := func(t *testing.T, tg *TaskGroup, exp bool) {
 		result := tg.UsesConnect()
@@ -1684,7 +1681,6 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
-	t.Parallel()
 	// Bad (no port)
 	invalidGRPC := &ServiceCheck{
 		Type:     ServiceCheckGRPC,
@@ -1710,7 +1706,6 @@ func TestTask_Validate_Service_Check_GRPC(t *testing.T) {
 }
 
 func TestTask_Validate_Service_Check_CheckRestart(t *testing.T) {
-	t.Parallel()
 	invalidCheckRestart := &CheckRestart{
 		Limit: -1,
 		Grace: -1,
@@ -3324,7 +3319,6 @@ func TestTaskArtifact_Validate_Dest(t *testing.T) {
 // TestTaskArtifact_Hash asserts an artifact's hash changes when any of the
 // fields change.
 func TestTaskArtifact_Hash(t *testing.T) {
-	t.Parallel()
 
 	cases := []TaskArtifact{
 		{},
@@ -3556,7 +3550,6 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 }
 
 func TestPlan_NormalizeAllocations(t *testing.T) {
-	t.Parallel()
 	plan := &Plan{
 		NodeUpdate:      make(map[string][]*Allocation),
 		NodePreemptions: make(map[string][]*Allocation),
@@ -3586,7 +3579,6 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 }
 
 func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	t.Parallel()
 	plan := &Plan{
 		NodeUpdate: make(map[string][]*Allocation),
 	}
@@ -3615,7 +3607,6 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 }
 
 func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
-	t.Parallel()
 	plan := &Plan{
 		NodePreemptions: make(map[string][]*Allocation),
 	}
@@ -3640,7 +3631,6 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 }
 
 func TestAllocation_MsgPackTags(t *testing.T) {
-	t.Parallel()
 	planType := reflect.TypeOf(Allocation{})
 
 	msgPackTags, _ := planType.FieldByName("_struct")
@@ -3649,7 +3639,6 @@ func TestAllocation_MsgPackTags(t *testing.T) {
 }
 
 func TestEvaluation_MsgPackTags(t *testing.T) {
-	t.Parallel()
 	planType := reflect.TypeOf(Evaluation{})
 
 	msgPackTags, _ := planType.FieldByName("_struct")
@@ -4954,7 +4943,6 @@ func TestNetworkResourcesEquals(t *testing.T) {
 }
 
 func TestNode_Canonicalize(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Make sure the eligiblity is set properly
@@ -4970,7 +4958,6 @@ func TestNode_Canonicalize(t *testing.T) {
 }
 
 func TestNode_Copy(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	node := &Node{

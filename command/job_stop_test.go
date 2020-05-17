@@ -11,12 +11,10 @@ import (
 )
 
 func TestStopCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &JobStopCommand{}
 }
 
 func TestStopCommand_Fails(t *testing.T) {
-	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -52,7 +50,6 @@ func TestStopCommand_Fails(t *testing.T) {
 
 func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

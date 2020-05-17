@@ -8,7 +8,6 @@ import (
 )
 
 func TestHTTP_rpcHandlerForAlloc(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
@@ -52,7 +51,6 @@ func TestHTTP_rpcHandlerForAlloc(t *testing.T) {
 }
 
 func TestHTTP_rpcHandlerForNode(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	agent := NewTestAgent(t, t.Name(), nil)
 	defer agent.Shutdown()
