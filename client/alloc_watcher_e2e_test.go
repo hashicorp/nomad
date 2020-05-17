@@ -26,7 +26,6 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 		clientCertFn = "../helper/tlsutil/testdata/global-client.pem"
 		clientKeyFn  = "../helper/tlsutil/testdata/global-client-key.pem"
 	)
-	t.Parallel()
 	require := require.New(t)
 
 	server, cleanupS := nomad.TestServer(t, func(c *nomad.Config) {

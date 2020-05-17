@@ -88,7 +88,6 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 }
 
 func TestExecutor_IsolationAndConstraints(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -168,7 +167,6 @@ passwd`
 // TestExecutor_CgroupPaths asserts that process starts with independent cgroups
 // hierarchy created for this process
 func TestExecutor_CgroupPaths(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -221,7 +219,6 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 // TestExecutor_CgroupPaths asserts that all cgroups created for a task
 // are destroyed on shutdown
 func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -301,7 +298,6 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 }
 
 func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Create a temp dir
@@ -343,7 +339,6 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 
 // Exec Launch looks for the binary only inside the chroot
 func TestExecutor_EscapeContainer(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	testutil.ExecCompatible(t)
 
@@ -379,7 +374,6 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 }
 
 func TestExecutor_Capabilities(t *testing.T) {
-	t.Parallel()
 	testutil.ExecCompatible(t)
 
 	cases := []struct {
@@ -459,7 +453,6 @@ CapAmb: 0000000000000000`,
 }
 
 func TestExecutor_ClientCleanup(t *testing.T) {
-	t.Parallel()
 	testutil.ExecCompatible(t)
 	require := require.New(t)
 

@@ -28,7 +28,6 @@ import (
 )
 
 func TestRawExecDriver_User(t *testing.T) {
-	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux only test")
 	}
@@ -60,7 +59,6 @@ func TestRawExecDriver_User(t *testing.T) {
 }
 
 func TestRawExecDriver_Signal(t *testing.T) {
-	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux only test")
 	}
@@ -134,7 +132,6 @@ done
 }
 
 func TestRawExecDriver_StartWaitStop(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
@@ -203,7 +200,6 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 // TestRawExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
 // task processes are cleaned up.
 func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
-	t.Parallel()
 
 	// This only works reliably with cgroup PID tracking, happens in linux only
 	if runtime.GOOS != "linux" {
@@ -306,7 +302,6 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 }
 
 func TestRawExec_ExecTaskStreaming(t *testing.T) {
-	t.Parallel()
 	if runtime.GOOS == "darwin" {
 		t.Skip("skip running exec tasks on darwin as darwin has restrictions on starting tty shells")
 	}

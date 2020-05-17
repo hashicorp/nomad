@@ -25,7 +25,6 @@ var fakeNodePlugin = &dynamicplugins.PluginInfo{
 }
 
 func TestCSIController_AttachVolume(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		Name             string
@@ -172,7 +171,6 @@ func TestCSIController_AttachVolume(t *testing.T) {
 }
 
 func TestCSIController_ValidateVolume(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		Name             string
@@ -271,7 +269,6 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 }
 
 func TestCSIController_DetachVolume(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		Name             string
@@ -354,7 +351,6 @@ func TestCSIController_DetachVolume(t *testing.T) {
 }
 
 func TestCSINode_DetachVolume(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		Name             string

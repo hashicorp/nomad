@@ -8,7 +8,6 @@ import (
 )
 
 func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	testClient, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -33,7 +32,6 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
@@ -62,7 +60,6 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 }
 
 func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
@@ -91,7 +88,6 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 }
 
 func TestFingerprintManager_Run_Combination(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {

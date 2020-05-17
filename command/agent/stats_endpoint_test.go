@@ -16,7 +16,6 @@ import (
 )
 
 func TestClientStatsRequest(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 
@@ -77,7 +76,6 @@ func TestClientStatsRequest(t *testing.T) {
 }
 
 func TestClientStatsRequest_ACL(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()

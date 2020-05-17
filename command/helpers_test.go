@@ -21,7 +21,6 @@ import (
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
-	t.Parallel()
 	in := []string{"alpha|beta", "charlie|delta", "echo|"}
 	out := formatKV(in)
 
@@ -35,7 +34,6 @@ func TestHelpers_FormatKV(t *testing.T) {
 }
 
 func TestHelpers_FormatList(t *testing.T) {
-	t.Parallel()
 	in := []string{"alpha|beta||delta"}
 	out := formatList(in)
 
@@ -47,7 +45,6 @@ func TestHelpers_FormatList(t *testing.T) {
 }
 
 func TestHelpers_NodeID(t *testing.T) {
-	t.Parallel()
 	srv, _, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -64,7 +61,6 @@ func TestHelpers_NodeID(t *testing.T) {
 }
 
 func TestHelpers_LineLimitReader_NoTimeLimit(t *testing.T) {
-	t.Parallel()
 	helloString := `hello
 world
 this
@@ -166,7 +162,6 @@ func (t *testReadCloser) Close() error {
 }
 
 func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
-	t.Parallel()
 	// Create the test reader
 	in := &testReadCloser{data: make(chan []byte)}
 
@@ -256,7 +251,6 @@ var (
 
 // Test APIJob with local jobfile
 func TestJobGetter_LocalFile(t *testing.T) {
-	t.Parallel()
 	fh, err := ioutil.TempFile("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -282,7 +276,6 @@ func TestJobGetter_LocalFile(t *testing.T) {
 
 // Test StructJob with jobfile from HTTP Server
 func TestJobGetter_HTTPServer(t *testing.T) {
-	t.Parallel()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, job)
 	})
@@ -347,7 +340,6 @@ func TestPrettyTimeDiff(t *testing.T) {
 
 // TestUiErrorWriter asserts that writer buffers and
 func TestUiErrorWriter(t *testing.T) {
-	t.Parallel()
 
 	var outBuf, errBuf bytes.Buffer
 	ui := &cli.BasicUi{

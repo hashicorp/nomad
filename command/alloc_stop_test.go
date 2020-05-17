@@ -12,7 +12,6 @@ import (
 )
 
 func TestAllocStopCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &AllocStopCommand{}
 }
 

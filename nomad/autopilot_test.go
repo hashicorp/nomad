@@ -67,7 +67,6 @@ func wantRaft(servers []*Server) error {
 }
 
 func TestAutopilot_CleanupDeadServer(t *testing.T) {
-	t.Parallel()
 	for i := 1; i <= 3; i++ {
 		testCleanupDeadServer(t, i)
 	}
@@ -126,7 +125,6 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 }
 
 func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
-	t.Parallel()
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 5
@@ -173,7 +171,6 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 }
 
 func TestAutopilot_RollingUpdate(t *testing.T) {
-	t.Parallel()
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 3
@@ -250,7 +247,6 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 
 func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	t.Skip("TestAutopilot_CleanupDeadServer is very flaky, removing it for now")
-	t.Parallel()
 
 	conf := func(c *Config) {
 		c.BootstrapExpect = 3
@@ -299,7 +295,6 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 }
 
 func TestAutopilot_PromoteNonVoter(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.RaftConfig.ProtocolVersion = 3

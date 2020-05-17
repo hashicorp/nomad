@@ -13,12 +13,10 @@ import (
 )
 
 func TestNamespaceStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &NamespaceStatusCommand{}
 }
 
 func TestNamespaceStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -41,7 +39,6 @@ func TestNamespaceStatusCommand_Fails(t *testing.T) {
 }
 
 func TestNamespaceStatusCommand_Good(t *testing.T) {
-	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -70,7 +67,6 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 }
 
 func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
-	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
@@ -111,7 +107,6 @@ func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
 
 func TestNamespaceStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -139,7 +134,6 @@ func TestNamespaceStatusCommand_AutocompleteArgs(t *testing.T) {
 // command should pull the matching namespace rather than
 // displaying the multiple match error
 func TestNamespaceStatusCommand_NamespaceMatchesPrefix(t *testing.T) {
-	t.Parallel()
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)

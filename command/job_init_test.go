@@ -11,12 +11,10 @@ import (
 )
 
 func TestInitCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &JobInitCommand{}
 }
 
 func TestInitCommand_Run(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 
@@ -79,7 +77,6 @@ func TestInitCommand_Run(t *testing.T) {
 }
 
 func TestInitCommand_defaultJob(t *testing.T) {
-	t.Parallel()
 	// Ensure the job file is always written with spaces instead of tabs. Since
 	// the default job file is embedded in the go file, it's easy for tabs to
 	// slip in.
@@ -90,7 +87,6 @@ func TestInitCommand_defaultJob(t *testing.T) {
 }
 
 func TestInitCommand_customFilename(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 	filename := "custom.nomad"

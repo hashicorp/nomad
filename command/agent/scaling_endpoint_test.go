@@ -12,7 +12,6 @@ import (
 )
 
 func TestHTTP_ScalingPoliciesList(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
@@ -64,7 +63,6 @@ func TestHTTP_ScalingPoliciesList(t *testing.T) {
 }
 
 func TestHTTP_ScalingPolicyGet(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job

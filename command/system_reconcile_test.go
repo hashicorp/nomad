@@ -7,6 +7,5 @@ import (
 )
 
 func TestSystemReconcileCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &SystemCommand{}
 }

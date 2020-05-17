@@ -10,7 +10,6 @@ import (
 )
 
 func TestMonitor_Update_Eval(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil, fullId)
 
@@ -64,7 +63,6 @@ func TestMonitor_Update_Eval(t *testing.T) {
 }
 
 func TestMonitor_Update_Allocs(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil, fullId)
 
@@ -135,7 +133,6 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 }
 
 func TestMonitor_Update_AllocModification(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	mon := newMonitor(ui, nil, fullId)
 
@@ -171,7 +168,6 @@ func TestMonitor_Update_AllocModification(t *testing.T) {
 }
 
 func TestMonitor_Monitor(t *testing.T) {
-	t.Parallel()
 	srv, client, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -218,7 +214,6 @@ func TestMonitor_Monitor(t *testing.T) {
 }
 
 func TestMonitor_MonitorWithPrefix(t *testing.T) {
-	t.Parallel()
 	srv, client, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 

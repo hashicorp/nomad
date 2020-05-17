@@ -10,7 +10,6 @@ import (
 )
 
 func TestSyslogFilter(t *testing.T) {
-	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("Syslog not supported on Windows")
 	}

@@ -21,7 +21,6 @@ import (
 )
 
 func TestDevicePlugin_PluginInfo(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	var (
@@ -90,7 +89,6 @@ func TestDevicePlugin_PluginInfo(t *testing.T) {
 }
 
 func TestDevicePlugin_ConfigSchema(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	mock := &MockDevicePlugin{
@@ -124,7 +122,6 @@ func TestDevicePlugin_ConfigSchema(t *testing.T) {
 }
 
 func TestDevicePlugin_SetConfig(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	var receivedData []byte
@@ -184,7 +181,6 @@ func TestDevicePlugin_SetConfig(t *testing.T) {
 }
 
 func TestDevicePlugin_Fingerprint(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	devices1 := []*DeviceGroup{
@@ -288,7 +284,6 @@ func TestDevicePlugin_Fingerprint(t *testing.T) {
 }
 
 func TestDevicePlugin_Fingerprint_StreamErr(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	ferr := fmt.Errorf("mock fingerprinting failed")
@@ -348,7 +343,6 @@ func TestDevicePlugin_Fingerprint_StreamErr(t *testing.T) {
 }
 
 func TestDevicePlugin_Fingerprint_CancelCtx(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	mock := &MockDevicePlugin{
@@ -408,7 +402,6 @@ func TestDevicePlugin_Fingerprint_CancelCtx(t *testing.T) {
 }
 
 func TestDevicePlugin_Reserve(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	reservation := &ContainerReservation{
@@ -464,7 +457,6 @@ func TestDevicePlugin_Reserve(t *testing.T) {
 }
 
 func TestDevicePlugin_Stats(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	devices1 := []*DeviceGroupStats{
@@ -605,7 +597,6 @@ func TestDevicePlugin_Stats(t *testing.T) {
 }
 
 func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	ferr := fmt.Errorf("mock stats failed")
@@ -665,7 +656,6 @@ func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
 }
 
 func TestDevicePlugin_Stats_CancelCtx(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	mock := &MockDevicePlugin{

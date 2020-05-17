@@ -114,7 +114,6 @@ func mockFSAlloc(nodeID string, config map[string]interface{}) *structs.Allocati
 }
 
 func TestHTTP_FS_List_MissingParams(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/ls/", nil)
@@ -126,7 +125,6 @@ func TestHTTP_FS_List_MissingParams(t *testing.T) {
 }
 
 func TestHTTP_FS_Stat_MissingParams(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stat/", nil)
@@ -146,7 +144,6 @@ func TestHTTP_FS_Stat_MissingParams(t *testing.T) {
 }
 
 func TestHTTP_FS_ReadAt_MissingParams(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/readat/", nil)
@@ -170,7 +167,6 @@ func TestHTTP_FS_ReadAt_MissingParams(t *testing.T) {
 }
 
 func TestHTTP_FS_Cat_MissingParams(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/cat/", nil)
@@ -190,7 +186,6 @@ func TestHTTP_FS_Cat_MissingParams(t *testing.T) {
 }
 
 func TestHTTP_FS_Stream_MissingParams(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
@@ -220,7 +215,6 @@ func TestHTTP_FS_Stream_MissingParams(t *testing.T) {
 // TestHTTP_FS_Logs_MissingParams asserts proper error codes and messages are
 // returned for incorrect parameters (eg missing tasks).
 func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// AllocID Not Present
@@ -262,7 +256,6 @@ func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 }
 
 func TestHTTP_FS_List(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -282,7 +275,6 @@ func TestHTTP_FS_List(t *testing.T) {
 }
 
 func TestHTTP_FS_Stat(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -303,7 +295,6 @@ func TestHTTP_FS_Stat(t *testing.T) {
 }
 
 func TestHTTP_FS_ReadAt(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -329,7 +320,6 @@ func TestHTTP_FS_ReadAt(t *testing.T) {
 
 // TestHTTP_FS_ReadAt_XSS asserts that the readat API is safe from XSS.
 func TestHTTP_FS_ReadAt_XSS(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
 		addAllocToClient(s, a, terminalClientAlloc)
@@ -353,7 +343,6 @@ func TestHTTP_FS_ReadAt_XSS(t *testing.T) {
 }
 
 func TestHTTP_FS_Cat(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -375,7 +364,6 @@ func TestHTTP_FS_Cat(t *testing.T) {
 
 // TestHTTP_FS_Cat_XSS asserts that the cat API is safe from XSS.
 func TestHTTP_FS_Cat_XSS(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
 		addAllocToClient(s, a, terminalClientAlloc)
@@ -398,7 +386,6 @@ func TestHTTP_FS_Cat_XSS(t *testing.T) {
 }
 
 func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -443,7 +430,6 @@ func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 
 // TestHTTP_FS_Stream_NoFollow_XSS asserts that the stream API is safe from XSS.
 func TestHTTP_FS_Stream_NoFollow_XSS(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
 		addAllocToClient(s, a, terminalClientAlloc)
@@ -462,7 +448,6 @@ func TestHTTP_FS_Stream_NoFollow_XSS(t *testing.T) {
 }
 
 func TestHTTP_FS_Stream_Follow(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -506,7 +491,6 @@ func TestHTTP_FS_Stream_Follow(t *testing.T) {
 }
 
 func TestHTTP_FS_Logs(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -544,7 +528,6 @@ func TestHTTP_FS_Logs(t *testing.T) {
 // text/plain or application/json content regardless of whether the logs are
 // HTML+Javascript or not.
 func TestHTTP_FS_Logs_XSS(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
 		addAllocToClient(s, a, terminalClientAlloc)
@@ -565,7 +548,6 @@ func TestHTTP_FS_Logs_XSS(t *testing.T) {
 }
 
 func TestHTTP_FS_Logs_Follow(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		a := mockFSAlloc(s.client.NodeID(), nil)
@@ -607,7 +589,6 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 }
 
 func TestHTTP_FS_Logs_PropagatesErrors(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=0&origin=end&plain=true",
 			uuid.Generate())

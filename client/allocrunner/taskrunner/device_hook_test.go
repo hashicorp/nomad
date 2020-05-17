@@ -15,7 +15,6 @@ import (
 )
 
 func TestDeviceHook_CorrectDevice(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	dm := devicemanager.NoopMockManager()
@@ -97,7 +96,6 @@ func TestDeviceHook_CorrectDevice(t *testing.T) {
 }
 
 func TestDeviceHook_IncorrectDevice(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	dm := devicemanager.NoopMockManager()

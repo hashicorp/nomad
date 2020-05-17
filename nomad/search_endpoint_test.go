@@ -30,7 +30,6 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) *
 }
 
 func TestSearch_PrefixSearch_Job(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -63,7 +62,6 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_ACL(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	jobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -175,7 +173,6 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	prefix := "example-test-------" // Assert that a job with more than 4 hyphens works
 
@@ -221,7 +218,6 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	prefix := strings.Repeat("a", 100)
 
@@ -267,7 +263,6 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 
 // truncate should limit results to 20
 func TestSearch_PrefixSearch_Truncate(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -303,7 +298,6 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -343,7 +337,6 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Evals(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -380,7 +373,6 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Allocation(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -425,7 +417,6 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -477,7 +468,6 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Node(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -518,7 +508,6 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Deployment(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -555,7 +544,6 @@ func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_AllContext(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -606,7 +594,6 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 
 // Tests that the top 20 matches are returned when no prefix is set
 func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -641,7 +628,6 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 // Tests that the zero matches are returned when a prefix has no matching
 // results
 func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
@@ -673,7 +659,6 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 // Prefixes can only be looked up if their length is a power of two. For
 // prefixes which are an odd length, use the length-1 characters.
 func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	id1 := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
 	id2 := "aaafeaaa-e8f7-fd38-c855-ab94ceb89"
@@ -708,7 +693,6 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	jobName := "exampleexample"
 
@@ -751,7 +735,6 @@ func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {
@@ -785,7 +768,6 @@ func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	s, cleanupS := TestServer(t, func(c *Config) {

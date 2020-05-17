@@ -9,7 +9,6 @@ import (
 
 func TestSearch_List(t *testing.T) {
 	require := require.New(t)
-	t.Parallel()
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

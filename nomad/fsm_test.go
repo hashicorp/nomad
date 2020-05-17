@@ -77,7 +77,6 @@ func makeLog(buf []byte) *raft.Log {
 }
 
 func TestFSM_UpsertNodeEvents(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -121,7 +120,6 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 }
 
 func TestFSM_UpsertNode(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -178,7 +176,6 @@ func TestFSM_UpsertNode(t *testing.T) {
 }
 
 func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	fsm := testFSM(t)
@@ -207,7 +204,6 @@ func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
 }
 
 func TestFSM_DeregisterNode(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	node := mock.Node()
@@ -249,7 +245,6 @@ func TestFSM_DeregisterNode(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeStatus(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
@@ -306,7 +301,6 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 }
 
 func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -356,7 +350,6 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeDrain(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -400,7 +393,6 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -435,7 +427,6 @@ func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeEligibility(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -505,7 +496,6 @@ func TestFSM_UpdateNodeEligibility(t *testing.T) {
 }
 
 func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -559,7 +549,6 @@ func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
 }
 
 func TestFSM_RegisterJob(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
@@ -615,7 +604,6 @@ func TestFSM_RegisterJob(t *testing.T) {
 }
 
 func TestFSM_RegisterPeriodicJob_NonLeader(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	// Disable the dispatcher
@@ -674,7 +662,6 @@ func TestFSM_RegisterPeriodicJob_NonLeader(t *testing.T) {
 }
 
 func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	job := mock.Job()
@@ -714,7 +701,6 @@ func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 }
 
 func TestFSM_DeregisterJob_Purge(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
@@ -781,7 +767,6 @@ func TestFSM_DeregisterJob_Purge(t *testing.T) {
 }
 
 func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
@@ -851,7 +836,6 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 }
 
 func TestFSM_BatchDeregisterJob(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	fsm := testFSM(t)
 
@@ -929,7 +913,6 @@ func TestFSM_BatchDeregisterJob(t *testing.T) {
 }
 
 func TestFSM_UpdateEval(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 
@@ -967,7 +950,6 @@ func TestFSM_UpdateEval(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_Blocked(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -1016,7 +998,6 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_Untrack(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -1071,7 +1052,6 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 }
 
 func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	fsm.blockedEvals.SetEnabled(true)
@@ -1128,7 +1108,6 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 }
 
 func TestFSM_DeleteEval(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	eval := mock.Eval()
@@ -1170,7 +1149,6 @@ func TestFSM_DeleteEval(t *testing.T) {
 }
 
 func TestFSM_UpsertAllocs(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1229,7 +1207,6 @@ func TestFSM_UpsertAllocs(t *testing.T) {
 }
 
 func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1302,7 +1279,6 @@ func TestFSM_UpsertAllocs_SharedJob(t *testing.T) {
 
 // COMPAT(0.11): Remove in 0.11
 func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1382,7 +1358,6 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 // TestFSM_UpsertAllocs_Canonicalize asserts that allocations are Canonicalized
 // to handle logs emited by servers running old versions
 func TestFSM_UpsertAllocs_Canonicalize(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	alloc := mock.Alloc()
@@ -1419,7 +1394,6 @@ func TestFSM_UpsertAllocs_Canonicalize(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 	state := fsm.State()
@@ -1504,7 +1478,6 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocFromClient(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
 	require := require.New(t)
@@ -1552,7 +1525,6 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 }
 
 func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
 	require := require.New(t)
@@ -1609,7 +1581,6 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 }
 
 func TestFSM_UpsertVaultAccessor(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -1659,7 +1630,6 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 }
 
 func TestFSM_DeregisterVaultAccessor(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
@@ -1702,7 +1672,6 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 }
 
 func TestFSM_UpsertSITokenAccessor(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	fsm := testFSM(t)
@@ -1737,7 +1706,6 @@ func TestFSM_UpsertSITokenAccessor(t *testing.T) {
 }
 
 func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	fsm := testFSM(t)
@@ -1775,7 +1743,6 @@ func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
 }
 
 func TestFSM_ApplyPlanResults(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	// Create the request and create a deployment
@@ -1918,7 +1885,6 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 }
 
 func TestFSM_DeploymentStatusUpdate(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -1987,7 +1953,6 @@ func TestFSM_DeploymentStatusUpdate(t *testing.T) {
 }
 
 func TestFSM_JobStabilityUpdate(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -2028,7 +1993,6 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 }
 
 func TestFSM_DeploymentPromotion(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -2133,7 +2097,6 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 }
 
 func TestFSM_DeploymentAllocHealth(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	fsm.evalBroker.SetEnabled(true)
 	state := fsm.State()
@@ -2240,7 +2203,6 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 }
 
 func TestFSM_DeleteDeployment(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 	state := fsm.State()
 
@@ -2275,7 +2237,6 @@ func TestFSM_DeleteDeployment(t *testing.T) {
 }
 
 func TestFSM_UpsertACLPolicies(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	policy := mock.ACLPolicy()
@@ -2300,7 +2261,6 @@ func TestFSM_UpsertACLPolicies(t *testing.T) {
 }
 
 func TestFSM_DeleteACLPolicies(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	policy := mock.ACLPolicy()
@@ -2328,7 +2288,6 @@ func TestFSM_DeleteACLPolicies(t *testing.T) {
 }
 
 func TestFSM_BootstrapACLTokens(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	token := mock.ACLToken()
@@ -2373,7 +2332,6 @@ func TestFSM_BootstrapACLTokens(t *testing.T) {
 }
 
 func TestFSM_UpsertACLTokens(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	token := mock.ACLToken()
@@ -2398,7 +2356,6 @@ func TestFSM_UpsertACLTokens(t *testing.T) {
 }
 
 func TestFSM_DeleteACLTokens(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	token := mock.ACLToken()
@@ -2465,7 +2422,6 @@ func testSnapshotRestore(t *testing.T, fsm *nomadFSM) *nomadFSM {
 }
 
 func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2492,7 +2448,6 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2516,7 +2471,6 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Evals(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2540,7 +2494,6 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2566,7 +2519,6 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2593,7 +2545,6 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2614,7 +2565,6 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 
@@ -2636,7 +2586,6 @@ func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2671,7 +2620,6 @@ func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2699,7 +2647,6 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2722,7 +2669,6 @@ func TestFSM_SnapshotRestore_VaultAccessors(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2750,7 +2696,6 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2780,7 +2725,6 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2799,7 +2743,6 @@ func TestFSM_SnapshotRestore_ACLPolicy(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2818,7 +2761,6 @@ func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2841,7 +2783,6 @@ func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
 }
 
 func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
-	t.Parallel()
 
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2860,7 +2801,6 @@ func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {
-	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
@@ -2936,7 +2876,6 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 // COMPAT: Remove in 0.11
 func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	// This test exercises code to handle https://github.com/hashicorp/nomad/issues/3886
-	t.Parallel()
 
 	require := require.New(t)
 	// Add some state
@@ -3006,7 +2945,6 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 }
 
 func TestFSM_LeakedDeployments(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Add some state
@@ -3024,7 +2962,6 @@ func TestFSM_LeakedDeployments(t *testing.T) {
 }
 
 func TestFSM_Autopilot(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	// Set the autopilot config using a request.
@@ -3087,7 +3024,6 @@ func TestFSM_Autopilot(t *testing.T) {
 }
 
 func TestFSM_SchedulerConfig(t *testing.T) {
-	t.Parallel()
 	fsm := testFSM(t)
 
 	require := require.New(t)
@@ -3136,7 +3072,6 @@ func TestFSM_SchedulerConfig(t *testing.T) {
 }
 
 func TestFSM_ClusterMetadata(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	fsm := testFSM(t)

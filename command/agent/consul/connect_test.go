@@ -22,7 +22,6 @@ var (
 )
 
 func TestConnect_newConnect(t *testing.T) {
-	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		asr, err := newConnect("", nil, nil)
@@ -63,7 +62,6 @@ func TestConnect_newConnect(t *testing.T) {
 }
 
 func TestConnect_connectSidecarRegistration(t *testing.T) {
-	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork)
@@ -112,7 +110,6 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 }
 
 func TestConnect_connectProxy(t *testing.T) {
-	t.Parallel()
 
 	// If the input proxy is nil, we expect the output to be a proxy with its
 	// config set to default values.
@@ -183,7 +180,6 @@ func TestConnect_connectProxy(t *testing.T) {
 }
 
 func TestConnect_connectProxyExpose(t *testing.T) {
-	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		exposeConfig, err := connectProxyExpose(nil, nil)
@@ -224,7 +220,6 @@ func TestConnect_connectProxyExpose(t *testing.T) {
 }
 
 func TestConnect_connectProxyExposePaths(t *testing.T) {
-	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		upstreams, err := connectProxyExposePaths(nil, nil)
@@ -272,7 +267,6 @@ func TestConnect_connectProxyExposePaths(t *testing.T) {
 }
 
 func TestConnect_connectUpstreams(t *testing.T) {
-	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		require.Nil(t, connectUpstreams(nil))
@@ -299,7 +293,6 @@ func TestConnect_connectUpstreams(t *testing.T) {
 }
 
 func TestConnect_connectProxyConfig(t *testing.T) {
-	t.Parallel()
 
 	t.Run("nil map", func(t *testing.T) {
 		require.Equal(t, map[string]interface{}{
@@ -320,7 +313,6 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 }
 
 func TestConnect_getConnectPort(t *testing.T) {
-	t.Parallel()
 
 	networks := structs.Networks{{
 		IP: "192.168.30.1",
@@ -361,7 +353,6 @@ func TestConnect_getConnectPort(t *testing.T) {
 }
 
 func TestConnect_getExposePathPort(t *testing.T) {
-	t.Parallel()
 
 	networks := structs.Networks{{
 		Device: "eth0",

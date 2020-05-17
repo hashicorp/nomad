@@ -14,7 +14,6 @@ import (
 )
 
 func TestResolveACLToken(t *testing.T) {
-	t.Parallel()
 
 	// Create mock state store and cache
 	state := state.TestStateStore(t)
@@ -93,7 +92,6 @@ func TestResolveACLToken(t *testing.T) {
 }
 
 func TestResolveACLToken_LeaderToken(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -109,7 +107,6 @@ func TestResolveACLToken_LeaderToken(t *testing.T) {
 }
 
 func TestResolveSecretToken(t *testing.T) {
-	t.Parallel()
 
 	s1, _, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()

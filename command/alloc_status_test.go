@@ -21,12 +21,10 @@ import (
 )
 
 func TestAllocStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &AllocStatusCommand{}
 }
 
 func TestAllocStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -88,7 +86,6 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 }
 
 func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -151,7 +148,6 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 }
 
 func TestAllocStatusCommand_Run(t *testing.T) {
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -248,7 +244,6 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 }
 
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -297,7 +292,6 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 }
 
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -360,7 +354,6 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 
 func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -383,7 +376,6 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestAllocStatusCommand_HostVolumes(t *testing.T) {
-	t.Parallel()
 	// We have to create a tempdir for the host volume even though we're
 	// not going to use it b/c the server validates the config on startup
 	tmpDir, err := ioutil.TempDir("", "vol0")
@@ -451,7 +443,6 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 }
 
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
-	t.Parallel()
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	state := srv.Agent.Server().State()

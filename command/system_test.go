@@ -7,6 +7,5 @@ import (
 )
 
 func TestSystemCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &SystemCommand{}
 }

@@ -69,7 +69,6 @@ func BenchmarkHTTPRequests(b *testing.B) {
 // TestRootFallthrough tests rootFallthrough handler to
 // verify redirect and 404 behavior
 func TestRootFallthrough(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		desc         string
@@ -119,7 +118,6 @@ func TestRootFallthrough(t *testing.T) {
 }
 
 func TestSetIndex(t *testing.T) {
-	t.Parallel()
 	resp := httptest.NewRecorder()
 	setIndex(resp, 1000)
 	header := resp.Header().Get("X-Nomad-Index")
@@ -133,7 +131,6 @@ func TestSetIndex(t *testing.T) {
 }
 
 func TestSetKnownLeader(t *testing.T) {
-	t.Parallel()
 	resp := httptest.NewRecorder()
 	setKnownLeader(resp, true)
 	header := resp.Header().Get("X-Nomad-KnownLeader")
@@ -149,7 +146,6 @@ func TestSetKnownLeader(t *testing.T) {
 }
 
 func TestSetLastContact(t *testing.T) {
-	t.Parallel()
 	resp := httptest.NewRecorder()
 	setLastContact(resp, 123456*time.Microsecond)
 	header := resp.Header().Get("X-Nomad-LastContact")
@@ -159,7 +155,6 @@ func TestSetLastContact(t *testing.T) {
 }
 
 func TestSetMeta(t *testing.T) {
-	t.Parallel()
 	meta := structs.QueryMeta{
 		Index:       1000,
 		KnownLeader: true,
@@ -182,7 +177,6 @@ func TestSetMeta(t *testing.T) {
 }
 
 func TestSetHeaders(t *testing.T) {
-	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	s.Agent.config.HTTPAPIResponseHeaders = map[string]string{"foo": "bar"}
 	defer s.Shutdown()
@@ -203,7 +197,6 @@ func TestSetHeaders(t *testing.T) {
 }
 
 func TestContentTypeIsJSON(t *testing.T) {
-	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -224,7 +217,6 @@ func TestContentTypeIsJSON(t *testing.T) {
 }
 
 func TestWrapNonJSON(t *testing.T) {
-	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -243,7 +235,6 @@ func TestWrapNonJSON(t *testing.T) {
 }
 
 func TestWrapNonJSON_Error(t *testing.T) {
-	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -278,17 +269,14 @@ func TestWrapNonJSON_Error(t *testing.T) {
 }
 
 func TestPrettyPrint(t *testing.T) {
-	t.Parallel()
 	testPrettyPrint("pretty=1", true, t)
 }
 
 func TestPrettyPrintOff(t *testing.T) {
-	t.Parallel()
 	testPrettyPrint("pretty=0", false, t)
 }
 
 func TestPrettyPrintBare(t *testing.T) {
-	t.Parallel()
 	testPrettyPrint("pretty", true, t)
 }
 
@@ -378,7 +366,6 @@ func TestTokenNotFound(t *testing.T) {
 }
 
 func TestParseWait(t *testing.T) {
-	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -401,7 +388,6 @@ func TestParseWait(t *testing.T) {
 }
 
 func TestParseWait_InvalidTime(t *testing.T) {
-	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -421,7 +407,6 @@ func TestParseWait_InvalidTime(t *testing.T) {
 }
 
 func TestParseWait_InvalidIndex(t *testing.T) {
-	t.Parallel()
 	resp := httptest.NewRecorder()
 	var b structs.QueryOptions
 
@@ -441,7 +426,6 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 }
 
 func TestParseConsistency(t *testing.T) {
-	t.Parallel()
 	var b structs.QueryOptions
 
 	req, err := http.NewRequest("GET",
@@ -469,7 +453,6 @@ func TestParseConsistency(t *testing.T) {
 }
 
 func TestParseRegion(t *testing.T) {
-	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -498,7 +481,6 @@ func TestParseRegion(t *testing.T) {
 }
 
 func TestParseToken(t *testing.T) {
-	t.Parallel()
 	s := makeHTTPServer(t, nil)
 	defer s.Shutdown()
 
@@ -518,7 +500,6 @@ func TestParseToken(t *testing.T) {
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
-	t.Parallel()
 	const (
 		cafile  = "../../helper/tlsutil/testdata/ca.pem"
 		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
@@ -637,7 +618,6 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 }
 
 func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -741,7 +721,6 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 // TestHTTPServer_Limits_Error asserts invalid Limits cause errors. This is the
 // HTTP counterpart to TestAgent_ServerConfig_Limits_Error.
 func TestHTTPServer_Limits_Error(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		tls         bool
@@ -791,8 +770,6 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		tc := cases[i]
 		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			// Use a fake agent since the HTTP server should never start
 			agent := &Agent{
 				logger: testlog.HCLogger(t),
@@ -822,7 +799,6 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 // TestHTTPServer_Limits_OK asserts that all valid limits combinations
 // (tls/timeout/conns) work.
 func TestHTTPServer_Limits_OK(t *testing.T) {
-	t.Parallel()
 	const (
 		cafile   = "../../helper/tlsutil/testdata/ca.pem"
 		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
@@ -1045,8 +1021,6 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		tc := cases[i]
 		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
 			if tc.limit != nil && *tc.limit >= maxConns {
 				t.Fatalf("test fixture failure: cannot assert limit (%d) >= max (%d)", *tc.limit, maxConns)
 			}

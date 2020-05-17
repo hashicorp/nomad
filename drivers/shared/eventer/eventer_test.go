@@ -12,7 +12,6 @@ import (
 )
 
 func TestEventer(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -78,7 +77,6 @@ func TestEventer(t *testing.T) {
 }
 
 func TestEventer_iterateConsumers(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	e := &Eventer{

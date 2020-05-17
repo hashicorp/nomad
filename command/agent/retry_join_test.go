@@ -29,7 +29,6 @@ func (m *MockDiscover) Names() []string {
 }
 
 func TestRetryJoin_Integration(t *testing.T) {
-	t.Parallel()
 
 	// Create two agents and have one retry join the other
 	agent := NewTestAgent(t, t.Name(), nil)
@@ -73,7 +72,6 @@ func TestRetryJoin_Integration(t *testing.T) {
 }
 
 func TestRetryJoin_Server_NonCloud(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -103,7 +101,6 @@ func TestRetryJoin_Server_NonCloud(t *testing.T) {
 }
 
 func TestRetryJoin_Server_Cloud(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -135,7 +132,6 @@ func TestRetryJoin_Server_Cloud(t *testing.T) {
 }
 
 func TestRetryJoin_Server_MixedProvider(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -167,7 +163,6 @@ func TestRetryJoin_Server_MixedProvider(t *testing.T) {
 }
 
 func TestRetryJoin_Client(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	serverJoin := &ServerJoin{
@@ -197,7 +192,6 @@ func TestRetryJoin_Client(t *testing.T) {
 }
 
 func TestRetryJoin_Validate(t *testing.T) {
-	t.Parallel()
 	type validateExpect struct {
 		config  *Config
 		isValid bool

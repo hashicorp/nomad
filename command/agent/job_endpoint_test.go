@@ -19,7 +19,6 @@ import (
 )
 
 func TestHTTP_JobsList(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
@@ -75,7 +74,6 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 		"aabbbbbb-e8f7-fd38-c855-ab94ceb89706",
 		"aabbcccc-e8f7-fd38-c855-ab94ceb89706",
 	}
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
 			// Create the job
@@ -128,7 +126,6 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 }
 
 func TestHTTP_JobsRegister(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -183,7 +180,6 @@ func TestHTTP_JobsRegister(t *testing.T) {
 
 // Test that ACL token is properly threaded through to the RPC endpoint
 func TestHTTP_JobsRegister_ACL(t *testing.T) {
-	t.Parallel()
 	httpACLTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -213,7 +209,6 @@ func TestHTTP_JobsRegister_ACL(t *testing.T) {
 }
 
 func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -274,7 +269,6 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 }
 
 func TestHTTP_JobsParse(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
 		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
@@ -306,7 +300,6 @@ func TestHTTP_JobsParse(t *testing.T) {
 	})
 }
 func TestHTTP_JobQuery(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -355,7 +348,6 @@ func TestHTTP_JobQuery(t *testing.T) {
 }
 
 func TestHTTP_JobQuery_Payload(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -409,7 +401,6 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 }
 
 func TestHTTP_JobUpdate(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -466,7 +457,6 @@ func TestHTTP_JobUpdate(t *testing.T) {
 }
 
 func TestHTTP_JobUpdateRegion(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		Name           string
@@ -565,7 +555,6 @@ func TestHTTP_JobUpdateRegion(t *testing.T) {
 }
 
 func TestHTTP_JobDelete(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -667,7 +656,6 @@ func TestHTTP_JobDelete(t *testing.T) {
 }
 
 func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
-	t.Parallel()
 
 	require := require.New(t)
 
@@ -728,7 +716,6 @@ func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
 }
 
 func TestHTTP_Job_ScaleStatus(t *testing.T) {
-	t.Parallel()
 
 	require := require.New(t)
 
@@ -767,7 +754,6 @@ func TestHTTP_Job_ScaleStatus(t *testing.T) {
 }
 
 func TestHTTP_JobForceEvaluate(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -810,7 +796,6 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 }
 
 func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -861,7 +846,6 @@ func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
 }
 
 func TestHTTP_JobEvaluations(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -912,7 +896,6 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 }
 
 func TestHTTP_JobAllocations(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		alloc1 := mock.Alloc()
@@ -978,7 +961,6 @@ func TestHTTP_JobAllocations(t *testing.T) {
 
 func TestHTTP_JobDeployments(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		j := mock.Job()
@@ -1022,7 +1004,6 @@ func TestHTTP_JobDeployments(t *testing.T) {
 
 func TestHTTP_JobDeployment(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		j := mock.Job()
@@ -1064,7 +1045,6 @@ func TestHTTP_JobDeployment(t *testing.T) {
 }
 
 func TestHTTP_JobVersions(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := mock.Job()
@@ -1142,7 +1122,6 @@ func TestHTTP_JobVersions(t *testing.T) {
 }
 
 func TestHTTP_PeriodicForce(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create and register a periodic job.
 		job := mock.PeriodicJob()
@@ -1185,7 +1164,6 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 }
 
 func TestHTTP_JobPlan(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := MockJob()
@@ -1225,7 +1203,6 @@ func TestHTTP_JobPlan(t *testing.T) {
 }
 
 func TestHTTP_JobPlanRegion(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		Name           string
@@ -1300,7 +1277,6 @@ func TestHTTP_JobPlanRegion(t *testing.T) {
 }
 
 func TestHTTP_JobDispatch(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the parameterized job
 		job := mock.BatchJob()
@@ -1354,7 +1330,6 @@ func TestHTTP_JobDispatch(t *testing.T) {
 }
 
 func TestHTTP_JobRevert(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job and register it twice
 		job := mock.Job()
@@ -1413,7 +1388,6 @@ func TestHTTP_JobRevert(t *testing.T) {
 }
 
 func TestHTTP_JobStable(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job and register it twice
 		job := mock.Job()
@@ -2503,7 +2477,6 @@ func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
 // TestHTTP_JobValidate_SystemMigrate asserts that a system job with a migrate
 // stanza fails to validate but does not panic (see #5477).
 func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
-	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Create the job
 		job := &api.Job{
@@ -2544,13 +2517,11 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 }
 
 func TestConversion_dereferenceInt(t *testing.T) {
-	t.Parallel()
 	require.Equal(t, 0, dereferenceInt(nil))
 	require.Equal(t, 42, dereferenceInt(helper.IntToPtr(42)))
 }
 
 func TestConversion_apiLogConfigToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, apiLogConfigToStructs(nil))
 	require.Equal(t, &structs.LogConfig{
 		MaxFiles:      2,
@@ -2562,7 +2533,6 @@ func TestConversion_apiLogConfigToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	delay := time.Duration(200)
 	timeout := time.Duration(1000)
@@ -2609,7 +2579,6 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConsulExposePathsToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, apiConsulExposePathsToStructs(nil))
 	require.Nil(t, apiConsulExposePathsToStructs(make([]*api.ConsulExposePath, 0)))
 	require.Equal(t, []structs.ConsulExposePath{{
@@ -2626,7 +2595,6 @@ func TestConversion_apiConsulExposePathsToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, apiConsulExposeConfigToStructs(nil))
 	require.Equal(t, &structs.ConsulExposeConfig{
 		Paths: []structs.ConsulExposePath{{Path: "/health"}},
@@ -2636,7 +2604,6 @@ func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
 }
 
 func TestConversion_apiUpstreamsToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, apiUpstreamsToStructs(nil))
 	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
 	require.Equal(t, []structs.ConsulUpstream{{
@@ -2649,7 +2616,6 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, apiConnectSidecarServiceProxyToStructs(nil))
 	config := make(map[string]interface{})
 	require.Equal(t, &structs.ConsulProxy{
@@ -2678,7 +2644,6 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 }
 
 func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	require.Equal(t, &structs.ConsulSidecarService{
 		Tags: []string{"foo"},
@@ -2696,7 +2661,6 @@ func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
 }
 
 func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
-	t.Parallel()
 	require.Nil(t, ApiConsulConnectToStructs(nil))
 	require.Equal(t, &structs.ConsulConnect{
 		Native:         false,

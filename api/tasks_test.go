@@ -11,7 +11,6 @@ import (
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
-	t.Parallel()
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
 		Name:  stringToPtr("grp1"),
@@ -23,7 +22,6 @@ func TestTaskGroup_NewTaskGroup(t *testing.T) {
 }
 
 func TestTaskGroup_Constrain(t *testing.T) {
-	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add a constraint to the group
@@ -57,7 +55,6 @@ func TestTaskGroup_Constrain(t *testing.T) {
 }
 
 func TestTaskGroup_AddAffinity(t *testing.T) {
-	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add an affinity to the group
@@ -93,7 +90,6 @@ func TestTaskGroup_AddAffinity(t *testing.T) {
 }
 
 func TestTaskGroup_SetMeta(t *testing.T) {
-	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Initializes an empty map
@@ -116,7 +112,6 @@ func TestTaskGroup_SetMeta(t *testing.T) {
 }
 
 func TestTaskGroup_AddSpread(t *testing.T) {
-	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Create and add spread
@@ -167,7 +162,6 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 }
 
 func TestTaskGroup_AddTask(t *testing.T) {
-	t.Parallel()
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add the task to the task group
@@ -199,7 +193,6 @@ func TestTaskGroup_AddTask(t *testing.T) {
 }
 
 func TestTask_NewTask(t *testing.T) {
-	t.Parallel()
 	task := NewTask("task1", "exec")
 	expect := &Task{
 		Name:   "task1",
@@ -211,7 +204,6 @@ func TestTask_NewTask(t *testing.T) {
 }
 
 func TestTask_SetConfig(t *testing.T) {
-	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
@@ -234,7 +226,6 @@ func TestTask_SetConfig(t *testing.T) {
 }
 
 func TestTask_SetMeta(t *testing.T) {
-	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
@@ -257,7 +248,6 @@ func TestTask_SetMeta(t *testing.T) {
 }
 
 func TestTask_Require(t *testing.T) {
-	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Create some require resources
@@ -285,7 +275,6 @@ func TestTask_Require(t *testing.T) {
 }
 
 func TestTask_Constrain(t *testing.T) {
-	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Add a constraint to the task
@@ -319,7 +308,6 @@ func TestTask_Constrain(t *testing.T) {
 }
 
 func TestTask_AddAffinity(t *testing.T) {
-	t.Parallel()
 	task := NewTask("task1", "exec")
 
 	// Add an affinity to the task
@@ -354,7 +342,6 @@ func TestTask_AddAffinity(t *testing.T) {
 }
 
 func TestTask_Artifact(t *testing.T) {
-	t.Parallel()
 	a := TaskArtifact{
 		GetterSource: stringToPtr("http://localhost/foo.txt"),
 		GetterMode:   stringToPtr("file"),
@@ -369,7 +356,6 @@ func TestTask_Artifact(t *testing.T) {
 }
 
 func TestTask_VolumeMount(t *testing.T) {
-	t.Parallel()
 	vm := &VolumeMount{}
 	vm.Canonicalize()
 	require.NotNil(t, vm.PropagationMode)

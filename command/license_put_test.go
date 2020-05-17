@@ -11,7 +11,6 @@ import (
 var _ cli.Command = &LicensePutCommand{}
 
 func TestCommand_LicensePut_Err(t *testing.T) {
-	t.Parallel()
 
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()

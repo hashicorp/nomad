@@ -15,7 +15,6 @@ import (
 )
 
 func TestCSIVolumeEndpoint_Get(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -59,7 +58,6 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -108,7 +106,6 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_Register(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -197,7 +194,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 // are honored only if the volume exists, the mode is permitted, and the volume
 // is schedulable according to its count of claims.
 func TestCSIVolumeEndpoint_Claim(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -329,7 +325,6 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 // TestCSIVolumeEndpoint_ClaimWithController exercises the VolumeClaim RPC
 // when a controller is required.
 func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -405,7 +400,6 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -483,7 +477,6 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 }
 
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
@@ -555,7 +548,6 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 }
 
 func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})

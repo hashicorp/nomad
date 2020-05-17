@@ -9,7 +9,6 @@ import (
 )
 
 func TestVolumeDispatchParse(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		hcl string
@@ -43,7 +42,6 @@ rando = "bar"
 }
 
 func TestCSIVolumeParse(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		hcl string

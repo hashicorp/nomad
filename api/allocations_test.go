@@ -14,7 +14,6 @@ import (
 )
 
 func TestAllocations_List(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
@@ -61,7 +60,6 @@ func TestAllocations_List(t *testing.T) {
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
@@ -109,7 +107,6 @@ func TestAllocations_PrefixList(t *testing.T) {
 }
 
 func TestAllocations_CreateIndexSort(t *testing.T) {
-	t.Parallel()
 	allocs := []*AllocationListStub{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -128,7 +125,6 @@ func TestAllocations_CreateIndexSort(t *testing.T) {
 }
 
 func TestAllocations_RescheduleInfo(t *testing.T) {
-	t.Parallel()
 	// Create a job, task group and alloc
 	job := &Job{
 		Name:      stringToPtr("foo"),
@@ -289,7 +285,6 @@ func TestAllocations_ExecErrors(t *testing.T) {
 }
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
-	t.Parallel()
 	require.True(t, DesiredTransition{Migrate: boolToPtr(true)}.ShouldMigrate())
 	require.False(t, DesiredTransition{}.ShouldMigrate())
 	require.False(t, DesiredTransition{Migrate: boolToPtr(false)}.ShouldMigrate())

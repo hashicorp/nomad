@@ -11,7 +11,6 @@ import (
 )
 
 func TestHTTP_DeploymentList(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -42,7 +41,6 @@ func TestHTTP_DeploymentList(t *testing.T) {
 }
 
 func TestHTTP_DeploymentPrefixList(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -76,7 +74,6 @@ func TestHTTP_DeploymentPrefixList(t *testing.T) {
 }
 
 func TestHTTP_DeploymentAllocations(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -137,7 +134,6 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 }
 
 func TestHTTP_DeploymentQuery(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -166,7 +162,6 @@ func TestHTTP_DeploymentQuery(t *testing.T) {
 }
 
 func TestHTTP_DeploymentPause(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -207,7 +202,6 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 }
 
 func TestHTTP_DeploymentPromote(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -248,7 +242,6 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 }
 
 func TestHTTP_DeploymentAllocHealth(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
@@ -293,7 +286,6 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 }
 
 func TestHTTP_DeploymentFail(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state

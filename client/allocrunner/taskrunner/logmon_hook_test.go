@@ -24,7 +24,6 @@ var _ interfaces.TaskStopHook = (*logmonHook)(nil)
 // TestTaskRunner_LogmonHook_LoadReattach unit tests loading logmon reattach
 // config from persisted hook state.
 func TestTaskRunner_LogmonHook_LoadReattach(t *testing.T) {
-	t.Parallel()
 
 	// No hook data should return nothing
 	cfg, err := reattachConfigFromHookData(nil)
@@ -60,7 +59,6 @@ func TestTaskRunner_LogmonHook_LoadReattach(t *testing.T) {
 // first time Prestart is called, reattached to on subsequent restarts, and
 // killed on Stop.
 func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
-	t.Parallel()
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]

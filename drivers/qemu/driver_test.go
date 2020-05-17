@@ -27,9 +27,6 @@ import (
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -92,9 +89,6 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 // Verifies monitor socket path for old qemu
 func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -150,9 +144,6 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 // Verifies monitor socket path for new qemu version
 func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -233,9 +224,6 @@ func copyFile(src, dst string, t *testing.T) {
 // Verifies starting a qemu image and stopping it
 func TestQemuDriver_User(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -293,9 +281,6 @@ func TestQemuDriver_User(t *testing.T) {
 // TODO(preetha) this test needs random sleeps to pass
 func TestQemuDriver_Stats(t *testing.T) {
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -374,9 +359,6 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	require := require.New(t)
 
 	ctestutil.QemuCompatible(t)
-	if !testutil.IsCI() {
-		t.Parallel()
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

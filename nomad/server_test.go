@@ -30,7 +30,6 @@ func tmpDir(t *testing.T) string {
 }
 
 func TestServer_RPC(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -42,7 +41,6 @@ func TestServer_RPC(t *testing.T) {
 }
 
 func TestServer_RPC_TLS(t *testing.T) {
-	t.Parallel()
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -108,7 +106,6 @@ func TestServer_RPC_TLS(t *testing.T) {
 }
 
 func TestServer_RPC_MixedTLS(t *testing.T) {
-	t.Parallel()
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
@@ -177,7 +174,6 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 }
 
 func TestServer_Regions(t *testing.T) {
-	t.Parallel()
 
 	// Make the servers
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -210,7 +206,6 @@ func TestServer_Regions(t *testing.T) {
 }
 
 func TestServer_Reload_Vault(t *testing.T) {
-	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "global"
@@ -242,7 +237,6 @@ func connectionReset(msg string) bool {
 // Tests that the server will successfully reload its network connections,
 // upgrading from plaintext to TLS if the server's TLS configuration changes.
 func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -291,7 +285,6 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // downgrading from TLS to plaintext if the server's TLS configuration changes.
 func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -338,7 +331,6 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // downgrading only RPC connections
 func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -392,7 +384,6 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
 // Tests that the server will successfully reload its network connections,
 // upgrading only RPC connections
 func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -448,7 +439,6 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
 // Test that Raft connections are reloaded as expected when a Nomad server is
 // upgraded from plaintext to TLS
 func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	const (
@@ -528,7 +518,6 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 }
 
 func TestServer_InvalidSchedulers(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// Set the config to not have the core scheduler
@@ -552,7 +541,6 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 }
 
 func TestServer_RPCNameAndRegionValidation(t *testing.T) {
-	t.Parallel()
 	for _, tc := range []struct {
 		name     string
 		region   string

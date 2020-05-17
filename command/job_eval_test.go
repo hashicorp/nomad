@@ -16,12 +16,10 @@ import (
 )
 
 func TestJobEvalCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &JobEvalCommand{}
 }
 
 func TestJobEvalCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobEvalCommand{Meta: Meta{Ui: ui}}
 
@@ -46,7 +44,6 @@ func TestJobEvalCommand_Fails(t *testing.T) {
 }
 
 func TestJobEvalCommand_Run(t *testing.T) {
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
@@ -104,7 +101,6 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()

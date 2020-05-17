@@ -13,7 +13,6 @@ import (
 // TestAllocBroadcaster_SendRecv asserts the latest sends to a broadcaster are
 // received by listeners.
 func TestAllocBroadcaster_SendRecv(t *testing.T) {
-	t.Parallel()
 
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
 	defer b.Close()
@@ -47,7 +46,6 @@ func TestAllocBroadcaster_SendRecv(t *testing.T) {
 
 // TestAllocBroadcaster_RecvBlocks asserts listeners are blocked until a send occurs.
 func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
-	t.Parallel()
 
 	alloc := mock.Alloc()
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
@@ -87,7 +85,6 @@ func TestAllocBroadcaster_RecvBlocks(t *testing.T) {
 // TestAllocBroadcaster_Concurrency asserts that the broadcaster behaves
 // correctly with concurrent listeners being added and closed.
 func TestAllocBroadcaster_Concurrency(t *testing.T) {
-	t.Parallel()
 
 	alloc := mock.Alloc()
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
@@ -164,7 +161,6 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 // TestAllocBroadcaster_PrimeListener asserts that newly created listeners are
 // primed with the last sent alloc.
 func TestAllocBroadcaster_PrimeListener(t *testing.T) {
-	t.Parallel()
 
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
 	defer b.Close()
@@ -188,7 +184,6 @@ func TestAllocBroadcaster_PrimeListener(t *testing.T) {
 // TestAllocBroadcaster_Closed asserts that newly created listeners are
 // primed with the last sent alloc even when the broadcaster is closed.
 func TestAllocBroadcaster_Closed(t *testing.T) {
-	t.Parallel()
 
 	b := NewAllocBroadcaster(testlog.HCLogger(t))
 

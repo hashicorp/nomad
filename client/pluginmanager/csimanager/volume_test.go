@@ -39,7 +39,6 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
 
 	cases := []struct {
 		Name                 string
@@ -136,7 +135,6 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
 
 	cases := []struct {
 		Name         string
@@ -215,7 +213,6 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
 
 	cases := []struct {
 		Name                 string
@@ -277,7 +274,6 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
 
 	cases := []struct {
 		Name                     string
@@ -401,7 +397,6 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
 
 	cases := []struct {
 		Name                 string
@@ -466,7 +461,6 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	if !checkMountSupport() {
 		t.Skip("mount point detection not supported for this platform")
 	}
-	t.Parallel()
 
 	tmpPath := tmpDir(t)
 	defer os.RemoveAll(tmpPath)

@@ -8,7 +8,6 @@ import (
 )
 
 func TestMeta_FlagSet(t *testing.T) {
-	t.Parallel()
 	cases := []struct {
 		Flags    FlagSetFlags
 		Expected []string

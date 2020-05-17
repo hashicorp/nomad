@@ -10,7 +10,6 @@ import (
 var _ cli.Command = &LicenseGetCommand{}
 
 func TestCommand_LicenseGet_OSSErr(t *testing.T) {
-	t.Parallel()
 
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()

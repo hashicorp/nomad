@@ -155,7 +155,6 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 // See https://github.com/hashicorp/nomad/issues/6787
 //
 func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
-	t.Parallel()
 	state, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{

@@ -7,7 +7,6 @@ import (
 )
 
 func TestCSI_Batcher(t *testing.T) {
-	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})

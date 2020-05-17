@@ -206,7 +206,6 @@ func TestDrainingNode_Table(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			dn := testDrainingNode(t)
 			tc.setup(t, dn)
 			assertDrainingNode(t, dn, tc.isDone, tc.remaining, tc.running)

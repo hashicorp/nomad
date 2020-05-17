@@ -10,7 +10,6 @@ import (
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly
 // inherited by Checks.
 func TestService_CheckRestart(t *testing.T) {
-	t.Parallel()
 
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
@@ -58,8 +57,6 @@ func TestService_CheckRestart(t *testing.T) {
 }
 
 func TestService_Connect_Canonicalize(t *testing.T) {
-	t.Parallel()
-
 	t.Run("nil connect", func(t *testing.T) {
 		cc := (*ConsulConnect)(nil)
 		cc.Canonicalize()
@@ -76,8 +73,6 @@ func TestService_Connect_Canonicalize(t *testing.T) {
 }
 
 func TestService_Connect_ConsulSidecarService_Canonicalize(t *testing.T) {
-	t.Parallel()
-
 	t.Run("nil sidecar_service", func(t *testing.T) {
 		css := (*ConsulSidecarService)(nil)
 		css.Canonicalize()
@@ -112,8 +107,6 @@ func TestService_Connect_ConsulSidecarService_Canonicalize(t *testing.T) {
 }
 
 func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
-	t.Parallel()
-
 	t.Run("nil proxy", func(t *testing.T) {
 		cp := (*ConsulProxy)(nil)
 		cp.Canonicalize()
@@ -148,8 +141,6 @@ func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
 }
 
 func TestService_Connect_proxy_settings(t *testing.T) {
-	t.Parallel()
-
 	job := &Job{Name: stringToPtr("job")}
 	tg := &TaskGroup{Name: stringToPtr("group")}
 	task := &Task{Name: "task"}
@@ -177,7 +168,6 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 }
 
 func TestService_Tags(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	// canonicalize does not modify eto or tags
@@ -197,8 +187,6 @@ func TestService_Tags(t *testing.T) {
 }
 
 func TestService_Connect_SidecarTask_Canonicalize(t *testing.T) {
-	t.Parallel()
-
 	t.Run("nil sidecar_task", func(t *testing.T) {
 		st := (*SidecarTask)(nil)
 		st.Canonicalize()

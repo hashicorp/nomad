@@ -14,7 +14,6 @@ var _ structs.Recoverable = (*hookError)(nil)
 // TestHookError_Recoverable asserts that a NewHookError is recoverable if
 // passed a recoverable error.
 func TestHookError_Recoverable(t *testing.T) {
-	t.Parallel()
 
 	// Create root error
 	root := errors.New("test error")
@@ -36,7 +35,6 @@ func TestHookError_Recoverable(t *testing.T) {
 // TestHookError_Unrecoverable asserts that a NewHookError is not recoverable
 // unless it is passed a recoverable error.
 func TestHookError_Unrecoverable(t *testing.T) {
-	t.Parallel()
 
 	// Create error
 	err := errors.New("test error")

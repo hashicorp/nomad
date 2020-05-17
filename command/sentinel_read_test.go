@@ -7,6 +7,5 @@ import (
 )
 
 func TestSentinelReadCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &SentinelReadCommand{}
 }

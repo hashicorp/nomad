@@ -15,7 +15,6 @@ import (
 
 // TestVolumeWatch_Batcher tests the update batching logic
 func TestVolumeWatch_Batcher(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	ctx, exitFn := context.WithCancel(context.Background())

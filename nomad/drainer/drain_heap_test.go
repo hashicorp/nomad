@@ -10,14 +10,12 @@ import (
 )
 
 func TestDeadlineHeap_Interface(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	h := NewDeadlineHeap(context.Background(), 1*time.Second)
 	require.Implements((*DrainDeadlineNotifier)(nil), h)
 }
 
 func TestDeadlineHeap_WatchAndGet(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	h := NewDeadlineHeap(context.Background(), 1*time.Second)
 
@@ -39,7 +37,6 @@ func TestDeadlineHeap_WatchAndGet(t *testing.T) {
 }
 
 func TestDeadlineHeap_WatchThenUpdateAndGet(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	h := NewDeadlineHeap(context.Background(), 1*time.Second)
 
@@ -66,7 +63,6 @@ func TestDeadlineHeap_WatchThenUpdateAndGet(t *testing.T) {
 }
 
 func TestDeadlineHeap_MultiwatchAndDelete(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	h := NewDeadlineHeap(context.Background(), 1*time.Second)
 
@@ -94,7 +90,6 @@ func TestDeadlineHeap_MultiwatchAndDelete(t *testing.T) {
 }
 
 func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	h := NewDeadlineHeap(context.Background(), 100*time.Millisecond)
 
@@ -150,7 +145,6 @@ func TestDeadlineHeap_WatchCoalesce(t *testing.T) {
 }
 
 func TestDeadlineHeap_MultipleForce(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	h := NewDeadlineHeap(context.Background(), 1*time.Second)
 

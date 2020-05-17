@@ -7,7 +7,6 @@ import (
 )
 
 func TestScalingPolicies_ListPolicies(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -52,7 +51,6 @@ func TestScalingPolicies_ListPolicies(t *testing.T) {
 }
 
 func TestScalingPolicies_GetPolicy(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	c, s := makeClient(t, nil, nil)

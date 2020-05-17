@@ -12,12 +12,10 @@ import (
 )
 
 func TestCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &Command{}
 }
 
 func TestCommand_Args(t *testing.T) {
-	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)

@@ -8,12 +8,10 @@ import (
 )
 
 func TestOperator_Autopilot_GetConfig_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &OperatorRaftListCommand{}
 }
 
 func TestOperatorAutopilotGetConfigCommand(t *testing.T) {
-	t.Parallel()
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 

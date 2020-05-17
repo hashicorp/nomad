@@ -234,7 +234,6 @@ func nvidiaAndIntelDefaultPlugins(catalog *loader.MockCatalog) {
 
 // Test collecting statistics from all devices
 func TestManager_AllStats(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -283,7 +282,6 @@ func TestManager_AllStats(t *testing.T) {
 
 // Test collecting statistics from a particular device
 func TestManager_DeviceStats(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -330,7 +328,6 @@ func TestManager_DeviceStats(t *testing.T) {
 
 // Test reserving a particular device
 func TestManager_Reserve(t *testing.T) {
-	t.Parallel()
 	r := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -428,7 +425,6 @@ func TestManager_Reserve(t *testing.T) {
 
 // Test that shutdown shutsdown the plugins
 func TestManager_Shutdown(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)
@@ -455,7 +451,6 @@ func TestManager_Shutdown(t *testing.T) {
 
 // Test that startup shutsdown previously launched plugins
 func TestManager_Run_ShutdownOld(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	config, _, catalog := baseTestConfig(t)

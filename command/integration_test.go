@@ -15,7 +15,6 @@ import (
 )
 
 func TestIntegration_Command_NomadInit(t *testing.T) {
-	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
 	if err != nil {
 		t.Fatalf("unable to create tempdir for test: %v", err)
@@ -42,7 +41,6 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 
 func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "nomadtest-rootsecretdir")
 	assert.Nil(err)
 	defer os.RemoveAll(tmpDir)

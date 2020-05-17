@@ -30,7 +30,6 @@ import (
 // TestBoltStateDB_Upgrade_Ok asserts upgading an old state db does not error
 // during upgrade and restore.
 func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
-	t.Parallel()
 
 	files, err := filepath.Glob("testdata/*.db*")
 	require.NoError(t, err)

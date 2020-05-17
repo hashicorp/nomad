@@ -120,7 +120,6 @@ func getNodeAllocsImpl(nodeID string) func(ws memdb.WatchSet, state *state.State
 }
 
 func TestDrainer_Simple_ServiceOnly(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -224,7 +223,6 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 }
 
 func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -320,7 +318,6 @@ func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
 }
 
 func TestDrainer_DrainEmptyNode(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -370,7 +367,6 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 }
 
 func TestDrainer_AllTypes_Deadline(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -536,7 +532,6 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 
 // Test that drain is unset when batch jobs naturally finish
 func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -701,7 +696,6 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 }
 
 func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
@@ -875,7 +869,6 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 
 // Test that transitions to force drain work.
 func TestDrainer_Batch_TransitionToForce(t *testing.T) {
-	t.Parallel()
 
 	for _, inf := range []bool{true, false} {
 		name := "Infinite"

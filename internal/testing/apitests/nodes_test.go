@@ -9,7 +9,6 @@ import (
 )
 
 func TestNodes_GC(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -21,7 +20,6 @@ func TestNodes_GC(t *testing.T) {
 }
 
 func TestNodes_GcAlloc(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()

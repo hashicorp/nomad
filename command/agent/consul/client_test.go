@@ -51,7 +51,6 @@ var (
 )
 
 func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
-	t.Parallel()
 
 	// By default wanted and existing match. Each test should modify wanted in
 	// 1 way, and / or configure the type of sync operation that is being
@@ -200,7 +199,6 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 }
 
 func TestSyncLogic_maybeTweakTags(t *testing.T) {
-	t.Parallel()
 
 	differentPointers := func(a, b []string) bool {
 		return &(a) != &(b)
@@ -245,7 +243,6 @@ func TestSyncLogic_maybeTweakTags(t *testing.T) {
 }
 
 func TestSyncLogic_maybeTweakTags_emptySC(t *testing.T) {
-	t.Parallel()
 
 	// Check the edge cases where the connect service is deleted on the nomad
 	// side (i.e. are we checking multiple nil pointers).

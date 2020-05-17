@@ -10,7 +10,6 @@ import (
 )
 
 func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
-	t.Parallel()
 
 	try := func(t *testing.T, text string, expPolicy *ConsulPolicy, expErr string) {
 		policy, err := ParseConsulPolicy(text)
@@ -55,7 +54,6 @@ func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
 }
 
 func TestConsulPolicy_IsEmpty(t *testing.T) {
-	t.Parallel()
 
 	try := func(t *testing.T, cp *ConsulPolicy, exp bool) {
 		result := cp.IsEmpty()
@@ -91,7 +89,6 @@ func TestConsulPolicy_IsEmpty(t *testing.T) {
 }
 
 func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
-	t.Parallel()
 
 	try := func(t *testing.T, task string, cp *ConsulPolicy, exp bool) {
 		result := cp.allowsServiceWrite(task)
@@ -175,7 +172,6 @@ func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
 }
 
 func TestConsulACLsAPI_hasSufficientPolicy(t *testing.T) {
-	t.Parallel()
 
 	try := func(t *testing.T, task string, token *api.ACLToken, exp bool) {
 		logger := testlog.HCLogger(t)

@@ -9,7 +9,6 @@ import (
 )
 
 func TestJobs_Parse(t *testing.T) {
-	t.Parallel()
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
@@ -46,7 +45,6 @@ func TestJobs_Parse(t *testing.T) {
 }
 
 func TestJobs_Summary_WithACL(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 
 	c, s, root := makeACLClient(t, nil, nil)

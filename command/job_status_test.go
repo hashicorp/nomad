@@ -19,12 +19,10 @@ import (
 )
 
 func TestJobStatusCommand_Implements(t *testing.T) {
-	t.Parallel()
 	var _ cli.Command = &JobStatusCommand{}
 }
 
 func TestJobStatusCommand_Run(t *testing.T) {
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 	testutil.WaitForResult(func() (bool, error) {
@@ -219,7 +217,6 @@ func TestJobStatusCommand_Run(t *testing.T) {
 }
 
 func TestJobStatusCommand_Fails(t *testing.T) {
-	t.Parallel()
 	ui := new(cli.MockUi)
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
@@ -243,7 +240,6 @@ func TestJobStatusCommand_Fails(t *testing.T) {
 
 func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -267,7 +263,6 @@ func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 
 func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 	assert := assert.New(t)
-	t.Parallel()
 
 	config := func(c *agent.Config) {
 		c.ACL.Enabled = true
@@ -333,7 +328,6 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 }
 
 func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
-	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 

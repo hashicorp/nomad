@@ -60,7 +60,6 @@ func testDB(t *testing.T, f func(*testing.T, StateDB)) {
 // TestStateDB asserts the behavior of GetAllAllocations, PutAllocation, and
 // DeleteAllocationBucket for all operational StateDB implementations.
 func TestStateDB_Allocations(t *testing.T) {
-	t.Parallel()
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -140,7 +139,6 @@ func TestStateDB_Allocations(t *testing.T) {
 // TestStateDB_TaskState asserts the behavior of task state related StateDB
 // methods.
 func TestStateDB_TaskState(t *testing.T) {
-	t.Parallel()
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -192,7 +190,6 @@ func TestStateDB_TaskState(t *testing.T) {
 // TestStateDB_DeviceManager asserts the behavior of device manager state related StateDB
 // methods.
 func TestStateDB_DeviceManager(t *testing.T) {
-	t.Parallel()
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -217,7 +214,6 @@ func TestStateDB_DeviceManager(t *testing.T) {
 // TestStateDB_DriverManager asserts the behavior of device manager state related StateDB
 // methods.
 func TestStateDB_DriverManager(t *testing.T) {
-	t.Parallel()
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -242,7 +238,6 @@ func TestStateDB_DriverManager(t *testing.T) {
 // TestStateDB_DynamicRegistry asserts the behavior of dynamic registry state related StateDB
 // methods.
 func TestStateDB_DynamicRegistry(t *testing.T) {
-	t.Parallel()
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require := require.New(t)
@@ -267,7 +262,6 @@ func TestStateDB_DynamicRegistry(t *testing.T) {
 // TestStateDB_Upgrade asserts calling Upgrade on new databases always
 // succeeds.
 func TestStateDB_Upgrade(t *testing.T) {
-	t.Parallel()
 
 	testDB(t, func(t *testing.T, db StateDB) {
 		require.NoError(t, db.Upgrade())
