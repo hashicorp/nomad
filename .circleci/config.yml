@@ -1294,33 +1294,6 @@ jobs:
 workflows:
   build-test:
     jobs:
-    - build-binaries:
-        filters:
-          branches:
-            ignore:
-            - stable-website
-            - /^.-ui\b.*/
-    - lint-go:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - build-darwin-binaries:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-windows:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
     - test-client:
         filters:
           branches:
@@ -1377,32 +1350,4 @@ workflows:
             - /^.-ui\b.*/
             - /^docs-.*/
             - stable-website
-    - test-32bit:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-e2e:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-ui:
-        filters:
-          branches:
-            ignore:
-            - stable-website
-            - /^docs-.*/
-  website:
-    jobs:
-    - website-docker-image:
-        filters:
-          branches:
-            only:
-            - master
-        context: static-sites
   version: 2
