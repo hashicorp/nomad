@@ -49,14 +49,16 @@ of the most useful status fields for each.
 
 List of all volumes:
 
-```shell-sessionnomad volume [-type csi] status
+```shell-session
+$ nomad volume [-type csi] status
 ID            Name      Plugin ID  Schedulable  Access Mode
 ebs_prod_db1  database  ebs-prod   true         single-node-writer
 ```
 
 Short view of a specific volume:
 
-```shell-sessionnomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+```shell-session
+$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database
 Type                 = csi
@@ -77,7 +79,8 @@ Namespace            = default
 
 Full status information of a volume:
 
-```shell-sessionnomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+```shell-session
+$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database
 Type                 = csi

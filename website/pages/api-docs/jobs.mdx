@@ -32,12 +32,12 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
-    https://localhost:4646/v1/jobs
+```shell-session
+$ curl https://localhost:4646/v1/jobs
 ```
 
-```shell-sessioncurl \
-    https://localhost:4646/v1/jobs?prefix=team
+```shell-session
+$ curl https://localhost:4646/v1/jobs?prefix=team
 ```
 
 ### Sample Response
@@ -219,7 +219,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/jobs
@@ -274,7 +275,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/jobs/parse
@@ -340,7 +342,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job
 ```
 
@@ -552,7 +555,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job/versions
 ```
 
@@ -733,7 +737,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job/allocations
 ```
 
@@ -897,7 +902,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job/evaluations
 ```
 
@@ -961,7 +967,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job/deployments
 ```
 
@@ -1044,7 +1051,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job/deployment
 ```
 
@@ -1102,7 +1110,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job/summary
 ```
 
@@ -1180,7 +1189,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/job/my-job
@@ -1236,7 +1246,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/job/my-job/dispatch
@@ -1298,7 +1309,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/job/my-job/revert
@@ -1352,7 +1364,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/job/my-job/stable
@@ -1410,7 +1423,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     -d @sample.json \
     https://localhost:4646/v1/job/my-job/evaluate
@@ -1469,7 +1483,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/job/my-job/plan
@@ -1652,7 +1667,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     https://localhost:4646/v1/job/my-job/periodic/force
 ```
@@ -1693,7 +1709,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request DELETE \
     https://localhost:4646/v1/job/my-job?purge=true
 ```
@@ -1731,7 +1748,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     https://localhost:4646/v1/job/my-job/scale
 ```
 
@@ -1815,7 +1833,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @payload.json \
     https://localhost:4646/v1/job/example/scale
