@@ -23,8 +23,8 @@ Create a new directory, and download [this
 Once you have created a new directory and downloaded the `Vagrantfile` you must
 create the virtual machine:
 
-```shell-sessionvagrant up
-
+```shell-session
+$ vagrant up
 ```
 
 This will take a few minutes as the base Ubuntu box must be downloaded
@@ -47,7 +47,8 @@ After starting the Vagrant box, verify the installation worked by connecting
 to the box using SSH and checking that `nomad` is available. By executing
 `nomad`, you should see help output similar to the following:
 
-```shell-sessionvagrant ssh
+```shell-session
+$ vagrant ssh
 ...
 
 vagrant@nomad:~$ nomad

@@ -55,7 +55,8 @@ the given job will be chosen.
 To start an interactive debugging session in a particular alloc, invoke exec
 command with your desired shell available inside the task:
 
-```shell-sessionnomad alloc exec eb17e557 /bin/bash
+```shell-session
+$ nomad alloc exec eb17e557 /bin/bash
 root@eb17e557:/data# # now run any debugging commands inside container
 root@eb17e557:/data# # ps -ef
 ```
@@ -73,7 +74,8 @@ that your host shell doesn't interpolate values before invoking `exec` command.
 For example, the following command would return the environment variable on
 operator shell rather than task containers:
 
-```shell-sessionnomad alloc exec eb17e557 echo $NOMAD_ALLOC_ID # wrong
+```shell-session
+$ nomad alloc exec eb17e557 echo $NOMAD_ALLOC_ID # wrong
 ...
 ```
 
@@ -124,7 +126,7 @@ run sensitive workloads.
 When trying to `alloc exec` for a job that has more than one task associated
 with it, you may want to target a specific task.
 
-```shell
+```shell-session
 # open a shell session in one of your allocation's tasks
 $ nomad alloc exec -i -t -task mytask a1827f93 /bin/bash
 a1827f93$
