@@ -239,17 +239,30 @@ server {
 }
 ```
 
-### Configuring Scheduler Config
+### Bootstrapping with a Custom Scheduler Config
 
-- `scheduler_algorithm` `(string: "binpack")` - Specifies the scheduler algorithm to place
-  allocations. The default value is `binpack`. Possible values are `binpack` and `spread`.
+While bootstrapping a node, you can use the `default_scheduler_config` stanza to
+prime the cluster with a [`SchedulerConfig`][update-scheduler-config]. The
+scheduler configuration determines which scheduling algorithm is configured—
+spread scheduling or binpacking—and which job types are eligible for
+preemption.
 
-This example shows enabling preemption for all schedulers.
+~> **Warning:** Once the cluster is bootstrapped, you must configure this using
+   the [update scheduler configuration][update-scheduler-config] API. This
+   option is only consulted during bootstrap.
+
+The structure matches the [Update Scheduler Config][update-scheduler-config]
+API endpoint, which you should consult for canonical documentation. However, the attributes
+names must be adapted to HCL syntax by using snake case representations rather than 
+camel case.
+
+This example shows configuring spread scheduling and enabling preemption for all
+job-type schedulers.
 
 ```hcl
 server {
   default_scheduler_config {
-    scheduler_algorithm = "binpack"
+    scheduler_algorithm = "spread"
 
     preemption_config {
       batch_scheduler_enabled   = true
@@ -259,14 +272,6 @@ server {
   }
 }
 ```
-
-The structure matches the [Update Scheduler Config][update-scheduler-config] endpoint,
-but adopted to hcl syntax (namely using snake case rather than camel case).
-
-Nomad servers check their `default_scheduler_config` only during cluster
-bootstrap. During upgrades, if a previously bootstrapped cluster already set
-scheduler configuration via the [Update Scheduler Config][update-scheduler-config]
-endpoint, that is always preferred.
 
 [encryption]: https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 'Nomad Encryption Overview'
 [server-join]: /docs/configuration/server_join 'Server Join'
