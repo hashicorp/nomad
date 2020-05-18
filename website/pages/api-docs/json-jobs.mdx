@@ -12,7 +12,8 @@ description: |-
 This guide covers the JSON syntax for submitting jobs to Nomad. A useful command
 for generating valid JSON versions of HCL jobs is:
 
-```shell-sessionnomad job run -output my-job.nomad
+```shell-session
+nomad job run -output my-job.nomad
 
 ```
 
@@ -139,7 +140,8 @@ Below is the JSON representation of the job outputted by `$ nomad init`:
 
 The example JSON could be submitted as a job using the following:
 
-```shell-sessioncurl -XPUT -d @example.json http://127.0.0.1:4646/v1/job/example
+```shell-session
+curl -XPUT -d @example.json http://127.0.0.1:4646/v1/job/example
 {
   "EvalID": "5d6ded54-0b2a-8858-6583-be5f476dec9d",
   "EvalCreateIndex": 12,

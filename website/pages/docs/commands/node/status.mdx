@@ -53,7 +53,8 @@ information will be displayed. If running the command on a Nomad Client, the
 
 List view:
 
-```shell-sessionnomad node status
+```shell-session
+nomad node status
 ID        DC   Name   Class   Drain  Eligibility  Status
 a72dfba2  dc1  node1  <none>  false  eligible     ready
 1f3f03ea  dc1  node2  <none>  false  eligible     ready
@@ -61,7 +62,8 @@ a72dfba2  dc1  node1  <none>  false  eligible     ready
 
 List view, with running allocations:
 
-```shell-sessionnomad node status -allocs
+```shell-session
+nomad node status -allocs
 ID        DC   Name   Class   Drain  Eligibility  Status  Running Allocs
 4d2ba53b  dc1  node1  <none>  false  eligible     ready   1
 34dfba32  dc1  node2  <none>  false  eligible     ready   3
@@ -69,7 +71,8 @@ ID        DC   Name   Class   Drain  Eligibility  Status  Running Allocs
 
 Single-node view in short mode:
 
-```shell-sessionnomad node status -short 1f3f03ea
+```shell-session
+nomad node status -short 1f3f03ea
 ID     = c754da1f
 Name   = nomad
 Class  = <none>
@@ -85,7 +88,8 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 
 Full output for a single node:
 
-```shell-sessionnomad node status 1f3f03ea
+```shell-session
+nomad node status 1f3f03ea
 ID     = c754da1f
 Name    = nomad-server01
 Class   = <none>
@@ -127,7 +131,8 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 
 Using `-self` when on a Nomad Client:
 
-```shell-sessionnomad node status -self
+```shell-session
+nomad node status -self
 ID     = c754da1f
 Name   = nomad-client01
 Class  = <none>
@@ -196,7 +201,8 @@ the following:
 
 Using `-stats` to see detailed to resource usage information on the node:
 
-```shell-sessionnomad node status -stats c754da1f
+```shell-session
+nomad node status -stats c754da1f
 ID     = c754da1f
 Name   = nomad-client01
 Class  = <none>
@@ -276,7 +282,8 @@ ed3665f5  8bf94335  example  cache       run             running
 
 To view verbose information about the node:
 
-```shell-sessionnomad node status -verbose c754da1f
+```shell-session
+nomad node status -verbose c754da1f
 ID     = c754da1f-6337-b86d-47dc-2ef4c71aca14
 Name   = nomad
 Class  = <none>

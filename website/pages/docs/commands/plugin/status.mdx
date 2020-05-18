@@ -45,14 +45,16 @@ of the most useful status fields for each.
 
 List of all plugins:
 
-```shell-sessionnomad plugin [-type csi] status
+```shell-session
+nomad plugin [-type csi] status
 ID         Provider  Controllers Healthy / Expected  Nodes Healthy / Expected
 ebs-prod   aws.ebs   1 / 1                           1 / 1
 ```
 
 Short view of a specific plugin:
 
-```shell-sessionnomad plugin [-type csi] status ebs-prod
+```shell-session
+nomad plugin [-type csi] status ebs-prod
 ID                   = ebs-prod
 Provider             = aws.ebs
 Version              = 1.0.1
@@ -64,7 +66,8 @@ Nodes Expected       = 1
 
 Full status information of a plugin:
 
-```shell-sessionnomad plugin [-type csi] status ebs-prod
+```shell-session
+nomad plugin [-type csi] status ebs-prod
 ID                   = ebs-prod
 Provider             = aws.ebs
 Version              = 1.0.1

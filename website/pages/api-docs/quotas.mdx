@@ -35,11 +35,13 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+curl \
     https://localhost:4646/v1/quotas
 ```
 
-```shell-sessioncurl \
+```shell-session
+curl \
     https://localhost:4646/v1/quotas?prefix=sha
 ```
 
@@ -102,7 +104,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+curl \
     https://localhost:4646/v1/quota/shared-quota
 ```
 
@@ -187,13 +190,15 @@ object](https://github.com/hashicorp/nomad/blob/master/api/quota.go#L100-L131).
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+curl \
     --request POST \
     --data @spec.json \
     https://localhost:4646/v1/quota/shared-quota
 ```
 
-```shell-sessioncurl \
+```shell-session
+curl \
     --request POST \
     --data @spec.json \
     https://localhost:4646/v1/quota
@@ -222,7 +227,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+curl \
     --request DELETE \
     https://localhost:4646/v1/quota/shared-quota
 ```
@@ -250,11 +256,13 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+curl \
     https://localhost:4646/v1/quota-usages
 ```
 
-```shell-sessioncurl \
+```shell-session
+curl \
     https://localhost:4646/v1/quota-usages?prefix=sha
 ```
 
@@ -305,7 +313,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+curl \
     https://localhost:4646/v1/quota/shared-quota
 ```
 

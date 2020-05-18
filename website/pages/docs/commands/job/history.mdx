@@ -38,7 +38,8 @@ of a job to display the history for.
 
 Display the history showing differences between versions:
 
-```shell-sessionnomad job history -p e
+```shell-session
+nomad job history -p e
 Version     = 2
 Stable      = false
 Submit Date = 07/25/17 20:35:43 UTC
@@ -68,7 +69,8 @@ Submit Date = 07/25/17 20:35:28 UTC
 
 Display the memory ask across submitted job versions:
 
-```shell-sessionnomad job history -t "{{range .}}\
+```shell-session
+nomad job history -t "{{range .}}\
 v{{.Version}}: {{with index .TaskGroups 0}}{{with index .Tasks 0}}{{.Resources.MemoryMB}}{{end}}{{end}}\
 
 {{end}}" example

@@ -57,7 +57,8 @@ Run the following command to initialize Vault server and receive an
 [unseal][seal] key and initial root [token][token]. Be sure to note the unseal
 key and initial root token as you will need these two pieces of information.
 
-```shell-sessionvault operator init -key-shares=1 -key-threshold=1
+```shell-session
+vault operator init -key-shares=1 -key-threshold=1
 
 ```
 
@@ -72,7 +73,8 @@ become standby nodes but should still be unsealed.
 
 Run the following command and then provide your unseal key to Vault.
 
-```shell-sessionvault operator unseal
+```shell-session
+vault operator unseal
 
 ```
 
@@ -102,7 +104,8 @@ initial root token you received earlier. You will need to authenticate to run
 the necessary commands to write policies, create roles, and configure a
 connection to your database.
 
-```shell-sessionvault login <your initial root token>
+```shell-session
+vault login <your initial root token>
 
 ```
 
@@ -174,7 +177,8 @@ path "auth/token/renew-self" {
 You can now write a policy called `nomad-server` by running the following
 command:
 
-```shell-sessionvault policy write nomad-server nomad-server-policy.hcl
+```shell-session
+vault policy write nomad-server nomad-server-policy.hcl
 
 ```
 
@@ -228,7 +232,8 @@ disallowed policies group. An example of this is shown below:
 Save the policy in a file named `nomad-cluster-role.json` and create the token
 role named `nomad-cluster`.
 
-```shell-sessionvault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
+```shell-session
+vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
 
 ```
 
@@ -242,7 +247,8 @@ Success! Data written to: auth/token/roles/nomad-cluster
 
 Run the following command to create a token for your Nomad server:
 
-```shell-sessionvault token create -policy nomad-server -period 72h -orphan
+```shell-session
+vault token create -policy nomad-server -period 72h -orphan
 
 ```
 
@@ -292,7 +298,8 @@ vault {
 
 Restart the Nomad server
 
-```shell-sessionsudo systemctl restart nomad
+```shell-session
+sudo systemctl restart nomad
 
 ```
 
@@ -359,13 +366,15 @@ job "postgres-nomad-demo" {
 
 Run the job as shown below:
 
-```shell-sessionnomad run db.nomad
+```shell-session
+nomad run db.nomad
 
 ```
 
 Verify the job is running with the following command:
 
-```shell-sessionnomad status postgres-nomad-demo
+```shell-session
+nomad status postgres-nomad-demo
 
 ```
 
@@ -398,7 +407,8 @@ Now we can move on to configuring the connection between Vault and our database.
 We are using the database secrets engine for Vault in this exercise so that we
 can generate dynamic credentials for our PostgreSQL database. Run the following command to enable it:
 
-```shell-sessionvault secrets enable database
+```shell-session
+vault secrets enable database
 
 ```
 
@@ -432,7 +442,8 @@ lifecycle.
 Run the following command to configure the connection between the database
 secrets engine and our database:
 
-```shell-sessionvault write database/config/postgresql @connection.json
+```shell-session
+vault write database/config/postgresql @connection.json
 
 ```
 
@@ -459,7 +470,8 @@ our application will need to access.
 
 Run the following command to create the role:
 
-```shell-sessionvault write database/roles/accessdb db_name=postgresql \
+```shell-session
+vault write database/roles/accessdb db_name=postgresql \
 creation_statements=@accessdb.sql default_ttl=1h max_ttl=24h
 ```
 
@@ -474,7 +486,8 @@ Success! Data written to: database/roles/accessdb
 You should now be able to generate dynamic credentials to access your database.
 Run the following command to generate a set of credentials:
 
-```shell-sessionvault read database/creds/accessdb
+```shell-session
+vault read database/creds/accessdb
 
 ```
 
@@ -515,7 +528,8 @@ path "database/creds/accessdb" {
 
 Create the `access-tables` policy with the following command:
 
-```shell-sessionvault policy write access-tables access-tables-policy.hcl
+```shell-session
+vault policy write access-tables access-tables-policy.hcl
 
 ```
 
@@ -621,7 +635,8 @@ There are a few key points to note here:
 
 Use the following command to run the job:
 
-```shell-sessionnomad run web-app.nomad
+```shell-session
+nomad run web-app.nomad
 
 ```
 
@@ -634,11 +649,13 @@ There are several ways to do this.
 - Use the `dig` command to query the SRV record of your service and obtain the
   port it is using. Then `curl` your service at the appropriate port and `names` path.
 
-```shell-sessiondig +short SRV nomad-vault-demo.service.consul
+```shell-session
+dig +short SRV nomad-vault-demo.service.consul
 1 1 30478 ip-172-31-58-230.node.dc1.consul.
 ```
 
-```shell-sessioncurl nomad-vault-demo.service.consul:30478/names
+```shell-session
+curl nomad-vault-demo.service.consul:30478/names
 <!DOCTYPE html>
 <html>
 <body>

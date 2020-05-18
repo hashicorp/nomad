@@ -67,7 +67,7 @@ Plan will return one of the following exit codes:
 
 Plan a new job that has not been previously submitted:
 
-```shell-sessionnomad job plan job1.nomad
+```shell-session
 nomad job plan example.nomad
 + Job: "example"
 + Task Group: "cache" (1 create)
@@ -89,7 +89,8 @@ potentially invalid.
 
 Increase the count of an existing without sufficient cluster capacity:
 
-```shell-sessionnomad job plan example.nomad
+```shell-session
+nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (7 create, 1 in-place update)
   +/- Count: "1" => "8" (forces create)
@@ -114,7 +115,8 @@ potentially invalid.
 
 Update an existing job such that it would cause a rolling update:
 
-```shell-sessionnomad job plan example.nomad
+```shell-session
+nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
   +/- Task: "redis" (forces create/destroy update)
@@ -140,7 +142,8 @@ potentially invalid.
 
 Add a task to the task group using verbose mode:
 
-```shell-sessionnomad job plan -verbose example.nomad
+```shell-session
+nomad job plan -verbose example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
   + Task: "my-website" (forces create/destroy update)

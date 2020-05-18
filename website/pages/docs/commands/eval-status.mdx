@@ -53,7 +53,8 @@ indicated by exit code 1.
 
 Show the status of an evaluation that has placement failures
 
-```shell-sessionnomad eval status 2ae0e6a5
+```shell-session
+nomad eval status 2ae0e6a5
 ID                 = 2ae0e6a5
 Status             = complete
 Status Description = complete
@@ -74,7 +75,8 @@ Evaluation "67493a64" waiting for additional capacity to place remainder
 
 Monitor an existing evaluation
 
-```shell-sessionnomad eval status -monitor 8262bc83
+```shell-session
+nomad eval status -monitor 8262bc83
 ==> Monitoring evaluation "8262bc83"
     Allocation "bd6bd0de" created: node "6f299da5", group "group1"
     Evaluation status changed: "pending" -> "complete"

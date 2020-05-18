@@ -43,7 +43,8 @@ scheduling has finished or failed.
 
 Force the evaluation of the job `example`, monitoring placement:
 
-```shell-sessionnomad job periodic force example
+```shell-session
+nomad job periodic force example
 ==> Monitoring evaluation "54b2d6d9"
     Evaluation triggered by job "example/periodic-1555094493"
     Allocation "637aee17" created: node "a35ab8fc", group "cache"
@@ -54,7 +55,8 @@ Force the evaluation of the job `example`, monitoring placement:
 
 Force the evaluation of the job `example` and return immediately:
 
-```shell-sessionnomad job periodic force -detach example
+```shell-session
+nomad job periodic force -detach example
 Force periodic successful
 Evaluation ID: 0865fbf3-30de-5f53-0811-821e73e63178
 ```

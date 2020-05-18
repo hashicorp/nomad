@@ -30,7 +30,8 @@ command can be found on the left.
 Nomad's CLI supports command autocomplete. Autocomplete can be installed or
 uninstalled by running the following on bash or zsh shells:
 
-```shell-sessionnomad -autocomplete-install
+```shell-session
+nomad -autocomplete-install
 $ nomad -autocomplete-uninstall
 ```
 
@@ -53,7 +54,8 @@ local machine does not have a running Nomad agent. To do so, set the
 `NOMAD_ADDR` environment variable or use the `-address=<addr>` flag when running
 commands.
 
-```shell-sessionNOMAD_ADDR=https://remote-address:4646 nomad status
+```shell-session
+NOMAD_ADDR=https://remote-address:4646 nomad status
 $ nomad status -address=https://remote-address:4646
 ```
 

@@ -81,7 +81,8 @@ operation is desired.
 
 Enable drain mode on node with ID prefix "4d2ba53b":
 
-```shell-sessionnomad node drain -enable f4e8a9e5
+```shell-session
+nomad node drain -enable f4e8a9e5
 Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e"? [y/N] y
 2018-03-30T23:13:16Z: Ctrl-C to stop monitoring: will not cancel the node drain
 2018-03-30T23:13:16Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" drain strategy set
@@ -100,13 +101,15 @@ Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda
 
 Enable drain mode on the local node:
 
-```shell-sessionnomad node drain -enable -self
+```shell-session
+nomad node drain -enable -self
 ...
 ```
 
 Enable drain mode but do not stop system jobs:
 
-```shell-sessionnomad node drain -enable -ignore-system 4d2ba53b
+```shell-session
+nomad node drain -enable -ignore-system 4d2ba53b
 ...
 ```
 
@@ -114,13 +117,15 @@ Disable drain mode but keep the node ineligible for scheduling. Useful for
 inspecting the current state of a misbehaving node without Nomad trying to
 start or migrate allocations:
 
-```shell-sessionnomad node drain -disable -keep-ineligible 4d2ba53b
+```shell-session
+nomad node drain -disable -keep-ineligible 4d2ba53b
 ...
 ```
 
 Enable drain mode and detach from monitoring, then reattach later:
 
-```shell-sessionnomad node drain -enable -detach -self
+```shell-session
+nomad node drain -enable -detach -self
 ...
 $ nomad node drain -self -monitor
 ...
