@@ -5,11 +5,13 @@
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Plugin Details</span>
-      <span class="pair" data-test-plugin-controller-health>
-        <span class="term">Controller Health</span>
-        {{format-percentage model.controllersHealthy total=model.controllersExpected}}
-        ({{model.controllersHealthy}}/{{model.controllersExpected}})
-      </span>
+      {{#if model.controllerRequired}}
+        <span class="pair" data-test-plugin-controller-health>
+          <span class="term">Controller Health</span>
+          {{format-percentage model.controllersHealthy total=model.controllersExpected}}
+          ({{model.controllersHealthy}}/{{model.controllersExpected}})
+        </span>
+      {{/if}}
       <span class="pair" data-test-plugin-node-health>
         <span class="term">Node Health</span>
         {{format-percentage model.nodesHealthy total=model.nodesExpected}}
@@ -23,38 +25,40 @@
   </div>
 
   <div class="columns">
-    <div class="column">
-      <div class="boxed-section">
-        <div class="boxed-section-head is-hollow">Controller Health</div>
-        <div class="boxed-section-body">
-          <div class="columns is-bottom-aligned">
-            <div class="column is-half">
-              {{gauge-chart
-                label="Availability"
-                value=model.controllersHealthy
-                total=model.controllersExpected}}
-            </div>
-            <div class="column">
-              <div class="metric">
-                <h3 class="label">Available</h3>
-                <p class="value">{{model.controllersHealthy}}</p>
+    {{#if model.controllerRequired}}
+      <div class="column">
+        <div class="boxed-section">
+          <div class="boxed-section-head is-hollow">Controller Health</div>
+          <div class="boxed-section-body">
+            <div class="columns is-centered is-max-half is-bottom-aligned">
+              <div class="column is-half">
+                {{gauge-chart
+                  label="Availability"
+                  value=model.controllersHealthy
+                  total=model.controllersExpected}}
               </div>
-            </div>
-            <div class="column">
-              <div class="metric">
-                <h3 class="label">Expected</h3>
-                <p class="value">{{model.controllersExpected}}</p>
+              <div class="column">
+                <div class="metric">
+                  <h3 class="label">Available</h3>
+                  <p class="value">{{model.controllersHealthy}}</p>
+                </div>
+              </div>
+              <div class="column">
+                <div class="metric">
+                  <h3 class="label">Expected</h3>
+                  <p class="value">{{model.controllersExpected}}</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    {{/if}}
     <div class="column">
       <div class="boxed-section">
         <div class="boxed-section-head is-hollow">Node Health</div>
         <div class="boxed-section-body">
-          <div class="columns is-bottom-aligned">
+          <div class="columns is-centered is-max-half is-bottom-aligned">
             <div class="column is-half">
               {{gauge-chart
                 label="Availability"
@@ -79,42 +83,44 @@
     </div>
   </div>
 
-  <div class="boxed-section">
-    <div class="boxed-section-head">
-      Controller Allocations
+  {{#if model.controllerRequired}}
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Controller Allocations
+      </div>
+      <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
+        {{#if model.controllers}}
+          {{#list-table
+            source=sortedControllers
+            class="with-foot" as |t|}}
+            {{#t.head}}
+              <th class="is-narrow"></th>
+              <td>ID</td>
+              <th>Created</th>
+              <th>Modified</th>
+              <th>Health</th>
+              <th>Client</th>
+              <th>Job</th>
+              <th>Version</th>
+              <th>Volumes</th>
+              <th>CPU</th>
+              <th>Memory</th>
+            {{/t.head}}
+            {{#t.body key="model.allocID" as |row|}}
+              {{plugin-allocation-row
+                data-test-controller-allocation=row.model.allocID
+                pluginAllocation=row.model}}
+            {{/t.body}}
+          {{/list-table}}
+        {{else}}
+          <div class="empty-message" data-test-empty-controller-allocations>
+            <h3 class="empty-message-headline" data-test-empty-controller-allocations-headline>No Controller Plugin Allocations</h3>
+            <p class="empty-message-body" data-test-empty-controller-allocations-message>No allocations are providing controller plugin service.</p>
+          </div>
+        {{/if}}
+      </div>
     </div>
-    <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
-      {{#if model.controllers}}
-        {{#list-table
-          source=sortedControllers
-          class="with-foot" as |t|}}
-          {{#t.head}}
-            <th class="is-narrow"></th>
-            <td>ID</td>
-            <th>Created</th>
-            <th>Modified</th>
-            <th>Health</th>
-            <th>Client</th>
-            <th>Job</th>
-            <th>Version</th>
-            <th>Volumes</th>
-            <th>CPU</th>
-            <th>Memory</th>
-          {{/t.head}}
-          {{#t.body key="model.allocID" as |row|}}
-            {{plugin-allocation-row
-              data-test-controller-allocation=row.model.allocID
-              pluginAllocation=row.model}}
-          {{/t.body}}
-        {{/list-table}}
-      {{else}}
-        <div class="empty-message" data-test-empty-controller-allocations>
-          <h3 class="empty-message-headline" data-test-empty-controller-allocations-headline>No Controller Plugin Allocations</h3>
-          <p class="empty-message-body" data-test-empty-controller-allocations-message>No allocations are providing controller plugin service.</p>
-        </div>
-      {{/if}}
-    </div>
-  </div>
+  {{/if}}
 
   <div class="boxed-section">
     <div class="boxed-section-head">
