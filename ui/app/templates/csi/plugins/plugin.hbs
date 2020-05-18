@@ -26,7 +26,7 @@
 
   <div class="columns">
     {{#if model.controllerRequired}}
-      <div class="column">
+      <div class="column" data-test-plugin-controller-availability>
         <div class="boxed-section">
           <div class="boxed-section-head is-hollow">Controller Health</div>
           <div class="boxed-section-body">
@@ -55,7 +55,7 @@
       </div>
     {{/if}}
     <div class="column">
-      <div class="boxed-section">
+      <div class="boxed-section" data-test-plugin-node-availability>
         <div class="boxed-section-head is-hollow">Node Health</div>
         <div class="boxed-section-body">
           <div class="columns is-centered is-max-half is-bottom-aligned">

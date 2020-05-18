@@ -19,6 +19,9 @@ export default create({
   nodeHealth: text('[data-test-plugin-node-health]'),
   provider: text('[data-test-plugin-provider]'),
 
+  controllerAvailabilityIsPresent: isPresent('[data-test-plugin-controller-availability]'),
+  nodeAvailabilityIsPresent: isPresent('[data-test-plugin-node-availability]'),
+
   breadcrumbs: collection('[data-test-breadcrumb]', {
     id: attribute('data-test-breadcrumb'),
     text: text(),
