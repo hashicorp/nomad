@@ -15,6 +15,7 @@ export default create({
 
   title: text('[data-test-title]'),
 
+  controllerHealthIsPresent: isPresent('[data-test-plugin-controller-health]'),
   controllerHealth: text('[data-test-plugin-controller-health]'),
   nodeHealth: text('[data-test-plugin-node-health]'),
   provider: text('[data-test-plugin-provider]'),
@@ -34,6 +35,8 @@ export default create({
 
   ...allocations('[data-test-controller-allocation]', 'controllerAllocations'),
   ...allocations('[data-test-node-allocation]', 'nodeAllocations'),
+
+  controllerTableIsPresent: isPresent('[data-test-controller-allocations]'),
 
   controllerTableIsEmpty: isPresent('[data-test-empty-controller-allocations]'),
   controllerEmptyState: {
