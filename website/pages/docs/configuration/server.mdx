@@ -241,6 +241,9 @@ server {
 
 ### Configuring Scheduler Config
 
+- `scheduler_algorithm` `(string: "binpack")` - Specifies the schedulaer algorithm to place
+  allocations. The default value is `binpack`. Possible values are `binpack` and `spread`.
+
 This example shows enabling preemption for all schedulers.
 
 ```hcl
