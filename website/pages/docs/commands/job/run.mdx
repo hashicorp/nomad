@@ -86,7 +86,8 @@ precedence, going from highest to lowest: the `-vault-token` flag, the
 
 Schedule the job contained in the file `job1.nomad`, monitoring placement:
 
-```shell-sessionnomad job run job1.nomad
+```shell-session
+$ nomad job run job1.nomad
 ==> Monitoring evaluation "52dee78a"
     Evaluation triggered by job "example"
     Evaluation within deployment: "62eb607c"
@@ -98,7 +99,8 @@ Schedule the job contained in the file `job1.nomad`, monitoring placement:
 
 <a id="check-index"></a> Update the job using `check-index`:
 
-```shell-sessionnomad job run -check-index 5 example.nomad
+```shell-session
+$ nomad job run -check-index 5 example.nomad
 Enforcing job modify index 5: job exists with conflicting job modify index: 6
 Job not updated
 
@@ -113,14 +115,16 @@ $ nomad job run -check-index 6 example.nomad
 
 Schedule the job contained in `job1.nomad` and return immediately:
 
-```shell-sessionnomad job run -detach job1.nomad
+```shell-session
+$ nomad job run -detach job1.nomad
 4947e728
 ```
 
 Schedule a job which cannot be successfully placed. This results in a scheduling
 failure and the specifics of the placement are printed:
 
-```shell-sessionnomad job run failing.nomad
+```shell-session
+$ nomad job run failing.nomad
 ==> Monitoring evaluation "2ae0e6a5"
     Evaluation triggered by job "example"
     Evaluation status changed: "pending" -> "complete"

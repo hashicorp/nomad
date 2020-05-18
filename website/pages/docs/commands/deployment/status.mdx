@@ -35,7 +35,8 @@ prefix.
 
 Inspect the status of a complete deployment:
 
-```shell-sessionnomad deployment status 06ca68a2
+```shell-session
+$ nomad deployment status 06ca68a2
 ID          = 06ca68a2
 Job ID      = example
 Job Version = 0
@@ -50,7 +51,8 @@ web         2        2       2        0
 
 Inspect the status of a deployment that is waiting for canary promotion:
 
-```shell-sessionnomad deployment status 0b
+```shell-session
+$ nomad deployment status 0b
 ID          = 0b23b149
 Job ID      = example
 Job Version = 1

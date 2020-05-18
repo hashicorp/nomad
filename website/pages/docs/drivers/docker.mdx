@@ -501,8 +501,8 @@ client {
 plugin "docker" {
   config {
     auth {
-      # Nomad will prepend "docker-credential-" to the helper value and call 
-      # that script name.  
+      # Nomad will prepend "docker-credential-" to the helper value and call
+      # that script name.
       helper = "ecr"
     }
   }
@@ -632,8 +632,8 @@ Nomad can communicate with the Docker daemon.
 For example, on Ubuntu you can use the `usermod` command to add the `vagrant`
 user to the `docker` group so you can run Nomad without root:
 
-```sh
-sudo usermod -G docker -a vagrant
+```shell-session
+$ sudo usermod -G docker -a vagrant
 ```
 
 For the best performance and security features you should use recent versions
