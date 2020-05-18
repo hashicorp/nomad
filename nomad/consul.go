@@ -52,27 +52,30 @@ const (
 	ConsulPolicyWrite = "write"
 )
 
-type ServiceIdentityIndex struct {
+type ServiceIdentityRequest struct {
+	TaskKind  structs.TaskKind
+	TaskName  string
 	ClusterID string
 	AllocID   string
-	TaskName  string
 }
 
-func (sii ServiceIdentityIndex) Validate() error {
+func (sir ServiceIdentityRequest) Validate() error {
 	switch {
-	case sii.ClusterID == "":
+	case sir.ClusterID == "":
 		return errors.New("cluster id not set")
-	case sii.AllocID == "":
+	case sir.AllocID == "":
 		return errors.New("alloc id not set")
-	case sii.TaskName == "":
+	case sir.TaskName == "":
 		return errors.New("task name not set")
+	case sir.TaskKind == "":
+		return errors.New("task kind not set")
 	default:
 		return nil
 	}
 }
 
-func (sii ServiceIdentityIndex) Description() string {
-	return fmt.Sprintf(siTokenDescriptionFmt, sii.ClusterID, sii.AllocID, sii.TaskName)
+func (sir ServiceIdentityRequest) Description() string {
+	return fmt.Sprintf(siTokenDescriptionFmt, sir.ClusterID, sir.AllocID, sir.TaskName)
 }
 
 // ConsulACLsAPI is an abstraction over the consul/api.ACL API used by Nomad
@@ -87,7 +90,7 @@ type ConsulACLsAPI interface {
 	CheckSIPolicy(ctx context.Context, task, secretID string) error
 
 	// Create instructs Consul to create a Service Identity token.
-	CreateToken(context.Context, ServiceIdentityIndex) (*structs.SIToken, error)
+	CreateToken(context.Context, ServiceIdentityRequest) (*structs.SIToken, error)
 
 	// RevokeTokens instructs Consul to revoke the given token accessors.
 	RevokeTokens(context.Context, []*structs.SITokenAccessor, bool) bool
@@ -194,7 +197,7 @@ func (c *consulACLsAPI) CheckSIPolicy(ctx context.Context, task, secretID string
 	return nil
 }
 
-func (c *consulACLsAPI) CreateToken(ctx context.Context, sii ServiceIdentityIndex) (*structs.SIToken, error) {
+func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequest) (*structs.SIToken, error) {
 	defer metrics.MeasureSince([]string{"nomad", "consul", "create_token"}, time.Now())
 
 	// make sure the background token revocations have not been stopped
@@ -207,16 +210,16 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sii ServiceIdentityInde
 	}
 
 	// sanity check the metadata for the token we want
-	if err := sii.Validate(); err != nil {
+	if err := sir.Validate(); err != nil {
 		return nil, err
 	}
 
 	// the SI token created must be for the service, not the sidecar of the service
 	// https://www.consul.io/docs/acl/acl-system.html#acl-service-identities
-	serviceName := strings.TrimPrefix(sii.TaskName, structs.ConnectProxyPrefix+"-")
+	service := sir.TaskKind.Value()
 	partial := &api.ACLToken{
-		Description:       sii.Description(),
-		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: serviceName}},
+		Description:       sir.Description(),
+		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: service}},
 	}
 
 	// Ensure we are under our rate limit.
@@ -230,7 +233,7 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sii ServiceIdentityInde
 	}
 
 	return &structs.SIToken{
-		TaskName:   sii.TaskName,
+		TaskName:   sir.TaskName,
 		AccessorID: token.AccessorID,
 		SecretID:   token.SecretID,
 	}, nil
