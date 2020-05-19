@@ -345,7 +345,7 @@ module('Acceptance | allocation fs', function(hooks) {
   });
 
   test('viewing an empty directory', async function(assert) {
-    await FS.visitAllocationPath({ id: allocation.id, path: '/empty-directory' });
+    await FS.visitAllocationPath({ id: allocation.id, path: 'empty-directory' });
 
     assert.ok(FS.isEmptyDirectory);
   });
