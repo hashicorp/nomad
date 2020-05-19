@@ -13,6 +13,9 @@ export default create({
   visit: visitable('/allocations/:id/:name/fs'),
   visitPath: visitable('/allocations/:id/:name/fs/:path'),
 
+  visitAllocation: visitable('/allocations/:id/fs'),
+  visitAllocationPath: visitable('/allocations/:id/fs/:path'),
+
   fileViewer: {
     scope: '[data-test-file-viewer]',
   },
