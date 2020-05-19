@@ -14,13 +14,13 @@ export default Route.extend({
       };
     }
 
-    return RSVP.all([allocation.stat(path), allocation.get('node')])
+    return RSVP.all([allocation.stat(decodedPath), allocation.get('node')])
       .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
             allocation,
-            directoryEntries: allocation.ls(path).catch(notifyError(this)),
+            directoryEntries: allocation.ls(decodedPath).catch(notifyError(this)),
             isFile: false,
           });
         } else {
