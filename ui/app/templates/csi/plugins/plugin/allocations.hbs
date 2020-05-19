@@ -1,0 +1,66 @@
+{{title "CSI Plugin " model.plainID " allocations"}}
+<div data-test-subnav="plugins" class="tabs is-subnav">
+  <ul>
+    <li data-test-tab="overview">{{#link-to "csi.plugins.plugin.index" model activeClass="is-active"}}Overview{{/link-to}}</li>
+    <li data-test-tab="allocations">{{#link-to "csi.plugins.plugin.allocations" model activeClass="is-active"}}Allocations{{/link-to}}</li>
+  </ul>
+</div>
+<section class="section">
+  {{#if filteredAllocations}}
+  {{log pageSize}}
+    {{#list-pagination
+      source=filteredAllocations
+      size=pageSize
+      page=currentPage as |p|}}
+      {{#list-table
+        source=p.list
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        class="with-foot" as |t|}}
+        {{#t.head}}
+          <th class="is-narrow"></th>
+          <td>ID</td>
+          <th>Created</th>
+          {{#t.sort-by prop="updateTime"}}Modified{{/t.sort-by}}
+          {{#t.sort-by prop="healthy"}}Health{{/t.sort-by}}
+          <th>Client</th>
+          <th>Job</th>
+          <th>Version</th>
+          <th>Volumes</th>
+          <th>CPU</th>
+          <th>Memory</th>
+        {{/t.head}}
+        {{#t.body key="model.allocID" as |row|}}
+          {{plugin-allocation-row
+            data-test-controller-allocation=row.model.allocID
+            pluginAllocation=row.model}}
+        {{/t.body}}
+      {{/list-table}}
+      <div class="table-foot">
+        {{page-size-select onChange=(action resetPagination)}}
+        <nav class="pagination">
+          <div class="pagination-numbers">
+            {{p.startsAt}}&ndash;{{p.endsAt}} of {{filteredAllocations.length}}
+          </div>
+          {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
+          {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
+          <ul class="pagination-list"></ul>
+        </nav>
+      </div>
+    {{/list-pagination}}
+  {{else}}
+    <div data-test-empty-list class="empty-message">
+      {{#if (eq combinedAllocations.length 0)}}
+        <h3 data-test-empty-list-headline class="empty-message-headline">No Allocations</h3>
+        <p class="empty-message-body">
+          The plugin has no allocations.
+        </p>
+      {{else if (eq filteredAllocations.length 0)}}
+        <h3 data-test-empty-list-headline class="empty-message-headline">No Matches</h3>
+        <p class="empty-message-body">
+          No allocations match your current filter selection.
+        </p>
+      {{/if}}
+    </div>
+  {{/if}}
+</section>
