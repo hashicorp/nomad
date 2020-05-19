@@ -35,7 +35,7 @@ module('Acceptance | plugins list', function(hooks) {
   });
 
   test('each plugin row should contain information about the plugin', async function(assert) {
-    const plugin = server.create('csi-plugin', { shallow: true });
+    const plugin = server.create('csi-plugin', { shallow: true, controllerRequired: true });
 
     await PluginsList.visit();
 
@@ -48,6 +48,23 @@ module('Acceptance | plugins list', function(hooks) {
       pluginRow.controllerHealth,
       `${controllerHealthStr} (${plugin.controllersHealthy}/${plugin.controllersExpected})`
     );
+    assert.equal(
+      pluginRow.nodeHealth,
+      `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`
+    );
+    assert.equal(pluginRow.provider, plugin.provider);
+  });
+
+  test('node only plugins explain that there is no controller health for this plugin type', async function(assert) {
+    const plugin = server.create('csi-plugin', { shallow: true, controllerRequired: false });
+
+    await PluginsList.visit();
+
+    const pluginRow = PluginsList.plugins.objectAt(0);
+    const nodeHealthStr = plugin.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
+
+    assert.equal(pluginRow.id, plugin.id);
+    assert.equal(pluginRow.controllerHealth, 'Node Only');
     assert.equal(
       pluginRow.nodeHealth,
       `${nodeHealthStr} (${plugin.nodesHealthy}/${plugin.nodesExpected})`

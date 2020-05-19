@@ -11,10 +11,19 @@ export default Factory.extend({
 
   provider: faker.helpers.randomize(STORAGE_PROVIDERS),
   version: '1.0.1',
+
   controllerRequired: faker.random.boolean,
-  controllersHealthy: () => faker.random.number(3),
+
+  controllersHealthy() {
+    if (!this.controllerRequired) return 0;
+    return faker.random.number(3);
+  },
   controllersExpected() {
-    return this.controllersHealthy + faker.random.number({ min: 1, max: 2 });
+    // This property must be read before the conditional
+    // or Mirage will incorrectly sort dependent properties.
+    const healthy = this.controllersHealthy;
+    if (!this.controllerRequired) return 0;
+    return healthy + faker.random.number({ min: 1, max: 2 });
   },
 
   nodesHealthy: () => faker.random.number(3),
@@ -25,7 +34,10 @@ export default Factory.extend({
   // Internal property to determine whether or not this plugin
   // Should create one or two Jobs to represent Node and
   // Controller plugins.
-  isMonolith: faker.random.boolean,
+  isMonolith() {
+    if (!this.controllerRequired) return false;
+    return faker.random.boolean;
+  },
 
   // When false, the plugin will not make its own volumes
   createVolumes: true,
@@ -49,11 +61,13 @@ export default Factory.extend({
         shallow: plugin.shallow,
       });
     } else {
-      const controllerJob = server.create('job', {
-        type: 'service',
-        createAllocations: false,
-        shallow: plugin.shallow,
-      });
+      const controllerJob =
+        plugin.controllerRequired &&
+        server.create('job', {
+          type: 'service',
+          createAllocations: false,
+          shallow: plugin.shallow,
+        });
       const nodeJob = server.create('job', {
         type: 'service',
         createAllocations: false,
@@ -63,10 +77,12 @@ export default Factory.extend({
         job: nodeJob,
         shallow: plugin.shallow,
       });
-      storageControllers = server.createList('storage-controller', plugin.controllersExpected, {
-        job: controllerJob,
-        shallow: plugin.shallow,
-      });
+      storageControllers =
+        plugin.controllerRequired &&
+        server.createList('storage-controller', plugin.controllersExpected, {
+          job: controllerJob,
+          shallow: plugin.shallow,
+        });
     }
 
     plugin.update({
