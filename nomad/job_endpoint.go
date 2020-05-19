@@ -1139,25 +1139,33 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
-func (j *Job) validateListAllJobsPermission(aclObj *acl.ACL, state *state.StateStore) error {
+// allowedNSes returns a set (as map of ns->true) of the namespaces a token has access to.
+// Returns `nil` set if the token has access to all namespaces
+// and ErrPermissionDenied if the token has no capabilities on any namespace.
+func (j *Job) allowedNSes(aclObj *acl.ACL, state *state.StateStore) (map[string]bool, error) {
 	if aclObj == nil || aclObj.IsManagement() {
-		return nil
+		return nil, nil
 	}
 
 	// namespaces
 	nses, err := state.NamespaceNames()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, ns := range nses {
-		if !aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs) {
-			return structs.ErrPermissionDenied
+	r := make(map[string]bool, len(nses))
 
+	for _, ns := range nses {
+		if aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs) {
+			r[ns] = true
 		}
 	}
 
-	return nil
+	if len(r) == 0 {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	return r, nil
 }
 
 // List is used to list the jobs registered in the system
@@ -1243,7 +1251,13 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// check if user has permission to all namespaces
-			if err := j.validateListAllJobsPermission(aclObj, state); err != nil {
+			allowedNSes, err := j.allowedNSes(aclObj, state)
+			if err == structs.ErrPermissionDenied {
+				// return empty jobs if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Jobs = []*structs.JobListStub{}
+				return nil
+			} else if err != nil {
 				return err
 			}
 
@@ -1261,6 +1275,10 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 					break
 				}
 				job := raw.(*structs.Job)
+				if allowedNSes != nil && !allowedNSes[job.Namespace] {
+					// not permitted to this name namespace
+					continue
+				}
 				if prefix != "" && !strings.HasPrefix(job.ID, prefix) {
 					continue
 				}
