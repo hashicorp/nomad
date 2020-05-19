@@ -14,7 +14,7 @@ import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 
 let allocation;
 let task;
-let files;
+let files, taskDirectory, directory, nestedDirectory;
 
 const fileSort = (prop, files) => {
   let dir = [];
@@ -47,20 +47,27 @@ module('Acceptance | task fs', function(hooks) {
     // Reset files
     files = [];
 
+    taskDirectory = server.create('allocFile', { isDir: true, name: task.name });
+    files.push(taskDirectory);
+
     // Nested files
-    files.push(server.create('allocFile', { isDir: true, name: 'directory' }));
-    files.push(server.create('allocFile', { isDir: true, name: 'another', parent: files[0] }));
+    directory = server.create('allocFile', { isDir: true, name: 'directory', parent: taskDirectory });
+    files.push(directory);
+
+    nestedDirectory = server.create('allocFile', { isDir: true, name: 'another', parent: directory });
+    files.push(nestedDirectory);
+
     files.push(
       server.create('allocFile', 'file', {
         name: 'something.txt',
         fileType: 'txt',
-        parent: files[1],
+        parent: nestedDirectory,
       })
     );
 
-    files.push(server.create('allocFile', { isDir: true, name: 'empty-directory' }));
-    files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
-    files.push(server.create('allocFile', 'file', { fileType: 'txt' }));
+    files.push(server.create('allocFile', { isDir: true, name: 'empty-directory', parent: taskDirectory }));
+    files.push(server.create('allocFile', 'file', { fileType: 'txt', parent: taskDirectory }));
+    files.push(server.create('allocFile', 'file', { fileType: 'txt', parent: taskDirectory }));
   });
 
   test('visiting /allocations/:allocation_id/:task_name/fs', async function(assert) {
@@ -118,7 +125,7 @@ module('Acceptance | task fs', function(hooks) {
   test('navigating allocation filesystem', async function(assert) {
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
 
-    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, '').models);
+    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, task.name).models);
 
     assert.ok(FS.fileViewer.isHidden);
 
@@ -152,11 +159,11 @@ module('Acceptance | task fs', function(hooks) {
     assert.equal(FS.directoryEntries.length, 1);
 
     assert.equal(FS.breadcrumbs.length, 2);
-    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name}`);
+    assert.equal(FS.breadcrumbsText, `${task.name} ${directory.name}`);
 
     assert.notOk(FS.breadcrumbs[0].isActive);
 
-    assert.equal(FS.breadcrumbs[1].text, files[0].name);
+    assert.equal(FS.breadcrumbs[1].text, directory.name);
     assert.ok(FS.breadcrumbs[1].isActive);
 
     await FS.directoryEntries[0].visit();
@@ -168,8 +175,8 @@ module('Acceptance | task fs', function(hooks) {
     );
 
     assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name} ${files[1].name}`);
-    assert.equal(FS.breadcrumbs[2].text, files[1].name);
+    assert.equal(FS.breadcrumbsText, `${task.name} ${directory.name} ${nestedDirectory.name}`);
+    assert.equal(FS.breadcrumbs[2].text, nestedDirectory.name);
 
     assert.notOk(
       FS.breadcrumbs[0].path.includes('//'),
@@ -181,7 +188,7 @@ module('Acceptance | task fs', function(hooks) {
     );
 
     await FS.breadcrumbs[1].visit();
-    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name}`);
+    assert.equal(FS.breadcrumbsText, `${task.name} ${directory.name}`);
     assert.equal(FS.breadcrumbs.length, 2);
   });
 
@@ -319,7 +326,7 @@ module('Acceptance | task fs', function(hooks) {
 
     await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
 
-    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, '').models);
+    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, task.name).models);
     const fileRecord = sortedFiles.find(f => !f.isDir);
     const fileIndex = sortedFiles.indexOf(fileRecord);
 
@@ -375,7 +382,7 @@ module('Acceptance | task fs', function(hooks) {
       return new Response(500, {}, 'no such file or directory');
     });
 
-    await FS.visitPath({ id: allocation.id, name: task.name, path: files[0].name });
+    await FS.visitPath({ id: allocation.id, name: task.name, path: directory.name });
     assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
 
     await visit('/');
@@ -384,7 +391,7 @@ module('Acceptance | task fs', function(hooks) {
       return new Response(999);
     });
 
-    await FS.visitPath({ id: allocation.id, name: task.name, path: files[0].name });
+    await FS.visitPath({ id: allocation.id, name: task.name, path: directory.name });
     assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
   });
 });
