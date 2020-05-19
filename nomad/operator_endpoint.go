@@ -316,10 +316,9 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	} else if respErr, ok := resp.(error); ok {
 		return respErr
 	}
-	// Unless this is a CAS request, Updated is always true at this point.
+	//  If CAS request, raft returns a boolean indicating if the update was applied.
+	// Otherwise, assume success
 	reply.Updated = true
-	// Check if the return type is a bool and optionally overwrite Updated
-	// Only applies to CAS requests
 	if respBool, ok := resp.(bool); ok {
 		reply.Updated = respBool
 	}
