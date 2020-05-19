@@ -1,7 +1,7 @@
 package convert
 
 import (
-	"math/big"
+	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 )
@@ -30,11 +30,11 @@ var primitiveConversionsSafe = map[cty.Type]map[cty.Type]conversion{
 var primitiveConversionsUnsafe = map[cty.Type]map[cty.Type]conversion{
 	cty.String: {
 		cty.Number: func(val cty.Value, path cty.Path) (cty.Value, error) {
-			f, _, err := big.ParseFloat(val.AsString(), 10, 512, big.ToNearestEven)
+			v, err := cty.ParseNumberVal(val.AsString())
 			if err != nil {
 				return cty.NilVal, path.NewErrorf("a number is required")
 			}
-			return cty.NumberVal(f), nil
+			return v, nil
 		},
 		cty.Bool: func(val cty.Value, path cty.Path) (cty.Value, error) {
 			switch val.AsString() {
@@ -43,7 +43,14 @@ var primitiveConversionsUnsafe = map[cty.Type]map[cty.Type]conversion{
 			case "false", "0":
 				return cty.False, nil
 			default:
-				return cty.NilVal, path.NewErrorf("a bool is required")
+				switch strings.ToLower(val.AsString()) {
+				case "true":
+					return cty.NilVal, path.NewErrorf("a bool is required; to convert from string, use lowercase \"true\"")
+				case "false":
+					return cty.NilVal, path.NewErrorf("a bool is required; to convert from string, use lowercase \"false\"")
+				default:
+					return cty.NilVal, path.NewErrorf("a bool is required")
+				}
 			}
 		},
 	},
