@@ -126,7 +126,7 @@ module('Acceptance | allocation fs', function(hooks) {
 
     assert.equal(FS.breadcrumbs.length, 1);
     assert.ok(FS.breadcrumbs[0].isActive);
-    assert.equal(FS.breadcrumbs[0].text, 'task-name');
+    assert.equal(FS.breadcrumbs[0].text, allocationShortId);
 
     FS.directoryEntries[0].as(directory => {
       const fileRecord = sortedFiles[0];
@@ -150,7 +150,7 @@ module('Acceptance | allocation fs', function(hooks) {
     assert.equal(FS.directoryEntries.length, 1);
 
     assert.equal(FS.breadcrumbs.length, 2);
-    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name}`);
+    assert.equal(FS.breadcrumbsText, `${allocationShortId} ${files[0].name}`);
 
     assert.notOk(FS.breadcrumbs[0].isActive);
 
@@ -166,7 +166,7 @@ module('Acceptance | allocation fs', function(hooks) {
     );
 
     assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name} ${files[1].name}`);
+    assert.equal(FS.breadcrumbsText, `${allocationShortId} ${files[0].name} ${files[1].name}`);
     assert.equal(FS.breadcrumbs[2].text, files[1].name);
 
     assert.notOk(
@@ -179,7 +179,7 @@ module('Acceptance | allocation fs', function(hooks) {
     );
 
     await FS.breadcrumbs[1].visit();
-    assert.equal(FS.breadcrumbsText, `${task.name} ${files[0].name}`);
+    assert.equal(FS.breadcrumbsText, `${allocationShortId} ${files[0].name}`);
     assert.equal(FS.breadcrumbs.length, 2);
   });
 
@@ -323,7 +323,7 @@ module('Acceptance | allocation fs', function(hooks) {
 
     await FS.directoryEntries[fileIndex].visit();
 
-    assert.equal(FS.breadcrumbsText, `${task.name} ${fileRecord.name}`);
+    assert.equal(FS.breadcrumbsText, `${allocationShortId} ${fileRecord.name}`);
 
     assert.ok(FS.fileViewer.isPresent);
 
