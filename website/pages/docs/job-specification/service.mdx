@@ -241,6 +241,15 @@ scripts.
   health check query to succeed. This is specified using a label suffix like
   "30s" or "1h". This must be greater than or equal to "1s"
 
+  ~> **Caveat:** Script checks use the task driver to execute in the task's
+  environment. For task drivers with namespace isolation such as `docker` or
+  `exec`, setting up the context for the script check may take an unexpectedly
+  long amount of time (a full second or two), especially on busy hosts. The
+  timeout configuration should allow for both this setup and the execution of
+  the script. Operators should use long timeouts (5 or more seconds) for script
+  checks, and monitor telemetry for
+  `client.allocrunner.taskrunner.tasklet_timeout`.
+
 - `type` `(string: <required>)` - This indicates the check types supported by
   Nomad. Valid options are `grpc`, `http`, `script`, and `tcp`. gRPC health
   checks require Consul 1.0.5 or later.
