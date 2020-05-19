@@ -37,6 +37,29 @@ Consul on the other hand does not have this two-tier approach to servers and
 agents and instead [relies on federation to create larger logical
 clusters][consul_fed].
 
+## Q: What is "bootstrapping" a Nomad cluster? ((#bootstrapping))
+
+Bootstrapping is the process when a Nomad cluster elects its first leader
+and writes the initial cluster state to that leader's state store. Bootstrapping
+will not occur until at least a given number of servers, defined by
+[`bootstrap_expect`], have connected to each other. Once this process has
+completed, the cluster is said to be bootstrapped and is ready to use.
+
+Certain configuration options are only used to influence the creation of the
+initial cluster state during bootstrapping and are not consulted again so long
+as the state data remains intact. These typically are values that must be
+consistent across server members. For example, the [`default_scheduler_config`]
+option allows an operator to set the SchedulerConfig to non-default values
+during this bootstrap process rather than requiring an immediate call to the API
+once the cluster is up and running.
+
+If the state is completely destroyed, whether intentionally or accidentally, on
+all of the Nomad servers in the same outage, the cluster will re-bootstrap based
+on the Nomad defaults and any configuration present that impacts the bootstrap
+process.
+
 [consul_dc]: https://www.consul.io/docs/agent/options.html#_datacenter
 [consul_fed]: https://www.consul.io/docs/guides/datacenters.html
 [nomad_region]: /docs/configuration#datacenter
+[`bootstrap_expect`]: /docs/configuration/server#bootstrap_expect
+[`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config
