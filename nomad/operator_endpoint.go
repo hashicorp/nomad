@@ -304,7 +304,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 		return structs.ErrPermissionDenied
 	}
 
-	// All servers should be at or above 0.9.0 to apply this operatation
+	// All servers should be at or above 0.9.0 to apply this operation
 	if !ServersMeetMinimumVersion(op.srv.Members(), minSchedulerConfigVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update scheduler config", minSchedulerConfigVersion)
 	}
@@ -316,8 +316,9 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	} else if respErr, ok := resp.(error); ok {
 		return respErr
 	}
-
-	// Check if the return type is a bool
+	// Unless this is a CAS request, Updated is always true at this point.
+	reply.Updated = true
+	// Check if the return type is a bool and optionally overwrite Updated
 	// Only applies to CAS requests
 	if respBool, ok := resp.(bool); ok {
 		reply.Updated = respBool
