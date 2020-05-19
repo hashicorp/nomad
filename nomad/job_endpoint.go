@@ -707,19 +707,20 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 
-	// For a job with volumes, find its volumes before deleting the job
-	volumesToGC := make(map[string]*structs.VolumeRequest)
+	// For a job with volumes, find its volumes before deleting the job.
+	// Later we'll apply this raft.
+	volumesToGC := newCSIBatchRelease(j.srv, j.logger, 100)
 	if job != nil {
 		for _, tg := range job.TaskGroups {
 			for _, vol := range tg.Volumes {
 				if vol.Type == structs.VolumeTypeCSI {
-					volumesToGC[vol.Source] = vol
+					volumesToGC.add(vol.Source, job.Namespace)
 				}
 			}
 		}
 	}
 
-	// Commit this update via Raft
+	// Commit the job update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
 	if err != nil {
 		j.logger.Error("deregister failed", "error", err)
@@ -729,69 +730,46 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 
-	evals := []*structs.Evaluation{}
+	// Make a raft apply to release the CSI volume claims of terminal allocs.
+	volumesToGC.apply()
+
+	// If the job is periodic or parameterized, we don't create an eval.
+	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
+		return nil
+	}
+
+	// Create a new evaluation
+	// XXX: The job priority / type is strange for this, since it's not a high
+	// priority even if the job was.
 	now := time.Now().UTC().UnixNano()
-
-	// Add an evaluation for garbage collecting the the CSI volume claims
-	// of terminal allocs
-	for _, vol := range volumesToGC {
-		// we have to build this eval by hand rather than calling srv.CoreJob
-		// here because we need to use the volume's namespace
-		eval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			Namespace:   job.Namespace,
-			Priority:    structs.CoreJobPriority,
-			Type:        structs.JobTypeCore,
-			TriggeredBy: structs.EvalTriggerAllocStop,
-			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + vol.Source,
-			LeaderACL:   j.srv.getLeaderAcl(),
-			Status:      structs.EvalStatusPending,
-			CreateTime:  now,
-			ModifyTime:  now,
-		}
-		evals = append(evals, eval)
+	eval := &structs.Evaluation{
+		ID:             uuid.Generate(),
+		Namespace:      args.RequestNamespace(),
+		Priority:       structs.JobDefaultPriority,
+		Type:           structs.JobTypeService,
+		TriggeredBy:    structs.EvalTriggerJobDeregister,
+		JobID:          args.JobID,
+		JobModifyIndex: index,
+		Status:         structs.EvalStatusPending,
+		CreateTime:     now,
+		ModifyTime:     now,
+	}
+	update := &structs.EvalUpdateRequest{
+		Evals:        []*structs.Evaluation{eval},
+		WriteRequest: structs.WriteRequest{Region: args.Region},
 	}
 
-	// If the job is periodic or parameterized, we don't create an eval
-	// for the job, but might still need one for the volumes
-	if job == nil || !(job.IsPeriodic() || job.IsParameterized()) {
-		// Create a new evaluation
-		// XXX: The job priority / type is strange for this, since it's not a high
-		// priority even if the job was.
-		eval := &structs.Evaluation{
-			ID:             uuid.Generate(),
-			Namespace:      args.RequestNamespace(),
-			Priority:       structs.JobDefaultPriority,
-			Type:           structs.JobTypeService,
-			TriggeredBy:    structs.EvalTriggerJobDeregister,
-			JobID:          args.JobID,
-			JobModifyIndex: index,
-			Status:         structs.EvalStatusPending,
-			CreateTime:     now,
-			ModifyTime:     now,
-		}
-		evals = append(evals, eval)
+	// Commit this evaluation via Raft
+	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+	if err != nil {
+		j.logger.Error("eval create failed", "error", err, "method", "deregister")
+		return err
 	}
 
-	if len(evals) > 0 {
-		update := &structs.EvalUpdateRequest{
-			Evals:        evals,
-			WriteRequest: structs.WriteRequest{Region: args.Region},
-		}
-
-		// Commit this evaluation via Raft
-		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-		if err != nil {
-			j.logger.Error("eval create failed", "error", err, "method", "deregister")
-			return err
-		}
-
-		// Populate the reply with eval information
-		reply.EvalID = evals[len(evals)-1].ID
-		reply.EvalCreateIndex = evalIndex
-		reply.Index = evalIndex
-	}
-
+	// Populate the reply with eval information
+	reply.EvalID = eval.ID
+	reply.EvalCreateIndex = evalIndex
+	reply.Index = evalIndex
 	return nil
 }
 

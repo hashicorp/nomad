@@ -1081,9 +1081,9 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	// A set of de-duplicated volumes that need volume claim GC.
-	// Later we'll create a gc eval for each volume.
-	volumesToGC := make(map[string][]string) // ID+namespace -> [id, namespace]
+	// A set of de-duplicated volumes that need their volume claims released.
+	// Later we'll apply this raft.
+	volumesToGC := newCSIBatchRelease(n.srv, n.logger, 100)
 
 	for _, allocToUpdate := range args.Alloc {
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
@@ -1113,11 +1113,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
-		// If the terminal alloc has CSI volumes, add its job to the list
-		// of jobs we're going to call volume claim GC on.
+		// If the terminal alloc has CSI volumes, add the volumes to the batch
+		// of volumes we'll release the claims of.
 		for _, vol := range taskGroup.Volumes {
 			if vol.Type == structs.VolumeTypeCSI {
-				volumesToGC[vol.Source+alloc.Namespace] = []string{vol.Source, alloc.Namespace}
+				volumesToGC.add(vol.Source, alloc.Namespace)
 			}
 		}
 
@@ -1138,25 +1138,8 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		}
 	}
 
-	// Add an evaluation for garbage collecting the the CSI volume claims
-	// of terminal allocs
-	for _, volAndNamespace := range volumesToGC {
-		// we have to build this eval by hand rather than calling srv.CoreJob
-		// here because we need to use the volume's namespace
-		eval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			Namespace:   volAndNamespace[1],
-			Priority:    structs.CoreJobPriority,
-			Type:        structs.JobTypeCore,
-			TriggeredBy: structs.EvalTriggerAllocStop,
-			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + volAndNamespace[0],
-			LeaderACL:   n.srv.getLeaderAcl(),
-			Status:      structs.EvalStatusPending,
-			CreateTime:  now.UTC().UnixNano(),
-			ModifyTime:  now.UTC().UnixNano(),
-		}
-		evals = append(evals, eval)
-	}
+	// Make a raft apply to release the CSI volume claims of terminal allocs.
+	volumesToGC.apply()
 
 	// Add this to the batch
 	n.updatesLock.Lock()
