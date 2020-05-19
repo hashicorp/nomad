@@ -31,10 +31,8 @@ The table below shows this endpoint's support for
   an index prefix. This is specified as a query string parameter.
 
 - `all_namespaces` `(bool: false)` - Specifies whether to return the all
-  known jobs across all namespaces. When set to `true`, the list stubs will
-  contain a `Namespace` field indicating the job namespace.
-  The option requires `namespace:list-jobs` ACL capability on all existing
-  namespaces.
+  known jobs across all namespaces the token has `namespace:list-jobs` ACL
+  capability on.
 
 ### Sample Request
 
@@ -60,6 +58,7 @@ The table below shows this endpoint's support for
     "StatusDescription": "",
     "JobSummary": {
       "JobID": "example",
+      "Namespace": "default",
       "Summary": {
         "cache": {
           "Queued": 1,
