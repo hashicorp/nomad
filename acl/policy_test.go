@@ -205,6 +205,11 @@ func TestParse(t *testing.T) {
 				"Rules": "anything"
 			}
 			`,
+			"Extraneous JSON object property",
+			nil,
+		},
+		{
+			`{}`,
 			"Invalid policy",
 			nil,
 		},
@@ -309,6 +314,7 @@ func TestParse(t *testing.T) {
 
 	for idx, tc := range tcases {
 		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+			fmt.Println(idx, " ==> ", tc.Raw)
 			p, err := Parse(tc.Raw)
 			if err != nil {
 				if tc.ErrStr == "" {

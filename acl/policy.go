@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/nomad/helper/hclutil"
 )
 
 const (
@@ -67,14 +67,15 @@ var (
 
 // Policy represents a parsed HCL or JSON policy.
 type Policy struct {
-	Namespaces  []*NamespacePolicy  `hcl:"namespace,expand"`
-	HostVolumes []*HostVolumePolicy `hcl:"host_volume,expand"`
-	Agent       *AgentPolicy        `hcl:"agent"`
-	Node        *NodePolicy         `hcl:"node"`
-	Operator    *OperatorPolicy     `hcl:"operator"`
-	Quota       *QuotaPolicy        `hcl:"quota"`
-	Plugin      *PluginPolicy       `hcl:"plugin"`
-	Raw         string              `hcl:"-"`
+	Namespaces  []*NamespacePolicy  `hcl:"namespace,block"`
+	HostVolumes []*HostVolumePolicy `hcl:"host_volume,block"`
+	Agent       *AgentPolicy        `hcl:"agent,block"`
+	Node        *NodePolicy         `hcl:"node,block"`
+	Operator    *OperatorPolicy     `hcl:"operator,block"`
+	Quota       *QuotaPolicy        `hcl:"quota,block"`
+	Plugin      *PluginPolicy       `hcl:"plugin,block"`
+
+	Raw string
 }
 
 // IsEmpty checks to make sure that at least one policy has been set and is not
@@ -91,36 +92,36 @@ func (p *Policy) IsEmpty() bool {
 
 // NamespacePolicy is the policy for a specific namespace
 type NamespacePolicy struct {
-	Name         string `hcl:",key"`
-	Policy       string
-	Capabilities []string
+	Name         string   `hcl:",label"`
+	Policy       string   `hcl:"policy,optional"`
+	Capabilities []string `hcl:"capabilities,optional"`
 }
 
 // HostVolumePolicy is the policy for a specific named host volume
 type HostVolumePolicy struct {
-	Name         string `hcl:",key"`
-	Policy       string
-	Capabilities []string
+	Name         string   `hcl:",label"`
+	Policy       string   `hcl:"policy,optional"`
+	Capabilities []string `hcl:"capabilities,optional"`
 }
 
 type AgentPolicy struct {
-	Policy string
+	Policy string `hcl:"policy,optional"`
 }
 
 type NodePolicy struct {
-	Policy string
+	Policy string `hcl:"policy,optional"`
 }
 
 type OperatorPolicy struct {
-	Policy string
+	Policy string `hcl:"policy,optional"`
 }
 
 type QuotaPolicy struct {
-	Policy string
+	Policy string `hcl:"policy,optional"`
 }
 
 type PluginPolicy struct {
-	Policy string
+	Policy string `hcl:"policy,optional"`
 }
 
 // isPolicyValid makes sure the given string matches one of the valid policies.
@@ -231,14 +232,14 @@ func expandHostVolumePolicy(policy string) []string {
 // the ACL
 func Parse(rules string) (*Policy, error) {
 	// Decode the rules
-	p := &Policy{Raw: rules}
+	p := Policy{Raw: rules}
 	if rules == "" {
 		// Hot path for empty rules
-		return p, nil
+		return &p, nil
 	}
 
 	// Attempt to parse
-	if err := hcl.Decode(p, rules); err != nil {
+	if err := hclutil.Decode("policy", rules, &p); err != nil {
 		return nil, fmt.Errorf("Failed to parse ACL Policy: %v", err)
 	}
 
@@ -310,5 +311,5 @@ func Parse(rules string) (*Policy, error) {
 	if p.Plugin != nil && !p.Plugin.isValid() {
 		return nil, fmt.Errorf("Invalid plugin policy: %#v", p.Plugin)
 	}
-	return p, nil
+	return &p, nil
 }
