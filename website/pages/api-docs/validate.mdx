@@ -44,7 +44,8 @@ There are no parameters, but the request _body_ contains the entire job file.
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     --request POST \
     --data @my-job.nomad \
     https://localhost:4646/v1/validate/job

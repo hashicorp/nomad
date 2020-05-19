@@ -20,7 +20,7 @@ module('Integration | Component | plugin allocation row', function(hooks) {
   });
 
   test('Plugin allocation row immediately fetches the plugin allocation', async function(assert) {
-    const plugin = this.server.create('csi-plugin', { id: 'plugin' });
+    const plugin = this.server.create('csi-plugin', { id: 'plugin', controllerRequired: true });
     const storageController = plugin.controllers.models[0];
 
     const pluginRecord = await this.store.find('plugin', 'csi/plugin');
@@ -42,7 +42,7 @@ module('Integration | Component | plugin allocation row', function(hooks) {
   });
 
   test('After the plugin allocation row fetches the plugin allocation, allocation stats are fetched', async function(assert) {
-    const plugin = this.server.create('csi-plugin', { id: 'plugin' });
+    const plugin = this.server.create('csi-plugin', { id: 'plugin', controllerRequired: true });
     const storageController = plugin.controllers.models[0];
 
     const pluginRecord = await this.store.find('plugin', 'csi/plugin');
@@ -66,6 +66,7 @@ module('Integration | Component | plugin allocation row', function(hooks) {
     const plugin = this.server.create('csi-plugin', {
       id: 'plugin',
       isMonolith: false,
+      controllerRequired: true,
       controllersExpected: 2,
     });
     const storageController = plugin.controllers.models[0];
