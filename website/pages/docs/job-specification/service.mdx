@@ -245,7 +245,7 @@ scripts.
   environment. For task drivers with namespace isolation such as `docker` or
   `exec`, setting up the context for the script check may take an unexpectedly
   long amount of time (a full second or two), especially on busy hosts. The
-  timeout configuration should allow for both this setup and the execution of
+  timeout configuration must allow for both this setup and the execution of
   the script. Operators should use long timeouts (5 or more seconds) for script
   checks, and monitor telemetry for
   `client.allocrunner.taskrunner.tasklet_timeout`.
