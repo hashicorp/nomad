@@ -6313,6 +6313,10 @@ func (t *Task) Warnings() error {
 // task to the service name of which it is a connect proxy for.
 type TaskKind string
 
+func NewTaskKind(name, identifier string) TaskKind {
+	return TaskKind(fmt.Sprintf("%s:%s", name, identifier))
+}
+
 // Name returns the kind name portion of the TaskKind
 func (k TaskKind) Name() string {
 	return strings.Split(string(k), ":")[0]
@@ -6332,9 +6336,19 @@ func (k TaskKind) IsConnectProxy() bool {
 	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
 }
 
-// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
-// Proxy
-const ConnectProxyPrefix = "connect-proxy"
+func (k TaskKind) IsConnectNative() bool {
+	return strings.HasPrefix(string(k), ConnectNativePrefix+":") && len(k) > len(ConnectNativePrefix)+1
+}
+
+const (
+	// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
+	// Proxy
+	ConnectProxyPrefix = "connect-proxy"
+
+	// ConnectNativePrefix is the prefix used for fields referencing a Connect
+	// Native Task
+	ConnectNativePrefix = "connect-native"
+)
 
 // ValidateConnectProxyService checks that the service that is being
 // proxied by this task exists in the task group and contains

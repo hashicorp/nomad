@@ -3168,16 +3168,19 @@ func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
 		Name: "testgroup",
 		Tasks: []*structs.Task{{
 			Name: "connect-proxy-service1",
-			Kind: "connect-proxy:service1",
+			Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
 		}, {
 			Name: "incorrect-task3",
 			Kind: "incorrect:task3",
 		}, {
 			Name: "connect-proxy-service4",
-			Kind: "connect-proxy:service4",
+			Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "service4"),
 		}, {
 			Name: "incorrect-task5",
 			Kind: "incorrect:task5",
+		}, {
+			Name: "task6",
+			Kind: structs.NewTaskKind(structs.ConnectNativePrefix, "service6"),
 		}},
 	}
 
@@ -3187,11 +3190,20 @@ func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
 		"task3",                  // no
 		"connect-proxy-service4", // yes
 		"task5",                  // no
+		"task6",                  // yes, native
 	}
 
-	unneeded := tasksNotUsingConnect(taskGroup, requestingTasks)
-	exp := []string{"task2", "task3", "task5"}
-	require.Equal(t, exp, unneeded)
+	notConnect, usingConnect := connectTasks(taskGroup, requestingTasks)
+
+	notConnectExp := []string{"task2", "task3", "task5"}
+	usingConnectExp := []connectTask{
+		{TaskName: "connect-proxy-service1", TaskKind: "connect-proxy:service1"},
+		{TaskName: "connect-proxy-service4", TaskKind: "connect-proxy:service4"},
+		{TaskName: "task6", TaskKind: "connect-native:service6"},
+	}
+
+	require.Equal(t, notConnectExp, notConnect)
+	require.Equal(t, usingConnectExp, usingConnect)
 }
 
 func mutateConnectJob(t *testing.T, job *structs.Job) {
