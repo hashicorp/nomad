@@ -874,6 +874,7 @@ type JobListStub struct {
 	ID                string
 	ParentID          string
 	Name              string
+	Namespace         string `json:",omitempty"`
 	Datacenters       []string
 	Type              string
 	Priority          int
