@@ -1,5 +1,11 @@
 {{title "CSI Plugin " model.plainId}}
-<section class="section with-headspace">
+<div data-test-subnav="plugins" class="tabs is-subnav">
+  <ul>
+    <li data-test-tab="overview">{{#link-to "csi.plugins.plugin.index" model activeClass="is-active"}}Overview{{/link-to}}</li>
+    <li data-test-tab="allocations">{{#link-to "csi.plugins.plugin.allocations" model activeClass="is-active"}}Allocations{{/link-to}}</li>
+  </ul>
+</div>
+<section class="section">
   <h1 class="title" data-test-title>{{model.plainId}}</h1>
 
   <div class="boxed-section is-small">
