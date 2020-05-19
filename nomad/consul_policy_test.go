@@ -15,7 +15,8 @@ func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
 	try := func(t *testing.T, text string, expPolicy *ConsulPolicy, expErr string) {
 		policy, err := ParseConsulPolicy(text)
 		if expErr != "" {
-			require.EqualError(t, err, expErr)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), expErr)
 			require.True(t, policy.IsEmpty())
 		} else {
 			require.NoError(t, err)
@@ -49,7 +50,7 @@ func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
 
 	t.Run("malformed", func(t *testing.T) {
 		text := `this is not valid HCL!`
-		expErr := "failed to parse ACL policy: At 1:22: illegal char"
+		expErr := "Invalid block definition"
 		try(t, text, nil, expErr)
 	})
 }

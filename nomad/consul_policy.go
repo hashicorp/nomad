@@ -4,21 +4,21 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/nomad/helper/hclutil"
 	"github.com/pkg/errors"
 )
 
 // ConsulServiceRule represents a policy for a service.
 type ConsulServiceRule struct {
-	Name   string `hcl:",key"`
-	Policy string
+	Name   string `hcl:"name,label"`
+	Policy string `hcl:"policy"`
 }
 
 // ConsulPolicy represents the parts of a ConsulServiceRule Policy that are
 // relevant to Service Identity authorizations.
 type ConsulPolicy struct {
-	Services        []*ConsulServiceRule `hcl:"service,expand"`
-	ServicePrefixes []*ConsulServiceRule `hcl:"service_prefix,expand"`
+	Services        []*ConsulServiceRule `hcl:"service,block"`
+	ServicePrefixes []*ConsulServiceRule `hcl:"service_prefix,block"`
 }
 
 // IsEmpty returns true if there are no Services or ServicePrefixes defined for
@@ -35,7 +35,7 @@ func (cp *ConsulPolicy) IsEmpty() bool {
 // Services or ServicePrefixes defined.
 func ParseConsulPolicy(s string) (*ConsulPolicy, error) {
 	cp := new(ConsulPolicy)
-	if err := hcl.Decode(cp, s); err != nil {
+	if err := hclutil.Decode("policy", s, cp); err != nil {
 		return nil, errors.Wrap(err, "failed to parse ACL policy")
 	}
 	if cp.IsEmpty() {
