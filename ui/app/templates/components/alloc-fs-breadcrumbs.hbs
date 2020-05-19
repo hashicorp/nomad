@@ -1,7 +1,7 @@
 <ul>
   <li class={{if breadcrumbs "" "is-active"}}>
     {{#link-to "allocations.allocation.fs-root" allocation activeClass="is-active"}}
-      / {{!-- FIXME what should this be? --}}
+      {{allocation.shortId}}
     {{/link-to}}
   </li>
   {{#each breadcrumbs as |breadcrumb|}}
