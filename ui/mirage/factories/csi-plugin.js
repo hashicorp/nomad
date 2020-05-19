@@ -19,8 +19,11 @@ export default Factory.extend({
     return faker.random.number(3);
   },
   controllersExpected() {
+    // This property must be read before the conditional
+    // or Mirage will incorrectly sort dependent properties.
+    const healthy = this.controllersHealthy;
     if (!this.controllerRequired) return 0;
-    return this.controllersHealthy + faker.random.number({ min: 1, max: 2 });
+    return healthy + faker.random.number({ min: 1, max: 2 });
   },
 
   nodesHealthy: () => faker.random.number(3),
