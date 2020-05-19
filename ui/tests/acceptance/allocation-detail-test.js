@@ -1,5 +1,6 @@
 import { run } from '@ember/runloop';
 import { currentURL } from '@ember/test-helpers';
+import { timeout } from 'ember-concurrency';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -74,6 +75,7 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('/allocation/:id should present task lifecycles', async function(assert) {
+    assert.timeout(9999999);
     const job = server.create('job', {
       groupsCount: 1,
       groupTaskCount: 3,
@@ -176,6 +178,13 @@ module('Acceptance | allocation detail', function(hooks) {
 
     await Allocation.lifecycleChart.tasks[0].visit();
     assert.equal(currentURL(), `/allocations/${allocation.id}/${sortedServerStates[0].name}`);
+
+    await timeout(100000);
+    assert.ok(true);
+  });
+
+  test('an extra lifecycle test', async function(assert) {
+    assert.ok(true);
   });
 
   test('/allocation/:id should list all tasks for the allocation', async function(assert) {
