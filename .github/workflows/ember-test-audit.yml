@@ -25,7 +25,7 @@ jobs:
           node-version: '10.x'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
-      - run: npx ember-test-audit --json --output ../base-audit.json
+      - run: npx ember-test-audit 3 --json --output ../base-audit.json
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
@@ -42,7 +42,7 @@ jobs:
           node-version: '10.x'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
-      - run: npx ember-test-audit --json --output ../pr-audit.json
+      - run: npx ember-test-audit 3 --json --output ../pr-audit.json
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
