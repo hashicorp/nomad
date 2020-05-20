@@ -101,6 +101,7 @@ var (
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
 		},
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 )
 

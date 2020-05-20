@@ -83,6 +83,7 @@ var (
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
 		},
+		MountConfigs: drivers.MountConfigSupportAll,
 	}
 )
 
