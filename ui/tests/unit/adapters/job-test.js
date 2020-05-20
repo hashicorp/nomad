@@ -133,7 +133,7 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
 
     assert.notOk(
-      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
+      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['x-nomad-token']),
       'No token header present on either job request'
     );
   });
@@ -152,7 +152,7 @@ module('Unit | Adapter | Job', function(hooks) {
     assert.ok(
       pretender.handledRequests
         .mapBy('requestHeaders')
-        .every(headers => headers['X-Nomad-Token'] === secret),
+        .every(headers => headers['x-nomad-token'] === secret),
       'The token header is present on both job requests'
     );
   });
