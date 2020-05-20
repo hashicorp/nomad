@@ -23,19 +23,6 @@ export default ApplicationAdapter.extend({
       delete ajaxOptions.data[key];
     });
 
-    const abortToken = (options || {}).abortToken;
-    if (abortToken) {
-      delete options.abortToken;
-
-      const previousBeforeSend = ajaxOptions.beforeSend;
-      ajaxOptions.beforeSend = function(jqXHR) {
-        abortToken.capture(jqXHR);
-        if (previousBeforeSend) {
-          previousBeforeSend(...arguments);
-        }
-      };
-    }
-
     return ajaxOptions;
   },
 
@@ -64,9 +51,9 @@ export default ApplicationAdapter.extend({
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const abortToken = get(snapshotRecordArray || {}, 'adapterOptions.abortToken');
+    const signal = get(snapshotRecordArray || {}, 'adapterOptions.abortController.signal');
     return this.ajax(url, 'GET', {
-      abortToken,
+      signal,
       data: params,
     });
   },
@@ -79,9 +66,9 @@ export default ApplicationAdapter.extend({
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const abortToken = get(snapshot || {}, 'adapterOptions.abortToken');
+    const signal = get(snapshot || {}, 'adapterOptions.abortController.signal');
     return this.ajax(url, 'GET', {
-      abortToken,
+      signal,
       data: params,
     }).catch(error => {
       if (error instanceof AbortError) {
@@ -102,9 +89,9 @@ export default ApplicationAdapter.extend({
       params.index = this.watchList.getIndexFor(`${url}?${queryString.stringify(query)}`);
     }
 
-    const abortToken = get(options, 'adapterOptions.abortToken');
+    const signal = get(options, 'adapterOptions.abortController.signal');
     return this.ajax(url, 'GET', {
-      abortToken,
+      signal,
       data: params,
     }).then(payload => {
       const adapter = store.adapterFor(type.modelName);
@@ -133,8 +120,8 @@ export default ApplicationAdapter.extend({
     });
   },
 
-  reloadRelationship(model, relationshipName, options = { watch: false, abortToken: null }) {
-    const { watch, abortToken } = options;
+  reloadRelationship(model, relationshipName, options = { watch: false, abortController: null }) {
+    const { watch, abortController } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
       throw new Error(
@@ -158,7 +145,7 @@ export default ApplicationAdapter.extend({
       }
 
       return this.ajax(url, 'GET', {
-        abortToken,
+        signal: abortController && abortController.signal,
         data: params,
       }).then(
         json => {

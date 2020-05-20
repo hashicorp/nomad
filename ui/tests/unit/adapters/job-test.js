@@ -4,7 +4,7 @@ import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import XHRToken from 'nomad-ui/utils/classes/xhr-token';
+import { AbortController } from 'fetch';
 
 module('Unit | Adapter | Job', function(hooks) {
   setupTest(hooks);
@@ -261,14 +261,14 @@ module('Unit | Adapter | Job', function(hooks) {
     await this.initializeUI();
 
     const { pretender } = this.server;
-    const token = new XHRToken();
+    const controller = new AbortController();
 
     pretender.get('/v1/jobs', () => [200, {}, '[]'], true);
 
     this.subject()
       .findAll(null, { modelName: 'job' }, null, {
         reload: true,
-        adapterOptions: { watch: true, abortToken: token },
+        adapterOptions: { watch: true, abortController: controller },
       })
       .catch(() => {});
 
@@ -277,7 +277,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      token.abort();
+      controller.abort();
     });
 
     await settled();
@@ -289,13 +289,13 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
-    const token = new XHRToken();
+    const controller = new AbortController();
 
     pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, abortToken: token },
+      adapterOptions: { watch: true, abortController: controller },
     });
 
     const { request: xhr } = pretender.requestReferences[0];
@@ -303,7 +303,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      token.abort();
+      controller.abort();
     });
 
     await settled();
@@ -315,18 +315,21 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const plainId = 'job-1';
-    const token = new XHRToken();
+    const controller = new AbortController();
     const mockModel = makeMockModel(plainId);
     pretender.get('/v1/job/:id/summary', () => [200, {}, '{}'], true);
 
-    this.subject().reloadRelationship(mockModel, 'summary', { watch: true, abortToken: token });
+    this.subject().reloadRelationship(mockModel, 'summary', {
+      watch: true,
+      abortController: controller,
+    });
 
     const { request: xhr } = pretender.requestReferences[0];
     assert.equal(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      token.abort();
+      controller.abort();
     });
 
     await settled();
@@ -338,19 +341,19 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
-    const token1 = new XHRToken();
-    const token2 = new XHRToken();
+    const controller1 = new AbortController();
+    const controller2 = new AbortController();
 
     pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, abortToken: token1 },
+      adapterOptions: { watch: true, abortController: controller1 },
     });
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, abortToken: token2 },
+      adapterOptions: { watch: true, abortController: controller2 },
     });
 
     const { request: xhr } = pretender.requestReferences[0];
@@ -365,7 +368,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation and resolution before waiting
     run.next(() => {
-      token1.abort();
+      controller1.abort();
       pretender.resolve(xhr2);
     });
 
