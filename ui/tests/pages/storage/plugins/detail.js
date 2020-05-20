@@ -38,6 +38,8 @@ export default create({
 
   goToControllerAllocations: clickable('[data-test-go-to-controller-allocations]'),
   goToNodeAllocations: clickable('[data-test-go-to-node-allocations]'),
+  goToControllerAllocationsText: text('[data-test-go-to-controller-allocations]'),
+  goToNodeAllocationsText: text('[data-test-go-to-node-allocations]'),
 
   controllerTableIsPresent: isPresent('[data-test-controller-allocations]'),
 

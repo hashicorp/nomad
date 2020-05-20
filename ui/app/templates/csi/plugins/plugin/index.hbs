@@ -132,7 +132,7 @@
             model
             data-test-go-to-controller-allocations
             (query-params qpType=(qp-serialize (array "controller")))}}
-            View All Controller Allocations
+            View all {{model.controllers.length}} Controller {{pluralize "allocation" model.controllers.length}}
           {{/link-to}}
           </p>
         </div>
@@ -182,7 +182,7 @@
           model
           data-test-go-to-node-allocations
           (query-params qpType=(qp-serialize (array "node")))}}
-          View All Node Allocations
+          View all {{model.nodes.length}} Node {{pluralize "allocation" model.nodes.length}}
         {{/link-to}}
         </p>
       </div>

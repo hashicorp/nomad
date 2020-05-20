@@ -191,6 +191,9 @@ module('Acceptance | plugin detail', function(hooks) {
     const serialize = arr => window.encodeURIComponent(JSON.stringify(arr));
 
     await PluginDetail.visit({ id: plugin.id });
+    assert.ok(
+      PluginDetail.goToControllerAllocationsText.includes(plugin.controllers.models.length)
+    );
     await PluginDetail.goToControllerAllocations();
     assert.equal(
       currentURL(),
@@ -198,6 +201,7 @@ module('Acceptance | plugin detail', function(hooks) {
     );
 
     await PluginDetail.visit({ id: plugin.id });
+    assert.ok(PluginDetail.goToNodeAllocationsText.includes(plugin.nodes.models.length));
     await PluginDetail.goToNodeAllocations();
     assert.equal(currentURL(), `/csi/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`);
   });
