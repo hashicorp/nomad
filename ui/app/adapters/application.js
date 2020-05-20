@@ -8,6 +8,10 @@ import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
 export const namespace = 'v1';
 
 export default RESTAdapter.extend({
+  // TODO: This can be removed once jquery-integration is turned off for
+  // the entire app.
+  useFetch: true,
+
   namespace,
 
   system: service(),
