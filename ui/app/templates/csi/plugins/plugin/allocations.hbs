@@ -27,9 +27,9 @@
       </div>
     </div>
   </div>
-  {{#if filteredAllocations}}
+  {{#if sortedAllocations}}
     {{#list-pagination
-      source=filteredAllocations
+      source=sortedAllocations
       size=pageSize
       page=currentPage as |p|}}
       {{#list-table
@@ -52,7 +52,7 @@
         {{/t.head}}
         {{#t.body key="model.allocID" as |row|}}
           {{plugin-allocation-row
-            data-test-controller-allocation=row.model.allocID
+            data-test-allocation=row.model.allocID
             pluginAllocation=row.model}}
         {{/t.body}}
       {{/list-table}}
@@ -60,7 +60,7 @@
         {{page-size-select onChange=(action resetPagination)}}
         <nav class="pagination">
           <div class="pagination-numbers">
-            {{p.startsAt}}&ndash;{{p.endsAt}} of {{filteredAllocations.length}}
+            {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
           </div>
           {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
           {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
@@ -75,7 +75,7 @@
         <p class="empty-message-body">
           The plugin has no allocations.
         </p>
-      {{else if (eq filteredAllocations.length 0)}}
+      {{else if (eq sortedAllocations.length 0)}}
         <h3 data-test-empty-list-headline class="empty-message-headline">No Matches</h3>
         <p class="empty-message-body">
           No allocations match your current filter selection.

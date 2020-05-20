@@ -35,8 +35,8 @@ export default Controller.extend(SortableFactory(['updateTime', 'healthy']), {
   ]),
 
   optionsHealth: computed(() => [
-    { key: true, label: 'Healthy' },
-    { key: false, label: 'Unhealthy' },
+    { key: 'true', label: 'Healthy' },
+    { key: 'false', label: 'Unhealthy' },
   ]),
 
   combinedAllocations: computed('model.controllers.[]', 'model.nodes.[]', function() {
@@ -61,8 +61,9 @@ export default Controller.extend(SortableFactory(['updateTime', 'healthy']), {
         listToFilter = this.model.nodes;
       }
 
-      if (healths.length === 1 && healths[0]) return listToFilter.filterBy('healthy');
-      if (healths.length === 1 && !healths[0]) return listToFilter.filterBy('healthy', false);
+      if (healths.length === 1 && healths[0] === 'true') return listToFilter.filterBy('healthy');
+      if (healths.length === 1 && healths[0] === 'false')
+        return listToFilter.filterBy('healthy', false);
       return listToFilter;
     }
   ),
