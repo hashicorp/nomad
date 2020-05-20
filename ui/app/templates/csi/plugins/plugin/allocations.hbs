@@ -1,4 +1,4 @@
-{{title "CSI Plugin " model.plainID " allocations"}}
+{{title "CSI Plugin " model.plainId " allocations"}}
 <div data-test-subnav="plugins" class="tabs is-subnav">
   <ul>
     <li data-test-tab="overview">{{#link-to "csi.plugins.plugin.index" model activeClass="is-active"}}Overview{{/link-to}}</li>
@@ -7,6 +7,9 @@
 </div>
 <section class="section">
   <div class="toolbar">
+    <div class="toolbar-item">
+      <h1 class="title">Allocations for {{model.plainId}}</h1>
+    </div>
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
         {{multi-select-dropdown
