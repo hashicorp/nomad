@@ -1139,7 +1139,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	}
 
 	// Make a raft apply to release the CSI volume claims of terminal allocs.
-	volumesToGC.apply()
+	var result *multierror.Error
+	err := volumesToGC.apply()
+	if err != nil {
+		result = multierror.Append(result, err)
+	}
 
 	// Add this to the batch
 	n.updatesLock.Lock()
@@ -1171,12 +1175,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Wait for the future
 	if err := future.Wait(); err != nil {
-		return err
+		result = multierror.Append(result, err)
+		return result.ErrorOrNil()
 	}
 
 	// Setup the response
 	reply.Index = future.Index()
-	return nil
+	return result.ErrorOrNil()
 }
 
 // batchUpdate is used to update all the allocations

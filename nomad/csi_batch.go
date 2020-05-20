@@ -2,6 +2,7 @@ package nomad
 
 import (
 	log "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -30,7 +31,7 @@ func newCSIBatchRelease(srv *Server, logger log.Logger, max int) *csiBatchReleas
 
 // add the volume ID + namespace to the deduplicated batches
 func (c *csiBatchRelease) add(vol, namespace string) {
-	id := vol + namespace
+	id := vol + "\x00" + namespace
 
 	// ignore duplicates
 	_, seen := c.seen[id]
@@ -60,14 +61,15 @@ func (c *csiBatchRelease) add(vol, namespace string) {
 
 // apply flushes the batches to raft
 func (c *csiBatchRelease) apply() error {
+	var result *multierror.Error
 	for _, batch := range c.batches {
 		if len(batch.Claims) > 0 {
 			_, _, err := c.srv.raftApply(structs.CSIVolumeClaimBatchRequestType, batch)
 			if err != nil {
 				c.logger.Error("csi raft apply failed", "error", err, "method", "claim")
-				return err
+				result = multierror.Append(result, err)
 			}
 		}
 	}
-	return nil
+	return result.ErrorOrNil()
 }

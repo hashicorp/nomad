@@ -731,7 +731,11 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.JobModifyIndex = index
 
 	// Make a raft apply to release the CSI volume claims of terminal allocs.
-	volumesToGC.apply()
+	var result *multierror.Error
+	err = volumesToGC.apply()
+	if err != nil {
+		result = multierror.Append(result, err)
+	}
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
@@ -762,15 +766,16 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Commit this evaluation via Raft
 	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
+		result = multierror.Append(result, err)
 		j.logger.Error("eval create failed", "error", err, "method", "deregister")
-		return err
+		return result.ErrorOrNil()
 	}
 
 	// Populate the reply with eval information
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
-	return nil
+	return result.ErrorOrNil()
 }
 
 // BatchDeregister is used to remove a set of jobs from the cluster.
