@@ -7,7 +7,7 @@ export default function ResourcesPage() {
     <>
       <HashiHead
         is={Head}
-        title="Resources | Nomad by HashiCorp"
+        title="Community | Nomad by HashiCorp"
         description="Nomad is widely deployed across a range of enterprises and business verticals."
       />
       <div id="p-resources" className="g-grid-container">
@@ -15,7 +15,7 @@ export default function ResourcesPage() {
           product="nomad"
           content={
             <>
-              <h2>Resources</h2>
+              <h2>Community</h2>
               <p>
                 Nomad is widely adopted and used in production by organizations
                 like Cloudflare, Roblox, Pandora, PagerDuty, and more.
@@ -24,33 +24,12 @@ export default function ResourcesPage() {
                 This is a collection of resources for joining our community and
                 learning Nomad&apos;s real world use-cases.
               </p>
-              <h3>Community</h3>
               <p>
                 <strong>Discussion Forum</strong>
                 <ul>
                   <li>
                     <a href="https://discuss.hashicorp.com/c/nomad">
                       HashiCorp Discuss
-                    </a>
-                  </li>
-                </ul>
-              </p>
-              <p>
-                <strong>Mailing List</strong>
-                <ul>
-                  <li>
-                    <a href="https://groups.google.com/group/nomad-tool">
-                      Nomad Google Group
-                    </a>
-                  </li>
-                </ul>
-              </p>
-              <p>
-                <strong>Gitter</strong>
-                <ul>
-                  <li>
-                    <a href="https://gitter.im/hashicorp-nomad/Lobby">
-                      Nomad Chat Room
                     </a>
                   </li>
                 </ul>
