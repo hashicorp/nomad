@@ -115,7 +115,7 @@ pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
 #	CXX=i686-w64-mingw32-g++
 pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
+	@CGO_ENABLED=0 GOOS=windows GOARCH=386 \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \
@@ -124,7 +124,7 @@ pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
 
 pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
 		go build \
 		-trimpath \
 		-ldflags $(GO_LDFLAGS) \

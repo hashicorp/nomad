@@ -68,3 +68,4 @@ executors:
       GOLANG_VERSION: 1.14.3
       GOTESTSUM_VERSION: 0.4.2
       VAULT_VERSION: 1.4.1
+      CGO_ENABLED: "0"

@@ -549,6 +549,7 @@ jobs:
     - store_artifacts:
         path: c:\tmp\test-reports
     environment:
+    - CGO_ENABLED: '0'
     - GOBIN: c:\gopath\bin
     - GOLANG_VERSION: 1.14.3
     - GOPATH: c:\gopath
