@@ -38,6 +38,7 @@ func (c *csiBatchRelease) add(vol, namespace string) {
 	if seen {
 		return
 	}
+	c.seen[id] = struct{}{}
 
 	req := structs.CSIVolumeClaimRequest{
 		VolumeID: vol,
