@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	dtu "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,6 +68,7 @@ func TestVolumeHook_PartitionMountsByVolume_Works(t *testing.T) {
 }
 
 func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
+
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{
 			VolumeMounts: []*structs.VolumeMount{
@@ -85,31 +87,70 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 		},
 	}
 
-	tr := &TaskRunner{
-		allocHookResources: &cstructs.AllocHookResources{
-			CSIMounts: map[string]*csimanager.MountInfo{
-				"foo": {
-					Source: "/mnt/my-test-volume",
+	cases := []struct {
+		Name          string
+		Driver        drivers.DriverPlugin
+		Expected      []*drivers.MountConfig
+		ExpectedError string
+	}{
+		{
+			Name: "supported driver",
+			Driver: &dtu.MockDriver{
+				CapabilitiesF: func() (*drivers.Capabilities, error) {
+					return &drivers.Capabilities{
+						MountConfigs: drivers.MountConfigSupportAll,
+					}, nil
+				},
+			},
+			Expected: []*drivers.MountConfig{
+				{
+					HostPath: "/mnt/my-test-volume",
+					TaskPath: "/bar",
 				},
 			},
 		},
-	}
-
-	expected := []*drivers.MountConfig{
 		{
-			HostPath: "/mnt/my-test-volume",
-			TaskPath: "/bar",
+			Name: "unsupported driver",
+			Driver: &dtu.MockDriver{
+				CapabilitiesF: func() (*drivers.Capabilities, error) {
+					return &drivers.Capabilities{
+						MountConfigs: drivers.MountConfigSupportNone,
+					}, nil
+				},
+			},
+			ExpectedError: "task driver does not support CSI",
 		},
 	}
 
-	hook := &volumeHook{
-		logger: testlog.HCLogger(t),
-		alloc:  structs.MockAlloc(),
-		runner: tr,
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+
+			tr := &TaskRunner{
+				driver: tc.Driver,
+				allocHookResources: &cstructs.AllocHookResources{
+					CSIMounts: map[string]*csimanager.MountInfo{
+						"foo": {
+							Source: "/mnt/my-test-volume",
+						},
+					},
+				},
+			}
+
+			hook := &volumeHook{
+				logger: testlog.HCLogger(t),
+				alloc:  structs.MockAlloc(),
+				runner: tr,
+			}
+			mounts, err := hook.prepareCSIVolumes(req, volumes)
+
+			if tc.ExpectedError != "" {
+				require.EqualError(t, err, tc.ExpectedError)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.Expected, mounts)
+		})
 	}
-	mounts, err := hook.prepareCSIVolumes(req, volumes)
-	require.NoError(t, err)
-	require.Equal(t, expected, mounts)
 }
 
 func TestVolumeHook_Interpolation(t *testing.T) {
