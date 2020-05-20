@@ -97,7 +97,7 @@
       <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
         {{#if model.controllers}}
           {{#list-table
-            source=sortedControllers
+            source=(take 10 sortedControllers)
             class="with-foot" as |t|}}
             {{#t.head}}
               <th class="is-narrow"></th>
@@ -125,6 +125,17 @@
           </div>
         {{/if}}
       </div>
+      {{#if model.controllers}}
+        <div class="boxed-section-foot">
+          <p class="pull-right" data-test-go-to-controller-allocations>
+          {{#link-to "csi.plugins.plugin.allocations"
+            model
+            (query-params qpType=(qp-serialize (array "controller")))}}
+            View All Controller Allocations
+          {{/link-to}}
+          </p>
+        </div>
+      {{/if}}
     </div>
   {{/if}}
 
@@ -135,7 +146,7 @@
     <div class="boxed-section-body {{if model.nodes "is-full-bleed"}}">
       {{#if model.nodes}}
         {{#list-table
-          source=sortedNodes
+          source=(take 10 sortedNodes)
           class="with-foot" as |t|}}
           {{#t.head}}
             <th class="is-narrow"></th>
@@ -163,5 +174,16 @@
         </div>
       {{/if}}
     </div>
+    {{#if model.nodes}}
+      <div class="boxed-section-foot">
+        <p class="pull-right" data-test-go-to-node-allocations>
+        {{#link-to "csi.plugins.plugin.allocations"
+          model
+          (query-params qpType=(qp-serialize (array "node")))}}
+          View All Node Allocations
+        {{/link-to}}
+        </p>
+      </div>
+    {{/if}}
   </div>
 </section>
