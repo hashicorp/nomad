@@ -36,6 +36,9 @@ export default create({
   ...allocations('[data-test-controller-allocation]', 'controllerAllocations'),
   ...allocations('[data-test-node-allocation]', 'nodeAllocations'),
 
+  goToControllerAllocations: clickable('[data-test-go-to-controller-allocations]'),
+  goToNodeAllocations: clickable('[data-test-go-to-node-allocations]'),
+
   controllerTableIsPresent: isPresent('[data-test-controller-allocations]'),
 
   controllerTableIsEmpty: isPresent('[data-test-empty-controller-allocations]'),

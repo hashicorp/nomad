@@ -127,9 +127,10 @@
       </div>
       {{#if model.controllers}}
         <div class="boxed-section-foot">
-          <p class="pull-right" data-test-go-to-controller-allocations>
+          <p class="pull-right">
           {{#link-to "csi.plugins.plugin.allocations"
             model
+            data-test-go-to-controller-allocations
             (query-params qpType=(qp-serialize (array "controller")))}}
             View All Controller Allocations
           {{/link-to}}
@@ -176,9 +177,10 @@
     </div>
     {{#if model.nodes}}
       <div class="boxed-section-foot">
-        <p class="pull-right" data-test-go-to-node-allocations>
+        <p class="pull-right">
         {{#link-to "csi.plugins.plugin.allocations"
           model
+          data-test-go-to-node-allocations
           (query-params qpType=(qp-serialize (array "node")))}}
           View All Node Allocations
         {{/link-to}}
