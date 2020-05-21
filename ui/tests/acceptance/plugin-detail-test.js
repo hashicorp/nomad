@@ -174,4 +174,35 @@ module('Acceptance | plugin detail', function(hooks) {
     assert.notOk(PluginDetail.controllerHealthIsPresent);
     assert.notOk(PluginDetail.controllerTableIsPresent);
   });
+
+  test('when there are more than 10 controller or node allocations, only 10 are shown', async function(assert) {
+    const manyAllocationsPlugin = server.create('csi-plugin', {
+      shallow: true,
+      controllerRequired: false,
+      nodesExpected: 15,
+    });
+
+    await PluginDetail.visit({ id: manyAllocationsPlugin.id });
+
+    assert.equal(PluginDetail.nodeAllocations.length, 10);
+  });
+
+  test('the View All links under each allocation table link to a filtered view of the plugins allocation list', async function(assert) {
+    const serialize = arr => window.encodeURIComponent(JSON.stringify(arr));
+
+    await PluginDetail.visit({ id: plugin.id });
+    assert.ok(
+      PluginDetail.goToControllerAllocationsText.includes(plugin.controllers.models.length)
+    );
+    await PluginDetail.goToControllerAllocations();
+    assert.equal(
+      currentURL(),
+      `/csi/plugins/${plugin.id}/allocations?type=${serialize(['controller'])}`
+    );
+
+    await PluginDetail.visit({ id: plugin.id });
+    assert.ok(PluginDetail.goToNodeAllocationsText.includes(plugin.nodes.models.length));
+    await PluginDetail.goToNodeAllocations();
+    assert.equal(currentURL(), `/csi/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`);
+  });
 });
