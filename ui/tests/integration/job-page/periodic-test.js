@@ -83,7 +83,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
   });
 
   test('Clicking force launch without proper permissions shows an error message', async function(assert) {
-    this.server.pretender.post('/v1/job/:id/periodic/force', () => [403, {}, null]);
+    this.server.pretender.post('/v1/job/:id/periodic/force', () => [403, {}, '']);
 
     this.server.create('job', 'periodic', {
       id: 'parent',
@@ -138,7 +138,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
   });
 
   test('Stopping a job without proper permissions shows an error message', async function(assert) {
-    this.server.pretender.delete('/v1/job/:id', () => [403, {}, null]);
+    this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
@@ -175,7 +175,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
   });
 
   test('Starting a job without proper permissions shows an error message', async function(assert) {
-    this.server.pretender.post('/v1/job/:id', () => [403, {}, null]);
+    this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
