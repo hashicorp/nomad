@@ -98,9 +98,10 @@ var (
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
-		SendSignals: false,
-		Exec:        false,
-		FSIsolation: drivers.FSIsolationImage,
+		SendSignals:  false,
+		Exec:         false,
+		FSIsolation:  drivers.FSIsolationImage,
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
