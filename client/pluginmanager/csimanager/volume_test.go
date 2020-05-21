@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/mount"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -23,7 +24,21 @@ func tmpDir(t testing.TB) string {
 	return dir
 }
 
+func checkMountSupport() bool {
+	path, err := os.Getwd()
+	if err != nil {
+		return false
+	}
+
+	m := mount.New()
+	_, err = m.IsNotAMountPoint(path)
+	return err == nil
+}
+
 func TestVolumeManager_ensureStagingDir(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
 
 	cases := []struct {
@@ -118,7 +133,11 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 }
 
 func TestVolumeManager_stageVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name         string
 		Volume       *structs.CSIVolume
@@ -193,7 +212,11 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 }
 
 func TestVolumeManager_unstageVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name                 string
 		Volume               *structs.CSIVolume
@@ -251,7 +274,11 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 }
 
 func TestVolumeManager_publishVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name                     string
 		Allocation               *structs.Allocation
@@ -371,7 +398,11 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 }
 
 func TestVolumeManager_unpublishVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name                 string
 		Allocation           *structs.Allocation
@@ -432,6 +463,9 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 }
 
 func TestVolumeManager_MountVolumeEvents(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
 
 	tmpPath := tmpDir(t)
