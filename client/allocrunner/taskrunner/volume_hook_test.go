@@ -71,6 +71,8 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{
+			Name:   "test",
+			Driver: "mock",
 			VolumeMounts: []*structs.VolumeMount{
 				{
 					Volume:      "foo",
@@ -118,7 +120,7 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 					}, nil
 				},
 			},
-			ExpectedError: "task driver does not support CSI",
+			ExpectedError: "task driver \"mock\" for \"test\" does not support CSI",
 		},
 	}
 
@@ -126,6 +128,7 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 
 			tr := &TaskRunner{
+				task:   req.Task,
 				driver: tc.Driver,
 				allocHookResources: &cstructs.AllocHookResources{
 					CSIMounts: map[string]*csimanager.MountInfo{

@@ -100,7 +100,8 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 				}
 
 				if caps.MountConfigs == drivers.MountConfigSupportNone {
-					return nil, fmt.Errorf("task driver does not support CSI")
+					return nil, fmt.Errorf(
+						"task driver %q for %q does not support CSI", task.Driver, task.Name)
 				}
 			}
 
