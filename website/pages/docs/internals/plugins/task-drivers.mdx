@@ -48,13 +48,28 @@ Capabilities define what features the driver implements. Example:
 ```go
 Capabilities {
     // Does the driver support sending OS signals to the task?
-	SendSignals: true,
+    SendSignals: true,
     // Does the driver support executing a command within the task execution
     // environment?
-	Exec:        true,
+    Exec:        true,
     // What filesystem isolation is supported by the driver. Options include
     // FSIsolationImage, FSIsolationChroot, and FSIsolationNone
-	FSIsolation: FSIsolationImage,
+    FSIsolation: FSIsolationImage,
+
+    // NetIsolationModes lists the set of isolation modes supported by the driver.
+    // Options include NetIsolationModeHost, NetIsolationModeGroup,
+    // NetIsolationModeTask, and NetIsolationModeNone.
+    NetIsolationModes []NetIsolationMode
+
+    // MustInitiateNetwork tells Nomad that the driver must create the network
+    // namespace and that the CreateNetwork and DestroyNetwork RPCs are implemented.
+    MustInitiateNetwork bool
+
+    // MountConfigs tells Nomad which mounting config options the driver
+    // supports. This is used to check whether mounting host volumes or CSI
+    // volumes is allowed. Options include MountConfigSupportAll (default),
+    // or MountConfigSupportNone.
+    MountConfigs MountConfigSupport
 }
 ```
 
