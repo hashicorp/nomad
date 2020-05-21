@@ -390,7 +390,9 @@ func (s *Server) revokeVaultAccessorsOnRestore() error {
 	}
 
 	if len(revoke) != 0 {
-		if err := s.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
+		s.logger.Info("revoking vault accessors on restore", "accessors", len(revoke))
+
+		if err := s.vault.MarkForRevocation(revoke); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
 		}
 	}

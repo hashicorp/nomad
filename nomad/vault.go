@@ -121,6 +121,9 @@ type VaultClient interface {
 	// RevokeTokens takes a set of tokens accessor and revokes the tokens
 	RevokeTokens(ctx context.Context, accessors []*structs.VaultAccessor, committed bool) error
 
+	// MarkForRevocation revokes the tokens in background
+	MarkForRevocation(accessors []*structs.VaultAccessor) error
+
 	// Stop is used to stop token renewal
 	Stop()
 
@@ -1125,6 +1128,19 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 	// Track that it was revoked successfully
 	metrics.IncrCounter([]string{"nomad", "vault", "distributed_tokens_revoked"}, float32(len(accessors)))
 
+	return nil
+}
+
+func (v *vaultClient) MarkForRevocation(accessors []*structs.VaultAccessor) error {
+	if !v.Enabled() {
+		return nil
+	}
+
+	if !v.Active() {
+		return fmt.Errorf("Vault client not active")
+	}
+
+	v.storeForRevocation(accessors)
 	return nil
 }
 

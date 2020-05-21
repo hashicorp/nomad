@@ -135,6 +135,11 @@ func (v *TestVaultClient) RevokeTokens(ctx context.Context, accessors []*structs
 	return nil
 }
 
+func (v *TestVaultClient) MarkForRevocation(accessors []*structs.VaultAccessor) error {
+	v.RevokedTokens = append(v.RevokedTokens, accessors...)
+	return nil
+}
+
 func (v *TestVaultClient) Stop()                                                  {}
 func (v *TestVaultClient) SetActive(enabled bool)                                 {}
 func (v *TestVaultClient) SetConfig(config *config.VaultConfig) error             { return nil }

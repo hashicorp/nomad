@@ -1365,6 +1365,33 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 	}
 }
 
+func TestVaultClient_MarkForRevocation(t *testing.T) {
+	vconfig := &config.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Token:   uuid.Generate(),
+		Addr:    "http://127.0.0.1:0",
+	}
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(vconfig, logger, nil)
+	require.NoError(t, err)
+
+	client.SetActive(true)
+	defer client.Stop()
+
+	// Create some VaultAccessors
+	vas := []*structs.VaultAccessor{
+		mock.VaultAccessor(),
+		mock.VaultAccessor(),
+	}
+
+	err = client.MarkForRevocation(vas)
+	require.NoError(t, err)
+
+	// Wasn't committed
+	require.Len(t, client.revoking, 2)
+	require.Equal(t, 2, client.stats().TrackedForRevoke)
+
+}
 func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	t.Parallel()
 	vconfig := &config.VaultConfig{
