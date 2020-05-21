@@ -95,6 +95,9 @@ type ConsulACLsAPI interface {
 	// RevokeTokens instructs Consul to revoke the given token accessors.
 	RevokeTokens(context.Context, []*structs.SITokenAccessor, bool) bool
 
+	// MarkForRevocation marks the tokens for background revocation
+	MarkForRevocation([]*structs.SITokenAccessor)
+
 	// Stop is used to stop background token revocations. Intended to be used
 	// on Nomad Server shutdown.
 	Stop()
@@ -285,6 +288,10 @@ func (c *consulACLsAPI) RevokeTokens(ctx context.Context, accessors []*structs.S
 	return false
 }
 
+func (c *consulACLsAPI) MarkForRevocation(accessors []*structs.SITokenAccessor) {
+	c.storeForRevocation(accessors)
+}
+
 func (c *consulACLsAPI) storeForRevocation(accessors []*structs.SITokenAccessor) {
 	c.bgRevokeLock.Lock()
 	defer c.bgRevokeLock.Unlock()
@@ -369,6 +376,10 @@ func (c *consulACLsAPI) bgRetryRevokeDaemon() {
 	}
 }
 
+// maxConsulRevocationBatchSize is the maximum tokens a bgRetryRevoke should revoke
+// at any given time.
+const maxConsulRevocationBatchSize = 1000
+
 func (c *consulACLsAPI) bgRetryRevoke() {
 	c.bgRevokeLock.Lock()
 	defer c.bgRevokeLock.Unlock()
@@ -380,7 +391,11 @@ func (c *consulACLsAPI) bgRetryRevoke() {
 
 	// unlike vault tokens, SI tokens do not have a TTL, and so we must try to
 	// remove all SI token accessors, every time, until they're gone
-	toPurge := make([]*structs.SITokenAccessor, len(c.bgRetryRevocation), len(c.bgRetryRevocation))
+	toRevoke := len(c.bgRetryRevocation)
+	if toRevoke > maxConsulRevocationBatchSize {
+		toRevoke = maxConsulRevocationBatchSize
+	}
+	toPurge := make([]*structs.SITokenAccessor, toRevoke)
 	copy(toPurge, c.bgRetryRevocation)
 
 	if err := c.parallelRevoke(context.Background(), toPurge); err != nil {
