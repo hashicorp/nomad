@@ -1,0 +1,191 @@
+{{title "CSI Plugin " model.plainId}}
+<div data-test-subnav="plugins" class="tabs is-subnav">
+  <ul>
+    <li data-test-tab="overview">{{#link-to "csi.plugins.plugin.index" model activeClass="is-active"}}Overview{{/link-to}}</li>
+    <li data-test-tab="allocations">{{#link-to "csi.plugins.plugin.allocations" model activeClass="is-active"}}Allocations{{/link-to}}</li>
+  </ul>
+</div>
+<section class="section">
+  <h1 class="title" data-test-title>{{model.plainId}}</h1>
+
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Plugin Details</span>
+      {{#if model.controllerRequired}}
+        <span class="pair" data-test-plugin-controller-health>
+          <span class="term">Controller Health</span>
+          {{format-percentage model.controllersHealthy total=model.controllersExpected}}
+          ({{model.controllersHealthy}}/{{model.controllersExpected}})
+        </span>
+      {{/if}}
+      <span class="pair" data-test-plugin-node-health>
+        <span class="term">Node Health</span>
+        {{format-percentage model.nodesHealthy total=model.nodesExpected}}
+        ({{model.nodesHealthy}}/{{model.nodesExpected}})
+      </span>
+      <span class="pair" data-test-plugin-provider>
+        <span class="term">Provider</span>
+        {{model.provider}}
+      </span>
+    </div>
+  </div>
+
+  <div class="columns">
+    {{#if model.controllerRequired}}
+      <div class="column" data-test-plugin-controller-availability>
+        <div class="boxed-section">
+          <div class="boxed-section-head is-hollow">Controller Health</div>
+          <div class="boxed-section-body">
+            <div class="columns is-centered is-bottom-aligned">
+              <div class="column is-half">
+                {{gauge-chart
+                  label="Availability"
+                  value=model.controllersHealthy
+                  total=model.controllersExpected}}
+              </div>
+              <div class="column">
+                <div class="metric">
+                  <h3 class="label">Available</h3>
+                  <p class="value">{{model.controllersHealthy}}</p>
+                </div>
+              </div>
+              <div class="column">
+                <div class="metric">
+                  <h3 class="label">Expected</h3>
+                  <p class="value">{{model.controllersExpected}}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {{/if}}
+    <div class="column">
+      <div class="boxed-section" data-test-plugin-node-availability>
+        <div class="boxed-section-head is-hollow">Node Health</div>
+        <div class="boxed-section-body">
+          <div class="columns is-centered is-bottom-aligned {{unless model.controllerRequired "is-max-half"}}">
+            <div class="column is-half">
+              {{gauge-chart
+                label="Availability"
+                value=model.nodesHealthy
+                total=model.nodesExpected}}
+            </div>
+            <div class="column">
+              <div class="metric">
+                <h3 class="label">Available</h3>
+                <p class="value">{{model.nodesHealthy}}</p>
+              </div>
+            </div>
+            <div class="column">
+              <div class="metric">
+                <h3 class="label">Expected</h3>
+                <p class="value">{{model.nodesExpected}}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{#if model.controllerRequired}}
+    <div class="boxed-section" data-test-controller-allocations>
+      <div class="boxed-section-head">
+        Controller Allocations
+      </div>
+      <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
+        {{#if model.controllers}}
+          {{#list-table
+            source=(take 10 sortedControllers)
+            class="with-foot" as |t|}}
+            {{#t.head}}
+              <th class="is-narrow"></th>
+              <td>ID</td>
+              <th>Created</th>
+              <th>Modified</th>
+              <th>Health</th>
+              <th>Client</th>
+              <th>Job</th>
+              <th>Version</th>
+              <th>Volumes</th>
+              <th>CPU</th>
+              <th>Memory</th>
+            {{/t.head}}
+            {{#t.body key="model.allocID" as |row|}}
+              {{plugin-allocation-row
+                data-test-controller-allocation=row.model.allocID
+                pluginAllocation=row.model}}
+            {{/t.body}}
+          {{/list-table}}
+        {{else}}
+          <div class="empty-message" data-test-empty-controller-allocations>
+            <h3 class="empty-message-headline" data-test-empty-controller-allocations-headline>No Controller Plugin Allocations</h3>
+            <p class="empty-message-body" data-test-empty-controller-allocations-message>No allocations are providing controller plugin service.</p>
+          </div>
+        {{/if}}
+      </div>
+      {{#if model.controllers}}
+        <div class="boxed-section-foot">
+          <p class="pull-right">
+          {{#link-to "csi.plugins.plugin.allocations"
+            model
+            data-test-go-to-controller-allocations
+            (query-params qpType=(qp-serialize (array "controller")))}}
+            View all {{model.controllers.length}} Controller {{pluralize "allocation" model.controllers.length}}
+          {{/link-to}}
+          </p>
+        </div>
+      {{/if}}
+    </div>
+  {{/if}}
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Node Allocations
+    </div>
+    <div class="boxed-section-body {{if model.nodes "is-full-bleed"}}">
+      {{#if model.nodes}}
+        {{#list-table
+          source=(take 10 sortedNodes)
+          class="with-foot" as |t|}}
+          {{#t.head}}
+            <th class="is-narrow"></th>
+            <td>ID</td>
+            <th>Created</th>
+            <th>Modified</th>
+            <th>Health</th>
+            <th>Client</th>
+            <th>Job</th>
+            <th>Version</th>
+            <th>Volumes</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          {{/t.head}}
+          {{#t.body key="model.allocID" as |row|}}
+            {{plugin-allocation-row
+              data-test-node-allocation=row.model.allocID
+              pluginAllocation=row.model}}
+          {{/t.body}}
+        {{/list-table}}
+      {{else}}
+        <div class="empty-message" data-test-empty-node-allocations>
+          <h3 class="empty-message-headline" data-test-empty-node-allocations-headline>No Node Plugin Allocations</h3>
+          <p class="empty-message-body" data-test-empty-node-allocations-message>No allocations are providing node plugin service.</p>
+        </div>
+      {{/if}}
+    </div>
+    {{#if model.nodes}}
+      <div class="boxed-section-foot">
+        <p class="pull-right">
+        {{#link-to "csi.plugins.plugin.allocations"
+          model
+          data-test-go-to-node-allocations
+          (query-params qpType=(qp-serialize (array "node")))}}
+          View all {{model.nodes.length}} Node {{pluralize "allocation" model.nodes.length}}
+        {{/link-to}}
+        </p>
+      </div>
+    {{/if}}
+  </div>
+</section>
