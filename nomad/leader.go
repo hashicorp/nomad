@@ -251,18 +251,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Activate the vault client
 	s.vault.SetActive(true)
-	// Cleanup orphaned Vault token accessors
-	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
-		return err
-	}
-
-	// Cleanup orphaned Service Identity token accessors
-	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
-		return err
-	}
 
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
+
+	// Activate RPCs after all leadership components are enabled
+	// and the server can handle write RPCs
+	s.setConsistentReadReady()
+
+	// Further clean ups and follow up that don't block RPC consistency
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
@@ -313,7 +310,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	s.setConsistentReadReady()
+	// Cleanup orphaned Vault token accessors
+	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
+		return err
+	}
+
+	// Cleanup orphaned Service Identity token accessors
+	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
+		return err
+	}
 
 	return nil
 }
