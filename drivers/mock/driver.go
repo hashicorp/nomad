@@ -154,9 +154,10 @@ func NewMockDriver(logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 
 	capabilities := &drivers.Capabilities{
-		SendSignals: true,
-		Exec:        true,
-		FSIsolation: drivers.FSIsolationNone,
+		SendSignals:  true,
+		Exec:         true,
+		FSIsolation:  drivers.FSIsolationNone,
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
 	return &Driver{

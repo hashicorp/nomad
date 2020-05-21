@@ -376,6 +376,7 @@ var (
 			drivers.NetIsolationModeTask,
 		},
 		MustInitiateNetwork: true,
+		MountConfigs:        drivers.MountConfigSupportAll,
 	}
 )
 

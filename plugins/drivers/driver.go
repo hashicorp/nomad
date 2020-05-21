@@ -163,6 +163,9 @@ type Capabilities struct {
 	// MustInitiateNetwork tells Nomad that the driver must create the network
 	// namespace and that the CreateNetwork and DestroyNetwork RPCs are implemented.
 	MustInitiateNetwork bool
+
+	// MountConfigs tells Nomad which mounting config options the driver supports.
+	MountConfigs MountConfigSupport
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
@@ -196,6 +199,15 @@ type NetworkIsolationSpec struct {
 	Path   string
 	Labels map[string]string
 }
+
+// MountConfigSupport is an enum that defaults to "all" for backwards
+// compatibility with community drivers.
+type MountConfigSupport int32
+
+const (
+	MountConfigSupportAll MountConfigSupport = iota
+	MountConfigSupportNone
+)
 
 type TerminalSize struct {
 	Height int

@@ -87,6 +87,7 @@ var (
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
 		},
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -95,6 +96,7 @@ var (
 func init() {
 	if runtime.GOOS == "linux" {
 		capabilities.FSIsolation = drivers.FSIsolationChroot
+		capabilities.MountConfigs = drivers.MountConfigSupportAll
 	}
 }
 
