@@ -1262,9 +1262,10 @@ func (v *vaultClient) revokeDaemon() {
 				toRevoke = maxVaultRevokeBatchSize
 			}
 			revoking := make([]*structs.VaultAccessor, 0, toRevoke)
+			ttlExpired := []*structs.VaultAccessor{}
 			for va, ttl := range v.revoking {
 				if now.After(ttl) {
-					delete(v.revoking, va)
+					ttlExpired = append(ttlExpired, va)
 				} else {
 					revoking = append(revoking, va)
 				}
@@ -1282,6 +1283,10 @@ func (v *vaultClient) revokeDaemon() {
 
 			// Unlock before a potentially expensive operation
 			v.revLock.Unlock()
+
+			// purge all explicitly revoked as well as ttl expired tokens
+			// and only remove them locally on purge success
+			revoking = append(revoking, ttlExpired...)
 
 			// Call the passed in token revocation function
 			if err := v.purgeFn(revoking); err != nil {
