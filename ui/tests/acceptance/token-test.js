@@ -39,7 +39,7 @@ module('Acceptance | tokens', function(hooks) {
   });
 
   // TODO: unskip once store.unloadAll reliably waits for in-flight requests to settle
-  skip('the X-Nomad-Token header gets sent with requests once it is set', async function(assert) {
+  skip('the x-nomad-token header gets sent with requests once it is set', async function(assert) {
     const { secretId } = managementToken;
 
     await JobDetail.visit({ id: job.id });
@@ -48,7 +48,7 @@ module('Acceptance | tokens', function(hooks) {
     assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
 
     server.pretender.handledRequests.forEach(req => {
-      assert.notOk(getHeader(req, 'X-Nomad-Token'), `No token for ${req.url}`);
+      assert.notOk(getHeader(req, 'x-nomad-token'), `No token for ${req.url}`);
     });
 
     const requestPosition = server.pretender.handledRequests.length;
@@ -64,7 +64,7 @@ module('Acceptance | tokens', function(hooks) {
 
     // Cross-origin requests can't have a token
     newRequests.forEach(req => {
-      assert.equal(getHeader(req, 'X-Nomad-Token'), secretId, `Token set for ${req.url}`);
+      assert.equal(getHeader(req, 'x-nomad-token'), secretId, `Token set for ${req.url}`);
     });
   });
 
