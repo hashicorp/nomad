@@ -10,22 +10,6 @@ export default ApplicationAdapter.extend({
   watchList: service(),
   store: service(),
 
-  ajaxOptions(url, type, options) {
-    const ajaxOptions = this._super(url, type, options);
-
-    // Since ajax has been changed to include query params in the URL,
-    // we have to remove query params that are in the URL from the data
-    // object so they don't get passed along twice.
-    const [newUrl, params] = ajaxOptions.url.split('?');
-    const queryParams = queryString.parse(params);
-    ajaxOptions.url = !params ? newUrl : `${newUrl}?${queryString.stringify(queryParams)}`;
-    Object.keys(queryParams).forEach(key => {
-      delete ajaxOptions.data[key];
-    });
-
-    return ajaxOptions;
-  },
-
   // Overriding ajax is not advised, but this is a minimal modification
   // that sets off a series of events that results in query params being
   // available in handleResponse below. Unfortunately, this is the only
@@ -39,6 +23,11 @@ export default ApplicationAdapter.extend({
 
     const params = { ...options.data };
     delete params.index;
+
+    // Options data gets appended as query params as part of ajaxOptions.
+    // In order to prevent doubling params, data should only include index
+    // at this point since everything else is added to the URL in advance.
+    options.data = options.data.index ? { index: options.data.index } : {};
 
     return this._super(`${url}?${queryString.stringify(params)}`, type, options);
   },
@@ -80,17 +69,17 @@ export default ApplicationAdapter.extend({
 
   query(store, type, query, snapshotRecordArray, options, additionalParams = {}) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
-    let [, params] = url.split('?');
+    let [urlPath, params] = url.split('?');
     params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams, query);
 
     if (get(options, 'adapterOptions.watch')) {
       // The intended query without additional blocking query params is used
       // to track the appropriate query index.
-      params.index = this.watchList.getIndexFor(`${url}?${queryString.stringify(query)}`);
+      params.index = this.watchList.getIndexFor(`${urlPath}?${queryString.stringify(query)}`);
     }
 
     const signal = get(options, 'adapterOptions.abortController.signal');
-    return this.ajax(url, 'GET', {
+    return this.ajax(urlPath, 'GET', {
       signal,
       data: params,
     }).then(payload => {
