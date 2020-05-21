@@ -224,3 +224,26 @@ type SchedulerSetConfigRequest struct {
 	// WriteRequest holds the ACL token to go along with this request.
 	WriteRequest
 }
+
+// SnapshotSaveRequest is used by the Operator endpoint to get a Raft snapshot
+type SnapshotSaveRequest struct {
+	QueryOptions
+}
+
+// SnapshotSaveResponse is the header for the streaming snapshot endpoint,
+// and followed by the snapshot file content.
+// It is written to the
+type SnapshotSaveResponse struct {
+
+	// SnapshotChecksum returns the checksum of snapshot file in the format
+	// `<algo>=<base64>` (e.g. `sha-256=...`)
+	SnapshotChecksum string
+
+	// ErrorCode is an http error code if an error is found, e.g. 403 for permission errors
+	ErrorCode int `codec:",omitempty"`
+
+	// ErrorMsg is the error message if an error is found, e.g. "Permission Denied"
+	ErrorMsg string `codec:",omitempty"`
+
+	QueryMeta
+}

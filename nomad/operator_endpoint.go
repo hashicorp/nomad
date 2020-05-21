@@ -2,11 +2,14 @@ package nomad
 
 import (
 	"fmt"
+	"io"
 	"net"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -16,6 +19,10 @@ import (
 type Operator struct {
 	srv    *Server
 	logger log.Logger
+}
+
+func (op *Operator) register() {
+	op.srv.streamingRpcs.Register("Operator.SnapshotSave", op.snapshotSave)
 }
 
 // RaftGetConfiguration is used to retrieve the current Raft configuration.
@@ -354,4 +361,112 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	op.srv.setQueryMeta(&reply.QueryMeta)
 
 	return nil
+}
+
+func (op *Operator) forwardStreamingRPC(region string, method string, args interface{}, in io.ReadWriteCloser) error {
+	server, err := op.srv.findRegionServer(region)
+	if err != nil {
+		return err
+	}
+
+	return op.forwardStreamingRPCToServer(server, method, args, in)
+}
+
+func (op *Operator) forwardStreamingRPCToServer(server *serverParts, method string, args interface{}, in io.ReadWriteCloser) error {
+	srvConn, err := op.srv.streamingRpc(server, method)
+	if err != nil {
+		return err
+	}
+	defer srvConn.Close()
+
+	outEncoder := codec.NewEncoder(srvConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		return err
+	}
+
+	structs.Bridge(in, srvConn)
+	return nil
+}
+
+func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
+	defer conn.Close()
+
+	var args structs.SnapshotSaveRequest
+	var reply structs.SnapshotSaveResponse
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	handleFailure := func(code int, err error) {
+		encoder.Encode(&structs.SnapshotSaveResponse{
+			ErrorCode: code,
+			ErrorMsg:  err.Error(),
+		})
+	}
+
+	if err := decoder.Decode(&args); err != nil {
+		handleFailure(500, err)
+		return
+	}
+
+	// Forward to appropriate region
+	if args.Region != op.srv.Region() {
+		err := op.forwardStreamingRPC(args.Region, "Operator.SnapshotSave", args, conn)
+		if err != nil {
+			handleFailure(500, err)
+		}
+		return
+	}
+
+	// forward to leader
+	if !args.AllowStale {
+		remoteServer, err := op.srv.getLeaderForRPC()
+		if err != nil {
+			handleFailure(500, err)
+			return
+		}
+		if remoteServer != nil {
+			err := op.forwardStreamingRPCToServer(remoteServer, "Operator.SnapshotSave", args, conn)
+			if err != nil {
+				handleFailure(500, err)
+			}
+			return
+
+		}
+	}
+
+	// Check agent permissions
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
+		code := 500
+		if err == structs.ErrTokenNotFound {
+			code = 400
+		}
+		handleFailure(code, err)
+		return
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		handleFailure(403, structs.ErrPermissionDenied)
+		return
+	}
+
+	op.srv.setQueryMeta(&reply.QueryMeta)
+
+	// Take the snapshot and capture the index.
+	snap, err := snapshot.New(op.logger, op.srv.raft)
+	reply.SnapshotChecksum = snap.Checksum()
+	reply.Index = snap.Index()
+	if err != nil {
+		handleFailure(500, err)
+		return
+	}
+	defer snap.Close()
+
+	enc := codec.NewEncoder(conn, structs.MsgpackHandle)
+	if err := enc.Encode(&reply); err != nil {
+		handleFailure(500, fmt.Errorf("failed to encode response: %v", err))
+		return
+	}
+	if snap != nil {
+		if _, err := io.Copy(conn, snap); err != nil {
+			handleFailure(500, fmt.Errorf("failed to stream snapshot: %v", err))
+		}
+	}
 }

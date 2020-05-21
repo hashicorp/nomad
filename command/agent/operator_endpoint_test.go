@@ -2,9 +2,15 @@ package agent
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -381,4 +387,40 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 		require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 		require.False(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
 	})
+}
+
+func TestOperator_SnapshotSaveRequest(t *testing.T) {
+	t.Parallel()
+
+	////// Nomad clusters topology - not specific to test
+	dir, err := ioutil.TempDir("", "nomadtest-operator-")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	httpTest(t, func(c *Config) {
+		c.Server.BootstrapExpect = 1
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server")
+		c.AdvertiseAddrs.HTTP = "127.0.0.1"
+		c.AdvertiseAddrs.RPC = "127.0.0.1"
+		c.AdvertiseAddrs.Serf = "127.0.0.1"
+	}, func(s *TestAgent) {
+		req, _ := http.NewRequest("GET", "/v1/operator/snapshot", nil)
+		resp := httptest.NewRecorder()
+		_, err := s.Server.SnapshotRequest(resp, req)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.Code)
+
+		digest := resp.Header().Get("Digest")
+		require.NotEmpty(t, digest)
+		require.Contains(t, digest, "sha-256=")
+
+		hash := sha256.New()
+		_, err = io.Copy(hash, resp.Body)
+		require.NoError(t, err)
+
+		expectedChecksum := "sha-256=" + base64.StdEncoding.EncodeToString(hash.Sum(nil))
+		require.Equal(t, digest, expectedChecksum)
+	})
+
 }

@@ -507,8 +507,6 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 // forward is used to forward to a remote region or to forward to the local leader
 // Returns a bool of if forwarding was performed, as well as any error
 func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
-	var firstCheck time.Time
-
 	region := info.RequestRegion()
 	if region == "" {
 		return true, fmt.Errorf("missing region for target RPC")
@@ -527,21 +525,37 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 		return false, nil
 	}
 
+	remoteServer, err := r.getLeaderForRPC()
+	if err != nil {
+		return false, err
+	}
+
+	// we are the leader
+	if remoteServer == nil {
+		return false, nil
+	}
+
+	// forward to leader
+	info.SetForwarded()
+	err = r.forwardLeader(remoteServer, method, args, reply)
+	return true, err
+}
+
+func (r *rpcHandler) getLeaderForRPC() (*serverParts, error) {
+	var firstCheck time.Time
+
 CHECK_LEADER:
 	// Find the leader
 	isLeader, remoteServer := r.getLeader()
 
 	// Handle the case we are the leader
 	if isLeader && r.Server.isReadyForConsistentReads() {
-		return false, nil
+		return nil, nil
 	}
 
 	// Handle the case of a known leader
 	if remoteServer != nil {
-		// Mark that we are forwarding the RPC
-		info.SetForwarded()
-		err := r.forwardLeader(remoteServer, method, args, reply)
-		return true, err
+		return remoteServer, nil
 	}
 
 	// Gate the request until there is a leader
@@ -559,10 +573,11 @@ CHECK_LEADER:
 
 	// hold time exceeeded without being ready to respond
 	if isLeader {
-		return true, structs.ErrNotReadyForConsistentReads
+		return nil, structs.ErrNotReadyForConsistentReads
 	}
 
-	return true, structs.ErrNoLeader
+	return nil, structs.ErrNoLeader
+
 }
 
 // getLeader returns if the current node is the leader, and if not
@@ -607,21 +622,27 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
-// forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
-func (r *rpcHandler) forwardRegion(region, method string, args interface{}, reply interface{}) error {
-	// Bail if we can't find any servers
+func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
 	r.peerLock.RLock()
+	defer r.peerLock.RUnlock()
+
 	servers := r.peers[region]
 	if len(servers) == 0 {
-		r.peerLock.RUnlock()
 		r.logger.Warn("no path found to region", "region", region)
-		return structs.ErrNoRegionPath
+		return nil, structs.ErrNoRegionPath
 	}
 
 	// Select a random addr
 	offset := rand.Intn(len(servers))
-	server := servers[offset]
-	r.peerLock.RUnlock()
+	return servers[offset], nil
+}
+
+// forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
+func (r *rpcHandler) forwardRegion(region, method string, args interface{}, reply interface{}) error {
+	server, err := r.findRegionServer(region)
+	if err != nil {
+		return err
+	}
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)

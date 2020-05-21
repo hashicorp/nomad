@@ -126,8 +126,15 @@ func (a *TestAgent) Start() *TestAgent {
 
 	i := 10
 
+	advertiseAddrs := *a.Config.AdvertiseAddrs
 RETRY:
 	i--
+
+	// Clear out the advertise addresses such that through retries we
+	// re-normalize the addresses correctly instead of using the values from the
+	// last port selection that had a port conflict.
+	newAddrs := advertiseAddrs
+	a.Config.AdvertiseAddrs = &newAddrs
 	a.pickRandomPorts(a.Config)
 	if a.Config.NodeName == "" {
 		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
@@ -311,15 +318,6 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 	c.Ports.HTTP = ports[0]
 	c.Ports.RPC = ports[1]
 	c.Ports.Serf = ports[2]
-
-	// Clear out the advertise addresses such that through retries we
-	// re-normalize the addresses correctly instead of using the values from the
-	// last port selection that had a port conflict.
-	if c.AdvertiseAddrs != nil {
-		c.AdvertiseAddrs.HTTP = ""
-		c.AdvertiseAddrs.RPC = ""
-		c.AdvertiseAddrs.Serf = ""
-	}
 
 	if err := c.normalizeAddrs(); err != nil {
 		a.T.Fatalf("error normalizing config: %v", err)

@@ -1,14 +1,24 @@
 package nomad
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net"
+	"os"
+	"path"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/freeport"
+	"github.com/hashicorp/nomad/helper/snapshot"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -520,4 +530,187 @@ func TestOperator_SchedulerSetConfiguration_ACL(t *testing.T) {
 		require.Nil(err)
 	}
 
+}
+
+func TestOperator_SnapshotSave(t *testing.T) {
+	t.Parallel()
+
+	////// Nomad clusters topology - not specific to test
+	dir, err := ioutil.TempDir("", "nomadtest-operator-")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	server1, cleanupLS := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server1")
+	})
+	defer cleanupLS()
+
+	server2, cleanupRS := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server2")
+	})
+	defer cleanupRS()
+
+	remoteRegionServer, cleanupRRS := TestServer(t, func(c *Config) {
+		c.Region = "two"
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "remote_region_server")
+	})
+	defer cleanupRRS()
+
+	TestJoin(t, server1, server2)
+	TestJoin(t, server1, remoteRegionServer)
+	testutil.WaitForLeader(t, server1.RPC)
+	testutil.WaitForLeader(t, server2.RPC)
+	testutil.WaitForLeader(t, remoteRegionServer.RPC)
+
+	leader, nonLeader := server1, server2
+	if server2.IsLeader() {
+		leader, nonLeader = server2, server1
+	}
+
+	/////////  Actually run query now
+	cases := []struct {
+		name   string
+		server *Server
+	}{
+		{"leader", leader},
+		{"non_leader", nonLeader},
+		{"remote_region", remoteRegionServer},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			handler, err := c.server.StreamingRpcHandler("Operator.SnapshotSave")
+			require.NoError(t, err)
+
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			// start handler
+			go handler(p2)
+
+			var req structs.SnapshotSaveRequest
+			var resp structs.SnapshotSaveResponse
+
+			req.Region = "global"
+
+			// send request
+			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+			err = encoder.Encode(&req)
+			require.NoError(t, err)
+
+			decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+			err = decoder.Decode(&resp)
+			require.NoError(t, err)
+			require.Empty(t, resp.ErrorMsg)
+
+			require.NotZero(t, resp.Index)
+			require.NotEmpty(t, resp.SnapshotChecksum)
+			require.Contains(t, resp.SnapshotChecksum, "sha-256=")
+
+			index := resp.Index
+
+			snap, err := ioutil.TempFile("", "nomadtests-snapshot-")
+			require.NoError(t, err)
+			defer os.Remove(snap.Name())
+
+			hash := sha256.New()
+			_, err = io.Copy(io.MultiWriter(snap, hash), p1)
+			require.NoError(t, err)
+
+			expectedChecksum := "sha-256=" + base64.StdEncoding.EncodeToString(hash.Sum(nil))
+
+			require.Equal(t, expectedChecksum, resp.SnapshotChecksum)
+
+			_, err = snap.Seek(0, 0)
+			require.NoError(t, err)
+
+			meta, err := snapshot.Verify(snap)
+			require.NoError(t, err)
+
+			require.NotZerof(t, meta.Term, "snapshot term")
+			require.Equal(t, index, meta.Index)
+		})
+	}
+}
+
+func TestOperator_SnapshotSave_ACL(t *testing.T) {
+	t.Parallel()
+
+	////// Nomad clusters topology - not specific to test
+	dir, err := ioutil.TempDir("", "nomadtest-operator-")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	s, root, cleanupLS := TestACLServer(t, func(c *Config) {
+		c.BootstrapExpect = 1
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server1")
+	})
+	defer cleanupLS()
+
+	testutil.WaitForLeader(t, s.RPC)
+
+	deniedToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+	/////////  Actually run query now
+	cases := []struct {
+		name    string
+		token   string
+		errCode int
+		err     error
+	}{
+		{"root", root.SecretID, 0, nil},
+		{"no_permission_token", deniedToken.SecretID, 403, structs.ErrPermissionDenied},
+		{"invalid token", uuid.Generate(), 400, structs.ErrTokenNotFound},
+		{"unauthenticated", "", 403, structs.ErrPermissionDenied},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			handler, err := s.StreamingRpcHandler("Operator.SnapshotSave")
+			require.NoError(t, err)
+
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			// start handler
+			go handler(p2)
+
+			var req structs.SnapshotSaveRequest
+			var resp structs.SnapshotSaveResponse
+
+			req.Region = "global"
+			req.AuthToken = c.token
+
+			// send request
+			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+			err = encoder.Encode(&req)
+			require.NoError(t, err)
+
+			decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+			err = decoder.Decode(&resp)
+			require.NoError(t, err)
+
+			// streaming errors appear as a response rather than a returned error
+			if c.err != nil {
+				require.Equal(t, c.err.Error(), resp.ErrorMsg)
+				require.Equal(t, c.errCode, resp.ErrorCode)
+				return
+
+			}
+
+			require.NotZero(t, resp.Index)
+			require.NotEmpty(t, resp.SnapshotChecksum)
+			require.Contains(t, resp.SnapshotChecksum, "sha-256=")
+
+			io.Copy(ioutil.Discard, p1)
+		})
+	}
 }
