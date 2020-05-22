@@ -146,6 +146,10 @@ type consulACLsAPI struct {
 }
 
 func NewConsulACLsAPI(aclClient consul.ACLsAPI, logger hclog.Logger, purgeFunc PurgeSITokenAccessorFunc) *consulACLsAPI {
+	if purgeFunc == nil {
+		purgeFunc = func([]*structs.SITokenAccessor) error { return nil }
+	}
+
 	c := &consulACLsAPI{
 		aclClient: aclClient,
 		limiter:   rate.NewLimiter(siTokenRequestRateLimit, int(siTokenRequestRateLimit)),

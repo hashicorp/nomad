@@ -252,6 +252,9 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 	if logger == nil {
 		return nil, fmt.Errorf("must pass valid logger")
 	}
+	if purgeFn == nil {
+		purgeFn = func(accessors []*structs.VaultAccessor) error { return nil }
+	}
 
 	v := &vaultClient{
 		config:   c,
