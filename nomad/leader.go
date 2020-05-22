@@ -514,6 +514,10 @@ func (s *Server) restorePeriodicDispatcher() error {
 
 // schedulePeriodic is used to do periodic job dispatch while we are leader
 func (s *Server) schedulePeriodic(stopCh chan struct{}) {
+	id, start := uuid.Generate(), time.Now()
+	e.logger.Trace("leader periodic goroutine created", "id", id)
+	defer e.logger.Trace("leader periodic goroutine ended", "id", id, "duration", time.Since(start))
+
 	evalGC := time.NewTicker(s.config.EvalGCInterval)
 	defer evalGC.Stop()
 	nodeGC := time.NewTicker(s.config.NodeGCInterval)

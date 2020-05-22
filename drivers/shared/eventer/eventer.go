@@ -6,6 +6,7 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -62,10 +63,14 @@ func NewEventer(ctx context.Context, logger hclog.Logger) *Eventer {
 // eventLoop is the main logic which pulls events from the channel and broadcasts
 // them to all consumers
 func (e *Eventer) eventLoop() {
+	id, start := uuid.Generate(), time.Now()
+	e.logger.Trace("task event goroutine created", "id", id)
+	defer e.logger.Trace("task even goroutine ended", "id", id, "duration", time.Since(start))
+
 	for {
 		select {
 		case <-e.ctx.Done():
-			e.logger.Trace("task event loop shutdown")
+			e.logger.Trace("task event loop shutdown", "id", id)
 			return
 		case event := <-e.events:
 			e.iterateConsumers(event)
