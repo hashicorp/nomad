@@ -2,6 +2,7 @@ package volumewatcher
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -70,8 +71,8 @@ type claimBatch struct {
 // batcher is the long lived batcher goroutine
 func (b *VolumeUpdateBatcher) batcher() {
 	id, start := uuid.Generate(), time.Now()
-	e.logger.Trace("volume update batcher goroutine created", "id", id)
-	defer e.logger.Trace("volume update batcher goroutine ended", "id", id, "duration", time.Since(start))
+	fmt.Println("volume update batcher goroutine created", "id", id)
+	defer fmt.Println("volume update batcher goroutine ended", "id", id, "duration", time.Since(start))
 
 	// we track claimBatches rather than a slice of
 	// CSIVolumeClaimBatchRequest so that we can deduplicate updates
