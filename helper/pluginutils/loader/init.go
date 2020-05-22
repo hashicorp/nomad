@@ -90,6 +90,10 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 	for k, config := range plugins {
 		// Create an instance
 		raw := config.Factory(l.logger)
+		if s, ok := raw.(Shutdownable); ok {
+			defer s.Shutdown()
+		}
+
 		base, ok := raw.(base.BasePlugin)
 		if !ok {
 			multierror.Append(&mErr, fmt.Errorf("internal plugin %s doesn't meet base plugin interface", k))

@@ -65,7 +65,7 @@ func NewEventer(ctx context.Context, logger hclog.Logger) *Eventer {
 func (e *Eventer) eventLoop() {
 	id, start := uuid.Generate(), time.Now()
 	e.logger.Trace("task event goroutine created", "id", id)
-	defer e.logger.Trace("task even goroutine ended", "id", id, "duration", time.Since(start))
+	defer e.logger.Trace("task event goroutine ended", "id", id, "duration", time.Since(start))
 
 	for {
 		select {
