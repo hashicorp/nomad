@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 
@@ -31,7 +32,7 @@ type PluginCatalog interface {
 // InternalPluginConfig is used to configure launching an internal plugin.
 type InternalPluginConfig struct {
 	Config  map[string]interface{}
-	Factory plugins.PluginFactory
+	Factory plugins.PluginCtxFactory
 }
 
 // PluginID is a tuple identifying a plugin
@@ -92,7 +93,8 @@ type PluginLoader struct {
 // pluginInfo captures the necessary information to launch and configure a
 // plugin.
 type pluginInfo struct {
-	factory plugins.PluginFactory
+	factory    plugins.PluginFactory
+	ctxFactory plugins.PluginCtxFactory
 
 	exePath string
 	args    []string
@@ -152,9 +154,9 @@ func (l *PluginLoader) Dispense(name, pluginType string, config *base.AgentConfi
 
 	// If the plugin is internal, launch via the factory
 	var instance PluginInstance
-	if pinfo.factory != nil {
+	if pinfo.factory != nil || pinfo.ctxFactory != nil {
 		instance = &internalPluginInstance{
-			instance:   pinfo.factory(logger),
+			instance:   pinfo.ctxFactory(context.TODO(), logger),
 			apiVersion: pinfo.apiVersion,
 		}
 	} else {

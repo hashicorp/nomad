@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -85,15 +86,14 @@ func (l *PluginLoader) init(config *PluginLoaderConfig) error {
 
 // initInternal initializes internal plugins.
 func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, configs map[string]*config.PluginConfig) (map[PluginID]*pluginInfo, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var mErr multierror.Error
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for k, config := range plugins {
 		// Create an instance
-		raw := config.Factory(l.logger)
-		if s, ok := raw.(Shutdownable); ok {
-			defer s.Shutdown()
-		}
-
+		raw := config.Factory(ctx, l.logger)
 		base, ok := raw.(base.BasePlugin)
 		if !ok {
 			multierror.Append(&mErr, fmt.Errorf("internal plugin %s doesn't meet base plugin interface", k))
@@ -101,8 +101,8 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		}
 
 		info := &pluginInfo{
-			factory: config.Factory,
-			config:  config.Config,
+			ctxFactory: config.Factory,
+			config:     config.Config,
 		}
 
 		// Try to retrieve a user specified config
