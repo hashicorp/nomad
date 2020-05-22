@@ -1,6 +1,10 @@
 package loader
 
-import plugin "github.com/hashicorp/go-plugin"
+import (
+	"io"
+
+	plugin "github.com/hashicorp/go-plugin"
+)
 
 // PluginInstance wraps an instance of a plugin. If the plugin is external, it
 // provides methods to retrieve the ReattachConfig and to kill the plugin.
@@ -33,8 +37,21 @@ type internalPluginInstance struct {
 	apiVersion string
 }
 
-func (p *internalPluginInstance) Internal() bool                                 { return true }
-func (p *internalPluginInstance) Kill()                                          {}
+type Shutdownable interface {
+	Shutdown()
+}
+
+func (p *internalPluginInstance) Internal() bool { return true }
+func (p *internalPluginInstance) Kill() {
+	if i, ok := p.instance.(Shutdownable); ok {
+		i.Shutdown()
+	}
+	if i, ok := p.instance.(io.Closer); ok {
+		i.Close()
+	}
+
+}
+
 func (p *internalPluginInstance) ReattachConfig() (*plugin.ReattachConfig, bool) { return nil, false }
 func (p *internalPluginInstance) Plugin() interface{}                            { return p.instance }
 func (p *internalPluginInstance) Exited() bool                                   { return false }
