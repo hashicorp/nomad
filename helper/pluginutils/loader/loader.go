@@ -93,8 +93,7 @@ type PluginLoader struct {
 // pluginInfo captures the necessary information to launch and configure a
 // plugin.
 type pluginInfo struct {
-	factory    plugins.PluginFactory
-	ctxFactory plugins.PluginCtxFactory
+	factory plugins.PluginCtxFactory
 
 	exePath string
 	args    []string
@@ -154,10 +153,12 @@ func (l *PluginLoader) Dispense(name, pluginType string, config *base.AgentConfi
 
 	// If the plugin is internal, launch via the factory
 	var instance PluginInstance
-	if pinfo.factory != nil || pinfo.ctxFactory != nil {
+	if pinfo.factory != nil {
+		ctx, cancel := context.WithCancel(context.Background())
 		instance = &internalPluginInstance{
-			instance:   pinfo.ctxFactory(context.TODO(), logger),
+			instance:   pinfo.factory(ctx, logger),
 			apiVersion: pinfo.apiVersion,
+			killFn:     cancel,
 		}
 	} else {
 		var err error

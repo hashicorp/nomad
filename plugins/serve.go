@@ -11,6 +11,7 @@ import (
 
 // PluginFactory returns a new plugin instance
 type PluginFactory func(log log.Logger) interface{}
+
 type PluginCtxFactory func(ctx context.Context, log log.Logger) interface{}
 
 // Serve is used to serve a new Nomad plugin

@@ -101,8 +101,8 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		}
 
 		info := &pluginInfo{
-			ctxFactory: config.Factory,
-			config:     config.Config,
+			factory: config.Factory,
+			config:  config.Config,
 		}
 
 		// Try to retrieve a user specified config

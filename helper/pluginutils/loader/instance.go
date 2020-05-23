@@ -1,8 +1,6 @@
 package loader
 
 import (
-	"io"
-
 	plugin "github.com/hashicorp/go-plugin"
 )
 
@@ -35,22 +33,11 @@ type PluginInstance interface {
 type internalPluginInstance struct {
 	instance   interface{}
 	apiVersion string
-}
-
-type Shutdownable interface {
-	Shutdown()
+	killFn     func()
 }
 
 func (p *internalPluginInstance) Internal() bool { return true }
-func (p *internalPluginInstance) Kill() {
-	if i, ok := p.instance.(Shutdownable); ok {
-		i.Shutdown()
-	}
-	if i, ok := p.instance.(io.Closer); ok {
-		i.Close()
-	}
-
-}
+func (p *internalPluginInstance) Kill()          { p.killFn() }
 
 func (p *internalPluginInstance) ReattachConfig() (*plugin.ReattachConfig, bool) { return nil, false }
 func (p *internalPluginInstance) Plugin() interface{}                            { return p.instance }
