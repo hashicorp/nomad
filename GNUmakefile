@@ -173,7 +173,7 @@ deps:  ## Install build and development dependencies
 	GO111MODULE=on go get -u github.com/a8m/tree/cmd/tree
 	GO111MODULE=on go get -u github.com/magiconair/vendorfmt/cmd/vendorfmt
 	GO111MODULE=on go get -u gotest.tools/gotestsum
-	GO111MODULE=on go get -u github.com/fatih/hclfmt
+	GO111MODULE=on go get -u github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	GO111MODULE=on go get -u github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	GO111MODULE=on go get -u github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 
