@@ -13,6 +13,10 @@ BUG FIXES:
  * api: Fixed a bug where setting connect sidecar task resources could fail [[GH-7993](https://github.com/hashicorp/nomad/issues/7993)]
  * csi: Validate empty volume arguments in API. [[GH-8027](https://github.com/hashicorp/nomad/issues/8027)]
 
+BUG FIXES:
+
+ * api: Fixed a bug where setting connect sidecar task resources could fail [[GH-7993](https://github.com/hashicorp/nomad/issues/7993)]
+
 ## 0.11.2 (May 14, 2020)
 
 FEATURES:
