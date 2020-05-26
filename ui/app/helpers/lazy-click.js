@@ -1,5 +1,4 @@
 import Helper from '@ember/component/helper';
-import $ from 'jquery';
 
 /**
  * Lazy Click Event
@@ -10,7 +9,7 @@ import $ from 'jquery';
  * that should be handled instead.
  */
 export function lazyClick([onClick, event]) {
-  if (!$(event.target).is('a')) {
+  if (event.target.tagName.toLowerCase() !== 'a') {
     onClick(event);
   }
 }
