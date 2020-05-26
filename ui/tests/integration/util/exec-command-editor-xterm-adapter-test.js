@@ -3,7 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
-import { Terminal } from 'xterm-vendor';
+import { Terminal } from 'xterm';
 import KEYS from 'nomad-ui/utils/keys';
 
 module('Integration | Utility | exec-command-editor-xterm-adapter', function(hooks) {
@@ -42,7 +42,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
     await settled();
 
     assert.equal(
-      terminal.buffer
+      terminal.buffer.active
         .getLine(0)
         .translateToString()
         .trim(),
@@ -84,11 +84,11 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
 
     await settled();
 
-    assert.equal(terminal.buffer.cursorY, 0);
-    assert.equal(terminal.buffer.cursorX, 10);
+    assert.equal(terminal.buffer.active.cursorY, 0);
+    assert.equal(terminal.buffer.active.cursorX, 10);
 
     assert.equal(
-      terminal.buffer
+      terminal.buffer.active
         .getLine(0)
         .translateToString()
         .trim(),
@@ -124,7 +124,7 @@ module('Integration | Utility | exec-command-editor-xterm-adapter', function(hoo
     await settled();
 
     assert.equal(
-      terminal.buffer
+      terminal.buffer.active
         .getLine(0)
         .translateToString()
         .trim(),

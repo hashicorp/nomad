@@ -88,7 +88,7 @@ module('Acceptance | exec', function(hooks) {
     await Exec.visitJob({ job: this.job.id });
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(0)
         .translateToString()
         .trim(),
@@ -243,7 +243,7 @@ module('Acceptance | exec', function(hooks) {
     assert.ok(Exec.taskGroups[0].tasks[0].isActive);
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(2)
         .translateToString()
         .trim(),
@@ -251,7 +251,7 @@ module('Acceptance | exec', function(hooks) {
     );
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(4)
         .translateToString()
         .trim(),
@@ -259,7 +259,7 @@ module('Acceptance | exec', function(hooks) {
     );
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(6)
         .translateToString()
         .trim(),
@@ -291,7 +291,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(4)
         .translateToString()
         .trim(),
@@ -346,7 +346,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(5)
         .translateToString()
         .trim(),
@@ -366,7 +366,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(6)
         .translateToString()
         .trim(),
@@ -485,7 +485,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(6)
         .translateToString()
         .trim(),
@@ -521,7 +521,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(4)
         .translateToString()
         .trim(),
@@ -549,7 +549,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(7)
         .translateToString()
         .trim(),
