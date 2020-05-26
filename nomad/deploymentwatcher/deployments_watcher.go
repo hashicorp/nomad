@@ -118,7 +118,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 	}
 
 	// Flush the state to create the necessary objects
-	w.flush()
+	w.flush(enabled)
 
 	// If we are starting now, launch the watch daemon
 	if enabled && !wasEnabled {
@@ -127,7 +127,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 }
 
 // flush is used to clear the state of the watcher
-func (w *Watcher) flush() {
+func (w *Watcher) flush(enabled bool) {
 	// Stop all the watchers and clear it
 	for _, watcher := range w.watchers {
 		watcher.StopWatch()
@@ -140,7 +140,12 @@ func (w *Watcher) flush() {
 
 	w.watchers = make(map[string]*deploymentWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
-	w.allocUpdateBatcher = NewAllocUpdateBatcher(w.updateBatchDuration, w.raft, w.ctx)
+
+	if enabled {
+		w.allocUpdateBatcher = NewAllocUpdateBatcher(w.ctx, w.updateBatchDuration, w.raft)
+	} else {
+		w.allocUpdateBatcher = nil
+	}
 }
 
 // watchDeployments is the long lived go-routine that watches for deployments to
@@ -361,7 +366,11 @@ func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *struc
 // createUpdate commits the given allocation desired transition and evaluation
 // to Raft but batches the commit with other calls.
 func (w *Watcher) createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error) {
-	return w.allocUpdateBatcher.CreateUpdate(allocs, eval).Results()
+	b := w.allocUpdateBatcher
+	if b == nil {
+		return 0, notEnabled
+	}
+	return b.CreateUpdate(allocs, eval).Results()
 }
 
 // upsertJob commits the given job to Raft

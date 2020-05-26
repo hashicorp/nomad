@@ -108,6 +108,9 @@ func (s *Server) monitorLeadership() {
 				s.logger.Warn("cluster leadership gained and lost leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
 			}
 		case <-s.shutdownCh:
+			if weAreLeaderCh != nil {
+				leaderStep(false)
+			}
 			return
 		}
 	}

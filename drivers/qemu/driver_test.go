@@ -32,7 +32,10 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -94,7 +97,10 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -149,7 +155,10 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -229,7 +238,10 @@ func TestQemuDriver_User(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -286,7 +298,10 @@ func TestQemuDriver_Stats(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -363,7 +378,10 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 		t.Parallel()
 	}
 
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())

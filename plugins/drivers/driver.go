@@ -87,14 +87,6 @@ type DriverNetworkManager interface {
 	DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error
 }
 
-// InternalDriverPlugin is an interface that exposes functions that are only
-// implemented by internal driver plugins.
-type InternalDriverPlugin interface {
-	// Shutdown allows the plugin to cleanup any running state to avoid leaking
-	// resources. It should not block.
-	Shutdown()
-}
-
 // DriverSignalTaskNotSupported can be embedded by drivers which don't support
 // the SignalTask RPC. This satisfies the SignalTask func requirement for the
 // DriverPlugin interface.

@@ -2,6 +2,7 @@ package volumewatcher
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -100,7 +101,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 	}
 
 	// Flush the state to create the necessary objects
-	w.flush()
+	w.flush(enabled)
 
 	// If we are starting now, launch the watch daemon
 	if enabled && !wasEnabled {
@@ -109,7 +110,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 }
 
 // flush is used to clear the state of the watcher
-func (w *Watcher) flush() {
+func (w *Watcher) flush(enabled bool) {
 	// Stop all the watchers and clear it
 	for _, watcher := range w.watchers {
 		watcher.Stop()
@@ -122,7 +123,12 @@ func (w *Watcher) flush() {
 
 	w.watchers = make(map[string]*volumeWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
-	w.volumeUpdateBatcher = NewVolumeUpdateBatcher(w.updateBatchDuration, w.raft, w.ctx)
+
+	if enabled {
+		w.volumeUpdateBatcher = NewVolumeUpdateBatcher(w.ctx, w.updateBatchDuration, w.raft)
+	} else {
+		w.volumeUpdateBatcher = nil
+	}
 }
 
 // watchVolumes is the long lived go-routine that watches for volumes to
@@ -228,5 +234,9 @@ func (w *Watcher) removeLocked(volID, namespace string) {
 // updatesClaims sends the claims to the batch updater and waits for
 // the results
 func (w *Watcher) updateClaims(claims []structs.CSIVolumeClaimRequest) (uint64, error) {
-	return w.volumeUpdateBatcher.CreateUpdate(claims).Results()
+	b := w.volumeUpdateBatcher
+	if b == nil {
+		return 0, errors.New("volume watcher is not enabled")
+	}
+	return b.CreateUpdate(claims).Results()
 }

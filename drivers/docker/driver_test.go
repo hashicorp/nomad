@@ -175,7 +175,9 @@ func cleanSlate(client *docker.Client, imageID string) {
 // A driver plugin interface and cleanup function is returned
 func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.DriverHarness {
 	logger := testlog.HCLogger(t)
-	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(logger))
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel() })
+	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, logger))
 	if cfg == nil {
 		cfg = map[string]interface{}{
 			"gc": map[string]interface{}{
@@ -190,7 +192,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 		InternalPlugins: map[loader.PluginID]*loader.InternalPluginConfig{
 			PluginID: {
 				Config: cfg,
-				Factory: func(hclog.Logger) interface{} {
+				Factory: func(context.Context, hclog.Logger) interface{} {
 					return harness
 				},
 			},

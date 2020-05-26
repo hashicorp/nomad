@@ -29,7 +29,7 @@ type VolumeUpdateBatcher struct {
 // NewVolumeUpdateBatcher returns an VolumeUpdateBatcher that uses the
 // passed raft endpoints to create the updates to volume claims, and
 // exits the batcher when the passed exit channel is closed.
-func NewVolumeUpdateBatcher(batchDuration time.Duration, raft VolumeRaftEndpoints, ctx context.Context) *VolumeUpdateBatcher {
+func NewVolumeUpdateBatcher(ctx context.Context, batchDuration time.Duration, raft VolumeRaftEndpoints) *VolumeUpdateBatcher {
 	b := &VolumeUpdateBatcher{
 		batchDuration: batchDuration,
 		raft:          raft,
