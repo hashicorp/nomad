@@ -4,6 +4,10 @@ IMPROVEMENTS:
 
  * build: Updated to Go 1.14.3 [[GH-7431](https://github.com/hashicorp/nomad/issues/7970)]
 
+BUG FIXES:
+
+ * api: Fixed a bug where setting connect sidecar task resources could fail [[GH-7993](https://github.com/hashicorp/nomad/issues/7993)]
+
 ## 0.11.2 (May 14, 2020)
 
 FEATURES:

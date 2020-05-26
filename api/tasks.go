@@ -444,6 +444,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.Name == nil {
 		g.Name = stringToPtr("")
 	}
+
 	if g.Count == nil {
 		if g.Scaling != nil && g.Scaling.Min != nil {
 			g.Count = intToPtr(int(*g.Scaling.Min))
@@ -676,6 +677,7 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 		t.Resources = &Resources{}
 	}
 	t.Resources.Canonicalize()
+
 	if t.KillTimeout == nil {
 		t.KillTimeout = timeToPtr(5 * time.Second)
 	}
