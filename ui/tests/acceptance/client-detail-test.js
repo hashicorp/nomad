@@ -1,4 +1,4 @@
-import { currentURL, waitUntil } from '@ember/test-helpers';
+import { currentURL, waitUntil, settled } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -568,6 +568,8 @@ module('Acceptance | client detail', function(hooks) {
 
     assert.ok(ClientDetail.eligibilityToggle.isDisabled);
     server.pretender.resolve(server.pretender.requestReferences[0].request);
+
+    await settled();
 
     assert.notOk(ClientDetail.eligibilityToggle.isActive);
     assert.notOk(ClientDetail.eligibilityToggle.isDisabled);

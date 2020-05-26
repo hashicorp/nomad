@@ -4,6 +4,15 @@ export function initialize() {
   // Provides the app config to all templates
   application.inject('controller', 'config', 'service:config');
   application.inject('component', 'config', 'service:config');
+
+  const jQuery = window.jQuery;
+
+  jQuery.__ajax = jQuery.ajax;
+  jQuery.ajax = function() {
+    // eslint-disable-next-line
+    console.log('jQuery.ajax called:', ...arguments);
+    return jQuery.__ajax(...arguments);
+  };
 }
 
 export default {

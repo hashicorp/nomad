@@ -3,7 +3,7 @@ import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import XHRToken from 'nomad-ui/utils/classes/xhr-token';
+import { AbortController } from 'fetch';
 
 module('Unit | Adapter | Volume', function(hooks) {
   setupTest(hooks);
@@ -113,14 +113,14 @@ module('Unit | Adapter | Volume', function(hooks) {
     await this.initializeUI();
 
     const { pretender } = this.server;
-    const token = new XHRToken();
+    const controller = new AbortController();
 
     pretender.get('/v1/volumes', () => [200, {}, '[]'], true);
 
     this.subject()
       .query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {
         reload: true,
-        adapterOptions: { watch: true, abortToken: token },
+        adapterOptions: { watch: true, abortController: controller },
       })
       .catch(() => {});
 
@@ -129,7 +129,7 @@ module('Unit | Adapter | Volume', function(hooks) {
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      token.abort();
+      controller.abort();
     });
 
     await settled();

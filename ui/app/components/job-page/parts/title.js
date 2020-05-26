@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { task } from 'ember-concurrency';
+import { ForbiddenError } from '@ember-data/adapter/error';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default Component.extend({
@@ -38,7 +39,8 @@ export default Component.extend({
       job.set('status', 'running');
     } catch (err) {
       let message = messageFromAdapterError(err);
-      if (!message || message === 'Forbidden') {
+
+      if (err instanceof ForbiddenError) {
         message = 'Your ACL token does not grant permission to stop jobs.';
       }
 
