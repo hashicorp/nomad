@@ -124,7 +124,7 @@ func (w *Watcher) flush(enabled bool) {
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
 
 	if enabled {
-		w.volumeUpdateBatcher = NewVolumeUpdateBatcher(w.updateBatchDuration, w.raft, w.ctx)
+		w.volumeUpdateBatcher = NewVolumeUpdateBatcher(w.ctx, w.updateBatchDuration, w.raft)
 	} else {
 		w.volumeUpdateBatcher = nil
 	}
