@@ -1167,6 +1167,9 @@ type NodeUpdateResponse struct {
 	EvalCreateIndex uint64
 	NodeModifyIndex uint64
 
+	// Features informs clients what enterprise features are allowed
+	Features uint64
+
 	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
 	// empty, the current Nomad Server is in the minority of a partition.
 	LeaderRPCAddr string

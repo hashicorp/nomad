@@ -289,6 +289,9 @@ type Client struct {
 	// dynamicRegistry provides access to plugins that are dynamically registered
 	// with a nomad client. Currently only used for CSI.
 	dynamicRegistry dynamicplugins.Registry
+
+	// EnterpriseClient is used to set and check enterprise features for clients
+	EnterpriseClient *EnterpriseClient
 }
 
 var (
@@ -341,6 +344,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
+		EnterpriseClient:     newEnterpriseClient(),
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -1839,6 +1843,7 @@ func (c *Client) updateNodeStatus() error {
 		c.triggerDiscovery()
 	}
 
+	c.EnterpriseClient.SetFeatures(resp.Features)
 	return nil
 }
 
