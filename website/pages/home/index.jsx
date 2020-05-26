@@ -74,6 +74,24 @@ export default function Homepage() {
         caseStudies={[
           {
             quote:
+              'We’ve really streamlined our data operations with Nomad and freed up our time to work on more high-impact tasks. Once we launch new microservices, they just work.',
+            caseStudyURL:
+              'https://www.hashicorp.com/blog/nomad-community-story-navi-capital',
+            person: {
+              firstName: 'Carlos',
+              lastName: 'Domingues',
+              photo:
+                'https://www.datocms-assets.com/2885/1590508642-carlos.png',
+              title: 'IT Infrastructure Lead'
+            },
+            company: {
+              name: 'Navi Capital',
+              logo:
+                'https://www.datocms-assets.com/2885/1590509560-navi-logo.png'
+            }
+          },
+          {
+            quote:
               'Kubernetes is the 800-pound gorilla of container orchestration, coming with a price tag. So we looked into alternatives - and fell in love with Nomad.',
             caseStudyURL:
               'https://endler.dev/2019/maybe-you-dont-need-kubernetes/',
