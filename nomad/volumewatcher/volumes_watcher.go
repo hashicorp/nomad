@@ -2,6 +2,7 @@ package volumewatcher
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -233,5 +234,9 @@ func (w *Watcher) removeLocked(volID, namespace string) {
 // updatesClaims sends the claims to the batch updater and waits for
 // the results
 func (w *Watcher) updateClaims(claims []structs.CSIVolumeClaimRequest) (uint64, error) {
-	return w.volumeUpdateBatcher.CreateUpdate(claims).Results()
+	b := w.volumeUpdateBatcher
+	if b == nil {
+		return 0, errors.New("volume watcher is not enabled")
+	}
+	return b.CreateUpdate(claims).Results()
 }

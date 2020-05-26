@@ -366,7 +366,11 @@ func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *struc
 // createUpdate commits the given allocation desired transition and evaluation
 // to Raft but batches the commit with other calls.
 func (w *Watcher) createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error) {
-	return w.allocUpdateBatcher.CreateUpdate(allocs, eval).Results()
+	b := w.allocUpdateBatcher
+	if b == nil {
+		return 0, notEnabled
+	}
+	return b.CreateUpdate(allocs, eval).Results()
 }
 
 // upsertJob commits the given job to Raft
