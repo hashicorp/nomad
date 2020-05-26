@@ -90,10 +90,6 @@ type Driver struct {
 	// coordinate shutdown
 	ctx context.Context
 
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
 	// tasks is the in memory datastore mapping taskIDs to taskHandles
 	tasks *taskStore
 
@@ -120,16 +116,14 @@ type Driver struct {
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
-func NewDockerDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		config:         &DriverConfig{},
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		config:  &DriverConfig{},
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -1620,10 +1614,6 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 		ulimits = append(ulimits, ulimit)
 	}
 	return ulimits, nil
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }
 
 func isDockerTransientError(err error) bool {

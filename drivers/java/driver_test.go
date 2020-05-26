@@ -38,7 +38,10 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 		t.Parallel()
 	}
 
-	d := NewDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fpCh, err := harness.Fingerprint(context.Background())
@@ -61,7 +64,10 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	tc := &TaskConfig{
@@ -101,7 +107,10 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	tc := &TaskConfig{
@@ -162,7 +171,10 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	tc := &TaskConfig{
@@ -250,7 +262,10 @@ func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 

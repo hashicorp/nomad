@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/testutil"
@@ -20,7 +21,10 @@ func TestDockerDriver_FingerprintHealth(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	d := NewDockerDriver(testlog.HCLogger(t)).(*Driver)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDockerDriver(ctx, testlog.HCLogger(t)).(*Driver)
 
 	fp := d.buildFingerprint()
 	require.Equal(t, drivers.HealthStateHealthy, fp.Health)
