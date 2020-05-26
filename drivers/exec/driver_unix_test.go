@@ -23,7 +23,10 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -82,7 +85,10 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
