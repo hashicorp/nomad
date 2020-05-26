@@ -58,7 +58,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: pr-audit
-      - uses: backspace/ember-test-audit-comparison-action@v1.0
+      - uses: backspace/ember-test-audit-comparison-action@v1
         with:
           base-report-path: base-audit.json
           comparison-report-path: pr-audit.json
