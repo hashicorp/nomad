@@ -26,7 +26,7 @@ type AllocUpdateBatcher struct {
 // NewAllocUpdateBatcher returns an AllocUpdateBatcher that uses the passed raft endpoints to
 // create the allocation desired transition updates and new evaluations and
 // exits the batcher when the passed exit channel is closed.
-func NewAllocUpdateBatcher(batchDuration time.Duration, raft DeploymentRaftEndpoints, ctx context.Context) *AllocUpdateBatcher {
+func NewAllocUpdateBatcher(ctx context.Context, batchDuration time.Duration, raft DeploymentRaftEndpoints) *AllocUpdateBatcher {
 	b := &AllocUpdateBatcher{
 		batch:  batchDuration,
 		raft:   raft,
