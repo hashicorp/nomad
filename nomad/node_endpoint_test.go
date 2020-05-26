@@ -2509,7 +2509,12 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 		require.Equal(t, structs.EvalTriggerNodeUpdate, eval.TriggeredBy)
 		require.Equal(t, alloc.NodeID, eval.NodeID)
 		require.Equal(t, uint64(1), eval.NodeModifyIndex)
-		require.Equal(t, structs.EvalStatusPending, eval.Status)
+		switch eval.Status {
+		case structs.EvalStatusPending, structs.EvalStatusComplete:
+			// success
+		default:
+			require.Equal(t, structs.EvalStatusPending, eval.Status)
+		}
 		require.Equal(t, expPriority, eval.Priority)
 		require.Equal(t, expJobID, eval.JobID)
 		require.NotZero(t, eval.CreateTime)
