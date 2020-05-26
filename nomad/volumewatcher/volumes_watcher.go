@@ -100,7 +100,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 	}
 
 	// Flush the state to create the necessary objects
-	w.flush()
+	w.flush(enabled)
 
 	// If we are starting now, launch the watch daemon
 	if enabled && !wasEnabled {
@@ -109,7 +109,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 }
 
 // flush is used to clear the state of the watcher
-func (w *Watcher) flush() {
+func (w *Watcher) flush(enabled bool) {
 	// Stop all the watchers and clear it
 	for _, watcher := range w.watchers {
 		watcher.Stop()
@@ -122,7 +122,12 @@ func (w *Watcher) flush() {
 
 	w.watchers = make(map[string]*volumeWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
-	w.volumeUpdateBatcher = NewVolumeUpdateBatcher(w.updateBatchDuration, w.raft, w.ctx)
+
+	if enabled {
+		w.volumeUpdateBatcher = NewVolumeUpdateBatcher(w.updateBatchDuration, w.raft, w.ctx)
+	} else {
+		w.volumeUpdateBatcher = nil
+	}
 }
 
 // watchVolumes is the long lived go-routine that watches for volumes to
