@@ -10,6 +10,8 @@ import Response from 'ember-cli-mirage/response';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import { filesForPath } from 'nomad-ui/mirage/config';
 
+import browseFilesystem from './behaviors/fs';
+
 import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 
 let allocation;
@@ -41,6 +43,8 @@ module('Acceptance | allocation fs', function(hooks) {
 
     allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
     allocationShortId = allocation.id.split('-')[0];
+
+    this.allocation = allocation;
 
     // Reset files
     files = [];
@@ -84,33 +88,12 @@ module('Acceptance | allocation fs', function(hooks) {
     );
   });
 
-  test('visiting /allocations/:allocation_id/fs/:path', async function(assert) {
-    const paths = ['some-file.log', 'a/deep/path/to/a/file.log', '/', 'Unicode™®'];
-
-    const testPath = async filePath => {
-      let pathWithLeadingSlash = filePath;
-
-      if (!pathWithLeadingSlash.startsWith('/')) {
-        pathWithLeadingSlash = `/${filePath}`;
-      }
-
-      await FS.visitAllocationPath({ id: allocation.id, path: filePath });
-      assert.equal(
-        currentURL(),
-        `/allocations/${allocation.id}/fs/${encodeURIComponent(filePath)}`,
-        'No redirect'
-      );
-      assert.equal(
-        document.title,
-        `${pathWithLeadingSlash} - Allocation ${allocationShortId} filesystem - Nomad`
-      );
-      assert.equal(FS.breadcrumbsText, `${allocationShortId} ${filePath.replace(/\//g, ' ')}`.trim());
-    };
-
-    await paths.reduce(async (prev, filePath) => {
-      await prev;
-      return testPath(filePath);
-    }, Promise.resolve());
+  browseFilesystem({
+    visitSegments: ({ allocation }) => ({ id: allocation.id }),
+    getExpectedPathBase: ({ allocation }) => `/allocations/${allocation.id}/fs/`,
+    getTitleComponent: ({ allocation }) => `Allocation ${allocation.id.split('-')[0]} filesystem`,
+    getBreadcrumbComponent: ({ allocation }) => allocation.id.split('-')[0],
+    pageObjectVisitPathFunctionName: 'visitAllocationPath',
   });
 
   test('navigating allocation filesystem', async function(assert) {

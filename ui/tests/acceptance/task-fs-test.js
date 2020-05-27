@@ -10,6 +10,8 @@ import Response from 'ember-cli-mirage/response';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import { filesForPath } from 'nomad-ui/mirage/config';
 
+import browseFilesystem from './behaviors/fs';
+
 import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 
 let allocation;
@@ -43,6 +45,9 @@ module('Acceptance | task fs', function(hooks) {
     task = server.schema.taskStates.where({ allocationId: allocation.id }).models[0];
     task.name = 'task-name';
     task.save();
+
+    this.task = task;
+    this.allocation = allocation;
 
     // Reset files
     files = [];
@@ -93,33 +98,12 @@ module('Acceptance | task fs', function(hooks) {
     );
   });
 
-  test('visiting /allocations/:allocation_id/:task_name/fs/:path', async function(assert) {
-    const paths = ['some-file.log', 'a/deep/path/to/a/file.log', '/', 'Unicode™®'];
-
-    const testPath = async filePath => {
-      let pathWithLeadingSlash = filePath;
-
-      if (!pathWithLeadingSlash.startsWith('/')) {
-        pathWithLeadingSlash = `/${filePath}`;
-      }
-
-      await FS.visitPath({ id: allocation.id, name: task.name, path: filePath });
-      assert.equal(
-        currentURL(),
-        `/allocations/${allocation.id}/${task.name}/fs/${encodeURIComponent(filePath)}`,
-        'No redirect'
-      );
-      assert.equal(
-        document.title,
-        `${pathWithLeadingSlash} - Task ${task.name} filesystem - Nomad`
-      );
-      assert.equal(FS.breadcrumbsText, `${task.name} ${filePath.replace(/\//g, ' ')}`.trim());
-    };
-
-    await paths.reduce(async (prev, filePath) => {
-      await prev;
-      return testPath(filePath);
-    }, Promise.resolve());
+  browseFilesystem({
+    visitSegments: ({allocation,task}) => ({ id: allocation.id, name: task.name }),
+    getExpectedPathBase: ({allocation,task}) => `/allocations/${allocation.id}/${task.name}/fs/`,
+    getTitleComponent: ({task}) => `Task ${task.name} filesystem`,
+    getBreadcrumbComponent: ({task}) => task.name,
+    pageObjectVisitPathFunctionName: 'visitPath',
   });
 
   test('navigating allocation filesystem', async function(assert) {
