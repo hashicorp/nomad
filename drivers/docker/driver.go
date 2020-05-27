@@ -787,6 +787,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		PidsLimit: &driverConfig.PidsLimit,
 
 		Runtime: containerRuntime,
+
+		GroupAdd: driverConfig.AdditionalGroups,
 	}
 
 	// Calculate CPU Quota

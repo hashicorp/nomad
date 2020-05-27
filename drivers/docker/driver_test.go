@@ -2681,3 +2681,24 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 	require.NotZero(t, c.HostConfig.CPUQuota)
 	require.NotZero(t, c.HostConfig.CPUPeriod)
 }
+
+func TestDockerDriver_AdditionalGroups(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	cfg.AdditionalGroups = []string{"12345", "9999"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Exactly(t, cfg.AdditionalGroups, container.HostConfig.GroupAdd)
+}

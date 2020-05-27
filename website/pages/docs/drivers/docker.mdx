@@ -44,6 +44,9 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+- `additional_groups` - (Optional) A list of supplementary groups to be applied
+  to the container user.
+
 - `args` - (Optional) A list of arguments to the optional `command`. If no
   `command` is specified, the arguments are passed directly to the container.
   References to environment variables or any [interpretable Nomad

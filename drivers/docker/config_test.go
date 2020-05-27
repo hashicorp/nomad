@@ -178,6 +178,8 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 	cfgStr := `
 config {
   image = "redis:3.2"
+
+  additional_groups = ["group1", "group2"]
   advertise_ipv6_address = true
   args = ["command_arg1", "command_arg2"]
   auth {
@@ -300,6 +302,7 @@ config {
 
 	expected := &TaskConfig{
 		Image:             "redis:3.2",
+		AdditionalGroups:  []string{"group1", "group2"},
 		AdvertiseIPv6Addr: true,
 		Args:              []string{"command_arg1", "command_arg2"},
 		Auth: DockerAuth{

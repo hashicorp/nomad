@@ -279,6 +279,7 @@ var (
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"image":                  hclspec.NewAttr("image", "string", true),
+		"additional_groups":      hclspec.NewAttr("additional_groups", "list(string)", false),
 		"advertise_ipv6_address": hclspec.NewAttr("advertise_ipv6_address", "bool", false),
 		"args":                   hclspec.NewAttr("args", "list(string)", false),
 		"auth": hclspec.NewBlock("auth", false, hclspec.NewObject(map[string]*hclspec.Spec{
@@ -383,6 +384,7 @@ var (
 
 type TaskConfig struct {
 	Image             string             `codec:"image"`
+	AdditionalGroups  []string           `codec:"additional_groups"`
 	AdvertiseIPv6Addr bool               `codec:"advertise_ipv6_address"`
 	Args              []string           `codec:"args"`
 	Auth              DockerAuth         `codec:"auth"`
