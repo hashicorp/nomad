@@ -1,15 +1,17 @@
 import './style.css'
 import '@hashicorp/nextjs-scripts/lib/nprogress/style.css'
 
+import { useState } from 'react'
 import Router from 'next/router'
 import Head from 'next/head'
 import NProgress from '@hashicorp/nextjs-scripts/lib/nprogress'
 import { ErrorBoundary } from '@hashicorp/nextjs-scripts/lib/bugsnag'
 import createConsentManager from '@hashicorp/nextjs-scripts/lib/consent-manager'
-import useAnchorLinkAnalytics from '@hashicorp/nextjs-scripts/lib/anchor-link-analytics'
+// import useAnchorLinkAnalytics from '@hashicorp/nextjs-scripts/lib/anchor-link-analytics'
 import MegaNav from '@hashicorp/react-mega-nav'
 import AlertBanner from '@hashicorp/react-alert-banner'
 import HashiHead from '@hashicorp/react-head'
+import SearchBar from '../components/search-bar'
 import Footer from '../components/footer'
 import ProductSubnav from '../components/subnav'
 import Error from './_error'
@@ -21,7 +23,8 @@ const { ConsentManager, openConsentManager } = createConsentManager({
 })
 
 function App({ Component, pageProps }) {
-  useAnchorLinkAnalytics()
+  // useAnchorLinkAnalytics()
+  const [mobileSearchInputActive, setMobileSearchInputActive] = useState(false)
 
   return (
     <ErrorBoundary FallbackComponent={Error}>
@@ -54,6 +57,12 @@ function App({ Component, pageProps }) {
       {ALERT_BANNER_ACTIVE && (
         <AlertBanner {...alertBannerData} theme="nomad" />
       )}
+      <SearchBar
+        mobileInputActive={mobileSearchInputActive}
+        onToggleMobileInput={(active) => {
+          setMobileSearchInputActive(active)
+        }}
+      />
       <MegaNav product="Nomad" />
       <ProductSubnav />
       <div className={`content${ALERT_BANNER_ACTIVE ? ' banner' : ''}`}>

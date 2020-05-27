@@ -47,6 +47,7 @@
 @import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
 @import '../components/footer/style.css';
+@import '../components/search-bar/style.css';
 
 /* Local Pages */
 @import './home/style.css';
