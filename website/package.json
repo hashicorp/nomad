@@ -29,6 +29,9 @@
     "@hashicorp/react-vertical-text-block-list": "2.0.1",
     "algoliasearch": "4.3.0",
     "babel-plugin-import-glob-array": "0.2.0",
+    "dotenv": "^8.2.0",
+    "glob": "^7.1.6",
+    "gray-matter": "^4.0.2",
     "imagemin-mozjpeg": "9.0.0",
     "imagemin-optipng": "8.0.0",
     "imagemin-svgo": "8.0.0",
@@ -37,7 +40,11 @@
     "nuka-carousel": "4.7.0",
     "react": "16.13.1",
     "react-device-detect": "1.13.1",
-    "react-dom": "16.13.1"
+    "react-dom": "16.13.1",
+    "react-instantsearch-dom": "^6.5.0",
+    "remark": "^12.0.0",
+    "search-insights": "^1.4.0",
+    "unist-util-visit": "^2.0.3"
   },
   "devDependencies": {
     "dart-linkcheck": "2.0.15",
