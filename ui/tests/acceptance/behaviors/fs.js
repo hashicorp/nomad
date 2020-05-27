@@ -4,6 +4,7 @@ import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 import moment from 'moment';
 import { filesForPath } from 'nomad-ui/mirage/config';
 import Response from 'ember-cli-mirage/response';
+import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 
 const fileSort = (prop, files) => {
   let dir = [];
@@ -19,7 +20,16 @@ const fileSort = (prop, files) => {
   return dir.sortBy(prop).concat(file.sortBy(prop));
 };
 
-export default function browseFilesystem({ pageObjectVisitPathFunctionName, visitSegments, getExpectedPathBase, getTitleComponent, getBreadcrumbComponent, getFilesystemRoot }) {
+export default function browseFilesystem({ pageObjectVisitPathFunctionName, pageObjectVisitFunctionName, visitSegments, getExpectedPathBase, getTitleComponent, getBreadcrumbComponent, getFilesystemRoot }) {
+  test('visiting filesystem root', async function(assert) {
+    await FS[pageObjectVisitFunctionName](visitSegments({allocation: this.allocation, task: this.task }));
+
+    const pathBaseWithTrailingSlash = getExpectedPathBase({ allocation: this.allocation, task: this.task });
+    const pathBaseWithoutTrailingSlash = pathBaseWithTrailingSlash.slice(0, -1);
+
+    assert.equal(currentURL(), pathBaseWithoutTrailingSlash, 'No redirect');
+  });
+
   test('visiting filesystem paths', async function(assert) {
     const paths = ['some-file.log', 'a/deep/path/to/a/file.log', '/', 'Unicode™®'];
 
@@ -47,6 +57,77 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, visi
       await prev;
       return testPath(filePath);
     }, Promise.resolve());
+  });
+
+  test('navigating allocation filesystem', async function(assert) {
+    const objects = { allocation: this.allocation, task: this.task };
+    await FS[pageObjectVisitPathFunctionName]({ ...visitSegments(objects), path: '/' });
+
+    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects)).models);
+
+    assert.ok(FS.fileViewer.isHidden);
+
+    assert.equal(FS.directoryEntries.length, 4);
+
+    assert.equal(FS.breadcrumbsText, getBreadcrumbComponent(objects));
+
+    assert.equal(FS.breadcrumbs.length, 1);
+    assert.ok(FS.breadcrumbs[0].isActive);
+    assert.equal(FS.breadcrumbs[0].text, getBreadcrumbComponent(objects));
+
+    FS.directoryEntries[0].as(directory => {
+      const fileRecord = sortedFiles[0];
+      assert.equal(directory.name, fileRecord.name, 'directories should come first');
+      assert.ok(directory.isDirectory);
+      assert.equal(directory.size, '', 'directory sizes are hidden');
+      assert.equal(directory.lastModified, moment(fileRecord.modTime).fromNow());
+      assert.notOk(directory.path.includes('//'), 'paths shouldn’t have redundant separators');
+    });
+
+    FS.directoryEntries[2].as(file => {
+      const fileRecord = sortedFiles[2];
+      assert.equal(file.name, fileRecord.name);
+      assert.ok(file.isFile);
+      assert.equal(file.size, formatBytes([fileRecord.size]));
+      assert.equal(file.lastModified, moment(fileRecord.modTime).fromNow());
+    });
+
+    await FS.directoryEntries[0].visit();
+
+    assert.equal(FS.directoryEntries.length, 1);
+
+    assert.equal(FS.breadcrumbs.length, 2);
+    assert.equal(FS.breadcrumbsText, `${getBreadcrumbComponent(objects)} ${this.directory.name}`);
+
+    assert.notOk(FS.breadcrumbs[0].isActive);
+
+    assert.equal(FS.breadcrumbs[1].text, this.directory.name);
+    assert.ok(FS.breadcrumbs[1].isActive);
+
+    await FS.directoryEntries[0].visit();
+
+    assert.equal(FS.directoryEntries.length, 1);
+    assert.notOk(
+      FS.directoryEntries[0].path.includes('//'),
+      'paths shouldn’t have redundant separators'
+    );
+
+    assert.equal(FS.breadcrumbs.length, 3);
+    assert.equal(FS.breadcrumbsText, `${getBreadcrumbComponent(objects)} ${this.directory.name} ${this.nestedDirectory.name}`);
+    assert.equal(FS.breadcrumbs[2].text, this.nestedDirectory.name);
+
+    assert.notOk(
+      FS.breadcrumbs[0].path.includes('//'),
+      'paths shouldn’t have redundant separators'
+    );
+    assert.notOk(
+      FS.breadcrumbs[1].path.includes('//'),
+      'paths shouldn’t have redundant separators'
+    );
+
+    await FS.breadcrumbs[1].visit();
+    assert.equal(FS.breadcrumbsText, `${getBreadcrumbComponent(objects)} ${this.directory.name}`);
+    assert.equal(FS.breadcrumbs.length, 2);
   });
 
   test('sorting allocation filesystem directory', async function(assert) {

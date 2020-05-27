@@ -1,13 +1,8 @@
-import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import moment from 'moment';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 import Response from 'ember-cli-mirage/response';
-
-import { formatBytes } from 'nomad-ui/helpers/format-bytes';
-import { filesForPath } from 'nomad-ui/mirage/config';
 
 import browseFilesystem from './behaviors/fs';
 
@@ -16,20 +11,6 @@ import FS from 'nomad-ui/tests/pages/allocations/task/fs';
 let allocation;
 let task;
 let files, taskDirectory, directory, nestedDirectory;
-
-const fileSort = (prop, files) => {
-  let dir = [];
-  let file = [];
-  files.forEach(f => {
-    if (f.isDir) {
-      dir.push(f);
-    } else {
-      file.push(f);
-    }
-  });
-
-  return dir.sortBy(prop).concat(file.sortBy(prop));
-};
 
 module('Acceptance | task fs', function(hooks) {
   setupApplicationTest(hooks);
@@ -75,11 +56,7 @@ module('Acceptance | task fs', function(hooks) {
 
     this.files = files;
     this.directory = directory;
-  });
-
-  test('visiting /allocations/:allocation_id/:task_name/fs', async function(assert) {
-    await FS.visit({ id: allocation.id, name: task.name });
-    assert.equal(currentURL(), `/allocations/${allocation.id}/${task.name}/fs`, 'No redirect');
+    this.nestedDirectory = nestedDirectory;
   });
 
   test('when the task is not running, an empty state is shown', async function(assert) {
@@ -106,76 +83,7 @@ module('Acceptance | task fs', function(hooks) {
     getTitleComponent: ({task}) => `Task ${task.name} filesystem`,
     getBreadcrumbComponent: ({task}) => task.name,
     getFilesystemRoot: ({ task }) => task.name,
+    pageObjectVisitFunctionName: 'visit',
     pageObjectVisitPathFunctionName: 'visitPath',
-  });
-
-  test('navigating allocation filesystem', async function(assert) {
-    await FS.visitPath({ id: allocation.id, name: task.name, path: '/' });
-
-    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, task.name).models);
-
-    assert.ok(FS.fileViewer.isHidden);
-
-    assert.equal(FS.directoryEntries.length, 4);
-
-    assert.equal(FS.breadcrumbsText, task.name);
-
-    assert.equal(FS.breadcrumbs.length, 1);
-    assert.ok(FS.breadcrumbs[0].isActive);
-    assert.equal(FS.breadcrumbs[0].text, 'task-name');
-
-    FS.directoryEntries[0].as(directory => {
-      const fileRecord = sortedFiles[0];
-      assert.equal(directory.name, fileRecord.name, 'directories should come first');
-      assert.ok(directory.isDirectory);
-      assert.equal(directory.size, '', 'directory sizes are hidden');
-      assert.equal(directory.lastModified, moment(fileRecord.modTime).fromNow());
-      assert.notOk(directory.path.includes('//'), 'paths shouldn’t have redundant separators');
-    });
-
-    FS.directoryEntries[2].as(file => {
-      const fileRecord = sortedFiles[2];
-      assert.equal(file.name, fileRecord.name);
-      assert.ok(file.isFile);
-      assert.equal(file.size, formatBytes([fileRecord.size]));
-      assert.equal(file.lastModified, moment(fileRecord.modTime).fromNow());
-    });
-
-    await FS.directoryEntries[0].visit();
-
-    assert.equal(FS.directoryEntries.length, 1);
-
-    assert.equal(FS.breadcrumbs.length, 2);
-    assert.equal(FS.breadcrumbsText, `${task.name} ${directory.name}`);
-
-    assert.notOk(FS.breadcrumbs[0].isActive);
-
-    assert.equal(FS.breadcrumbs[1].text, directory.name);
-    assert.ok(FS.breadcrumbs[1].isActive);
-
-    await FS.directoryEntries[0].visit();
-
-    assert.equal(FS.directoryEntries.length, 1);
-    assert.notOk(
-      FS.directoryEntries[0].path.includes('//'),
-      'paths shouldn’t have redundant separators'
-    );
-
-    assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(FS.breadcrumbsText, `${task.name} ${directory.name} ${nestedDirectory.name}`);
-    assert.equal(FS.breadcrumbs[2].text, nestedDirectory.name);
-
-    assert.notOk(
-      FS.breadcrumbs[0].path.includes('//'),
-      'paths shouldn’t have redundant separators'
-    );
-    assert.notOk(
-      FS.breadcrumbs[1].path.includes('//'),
-      'paths shouldn’t have redundant separators'
-    );
-
-    await FS.breadcrumbs[1].visit();
-    assert.equal(FS.breadcrumbsText, `${task.name} ${directory.name}`);
-    assert.equal(FS.breadcrumbs.length, 2);
   });
 });
