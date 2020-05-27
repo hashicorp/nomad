@@ -11,13 +11,6 @@ const (
 	// binPackingMaxFitScore is the maximum possible bin packing fitness score.
 	// This is used to normalize bin packing score to a value between 0 and 1
 	binPackingMaxFitScore = 18.0
-
-	// These values were chosen such that a net priority of 2048 would get a preemption score of 0.5
-	// rate is the decay parameter of the logistic function used in scoring preemption options
-	rate = 0.0048
-
-	// origin controls the inflection point of the logistic function used in scoring preemption options
-	origin = 2048.0
 )
 
 // Rank is used to provide a score and various ranking metadata
@@ -775,6 +768,13 @@ func netPriority(allocs []*structs.Allocation) float64 {
 // The score is modelled to be between 0 and 1 because its combined with other
 // scoring factors like bin packing
 func preemptionScore(netPriority float64) float64 {
+	// These values were chosen such that a net priority of 2048 would get a preemption score of 0.5
+	// rate is the decay parameter of the logistic function used in scoring preemption options
+	const rate = 0.0048
+
+	// origin controls the inflection point of the logistic function used in scoring preemption options
+	const origin = 2048.0
+
 	// This function manifests as an s curve that asympotically moves towards zero for large values of netPriority
 	return 1.0 / (1 + math.Exp(rate*(netPriority-origin)))
 }
