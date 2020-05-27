@@ -28,11 +28,7 @@ into the plan queue.
 
 # Details
 
-~> **Enterprise Functionality** System job preemption is available as an Open Source
-feature, while Batch and Service job preemption are only available as
-Enterprise features.
-
-Preemption is enabled by default in Nomad 0.9. Operators can use the [scheduler config](/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
+Preemption is enabled by default in Nomad 0.9 for system jobs. Operators can use the [scheduler config](/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
 
 Nomad uses the [job priority](/docs/job-specification/job#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority

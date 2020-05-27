@@ -386,10 +386,10 @@ $ curl \
     - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
       this defaults to true.
 
-    - `BatchSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies whether preemption for batch jobs is enabled. Note that
+    - `BatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for batch jobs is enabled. Note that
       this defaults to false and must be explicitly enabled.
 
-    - `ServiceSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies whether preemption for service jobs is enabled. Note that
+    - `ServiceSchedulerEnabled` `(bool: false)` - Specifies whether preemption for service jobs is enabled. Note that
       this defaults to false and must be explicitly enabled.
 
   - `CreateIndex` - The Raft index at which the config was created.
@@ -447,11 +447,11 @@ server state is authoritative.
     system jobs is enabled. Note that if this is set to true, then system jobs
     can preempt any other jobs.
 
-  - `BatchSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies
+  - `BatchSchedulerEnabled` `(bool: false)` - Specifies
     whether preemption for batch jobs is enabled. Note that if this is set to
     true, then batch jobs can preempt any other jobs.
 
-  - `ServiceSchedulerEnabled` `(bool: false)` (Enterprise Only) - Specifies
+  - `ServiceSchedulerEnabled` `(bool: false)` - Specifies
     whether preemption for service jobs is enabled. Note that if this is set to
     true, then service jobs can preempt any other jobs.
 
