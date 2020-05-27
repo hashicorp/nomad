@@ -348,6 +348,9 @@ type Config struct {
 	// RPCMaxConnsPerClient is the maximum number of concurrent RPC
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
+
+	// LicenseConfig is a tunable knob for enterprise license testing.
+	LicenseConfig *LicenseConfig
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -413,6 +416,7 @@ func DefaultConfig() *Config {
 		TLSConfig:                        &config.TLSConfig{},
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
+		LicenseConfig:                    &LicenseConfig{},
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,

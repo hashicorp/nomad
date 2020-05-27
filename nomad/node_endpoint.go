@@ -244,6 +244,8 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 		}
 	}
 
+	reply.Features = n.srv.EnterpriseState.Features()
+
 	return nil
 }
 
