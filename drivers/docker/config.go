@@ -684,6 +684,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
 	coordinatorConfig := &dockerCoordinatorConfig{
+		ctx:         d.ctx,
 		client:      dockerClient,
 		cleanup:     d.config.GC.Image,
 		logger:      d.logger,

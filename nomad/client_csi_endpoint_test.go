@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
@@ -30,12 +31,7 @@ func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 	})
 	defer cleanupC()
 
-	testutil.WaitForResult(func() (bool, error) {
-		nodes := s.connectedNodes()
-		return len(nodes) == 1, nil
-	}, func(err error) {
-		require.Fail("should have a client")
-	})
+	waitForNodes(t, s, 1)
 
 	req := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{ControllerNodeID: c.NodeID()},
@@ -69,12 +65,7 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 	})
 	defer cleanupC()
 
-	testutil.WaitForResult(func() (bool, error) {
-		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
-	}, func(err error) {
-		require.Fail("should have a client")
-	})
+	waitForNodes(t, s2, 1)
 
 	// Force remove the connection locally in case it exists
 	s1.nodeConnsLock.Lock()
@@ -108,12 +99,7 @@ func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 	})
 	defer cleanupC()
 
-	testutil.WaitForResult(func() (bool, error) {
-		nodes := s.connectedNodes()
-		return len(nodes) == 1, nil
-	}, func(err error) {
-		require.Fail("should have a client")
-	})
+	waitForNodes(t, s, 1)
 
 	req := &cstructs.ClientCSIControllerDetachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{ControllerNodeID: c.NodeID()},
@@ -147,12 +133,7 @@ func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 	})
 	defer cleanupC()
 
-	testutil.WaitForResult(func() (bool, error) {
-		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
-	}, func(err error) {
-		require.Fail("should have a client")
-	})
+	waitForNodes(t, s2, 1)
 
 	// Force remove the connection locally in case it exists
 	s1.nodeConnsLock.Lock()
@@ -211,4 +192,38 @@ func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 
 	// only node1 has both the controller and a recent Nomad version
 	require.Equal(t, nodeID, node1.ID)
+}
+
+// waitForNodes waits until the server is connected to expectedNodes
+// clients and they are in the state store
+func waitForNodes(t *testing.T, s *Server, expectedNodes int) {
+	codec := rpcClient(t, s)
+
+	testutil.WaitForResult(func() (bool, error) {
+		connNodes := s.connectedNodes()
+		if len(connNodes) != expectedNodes {
+			return false, fmt.Errorf("expected %d nodes but found %d", expectedNodes, len(connNodes))
+
+		}
+
+		get := &structs.NodeListRequest{
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var resp structs.NodeListResponse
+		err := msgpackrpc.CallWithCodec(codec, "Node.List", get, &resp)
+		if err != nil {
+			return false, err
+		}
+
+		if err != nil {
+			return false, fmt.Errorf("failed to list nodes: %v", err)
+		}
+		if len(resp.Nodes) != 1 {
+			return false, fmt.Errorf("expected %d nodes but found %d", 1, len(resp.Nodes))
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 }
