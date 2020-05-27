@@ -1,3 +1,8 @@
+## 0.12.0 (Unreleased)
+
+FEATURES:
+ * **Preemption**: Preemption is now an open source feature
+
 ## 0.11.3 (Unreleased)
 
 IMPROVEMENTS:
