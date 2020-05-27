@@ -2513,7 +2513,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 		case structs.EvalStatusPending, structs.EvalStatusComplete:
 			// success
 		default:
-			require.Equal(t, structs.EvalStatusPending, eval.Status)
+			t.Fatalf("expected pending or complete, found %v", eval.Status)
 		}
 		require.Equal(t, expPriority, eval.Priority)
 		require.Equal(t, expJobID, eval.JobID)
