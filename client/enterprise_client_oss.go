@@ -2,10 +2,12 @@
 
 package client
 
+import hclog "github.com/hashicorp/go-hclog"
+
 // EnterpriseClient holds information and methods for enterprise functionality
 type EnterpriseClient struct{}
 
-func newEnterpriseClient() *EnterpriseClient {
+func newEnterpriseClient(logger hclog.Logger) *EnterpriseClient {
 	return &EnterpriseClient{}
 }
 
