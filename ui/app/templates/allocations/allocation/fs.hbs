@@ -23,7 +23,7 @@
               {{#t.sort-by prop="ModTime" class="has-text-right"}}Last Modified{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
-              {{fs-directory-entry path=path allocation=allocation entry=row.model}}
+              {{fs-directory-entry path=path model=allocation entry=row.model}}
             {{/t.body}}
           {{/list-table}}
         {{else}}
