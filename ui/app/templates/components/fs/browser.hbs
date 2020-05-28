@@ -1,7 +1,7 @@
 <section class="section is-closer {{if isFile "full-width-section"}}">
   {{#if model.isRunning}}
     {{#if isFile}}
-      {{#task-file model=model file=path stat=stat class="fs-explorer"}}
+      {{#task-file allocation=allocation task=task file=path stat=stat class="fs-explorer"}}
         {{fs/breadcrumbs allocation=allocation task=task path=path}}
       {{/task-file}}
     {{else}}
@@ -21,7 +21,7 @@
               {{#t.sort-by prop="ModTime" class="has-text-right"}}Last Modified{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
-              {{fs/directory-entry path=path model=model entry=row.model}}
+              {{fs/directory-entry path=path allocation=allocation task=task entry=row.model}}
             {{/t.body}}
           {{/list-table}}
         {{else}}

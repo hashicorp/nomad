@@ -25,7 +25,7 @@ module('Integration | Component | task file', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{task-file model=task file=file stat=stat}}
+    {{task-file allocation=allocation task=task file=file stat=stat}}
   `;
 
   const fileStat = (type, size = 0) => ({
@@ -46,12 +46,6 @@ module('Integration | Component | task file', function(hooks) {
         },
         task: {
           name: 'task-name',
-          allocation: {
-            id: 'alloc-1',
-            node: {
-              httpAddr: HOST,
-            },
-          },
         },
         file: 'path/to/file',
         stat: {
@@ -190,7 +184,7 @@ module('Integration | Component | task file', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      {{#task-file model=task file=file stat=stat}}
+      {{#task-file allocation=allocation task=task file=file stat=stat}}
         <div data-test-yield-spy>Yielded content</div>
       {{/task-file}}
     `);

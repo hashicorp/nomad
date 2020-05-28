@@ -14,7 +14,8 @@ export default Component.extend({
 
   'data-test-file-viewer': true,
 
-  model: null,
+  allocation: null,
+  task: null,
   file: null,
   stat: null, // { Name, IsDir, Size, FileMode, ModTime, ContentType }
 
@@ -28,20 +29,6 @@ export default Component.extend({
   serverTimeout: 5000,
 
   mode: 'head',
-
-  allocation: computed('model', function() {
-    if (this.model.allocation) {
-      return this.model.allocation;
-    } else {
-      return this.model;
-    }
-  }),
-
-  task: computed('model', function() {
-    if (this.model.allocation) {
-      return this.model;
-    }
-  }),
 
   fileComponent: computed('stat.ContentType', function() {
     const contentType = this.stat.ContentType || '';
