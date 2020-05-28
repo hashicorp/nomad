@@ -6,6 +6,7 @@ export default Route.extend({
   model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const task = this.modelFor('allocations.allocation.task');
+    const allocation = task.allocation;
 
     const pathWithTaskName = `${task.name}${decodedPath.startsWith('/') ? '' : '/'}${decodedPath}`;
 
@@ -16,13 +17,13 @@ export default Route.extend({
       };
     }
 
-    return RSVP.all([task.stat(pathWithTaskName), task.get('allocation.node')])
+    return RSVP.all([allocation.stat(pathWithTaskName), task.get('allocation.node')])
       .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
             task,
-            directoryEntries: task.ls(pathWithTaskName).catch(notifyError(this)),
+            directoryEntries: allocation.ls(pathWithTaskName).catch(notifyError(this)),
             isFile: false,
           });
         } else {
