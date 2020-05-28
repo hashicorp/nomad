@@ -17,7 +17,10 @@ module.exports = function(defaults) {
       modes: ['javascript'],
     },
     babel: {
-      plugins: ['@babel/plugin-proposal-object-rest-spread'],
+      plugins: [
+        '@babel/plugin-proposal-object-rest-spread',
+        require.resolve('ember-auto-import/babel-plugin'),
+      ],
     },
     'ember-cli-babel': {
       includePolyfill: isProd,
@@ -43,12 +46,6 @@ module.exports = function(defaults) {
   // along with the exports of each module as its value.
 
   app.import('node_modules/xterm/css/xterm.css');
-  // Issue to move to typical package.json import when released: https://github.com/hashicorp/nomad/issues/7461
-  app.import('vendor/xterm.js', {
-    using: [
-      { transformation: 'amd', as: 'xterm-vendor' },
-    ],
-  });
 
   return app.toTree();
 };

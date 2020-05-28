@@ -110,7 +110,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	srv.state = state.TestStateStore(t)
 	index := uint64(100)
 	srv.volumeUpdateBatcher = NewVolumeUpdateBatcher(
-		CrossVolumeUpdateBatchDuration, srv, ctx)
+		ctx, CrossVolumeUpdateBatchDuration, srv)
 
 	watcher := NewVolumesWatcher(testlog.HCLogger(t),
 		srv, srv,
@@ -261,7 +261,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 	srv := &MockStatefulRPCServer{}
 	srv.state = state.TestStateStore(t)
 	srv.volumeUpdateBatcher = NewVolumeUpdateBatcher(
-		CrossVolumeUpdateBatchDuration, srv, ctx)
+		ctx, CrossVolumeUpdateBatchDuration, srv)
 
 	index := uint64(100)
 

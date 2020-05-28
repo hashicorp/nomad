@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	fake "github.com/hashicorp/nomad/plugins/csi/testing"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func newTestClient() (*fake.IdentityClient, *fake.ControllerClient, *fake.NodeClient, CSIPlugin) {
@@ -65,20 +67,20 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			ic, _, _, client := newTestClient()
 			defer client.Close()
 
-			ic.NextErr = c.ResponseErr
-			ic.NextPluginProbe = c.ProbeResponse
+			ic.NextErr = tc.ResponseErr
+			ic.NextPluginProbe = tc.ProbeResponse
 
 			resp, err := client.PluginProbe(context.TODO())
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, c.ExpectedResponse, resp)
+			require.Equal(t, tc.ExpectedResponse, resp)
 		})
 	}
 
@@ -117,21 +119,21 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			ic, _, _, client := newTestClient()
 			defer client.Close()
 
-			ic.NextErr = c.ResponseErr
-			ic.NextPluginInfo = c.InfoResponse
+			ic.NextErr = tc.ResponseErr
+			ic.NextPluginInfo = tc.InfoResponse
 
 			name, version, err := client.PluginGetInfo(context.TODO())
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, c.ExpectedResponseName, name)
-			require.Equal(t, c.ExpectedResponseVersion, version)
+			require.Equal(t, tc.ExpectedResponseName, name)
+			require.Equal(t, tc.ExpectedResponseVersion, version)
 		})
 	}
 
@@ -182,20 +184,20 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			ic, _, _, client := newTestClient()
 			defer client.Close()
 
-			ic.NextErr = c.ResponseErr
-			ic.NextPluginCapabilities = c.Response
+			ic.NextErr = tc.ResponseErr
+			ic.NextPluginCapabilities = tc.Response
 
 			resp, err := client.PluginGetCapabilities(context.TODO())
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, c.ExpectedResponse, resp)
+			require.Equal(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -290,7 +292,7 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 
 			resp, err := client.ControllerGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.Error(t, tc.ExpectedErr, err)
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			}
 
 			require.Equal(t, tc.ExpectedResponse, resp)
@@ -355,7 +357,7 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 
 			resp, err := client.NodeGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.Error(t, tc.ExpectedErr, err)
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			}
 
 			require.Equal(t, tc.ExpectedResponse, resp)
@@ -374,26 +376,27 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 	}{
 		{
 			Name:        "handles underlying grpc errors",
-			Request:     &ControllerPublishVolumeRequest{},
-			ResponseErr: fmt.Errorf("some grpc error"),
-			ExpectedErr: fmt.Errorf("some grpc error"),
+			Request:     &ControllerPublishVolumeRequest{ExternalID: "vol", NodeID: "node"},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 		{
-			Name:        "Handles missing NodeID",
-			Request:     &ControllerPublishVolumeRequest{},
+			Name:        "handles missing NodeID",
+			Request:     &ControllerPublishVolumeRequest{ExternalID: "vol"},
 			Response:    &csipbv1.ControllerPublishVolumeResponse{},
 			ExpectedErr: fmt.Errorf("missing NodeID"),
 		},
 
 		{
-			Name:             "Handles PublishContext == nil",
-			Request:          &ControllerPublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
+			Name: "handles PublishContext == nil",
+			Request: &ControllerPublishVolumeRequest{
+				ExternalID: "vol", NodeID: "node"},
 			Response:         &csipbv1.ControllerPublishVolumeResponse{},
 			ExpectedResponse: &ControllerPublishVolumeResponse{},
 		},
 		{
-			Name:    "Handles PublishContext != nil",
-			Request: &ControllerPublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
+			Name:    "handles PublishContext != nil",
+			Request: &ControllerPublishVolumeRequest{ExternalID: "vol", NodeID: "node"},
 			Response: &csipbv1.ControllerPublishVolumeResponse{
 				PublishContext: map[string]string{
 					"com.hashicorp/nomad-node-id": "foobar",
@@ -409,20 +412,20 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			_, cc, _, client := newTestClient()
 			defer client.Close()
 
-			cc.NextErr = c.ResponseErr
-			cc.NextPublishVolumeResponse = c.Response
+			cc.NextErr = tc.ResponseErr
+			cc.NextPublishVolumeResponse = tc.Response
 
-			resp, err := client.ControllerPublishVolume(context.TODO(), c.Request)
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			resp, err := client.ControllerPublishVolume(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, c.ExpectedResponse, resp)
+			require.Equal(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -437,39 +440,38 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 		ExpectedErr      error
 	}{
 		{
-			Name:        "Handles underlying grpc errors",
-			Request:     &ControllerUnpublishVolumeRequest{},
-			ResponseErr: fmt.Errorf("some grpc error"),
-			ExpectedErr: fmt.Errorf("some grpc error"),
+			Name:        "handles underlying grpc errors",
+			Request:     &ControllerUnpublishVolumeRequest{ExternalID: "vol", NodeID: "node"},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 		{
-			Name:             "Handles missing NodeID",
-			Request:          &ControllerUnpublishVolumeRequest{},
+			Name:             "handles missing NodeID",
+			Request:          &ControllerUnpublishVolumeRequest{ExternalID: "vol"},
 			ExpectedErr:      fmt.Errorf("missing NodeID"),
 			ExpectedResponse: nil,
 		},
 		{
-			Name:             "Handles successful response",
-			Request:          &ControllerUnpublishVolumeRequest{VolumeID: "vol", NodeID: "node"},
-			ExpectedErr:      fmt.Errorf("missing NodeID"),
+			Name:             "handles successful response",
+			Request:          &ControllerUnpublishVolumeRequest{ExternalID: "vol", NodeID: "node"},
 			ExpectedResponse: &ControllerUnpublishVolumeResponse{},
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			_, cc, _, client := newTestClient()
 			defer client.Close()
 
-			cc.NextErr = c.ResponseErr
-			cc.NextUnpublishVolumeResponse = c.Response
+			cc.NextErr = tc.ResponseErr
+			cc.NextUnpublishVolumeResponse = tc.Response
 
-			resp, err := client.ControllerUnpublishVolume(context.TODO(), c.Request)
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			resp, err := client.ControllerUnpublishVolume(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, c.ExpectedResponse, resp)
+			require.Equal(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -484,8 +486,8 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 	}{
 		{
 			Name:        "handles underlying grpc errors",
-			ResponseErr: fmt.Errorf("some grpc error"),
-			ExpectedErr: fmt.Errorf("some grpc error"),
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 		{
 			Name:        "handles empty success",
@@ -534,8 +536,10 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 				},
 			},
 			ResponseErr: nil,
-			ExpectedErr: fmt.Errorf("volume capability validation failed"),
+			// this is a multierror
+			ExpectedErr: fmt.Errorf("volume capability validation failed: 1 error occurred:\n\t* requested AccessMode MULTI_NODE_MULTI_WRITER, got SINGLE_NODE_WRITER\n\n"),
 		},
+
 		{
 			Name: "handles validation failure mount flags",
 			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
@@ -557,12 +561,13 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 				},
 			},
 			ResponseErr: nil,
-			ExpectedErr: fmt.Errorf("volume capability validation failed"),
+			// this is a multierror
+			ExpectedErr: fmt.Errorf("volume capability validation failed: 1 error occurred:\n\t* requested mount flags did not match available capabilities\n\n"),
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			_, cc, _, client := newTestClient()
 			defer client.Close()
 
@@ -574,15 +579,22 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 					MountFlags: []string{"noatime", "errors=remount-ro"},
 				},
 			}
-			cc.NextValidateVolumeCapabilitiesResponse = c.Response
-			cc.NextErr = c.ResponseErr
+			req := &ControllerValidateVolumeRequest{
+				ExternalID:   "volumeID",
+				Secrets:      structs.CSISecrets{},
+				Capabilities: requestedCaps,
+				Parameters:   map[string]string{},
+				Context:      map[string]string{},
+			}
 
-			err := client.ControllerValidateCapabilities(
-				context.TODO(), "volumeID", requestedCaps, structs.CSISecrets{})
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err, c.Name)
+			cc.NextValidateVolumeCapabilitiesResponse = tc.Response
+			cc.NextErr = tc.ResponseErr
+
+			err := client.ControllerValidateCapabilities(context.TODO(), req)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.NoError(t, err, c.Name)
+				require.NoError(t, err, tc.Name)
 			}
 		})
 	}
@@ -598,8 +610,8 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 	}{
 		{
 			Name:        "handles underlying grpc errors",
-			ResponseErr: fmt.Errorf("some grpc error"),
-			ExpectedErr: fmt.Errorf("some grpc error"),
+			ResponseErr: status.Errorf(codes.AlreadyExists, "some grpc error"),
+			ExpectedErr: fmt.Errorf("volume \"foo\" is already staged to \"/path\" but with incompatible capabilities for this request: rpc error: code = AlreadyExists desc = some grpc error"),
 		},
 		{
 			Name:        "handles success",
@@ -608,18 +620,18 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			_, _, nc, client := newTestClient()
 			defer client.Close()
 
-			nc.NextErr = c.ResponseErr
-			nc.NextStageVolumeResponse = c.Response
+			nc.NextErr = tc.ResponseErr
+			nc.NextStageVolumeResponse = tc.Response
 
-			err := client.NodeStageVolume(context.TODO(), "foo", nil, "/foo",
+			err := client.NodeStageVolume(context.TODO(), "foo", nil, "/path",
 				&VolumeCapability{}, structs.CSISecrets{})
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
 				require.Nil(t, err)
 			}
@@ -636,8 +648,8 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 	}{
 		{
 			Name:        "handles underlying grpc errors",
-			ResponseErr: fmt.Errorf("some grpc error"),
-			ExpectedErr: fmt.Errorf("some grpc error"),
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 		{
 			Name:        "handles success",
@@ -646,17 +658,17 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			_, _, nc, client := newTestClient()
 			defer client.Close()
 
-			nc.NextErr = c.ResponseErr
-			nc.NextUnstageVolumeResponse = c.Response
+			nc.NextErr = tc.ResponseErr
+			nc.NextUnstageVolumeResponse = tc.Response
 
 			err := client.NodeUnstageVolume(context.TODO(), "foo", "/foo")
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
 				require.Nil(t, err)
 			}
@@ -675,17 +687,17 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 		{
 			Name: "handles underlying grpc errors",
 			Request: &NodePublishVolumeRequest{
-				VolumeID:         "foo",
+				ExternalID:       "foo",
 				TargetPath:       "/dev/null",
 				VolumeCapability: &VolumeCapability{},
 			},
-			ResponseErr: fmt.Errorf("some grpc error"),
-			ExpectedErr: fmt.Errorf("some grpc error"),
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 		{
 			Name: "handles success",
 			Request: &NodePublishVolumeRequest{
-				VolumeID:         "foo",
+				ExternalID:       "foo",
 				TargetPath:       "/dev/null",
 				VolumeCapability: &VolumeCapability{},
 			},
@@ -695,24 +707,24 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 		{
 			Name: "Performs validation of the publish volume request",
 			Request: &NodePublishVolumeRequest{
-				VolumeID: "",
+				ExternalID: "",
 			},
 			ResponseErr: nil,
-			ExpectedErr: errors.New("missing VolumeID"),
+			ExpectedErr: errors.New("validation error: missing volume ID"),
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			_, _, nc, client := newTestClient()
 			defer client.Close()
 
-			nc.NextErr = c.ResponseErr
-			nc.NextPublishVolumeResponse = c.Response
+			nc.NextErr = tc.ResponseErr
+			nc.NextPublishVolumeResponse = tc.Response
 
-			err := client.NodePublishVolume(context.TODO(), c.Request)
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			err := client.NodePublishVolume(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
 				require.Nil(t, err)
 			}
@@ -722,7 +734,7 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 	cases := []struct {
 		Name        string
-		VolumeID    string
+		ExternalID  string
 		TargetPath  string
 		ResponseErr error
 		Response    *csipbv1.NodeUnpublishVolumeResponse
@@ -730,42 +742,42 @@ func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 	}{
 		{
 			Name:        "handles underlying grpc errors",
-			VolumeID:    "foo",
+			ExternalID:  "foo",
 			TargetPath:  "/dev/null",
-			ResponseErr: fmt.Errorf("some grpc error"),
-			ExpectedErr: fmt.Errorf("some grpc error"),
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 		{
 			Name:        "handles success",
-			VolumeID:    "foo",
+			ExternalID:  "foo",
 			TargetPath:  "/dev/null",
 			ResponseErr: nil,
 			ExpectedErr: nil,
 		},
 		{
-			Name:        "Performs validation of the request args - VolumeID",
+			Name:        "Performs validation of the request args - ExternalID",
 			ResponseErr: nil,
-			ExpectedErr: errors.New("missing VolumeID"),
+			ExpectedErr: errors.New("missing volumeID"),
 		},
 		{
 			Name:        "Performs validation of the request args - TargetPath",
-			VolumeID:    "foo",
+			ExternalID:  "foo",
 			ResponseErr: nil,
-			ExpectedErr: errors.New("missing TargetPath"),
+			ExpectedErr: errors.New("missing targetPath"),
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
 			_, _, nc, client := newTestClient()
 			defer client.Close()
 
-			nc.NextErr = c.ResponseErr
-			nc.NextUnpublishVolumeResponse = c.Response
+			nc.NextErr = tc.ResponseErr
+			nc.NextUnpublishVolumeResponse = tc.Response
 
-			err := client.NodeUnpublishVolume(context.TODO(), c.VolumeID, c.TargetPath)
-			if c.ExpectedErr != nil {
-				require.Error(t, c.ExpectedErr, err)
+			err := client.NodeUnpublishVolume(context.TODO(), tc.ExternalID, tc.TargetPath)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
 				require.Nil(t, err)
 			}

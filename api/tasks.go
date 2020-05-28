@@ -411,23 +411,24 @@ func (vm *VolumeMount) Canonicalize() {
 
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name             *string
-	Count            *int
-	Constraints      []*Constraint
-	Affinities       []*Affinity
-	Tasks            []*Task
-	Spreads          []*Spread
-	Volumes          map[string]*VolumeRequest
-	RestartPolicy    *RestartPolicy
-	ReschedulePolicy *ReschedulePolicy
-	EphemeralDisk    *EphemeralDisk
-	Update           *UpdateStrategy
-	Migrate          *MigrateStrategy
-	Networks         []*NetworkResource
-	Meta             map[string]string
-	Services         []*Service
-	ShutdownDelay    *time.Duration `mapstructure:"shutdown_delay"`
-	Scaling          *ScalingPolicy
+	Name                      *string
+	Count                     *int
+	Constraints               []*Constraint
+	Affinities                []*Affinity
+	Tasks                     []*Task
+	Spreads                   []*Spread
+	Volumes                   map[string]*VolumeRequest
+	RestartPolicy             *RestartPolicy
+	ReschedulePolicy          *ReschedulePolicy
+	EphemeralDisk             *EphemeralDisk
+	Update                    *UpdateStrategy
+	Migrate                   *MigrateStrategy
+	Networks                  []*NetworkResource
+	Meta                      map[string]string
+	Services                  []*Service
+	ShutdownDelay             *time.Duration `mapstructure:"shutdown_delay"`
+	StopAfterClientDisconnect *time.Duration `mapstructure:"stop_after_client_disconnect"`
+	Scaling                   *ScalingPolicy
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -443,6 +444,7 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.Name == nil {
 		g.Name = stringToPtr("")
 	}
+
 	if g.Count == nil {
 		if g.Scaling != nil && g.Scaling.Min != nil {
 			g.Count = intToPtr(int(*g.Scaling.Min))
@@ -675,6 +677,7 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 		t.Resources = &Resources{}
 	}
 	t.Resources.Canonicalize()
+
 	if t.KillTimeout == nil {
 		t.KillTimeout = timeToPtr(5 * time.Second)
 	}

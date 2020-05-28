@@ -70,6 +70,8 @@ func noopLogEventFn(string, map[string]string) {}
 
 // dockerCoordinatorConfig is used to configure the Docker coordinator.
 type dockerCoordinatorConfig struct {
+	ctx context.Context
+
 	// logger is the logger the coordinator should use
 	logger hclog.Logger
 
@@ -283,7 +285,7 @@ func (d *dockerCoordinator) RemoveImage(imageID, callerID string) {
 	}
 
 	// Setup a future to delete the image
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(d.ctx)
 	d.deleteFuture[imageID] = cancel
 	go d.removeImageImpl(imageID, ctx)
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -548,6 +549,11 @@ func isAPIClientError(code int) bool {
 
 // decodeBody is used to decode a JSON request body
 func decodeBody(req *http.Request, out interface{}) error {
+
+	if req.Body == http.NoBody {
+		return errors.New("Request body is empty")
+	}
+
 	dec := json.NewDecoder(req.Body)
 	return dec.Decode(&out)
 }

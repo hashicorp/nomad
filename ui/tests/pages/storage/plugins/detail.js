@@ -15,9 +15,13 @@ export default create({
 
   title: text('[data-test-title]'),
 
+  controllerHealthIsPresent: isPresent('[data-test-plugin-controller-health]'),
   controllerHealth: text('[data-test-plugin-controller-health]'),
   nodeHealth: text('[data-test-plugin-node-health]'),
   provider: text('[data-test-plugin-provider]'),
+
+  controllerAvailabilityIsPresent: isPresent('[data-test-plugin-controller-availability]'),
+  nodeAvailabilityIsPresent: isPresent('[data-test-plugin-node-availability]'),
 
   breadcrumbs: collection('[data-test-breadcrumb]', {
     id: attribute('data-test-breadcrumb'),
@@ -31,6 +35,13 @@ export default create({
 
   ...allocations('[data-test-controller-allocation]', 'controllerAllocations'),
   ...allocations('[data-test-node-allocation]', 'nodeAllocations'),
+
+  goToControllerAllocations: clickable('[data-test-go-to-controller-allocations]'),
+  goToNodeAllocations: clickable('[data-test-go-to-node-allocations]'),
+  goToControllerAllocationsText: text('[data-test-go-to-controller-allocations]'),
+  goToNodeAllocationsText: text('[data-test-go-to-node-allocations]'),
+
+  controllerTableIsPresent: isPresent('[data-test-controller-allocations]'),
 
   controllerTableIsEmpty: isPresent('[data-test-empty-controller-allocations]'),
   controllerEmptyState: {

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -1091,6 +1093,42 @@ func Test_IsAPIClientError(t *testing.T) {
 	falseCases := []int{100, 300, 500, 501, 505}
 	for _, c := range falseCases {
 		require.Falsef(t, isAPIClientError(c), "code: %v", c)
+	}
+}
+
+func Test_decodeBody(t *testing.T) {
+
+	testCases := []struct {
+		inputReq      *http.Request
+		inputOut      interface{}
+		expectedOut   interface{}
+		expectedError error
+		name          string
+	}{
+		{
+			inputReq:      &http.Request{Body: http.NoBody},
+			expectedError: errors.New("Request body is empty"),
+			name:          "empty input request body",
+		},
+		{
+			inputReq: &http.Request{Body: ioutil.NopCloser(strings.NewReader(`{"foo":"bar"}`))},
+			inputOut: &struct {
+				Foo string `json:"foo"`
+			}{},
+			expectedOut: &struct {
+				Foo string `json:"foo"`
+			}{Foo: "bar"},
+			expectedError: nil,
+			name:          "populated request body and correct out",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := decodeBody(tc.inputReq, tc.inputOut)
+			assert.Equal(t, tc.expectedError, actualError, tc.name)
+			assert.Equal(t, tc.expectedOut, tc.inputOut, tc.name)
+		})
 	}
 }
 

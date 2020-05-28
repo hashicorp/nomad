@@ -38,7 +38,7 @@ as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
 
 1. Clone the Nomad repository from GitHub into your `GOPATH`:
 
-   ```shell
+   ```shell-session
    $ mkdir -p $GOPATH/src/github.com/hashicorp && cd $_
    $ git clone https://github.com/hashicorp/nomad.git
    $ cd nomad
@@ -47,7 +47,7 @@ as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
 1. Bootstrap the project. This will download and compile libraries and tools
    needed to compile Nomad:
 
-   ```shell
+   ```shell-session
    $ make bootstrap
    ```
 
@@ -56,7 +56,7 @@ as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
    just a shortcut that builds `nomad` for only your local build environment (no
    cross-compiled targets).
 
-   ```shell
+   ```shell-session
    $ make dev
    ```
 
@@ -66,6 +66,7 @@ To verify Nomad is properly installed, run `nomad -v` on your system. You should
 see help output. If you are executing it from the command line, make sure it is
 on your `PATH` or you may get an error about `nomad` not being found.
 
-```shell-sessionnomad -v
+```shell-session
+$ nomad -v
 
 ```

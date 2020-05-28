@@ -34,11 +34,13 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     http://localhost:4646/v1/nodes
 ```
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     http://localhost:4646/v1/nodes?prefix=f7476465
 ```
 
@@ -143,7 +145,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     http://localhost:4646/v1/node/f7476465-4d6e-c0de-26d0-e383c49be941
 ```
 
@@ -403,7 +406,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     http://localhost:4646/v1/node/e02b6169-83bd-9df6-69bd-832765f333eb/allocations
 ```
 
@@ -775,7 +779,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/evaluate
 ```
 
@@ -868,7 +873,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     -XPOST \
     --data @drain.json \
     http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/drain
@@ -910,7 +916,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     -XPOST http://localhost:4646/v1/node/f7476465-4d6e-c0de-26d0-e383c49be941/purge
 ```
 
@@ -965,7 +972,8 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell-sessioncurl \
+```shell-session
+$ curl \
     -XPOST \
     --data @eligibility.json \
     http://localhost:4646/v1/node/fb2170a8-257d-3c64-b14d-bc06cc94e34c/eligibility

@@ -7,6 +7,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // csiHook will wait for remote csi volumes to be attached to the host before
@@ -14,6 +15,7 @@ import (
 //
 // It is a noop for allocs that do not depend on CSI Volumes.
 type csiHook struct {
+	ar         *allocRunner
 	alloc      *structs.Allocation
 	logger     hclog.Logger
 	csimanager csimanager.Manager
@@ -88,7 +90,21 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 
 	// Initially, populate the result map with all of the requests
 	for alias, volumeRequest := range tg.Volumes {
+
 		if volumeRequest.Type == structs.VolumeTypeCSI {
+
+			for _, task := range tg.Tasks {
+				caps, err := c.ar.GetTaskDriverCapabilities(task.Name)
+				if err != nil {
+					return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
+				}
+
+				if caps.MountConfigs == drivers.MountConfigSupportNone {
+					return nil, fmt.Errorf(
+						"task driver %q for %q does not support CSI", task.Driver, task.Name)
+				}
+			}
+
 			result[alias] = &volumeAndRequest{request: volumeRequest}
 		}
 	}
@@ -125,8 +141,9 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 	return result, nil
 }
 
-func newCSIHook(logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer, csi csimanager.Manager, updater hookResourceSetter) *csiHook {
+func newCSIHook(ar *allocRunner, logger hclog.Logger, alloc *structs.Allocation, rpcClient RPCer, csi csimanager.Manager, updater hookResourceSetter) *csiHook {
 	return &csiHook{
+		ar:         ar,
 		alloc:      alloc,
 		logger:     logger.Named("csi_hook"),
 		rpcClient:  rpcClient,

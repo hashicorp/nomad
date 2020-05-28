@@ -3,7 +3,7 @@ package hclspecutils
 import (
 	"testing"
 
-	"github.com/hashicorp/hcl2/hcldec"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"

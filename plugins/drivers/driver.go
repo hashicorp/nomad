@@ -87,14 +87,6 @@ type DriverNetworkManager interface {
 	DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error
 }
 
-// InternalDriverPlugin is an interface that exposes functions that are only
-// implemented by internal driver plugins.
-type InternalDriverPlugin interface {
-	// Shutdown allows the plugin to cleanup any running state to avoid leaking
-	// resources. It should not block.
-	Shutdown()
-}
-
 // DriverSignalTaskNotSupported can be embedded by drivers which don't support
 // the SignalTask RPC. This satisfies the SignalTask func requirement for the
 // DriverPlugin interface.
@@ -163,6 +155,9 @@ type Capabilities struct {
 	// MustInitiateNetwork tells Nomad that the driver must create the network
 	// namespace and that the CreateNetwork and DestroyNetwork RPCs are implemented.
 	MustInitiateNetwork bool
+
+	// MountConfigs tells Nomad which mounting config options the driver supports.
+	MountConfigs MountConfigSupport
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
@@ -196,6 +191,15 @@ type NetworkIsolationSpec struct {
 	Path   string
 	Labels map[string]string
 }
+
+// MountConfigSupport is an enum that defaults to "all" for backwards
+// compatibility with community drivers.
+type MountConfigSupport int32
+
+const (
+	MountConfigSupportAll MountConfigSupport = iota
+	MountConfigSupportNone
+)
 
 type TerminalSize struct {
 	Height int

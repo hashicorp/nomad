@@ -34,13 +34,14 @@ affected.
 ### Periodic Jobs and Daylight Saving Time
 
 Nomad 0.11.2 fixed a long outstanding bug affecting periodic jobs that are
-scheduled to run during daylight saving transition time.
+scheduled to run during Daylight Saving Time transitions.
 
-Nomad 0.11.2 provides a more defined behvior: nomad evaluates the cron
-expression with respect to specified time zone during transition. A 2.30am
+Nomad 0.11.2 provides a more defined behavior: Nomad evaluates the cron
+expression with respect to specified time zone during transition. A 2:30am
 nightly job with `America/New_York` time zone will not run on the day daylight
-saving time start; similarly, a 1.30am nightly job will run twice on the day
-daylight saving time ends.
+saving time starts; similarly, a 1:30am nightly job will run twice on the day
+daylight saving time ends. See the [Daylight Saving Time][dst] documentation
+for details.
 
 ## Nomad 0.11.0
 
@@ -496,6 +497,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [dangling-containers]: /docs/drivers/docker#dangling-containers
 [drain-api]: /api-docs/nodes#drain-node
 [drain-cli]: /docs/commands/node/drain
+[dst]: /docs/job-specification/periodic#daylight-saving-time
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits

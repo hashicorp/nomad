@@ -186,6 +186,10 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "get"}, metricsStart)
 
+	if args.ID == "" {
+		return fmt.Errorf("missing volume ID")
+	}
+
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -238,7 +242,8 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 		AttachmentMode: vol.AttachmentMode,
 		AccessMode:     vol.AccessMode,
 		Secrets:        vol.Secrets,
-		// Parameters: TODO: https://github.com/hashicorp/nomad/issues/7670
+		Parameters:     vol.Parameters,
+		Context:        vol.Context,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerValidateVolumeResponse{}
@@ -263,6 +268,10 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 
 	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
+	}
+
+	if args.Volumes == nil || len(args.Volumes) == 0 {
+		return fmt.Errorf("missing volume definition")
 	}
 
 	// This is the only namespace we ACL checked, force all the volumes to use it.
@@ -317,6 +326,10 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return structs.ErrPermissionDenied
 	}
 
+	if len(args.VolumeIDs) == 0 {
+		return fmt.Errorf("missing volume IDs")
+	}
+
 	resp, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "deregister")
@@ -348,6 +361,10 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 
 	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
+	}
+
+	if args.VolumeID == "" {
+		return fmt.Errorf("missing volume ID")
 	}
 
 	// COMPAT(1.0): the NodeID field was added after 0.11.0 and so we
@@ -443,7 +460,7 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		AccessMode:      vol.AccessMode,
 		ReadOnly:        req.Claim == structs.CSIVolumeClaimRead,
 		Secrets:         vol.Secrets,
-		// VolumeContext: TODO https://github.com/hashicorp/nomad/issues/7771
+		VolumeContext:   vol.Context,
 	}
 	cReq.PluginID = plug.ID
 	cResp := &cstructs.ClientCSIControllerAttachVolumeResponse{}
@@ -563,6 +580,10 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, metricsStart)
 
+	if args.ID == "" {
+		return fmt.Errorf("missing plugin ID")
+	}
+
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
@@ -614,6 +635,10 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, metricsStart)
+
+	if args.ID == "" {
+		return fmt.Errorf("missing plugin ID")
+	}
 
 	resp, index, err := v.srv.raftApply(structs.CSIPluginDeleteRequestType, args)
 	if err != nil {

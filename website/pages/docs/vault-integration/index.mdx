@@ -114,7 +114,7 @@ path "auth/token/renew-self" {
 The above [`nomad-server` policy](/data/vault/nomad-server-policy.hcl) is
 available for download. Below is an example of writing this policy to Vault:
 
-```shell
+```shell-session
 # Download the policy
 $ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s -L
 
@@ -208,7 +208,7 @@ documentation for all possible fields and more complete documentation.
 The above [`nomad-cluster` token role](/data/vault/nomad-cluster-role.json) is
 available for download. Below is an example of writing this role to Vault:
 
-```shell
+```shell-session
 # Download the token role
 $ curl https://nomadproject.io/data/vault/nomad-cluster-role.json -O -s -L
 
@@ -226,7 +226,7 @@ available for download.
 The below example assumes Vault is accessible, unsealed and the operator has
 appropriate permissions.
 
-```shell
+```shell-session
 # Download the policy and token role
 $ curl https://nomadproject.io/data/vault/nomad-server-policy.hcl -O -s -L
 $ curl https://nomadproject.io/data/vault/nomad-cluster-role.json -O -s -L
@@ -243,7 +243,8 @@ $ vault write /auth/token/roles/nomad-cluster @nomad-cluster-role.json
 After the token role is created, a token suitable for the Nomad servers may be
 retrieved by issuing the following Vault command:
 
-```shell-sessionvault token create -policy nomad-server -period 72h -orphan
+```shell-session
+$ vault token create -policy nomad-server -period 72h -orphan
 Key             Value
 ---             -----
 token           f02f01c2-c0d1-7cb7-6b88-8a14fada58c0
@@ -272,8 +273,8 @@ The token can then be set in the server configuration's
 [`vault` stanza][config], as a command-line flag, or via an environment
 variable.
 
-```shell-sessionVAULT_TOKEN=f02f01c2-c0d1-7cb7-6b88-8a14fada58c0 nomad agent -config /path/to/config
-
+```shell-session
+$ VAULT_TOKEN=f02f01c2-c0d1-7cb7-6b88-8a14fada58c0 nomad agent -config /path/to/config
 ```
 
 An example of what may be contained in the configuration is shown below. For

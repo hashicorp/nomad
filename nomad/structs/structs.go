@@ -1167,6 +1167,9 @@ type NodeUpdateResponse struct {
 	EvalCreateIndex uint64
 	NodeModifyIndex uint64
 
+	// Features informs clients what enterprise features are allowed
+	Features uint64
+
 	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
 	// empty, the current Nomad Server is in the minority of a partition.
 	LeaderRPCAddr string
@@ -3799,6 +3802,10 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 		}
 
+		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect < 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect must be a positive value"))
+		}
+
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
@@ -5265,6 +5272,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.ShutdownDelay = tg.ShutdownDelay
 	}
 
+	if tg.StopAfterClientDisconnect != nil {
+		ntg.StopAfterClientDisconnect = tg.StopAfterClientDisconnect
+	}
+
 	return ntg
 }
 
@@ -6305,6 +6316,10 @@ func (t *Task) Warnings() error {
 // task to the service name of which it is a connect proxy for.
 type TaskKind string
 
+func NewTaskKind(name, identifier string) TaskKind {
+	return TaskKind(fmt.Sprintf("%s:%s", name, identifier))
+}
+
 // Name returns the kind name portion of the TaskKind
 func (k TaskKind) Name() string {
 	return strings.Split(string(k), ":")[0]
@@ -6324,9 +6339,19 @@ func (k TaskKind) IsConnectProxy() bool {
 	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
 }
 
-// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
-// Proxy
-const ConnectProxyPrefix = "connect-proxy"
+func (k TaskKind) IsConnectNative() bool {
+	return strings.HasPrefix(string(k), ConnectNativePrefix+":") && len(k) > len(ConnectNativePrefix)+1
+}
+
+const (
+	// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
+	// Proxy
+	ConnectProxyPrefix = "connect-proxy"
+
+	// ConnectNativePrefix is the prefix used for fields referencing a Connect
+	// Native Task
+	ConnectNativePrefix = "connect-native"
+)
 
 // ValidateConnectProxyService checks that the service that is being
 // proxied by this task exists in the task group and contains
@@ -6514,6 +6539,19 @@ func (t *Template) Warnings() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// AllocState records a single event that changes the state of the whole allocation
+type AllocStateField uint8
+
+const (
+	AllocStateFieldClientStatus AllocStateField = iota
+)
+
+type AllocState struct {
+	Field AllocStateField
+	Value string
+	Time  time.Time
 }
 
 // Set of possible states for a task.
@@ -8152,6 +8190,9 @@ type Allocation struct {
 	// TaskStates stores the state of each task,
 	TaskStates map[string]*TaskState
 
+	// AllocStates track meta data associated with changes to the state of the whole allocation, like becoming lost
+	AllocStates []*AllocState
+
 	// PreviousAllocation is the allocation that this allocation is replacing
 	PreviousAllocation string
 
@@ -8420,6 +8461,49 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	return nextRescheduleTime, rescheduleEligible
 }
 
+// ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
+func (a *Allocation) ShouldClientStop() bool {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil ||
+		tg.StopAfterClientDisconnect == nil ||
+		*tg.StopAfterClientDisconnect == 0*time.Nanosecond {
+		return false
+	}
+	return true
+}
+
+// WaitClientStop uses the reschedule delay mechanism to block rescheduling until
+// StopAfterClientDisconnect's block interval passes
+func (a *Allocation) WaitClientStop() time.Time {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	// An alloc can only be marked lost once, so use the first lost transition
+	var t time.Time
+	for _, s := range a.AllocStates {
+		if s.Field == AllocStateFieldClientStatus &&
+			s.Value == AllocClientStatusLost {
+			t = s.Time
+			break
+		}
+	}
+
+	// On the first pass, the alloc hasn't been marked lost yet, and so we start
+	// counting from now
+	if t.IsZero() {
+		t = time.Now().UTC()
+	}
+
+	// Find the max kill timeout
+	kill := DefaultKillTimeout
+	for _, t := range tg.Tasks {
+		if t.KillTimeout > kill {
+			kill = t.KillTimeout
+		}
+	}
+
+	return t.Add(*tg.StopAfterClientDisconnect + kill)
+}
+
 // NextDelay returns a duration after which the allocation can be rescheduled.
 // It is calculated according to the delay function and previous reschedule attempts.
 func (a *Allocation) NextDelay() time.Duration {
@@ -8474,6 +8558,24 @@ func (a *Allocation) Terminated() bool {
 		return true
 	}
 	return false
+}
+
+// SetStopped updates the allocation in place to a DesiredStatus stop, with the ClientStatus
+func (a *Allocation) SetStop(clientStatus, clientDesc string) {
+	a.DesiredStatus = AllocDesiredStatusStop
+	a.ClientStatus = clientStatus
+	a.ClientDescription = clientDesc
+	a.AppendState(AllocStateFieldClientStatus, clientStatus)
+}
+
+// AppendState creates and appends an AllocState entry recording the time of the state
+// transition. Used to mark the transition to lost
+func (a *Allocation) AppendState(field AllocStateField, value string) {
+	a.AllocStates = append(a.AllocStates, &AllocState{
+		Field: field,
+		Value: value,
+		Time:  time.Now().UTC(),
+	})
 }
 
 // RanSuccessfully returns whether the client has ran the allocation and all
@@ -9383,6 +9485,8 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus s
 	if clientStatus != "" {
 		newAlloc.ClientStatus = clientStatus
 	}
+
+	newAlloc.AppendState(AllocStateFieldClientStatus, clientStatus)
 
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]

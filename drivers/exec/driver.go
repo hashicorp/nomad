@@ -47,7 +47,7 @@ var (
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewExecDriver(l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewExecDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -83,6 +83,7 @@ var (
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
 		},
+		MountConfigs: drivers.MountConfigSupportAll,
 	}
 )
 
@@ -105,10 +106,6 @@ type Driver struct {
 	// ctx is the context for the driver. It is passed to other subsystems to
 	// coordinate shutdown
 	ctx context.Context
-
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
@@ -143,15 +140,13 @@ type TaskState struct {
 }
 
 // NewExecDriver returns a new DrivePlugin implementation
-func NewExecDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewExecDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -198,10 +193,6 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
 	return nil
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }
 
 func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {

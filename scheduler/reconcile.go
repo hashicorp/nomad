@@ -353,9 +353,19 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
 
+	// Find delays for any lost allocs that have stop_after_client_disconnect
+	lostLater := lost.delayByStopAfterClientDisconnect()
+	rescheduleLater = append(rescheduleLater, lostLater...)
+
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
 	a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
+
+	// Allocs that are lost and delayed have an attributeUpdate that correctly links to
+	// the eval, but incorrectly has the current (running) status
+	for _, d := range lostLater {
+		a.result.attributeUpdates[d.allocID].SetStop(structs.AllocClientStatusLost, structs.AllocClientStatusLost)
+	}
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
@@ -413,9 +423,13 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// * The deployment is not paused or failed
 	// * Not placing any canaries
 	// * If there are any canaries that they have been promoted
-	place := a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow)
-	if !existingDeployment {
-		dstate.DesiredTotal += len(place)
+	// * There is no delayed stop_after_client_disconnect alloc
+	var place []allocPlaceResult
+	if len(lostLater) == 0 {
+		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow)
+		if !existingDeployment {
+			dstate.DesiredTotal += len(place)
+		}
 	}
 
 	// deploymentPlaceReady tracks whether the deployment is in a state where

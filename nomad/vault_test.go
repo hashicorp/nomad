@@ -1409,6 +1409,52 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	}
 }
 
+// TestVaultClient_RevokeTokens_failures_TTL asserts that
+// the registered TTL doesn't get extended on retries
+func TestVaultClient_RevokeTokens_Failures_TTL(t *testing.T) {
+	t.Parallel()
+	vconfig := &config.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Token:   uuid.Generate(),
+		Addr:    "http://127.0.0.1:0",
+	}
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(vconfig, logger, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	// Create some VaultAccessors
+	vas := []*structs.VaultAccessor{
+		mock.VaultAccessor(),
+		mock.VaultAccessor(),
+	}
+
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+
+	// Was committed
+	require.Len(t, client.revoking, 2)
+
+	// set TTL
+	ttl := time.Now().Add(50 * time.Second)
+	client.revoking[vas[0]] = ttl
+	client.revoking[vas[1]] = ttl
+
+	// revoke again and ensure that TTL isn't extended
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+
+	require.Len(t, client.revoking, 2)
+	expected := map[*structs.VaultAccessor]time.Time{
+		vas[0]: ttl,
+		vas[1]: ttl,
+	}
+	require.Equal(t, expected, client.revoking)
+}
+
 func TestVaultClient_RevokeTokens_Root(t *testing.T) {
 	t.Parallel()
 	v := testutil.NewTestVault(t)
@@ -1539,6 +1585,86 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 	if s, err := auth.Lookup(t2.Auth.ClientToken); err == nil {
 		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
 	}
+}
+
+// TestVaultClient_RevokeTokens_Idempotent asserts that token revocation
+// is idempotent, and can cope with cases if token was deleted out of band.
+func TestVaultClient_RevokeTokens_Idempotent(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+
+	purged := map[string]struct{}{}
+	purge := func(accessors []*structs.VaultAccessor) error {
+		for _, accessor := range accessors {
+			purged[accessor.Accessor] = struct{}{}
+		}
+		return nil
+	}
+
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(v.Config, logger, purge)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create some vault tokens
+	auth := v.Client.Auth().Token()
+	req := vapi.TokenCreateRequest{
+		Policies: []string{"default"},
+	}
+	t1, err := auth.Create(&req)
+	require.NoError(t, err)
+	require.NotNil(t, t1)
+	require.NotNil(t, t1.Auth)
+
+	t2, err := auth.Create(&req)
+	require.NoError(t, err)
+	require.NotNil(t, t2)
+	require.NotNil(t, t2.Auth)
+
+	t3, err := auth.Create(&req)
+	require.NoError(t, err)
+	require.NotNil(t, t3)
+	require.NotNil(t, t3.Auth)
+
+	// revoke t3 out of band
+	err = auth.RevokeAccessor(t3.Auth.Accessor)
+	require.NoError(t, err)
+
+	// Create two VaultAccessors
+	vas := []*structs.VaultAccessor{
+		{Accessor: t1.Auth.Accessor},
+		{Accessor: t2.Auth.Accessor},
+		{Accessor: t3.Auth.Accessor},
+	}
+
+	// Issue a token revocation
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+	require.Empty(t, client.revoking)
+
+	// revoke token again
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+	require.Empty(t, client.revoking)
+
+	// Lookup the token and make sure we get an error
+	require.Len(t, purged, 3)
+	require.Contains(t, purged, t1.Auth.Accessor)
+	require.Contains(t, purged, t2.Auth.Accessor)
+	require.Contains(t, purged, t3.Auth.Accessor)
+	s, err := auth.Lookup(t1.Auth.ClientToken)
+	require.Errorf(t, err, "failed to purge token: %v", s)
+	s, err = auth.Lookup(t2.Auth.ClientToken)
+	require.Errorf(t, err, "failed to purge token: %v", s)
 }
 
 func waitForConnection(v *vaultClient, t *testing.T) {

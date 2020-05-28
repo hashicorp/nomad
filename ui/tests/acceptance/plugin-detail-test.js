@@ -14,7 +14,7 @@ module('Acceptance | plugin detail', function(hooks) {
 
   hooks.beforeEach(function() {
     server.create('node');
-    plugin = server.create('csi-plugin');
+    plugin = server.create('csi-plugin', { controllerRequired: true });
   });
 
   test('/csi/plugins/:id should have a breadcrumb trail linking back to Plugins and Storage', async function(assert) {
@@ -147,6 +147,7 @@ module('Acceptance | plugin detail', function(hooks) {
 
   test('when there are no plugin allocations, the tables present empty states', async function(assert) {
     const emptyPlugin = server.create('csi-plugin', {
+      controllerRequired: true,
       controllersHealthy: 0,
       controllersExpected: 0,
       nodesHealthy: 0,
@@ -160,5 +161,48 @@ module('Acceptance | plugin detail', function(hooks) {
 
     assert.ok(PluginDetail.nodeTableIsEmpty);
     assert.equal(PluginDetail.nodeEmptyState.headline, 'No Node Plugin Allocations');
+  });
+
+  test('when the plugin is node-only, the controller information is omitted', async function(assert) {
+    const nodeOnlyPlugin = server.create('csi-plugin', { controllerRequired: false });
+
+    await PluginDetail.visit({ id: nodeOnlyPlugin.id });
+
+    assert.notOk(PluginDetail.controllerAvailabilityIsPresent);
+    assert.ok(PluginDetail.nodeAvailabilityIsPresent);
+
+    assert.notOk(PluginDetail.controllerHealthIsPresent);
+    assert.notOk(PluginDetail.controllerTableIsPresent);
+  });
+
+  test('when there are more than 10 controller or node allocations, only 10 are shown', async function(assert) {
+    const manyAllocationsPlugin = server.create('csi-plugin', {
+      shallow: true,
+      controllerRequired: false,
+      nodesExpected: 15,
+    });
+
+    await PluginDetail.visit({ id: manyAllocationsPlugin.id });
+
+    assert.equal(PluginDetail.nodeAllocations.length, 10);
+  });
+
+  test('the View All links under each allocation table link to a filtered view of the plugins allocation list', async function(assert) {
+    const serialize = arr => window.encodeURIComponent(JSON.stringify(arr));
+
+    await PluginDetail.visit({ id: plugin.id });
+    assert.ok(
+      PluginDetail.goToControllerAllocationsText.includes(plugin.controllers.models.length)
+    );
+    await PluginDetail.goToControllerAllocations();
+    assert.equal(
+      currentURL(),
+      `/csi/plugins/${plugin.id}/allocations?type=${serialize(['controller'])}`
+    );
+
+    await PluginDetail.visit({ id: plugin.id });
+    assert.ok(PluginDetail.goToNodeAllocationsText.includes(plugin.nodes.models.length));
+    await PluginDetail.goToNodeAllocations();
+    assert.equal(currentURL(), `/csi/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`);
   });
 });

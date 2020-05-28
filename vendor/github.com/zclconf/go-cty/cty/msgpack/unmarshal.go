@@ -2,7 +2,6 @@ package msgpack
 
 import (
 	"bytes"
-	"math/big"
 
 	"github.com/vmihailenco/msgpack"
 	msgpackCodes "github.com/vmihailenco/msgpack/codes"
@@ -31,12 +30,14 @@ func unmarshal(dec *msgpack.Decoder, ty cty.Type, path cty.Path) (cty.Value, err
 	if msgpackCodes.IsExt(peek) {
 		// We just assume _all_ extensions are unknown values,
 		// since we don't have any other extensions.
+		dec.Skip() // skip what we've peeked
 		return cty.UnknownVal(ty), nil
 	}
 	if ty == cty.DynamicPseudoType {
 		return unmarshalDynamic(dec, path)
 	}
 	if peek == msgpackCodes.Nil {
+		dec.Skip() // skip what we've peeked
 		return cty.NullVal(ty), nil
 	}
 
@@ -111,12 +112,11 @@ func unmarshalPrimitive(dec *msgpack.Decoder, ty cty.Type, path cty.Path) (cty.V
 			if err != nil {
 				return cty.DynamicVal, path.NewErrorf("number is required")
 			}
-			bf := &big.Float{}
-			_, _, err = bf.Parse(rv, 10)
+			v, err := cty.ParseNumberVal(rv)
 			if err != nil {
 				return cty.DynamicVal, path.NewErrorf("number is required")
 			}
-			return cty.NumberVal(bf), nil
+			return v, nil
 		}
 	case cty.String:
 		rv, err := dec.DecodeString()
@@ -136,7 +136,10 @@ func unmarshalList(dec *msgpack.Decoder, ety cty.Type, path cty.Path) (cty.Value
 		return cty.DynamicVal, path.NewErrorf("a list is required")
 	}
 
-	if length == 0 {
+	switch {
+	case length < 0:
+		return cty.NullVal(cty.List(ety)), nil
+	case length == 0:
 		return cty.ListValEmpty(ety), nil
 	}
 
@@ -164,7 +167,10 @@ func unmarshalSet(dec *msgpack.Decoder, ety cty.Type, path cty.Path) (cty.Value,
 		return cty.DynamicVal, path.NewErrorf("a set is required")
 	}
 
-	if length == 0 {
+	switch {
+	case length < 0:
+		return cty.NullVal(cty.Set(ety)), nil
+	case length == 0:
 		return cty.SetValEmpty(ety), nil
 	}
 
@@ -192,7 +198,10 @@ func unmarshalMap(dec *msgpack.Decoder, ety cty.Type, path cty.Path) (cty.Value,
 		return cty.DynamicVal, path.NewErrorf("a map is required")
 	}
 
-	if length == 0 {
+	switch {
+	case length < 0:
+		return cty.NullVal(cty.Map(ety)), nil
+	case length == 0:
 		return cty.MapValEmpty(ety), nil
 	}
 
@@ -225,7 +234,12 @@ func unmarshalTuple(dec *msgpack.Decoder, etys []cty.Type, path cty.Path) (cty.V
 		return cty.DynamicVal, path.NewErrorf("a tuple is required")
 	}
 
-	if length != len(etys) {
+	switch {
+	case length < 0:
+		return cty.NullVal(cty.Tuple(etys)), nil
+	case length == 0:
+		return cty.TupleVal(nil), nil
+	case length != len(etys):
 		return cty.DynamicVal, path.NewErrorf("a tuple of length %d is required", len(etys))
 	}
 
@@ -254,8 +268,14 @@ func unmarshalObject(dec *msgpack.Decoder, atys map[string]cty.Type, path cty.Pa
 		return cty.DynamicVal, path.NewErrorf("an object is required")
 	}
 
-	if length != len(atys) {
-		return cty.DynamicVal, path.NewErrorf("an object with %d attributes is required", len(atys))
+	switch {
+	case length < 0:
+		return cty.NullVal(cty.Object(atys)), nil
+	case length == 0:
+		return cty.ObjectVal(nil), nil
+	case length != len(atys):
+		return cty.DynamicVal, path.NewErrorf("an object with %d attributes is required (%d given)",
+			len(atys), length)
 	}
 
 	vals := make(map[string]cty.Value, length)
@@ -291,7 +311,10 @@ func unmarshalDynamic(dec *msgpack.Decoder, path cty.Path) (cty.Value, error) {
 		return cty.DynamicVal, path.NewError(err)
 	}
 
-	if length != 2 {
+	switch {
+	case length == -1:
+		return cty.NullVal(cty.DynamicPseudoType), nil
+	case length != 2:
 		return cty.DynamicVal, path.NewErrorf(
 			"dynamic value array must have exactly two elements",
 		)

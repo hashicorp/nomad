@@ -68,6 +68,20 @@ job "docs" {
   own [`shutdown_delay`](/docs/job-specification/task#shutdown_delay)
   which waits between deregistering task services and stopping the task.
 
+- `stop_after_client_disconnect` `(string: "")` - Specifies a duration
+  after which a Nomad client that cannot communicate with the servers
+  will stop allocations based on this task group. By default, a client
+  will not stop an allocation until explicitly told to by a server. A
+  client that fails to heartbeat to a server within the
+  `hearbeat_grace` window and any allocations running on it will be
+  marked "lost" and Nomad will schedule replacement
+  allocations. However, these replaced allocations will continue to
+  run on the non-responsive client; an operator may desire that these
+  replaced allocations are also stopped in this case — for example,
+  allocations requiring exclusive access to an external resource. When
+  specified, the Nomad client will stop them after this duration. The
+  Nomad client process must be running for this to occur.
+
 - `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.
@@ -129,12 +143,55 @@ group "example" {
 }
 ```
 
+### Stop After Client Disconnect
+
+This example shows how `stop_after_client_disconnect` interacts with
+other stanzas. For the `first` group, after the default 10 second
+[`heartbeat_grace`] window expires and 90 more seconds passes, the
+server will reschedule the allocation. The client will wait 90 seconds
+before sending a stop signal (`SIGTERM`) to the `first-task`
+task. After 15 more seconds because of the task's `kill_timeout`, the
+client will send `SIGKILL`. The `second` group does not have
+`stop_after_client_disconnect`, so the server will reschedule the
+allocation after the 10 second [`heartbeat_grace`] expires. It will
+not be stopped on the client, regardless of how long the client is out
+of touch.
+
+Note that if the server's clocks are not closely synchronized with
+each other, the server may reschedule the group before the client has
+stopped the allocation. Operators should ensure that clock drift
+between servers is as small as possible.
+
+Note also that a group using this feature will be stopped on the
+client if the Nomad server cluster fails, since the client will be
+unable to contact any server in that case. Groups opting in to this
+feature are therefore exposed to an additional runtime dependency and
+potential point of failure.
+
+```hcl
+group "first" {
+  stop_after_client_disconnect = "90s"
+
+  task "first-task" {
+    kill_timeout = "15s"
+  }
+}
+
+group "second" {
+
+  task "second-task" {
+    kill_timeout = "5s"
+  }
+}
+```
+
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
 [spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
 [affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
+[`heartbeat_grace`]: /docs/configuration/server/#heartbeat_grace
 [meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
 [migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
 [reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'

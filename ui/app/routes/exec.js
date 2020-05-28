@@ -17,12 +17,22 @@ export default Route.extend(WithWatchers, {
     const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
-    return this.store
+
+    const jobPromise = this.store
       .findRecord('job', fullId)
       .then(job => {
         return job.get('allocations').then(() => job);
       })
       .catch(notifyError(this));
+
+    const xtermImport = import('xterm').then(module => module.Terminal);
+
+    return Promise.all([jobPromise, xtermImport]);
+  },
+
+  setupController(controller, [job, Terminal]) {
+    this._super(controller, job);
+    controller.setUpTerminal(Terminal);
   },
 
   startWatchers(controller, model) {

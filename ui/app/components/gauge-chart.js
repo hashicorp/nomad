@@ -74,9 +74,7 @@ export default Component.extend(WindowResizable, {
   },
 
   updateDimensions() {
-    const $svg = this.$('svg');
-    const width = $svg.width();
-
+    const width = this.element.querySelector('svg').clientWidth;
     this.setProperties({ width, height: width / 2 });
   },
 

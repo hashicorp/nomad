@@ -23,7 +23,7 @@ func TestVolumeWatch_Batcher(t *testing.T) {
 
 	srv := &MockBatchingRPCServer{}
 	srv.state = state.TestStateStore(t)
-	srv.volumeUpdateBatcher = NewVolumeUpdateBatcher(CrossVolumeUpdateBatchDuration, srv, ctx)
+	srv.volumeUpdateBatcher = NewVolumeUpdateBatcher(ctx, CrossVolumeUpdateBatchDuration, srv)
 	srv.nextCSIControllerDetachError = fmt.Errorf("some controller plugin error")
 
 	plugin := mock.CSIPlugin()

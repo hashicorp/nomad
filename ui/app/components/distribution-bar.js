@@ -43,11 +43,12 @@ export default Component.extend(WindowResizable, {
   }),
 
   didInsertElement() {
-    const chart = d3.select(this.$('svg')[0]);
+    const svg = this.element.querySelector('svg');
+    const chart = d3.select(svg);
     const maskId = `dist-mask-${guidFor(this)}`;
     this.setProperties({ chart, maskId });
 
-    this.$('svg clipPath').attr('id', maskId);
+    svg.querySelector('clipPath').setAttribute('id', maskId);
 
     chart.on('mouseleave', () => {
       run(() => {
@@ -75,7 +76,7 @@ export default Component.extend(WindowResizable, {
   /* eslint-disable */
   renderChart() {
     const { chart, _data, isNarrow } = this;
-    const width = this.$('svg').width();
+    const width = this.element.querySelector('svg').clientWidth;
     const filteredData = _data.filter(d => d.value > 0);
     filteredData.forEach((d, index) => {
       set(d, 'index', index);

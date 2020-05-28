@@ -25,7 +25,8 @@ is used to quickly start an agent that is acting as a client and server to test
 job configurations or prototype interactions. It should _**not**_ be used in
 production as it does not persist state.
 
-```shell-sessionsudo nomad agent -dev
+```shell-session
+$ sudo nomad agent -dev
 
 ==> Starting Nomad agent...
 ==> Nomad agent configuration:
@@ -75,7 +76,8 @@ certain task drivers will not be available.
 If you run [`nomad node status`](/docs/commands/node/status) in another
 terminal, you can see the registered nodes of the Nomad cluster:
 
-```shell-sessionnomad node status
+```shell-session
+$ nomad node status
 ID        DC   Name   Class   Drain  Eligibility  Status
 171a583b  dc1  nomad  <none>  false  eligible     ready
 ```
@@ -90,7 +92,8 @@ the [gossip protocol](/docs/internals/gossip) used to connect all
 the server instances together. We can view the members of the gossip
 ring using the [`server members`](/docs/commands/server/members) command:
 
-```shell-sessionnomad server members
+```shell-session
+$ nomad server members
 Name          Address    Port  Status  Leader  Protocol  Build  Datacenter  Region
 nomad.global  127.0.0.1  4648  alive   true    2         0.7.0  dc1         global
 ```

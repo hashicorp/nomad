@@ -2321,6 +2321,8 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 
 	codec := rpcClient(t, srv)
 	state := srv.fsm.State()
+
+	index := uint64(0)
 	ws := memdb.NewWatchSet()
 
 	// Create a client node, plugin, and volume
@@ -2333,7 +2335,8 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 			ControllerInfo: &structs.CSIControllerInfo{},
 		},
 	}
-	err := state.UpsertNode(99, node)
+	index++
+	err := state.UpsertNode(index, node)
 	require.NoError(t, err)
 	volId0 := uuid.Generate()
 	ns := structs.DefaultNamespace
@@ -2344,7 +2347,8 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
 		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 	}}
-	err = state.CSIVolumeRegister(100, vols)
+	index++
+	err = state.CSIVolumeRegister(index, vols)
 	require.NoError(t, err)
 	vol, err := state.CSIVolumeByID(ws, ns, volId0)
 	require.NoError(t, err)
@@ -2361,39 +2365,51 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 			ReadOnly: false,
 		},
 	}
-	err = state.UpsertJob(101, job)
+	index++
+	err = state.UpsertJob(index, job)
 	require.NoError(t, err)
 
 	alloc1 := mock.Alloc()
 	alloc1.JobID = job.ID
 	alloc1.NodeID = node.ID
-	err = state.UpsertJobSummary(102, mock.JobSummary(alloc1.JobID))
+	index++
+	err = state.UpsertJobSummary(index, mock.JobSummary(alloc1.JobID))
 	require.NoError(t, err)
 	alloc1.TaskGroup = job.TaskGroups[0].Name
 
 	alloc2 := mock.Alloc()
 	alloc2.JobID = job.ID
 	alloc2.NodeID = node.ID
-	err = state.UpsertJobSummary(103, mock.JobSummary(alloc2.JobID))
+	index++
+	err = state.UpsertJobSummary(index, mock.JobSummary(alloc2.JobID))
 	require.NoError(t, err)
 	alloc2.TaskGroup = job.TaskGroups[0].Name
 
-	err = state.UpsertAllocs(104, []*structs.Allocation{alloc1, alloc2})
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc1, alloc2})
 	require.NoError(t, err)
 
-	// Claim the volumes and verify the claims were set
-	err = state.CSIVolumeClaim(105, ns, volId0, &structs.CSIVolumeClaim{
-		AllocationID: alloc1.ID,
-		NodeID:       alloc1.NodeID,
-		Mode:         structs.CSIVolumeClaimWrite,
-	})
+	// Claim the volumes and verify the claims were set. We need to
+	// apply this through the FSM so that we make sure the index is
+	// properly updated to test later
+	batch := &structs.CSIVolumeClaimBatchRequest{
+		Claims: []structs.CSIVolumeClaimRequest{
+			{
+				VolumeID:     volId0,
+				AllocationID: alloc1.ID,
+				NodeID:       alloc1.NodeID,
+				Claim:        structs.CSIVolumeClaimWrite,
+			},
+			{
+				VolumeID:     volId0,
+				AllocationID: alloc2.ID,
+				NodeID:       alloc2.NodeID,
+				Claim:        structs.CSIVolumeClaimRead,
+			},
+		}}
+	_, lastIndex, err := srv.raftApply(structs.CSIVolumeClaimBatchRequestType, batch)
 	require.NoError(t, err)
-	err = state.CSIVolumeClaim(106, ns, volId0, &structs.CSIVolumeClaim{
-		AllocationID: alloc2.ID,
-		NodeID:       alloc2.NodeID,
-		Mode:         structs.CSIVolumeClaimRead,
-	})
-	require.NoError(t, err)
+
 	vol, err = state.CSIVolumeByID(ws, ns, volId0)
 	require.NoError(t, err)
 	require.Len(t, vol.ReadAllocs, 1)
@@ -2413,11 +2429,14 @@ func TestClientEndpoint_UpdateAlloc_UnclaimVolumes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, structs.AllocClientStatusFailed, out.ClientStatus)
 
-	// Verify the eval for the claim GC was emitted
-	// Lookup the evaluations
-	eval, err := state.EvalsByJob(ws, job.Namespace, structs.CoreJobCSIVolumeClaimGC+":"+volId0)
-	require.NotNil(t, eval)
-	require.Nil(t, err)
+	// Verify the index has been updated to trigger a volume claim release
+
+	req := &structs.CSIVolumeGetRequest{ID: volId0}
+	req.Region = "global"
+	getResp := &structs.CSIVolumeGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req, getResp)
+	require.NoError(t, err)
+	require.Greater(t, getResp.Volume.ModifyIndex, lastIndex)
 }
 
 func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
@@ -2490,7 +2509,12 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 		require.Equal(t, structs.EvalTriggerNodeUpdate, eval.TriggeredBy)
 		require.Equal(t, alloc.NodeID, eval.NodeID)
 		require.Equal(t, uint64(1), eval.NodeModifyIndex)
-		require.Equal(t, structs.EvalStatusPending, eval.Status)
+		switch eval.Status {
+		case structs.EvalStatusPending, structs.EvalStatusComplete:
+			// success
+		default:
+			t.Fatalf("expected pending or complete, found %v", eval.Status)
+		}
 		require.Equal(t, expPriority, eval.Priority)
 		require.Equal(t, expJobID, eval.JobID)
 		require.NotZero(t, eval.CreateTime)
@@ -3168,16 +3192,19 @@ func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
 		Name: "testgroup",
 		Tasks: []*structs.Task{{
 			Name: "connect-proxy-service1",
-			Kind: "connect-proxy:service1",
+			Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
 		}, {
 			Name: "incorrect-task3",
 			Kind: "incorrect:task3",
 		}, {
 			Name: "connect-proxy-service4",
-			Kind: "connect-proxy:service4",
+			Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "service4"),
 		}, {
 			Name: "incorrect-task5",
 			Kind: "incorrect:task5",
+		}, {
+			Name: "task6",
+			Kind: structs.NewTaskKind(structs.ConnectNativePrefix, "service6"),
 		}},
 	}
 
@@ -3187,11 +3214,20 @@ func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
 		"task3",                  // no
 		"connect-proxy-service4", // yes
 		"task5",                  // no
+		"task6",                  // yes, native
 	}
 
-	unneeded := tasksNotUsingConnect(taskGroup, requestingTasks)
-	exp := []string{"task2", "task3", "task5"}
-	require.Equal(t, exp, unneeded)
+	notConnect, usingConnect := connectTasks(taskGroup, requestingTasks)
+
+	notConnectExp := []string{"task2", "task3", "task5"}
+	usingConnectExp := []connectTask{
+		{TaskName: "connect-proxy-service1", TaskKind: "connect-proxy:service1"},
+		{TaskName: "connect-proxy-service4", TaskKind: "connect-proxy:service4"},
+		{TaskName: "task6", TaskKind: "connect-native:service6"},
+	}
+
+	require.Equal(t, notConnectExp, notConnect)
+	require.Equal(t, usingConnectExp, usingConnect)
 }
 
 func mutateConnectJob(t *testing.T, job *structs.Job) {

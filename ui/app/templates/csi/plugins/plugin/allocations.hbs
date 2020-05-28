@@ -1,0 +1,86 @@
+{{title "CSI Plugin " model.plainId " allocations"}}
+<div data-test-subnav="plugins" class="tabs is-subnav">
+  <ul>
+    <li data-test-tab="overview">{{#link-to "csi.plugins.plugin.index" model activeClass="is-active"}}Overview{{/link-to}}</li>
+    <li data-test-tab="allocations">{{#link-to "csi.plugins.plugin.allocations" model activeClass="is-active"}}Allocations{{/link-to}}</li>
+  </ul>
+</div>
+<section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item">
+      <h1 class="title">Allocations for {{model.plainId}}</h1>
+    </div>
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <div class="button-bar">
+        {{multi-select-dropdown
+          data-test-health-facet
+          label="Health"
+          options=optionsHealth
+          selection=selectionHealth
+          onSelect=(action setFacetQueryParam "qpHealth")}}
+        {{multi-select-dropdown
+          data-test-type-facet
+          label="Type"
+          options=optionsType
+          selection=selectionType
+          onSelect=(action setFacetQueryParam "qpType")}}
+      </div>
+    </div>
+  </div>
+  {{#if sortedAllocations}}
+    {{#list-pagination
+      source=sortedAllocations
+      size=pageSize
+      page=currentPage as |p|}}
+      {{#list-table
+        source=p.list
+        sortProperty=sortProperty
+        sortDescending=sortDescending
+        class="with-foot" as |t|}}
+        {{#t.head}}
+          <th class="is-narrow"></th>
+          <td>ID</td>
+          <th>Created</th>
+          {{#t.sort-by prop="updateTime"}}Modified{{/t.sort-by}}
+          {{#t.sort-by prop="healthy"}}Health{{/t.sort-by}}
+          <th>Client</th>
+          <th>Job</th>
+          <th>Version</th>
+          <th>Volumes</th>
+          <th>CPU</th>
+          <th>Memory</th>
+        {{/t.head}}
+        {{#t.body key="model.allocID" as |row|}}
+          {{plugin-allocation-row
+            data-test-allocation=row.model.allocID
+            pluginAllocation=row.model}}
+        {{/t.body}}
+      {{/list-table}}
+      <div class="table-foot">
+        {{page-size-select onChange=(action resetPagination)}}
+        <nav class="pagination">
+          <div class="pagination-numbers">
+            {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
+          </div>
+          {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
+          {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
+          <ul class="pagination-list"></ul>
+        </nav>
+      </div>
+    {{/list-pagination}}
+  {{else}}
+    <div data-test-empty-list class="empty-message">
+      {{#if (eq combinedAllocations.length 0)}}
+        <h3 data-test-empty-list-headline class="empty-message-headline">No Allocations</h3>
+        <p class="empty-message-body">
+          The plugin has no allocations.
+        </p>
+      {{else if (eq sortedAllocations.length 0)}}
+        <h3 data-test-empty-list-headline class="empty-message-headline">No Matches</h3>
+        <p class="empty-message-body">
+          No allocations match your current filter selection.
+        </p>
+      {{/if}}
+    </div>
+  {{/if}}
+</section>

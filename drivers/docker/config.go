@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -123,7 +124,7 @@ var (
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewDockerDriver(l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -376,6 +377,7 @@ var (
 			drivers.NetIsolationModeTask,
 		},
 		MustInitiateNetwork: true,
+		MountConfigs:        drivers.MountConfigSupportAll,
 	}
 )
 
@@ -680,6 +682,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
 	coordinatorConfig := &dockerCoordinatorConfig{
+		ctx:         d.ctx,
 		client:      dockerClient,
 		cleanup:     d.config.GC.Image,
 		logger:      d.logger,

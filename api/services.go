@@ -128,6 +128,8 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.AddressMode = "auto"
 	}
 
+	s.Connect.Canonicalize()
+
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
 	for i, check := range s.Checks {
@@ -143,12 +145,33 @@ type ConsulConnect struct {
 	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task"`
 }
 
+func (cc *ConsulConnect) Canonicalize() {
+	if cc == nil {
+		return
+	}
+
+	cc.SidecarService.Canonicalize()
+	cc.SidecarTask.Canonicalize()
+}
+
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
 // stanza.
 type ConsulSidecarService struct {
 	Tags  []string
 	Port  string
 	Proxy *ConsulProxy
+}
+
+func (css *ConsulSidecarService) Canonicalize() {
+	if css == nil {
+		return
+	}
+
+	if len(css.Tags) == 0 {
+		css.Tags = nil
+	}
+
+	css.Proxy.Canonicalize()
 }
 
 // SidecarTask represents a subset of Task fields that can be set to override
@@ -167,6 +190,44 @@ type SidecarTask struct {
 	KillSignal    string         `mapstructure:"kill_signal"`
 }
 
+func (st *SidecarTask) Canonicalize() {
+	if st == nil {
+		return
+	}
+
+	if len(st.Config) == 0 {
+		st.Config = nil
+	}
+
+	if len(st.Env) == 0 {
+		st.Env = nil
+	}
+
+	if st.Resources == nil {
+		st.Resources = DefaultResources()
+	} else {
+		st.Resources.Canonicalize()
+	}
+
+	if st.LogConfig == nil {
+		st.LogConfig = DefaultLogConfig()
+	} else {
+		st.LogConfig.Canonicalize()
+	}
+
+	if len(st.Meta) == 0 {
+		st.Meta = nil
+	}
+
+	if st.KillTimeout == nil {
+		st.KillTimeout = timeToPtr(5 * time.Second)
+	}
+
+	if st.ShutdownDelay == nil {
+		st.ShutdownDelay = timeToPtr(0)
+	}
+}
+
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
 	LocalServiceAddress string              `mapstructure:"local_service_address"`
@@ -174,6 +235,22 @@ type ConsulProxy struct {
 	ExposeConfig        *ConsulExposeConfig `mapstructure:"expose"`
 	Upstreams           []*ConsulUpstream
 	Config              map[string]interface{}
+}
+
+func (cp *ConsulProxy) Canonicalize() {
+	if cp == nil {
+		return
+	}
+
+	cp.ExposeConfig.Canonicalize()
+
+	if len(cp.Upstreams) == 0 {
+		cp.Upstreams = nil
+	}
+
+	if len(cp.Config) == 0 {
+		cp.Config = nil
+	}
 }
 
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.
@@ -184,6 +261,16 @@ type ConsulUpstream struct {
 
 type ConsulExposeConfig struct {
 	Path []*ConsulExposePath `mapstructure:"path"`
+}
+
+func (cec *ConsulExposeConfig) Canonicalize() {
+	if cec == nil {
+		return
+	}
+
+	if len(cec.Path) == 0 {
+		cec.Path = nil
+	}
 }
 
 type ConsulExposePath struct {

@@ -322,9 +322,9 @@ export default Component.extend(WindowResizable, {
   },
 
   updateDimensions() {
-    const $svg = this.$('svg');
-    const width = $svg.width();
-    const height = $svg.height();
+    const $svg = this.element.querySelector('svg');
+    const width = $svg.clientWidth;
+    const height = $svg.clientHeight;
 
     this.setProperties({ width, height });
     this.renderChart();

@@ -238,6 +238,20 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		}
 	}
 
+	// StopAfterClientDisconnect diff
+	if oldPrimitiveFlat != nil && newPrimitiveFlat != nil {
+		if tg.StopAfterClientDisconnect == nil {
+			oldPrimitiveFlat["StopAfterClientDisconnect"] = ""
+		} else {
+			oldPrimitiveFlat["StopAfterClientDisconnect"] = fmt.Sprintf("%d", *tg.StopAfterClientDisconnect)
+		}
+		if other.StopAfterClientDisconnect == nil {
+			newPrimitiveFlat["StopAfterClientDisconnect"] = ""
+		} else {
+			newPrimitiveFlat["StopAfterClientDisconnect"] = fmt.Sprintf("%d", *other.StopAfterClientDisconnect)
+		}
+	}
+
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
 
