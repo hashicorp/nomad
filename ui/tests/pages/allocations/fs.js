@@ -10,8 +10,8 @@ import {
 } from 'ember-cli-page-object';
 
 export default create({
-  visit: visitable('/allocations/:id/:name/fs'),
-  visitPath: visitable('/allocations/:id/:name/fs/:path'),
+  visitTask: visitable('/allocations/:id/:name/fs'),
+  visitTaskPath: visitable('/allocations/:id/:name/fs/:path'),
 
   visitAllocation: visitable('/allocations/:id/fs'),
   visitAllocationPath: visitable('/allocations/:id/fs/:path'),

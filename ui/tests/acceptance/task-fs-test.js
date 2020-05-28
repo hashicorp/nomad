@@ -69,7 +69,7 @@ module('Acceptance | task fs', function(hooks) {
       finishedAt: new Date(),
     });
 
-    await FS.visit({ id: allocation.id, name: task.name });
+    await FS.visitTask({ id: allocation.id, name: task.name });
     assert.ok(FS.hasEmptyState, 'Non-running task has no files');
     assert.ok(
       FS.emptyState.headline.includes('Task is not Running'),
@@ -83,7 +83,7 @@ module('Acceptance | task fs', function(hooks) {
     getTitleComponent: ({task}) => `Task ${task.name} filesystem`,
     getBreadcrumbComponent: ({task}) => task.name,
     getFilesystemRoot: ({ task }) => task.name,
-    pageObjectVisitFunctionName: 'visit',
-    pageObjectVisitPathFunctionName: 'visitPath',
+    pageObjectVisitFunctionName: 'visitTask',
+    pageObjectVisitPathFunctionName: 'visitTaskPath',
   });
 });
