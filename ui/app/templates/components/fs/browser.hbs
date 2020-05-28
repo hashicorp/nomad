@@ -2,12 +2,12 @@
   {{#if model.isRunning}}
     {{#if isFile}}
       {{#task-file model=model file=path stat=stat class="fs-explorer"}}
-        {{fs-breadcrumbs allocation=allocation task=task path=path}}
+        {{fs/breadcrumbs allocation=allocation task=task path=path}}
       {{/task-file}}
     {{else}}
       <div class="fs-explorer boxed-section">
         <div class="boxed-section-head">
-          {{fs-breadcrumbs allocation=allocation task=task path=path}}
+          {{fs/breadcrumbs allocation=allocation task=task path=path}}
         </div>
         {{#if directoryEntries}}
           {{#list-table
@@ -21,7 +21,7 @@
               {{#t.sort-by prop="ModTime" class="has-text-right"}}Last Modified{{/t.sort-by}}
             {{/t.head}}
             {{#t.body as |row|}}
-              {{fs-directory-entry path=path model=model entry=row.model}}
+              {{fs/directory-entry path=path model=model entry=row.model}}
             {{/t.body}}
           {{/list-table}}
         {{else}}
