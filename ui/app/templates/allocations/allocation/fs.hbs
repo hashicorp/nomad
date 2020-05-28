@@ -4,12 +4,12 @@
   {{#if allocation.isRunning}}
     {{#if isFile}}
       {{#task-file allocation=allocation file=path stat=stat class="fs-explorer"}}
-        {{alloc-fs-breadcrumbs allocation=allocation path=path}}
+        {{fs-breadcrumbs allocation=allocation path=path}}
       {{/task-file}}
     {{else}}
       <div class="fs-explorer boxed-section">
         <div class="boxed-section-head">
-          {{alloc-fs-breadcrumbs allocation=allocation path=path}}
+          {{fs-breadcrumbs allocation=allocation path=path}}
         </div>
         {{#if directoryEntries}}
           {{#list-table
