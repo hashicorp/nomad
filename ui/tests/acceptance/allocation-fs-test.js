@@ -6,7 +6,7 @@ import Response from 'ember-cli-mirage/response';
 
 import browseFilesystem from './behaviors/fs';
 
-import FS from 'nomad-ui/tests/pages/allocations/task/fs';
+import FS from 'nomad-ui/tests/pages/allocations/fs';
 
 let allocation;
 let files;
