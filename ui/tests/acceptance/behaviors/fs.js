@@ -1,10 +1,13 @@
 import { test } from 'qunit';
 import { currentURL, visit } from '@ember/test-helpers';
-import FS from 'nomad-ui/tests/pages/allocations/fs';
-import moment from 'moment';
+
 import { filesForPath } from 'nomad-ui/mirage/config';
-import Response from 'ember-cli-mirage/response';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+
+import Response from 'ember-cli-mirage/response';
+import moment from 'moment';
+
+import FS from 'nomad-ui/tests/pages/allocations/fs';
 
 const fileSort = (prop, files) => {
   let dir = [];
