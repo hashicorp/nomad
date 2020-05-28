@@ -8,7 +8,7 @@ export default Component.extend({
   model: null,
 
   allocation: computed('model', function() {
-    if (this.model.allocation) {
+    if (this.model && this.model.allocation) {
       return this.model.allocation;
     } else {
       return this.model;
@@ -16,7 +16,7 @@ export default Component.extend({
   }),
 
   task: computed('model', function() {
-    if (this.model.allocation) {
+    if (this.model && this.model.allocation) {
       return this.model;
     }
   }),
