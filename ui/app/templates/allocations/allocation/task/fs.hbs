@@ -3,7 +3,7 @@
 <section class="section is-closer {{if isFile "full-width-section"}}">
   {{#if task.isRunning}}
     {{#if isFile}}
-      {{#task-file allocation=task.allocation task=task file=path stat=stat class="fs-explorer"}}
+      {{#task-file model=task file=path stat=stat class="fs-explorer"}}
         {{fs-breadcrumbs task=task path=path}}
       {{/task-file}}
     {{else}}
