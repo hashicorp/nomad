@@ -1,4 +1,4 @@
-{{#list-accordion data-test-job-summary source=(array job) key="id" startExpanded=isExpanded onToggle=(action persist) as |a|}}
+<ListAccordion data-test-job-summary @source={{array job}} @key="id" @startExpanded={{isExpanded}} @onToggle={{action persist}} as |a|>
   <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
     <div class="columns">
       <div class="column is-minimum nowrap">
@@ -50,5 +50,5 @@
     </ol>
   {{/component}}
   </a.body>
-{{/list-accordion}}
+</ListAccordion>
 

@@ -12,18 +12,18 @@
     </div>
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
-        {{multi-select-dropdown
+        <MultiSelectDropdown
           data-test-health-facet
-          label="Health"
-          options=optionsHealth
-          selection=selectionHealth
-          onSelect=(action setFacetQueryParam "qpHealth")}}
-        {{multi-select-dropdown
+          @label="Health"
+          @options={{optionsHealth}}
+          @selection={{selectionHealth}}
+          @onSelect={{action setFacetQueryParam "qpHealth"}} />
+        <MultiSelectDropdown
           data-test-type-facet
-          label="Type"
-          options=optionsType
-          selection=selectionType
-          onSelect=(action setFacetQueryParam "qpType")}}
+          @label="Type"
+          @options={{optionsType}}
+          @selection={{selectionType}}
+          @onSelect={{action setFacetQueryParam "qpType"}} />
       </div>
     </div>
   </div>

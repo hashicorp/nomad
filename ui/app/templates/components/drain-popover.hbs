@@ -1,13 +1,13 @@
-{{#popover-menu
+<PopoverMenu
   data-test-drain-popover
-  isDisabled=isDisabled
-  label=(if client.isDraining "Update Drain" "Drain")
-  tooltip=(if isDisabled "Not allowed to drain clients")
-  triggerClass=(concat
+  @isDisabled={{isDisabled}}
+  @label={{if client.isDraining "Update Drain" "Drain"}}
+  @tooltip={{if isDisabled "Not allowed to drain clients"}}
+  @triggerClass={{concat
     "is-small "
     (if drain.isRunning "is-loading ")
-    (if isDisabled "tooltip is-right-aligned")
-  ) as |m|}}
+    (if isDisabled "tooltip is-right-aligned"
+  )}} as |m|>
   <form data-test-drain-popover-form onsubmit={{action (queue (action preventDefault) (perform drain m.actions.close))}} class="form is-small">
     <h4 class="group-heading">Drain Options</h4>
     <div class="field">
@@ -25,14 +25,14 @@
     </div>
     {{#if deadlineEnabled}}
       <div class="field is-sub-field">
-        {{#power-select
+        <PowerSelect
           data-test-drain-deadline-option-select
-          tagName="div"
-          options=durationQuickOptions
-          selected=selectedDurationQuickOption
-          onChange=(action (mut selectedDurationQuickOption)) as |opt|}}
+          @tagName="div"
+          @options={{durationQuickOptions}}
+          @selected={{selectedDurationQuickOption}}
+          @onChange={{action (mut selectedDurationQuickOption)}} as |opt|>
           {{opt.label}}
-        {{/power-select}}
+        </PowerSelect>
       </div>
       {{#if durationIsCustom}}
         <div class="field is-sub-field">
@@ -88,4 +88,4 @@
       <button data-test-drain-cancel type="button" class="popover-action" onclick={{action m.actions.close}}>Cancel</button>
     </div>
   </form>
-{{/popover-menu}}
+</PopoverMenu>

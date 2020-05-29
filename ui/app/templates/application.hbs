@@ -20,9 +20,9 @@
       {{else if is403}}
         <h1 data-test-error-title class="title is-spaced">Not Authorized</h1>
         {{#if token.secret}}
-          <p data-test-error-message class="subtitle">Your {{#link-to "settings.tokens" data-test-error-acl-link}}ACL token{{/link-to}} does not provide the required permissions. Contact your administrator if this is an error.</p>
+          <p data-test-error-message class="subtitle">Your <LinkTo @route="settings.tokens" data-test-error-acl-link>ACL token</LinkTo> does not provide the required permissions. Contact your administrator if this is an error.</p>
         {{else}}
-          <p data-test-error-message class="subtitle">Provide an {{#link-to "settings.tokens" data-test-error-acl-link}}ACL token{{/link-to}} with requisite permissions to view this.</p>
+          <p data-test-error-message class="subtitle">Provide an <LinkTo @route="settings.tokens" data-test-error-acl-link>ACL token</LinkTo> with requisite permissions to view this.</p>
         {{/if}}
       {{else}}
         <h1 data-test-error-title class="title is-spaced">Error</h1>
@@ -33,8 +33,8 @@
       {{/if}}
     </div>
     <div class="error-links">
-      {{#link-to "jobs" data-test-error-jobs-link class="button is-white"}}Go to Jobs{{/link-to}}
-      {{#link-to "clients" data-test-error-clients-link class="button is-white"}}Go to Clients{{/link-to}}
+      <LinkTo @route="jobs" data-test-error-jobs-link class="button is-white">Go to Jobs</LinkTo>
+      <LinkTo @route="clients" data-test-error-clients-link class="button is-white">Go to Clients</LinkTo>
     </div>
   </div>
 {{/unless}}

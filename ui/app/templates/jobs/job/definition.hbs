@@ -8,7 +8,7 @@
         <button class="button is-light is-compact pull-right" type="button" onclick={{action edit}} data-test-edit-job>Edit</button>
       </div>
       <div class="boxed-section-body is-full-bleed">
-        {{json-viewer data-test-definition-view json=definition}}
+        <JsonViewer data-test-definition-view @json={{definition}} />
       </div>
     </div>
   {{else}}

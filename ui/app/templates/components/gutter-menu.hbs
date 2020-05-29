@@ -27,22 +27,22 @@
         <ul class="menu-list">
           <li>
             <div class="menu-item is-wide">
-              {{#power-select
+              <PowerSelect
                 data-test-namespace-switcher
-                options=sortedNamespaces
-                selected=system.activeNamespace
-                searchField="name"
-                searchEnabled=(gt sortedNamespaces.length 10)
-                onChange=(action gotoJobsForNamespace)
-                tagName="div"
-                class="namespace-switcher"
-                as |namespace|}}
+                @options={{sortedNamespaces}}
+                @selected={{system.activeNamespace}}
+                @searchField="name"
+                @searchEnabled={{gt sortedNamespaces.length 10}}
+                @onChange={{action gotoJobsForNamespace}}
+                @tagName="div"
+                @class="namespace-switcher"
+                as |namespace|>
                 {{#if (eq namespace.name "default")}}
                   Default Namespace
                 {{else}}
                   {{namespace.name}}
                 {{/if}}
-              {{/power-select}}
+              </PowerSelect>
             </div>
           </li>
         </ul>

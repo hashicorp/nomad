@@ -20,7 +20,7 @@
         <th>Memory</th>
       </t.head>
       <t.body as |row|>
-        {{allocation-row data-test-deployment-allocation allocation=row.model context="job"}}
+        <AllocationRow data-test-deployment-allocation @allocation={{row.model}} @context="job" />
       </t.body>
     </ListTable>
   </div>

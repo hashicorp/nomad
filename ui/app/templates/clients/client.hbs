@@ -111,14 +111,14 @@
     </div>
     <div class="toolbar-item is-right-aligned is-top-aligned">
       {{#if model.isDraining}}
-        {{two-step-button
+        <TwoStepButton
           data-test-drain-stop
-          idleText="Stop Drain"
-          cancelText="Cancel"
-          confirmText="Yes, Stop"
-          confirmationMessage="Are you sure you want to stop this drain?"
-          awaitingConfirmation=stopDrain.isRunning
-          onConfirm=(perform stopDrain)}}
+          @idleText="Stop Drain"
+          @cancelText="Cancel"
+          @confirmText="Yes, Stop"
+          @confirmationMessage="Are you sure you want to stop this drain?"
+          @awaitingConfirmation={{stopDrain.isRunning}}
+          @onConfirm={{perform stopDrain}} />
       {{/if}}
     </div>
     <div class="toolbar-item is-right-aligned is-top-aligned">
@@ -202,16 +202,16 @@
           </div>
           {{#if (not model.drainStrategy.isForced)}}
             <div class="pull-right">
-              {{two-step-button
+              <TwoStepButton
                 data-test-force
-                alignRight=true
-                isInfoAction=true
-                idleText="Force Drain"
-                cancelText="Cancel"
-                confirmText="Yes, Force Drain"
-                confirmationMessage="Are you sure you want to force drain?"
-                awaitingConfirmation=forceDrain.isRunning
-                onConfirm=(perform forceDrain)}}
+                @alignRight={{true}}
+                @isInfoAction={{true}}
+                @idleText="Force Drain"
+                @cancelText="Cancel"
+                @confirmText="Yes, Force Drain"
+                @confirmationMessage="Are you sure you want to force drain?"
+                @awaitingConfirmation={{forceDrain.isRunning}}
+                @onConfirm={{perform forceDrain}} />
             </div>
           {{/if}}
         </div>
@@ -451,20 +451,20 @@
       Attributes
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{attributes-table
+      <AttributesTable
         data-test-attributes
-        attributes=model.attributes.attributesStructured
-        class="attributes-table"}}
+        @attributes={{model.attributes.attributesStructured}}
+        @class="attributes-table" />
     </div>
     <div class="boxed-section-head">
       Meta
     </div>
     {{#if model.meta.attributesStructured}}
       <div class="boxed-section-body is-full-bleed">
-        {{attributes-table
+        <AttributesTable
           data-test-meta
-          attributes=model.meta.attributesStructured
-          class="attributes-table"}}
+          @attributes={{model.meta.attributesStructured}}
+          @class="attributes-table" />
       </div>
     {{else}}
       <div class="boxed-section-body">

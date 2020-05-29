@@ -39,16 +39,16 @@
       {{/if}}
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{ivy-codemirror
+      <IvyCodemirror
         data-test-editor
-        value=(or job._newDefinition jobSpec)
-        valueUpdated=(action (mut job._newDefinition))
-        options=(hash
+        @value={{or job._newDefinition jobSpec}}
+        @valueUpdated={{action (mut job._newDefinition)}}
+        @options={{hash
           mode="javascript"
           theme="hashi"
           tabSize=2
           lineNumbers=true
-        )}}
+        }} />
     </div>
   </div>
   <div class="content is-associative">
@@ -73,7 +73,7 @@
   <div class="boxed-section">
     <div class="boxed-section-head">Job Plan</div>
     <div class="boxed-section-body is-dark">
-      {{job-diff data-test-plan-output diff=planOutput.diff verbose=false}}
+      <JobDiff data-test-plan-output @diff={{planOutput.diff}} @verbose={{false}} />
     </div>
   </div>
   <div class="boxed-section {{if planOutput.failedTGAllocs "is-warning" "is-primary"}}" data-test-dry-run-message>

@@ -17,9 +17,9 @@
         <t.sort-by @prop="reservedEphemeralDisk">Reserved Disk</t.sort-by>
       </t.head>
       <t.body as |row|>
-        {{task-group-row data-test-task-group
-          taskGroup=row.model
-          onClick=(action gotoTaskGroup row.model)}}
+        <TaskGroupRow data-test-task-group
+          @taskGroup={{row.model}}
+          @onClick={{action gotoTaskGroup row.model}} />
       </t.body>
     </ListTable>
   </div>

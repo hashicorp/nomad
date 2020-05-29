@@ -32,16 +32,16 @@
             @allocation={{model.allocation}}
             @task={{model.task}} />
         </div>
-        {{two-step-button
+        <TwoStepButton
           data-test-restart
-          alignRight=true
-          idleText="Restart"
-          cancelText="Cancel"
-          confirmText="Yes, Restart"
-          confirmationMessage="Are you sure? This will restart the task in-place."
-          awaitingConfirmation=restartTask.isRunning
-          disabled=restartTask.isRunning
-          onConfirm=(perform restartTask)}}
+          @alignRight={{true}}
+          @idleText="Restart"
+          @cancelText="Cancel"
+          @confirmText="Yes, Restart"
+          @confirmationMessage="Are you sure? This will restart the task in-place."
+          @awaitingConfirmation={{restartTask.isRunning}}
+          @disabled={{restartTask.isRunning}}
+          @onConfirm={{perform restartTask}} />
       {{/if}}
     </div>
   </h1>

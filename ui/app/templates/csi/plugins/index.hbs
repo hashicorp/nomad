@@ -12,11 +12,11 @@
     <div class="toolbar">
       <div class="toolbar-item">
         {{#if model.length}}
-          {{search-box
+          <SearchBox
             data-test-plugins-search
-            searchTerm=(mut searchTerm)
-            onChange=(action resetPagination)
-            placeholder="Search plugins..."}}
+            @searchTerm={{mut searchTerm}}
+            @onChange={{action resetPagination}}
+            @placeholder="Search plugins..." />
         {{/if}}
       </div>
     </div>

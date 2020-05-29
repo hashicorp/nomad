@@ -9,25 +9,25 @@
       <div class="two-step-button">
         <Exec::OpenButton @job={{job}} />
       </div>
-      {{two-step-button
+      <TwoStepButton
         data-test-stop
-        alignRight=true
-        idleText="Stop"
-        cancelText="Cancel"
-        confirmText="Yes, Stop"
-        confirmationMessage="Are you sure you want to stop this job?"
-        awaitingConfirmation=stopJob.isRunning
-        onConfirm=(perform stopJob)}}
+        @alignRight={{true}}
+        @idleText="Stop"
+        @cancelText="Cancel"
+        @confirmText="Yes, Stop"
+        @confirmationMessage="Are you sure you want to stop this job?"
+        @awaitingConfirmation={{stopJob.isRunning}}
+        @onConfirm={{perform stopJob}} />
     {{else}}
-      {{two-step-button
+      <TwoStepButton
         data-test-start
-        alignRight=true
-        idleText="Start"
-        cancelText="Cancel"
-        confirmText="Yes, Start"
-        confirmationMessage="Are you sure you want to start this job?"
-        awaitingConfirmation=startJob.isRunning
-        onConfirm=(perform startJob)}}
+        @alignRight={{true}}
+        @idleText="Start"
+        @cancelText="Cancel"
+        @confirmText="Yes, Start"
+        @confirmationMessage="Are you sure you want to start this job?"
+        @awaitingConfirmation={{startJob.isRunning}}
+        @onConfirm={{perform startJob}} />
     {{/if}}
   </div>
 </h1>

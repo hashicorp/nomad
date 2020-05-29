@@ -128,12 +128,13 @@
       {{#if model.controllers}}
         <div class="boxed-section-foot">
           <p class="pull-right">
-          {{#link-to "csi.plugins.plugin.allocations"
-            model
-            data-test-go-to-controller-allocations
-            (query-params qpType=(qp-serialize (array "controller")))}}
+          <LinkTo
+            @route="csi.plugins.plugin.allocations"
+            @model={{model}}
+            @query={{hash qpType=(qp-serialize (array "controller"))}}
+            data-test-go-to-controller-allocations>
             View all {{model.controllers.length}} Controller {{pluralize "allocation" model.controllers.length}}
-          {{/link-to}}
+          </LinkTo>
           </p>
         </div>
       {{/if}}
@@ -178,12 +179,13 @@
     {{#if model.nodes}}
       <div class="boxed-section-foot">
         <p class="pull-right">
-        {{#link-to "csi.plugins.plugin.allocations"
-          model
-          data-test-go-to-node-allocations
-          (query-params qpType=(qp-serialize (array "node")))}}
+        <LinkTo
+          @route="csi.plugins.plugin.allocations"
+          @model={{model}}
+          @query={{hash qpType=(qp-serialize (array "node"))}}
+          data-test-go-to-node-allocations>
           View all {{model.nodes.length}} Node {{pluralize "allocation" model.nodes.length}}
-        {{/link-to}}
+        </LinkTo>
         </p>
       </div>
     {{/if}}

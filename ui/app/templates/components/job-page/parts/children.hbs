@@ -21,7 +21,7 @@
           <th class="is-3">Summary</th>
         </t.head>
         <t.body @key="model.id" as |row|>
-          {{job-row data-test-job-row job=row.model onClick=(action gotoJob row.model)}}
+          <JobRow data-test-job-row @job={{row.model}} @onClick={{action gotoJob row.model}} />
         </t.body>
       </ListTable>
       <div class="table-foot">
