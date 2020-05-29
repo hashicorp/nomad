@@ -7,7 +7,7 @@
   <div>
     {{#if (not (eq job.status "dead"))}}
       <div class="two-step-button">
-        {{exec/open-button job=job}}
+        <Exec::OpenButton @job={{job}} />
       </div>
       {{two-step-button
         data-test-stop

@@ -1,8 +1,8 @@
 {{title "CSI Plugins"}}
 <div class="tabs is-subnav">
   <ul>
-    <li data-test-tab="volumes">{{#link-to "csi.volumes.index" activeClass="is-active"}}Volumes{{/link-to}}</li>
-    <li data-test-tab="plugins">{{#link-to "csi.plugins.index" activeClass="is-active"}}Plugins{{/link-to}}</li>
+    <li data-test-tab="volumes"><LinkTo @route="csi.volumes.index" @activeClass="is-active">Volumes</LinkTo></li>
+    <li data-test-tab="plugins"><LinkTo @route="csi.plugins.index" @activeClass="is-active">Plugins</LinkTo></li>
   </ul>
 </div>
 <section class="section">
@@ -21,25 +21,25 @@
       </div>
     </div>
     {{#if sortedPlugins}}
-      {{#list-pagination
-        source=sortedPlugins
-        size=pageSize
-        page=currentPage as |p|}}
-        {{#list-table
-          source=p.list
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          class="with-foot" as |t|}}
-          {{#t.head}}
-            {{#t.sort-by prop="plainId"}}ID{{/t.sort-by}}
-            {{#t.sort-by prop="controllersHealthyProportion"}}Controller Health{{/t.sort-by}}
-            {{#t.sort-by prop="nodesHealthyProportion"}}Node Health{{/t.sort-by}}
-            {{#t.sort-by prop="provider"}}Provider{{/t.sort-by}}
-          {{/t.head}}
-          {{#t.body key="model.id" as |row|}}
+      <ListPagination
+        @source={{sortedPlugins}}
+        @size={{pageSize}}
+        @page={{currentPage}} as |p|>
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{sortProperty}}
+          @sortDescending={{sortDescending}}
+          @class="with-foot" as |t|>
+          <t.head>
+            <t.sort-by @prop="plainId">ID</t.sort-by>
+            <t.sort-by @prop="controllersHealthyProportion">Controller Health</t.sort-by>
+            <t.sort-by @prop="nodesHealthyProportion">Node Health</t.sort-by>
+            <t.sort-by @prop="provider">Provider</t.sort-by>
+          </t.head>
+          <t.body @key="model.id" as |row|>
             <tr class="is-interactive" data-test-plugin-row {{on "click" (action "gotoPlugin" row.model)}}>
               <td data-test-plugin-id>
-                {{#link-to "csi.plugins.plugin" row.model.plainId class="is-primary"}}{{row.model.plainId}}{{/link-to}}
+                <LinkTo @route="csi.plugins.plugin" @model={{row.model.plainId}} class="is-primary">{{row.model.plainId}}</LinkTo>
               </td>
               <td data-test-plugin-controller-health>
                 {{#if row.model.controllerRequired}}
@@ -55,20 +55,20 @@
               </td>
               <td data-test-plugin-provider>{{row.model.provider}}</td>
             </tr>
-          {{/t.body}}
-        {{/list-table}}
+          </t.body>
+        </ListTable>
         <div class="table-foot">
-          {{page-size-select onChange=(action resetPagination)}}
+          <PageSizeSelect @onChange={{action resetPagination}} />
           <nav class="pagination">
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedPlugins.length}}
             </div>
-            {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
-            {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
+            <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
+            <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
             <ul class="pagination-list"></ul>
           </nav>
         </div>
-      {{/list-pagination}}
+      </ListPagination>
     {{else}}
       <div data-test-empty-plugins-list class="empty-message">
         {{#if (eq model.length 0)}}

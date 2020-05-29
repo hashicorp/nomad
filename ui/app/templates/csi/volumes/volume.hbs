@@ -32,10 +32,10 @@
     </div>
     <div class="boxed-section-body {{if model.writeAllocations.length "is-full-bleed"}}">
       {{#if model.writeAllocations.length}}
-        {{#list-table
-          source=sortedWriteAllocations
-          class="with-foot" as |t|}}
-          {{#t.head}}
+        <ListTable
+          @source={{sortedWriteAllocations}}
+          @class="with-foot" as |t|>
+          <t.head>
             <th class="is-narrow"></th>
             <th>ID</th>
             <th>Created</th>
@@ -46,15 +46,15 @@
             <th>Version</th>
             <th>CPU</th>
             <th>Memory</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
-            {{allocation-row
-              data-test-write-allocation=row.model.id
-              allocation=row.model
-              context="volume"
-              onClick=(action "gotoAllocation" row.model)}}
-          {{/t.body}}
-        {{/list-table}}
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow
+              @data-test-write-allocation={{row.model.id}}
+              @allocation={{row.model}}
+              @context="volume"
+              @onClick={{action "gotoAllocation" row.model}} />
+          </t.body>
+        </ListTable>
       {{else}}
         <div class="empty-message" data-test-empty-write-allocations>
           <h3 class="empty-message-headline" data-test-empty-write-allocations-headline>No Write Allocations</h3>
@@ -70,10 +70,10 @@
     </div>
     <div class="boxed-section-body {{if model.readAllocations.length "is-full-bleed"}}">
       {{#if model.readAllocations.length}}
-        {{#list-table
-          source=sortedReadAllocations
-          class="with-foot" as |t|}}
-          {{#t.head}}
+        <ListTable
+          @source={{sortedReadAllocations}}
+          @class="with-foot" as |t|>
+          <t.head>
             <th class="is-narrow"></th>
             <th>ID</th>
             <th>Modified</th>
@@ -84,15 +84,15 @@
             <th>Version</th>
             <th>CPU</th>
             <th>Memory</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
-            {{allocation-row
-              data-test-read-allocation=row.model.id
-              allocation=row.model
-              context="volume"
-              onClick=(action "gotoAllocation" row.model)}}
-          {{/t.body}}
-        {{/list-table}}
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow
+              @data-test-read-allocation={{row.model.id}}
+              @allocation={{row.model}}
+              @context="volume"
+              @onClick={{action "gotoAllocation" row.model}} />
+          </t.body>
+        </ListTable>
       {{else}}
         <div class="empty-message" data-test-empty-read-allocations>
           <h3 class="empty-message-headline" data-test-empty-read-allocations-headline>No Read Allocations</h3>

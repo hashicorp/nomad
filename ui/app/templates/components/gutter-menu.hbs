@@ -17,7 +17,7 @@
           <ul class="menu-list">
             <li>
               <div class="menu-item is-wide">
-                {{region-switcher}}
+                <RegionSwitcher />
               </div>
             </li>
           </ul>
@@ -52,12 +52,13 @@
       </p>
       <ul class="menu-list">
         <li>
-          {{#link-to "jobs"
-            (query-params jobNamespace=system.activeNamespace.id)
-            activeClass="is-active"
-            data-test-gutter-link="jobs"}}
+          <LinkTo
+            @route="jobs"
+            @query={{hash jobNamespace=system.activeNamespace.id}}
+            @activeClass="is-active"
+            data-test-gutter-link="jobs">
             Jobs
-          {{/link-to}}
+          </LinkTo>
         </li>
       </ul>
       <p class="menu-label is-minor">
@@ -65,20 +66,21 @@
       </p>
       <ul class="menu-list">
         <li>
-          {{#link-to "csi"
-            (query-params volumeNamespace=system.activeNamespace.id)
-            activeClass="is-active"
-            data-test-gutter-link="storage"}}
+          <LinkTo
+            @route="csi"
+            @query={{hash volumeNamespace=system.activeNamespace.id}}
+            @activeClass="is-active"
+            data-test-gutter-link="storage">
             Storage <span class="tag is-small">Beta</span>
-          {{/link-to}}
+          </LinkTo>
         </li>
       </ul>
       <p class="menu-label">
         Cluster
       </p>
       <ul class="menu-list">
-        <li>{{#link-to "clients" activeClass="is-active" data-test-gutter-link="clients"}}Clients{{/link-to}}</li>
-        <li>{{#link-to "servers" activeClass="is-active" data-test-gutter-link="servers"}}Servers{{/link-to}}</li>
+        <li><LinkTo @route="clients" @activeClass="is-active" data-test-gutter-link="clients">Clients</LinkTo></li>
+        <li><LinkTo @route="servers" @activeClass="is-active" data-test-gutter-link="servers">Servers</LinkTo></li>
       </ul>
     </aside>
   </div>

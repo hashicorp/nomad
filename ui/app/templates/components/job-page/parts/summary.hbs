@@ -1,5 +1,5 @@
 {{#list-accordion data-test-job-summary source=(array job) key="id" startExpanded=isExpanded onToggle=(action persist) as |a|}}
-  {{#a.head buttonLabel=(if a.isOpen "collapse" "expand")}}
+  <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
     <div class="columns">
       <div class="column is-minimum nowrap">
         {{#if a.item.hasChildren}}
@@ -20,19 +20,19 @@
           <div class="inline-chart bumper-left">
             {{#if a.item.hasChildren}}
               {{#if (gt a.item.totalChildren 0)}}
-                {{children-status-bar job=a.item isNarrow=true}}
+                <ChildrenStatusBar @job={{a.item}} @isNarrow={{true}} />
               {{else}}
                 <em class="is-faded">No Children</em>
               {{/if}}
             {{else}}
-              {{allocation-status-bar allocationContainer=a.item isNarrow=true}}
+              <AllocationStatusBar @allocationContainer={{a.item}} @isNarrow={{true}} />
             {{/if}}
           </div>
         </div>
       {{/if}}
     </div>
-  {{/a.head}}
-  {{#a.body}}
+  </a.head>
+  <a.body>
     {{#component (if a.item.hasChildren "children-status-bar" "allocation-status-bar")
     allocationContainer=a.item.summary
     job=a.item.summary
@@ -49,6 +49,6 @@
       {{/each}}
     </ol>
   {{/component}}
-  {{/a.body}}
+  </a.body>
 {{/list-accordion}}
 

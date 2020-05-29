@@ -1,8 +1,8 @@
 {{title "CSI Plugin " model.plainId " allocations"}}
 <div data-test-subnav="plugins" class="tabs is-subnav">
   <ul>
-    <li data-test-tab="overview">{{#link-to "csi.plugins.plugin.index" model activeClass="is-active"}}Overview{{/link-to}}</li>
-    <li data-test-tab="allocations">{{#link-to "csi.plugins.plugin.allocations" model activeClass="is-active"}}Allocations{{/link-to}}</li>
+    <li data-test-tab="overview"><LinkTo @route="csi.plugins.plugin.index" @model={{model}} @activeClass="is-active">Overview</LinkTo></li>
+    <li data-test-tab="allocations"><LinkTo @route="csi.plugins.plugin.allocations" @model={{model}} @activeClass="is-active">Allocations</LinkTo></li>
   </ul>
 </div>
 <section class="section">
@@ -28,46 +28,46 @@
     </div>
   </div>
   {{#if sortedAllocations}}
-    {{#list-pagination
-      source=sortedAllocations
-      size=pageSize
-      page=currentPage as |p|}}
-      {{#list-table
-        source=p.list
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        class="with-foot" as |t|}}
-        {{#t.head}}
+    <ListPagination
+      @source={{sortedAllocations}}
+      @size={{pageSize}}
+      @page={{currentPage}} as |p|>
+      <ListTable
+        @source={{p.list}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @class="with-foot" as |t|>
+        <t.head>
           <th class="is-narrow"></th>
           <td>ID</td>
           <th>Created</th>
-          {{#t.sort-by prop="updateTime"}}Modified{{/t.sort-by}}
-          {{#t.sort-by prop="healthy"}}Health{{/t.sort-by}}
+          <t.sort-by @prop="updateTime">Modified</t.sort-by>
+          <t.sort-by @prop="healthy">Health</t.sort-by>
           <th>Client</th>
           <th>Job</th>
           <th>Version</th>
           <th>Volumes</th>
           <th>CPU</th>
           <th>Memory</th>
-        {{/t.head}}
-        {{#t.body key="model.allocID" as |row|}}
-          {{plugin-allocation-row
-            data-test-allocation=row.model.allocID
-            pluginAllocation=row.model}}
-        {{/t.body}}
-      {{/list-table}}
+        </t.head>
+        <t.body @key="model.allocID" as |row|>
+          <PluginAllocationRow
+            @data-test-allocation={{row.model.allocID}}
+            @pluginAllocation={{row.model}} />
+        </t.body>
+      </ListTable>
       <div class="table-foot">
-        {{page-size-select onChange=(action resetPagination)}}
+        <PageSizeSelect @onChange={{action resetPagination}} />
         <nav class="pagination">
           <div class="pagination-numbers">
             {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
           </div>
-          {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
-          {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
+          <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
+          <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
           <ul class="pagination-list"></ul>
         </nav>
       </div>
-    {{/list-pagination}}
+    </ListPagination>
   {{else}}
     <div data-test-empty-list class="empty-message">
       {{#if (eq combinedAllocations.length 0)}}

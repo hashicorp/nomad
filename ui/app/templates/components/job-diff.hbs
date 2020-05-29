@@ -23,7 +23,7 @@
 {{!-- Show job field and object diffs if the job is edited --}}
 {{#if (or verbose (eq (lowercase diff.Type) "edited"))}}
   <div data-test-diff-section-label="job-diff" class="diff-section-label">
-    {{job-diff-fields-and-objects fields=diff.Fields objects=diff.Objects}}
+    <JobDiffFieldsAndObjects @fields={{diff.Fields}} @objects={{diff.Objects}} />
   </div>
 {{/if}}
 
@@ -54,7 +54,7 @@
     {{!-- Show task group field and object diffs if the task group is edited --}}
     {{#if (or (eq (lowercase group.Type) "edited") verbose)}}
       <div data-test-diff-section-label="task-group-diff" class="diff-section-label">
-        {{job-diff-fields-and-objects fields=group.Fields objects=group.Objects}}
+        <JobDiffFieldsAndObjects @fields={{group.Fields}} @objects={{group.Objects}} />
       </div>
     {{/if}}
 
@@ -86,7 +86,7 @@
           {{/each~}})
         {{/if}}
         {{#if (or verbose (eq (lowercase task.Type) "edited"))}}
-          {{job-diff-fields-and-objects fields=task.Fields objects=task.Objects}}
+          <JobDiffFieldsAndObjects @fields={{task.Fields}} @objects={{task.Objects}} />
         {{/if}}
       </div>
     {{/each}}

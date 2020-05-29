@@ -9,6 +9,6 @@
     </li>
   {{/if}}
   <li data-test-deployment class="timeline-object">
-    {{job-deployment deployment=record.deployment}}
+    <JobDeployment @deployment={{record.deployment}} />
   </li>
 {{/each}}

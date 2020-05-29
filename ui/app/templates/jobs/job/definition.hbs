@@ -12,11 +12,11 @@
       </div>
     </div>
   {{else}}
-    {{job-editor
-      job=job
-      cancelable=true
-      context="edit"
-      onCancel=(action onCancel)
-      onSubmit=(action onSubmit)}}
+    <JobEditor
+      @job={{job}}
+      @cancelable={{true}}
+      @context="edit"
+      @onCancel={{action onCancel}}
+      @onSubmit={{action onSubmit}} />
   {{/unless}}
 </section>

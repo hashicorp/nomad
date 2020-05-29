@@ -3,18 +3,18 @@
     <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
       {{partial "partials/hamburger-menu"}}
     </span>
-    {{#link-to "jobs" class="navbar-item is-logo"}}
+    <LinkTo @route="jobs" class="navbar-item is-logo">
       {{partial "partials/nomad-logo"}}
-    {{/link-to}}
+    </LinkTo>
   </div>
   <div class="navbar-end">
     <a href="https://nomadproject.io/docs" class="navbar-item">Documentation</a>
-    {{#link-to "settings.tokens" class="navbar-item"}}ACL Tokens{{/link-to}}
+    <LinkTo @route="settings.tokens" class="navbar-item">ACL Tokens</LinkTo>
   </div>
 </nav>
 <div class="navbar is-secondary">
   <div class="navbar-item is-gutter">
-    {{region-switcher decoration="is-outlined"}}
+    <RegionSwitcher @decoration="is-outlined" />
   </div>
   <nav class="breadcrumb is-large">
     <ul>

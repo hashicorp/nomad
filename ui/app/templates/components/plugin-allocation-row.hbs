@@ -18,9 +18,9 @@
   </td>
 
   <td data-test-short-id>
-    {{#link-to "allocations.allocation" allocation class="is-primary"}}
+    <LinkTo @route="allocations.allocation" @model={{allocation}} class="is-primary">
       {{allocation.shortId}}
-    {{/link-to}}
+    </LinkTo>
   </td>
 
   <td data-test-create-time>
@@ -44,7 +44,7 @@
     </span>
   </td>
 
-  <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
+  <td data-test-client><LinkTo @route="clients.client" @model={{allocation.node}}>{{allocation.node.shortId}}</LinkTo></td>
   <td>
     {{#if (or allocation.job.isPending allocation.job.isReloading)}}
       ...
@@ -57,20 +57,20 @@
   <td data-test-volume>{{if allocation.taskGroup.volumes.length "Yes"}}</td>
 
   <td data-test-cpu class="is-1 has-text-centered">
-    {{allocation-stat
-      metric="cpu"
-      allocation=allocation
-      statsTracker=stats
-      isLoading=fetchStats.isRunning
-      error=statsError}}
+    <AllocationStat
+      @metric="cpu"
+      @allocation={{allocation}}
+      @statsTracker={{stats}}
+      @isLoading={{fetchStats.isRunning}}
+      @error={{statsError}} />
   </td>
   <td data-test-mem class="is-1 has-text-centered">
-    {{allocation-stat
-      metric="memory"
-      allocation=allocation
-      statsTracker=stats
-      isLoading=fetchStats.isRunning
-      error=statsError}}
+    <AllocationStat
+      @metric="memory"
+      @allocation={{allocation}}
+      @statsTracker={{stats}}
+      @isLoading={{fetchStats.isRunning}}
+      @error={{statsError}} />
   </td>
 {{else}}
   <td colspan="10">&hellip;</td>

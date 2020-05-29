@@ -23,9 +23,9 @@
             <span class="pair">
               <span class="term">Allocation</span>
               {{#if linkToAllocation}}
-                {{#link-to "allocations.allocation" allocation.id}}
+                <LinkTo @route="allocations.allocation" @model={{allocation.id}}>
                   <code data-test-allocation-link>{{allocation.shortId}}</code>
-                {{/link-to}}
+                </LinkTo>
               {{else}}
                 <code data-test-allocation-link>{{allocation.shortId}}</code>
               {{/if}}
