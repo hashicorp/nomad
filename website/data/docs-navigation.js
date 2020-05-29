@@ -206,7 +206,7 @@ export default [
           'jail-task-driver',
           'pot',
           'firecracker-task-driver',
-          'nspawn'
+          'nspawn',
           'windows iis'
         ]
       }
