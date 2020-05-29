@@ -1,0 +1,108 @@
+---
+layout: docs
+page_title: 'Drivers: nomad-driver-iis'
+sidebar_title: nomad iis driver
+description: >-
+  The nomad iis driver is used for running
+  windows IIS services.
+---
+
+# Nomad IIS Driver
+
+Name: `nomad-driver-iis`
+
+The nomad iis driver provides an interface for running windows iis website tasks.
+A "Website" is a combination of an application pool and a site (app, vdir, etc.).
+Each allocation will create an application pool and site with the name being the allocation ID (guid).
+
+For more detailed instructions on how to set up and use this driver, please
+refer to the [documentation][nomad-driver-iis].
+
+## Task Configuration
+
+```hcl
+task "iis-test" {
+  driver = "win_iis"
+
+  config {
+    path = "C:\\inetpub\\wwwroot"
+    apppool_identity {
+      identity="SpecificUser"
+      username="vagrant"
+      password="vagrant"
+    }
+  }
+}
+```
+
+The IIS task driver supports the following parameters:
+
+- `path` - (Required) <Description>.
+
+- `site_config_path` - (Optional) <Description>.
+  Defaults to <Default value>.
+
+- `apppool_config_path` - (Optional) <Description>.
+  Defaults to <Default value>.
+
+- `apppool_identity` {
+       - `identity` - (Required) <Description>.
+       - `username` - (Optional) <Description>. Defaults to <Default value>.
+       - `password` - (Optional) <Description>. Defaults to <Default value>.
+   }
+
+- `bindings` {
+       - `hostname`      - (Optional) <Description>. Defaults to <Default value>.
+       - `ipaddress`     - (Optional) <Description>. Defaults to <Default value>.
+       - `resource_port` - (Optional) <Description>. Defaults to <Default value>.
+       - `port`          - (Optional) <Description>. Defaults to <Default value>.
+       - `type`          - (Optional) <Description>. Defaults to <Default value>.
+       - `cert_hash`     - (Optional) <Description>. Defaults to <Default value>.
+   }
+
+## Networking
+
+Currently the `nomad-driver-iis` only supports host networking. No special configuration is needed as `nomad-driver-iis`
+relies on IIS to manage the networking for windows IIS website tasks.
+
+## Client Requirements
+
+`nomad-driver-iis` requires the following:
+
+- Windows 2016+
+
+- Web Server enabled for IIS
+
+- The nomad iis driver binary [Build instructions][nomad-driver-iis]
+
+## Plugin Options ((#plugin_options))
+
+- `enabled` - The `IIS` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
+
+- `stats_interval` - This value defines how frequently you want to send `TaskStats` to nomad client. (defaults to `1 second`).
+
+
+An example of using these plugin options with the new [plugin
+syntax][plugin] is shown below:
+
+```hcl
+plugin "win_iis" {
+  client {
+    enabled = true
+    stats_interval = "30s"
+  }
+}
+```
+
+Please note the plugin name should match whatever name you have specified for the external driver in the [plugin_dir][plugin_dir] directory.
+
+## Client Attributes
+
+The `IIS` driver will set the following client attributes:
+
+- `driver.win_iis.iis_version` - Sets to IIS version of IIS which is running on nomad client.
+
+[nomad-driver-iis]: https://github.com/Roblox/nomad-driver-iis
+[plugin]: /docs/configuration/plugin
+[plugin_dir]: /docs/configuration#plugin_dir
+[plugin-options]: #plugin_options

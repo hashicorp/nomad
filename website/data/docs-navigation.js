@@ -207,6 +207,7 @@ export default [
           'pot',
           'firecracker-task-driver',
           'nspawn'
+          'windows iis'
         ]
       }
     ]
