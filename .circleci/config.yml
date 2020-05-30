@@ -17,6 +17,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./nomad/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -109,7 +110,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -129,7 +135,8 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
-    - GOTEST_PKGS: ./api/...
+    - GOTEST_MOD: api
+    - GOTEST_PKGS: ''
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
     steps:
@@ -221,7 +228,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -241,6 +253,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./drivers/exec
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -333,7 +346,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -353,6 +371,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./client/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -445,7 +464,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -570,6 +594,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./drivers/shared/executor
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -662,7 +687,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -773,6 +803,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ''
     - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices
     - GOTESTARCH: amd64
@@ -865,7 +896,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -941,7 +977,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -990,7 +1031,7 @@ jobs:
     - run:
         command: brew install protobuf
     - run:
-        command: sudo -E PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
+        command: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
     - run:
         command: source ${BASH_ENV} && make pkg/darwin_amd64.zip
     - store_artifacts:
@@ -1018,6 +1059,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./drivers/docker
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -1110,7 +1152,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -1192,6 +1239,7 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./client/fingerprint
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: '386'
@@ -1284,7 +1332,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:

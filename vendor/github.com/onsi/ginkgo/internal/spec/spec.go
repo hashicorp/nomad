@@ -98,7 +98,7 @@ func (spec *Spec) Summary(suiteID string) *types.SpecSummary {
 	componentCodeLocations[len(spec.containers)] = spec.subject.CodeLocation()
 
 	runTime := spec.runTime
-	if runTime == 0 {
+	if runTime == 0 && !spec.startTime.IsZero() {
 		runTime = time.Since(spec.startTime)
 	}
 
@@ -107,11 +107,11 @@ func (spec *Spec) Summary(suiteID string) *types.SpecSummary {
 		NumberOfSamples:        spec.subject.Samples(),
 		ComponentTexts:         componentTexts,
 		ComponentCodeLocations: componentCodeLocations,
-		State:        spec.getState(),
-		RunTime:      runTime,
-		Failure:      spec.failure,
-		Measurements: spec.measurementsReport(),
-		SuiteID:      suiteID,
+		State:                  spec.getState(),
+		RunTime:                runTime,
+		Failure:                spec.failure,
+		Measurements:           spec.measurementsReport(),
+		SuiteID:                suiteID,
 	}
 }
 
@@ -161,6 +161,18 @@ func (spec *Spec) runSample(sample int, writer io.Writer) {
 	innerMostContainerIndexToUnwind := -1
 
 	defer func() {
+		for i := innerMostContainerIndexToUnwind; i >= 0; i-- {
+			container := spec.containers[i]
+			for _, justAfterEach := range container.SetupNodesOfType(types.SpecComponentTypeJustAfterEach) {
+				spec.announceSetupNode(writer, "JustAfterEach", container, justAfterEach)
+				justAfterEachState, justAfterEachFailure := justAfterEach.Run()
+				if justAfterEachState != types.SpecStatePassed && spec.state == types.SpecStatePassed {
+					spec.state = justAfterEachState
+					spec.failure = justAfterEachFailure
+				}
+			}
+		}
+
 		for i := innerMostContainerIndexToUnwind; i >= 0; i-- {
 			container := spec.containers[i]
 			for _, afterEach := range container.SetupNodesOfType(types.SpecComponentTypeAfterEach) {

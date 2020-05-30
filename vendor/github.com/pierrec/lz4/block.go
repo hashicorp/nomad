@@ -2,14 +2,13 @@ package lz4
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math/bits"
 )
 
-// blockHash hashes the lower 6 bytes into a value < htSize.
-func blockHash(x uint64) uint32 {
-	const prime6bytes = 227718039650203
-	return uint32(((x << (64 - 48)) * prime6bytes) >> (64 - hashLog))
+// blockHash hashes 4 bytes into a value < winSize.
+func blockHash(x uint32) uint32 {
+	const hasher uint32 = 2654435761 // Knuth multiplicative hash.
+	return x * hasher >> hashShift
 }
 
 // CompressBlockBound returns the maximum size of a given buffer of size n, when not compressible.
@@ -40,91 +39,51 @@ func UncompressBlock(src, dst []byte) (int, error) {
 // The size of the compressed data is returned. If it is 0 and no error, then the data is incompressible.
 //
 // An error is returned if the destination buffer is too small.
-func CompressBlock(src, dst []byte, hashTable []int) (_ int, err error) {
-	if len(hashTable) < htSize {
-		return 0, fmt.Errorf("hash table too small, should be at least %d in size", htSize)
-	}
+func CompressBlock(src, dst []byte, hashTable []int) (di int, err error) {
 	defer recoverBlock(&err)
 
 	// adaptSkipLog sets how quickly the compressor begins skipping blocks when data is incompressible.
-	// This significantly speeds up incompressible data and usually has very small impact on compression.
+	// This significantly speeds up incompressible data and usually has very small impact on compresssion.
 	// bytes to skip =  1 + (bytes since last match >> adaptSkipLog)
 	const adaptSkipLog = 7
+
 	sn, dn := len(src)-mfLimit, len(dst)
 	if sn <= 0 || dn == 0 {
 		return 0, nil
 	}
-	// Prove to the compiler the table has at least htSize elements.
-	// The compiler can see that "uint32() >> hashShift" cannot be out of bounds.
-	hashTable = hashTable[:htSize]
-
-	// si: Current position of the search.
-	// anchor: Position of the current literals.
-	var si, di, anchor int
+	var si int
 
 	// Fast scan strategy: the hash table only stores the last 4 bytes sequences.
+
+	anchor := si // Position of the current literals.
+
 	for si < sn {
-		// Hash the next 6 bytes (sequence)...
-		match := binary.LittleEndian.Uint64(src[si:])
+		// Hash the next 4 bytes (sequence)...
+		match := binary.LittleEndian.Uint32(src[si:])
 		h := blockHash(match)
-		h2 := blockHash(match >> 8)
 
-		// We check a match at s, s+1 and s+2 and pick the first one we get.
-		// Checking 3 only requires us to load the source one.
 		ref := hashTable[h]
-		ref2 := hashTable[h2]
 		hashTable[h] = si
-		hashTable[h2] = si + 1
+		if ref >= sn { // Invalid reference (dirty hashtable).
+			si += 1 + (si-anchor)>>adaptSkipLog
+			continue
+		}
 		offset := si - ref
-
-		// If offset <= 0 we got an old entry in the hash table.
 		if offset <= 0 || offset >= winSize || // Out of window.
-			uint32(match) != binary.LittleEndian.Uint32(src[ref:]) { // Hash collision on different matches.
-			// No match. Start calculating another hash.
-			// The processor can usually do this out-of-order.
-			h = blockHash(match >> 16)
-			ref = hashTable[h]
-
-			// Check the second match at si+1
-			si += 1
-			offset = si - ref2
-
-			if offset <= 0 || offset >= winSize ||
-				uint32(match>>8) != binary.LittleEndian.Uint32(src[ref2:]) {
-				// No match. Check the third match at si+2
-				si += 1
-				offset = si - ref
-				hashTable[h] = si
-
-				if offset <= 0 || offset >= winSize ||
-					uint32(match>>16) != binary.LittleEndian.Uint32(src[ref:]) {
-					// Skip one extra byte (at si+3) before we check 3 matches again.
-					si += 2 + (si-anchor)>>adaptSkipLog
-					continue
-				}
-			}
+			match != binary.LittleEndian.Uint32(src[ref:]) { // Hash collision on different matches.
+			si += 1 + (si-anchor)>>adaptSkipLog
+			continue
 		}
 
 		// Match found.
+		// acc = accInit
 		lLen := si - anchor // Literal length.
-		// We already matched 4 bytes.
-		mLen := 4
 
-		// Extend backwards if we can, reducing literals.
-		tOff := si - offset - 1
-		for lLen > 0 && tOff >= 0 && src[si-1] == src[tOff] {
-			si--
-			tOff--
-			lLen--
-			mLen++
-		}
-
-		// Add the match length, so we continue search at the end.
-		// Use mLen to store the offset base.
-		si, mLen = si+mLen, si+minMatch
-
-		// Find the longest match by looking by batches of 8 bytes.
-		for si+8 < sn {
+		// Encode match length part 1.
+		si += minMatch
+		mLen := si // Match length has minMatch already.
+		// Find the longest match, first looking by batches of 8 bytes.
+		for si < sn {
 			x := binary.LittleEndian.Uint64(src[si:]) ^ binary.LittleEndian.Uint64(src[si-offset:])
 			if x == 0 {
 				si += 8
@@ -175,13 +134,6 @@ func CompressBlock(src, dst []byte, hashTable []int) (_ int, err error) {
 			dst[di] = byte(mLen)
 			di++
 		}
-		// Check if we can load next values.
-		if si >= sn {
-			break
-		}
-		// Hash match end-2
-		h = blockHash(binary.LittleEndian.Uint64(src[si-2:]))
-		hashTable[h] = si - 2
 	}
 
 	if anchor == 0 {
@@ -213,12 +165,6 @@ func CompressBlock(src, dst []byte, hashTable []int) (_ int, err error) {
 	return di, nil
 }
 
-// blockHash hashes 4 bytes into a value < winSize.
-func blockHashHC(x uint32) uint32 {
-	const hasher uint32 = 2654435761 // Knuth multiplicative hash.
-	return x * hasher >> (32 - winSizeLog)
-}
-
 // CompressBlockHC compresses the source buffer src into the destination dst
 // with max search depth (use 0 or negative value for no max).
 //
@@ -227,11 +173,11 @@ func blockHashHC(x uint32) uint32 {
 // The size of the compressed data is returned. If it is 0 and no error, then the data is not compressible.
 //
 // An error is returned if the destination buffer is too small.
-func CompressBlockHC(src, dst []byte, depth int) (_ int, err error) {
+func CompressBlockHC(src, dst []byte, depth int) (di int, err error) {
 	defer recoverBlock(&err)
 
 	// adaptSkipLog sets how quickly the compressor begins skipping blocks when data is incompressible.
-	// This significantly speeds up incompressible data and usually has very small impact on compression.
+	// This significantly speeds up incompressible data and usually has very small impact on compresssion.
 	// bytes to skip =  1 + (bytes since last match >> adaptSkipLog)
 	const adaptSkipLog = 7
 
@@ -239,7 +185,7 @@ func CompressBlockHC(src, dst []byte, depth int) (_ int, err error) {
 	if sn <= 0 || dn == 0 {
 		return 0, nil
 	}
-	var si, di int
+	var si int
 
 	// hashTable: stores the last position found for a given hash
 	// chainTable: stores previous positions for a given hash
@@ -253,7 +199,7 @@ func CompressBlockHC(src, dst []byte, depth int) (_ int, err error) {
 	for si < sn {
 		// Hash the next 4 bytes (sequence).
 		match := binary.LittleEndian.Uint32(src[si:])
-		h := blockHashHC(match)
+		h := blockHash(match)
 
 		// Follow the chain until out of window and give the longest match.
 		mLen := 0
@@ -305,7 +251,7 @@ func CompressBlockHC(src, dst []byte, depth int) (_ int, err error) {
 		for si, ml := winStart, si+mLen; si < ml; {
 			match >>= 8
 			match |= uint32(src[si+3]) << 24
-			h := blockHashHC(match)
+			h := blockHash(match)
 			chainTable[si&winMask] = hashTable[h]
 			hashTable[h] = si
 			si++

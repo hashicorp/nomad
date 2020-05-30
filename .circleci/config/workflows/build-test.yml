@@ -32,7 +32,7 @@ jobs:
       # API Tests run in a VM rather than container due to the FS tests
       # requiring `mount` priviliges.
       name: "test-api"
-      test_packages: "./api/..."
+      test_module: "api"
       filters: *backend_branches_filter
   - test-container:
       name: "test-devices"

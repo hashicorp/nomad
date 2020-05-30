@@ -171,7 +171,7 @@ func (conn *Conn) handleCall(msg *Message) {
 		}
 		reply.Headers[FieldSignature] = MakeVariant(SignatureOf(reply.Body...))
 
-		conn.sendMessageAndIfClosed(reply, nil)
+		conn.sendMessage(reply)
 	}
 }
 

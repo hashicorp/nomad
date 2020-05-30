@@ -29,6 +29,7 @@ import (
 	"github.com/onsi/ginkgo/internal/writer"
 	"github.com/onsi/ginkgo/reporters"
 	"github.com/onsi/ginkgo/reporters/stenographer"
+	colorable "github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable"
 	"github.com/onsi/ginkgo/types"
 )
 
@@ -198,6 +199,11 @@ type Benchmarker interface {
 //	ginkgo bootstrap
 func RunSpecs(t GinkgoTestingT, description string) bool {
 	specReporters := []Reporter{buildDefaultReporter()}
+	if config.DefaultReporterConfig.ReportFile != "" {
+		reportFile := config.DefaultReporterConfig.ReportFile
+		specReporters[0] = reporters.NewJUnitReporter(reportFile)
+		return RunSpecsWithDefaultAndCustomReporters(t, description, specReporters)
+	}
 	return RunSpecsWithCustomReporters(t, description, specReporters)
 }
 
@@ -228,10 +234,14 @@ func RunSpecsWithCustomReporters(t GinkgoTestingT, description string, specRepor
 func buildDefaultReporter() Reporter {
 	remoteReportingServer := config.GinkgoConfig.StreamHost
 	if remoteReportingServer == "" {
-		stenographer := stenographer.New(!config.DefaultReporterConfig.NoColor, config.GinkgoConfig.FlakeAttempts > 1)
+		stenographer := stenographer.New(!config.DefaultReporterConfig.NoColor, config.GinkgoConfig.FlakeAttempts > 1, colorable.NewColorableStdout())
 		return reporters.NewDefaultReporter(config.DefaultReporterConfig, stenographer)
 	} else {
-		return remote.NewForwardingReporter(remoteReportingServer, &http.Client{}, remote.NewOutputInterceptor())
+		debugFile := ""
+		if config.GinkgoConfig.DebugParallel {
+			debugFile = fmt.Sprintf("ginkgo-node-%d.log", config.GinkgoConfig.ParallelNode)
+		}
+		return remote.NewForwardingReporter(config.DefaultReporterConfig, remoteReportingServer, &http.Client{}, remote.NewOutputInterceptor(), GinkgoWriter.(*writer.Writer), debugFile)
 	}
 }
 
@@ -278,7 +288,7 @@ func GinkgoRecover() {
 //BeforeEach, AfterEach, JustBeforeEach, It, and Measurement blocks.
 //
 //In addition you can nest Describe, Context and When blocks.  Describe, Context and When blocks are functionally
-//equivalent.  The difference is purely semantic -- you typical Describe the behavior of an object
+//equivalent.  The difference is purely semantic -- you typically Describe the behavior of an object
 //or method and, within that Describe, outline a number of Contexts and Whens.
 func Describe(text string, body func()) bool {
 	globalSuite.PushContainerNode(text, body, types.FlagTypeNone, codelocation.New(1))
@@ -452,13 +462,13 @@ func FMeasure(text string, body interface{}, samples int) bool {
 	return true
 }
 
-//You can mark Maeasurements as pending using PMeasure
+//You can mark Measurements as pending using PMeasure
 func PMeasure(text string, _ ...interface{}) bool {
 	globalSuite.PushMeasureNode(text, func(b Benchmarker) {}, types.FlagTypePending, codelocation.New(1), 0)
 	return true
 }
 
-//You can mark Maeasurements as pending using XMeasure
+//You can mark Measurements as pending using XMeasure
 func XMeasure(text string, _ ...interface{}) bool {
 	globalSuite.PushMeasureNode(text, func(b Benchmarker) {}, types.FlagTypePending, codelocation.New(1), 0)
 	return true
@@ -494,7 +504,7 @@ func AfterSuite(body interface{}, timeout ...float64) bool {
 //until that node is done before running.
 //
 //SynchronizedBeforeSuite accomplishes this by taking *two* function arguments.  The first is only run on parallel node #1.  The second is
-//run on all nodes, but *only* after the first function completes succesfully.  Ginkgo also makes it possible to send data from the first function (on Node 1)
+//run on all nodes, but *only* after the first function completes successfully.  Ginkgo also makes it possible to send data from the first function (on Node 1)
 //to the second function (on all the other nodes).
 //
 //The functions have the following signatures.  The first function (which only runs on node 1) has the signature:
@@ -582,6 +592,16 @@ func BeforeEach(body interface{}, timeout ...float64) bool {
 //a Done channel
 func JustBeforeEach(body interface{}, timeout ...float64) bool {
 	globalSuite.PushJustBeforeEachNode(body, codelocation.New(1), parseTimeout(timeout...))
+	return true
+}
+
+//JustAfterEach blocks are run after It blocks but *before* all AfterEach blocks.  For more details,
+//read the [documentation](http://onsi.github.io/ginkgo/#separating_creation_and_configuration_)
+//
+//Like It blocks, JustAfterEach blocks can be made asynchronous by providing a body function that accepts
+//a Done channel
+func JustAfterEach(body interface{}, timeout ...float64) bool {
+	globalSuite.PushJustAfterEachNode(body, codelocation.New(1), parseTimeout(timeout...))
 	return true
 }
 

@@ -8,21 +8,25 @@ package complete
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"strings"
+	"strconv"
 
 	"github.com/posener/complete/cmd"
+	"github.com/posener/complete/match"
 )
 
 const (
-	envComplete = "COMP_LINE"
-	envDebug    = "COMP_DEBUG"
+	envLine  = "COMP_LINE"
+	envPoint = "COMP_POINT"
+	envDebug = "COMP_DEBUG"
 )
 
 // Complete structs define completion for a command with CLI options
 type Complete struct {
 	Command Command
 	cmd.CLI
+	Out io.Writer
 }
 
 // New creates a new complete command.
@@ -34,6 +38,7 @@ func New(name string, command Command) *Complete {
 	return &Complete{
 		Command: command,
 		CLI:     cmd.CLI{Name: name},
+		Out:     os.Stdout,
 	}
 }
 
@@ -52,35 +57,53 @@ func (c *Complete) Run() bool {
 // For installation: it assumes that flags were added and parsed before
 // it was called.
 func (c *Complete) Complete() bool {
-	line, ok := getLine()
+	line, point, ok := getEnv()
 	if !ok {
 		// make sure flags parsed,
 		// in case they were not added in the main program
 		return c.CLI.Run()
 	}
-	Log("Completing line: %s", line)
 
+	if point >= 0 && point < len(line) {
+		line = line[:point]
+	}
+
+	Log("Completing phrase: %s", line)
 	a := newArgs(line)
-
+	Log("Completing last field: %s", a.Last)
 	options := c.Command.Predict(a)
+	Log("Options: %s", options)
 
-	Log("Completion: %s", options)
-	output(options)
+	// filter only options that match the last argument
+	matches := []string{}
+	for _, option := range options {
+		if match.Prefix(option, a.Last) {
+			matches = append(matches, option)
+		}
+	}
+	Log("Matches: %s", matches)
+	c.output(matches)
 	return true
 }
 
-func getLine() ([]string, bool) {
-	line := os.Getenv(envComplete)
+func getEnv() (line string, point int, ok bool) {
+	line = os.Getenv(envLine)
 	if line == "" {
-		return nil, false
+		return
 	}
-	return strings.Split(line, " "), true
+	point, err := strconv.Atoi(os.Getenv(envPoint))
+	if err != nil {
+		// If failed parsing point for some reason, set it to point
+		// on the end of the line.
+		Log("Failed parsing point %s: %v", os.Getenv(envPoint), err)
+		point = len(line)
+	}
+	return line, point, true
 }
 
-func output(options []string) {
-	Log("")
+func (c *Complete) output(options []string) {
 	// stdout of program defines the complete options
 	for _, option := range options {
-		fmt.Println(option)
+		fmt.Fprintln(c.Out, option)
 	}
 }

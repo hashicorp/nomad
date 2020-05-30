@@ -6,9 +6,9 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/binary"
 	"encoding/hex"
 	"hash"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -30,17 +30,17 @@ type TSIG struct {
 	TimeSigned uint64 `dns:"uint48"`
 	Fudge      uint16
 	MACSize    uint16
-	MAC        string `dns:"size-hex"`
+	MAC        string `dns:"size-hex:MACSize"`
 	OrigId     uint16
 	Error      uint16
 	OtherLen   uint16
-	OtherData  string `dns:"size-hex"`
+	OtherData  string `dns:"size-hex:OtherLen"`
 }
 
 // TSIG has no official presentation format, but this will suffice.
 
 func (rr *TSIG) String() string {
-	s := "\n;; TSIG PSEUDOSECTION:\n"
+	s := "\n;; TSIG PSEUDOSECTION:\n; " // add another semi-colon to signify TSIG does not have a presentation format
 	s += rr.Hdr.String() +
 		" " + rr.Algorithm +
 		" " + tsigTimeToString(rr.TimeSigned) +
@@ -52,6 +52,10 @@ func (rr *TSIG) String() string {
 		" " + strconv.Itoa(int(rr.OtherLen)) +
 		" " + rr.OtherData
 	return s
+}
+
+func (rr *TSIG) parse(c *zlexer, origin string) *ParseError {
+	panic("dns: internal error: parse should never be called on TSIG")
 }
 
 // The following values must be put in wireformat, so that the MAC can be calculated.
@@ -68,14 +72,13 @@ type tsigWireFmt struct {
 	// MACSize, MAC and OrigId excluded
 	Error     uint16
 	OtherLen  uint16
-	OtherData string `dns:"size-hex"`
+	OtherData string `dns:"size-hex:OtherLen"`
 }
 
-// If we have the MAC use this type to convert it to wiredata.
-// Section 3.4.3. Request MAC
+// If we have the MAC use this type to convert it to wiredata. Section 3.4.3. Request MAC
 type macWireFmt struct {
 	MACSize uint16
-	MAC     string `dns:"size-hex"`
+	MAC     string `dns:"size-hex:MACSize"`
 }
 
 // 3.3. Time values used in TSIG calculations
@@ -114,17 +117,17 @@ func TsigGenerate(m *Msg, secret, requestMAC string, timersOnly bool) ([]byte, s
 	var h hash.Hash
 	switch strings.ToLower(rr.Algorithm) {
 	case HmacMD5:
-		h = hmac.New(md5.New, []byte(rawsecret))
+		h = hmac.New(md5.New, rawsecret)
 	case HmacSHA1:
-		h = hmac.New(sha1.New, []byte(rawsecret))
+		h = hmac.New(sha1.New, rawsecret)
 	case HmacSHA256:
-		h = hmac.New(sha256.New, []byte(rawsecret))
+		h = hmac.New(sha256.New, rawsecret)
 	case HmacSHA512:
-		h = hmac.New(sha512.New, []byte(rawsecret))
+		h = hmac.New(sha512.New, rawsecret)
 	default:
 		return nil, "", ErrKeyAlg
 	}
-	io.WriteString(h, string(buf))
+	h.Write(buf)
 	t.MAC = hex.EncodeToString(h.Sum(nil))
 	t.MACSize = uint16(len(t.MAC) / 2) // Size is half!
 
@@ -134,14 +137,15 @@ func TsigGenerate(m *Msg, secret, requestMAC string, timersOnly bool) ([]byte, s
 	t.Algorithm = rr.Algorithm
 	t.OrigId = m.Id
 
-	tbuf := make([]byte, t.len())
-	if off, err := PackRR(t, tbuf, 0, nil, false); err == nil {
-		tbuf = tbuf[:off] // reset to actual size used
-	} else {
+	tbuf := make([]byte, Len(t))
+	off, err := PackRR(t, tbuf, 0, nil, false)
+	if err != nil {
 		return nil, "", err
 	}
-	mbuf = append(mbuf, tbuf...)
-	rawSetExtraLen(mbuf, uint16(len(m.Extra)+1))
+	mbuf = append(mbuf, tbuf[:off]...)
+	// Update the ArCount directly in the buffer.
+	binary.BigEndian.PutUint16(mbuf[10:], uint16(len(m.Extra)+1))
+
 	return mbuf, t.MAC, nil
 }
 
@@ -207,12 +211,15 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) []b
 		rr.Fudge = 300 // Standard (RFC) default.
 	}
 
+	// Replace message ID in header with original ID from TSIG
+	binary.BigEndian.PutUint16(msgbuf[0:2], rr.OrigId)
+
 	if requestMAC != "" {
 		m := new(macWireFmt)
 		m.MACSize = uint16(len(requestMAC) / 2)
 		m.MAC = requestMAC
 		buf = make([]byte, len(requestMAC)) // long enough
-		n, _ := PackStruct(m, buf, 0)
+		n, _ := packMacWire(m, buf)
 		buf = buf[:n]
 	}
 
@@ -221,7 +228,7 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) []b
 		tsig := new(timerWireFmt)
 		tsig.TimeSigned = rr.TimeSigned
 		tsig.Fudge = rr.Fudge
-		n, _ := PackStruct(tsig, tsigvar, 0)
+		n, _ := packTimerWire(tsig, tsigvar)
 		tsigvar = tsigvar[:n]
 	} else {
 		tsig := new(tsigWireFmt)
@@ -234,7 +241,7 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) []b
 		tsig.Error = rr.Error
 		tsig.OtherLen = rr.OtherLen
 		tsig.OtherData = rr.OtherData
-		n, _ := PackStruct(tsig, tsigvar, 0)
+		n, _ := packTsigWire(tsig, tsigvar)
 		tsigvar = tsigvar[:n]
 	}
 
@@ -249,60 +256,54 @@ func tsigBuffer(msgbuf []byte, rr *TSIG, requestMAC string, timersOnly bool) []b
 
 // Strip the TSIG from the raw message.
 func stripTsig(msg []byte) ([]byte, *TSIG, error) {
-	// Copied from msg.go's Unpack()
-	// Header.
-	var dh Header
-	var err error
-	dns := new(Msg)
-	rr := new(TSIG)
-	off := 0
-	tsigoff := 0
-	if off, err = UnpackStruct(&dh, msg, off); err != nil {
+	// Copied from msg.go's Unpack() Header, but modified.
+	var (
+		dh  Header
+		err error
+	)
+	off, tsigoff := 0, 0
+
+	if dh, off, err = unpackMsgHdr(msg, off); err != nil {
 		return nil, nil, err
 	}
 	if dh.Arcount == 0 {
 		return nil, nil, ErrNoSig
 	}
+
 	// Rcode, see msg.go Unpack()
 	if int(dh.Bits&0xF) == RcodeNotAuth {
 		return nil, nil, ErrAuth
 	}
 
-	// Arrays.
-	dns.Question = make([]Question, dh.Qdcount)
-	dns.Answer = make([]RR, dh.Ancount)
-	dns.Ns = make([]RR, dh.Nscount)
-	dns.Extra = make([]RR, dh.Arcount)
+	for i := 0; i < int(dh.Qdcount); i++ {
+		_, off, err = unpackQuestion(msg, off)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
-	for i := 0; i < len(dns.Question); i++ {
-		off, err = UnpackStruct(&dns.Question[i], msg, off)
-		if err != nil {
-			return nil, nil, err
-		}
+	_, off, err = unpackRRslice(int(dh.Ancount), msg, off)
+	if err != nil {
+		return nil, nil, err
 	}
-	for i := 0; i < len(dns.Answer); i++ {
-		dns.Answer[i], off, err = UnpackRR(msg, off)
-		if err != nil {
-			return nil, nil, err
-		}
+	_, off, err = unpackRRslice(int(dh.Nscount), msg, off)
+	if err != nil {
+		return nil, nil, err
 	}
-	for i := 0; i < len(dns.Ns); i++ {
-		dns.Ns[i], off, err = UnpackRR(msg, off)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	for i := 0; i < len(dns.Extra); i++ {
+
+	rr := new(TSIG)
+	var extra RR
+	for i := 0; i < int(dh.Arcount); i++ {
 		tsigoff = off
-		dns.Extra[i], off, err = UnpackRR(msg, off)
+		extra, off, err = UnpackRR(msg, off)
 		if err != nil {
 			return nil, nil, err
 		}
-		if dns.Extra[i].Header().Rrtype == TypeTSIG {
-			rr = dns.Extra[i].(*TSIG)
+		if extra.Header().Rrtype == TypeTSIG {
+			rr = extra.(*TSIG)
 			// Adjust Arcount.
-			arcount, _ := unpackUint16(msg, 10)
-			msg[10], msg[11] = packUint16(arcount - 1)
+			arcount := binary.BigEndian.Uint16(msg[10:])
+			binary.BigEndian.PutUint16(msg[10:], arcount-1)
 			break
 		}
 	}
@@ -317,4 +318,72 @@ func stripTsig(msg []byte) ([]byte, *TSIG, error) {
 func tsigTimeToString(t uint64) string {
 	ti := time.Unix(int64(t), 0).UTC()
 	return ti.Format("20060102150405")
+}
+
+func packTsigWire(tw *tsigWireFmt, msg []byte) (int, error) {
+	// copied from zmsg.go TSIG packing
+	// RR_Header
+	off, err := PackDomainName(tw.Name, msg, 0, nil, false)
+	if err != nil {
+		return off, err
+	}
+	off, err = packUint16(tw.Class, msg, off)
+	if err != nil {
+		return off, err
+	}
+	off, err = packUint32(tw.Ttl, msg, off)
+	if err != nil {
+		return off, err
+	}
+
+	off, err = PackDomainName(tw.Algorithm, msg, off, nil, false)
+	if err != nil {
+		return off, err
+	}
+	off, err = packUint48(tw.TimeSigned, msg, off)
+	if err != nil {
+		return off, err
+	}
+	off, err = packUint16(tw.Fudge, msg, off)
+	if err != nil {
+		return off, err
+	}
+
+	off, err = packUint16(tw.Error, msg, off)
+	if err != nil {
+		return off, err
+	}
+	off, err = packUint16(tw.OtherLen, msg, off)
+	if err != nil {
+		return off, err
+	}
+	off, err = packStringHex(tw.OtherData, msg, off)
+	if err != nil {
+		return off, err
+	}
+	return off, nil
+}
+
+func packMacWire(mw *macWireFmt, msg []byte) (int, error) {
+	off, err := packUint16(mw.MACSize, msg, 0)
+	if err != nil {
+		return off, err
+	}
+	off, err = packStringHex(mw.MAC, msg, off)
+	if err != nil {
+		return off, err
+	}
+	return off, nil
+}
+
+func packTimerWire(tw *timerWireFmt, msg []byte) (int, error) {
+	off, err := packUint48(tw.TimeSigned, msg, 0)
+	if err != nil {
+		return off, err
+	}
+	off, err = packUint16(tw.Fudge, msg, off)
+	if err != nil {
+		return off, err
+	}
+	return off, nil
 }

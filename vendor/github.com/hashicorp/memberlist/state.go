@@ -6,10 +6,11 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 )
 
 type nodeStateType int
@@ -18,6 +19,7 @@ const (
 	stateAlive nodeStateType = iota
 	stateSuspect
 	stateDead
+	stateLeft
 )
 
 // Node represents a node in the cluster.
@@ -57,6 +59,10 @@ type nodeState struct {
 // with a transport.
 func (n *nodeState) Address() string {
 	return n.Node.Address()
+}
+
+func (n *nodeState) DeadOrLeft() bool {
+	return n.State == stateDead || n.State == stateLeft
 }
 
 // ackHandler is used to register handlers for incoming acks and nacks.
@@ -217,7 +223,7 @@ START:
 	node = *m.nodes[m.probeIndex]
 	if node.Name == m.config.Name {
 		skip = true
-	} else if node.State == stateDead {
+	} else if node.DeadOrLeft() {
 		skip = true
 	}
 
@@ -240,6 +246,21 @@ func (m *Memberlist) probeNodeByAddr(addr string) {
 	m.nodeLock.RUnlock()
 
 	m.probeNode(n)
+}
+
+// failedRemote checks the error and decides if it indicates a failure on the
+// other end.
+func failedRemote(err error) bool {
+	switch t := err.(type) {
+	case *net.OpError:
+		if strings.HasPrefix(t.Net, "tcp") {
+			switch t.Op {
+			case "dial", "read", "write":
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // probeNode handles a single round of failure checking on a node.
@@ -272,10 +293,20 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// soon as possible.
 	deadline := sent.Add(probeInterval)
 	addr := node.Address()
+
+	// Arrange for our self-awareness to get updated.
+	var awarenessDelta int
+	defer func() {
+		m.awareness.ApplyDelta(awarenessDelta)
+	}()
 	if node.State == stateAlive {
 		if err := m.encodeAndSendMsg(addr, pingMsg, &ping); err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to send ping: %s", err)
-			return
+			if failedRemote(err) {
+				goto HANDLE_REMOTE_FAILURE
+			} else {
+				return
+			}
 		}
 	} else {
 		var msgs [][]byte
@@ -296,7 +327,11 @@ func (m *Memberlist) probeNode(node *nodeState) {
 		compound := makeCompoundMessage(msgs)
 		if err := m.rawSendMsgPacket(addr, &node.Node, compound.Bytes()); err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to send compound ping and suspect message to %s: %s", addr, err)
-			return
+			if failedRemote(err) {
+				goto HANDLE_REMOTE_FAILURE
+			} else {
+				return
+			}
 		}
 	}
 
@@ -305,10 +340,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// which will improve our health until we get to the failure scenarios
 	// at the end of this function, which will alter this delta variable
 	// accordingly.
-	awarenessDelta := -1
-	defer func() {
-		m.awareness.ApplyDelta(awarenessDelta)
-	}()
+	awarenessDelta = -1
 
 	// Wait for response or round-trip-time.
 	select {
@@ -333,9 +365,10 @@ func (m *Memberlist) probeNode(node *nodeState) {
 		// probe interval it will give the TCP fallback more time, which
 		// is more active in dealing with lost packets, and it gives more
 		// time to wait for indirect acks/nacks.
-		m.logger.Printf("[DEBUG] memberlist: Failed ping: %v (timeout reached)", node.Name)
+		m.logger.Printf("[DEBUG] memberlist: Failed ping: %s (timeout reached)", node.Name)
 	}
 
+HANDLE_REMOTE_FAILURE:
 	// Get some random live nodes.
 	m.nodeLock.RLock()
 	kNodes := kRandomNodes(m.config.IndirectChecks, m.nodes, func(n *nodeState) bool {
@@ -850,11 +883,26 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 		return
 	}
 
+	if len(a.Vsn) >= 3 {
+		pMin := a.Vsn[0]
+		pMax := a.Vsn[1]
+		pCur := a.Vsn[2]
+		if pMin == 0 || pMax == 0 || pMin > pMax {
+			m.logger.Printf("[WARN] memberlist: Ignoring an alive message for '%s' (%v:%d) because protocol version(s) are wrong: %d <= %d <= %d should be >0", a.Node, net.IP(a.Addr), a.Port, pMin, pCur, pMax)
+			return
+		}
+	}
+
 	// Invoke the Alive delegate if any. This can be used to filter out
 	// alive messages based on custom logic. For example, using a cluster name.
 	// Using a merge delegate is not enough, as it is possible for passive
 	// cluster merging to still occur.
 	if m.config.Alive != nil {
+		if len(a.Vsn) < 6 {
+			m.logger.Printf("[WARN] memberlist: ignoring alive message for '%s' (%v:%d) because Vsn is not present",
+				a.Node, net.IP(a.Addr), a.Port)
+			return
+		}
 		node := &Node{
 			Name: a.Node,
 			Addr: a.Addr,
@@ -876,6 +924,7 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 
 	// Check if we've never seen this node before, and if not, then
 	// store this node in our node map.
+	var updatesNode bool
 	if !ok {
 		state = &nodeState{
 			Node: Node{
@@ -885,6 +934,14 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 				Meta: a.Meta,
 			},
 			State: stateDead,
+		}
+		if len(a.Vsn) > 5 {
+			state.PMin = a.Vsn[0]
+			state.PMax = a.Vsn[1]
+			state.PCur = a.Vsn[2]
+			state.DMin = a.Vsn[3]
+			state.DMax = a.Vsn[4]
+			state.DCur = a.Vsn[5]
 		}
 
 		// Add to map
@@ -903,29 +960,40 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 
 		// Update numNodes after we've added a new node
 		atomic.AddUint32(&m.numNodes, 1)
-	}
+	} else {
+		// Check if this address is different than the existing node unless the old node is dead.
+		if !bytes.Equal([]byte(state.Addr), a.Addr) || state.Port != a.Port {
+			// If DeadNodeReclaimTime is configured, check if enough time has elapsed since the node died.
+			canReclaim := (m.config.DeadNodeReclaimTime > 0 &&
+				time.Since(state.StateChange) > m.config.DeadNodeReclaimTime)
 
-	// Check if this address is different than the existing node
-	if !bytes.Equal([]byte(state.Addr), a.Addr) || state.Port != a.Port {
-		m.logger.Printf("[ERR] memberlist: Conflicting address for %s. Mine: %v:%d Theirs: %v:%d",
-			state.Name, state.Addr, state.Port, net.IP(a.Addr), a.Port)
+			// Allow the address to be updated if a dead node is being replaced.
+			if state.State == stateLeft || (state.State == stateDead && canReclaim) {
+				m.logger.Printf("[INFO] memberlist: Updating address for left or failed node %s from %v:%d to %v:%d",
+					state.Name, state.Addr, state.Port, net.IP(a.Addr), a.Port)
+				updatesNode = true
+			} else {
+				m.logger.Printf("[ERR] memberlist: Conflicting address for %s. Mine: %v:%d Theirs: %v:%d Old state: %v",
+					state.Name, state.Addr, state.Port, net.IP(a.Addr), a.Port, state.State)
 
-		// Inform the conflict delegate if provided
-		if m.config.Conflict != nil {
-			other := Node{
-				Name: a.Node,
-				Addr: a.Addr,
-				Port: a.Port,
-				Meta: a.Meta,
+				// Inform the conflict delegate if provided
+				if m.config.Conflict != nil {
+					other := Node{
+						Name: a.Node,
+						Addr: a.Addr,
+						Port: a.Port,
+						Meta: a.Meta,
+					}
+					m.config.Conflict.NotifyConflict(&state.Node, &other)
+				}
+				return
 			}
-			m.config.Conflict.NotifyConflict(&state.Node, &other)
 		}
-		return
 	}
 
 	// Bail if the incarnation number is older, and this is not about us
 	isLocalNode := state.Name == m.config.Name
-	if a.Incarnation <= state.Incarnation && !isLocalNode {
+	if a.Incarnation <= state.Incarnation && !isLocalNode && !updatesNode {
 		return
 	}
 
@@ -965,9 +1033,8 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 			bytes.Equal(a.Vsn, versions) {
 			return
 		}
-
 		m.refute(state, a.Incarnation)
-		m.logger.Printf("[WARN] memberlist: Refuting an alive message")
+		m.logger.Printf("[WARN] memberlist: Refuting an alive message for '%s' (%v:%d) meta:(%v VS %v), vsn:(%v VS %v)", a.Node, net.IP(a.Addr), a.Port, a.Meta, state.Meta, a.Vsn, versions)
 	} else {
 		m.encodeBroadcastNotify(a.Node, aliveMsg, a, notify)
 
@@ -984,6 +1051,8 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 		// Update the state and incarnation number
 		state.Incarnation = a.Incarnation
 		state.Meta = a.Meta
+		state.Addr = a.Addr
+		state.Port = a.Port
 		if state.State != stateAlive {
 			state.State = stateAlive
 			state.StateChange = time.Now()
@@ -995,8 +1064,8 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 
 	// Notify the delegate of any relevant updates
 	if m.config.Events != nil {
-		if oldState == stateDead {
-			// if Dead -> Alive, notify of join
+		if oldState == stateDead || oldState == stateLeft {
+			// if Dead/Left -> Alive, notify of join
 			m.config.Events.NotifyJoin(&state.Node)
 
 		} else if !bytes.Equal(oldMeta, state.Meta) {
@@ -1115,7 +1184,7 @@ func (m *Memberlist) deadNode(d *dead) {
 	delete(m.nodeTimers, d.Node)
 
 	// Ignore if node is already dead
-	if state.State == stateDead {
+	if state.DeadOrLeft() {
 		return
 	}
 
@@ -1139,7 +1208,14 @@ func (m *Memberlist) deadNode(d *dead) {
 
 	// Update the state
 	state.Incarnation = d.Incarnation
-	state.State = stateDead
+
+	// If the dead message was send by the node itself, mark it is left
+	// instead of dead.
+	if d.Node == d.From {
+		state.State = stateLeft
+	} else {
+		state.State = stateDead
+	}
 	state.StateChange = time.Now()
 
 	// Notify of death
@@ -1164,6 +1240,9 @@ func (m *Memberlist) mergeState(remote []pushNodeState) {
 			}
 			m.aliveNode(&a, nil, false)
 
+		case stateLeft:
+			d := dead{Incarnation: r.Incarnation, Node: r.Name, From: r.Name}
+			m.deadNode(&d)
 		case stateDead:
 			// If the remote node believes a node is dead, we prefer to
 			// suspect that node instead of declaring it dead instantly
