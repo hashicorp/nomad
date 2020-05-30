@@ -97,6 +97,7 @@ var basicConfig = &Config{
 		DataDir:                   "/tmp/data",
 		ProtocolVersion:           3,
 		RaftProtocol:              3,
+		RaftMultiplier:            helper.IntToPtr(4),
 		NumSchedulers:             helper.IntToPtr(2),
 		EnabledSchedulers:         []string{"test"},
 		NodeGCThreshold:           "12h",

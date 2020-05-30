@@ -43,6 +43,14 @@ const (
 	// roles used in identifying Consul entries for Nomad agents
 	consulRoleServer = "server"
 	consulRoleClient = "client"
+
+	// DefaultRaftMultiplier is used as a baseline Raft configuration that
+	// will be reliable on a very basic server.
+	DefaultRaftMultiplier = 1
+
+	// MaxRaftMultiplier is a fairly arbitrary upper bound that limits the
+	// amount of performance detuning that's possible.
+	MaxRaftMultiplier = 10
 )
 
 // Agent is a long running daemon that is used to run both
@@ -180,6 +188,18 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
+	raftMultiplier := int(DefaultRaftMultiplier)
+	if agentConfig.Server.RaftMultiplier != nil && *agentConfig.Server.RaftMultiplier != 0 {
+		raftMultiplier = *agentConfig.Server.RaftMultiplier
+		if raftMultiplier < 1 || raftMultiplier > MaxRaftMultiplier {
+			return nil, fmt.Errorf("raft_multiplier cannot be %d. Must be between 1 and %d", *agentConfig.Server.RaftMultiplier, MaxRaftMultiplier)
+		}
+	}
+	conf.RaftConfig.ElectionTimeout *= time.Duration(raftMultiplier)
+	conf.RaftConfig.HeartbeatTimeout *= time.Duration(raftMultiplier)
+	conf.RaftConfig.LeaderLeaseTimeout *= time.Duration(raftMultiplier)
+	conf.RaftConfig.CommitTimeout *= time.Duration(raftMultiplier)
+
 	if agentConfig.Server.NumSchedulers != nil {
 		conf.NumSchedulers = *agentConfig.Server.NumSchedulers
 	}
