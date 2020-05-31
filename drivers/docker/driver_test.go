@@ -2681,3 +2681,19 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 	require.NotZero(t, c.HostConfig.CPUQuota)
 	require.NotZero(t, c.HostConfig.CPUPeriod)
 }
+
+func TestDockerDriver_memoryLimits(t *testing.T) {
+	t.Parallel()
+
+	t.Run("driver hard limit not set", func(t *testing.T) {
+		memory, memoryReservation := new(Driver).memoryLimits(0, 256*1024*1024)
+		require.Equal(t, int64(256*1024*1024), memory)
+		require.Equal(t, int64(0), memoryReservation)
+	})
+
+	t.Run("driver hard limit is set", func(t *testing.T) {
+		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
+		require.Equal(t, int64(512*1024*1024), memory)
+		require.Equal(t, int64(256*1024*1024), memoryReservation)
+	})
+}

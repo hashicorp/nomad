@@ -724,6 +724,30 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	return securityOpts, nil
 }
 
+// memoryLimits computes the memory and memory_reservation values passed along to
+// the docker host config. These fields represent hard and soft memory limits from
+// docker's perspective, respectively.
+//
+// The memory field on the task configuration can be interpreted as a hard or soft
+// limit. Before Nomad v0.11.3, it was always a hard limit. Now, it is interpreted
+// as a soft limit if the memory_hard_limit value is configured on the docker
+// task driver configuration. When memory_hard_limit is set, the docker host
+// config is configured such that the memory field is equal to memory_hard_limit
+// value, and the memory_reservation field is set to the task driver memory value.
+//
+// If memory_hard_limit is not set (i.e. zero value), then the memory field of
+// the task resource config is interpreted as a hard limit. In this case both the
+// memory is set to the task resource memory value and memory_reservation is left
+// unset.
+//
+// Returns (memory (hard), memory_reservation (soft)) values in bytes.
+func (Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
+	if driverHardLimitMB <= 0 {
+		return taskMemoryLimitBytes, 0
+	}
+	return driverHardLimitMB * 1024 * 1024, taskMemoryLimitBytes
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -772,8 +796,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
+	memory, memoryReservation := d.memoryLimits(driverConfig.MemoryHardLimit, task.Resources.LinuxResources.MemoryLimitBytes)
+
 	hostConfig := &docker.HostConfig{
-		Memory:    task.Resources.LinuxResources.MemoryLimitBytes,
+		Memory:            memory,            // hard limit
+		MemoryReservation: memoryReservation, // soft limit
+
 		CPUShares: task.Resources.LinuxResources.CPUShares,
 
 		// Binds are used to mount a host volume into the container. We mount a
@@ -837,7 +865,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
-	logger.Debug("configured resources", "memory", hostConfig.Memory,
+	logger.Debug("configured resources",
+		"memory", hostConfig.Memory, "memory_reservation", hostConfig.MemoryReservation,
 		"cpu_shares", hostConfig.CPUShares, "cpu_quota", hostConfig.CPUQuota,
 		"cpu_period", hostConfig.CPUPeriod)
 

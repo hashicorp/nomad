@@ -222,6 +222,7 @@ config {
     }
   }
   mac_address = "02:42:ac:11:00:02"
+  memory_hard_limit = 512
   mounts = [
     {
       type = "bind"
@@ -349,7 +350,8 @@ config {
 				"max-file": "3",
 				"max-size": "10m",
 			}},
-		MacAddress: "02:42:ac:11:00:02",
+		MacAddress:      "02:42:ac:11:00:02",
+		MemoryHardLimit: 512,
 		Mounts: []DockerMount{
 			{
 				Type:     "bind",
@@ -524,7 +526,6 @@ func TestConfig_InternalCapabilities(t *testing.T) {
 			require.Equal(t, c.expected, d.InternalCapabilities())
 		})
 	}
-
 }
 
 func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
@@ -582,5 +583,4 @@ func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
 			require.Equal(t, c.expected, d.config.allowRuntimes)
 		})
 	}
-
 }
