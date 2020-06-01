@@ -395,7 +395,7 @@ func (s *Server) revokeVaultAccessorsOnRestore() error {
 	}
 
 	if len(revoke) != 0 {
-		s.logger.Info("revoking vault accessors on restore", "accessors", len(revoke))
+		s.logger.Info("revoking vault accessors after becoming leader", "accessors", len(revoke))
 
 		if err := s.vault.MarkForRevocation(revoke); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
@@ -443,7 +443,7 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 	}
 
 	if len(toRevoke) > 0 {
-		s.logger.Info("revoking consul accessors on restore", "accessors", len(toRevoke))
+		s.logger.Info("revoking consul accessors after becoming leader", "accessors", len(toRevoke))
 		s.consulACLs.MarkForRevocation(toRevoke)
 	}
 
