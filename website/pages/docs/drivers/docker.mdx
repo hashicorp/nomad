@@ -188,7 +188,8 @@ The `docker` driver supports the following configuration in the job spec. Only
   parameter of the task resource configuration becomes a soft limit passed to the
   docker driver as [`--memory_reservation`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory),
   and `memory_hard_limit` is passed as the [`--memory`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory)
-  hard limit.
+  hard limit. When the host is under memory pressure, the behavior of soft limit
+  activation is governed by the [Kernel](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt).
 
 - `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
   container to be discovered by an alternate name by any other container within
