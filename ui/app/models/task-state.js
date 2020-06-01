@@ -51,12 +51,4 @@ export default Fragment.extend({
   restart() {
     return this.allocation.restart(this.name);
   },
-
-  ls(path) {
-    return this.store.adapterFor('task-state').ls(this, path);
-  },
-
-  stat(path) {
-    return this.store.adapterFor('task-state').stat(this, path);
-  },
 });

@@ -7,6 +7,7 @@ IMPROVEMENTS:
  * csi: Move volume claim releases out of evaluation workers [[GH-8021](https://github.com/hashicorp/nomad/issues/8021)]
  * csi: Added support for `VolumeContext` and `VolumeParameters` [[GH-7957](https://github.com/hashicorp/nomad/issues/7957)]
  * logging: Remove spurious error log on task shutdown [[GH-8028](https://github.com/hashicorp/nomad/issues/8028)]
+ * ui: Added filesystem browsing for allocations [[GH-5871](https://github.com/hashicorp/nomad/pull/7951)]
 
 BUG FIXES:
 

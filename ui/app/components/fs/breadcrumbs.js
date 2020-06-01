@@ -8,6 +8,7 @@ export default Component.extend({
 
   'data-test-fs-breadcrumbs': true,
 
+  allocation: null,
   task: null,
   path: null,
 
