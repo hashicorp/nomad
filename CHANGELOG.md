@@ -2,6 +2,7 @@
 
 FEATURES:
  * **Preemption**: Preemption is now an open source feature
+ * **Licensing (Enterprise)**: Nomad Enterprise now requires a license [[GH-8076](https://github.com/hashicorp/nomad/issues/8076)]
 
 ## 0.11.3 (Unreleased)
 
