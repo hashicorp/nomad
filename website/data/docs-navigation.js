@@ -108,6 +108,10 @@ export default [
           'validate'
         ]
       },
+      {
+        category: 'license',
+        content: ['get', 'put']
+      },
       'monitor',
       {
         category: 'namespace',
