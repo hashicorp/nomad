@@ -1484,6 +1484,32 @@ func TestDockerDriver_DNS(t *testing.T) {
 	require.Exactly(t, cfg.DNSOptions, container.HostConfig.DNSOptions)
 }
 
+func TestDockerDriver_MemoryHardLimit(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support MemoryReservation")
+	}
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	cfg.MemoryHardLimit = 300
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Equal(t, task.Resources.LinuxResources.MemoryLimitBytes, container.HostConfig.MemoryReservation)
+	require.Equal(t, cfg.MemoryHardLimit*1024*1024, container.HostConfig.Memory)
+}
+
 func TestDockerDriver_MACAddress(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
