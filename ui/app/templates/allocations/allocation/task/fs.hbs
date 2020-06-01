@@ -1,7 +1,7 @@
-{{title pathWithLeadingSlash " -  Task " task.name " filesystem"}}
-<TaskSubnav @task={{task}} />
+{{title pathWithLeadingSlash " -  Task " taskState.name " filesystem"}}
+<TaskSubnav @task={{taskState}} />
 <Fs::Browser
-  @model={{task}}
+  @model={{taskState}}
   @path={{path}}
   @stat={{stat}}
   @isFile={{isFile}}

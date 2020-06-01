@@ -15,14 +15,14 @@ export default Component.extend({
     }
   }),
 
-  task: computed('model', function() {
+  taskState: computed('model', function() {
     if (this.model.allocation) {
       return this.model;
     }
   }),
 
-  type: computed('task', function() {
-    if (this.task) {
+  type: computed('taskState', function() {
+    if (this.taskState) {
       return 'task';
     } else {
       return 'allocation';
