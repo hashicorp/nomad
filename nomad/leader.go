@@ -255,8 +255,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
 
-	// Activate RPCs after all leadership components are enabled
-	// and the server can handle write RPCs
+	// Activate RPC now that local FSM caught up with Raft (as evident by Barrier call success)
+	// and all leader related components (e.g. broker queue) are enabled.
+	// Auxiliary processes (e.g. background, bookkeeping, and cleanup tasks can start after)
 	s.setConsistentReadReady()
 
 	// Further clean ups and follow up that don't block RPC consistency
