@@ -157,8 +157,8 @@ func TestExecutor_Start_Wait_Failure_Code(pt *testing.T) {
 			require := require.New(t)
 			testExecCmd := testExecutorCommand(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
-			execCmd.Cmd = "/bin/date"
-			execCmd.Args = []string{"fail"}
+			execCmd.Cmd = "/bin/sh"
+			execCmd.Args = []string{"-c", "sleep 1; /bin/date fail"}
 			factory.configureExecCmd(t, execCmd)
 			defer allocDir.Destroy()
 			executor := factory.new(testlog.HCLogger(t))
