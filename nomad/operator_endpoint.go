@@ -450,7 +450,7 @@ func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
 	op.srv.setQueryMeta(&reply.QueryMeta)
 
 	// Take the snapshot and capture the index.
-	snap, err := snapshot.New(op.logger, op.srv.raft)
+	snap, err := snapshot.New(op.logger.Named("snapshot"), op.srv.raft)
 	reply.SnapshotChecksum = snap.Checksum()
 	reply.Index = snap.Index()
 	if err != nil {

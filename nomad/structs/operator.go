@@ -232,7 +232,6 @@ type SnapshotSaveRequest struct {
 
 // SnapshotSaveResponse is the header for the streaming snapshot endpoint,
 // and followed by the snapshot file content.
-// It is written to the
 type SnapshotSaveResponse struct {
 
 	// SnapshotChecksum returns the checksum of snapshot file in the format

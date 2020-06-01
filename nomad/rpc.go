@@ -541,6 +541,10 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 	return true, err
 }
 
+// getLeaderForRPC returns the server info of the currently known leader, or
+// nil if this server is the current leader.  If the local server is the leader
+// it blocks until it is ready to handle consistent RPC invocations.  If leader
+// is not known or consistency isn't guaranteed, an error is returned.
 func (r *rpcHandler) getLeaderForRPC() (*serverParts, error) {
 	var firstCheck time.Time
 
