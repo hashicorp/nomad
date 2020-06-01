@@ -166,6 +166,7 @@
 # Docs
 /docs/index                                   /docs 301!
 /api/index                                    /api-docs 301!
+/api-docs/index                               /api-docs 301!
 /resources                                    /resources 301!
 /docs/agent/config.html                       /docs/configuration 301!
 /docs/agent/config                            /docs/configuration 301!

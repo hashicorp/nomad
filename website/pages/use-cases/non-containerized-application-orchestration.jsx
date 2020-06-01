@@ -1,6 +1,6 @@
-import UseCasesLayout from '../../layouts/use-cases'
+import UseCasesLayout from 'layouts/use-cases'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from '../../components/featured-slider-section'
+import FeaturedSliderSection from 'components/featured-slider-section'
 
 export default function NonContainerizedApplicationOrchestrationPage() {
   return (
@@ -19,13 +19,13 @@ export default function NonContainerizedApplicationOrchestrationPage() {
               text: 'Watch the Webinar',
               url:
                 'https://www.hashicorp.com/resources/move-your-vmware-workloads-nomad',
-              type: 'outbound'
-            }
-          ]
+              type: 'outbound',
+            },
+          ],
         }}
         image={{
           url: require('./img/non-containerized-orchestration.png'),
-          alt: 'Non-Containerized Orchestration'
+          alt: 'Non-Containerized Orchestration',
         }}
       />
 
@@ -34,11 +34,11 @@ export default function NonContainerizedApplicationOrchestrationPage() {
           heading: 'Improve Resource Utilization with Bin Packing',
           content:
             'Improve resource utilization and reduce costs for non-containerized applications through Nomad’s bin-packing placements.',
-          textSide: 'left'
+          textSide: 'left',
         }}
         image={{
           url: require('./img/bin-packing.svg'),
-          alt: 'Bin Packing'
+          alt: 'Bin Packing',
         }}
       />
 
@@ -52,13 +52,13 @@ export default function NonContainerizedApplicationOrchestrationPage() {
             {
               text: 'Read more',
               url: 'https://learn.hashicorp.com/nomad/update-strategies',
-              type: 'outbound'
-            }
-          ]
+              type: 'outbound',
+            },
+          ],
         }}
         image={{
           url: require('./img/zero-downtime-deployments.png'),
-          alt: ''
+          alt: '',
         }}
       />
 
@@ -67,11 +67,11 @@ export default function NonContainerizedApplicationOrchestrationPage() {
           heading: 'Run On-Premise with Ease',
           textSide: 'left',
           content:
-            'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.'
+            'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.',
         }}
         image={{
           url: require('./img/on-prem-with-ease.svg'),
-          alt: ''
+          alt: '',
         }}
       />
 
@@ -87,13 +87,13 @@ export default function NonContainerizedApplicationOrchestrationPage() {
                 text: 'Watch GrayMeta tech presentation',
                 url:
                   'https://www.hashicorp.com/resources/backend-batch-processing-nomad',
-                type: 'outbound'
-              }
-            ]
+                type: 'outbound',
+              },
+            ],
           }}
           image={{
             url: require('./img/high-performance-batch-workloads.png'),
-            alt: ''
+            alt: '',
           }}
         />
       </div>
@@ -105,11 +105,11 @@ export default function NonContainerizedApplicationOrchestrationPage() {
             logo: {
               url:
                 'https://www.datocms-assets.com/2885/1582149907-graymetalogo.svg',
-              alt: 'GrayMeta'
+              alt: 'GrayMeta',
             },
             image: {
               url: require('./img/grey_meta.png'),
-              alt: 'GrayMeta Presentation'
+              alt: 'GrayMeta Presentation',
             },
             heading: 'GrayMeta',
             content:
@@ -118,9 +118,9 @@ export default function NonContainerizedApplicationOrchestrationPage() {
               text: 'Watch Presentation',
               url:
                 'https://www.hashicorp.com/resources/backend-batch-processing-nomad',
-              type: 'outbound'
-            }
-          }
+              type: 'outbound',
+            },
+          },
         ]}
       />
     </UseCasesLayout>

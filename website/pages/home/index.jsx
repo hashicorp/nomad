@@ -1,10 +1,10 @@
-import FeaturesList from '../../components/features-list'
-import HomepageHero from '../../components/homepage-hero'
-import CaseStudyCarousel from '../../components/case-study-carousel'
+import FeaturesList from 'components/features-list'
+import HomepageHero from 'components/homepage-hero'
+import CaseStudyCarousel from 'components/case-study-carousel'
 import UseCases from '@hashicorp/react-use-cases'
-import MiniCTA from '../../components/mini-cta'
-import NomadEnterpriseInfo from '../../components/enterprise-info/nomad'
-import LearnNomad from '../../components/learn-nomad'
+import MiniCTA from 'components/mini-cta'
+import NomadEnterpriseInfo from 'components/enterprise-info/nomad'
+import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
 
 export default function Homepage() {
