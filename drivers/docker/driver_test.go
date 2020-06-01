@@ -1481,6 +1481,32 @@ func TestDockerDriver_DNS(t *testing.T) {
 	require.Exactly(t, cfg.DNSOptions, container.HostConfig.DNSOptions)
 }
 
+func TestDockerDriver_MemoryHardLimit(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support MemoryReservation")
+	}
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	cfg.MemoryHardLimit = 300
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Equal(t, task.Resources.LinuxResources.MemoryLimitBytes, container.HostConfig.MemoryReservation)
+	require.Equal(t, cfg.MemoryHardLimit*1024*1024, container.HostConfig.Memory)
+}
+
 func TestDockerDriver_MACAddress(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
@@ -2677,4 +2703,20 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 
 	require.NotZero(t, c.HostConfig.CPUQuota)
 	require.NotZero(t, c.HostConfig.CPUPeriod)
+}
+
+func TestDockerDriver_memoryLimits(t *testing.T) {
+	t.Parallel()
+
+	t.Run("driver hard limit not set", func(t *testing.T) {
+		memory, memoryReservation := new(Driver).memoryLimits(0, 256*1024*1024)
+		require.Equal(t, int64(256*1024*1024), memory)
+		require.Equal(t, int64(0), memoryReservation)
+	})
+
+	t.Run("driver hard limit is set", func(t *testing.T) {
+		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
+		require.Equal(t, int64(512*1024*1024), memory)
+		require.Equal(t, int64(256*1024*1024), memoryReservation)
+	})
 }
