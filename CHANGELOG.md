@@ -15,6 +15,7 @@ BUG FIXES:
 
 BUG FIXES:
 
+ * core: Fixed a bug where new leader may take a long time until it can process requests [[GH-8036](https://github.com/hashicorp/nomad/issues/8036)]
  * api: Fixed a bug where setting connect sidecar task resources could fail [[GH-7993](https://github.com/hashicorp/nomad/issues/7993)]
 
 ## 0.11.2 (May 14, 2020)
