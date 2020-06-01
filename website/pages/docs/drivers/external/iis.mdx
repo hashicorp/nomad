@@ -53,7 +53,7 @@ The IIS task driver supports the following parameters:
     - `ipaddress`     - (Optional). `*` (default). IIS allows a binding to specify the IP Address being sent out.
     - `resource_port` - (Optional) Use a label from an established network stanza port. It is recommended to use this approach over using `port`.
     - `port`          - (Optional) Specify a static port to use for the website. A port must be specified between `resource_port` or `port`. Ports set this way will not be recognized by nomad.
-    - `type`          - (Optional) Specificies which binding type IIS should use such as `http` or `https`.
+    - `type`          - (Optional) Specifies which binding type IIS should use such as `http` or `https`.
     - `cert_hash`     - (Optional) For SSL support, supply the cert hash here of a cert installed on the system.
 
 ## Networking
