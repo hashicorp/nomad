@@ -16,7 +16,7 @@ const commonProps = {
       httpAddr: HOST,
     },
   },
-  task: 'task-name',
+  taskState: 'task-name',
   clientTimeout: allowedConnectionTime,
   serverTimeout: allowedConnectionTime,
 };
@@ -70,7 +70,7 @@ module('Integration | Component | task log', function(hooks) {
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log allocation=allocation task=task}}`);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} />`);
 
     assert.ok(find('[data-test-log-action="stdout"]'), 'Stdout button');
     assert.ok(find('[data-test-log-action="stderr"]'), 'Stderr button');
@@ -90,7 +90,7 @@ module('Integration | Component | task log', function(hooks) {
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log allocation=allocation task=task}}`);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} />`);
 
     const logUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
     assert.ok(
@@ -111,7 +111,7 @@ module('Integration | Component | task log', function(hooks) {
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log allocation=allocation task=task}}`);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} />`);
 
     click('[data-test-log-action="head"]');
 
@@ -130,7 +130,7 @@ module('Integration | Component | task log', function(hooks) {
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log allocation=allocation task=task}}`);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} />`);
 
     click('[data-test-log-action="tail"]');
 
@@ -147,7 +147,7 @@ module('Integration | Component | task log', function(hooks) {
 
     const { interval } = commonProps;
     this.setProperties(commonProps);
-    await render(hbs`{{task-log allocation=allocation task=task interval=interval}}`);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} @interval={{interval}} />`);
 
     run.later(() => {
       click('[data-test-log-action="toggle-stream"]');
@@ -178,7 +178,7 @@ module('Integration | Component | task log', function(hooks) {
     run.later(run, run.cancelTimers, commonProps.interval);
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log allocation=allocation task=task}}`);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} />`);
 
     click('[data-test-log-action="stderr"]');
     run.later(run, run.cancelTimers, commonProps.interval);
@@ -199,7 +199,7 @@ module('Integration | Component | task log', function(hooks) {
     }, interval * 2);
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log allocation=allocation task=task}}`);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} />`);
 
     await settled();
     assert.equal(
@@ -220,11 +220,11 @@ module('Integration | Component | task log', function(hooks) {
     );
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log
-      allocation=allocation
-      task=task
-      clientTimeout=clientTimeout
-      serverTimeout=serverTimeout}}`);
+    await render(hbs`<TaskLog
+      @allocation={{allocation}}
+      @task={{taskState}}
+      @clientTimeout={{clientTimeout}}
+      @serverTimeout={{serverTimeout}} />`);
 
     const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
     assert.ok(
@@ -261,11 +261,11 @@ module('Integration | Component | task log', function(hooks) {
     );
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log
-      allocation=allocation
-      task=task
-      clientTimeout=clientTimeout
-      serverTimeout=serverTimeout}}`);
+    await render(hbs`<TaskLog
+      @allocation={{allocation}}
+      @task={{taskState}}
+      @clientTimeout={{clientTimeout}}
+      @serverTimeout={{serverTimeout}} />`);
 
     await settled();
     const clientUrlRegex = new RegExp(`${HOST}/v1/client/fs/logs/${commonProps.allocation.id}`);
@@ -299,11 +299,11 @@ module('Integration | Component | task log', function(hooks) {
     }, allowedConnectionTime / 2);
 
     this.setProperties(commonProps);
-    await render(hbs`{{task-log
-      allocation=allocation
-      task=task
-      clientTimeout=clientTimeout
-      serverTimeout=serverTimeout}}`);
+    await render(hbs`<TaskLog
+      @allocation={{allocation}}
+      @task={{taskState}}
+      @clientTimeout={{clientTimeout}}
+      @serverTimeout={{serverTimeout}} />`);
 
     await settled();
 
