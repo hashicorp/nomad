@@ -5114,7 +5114,7 @@ func (s *StateStore) setClusterMetadata(txn *memdb.Txn, meta *structs.ClusterMet
 
 	if existing != nil {
 		existingClusterID := existing.(*structs.ClusterMetadata).ClusterID
-		if meta.ClusterID != existingClusterID {
+		if meta.ClusterID != existingClusterID && existingClusterID != "" {
 			// there is a bug in cluster ID detection
 			return fmt.Errorf("refusing to set new cluster id, previous: %s, new: %s", existingClusterID, meta.ClusterID)
 		}
