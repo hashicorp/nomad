@@ -741,7 +741,7 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 // unset.
 //
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
-func (Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
+func (_ *Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
 	if driverHardLimitMB <= 0 {
 		return taskMemoryLimitBytes, 0
 	}
