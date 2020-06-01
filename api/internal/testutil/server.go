@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
@@ -231,13 +232,35 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 func (s *TestServer) Stop() {
 	defer os.RemoveAll(s.Config.DataDir)
 
-	if err := s.cmd.Process.Kill(); err != nil {
+	// wait for the process to exit to be sure that the data dir can be
+	// deleted on all platforms.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		s.cmd.Wait()
+	}()
+
+	// kill and wait gracefully
+	if err := s.cmd.Process.Signal(os.Interrupt); err != nil {
 		s.t.Errorf("err: %s", err)
 	}
 
-	// wait for the process to exit to be sure that the data dir can be
-	// deleted on all platforms.
-	s.cmd.Wait()
+	select {
+	case <-done:
+		return
+	case <-time.After(5 * time.Second):
+		s.t.Logf("timed out waiting for process to gracefully terminate")
+	}
+
+	if err := s.cmd.Process.Kill(); err != nil {
+		s.t.Errorf("err: %s", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		s.t.Logf("timed out waiting for process to be killed")
+	}
 }
 
 // waitForAPI waits for only the agent HTTP endpoint to start

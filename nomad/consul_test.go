@@ -65,6 +65,14 @@ func (mps *mockPurgingServer) purgeFunc(accessors []*structs.SITokenAccessor) er
 }
 
 func (m *mockConsulACLsAPI) RevokeTokens(_ context.Context, accessors []*structs.SITokenAccessor, committed bool) bool {
+	return m.storeForRevocation(accessors, committed)
+}
+
+func (m *mockConsulACLsAPI) MarkForRevocation(accessors []*structs.SITokenAccessor) {
+	m.storeForRevocation(accessors, true)
+}
+
+func (m *mockConsulACLsAPI) storeForRevocation(accessors []*structs.SITokenAccessor, committed bool) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -166,6 +174,31 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 		retryLater := c.RevokeTokens(ctx, accessors(token.AccessorID), false)
 		require.True(t, retryLater)
 	})
+}
+
+func TestConsulACLsAPI_MarkForRevocation(t *testing.T) {
+	t.Parallel()
+
+	logger := testlog.HCLogger(t)
+	aclAPI := consul.NewMockACLsAPI(logger)
+
+	c := NewConsulACLsAPI(aclAPI, logger, nil)
+
+	generated, err := c.CreateToken(context.Background(), ServiceIdentityRequest{
+		ClusterID: uuid.Generate(),
+		AllocID:   uuid.Generate(),
+		TaskName:  "task1-sidecar-proxy",
+		TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
+	})
+	require.NoError(t, err)
+
+	// set the mock error after calling CreateToken for setting up
+	aclAPI.SetError(nil)
+
+	accessors := []*structs.SITokenAccessor{{AccessorID: generated.AccessorID}}
+	c.MarkForRevocation(accessors)
+	require.Len(t, c.bgRetryRevocation, 1)
+	require.Contains(t, c.bgRetryRevocation, accessors[0])
 }
 
 func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {

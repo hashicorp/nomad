@@ -5,30 +5,31 @@ import notifyError from 'nomad-ui/utils/notify-error';
 export default Route.extend({
   model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
-    const taskState = this.modelFor('allocations.allocation.task');
+    const task = this.modelFor('allocations.allocation.task');
+    const allocation = task.allocation;
 
-    const pathWithTaskStateName = `${taskState.name}${decodedPath.startsWith('/') ? '' : '/'}${decodedPath}`;
+    const pathWithTaskName = `${task.name}${decodedPath.startsWith('/') ? '' : '/'}${decodedPath}`;
 
-    if (!taskState.isRunning) {
+    if (!task.isRunning) {
       return {
         path: decodedPath,
-        taskState,
+        task,
       };
     }
 
-    return RSVP.all([taskState.stat(pathWithTaskStateName), taskState.get('allocation.node')])
+    return RSVP.all([allocation.stat(pathWithTaskName), task.get('allocation.node')])
       .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
-            taskState,
-            directoryEntries: taskState.ls(pathWithTaskStateName).catch(notifyError(this)),
+            task,
+            directoryEntries: allocation.ls(pathWithTaskName).catch(notifyError(this)),
             isFile: false,
           });
         } else {
           return {
             path: decodedPath,
-            taskState,
+            task,
             isFile: true,
             stat: statJson,
           };
@@ -37,8 +38,8 @@ export default Route.extend({
       .catch(notifyError(this));
   },
 
-  setupController(controller, { path, taskState, directoryEntries, isFile, stat } = {}) {
+  setupController(controller, { path, task, directoryEntries, isFile, stat } = {}) {
     this._super(...arguments);
-    controller.setProperties({ path, taskState, directoryEntries, isFile, stat });
+    controller.setProperties({ path, task, directoryEntries, isFile, stat });
   },
 });

@@ -1131,6 +1131,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
 		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
 		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
+		s.staticEndpoints.Operator.register()
+
 		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
 		s.staticEndpoints.Plan = &Plan{srv: s, logger: s.logger.Named("plan")}
 		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}

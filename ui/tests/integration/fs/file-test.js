@@ -3,12 +3,12 @@ import { setupRenderingTest } from 'ember-qunit';
 import { find, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
-import { logEncode } from '../../mirage/data/logs';
+import { logEncode } from '../../../mirage/data/logs';
 
 const { assign } = Object;
 const HOST = '1.1.1.1:1111';
 
-module('Integration | Component | task file', function(hooks) {
+module('Integration | Component | fs/file', function(hooks) {
   setupRenderingTest(hooks);
 
   hooks.beforeEach(function() {
@@ -25,7 +25,7 @@ module('Integration | Component | task file', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{task-file allocation=allocation task=task file=file stat=stat}}
+    {{fs/file allocation=allocation task=task file=file stat=stat}}
   `;
 
   const fileStat = (type, size = 0) => ({
@@ -184,9 +184,9 @@ module('Integration | Component | task file', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      {{#task-file allocation=allocation task=task file=file stat=stat}}
+      {{#fs/file allocation=allocation task=task file=file stat=stat}}
         <div data-test-yield-spy>Yielded content</div>
-      {{/task-file}}
+      {{/fs/file}}
     `);
 
     assert.ok(

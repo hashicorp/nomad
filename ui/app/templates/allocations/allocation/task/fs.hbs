@@ -1,49 +1,10 @@
-{{title pathWithLeadingSlash " -  Task " taskState.name " filesystem"}}
-<TaskSubnav @task={{taskState}} />
-<section class="section is-closer {{if isFile "full-width-section"}}">
-  {{#if taskState.isRunning}}
-    {{#if isFile}}
-      <TaskFile @allocation={{taskState.allocation}} @task={{taskState}} @file={{path}} @stat={{stat}} @class="fs-explorer">
-        <FsBreadcrumbs @task={{taskState}} @path={{path}} />
-      </TaskFile>
-    {{else}}
-      <div class="fs-explorer boxed-section">
-        <div class="boxed-section-head">
-          <FsBreadcrumbs @task={{taskState}} @path={{path}} />
-        </div>
-        {{#if directoryEntries}}
-          <ListTable
-            @source={{sortedDirectoryEntries}}
-            @sortProperty={{sortProperty}}
-            @sortDescending={{sortDescending}}
-            @class="boxed-section-body is-full-bleed is-compact" as |t|>
-            <t.head>
-              <t.sort-by @prop="Name" @class="is-two-thirds">Name</t.sort-by>
-              <t.sort-by @prop="Size" @class="has-text-right">File Size</t.sort-by>
-              <t.sort-by @prop="ModTime" @class="has-text-right">Last Modified</t.sort-by>
-            </t.head>
-            <t.body as |row|>
-              <FsDirectoryEntry @path={{path}} @task={{taskState}} @entry={{row.model}} />
-            </t.body>
-          </ListTable>
-        {{else}}
-          <div class="boxed-section-body">
-            <div data-test-empty-directory class="empty-message">
-              <h3 data-test-empty-directory-headline class="empty-message-headline">No Files</h3>
-              <p data-test-empty-directory-body class="empty-message-body">
-                Directory is currently empty.
-              </p>
-            </div>
-          </div>
-        {{/if}}
-      </div>
-    {{/if}}
-  {{else}}
-    <div data-test-not-running class="empty-message">
-      <h3 data-test-not-running-headline class="empty-message-headline">Task is not Running</h3>
-      <p data-test-not-running-body class="empty-message-body">
-        Cannot access files of a task that is not running.
-      </p>
-    </div>
-  {{/if}}
-</section>
+{{title pathWithLeadingSlash " -  Task " task.name " filesystem"}}
+{{task-subnav task=task}}
+{{fs/browser
+  model=task
+  path=path
+  stat=stat
+  isFile=isFile
+  directoryEntries=directoryEntries
+  sortProperty=sortProperty
+  sortDescending=sortDescending}}

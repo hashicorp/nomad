@@ -254,18 +254,16 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Activate the vault client
 	s.vault.SetActive(true)
-	// Cleanup orphaned Vault token accessors
-	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
-		return err
-	}
-
-	// Cleanup orphaned Service Identity token accessors
-	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
-		return err
-	}
 
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
+
+	// Activate RPC now that local FSM caught up with Raft (as evident by Barrier call success)
+	// and all leader related components (e.g. broker queue) are enabled.
+	// Auxiliary processes (e.g. background, bookkeeping, and cleanup tasks can start after)
+	s.setConsistentReadReady()
+
+	// Further clean ups and follow up that don't block RPC consistency
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
@@ -316,7 +314,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	s.setConsistentReadReady()
+	// Cleanup orphaned Vault token accessors
+	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
+		return err
+	}
+
+	// Cleanup orphaned Service Identity token accessors
+	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -393,7 +399,9 @@ func (s *Server) revokeVaultAccessorsOnRestore() error {
 	}
 
 	if len(revoke) != 0 {
-		if err := s.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
+		s.logger.Info("revoking vault accessors after becoming leader", "accessors", len(revoke))
+
+		if err := s.vault.MarkForRevocation(revoke); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
 		}
 	}
@@ -439,8 +447,8 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 	}
 
 	if len(toRevoke) > 0 {
-		ctx := context.Background()
-		s.consulACLs.RevokeTokens(ctx, toRevoke, true)
+		s.logger.Info("revoking consul accessors after becoming leader", "accessors", len(toRevoke))
+		s.consulACLs.MarkForRevocation(toRevoke)
 	}
 
 	return nil

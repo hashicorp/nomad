@@ -393,16 +393,14 @@ export default function() {
     return logEncode(logFrames, logFrames.length - 1);
   };
 
-  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams }) {
-    // Ignore the task name at the beginning of the path
-    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams: { path } }) {
+    const filterPath = path.endsWith('/') ? path.substr(0, path.length - 1) : path;
     const files = filesForPath(allocFiles, filterPath);
     return this.serialize(files);
   };
 
-  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams }) {
-    // Ignore the task name at the beginning of the path
-    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams: { path } }) {
+    const filterPath = path.endsWith('/') ? path.substr(0, path.length - 1) : path;
 
     // Root path
     if (!filterPath) {
@@ -441,15 +439,12 @@ export default function() {
   };
 
   const fileOrError = function(allocFiles, path, message = 'Operation not allowed on a directory') {
-    // Ignore the task name at the beginning of the path
-    const filterPath = path.substr(path.indexOf('/') + 1);
-
     // Root path
-    if (!filterPath) {
+    if (path === '/') {
       return [null, new Response(400, {}, message)];
     }
 
-    const file = allocFiles.where({ path: filterPath }).models[0];
+    const file = allocFiles.where({ path }).models[0];
     if (file.isDir) {
       return [null, new Response(400, {}, message)];
     }
