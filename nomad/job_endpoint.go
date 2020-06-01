@@ -1122,13 +1122,45 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
+// allowedNSes returns a set (as map of ns->true) of the namespaces a token has access to.
+// Returns `nil` set if the token has access to all namespaces
+// and ErrPermissionDenied if the token has no capabilities on any namespace.
+func (j *Job) allowedNSes(aclObj *acl.ACL, state *state.StateStore) (map[string]bool, error) {
+	if aclObj == nil || aclObj.IsManagement() {
+		return nil, nil
+	}
+
+	// namespaces
+	nses, err := state.NamespaceNames()
+	if err != nil {
+		return nil, err
+	}
+
+	r := make(map[string]bool, len(nses))
+
+	for _, ns := range nses {
+		if aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs) {
+			r[ns] = true
+		}
+	}
+
+	if len(r) == 0 {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	return r, nil
+}
+
 // List is used to list the jobs registered in the system
-func (j *Job) List(args *structs.JobListRequest,
-	reply *structs.JobListResponse) error {
+func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse) error {
 	if done, err := j.srv.forward("Job.List", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
+
+	if args.AllNamespaces {
+		return j.listAllNamespaces(args, reply)
+	}
 
 	// Check for list-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
@@ -1185,6 +1217,82 @@ func (j *Job) List(args *structs.JobListRequest,
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
+}
+
+// listAllNamespaces lists all jobs across all namespaces
+func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.JobListResponse) error {
+	// Check for list-job permissions
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	prefix := args.QueryOptions.Prefix
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// check if user has permission to all namespaces
+			allowedNSes, err := j.allowedNSes(aclObj, state)
+			if err == structs.ErrPermissionDenied {
+				// return empty jobs if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Jobs = []*structs.JobListStub{}
+				return nil
+			} else if err != nil {
+				return err
+			}
+
+			// Capture all the jobs
+			iter, err := state.Jobs(ws)
+
+			if err != nil {
+				return err
+			}
+
+			var jobs []*structs.JobListStub
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				job := raw.(*structs.Job)
+				if allowedNSes != nil && !allowedNSes[job.Namespace] {
+					// not permitted to this name namespace
+					continue
+				}
+				if prefix != "" && !strings.HasPrefix(job.ID, prefix) {
+					continue
+				}
+				summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+				if err != nil {
+					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+				}
+
+				stub := job.Stub(summary)
+				stub.Namespace = job.Namespace
+				jobs = append(jobs, stub)
+			}
+			reply.Jobs = jobs
+
+			// Use the last index that affected the jobs table or summary
+			jindex, err := state.Index("jobs")
+			if err != nil {
+				return err
+			}
+			sindex, err := state.Index("job_summary")
+			if err != nil {
+				return err
+			}
+			reply.Index = helper.Uint64Max(jindex, sindex)
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
+
 }
 
 // Allocations is used to list the allocations for a job

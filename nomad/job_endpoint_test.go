@@ -3782,6 +3782,74 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_ListJobs_AllNamespaces_OSS asserts that server
+// returns all jobs across namespace.
+//
+func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	state := s1.fsm.State()
+	err := state.UpsertJob(1000, job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Lookup the jobs
+	get := &structs.JobListRequest{
+		AllNamespaces: true,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1000), resp2.Index)
+	require.Len(t, resp2.Jobs, 1)
+	require.Equal(t, job.ID, resp2.Jobs[0].ID)
+	require.Equal(t, structs.DefaultNamespace, resp2.Jobs[0].Namespace)
+
+	// Lookup the jobs by prefix
+	get = &structs.JobListRequest{
+		AllNamespaces: true,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+			Prefix:    resp2.Jobs[0].ID[:4],
+		},
+	}
+	var resp3 structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp3)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1000), resp3.Index)
+	require.Len(t, resp3.Jobs, 1)
+	require.Equal(t, job.ID, resp3.Jobs[0].ID)
+	require.Equal(t, structs.DefaultNamespace, resp2.Jobs[0].Namespace)
+
+	// Lookup the jobs by prefix
+	get = &structs.JobListRequest{
+		AllNamespaces: true,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+			Prefix:    "z" + resp2.Jobs[0].ID[:4],
+		},
+	}
+	var resp4 structs.JobListResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp4)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1000), resp4.Index)
+	require.Empty(t, resp4.Jobs)
+}
+
 func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

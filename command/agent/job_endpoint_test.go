@@ -127,6 +127,46 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		for i := 0; i < 3; i++ {
+			// Create the job
+			job := mock.Job()
+			args := structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+			}
+			var resp structs.JobRegisterResponse
+			err := s.Agent.RPC("Job.Register", &args, &resp)
+			require.NoError(t, err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/jobs?all_namespaces=true", nil)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		require.NoError(t, err)
+
+		// Check for the index
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+
+		// Check the job
+		j := obj.([]*structs.JobListStub)
+		require.Len(t, j, 3)
+
+		require.Equal(t, "default", j[0].Namespace)
+	})
+}
+
 func TestHTTP_JobsRegister(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {

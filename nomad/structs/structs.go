@@ -609,6 +609,7 @@ type JobSpecificRequest struct {
 
 // JobListRequest is used to parameterize a list request
 type JobListRequest struct {
+	AllNamespaces bool
 	QueryOptions
 }
 
@@ -4108,6 +4109,7 @@ type JobListStub struct {
 	ID                string
 	ParentID          string
 	Name              string
+	Namespace         string `json:",omitempty"`
 	Datacenters       []string
 	Type              string
 	Priority          int

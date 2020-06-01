@@ -31,6 +31,7 @@ func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request)
 		return nil, nil
 	}
 
+	args.AllNamespaces, _ = strconv.ParseBool(req.URL.Query().Get("all_namespaces"))
 	var out structs.JobListResponse
 	if err := s.agent.RPC("Job.List", &args, &out); err != nil {
 		return nil, err
