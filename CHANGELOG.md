@@ -9,6 +9,7 @@ FEATURES:
 IMPROVEMENTS:
 
  * build: Updated to Go 1.14.3 [[GH-7431](https://github.com/hashicorp/nomad/issues/7970)]
+ * connect: use TaskKind rather than TaskName in SI token requests [[GH-8000](https://github.com/hashicorp/nomad/issues/8000)]
  * csi: Return better error messages [[GH-7984](https://github.com/hashicorp/nomad/issues/7984)] [[GH-8030](https://github.com/hashicorp/nomad/issues/8030)]
  * csi: Move volume claim releases out of evaluation workers [[GH-8021](https://github.com/hashicorp/nomad/issues/8021)]
  * csi: Added support for `VolumeContext` and `VolumeParameters` [[GH-7957](https://github.com/hashicorp/nomad/issues/7957)]
