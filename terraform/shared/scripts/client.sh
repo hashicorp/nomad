@@ -10,6 +10,7 @@ CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 HADOOP_VERSION=hadoop-2.7.7
 HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 HOME_DIR=ubuntu
+NOMADPLUGINDIR=/opt/nomad/plugins
 
 # Wait for network
 sleep 15
@@ -20,6 +21,16 @@ DOCKER_BRIDGE_IP_ADDRESS=(`ifconfig docker0 2>/dev/null|awk '/inet addr:/ {print
 CLOUD=$1
 RETRY_JOIN=$2
 NOMAD_BINARY=$3
+
+# Podman
+# sudo cp /lib/tmpfiles.d/podman.conf /etc/tmpfiles.d/podman.conf
+# d /run/podman 0750 root ubuntu
+
+# sudo cp $CONFIGDIR/podman.socket /etc/systemd/system/io.podman.socket
+
+# sudo systemctl daemon-reload
+# sudo systemd-tmpfiles --create
+# sudo systemctl enable --now io.podman.socket
 
 # Consul
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/g" $CONFIGDIR/consul_client.json

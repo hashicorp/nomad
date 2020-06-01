@@ -1,12 +1,21 @@
-data_dir = "/opt/nomad/data"
-bind_addr = "0.0.0.0"
+data_dir   = "/opt/nomad/data"
+plugin_dir = "/opt/nomad/plugins"
+bind_addr  = "0.0.0.0"
 
 # Enable the client
 client {
   enabled = true
   options {
-    "driver.raw_exec.enable" = "1"
+    "driver.raw_exec.enable"    = "1"
     "docker.privileged.enabled" = "true"
+  }
+}
+
+plugin "nomad-driver-podman" {
+  config {
+    volumes {
+      enabled = true
+    }
   }
 }
 

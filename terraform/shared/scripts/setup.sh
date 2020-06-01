@@ -3,7 +3,9 @@
 set -e
 
 # Disable interactive apt prompts
+echo "YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO"
 export DEBIAN_FRONTEND=noninteractive
+echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
 cd /ops
 
@@ -23,6 +25,7 @@ NOMADVERSION=0.9.0
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
+NOMADPLUGINDIR=/opt/nomad/plugins
 
 CONSULTEMPLATEVERSION=0.20.0
 CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTEMPLATEVERSION}/consul-template_${CONSULTEMPLATEVERSION}_linux_amd64.zip
@@ -37,9 +40,9 @@ sudo apt-get update
 sudo apt-get install -y unzip tree redis-tools jq curl tmux
 
 # Numpy (for Spark)
-sudo apt-get install -y python-setuptools
-sudo easy_install pip
-sudo pip install numpy
+# sudo apt-get install -y python-setuptools
+# sudo easy_install pip
+# sudo pip install numpy
 
 # Disable the firewall
 
@@ -89,6 +92,8 @@ sudo mkdir -p $NOMADCONFIGDIR
 sudo chmod 755 $NOMADCONFIGDIR
 sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
+sudo mkdir -p $NOMADPLUGINDIR
+sudo chmod 755 $NOMADPLUGINDIR
 
 # Consul Template 
 
@@ -115,68 +120,57 @@ sudo apt-get install -y docker-ce
 
 if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then 
   # Install official NVIDIA driver package
-  sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
-  sudo sh -c 'echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list'
-  sudo apt-get update && sudo apt-get install -y --no-install-recommends linux-headers-generic dkms cuda-drivers
+  echo $INSTALL_NVIDIA_DOCKER
+  # sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+  # sudo sh -c 'echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list'
+  # sudo apt-get update && sudo apt-get install -y --no-install-recommends linux-headers-generic dkms cuda-drivers
 
-  # Install nvidia-docker and nvidia-docker-plugin
-  # from: https://github.com/NVIDIA/nvidia-docker#ubuntu-140416041804-debian-jessiestretch
-  wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
-  sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
-  curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-  distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-  curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
-    sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+  # # Install nvidia-docker and nvidia-docker-plugin
+  # # from: https://github.com/NVIDIA/nvidia-docker#ubuntu-140416041804-debian-jessiestretch
+  # wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
+  # sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
+  # curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+  # distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+  # curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+  #   sudo tee /etc/apt/sources.list.d/nvidia-docker.list
 
-  sudo apt-get update
-  sudo apt-get install -y nvidia-docker2
+  # sudo apt-get update
+  # sudo apt-get install -y nvidia-docker2
 fi
 
-# rkt
-VERSION=1.29.0
-DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
+if [[ ! -z ${INSTALL_PODMAN_DRIVER+x} ]]; then
+  # install podman
+  echo "INSTALLING PODMAN"
+  . /etc/os-release
+  sudo sh -c "echo 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
+  curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
+  sudo apt-get update -qq
+  sudo apt-get -qq -y install podman 
 
-function install_rkt() {
-	wget -q -O /tmp/rkt.tar.gz "${DOWNLOAD}"
-	tar -C /tmp -xvf /tmp/rkt.tar.gz
-	sudo mv /tmp/rkt-v${VERSION}/rkt /usr/local/bin
-	sudo mv /tmp/rkt-v${VERSION}/*.aci /usr/local/bin
-}
+  # install nomad-podman-driver and move to plugin dir
+  wget -P /tmp https://github.com/pascomnet/nomad-driver-podman/releases/download/v0.0.3/nomad-driver-podman_linux_amd64.tar.gz 
+  sudo tar -xf /tmp/nomad-driver-podman_linux_amd64.tar.gz -C /tmp
+  sudo mv /tmp/nomad-driver-podman/nomad-driver-podman $NOMADPLUGINDIR
+  sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
 
-function configure_rkt_networking() {
-	sudo mkdir -p /etc/rkt/net.d
-    sudo bash -c 'cat << EOT > /etc/rkt/net.d/99-network.conf
-{
-  "name": "default",
-  "type": "ptp",
-  "ipMasq": false,
-  "ipam": {
-    "type": "host-local",
-    "subnet": "172.16.28.0/24",
-    "routes": [
-      {
-        "dst": "0.0.0.0/0"
-      }
-    ]
-  }
-}
-EOT'
-}
+fi
 
-install_rkt
-configure_rkt_networking
+
+
+# install_rkt
+# configure_rkt_networking
 
 # Java
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-sudo apt-get update 
-sudo apt-get install -y openjdk-8-jdk
-JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
+# sudo add-apt-repository -y ppa:openjdk-r/ppa
+# sudo apt-get update 
+# sudo apt-get install -y openjdk-8-jdk
+# JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
 # Spark
-sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
-sudo tar -xf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
-sudo chown -R root:root /usr/local/bin/spark
+# sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
+# sudo tar -xf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
+# sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
+# sudo chown -R root:root /usr/local/bin/spark
 
 # Hadoop (to enable the HDFS CLI)
-wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/
+# wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/
