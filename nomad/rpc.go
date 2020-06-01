@@ -527,7 +527,7 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 
 	remoteServer, err := r.getLeaderForRPC()
 	if err != nil {
-		return false, err
+		return true, err
 	}
 
 	// we are the leader
