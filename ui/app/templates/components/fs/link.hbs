@@ -1,0 +1,21 @@
+{{#if task}}
+  {{#if path}}
+    {{#link-to "allocations.allocation.task.fs" allocation task path activeClass="is-active"}}
+      {{yield}}
+    {{/link-to}}
+  {{else}}
+    {{#link-to "allocations.allocation.task.fs-root" allocation task activeClass="is-active"}}
+      {{yield}}
+    {{/link-to}}
+  {{/if}}
+{{else}}
+  {{#if path}}
+    {{#link-to "allocations.allocation.fs" allocation path activeClass="is-active"}}
+      {{yield}}
+    {{/link-to}}
+  {{else}}
+    {{#link-to "allocations.allocation.fs-root" allocation activeClass="is-active"}}
+      {{yield}}
+    {{/link-to}}
+  {{/if}}
+{{/if}}

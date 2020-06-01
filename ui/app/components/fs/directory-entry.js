@@ -5,6 +5,9 @@ import { isEmpty } from '@ember/utils';
 export default Component.extend({
   tagName: '',
 
+  allocation: null,
+  task: null,
+
   pathToEntry: computed('path', 'entry.Name', function() {
     const pathWithNoLeadingSlash = this.get('path').replace(/^\//, '');
     const name = encodeURIComponent(this.get('entry.Name'));
