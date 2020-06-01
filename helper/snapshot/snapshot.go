@@ -1,4 +1,4 @@
-// snapshot manages the interactions between Consul and Raft in order to take
+// snapshot manages the interactions between Nomad and Raft in order to take
 // and restore snapshots for disaster recovery. The internal format of a
 // snapshot is simply a tar file, as described in archive.go.
 package snapshot

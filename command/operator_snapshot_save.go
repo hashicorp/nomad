@@ -27,7 +27,7 @@ Usage: nomad operator snapshot save [options] <filename>
 
   To create a snapshot from the leader server and save it to "backup.snap":
 
-    $ consul snapshot save backup.snap
+    $ nomad snapshot save backup.snap
 
   To create a potentially stale snapshot from any available server (useful if no
   leader is available):
