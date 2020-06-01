@@ -3,10 +3,10 @@
     Task Groups
   </div>
   <div class="boxed-section-body is-full-bleed">
-    {{#list-table
-      source=deployment.taskGroupSummaries
-      class="task-groups" as |t|}}
-      {{#t.head}}
+    <ListTable
+      @source={{deployment.taskGroupSummaries}}
+      @class="task-groups" as |t|>
+      <t.head>
         <th>Name</th>
         <th>Needs Promotion?</th>
         <th>Auto Revert?</th>
@@ -15,8 +15,8 @@
         <th>Healthy Allocs</th>
         <th>Unhealthy Allocs</th>
         <th>Progress Deadline</th>
-      {{/t.head}}
-      {{#t.body as |row|}}
+      </t.head>
+      <t.body as |row|>
         <tr data-test-deployment-task-group>
           <td data-test-deployment-task-group-name>{{row.model.name}}</td>
           <td data-test-deployment-task-group-promotion>
@@ -35,8 +35,8 @@
             <span class="nowrap">{{format-ts row.model.requireProgressBy}}</span>
           </td>
         </tr>
-      {{/t.body}}
-    {{/list-table}}
+      </t.body>
+    </ListTable>
   </div>
 </div>
 

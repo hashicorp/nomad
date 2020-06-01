@@ -19,11 +19,11 @@
         <div class="lifecycle-chart-rows">
           {{#if tasks}}
             {{#each sortedLifecycleTasks as |task|}}
-              {{lifecycle-chart-row task=task}}
+              <LifecycleChartRow @task={{task}} />
             {{/each}}
           {{else}}
             {{#each sortedLifecycleTaskStates as |state|}}
-              {{lifecycle-chart-row taskState=state task=state.task}}
+              <LifecycleChartRow @taskState={{state}} @task={{state.task}} />
             {{/each}}
           {{/if}}
         </div>

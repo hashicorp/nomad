@@ -20,14 +20,14 @@ module('Integration | Component | popover-menu', function(hooks) {
     );
 
   const commonTemplate = hbs`
-    {{#popover-menu
-      isOpen=isOpen
-      label=label
-      triggerClass=triggerClass as |m|}}
+    <PopoverMenu
+      @isOpen={{isOpen}}
+      @label={{label}}
+      @triggerClass={{triggerClass}} as |m|>
       <h1>This is a heading</h1>
       <label>This is an input: <input id="mock-input-for-test" type="text" /></label>
       <button id="mock-button-for-test" type="button" onclick={{action m.actions.close}}>Close Button</button>
-    {{/popover-menu}}
+    </PopoverMenu>
   `;
 
   test('presents as a button with a chevron-down icon', async function(assert) {

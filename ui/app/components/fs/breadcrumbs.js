@@ -9,7 +9,7 @@ export default Component.extend({
   'data-test-fs-breadcrumbs': true,
 
   allocation: null,
-  task: null,
+  taskState: null,
   path: null,
 
   breadcrumbs: computed('path', function() {

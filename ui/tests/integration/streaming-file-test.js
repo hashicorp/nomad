@@ -39,7 +39,7 @@ module('Integration | Component | streaming file', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{streaming-file logger=logger mode=mode isStreaming=isStreaming}}
+    <StreamingFile @logger={{logger}} @mode={{mode}} @isStreaming={{isStreaming}} />
   `;
 
   test('when mode is `head`, the logger signals head', async function(assert) {

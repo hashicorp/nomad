@@ -11,7 +11,7 @@ export default Controller.extend({
   sortDescending: false,
 
   path: null,
-  task: null,
+  taskState: null,
   directoryEntries: null,
   isFile: null,
   stat: null,

@@ -5,7 +5,7 @@
         {{#if prefix}}<span class="is-faded" data-test-prefix>{{prefix}}.</span>{{/if}}{{key}}
       </td>
     </tr>
-    {{attributes-section prefix=(if prefix (concat prefix '.' key) key) attributes=value}}
+    <AttributesSection @prefix={{if prefix (concat prefix "." key) key}} @attributes={{value}} />
   {{else}}
     <tr data-test-attributes-section>
       <td data-test-key>

@@ -11,12 +11,12 @@
     </span>
   </div>
 {{else}}
-  {{#addon-copy-button
-    class='button is-borderless is-small'
-    clipboardText=clipboardText
-    success=(perform indicateSuccess)
-    error=(action (mut state) 'error')
-  }}
+  <AddonCopyButton
+    @class="button is-borderless is-small"
+    @clipboardText={{clipboardText}}
+    @success={{perform indicateSuccess}}
+    @error={{action (mut state) "error"}}
+  >
     {{x-icon 'copy-action'}}
-  {{/addon-copy-button}}
+  </AddonCopyButton>
 {{/if}}

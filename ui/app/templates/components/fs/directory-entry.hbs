@@ -1,6 +1,6 @@
 <tr data-test-entry>
   <td>
-    {{#fs/link allocation=allocation task=task path=pathToEntry}}
+    <Fs::Link @allocation={{allocation}} @taskState={{taskState}} @path={{pathToEntry}}>
       {{#if entry.IsDir}}
         {{x-icon "folder-outline"}}
       {{else}}
@@ -8,7 +8,7 @@
       {{/if}}
 
       <span class="name" data-test-name>{{entry.Name}}</span>
-    {{/fs/link}}
+    </Fs::Link>
   </td>
   <td class="has-text-right" data-test-size>{{#unless entry.IsDir}}{{format-bytes entry.Size}}{{/unless}}</td>
   <td class="has-text-right" title={{format-ts entry.ModTime}} data-test-last-modified>{{moment-from entry.ModTime interval=1000}}</td>

@@ -21,10 +21,10 @@ module('Integration | Component | gauge chart', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      {{gauge-chart
-        value=value
-        total=total
-        label=label}}
+      <GaugeChart
+        @value={{value}}
+        @total={{total}}
+        @label={{label}} />
     `);
 
     assert.equal(GaugeChart.label, props.label);
@@ -38,10 +38,10 @@ module('Integration | Component | gauge chart', function(hooks) {
 
     await render(hbs`
       <div style="width:100px">
-        {{gauge-chart
-          value=value
-          total=total
-          label=label}}
+        <GaugeChart
+          @value={{value}}
+          @total={{total}}
+          @label={{label}} />
       </div>
     `);
 

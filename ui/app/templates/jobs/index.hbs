@@ -6,17 +6,17 @@
     <div class="toolbar">
       <div class="toolbar-item">
         {{#if visibleJobs.length}}
-          {{search-box
+          <SearchBox
             data-test-jobs-search
-            searchTerm=(mut searchTerm)
-            onChange=(action resetPagination)
-            placeholder="Search jobs..."}}
+            @searchTerm={{mut searchTerm}}
+            @onChange={{action resetPagination}}
+            @placeholder="Search jobs..." />
         {{/if}}
       </div>
       {{#if (media "isMobile")}}
         <div class="toolbar-item is-right-aligned">
           {{#if (can "run job")}}
-            {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+            <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
           {{else}}
             <button
               data-test-run-job
@@ -29,36 +29,36 @@
       {{/if}}
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
-          {{multi-select-dropdown
+          <MultiSelectDropdown
             data-test-type-facet
-            label="Type"
-            options=optionsType
-            selection=selectionType
-            onSelect=(action setFacetQueryParam "qpType")}}
-          {{multi-select-dropdown
+            @label="Type"
+            @options={{optionsType}}
+            @selection={{selectionType}}
+            @onSelect={{action setFacetQueryParam "qpType"}} />
+          <MultiSelectDropdown
             data-test-status-facet
-            label="Status"
-            options=optionsStatus
-            selection=selectionStatus
-            onSelect=(action setFacetQueryParam "qpStatus")}}
-          {{multi-select-dropdown
+            @label="Status"
+            @options={{optionsStatus}}
+            @selection={{selectionStatus}}
+            @onSelect={{action setFacetQueryParam "qpStatus"}} />
+          <MultiSelectDropdown
             data-test-datacenter-facet
-            label="Datacenter"
-            options=optionsDatacenter
-            selection=selectionDatacenter
-            onSelect=(action setFacetQueryParam "qpDatacenter")}}
-          {{multi-select-dropdown
+            @label="Datacenter"
+            @options={{optionsDatacenter}}
+            @selection={{selectionDatacenter}}
+            @onSelect={{action setFacetQueryParam "qpDatacenter"}} />
+          <MultiSelectDropdown
             data-test-prefix-facet
-            label="Prefix"
-            options=optionsPrefix
-            selection=selectionPrefix
-            onSelect=(action setFacetQueryParam "qpPrefix")}}
+            @label="Prefix"
+            @options={{optionsPrefix}}
+            @selection={{selectionPrefix}}
+            @onSelect={{action setFacetQueryParam "qpPrefix"}} />
         </div>
       </div>
       {{#if (not (media "isMobile"))}}
         <div class="toolbar-item is-right-aligned">
           {{#if (can "run job")}}
-            {{#link-to "jobs.run" data-test-run-job class="button is-primary"}}Run Job{{/link-to}}
+            <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
           {{else}}
             <button
               data-test-run-job
@@ -71,29 +71,29 @@
       {{/if}}
     </div>
     {{#if sortedJobs}}
-      {{#list-pagination
-        source=sortedJobs
-        size=pageSize
-        page=currentPage as |p|}}
-        {{#list-table
-          source=p.list
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          class="with-foot" as |t|}}
-          {{#t.head}}
-            {{#t.sort-by prop="name"}}Name{{/t.sort-by}}
-            {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
-            {{#t.sort-by prop="type"}}Type{{/t.sort-by}}
-            {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
+      <ListPagination
+        @source={{sortedJobs}}
+        @size={{pageSize}}
+        @page={{currentPage}} as |p|>
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{sortProperty}}
+          @sortDescending={{sortDescending}}
+          @class="with-foot" as |t|>
+          <t.head>
+            <t.sort-by @prop="name">Name</t.sort-by>
+            <t.sort-by @prop="status">Status</t.sort-by>
+            <t.sort-by @prop="type">Type</t.sort-by>
+            <t.sort-by @prop="priority">Priority</t.sort-by>
             <th>Groups</th>
             <th class="is-3">Summary</th>
-          {{/t.head}}
-          {{#t.body key="model.id" as |row|}}
-            {{job-row data-test-job-row=row.model.plainId job=row.model onClick=(action "gotoJob" row.model)}}
-          {{/t.body}}
-        {{/list-table}}
+          </t.head>
+          <t.body @key="model.id" as |row|>
+            <JobRow @data-test-job-row={{row.model.plainId}} @job={{row.model}} @onClick={{action "gotoJob" row.model}} />
+          </t.body>
+        </ListTable>
         <div class="table-foot">
-          {{page-size-select onChange=(action resetPagination)}}
+          <PageSizeSelect @onChange={{action resetPagination}} />
           <nav class="pagination">
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedJobs.length}}
@@ -101,12 +101,12 @@
                 <em>({{dec sortedJobs.length filteredJobs.length}} hidden by search term)</em>
               {{/if}}
             </div>
-            {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
-            {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
+            <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
+            <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
             <ul class="pagination-list"></ul>
           </nav>
         </div>
-      {{/list-pagination}}
+      </ListPagination>
     {{else}}
       <div data-test-empty-jobs-list class="empty-message">
         {{#if (eq visibleJobs.length 0)}}

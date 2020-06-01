@@ -4,56 +4,56 @@
   {{#if allocations.length}}
     <div class="content">
       <div>
-        {{search-box
+        <SearchBox
           data-test-allocations-search
-          searchTerm=(mut searchTerm)
-          onChange=(action resetPagination)
-          placeholder="Search allocations..."}}
+          @searchTerm={{mut searchTerm}}
+          @onChange={{action resetPagination}}
+          @placeholder="Search allocations..." />
       </div>
     </div>
     {{#if sortedAllocations}}
-      {{#list-pagination
-        source=sortedAllocations
-        size=pageSize
-        page=currentPage
-        class="allocations" as |p|}}
-        {{#list-table
-          source=p.list
-          sortProperty=sortProperty
-          sortDescending=sortDescending
-          class="with-foot" as |t|}}
-          {{#t.head}}
+      <ListPagination
+        @source={{sortedAllocations}}
+        @size={{pageSize}}
+        @page={{currentPage}}
+        @class="allocations" as |p|>
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{sortProperty}}
+          @sortDescending={{sortDescending}}
+          @class="with-foot" as |t|>
+          <t.head>
             <th class="is-narrow"></th>
-            {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
-            {{#t.sort-by prop="taskGroupName"}}Task Group{{/t.sort-by}}
-            {{#t.sort-by prop="createIndex" title="Create Index"}}Created{{/t.sort-by}}
-            {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
-            {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
-            {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
-            {{#t.sort-by prop="node.shortId"}}Client{{/t.sort-by}}
+            <t.sort-by @prop="shortId">ID</t.sort-by>
+            <t.sort-by @prop="taskGroupName">Task Group</t.sort-by>
+            <t.sort-by @prop="createIndex" @title="Create Index">Created</t.sort-by>
+            <t.sort-by @prop="modifyIndex" @title="Modify Index">Modified</t.sort-by>
+            <t.sort-by @prop="statusIndex">Status</t.sort-by>
+            <t.sort-by @prop="jobVersion">Version</t.sort-by>
+            <t.sort-by @prop="node.shortId">Client</t.sort-by>
             <th>Volume</th>
             <th>CPU</th>
             <th>Memory</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
-            {{allocation-row
-              data-test-allocation=row.model.id
-              allocation=row.model
-              context="job"
-              onClick=(action "gotoAllocation" row.model)}}
-          {{/t.body}}
-        {{/list-table}}
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow
+              @data-test-allocation={{row.model.id}}
+              @allocation={{row.model}}
+              @context="job"
+              @onClick={{action "gotoAllocation" row.model}} />
+          </t.body>
+        </ListTable>
         <div class="table-foot">
           <nav class="pagination">
             <div class="pagination-numbers">
               {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
             </div>
-            {{#p.prev class="pagination-previous"}} &lt; {{/p.prev}}
-            {{#p.next class="pagination-next"}} &gt; {{/p.next}}
+            <p.prev @class="pagination-previous"> &lt; </p.prev>
+            <p.next @class="pagination-next"> &gt; </p.next>
             <ul class="pagination-list"></ul>
           </nav>
         </div>
-      {{/list-pagination}}
+      </ListPagination>
     {{else}}
       <div class="boxed-section-body">
         <div class="empty-message" data-test-empty-allocations-list>

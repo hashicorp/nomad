@@ -25,7 +25,7 @@ module('Integration | Component | fs/file', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{fs/file allocation=allocation task=task file=file stat=stat}}
+    {{fs/file allocation=allocation taskState=taskState file=file stat=stat}}
   `;
 
   const fileStat = (type, size = 0) => ({
@@ -44,7 +44,7 @@ module('Integration | Component | fs/file', function(hooks) {
             httpAddr: HOST,
           },
         },
-        task: {
+        taskState: {
           name: 'task-name',
         },
         file: 'path/to/file',
@@ -132,7 +132,7 @@ module('Integration | Component | fs/file', function(hooks) {
     assert.equal(
       rawLink.getAttribute('href'),
       `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
-        `${props.task.name}/${props.file}`
+        `${props.taskState.name}/${props.file}`
       )}`,
       'Raw link href is correct'
     );
@@ -184,7 +184,7 @@ module('Integration | Component | fs/file', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      {{#fs/file allocation=allocation task=task file=file stat=stat}}
+      {{#fs/file allocation=allocation taskState=taskState file=file stat=stat}}
         <div data-test-yield-spy>Yielded content</div>
       {{/fs/file}}
     `);

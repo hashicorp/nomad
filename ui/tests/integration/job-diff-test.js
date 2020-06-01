@@ -10,7 +10,7 @@ module('Integration | Component | job diff', function(hooks) {
   const commonTemplate = hbs`
     <div class="boxed-section">
       <div class="boxed-section-body is-dark">
-        {{job-diff diff=diff}}
+        <JobDiff @diff={{diff}} />
       </div>
     </div>
   `;

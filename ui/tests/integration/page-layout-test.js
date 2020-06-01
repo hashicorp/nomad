@@ -16,7 +16,7 @@ module('Integration | Component | page layout', function(hooks) {
   });
 
   test('the global-header hamburger menu opens the gutter menu', async function(assert) {
-    await render(hbs`{{page-layout}}`);
+    await render(hbs`<PageLayout />`);
 
     assert.notOk(
       find('[data-test-gutter-menu]').classList.contains('is-open'),
@@ -28,7 +28,7 @@ module('Integration | Component | page layout', function(hooks) {
   });
 
   test('the gutter-menu hamburger menu closes the gutter menu', async function(assert) {
-    await render(hbs`{{page-layout}}`);
+    await render(hbs`<PageLayout />`);
 
     await click('[data-test-header-gutter-toggle]');
 
@@ -42,7 +42,7 @@ module('Integration | Component | page layout', function(hooks) {
   });
 
   test('the gutter-menu backdrop closes the gutter menu', async function(assert) {
-    await render(hbs`{{page-layout}}`);
+    await render(hbs`<PageLayout />`);
 
     await click('[data-test-header-gutter-toggle]');
 

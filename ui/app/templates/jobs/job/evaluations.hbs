@@ -2,19 +2,19 @@
 {{partial "jobs/job/subnav"}}
 <section class="section">
   {{#if sortedEvaluations.length}}
-    {{#list-table
-      source=sortedEvaluations
-      sortProperty=sortProperty
-      sortDescending=sortDescending as |t|}}
-      {{#t.head}}
+    <ListTable
+      @source={{sortedEvaluations}}
+      @sortProperty={{sortProperty}}
+      @sortDescending={{sortDescending}} as |t|>
+      <t.head>
         <th>ID</th>
-        {{#t.sort-by prop="priority"}}Priority{{/t.sort-by}}
-        {{#t.sort-by prop="createTime"}}Created{{/t.sort-by}}
-        {{#t.sort-by prop="triggeredBy"}}Triggered By{{/t.sort-by}}
-        {{#t.sort-by prop="status"}}Status{{/t.sort-by}}
-        {{#t.sort-by prop="hasPlacementFailures"}}Placement Failures{{/t.sort-by}}
-      {{/t.head}}
-      {{#t.body as |row|}}
+        <t.sort-by @prop="priority">Priority</t.sort-by>
+        <t.sort-by @prop="createTime">Created</t.sort-by>
+        <t.sort-by @prop="triggeredBy">Triggered By</t.sort-by>
+        <t.sort-by @prop="status">Status</t.sort-by>
+        <t.sort-by @prop="hasPlacementFailures">Placement Failures</t.sort-by>
+      </t.head>
+      <t.body as |row|>
         <tr data-test-evaluation="{{row.model.shortId}}">
           <td data-test-id>{{row.model.shortId}}</td>
           <td data-test-priority>{{row.model.priority}}</td>
@@ -31,8 +31,8 @@
             {{/if}}
           </td>
         </tr>
-      {{/t.body}}
-    {{/list-table}}
+      </t.body>
+    </ListTable>
   {{else}}
     <div data-test-empty-evaluations-list class="empty-message">
       <h3 data-test-empty-evaluations-list-headline class="empty-message-headline">No Evaluations</h3>

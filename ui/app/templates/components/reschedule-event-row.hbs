@@ -23,9 +23,9 @@
             <span class="pair">
               <span class="term">Allocation</span>
               {{#if linkToAllocation}}
-                {{#link-to "allocations.allocation" allocation.id}}
+                <LinkTo @route="allocations.allocation" @model={{allocation.id}}>
                   <code data-test-allocation-link>{{allocation.shortId}}</code>
-                {{/link-to}}
+                </LinkTo>
               {{else}}
                 <code data-test-allocation-link>{{allocation.shortId}}</code>
               {{/if}}
@@ -33,9 +33,9 @@
             <span class="pair">
               <span class="term">Client</span>
               <span>
-                {{#link-to "clients.client" data-test-node-link allocation.node.id}}
+                <LinkTo @route="clients.client" @model={{allocation.node.id}} data-test-node-link>
                   <code>{{allocation.node.id}}</code>
-                {{/link-to}}
+                </LinkTo>
               </span>
             </span>
           </div>

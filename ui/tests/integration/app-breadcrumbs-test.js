@@ -21,7 +21,7 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
   const commonCrumbs = [{ label: 'One', args: ['one'] }, { label: 'Two', args: ['two'] }];
 
   const template = hbs`
-    {{app-breadcrumbs}}
+    <AppBreadcrumbs />
   `;
 
   test('breadcrumbs comes from the breadcrumbs service', async function(assert) {

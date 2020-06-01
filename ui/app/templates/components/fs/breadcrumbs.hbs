@@ -1,14 +1,14 @@
 <ul>
   <li class={{if breadcrumbs "" "is-active"}}>
-    {{#fs/link allocation=allocation task=task}}
-      {{if task task.name allocation.shortId}}
-    {{/fs/link}}
+    <Fs::Link @allocation={{allocation}} @taskState={{taskState}}>
+      {{if taskState taskState.name allocation.shortId}}
+    </Fs::Link>
   </li>
   {{#each breadcrumbs as |breadcrumb|}}
     <li class={{if breadcrumb.isLast "is-active"}}>
-      {{#fs/link allocation=allocation task=task path=breadcrumb.path}}
+      <Fs::Link @allocation={{allocation}} @taskState={{taskState}} @path={{breadcrumb.path}}>
         {{breadcrumb.name}}
-      {{/fs/link}}
+      </Fs::Link>
     </li>
   {{/each}}
 </ul>

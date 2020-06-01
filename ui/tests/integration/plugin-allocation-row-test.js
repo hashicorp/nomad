@@ -30,7 +30,7 @@ module('Integration | Component | plugin allocation row', function(hooks) {
     });
 
     await render(hbs`
-      {{plugin-allocation-row pluginAllocation=plugin}}
+      <PluginAllocationRow @pluginAllocation={{plugin}} />
     `);
 
     await settled();
@@ -52,7 +52,7 @@ module('Integration | Component | plugin allocation row', function(hooks) {
     });
 
     await render(hbs`
-      {{plugin-allocation-row pluginAllocation=plugin}}
+      <PluginAllocationRow @pluginAllocation={{plugin}} />
     `);
 
     await settled();
@@ -79,7 +79,7 @@ module('Integration | Component | plugin allocation row', function(hooks) {
     });
 
     await render(hbs`
-      {{plugin-allocation-row pluginAllocation=plugin}}
+      <PluginAllocationRow @pluginAllocation={{plugin}} />
     `);
 
     await settled();

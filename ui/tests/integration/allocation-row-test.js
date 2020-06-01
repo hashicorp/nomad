@@ -61,10 +61,10 @@ module('Integration | Component | allocation row', function(hooks) {
     });
 
     await render(hbs`
-      {{allocation-row
-        allocation=allocation
-        context=context
-        enablePolling=enablePolling}}
+      <AllocationRow
+        @allocation={{allocation}}
+        @context={{context}}
+        @enablePolling={{enablePolling}} />
     `);
 
     assert.equal(
@@ -99,9 +99,9 @@ module('Integration | Component | allocation row', function(hooks) {
     });
 
     await render(hbs`
-      {{allocation-row
-        allocation=allocation
-        context=context}}
+      <AllocationRow
+        @allocation={{allocation}}
+        @context={{context}} />
     `);
 
     assert.ok(find('[data-test-icon="unhealthy-driver"]'), 'Unhealthy driver icon is shown');
@@ -113,9 +113,9 @@ module('Integration | Component | allocation row', function(hooks) {
 
     this.setProperties({ allocation, context: 'job' });
     await render(hbs`
-      {{allocation-row
-        allocation=allocation
-        context=context}}
+      <AllocationRow
+        @allocation={{allocation}}
+        @context={{context}} />
     `);
 
     assert.ok(find('[data-test-icon="preemption"]'), 'Preempted icon is shown');
@@ -139,10 +139,10 @@ module('Integration | Component | allocation row', function(hooks) {
     for (const allocation of allocations.toArray()) {
       this.set('allocation', allocation);
       await this.render(hbs`
-          {{allocation-row
-            allocation=allocation
-            context=context
-            enablePolling=enablePolling}}
+          <AllocationRow
+            @allocation={{allocation}}
+            @context={{context}}
+            @enablePolling={{enablePolling}} />
         `);
 
       const status = allocation.get('clientStatus');

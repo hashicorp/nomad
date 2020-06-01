@@ -4,5 +4,5 @@ export default Component.extend({
   tagName: '',
 
   allocation: null,
-  task: null,
+  taskState: null,
 });

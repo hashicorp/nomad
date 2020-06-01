@@ -16,15 +16,15 @@
   {{/if}}
 </td>
 <td data-test-short-id>
-  {{#link-to "allocations.allocation" allocation class="is-primary"}}
+  <LinkTo @route="allocations.allocation" @model={{allocation}} class="is-primary">
     {{allocation.shortId}}
-  {{/link-to}}
+  </LinkTo>
 </td>
 {{#if (eq context "job")}}
   <td data-test-task-group>
-    {{#link-to "jobs.job.task-group" allocation.job allocation.taskGroupName (query-params jobNamespace=allocation.job.namespace.id)}}
+    <LinkTo @route="jobs.job.task-group" @models={{array allocation.job allocation.taskGroupName}} @query={{hash jobNamespace=allocation.job.namespace.id}}>
       {{allocation.taskGroupName}}
-    {{/link-to}}
+    </LinkTo>
   </td>
 {{/if}}
 <td data-test-create-time>{{format-month-ts allocation.createTime}}</td>
@@ -37,17 +37,17 @@
   <span class="color-swatch {{allocation.clientStatus}}" /> {{allocation.clientStatus}}
 </td>
 {{#if (eq context "volume")}}
-  <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
+  <td data-test-client><LinkTo @route="clients.client" @model={{allocation.node}}>{{allocation.node.shortId}}</LinkTo></td>
 {{/if}}
 {{#if (or (eq context "taskGroup") (eq context "job"))}}
   <td data-test-job-version>{{allocation.jobVersion}}</td>
-  <td data-test-client>{{#link-to "clients.client" allocation.node}}{{allocation.node.shortId}}{{/link-to}}</td>
+  <td data-test-client><LinkTo @route="clients.client" @model={{allocation.node}}>{{allocation.node.shortId}}</LinkTo></td>
 {{else if (or (eq context "node") (eq context "volume"))}}
   <td>
     {{#if (or allocation.job.isPending allocation.job.isReloading)}}
       ...
     {{else}}
-      {{#link-to "jobs.job" allocation.job (query-params jobNamespace=allocation.job.namespace.id) data-test-job}}{{allocation.job.name}}{{/link-to}}
+      <LinkTo @route="jobs.job" @model={{allocation.job}} @query={{hash jobNamespace=allocation.job.namespace.id}} data-test-job>{{allocation.job.name}}</LinkTo>
       <span class="is-faded" data-test-task-group>/ {{allocation.taskGroup.name}}</span>
     {{/if}}
   </td>
@@ -57,18 +57,18 @@
   <td data-test-volume>{{if allocation.taskGroup.volumes.length "Yes"}}</td>
 {{/if}}
 <td data-test-cpu class="is-1 has-text-centered">
-  {{allocation-stat
-    metric="cpu"
-    allocation=allocation
-    statsTracker=stats
-    isLoading=fetchStats.isRunning
-    error=statsError}}
+  <AllocationStat
+    @metric="cpu"
+    @allocation={{allocation}}
+    @statsTracker={{stats}}
+    @isLoading={{fetchStats.isRunning}}
+    @error={{statsError}} />
 </td>
 <td data-test-mem class="is-1 has-text-centered">
-  {{allocation-stat
-    metric="memory"
-    allocation=allocation
-    statsTracker=stats
-    isLoading=fetchStats.isRunning
-    error=statsError}}
+  <AllocationStat
+    @metric="memory"
+    @allocation={{allocation}}
+    @statsTracker={{stats}}
+    @isLoading={{fetchStats.isRunning}}
+    @error={{statsError}} />
 </td>

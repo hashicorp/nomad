@@ -6,7 +6,7 @@ export default Component.extend({
   tagName: '',
 
   allocation: null,
-  task: null,
+  taskState: null,
 
   pathToEntry: computed('path', 'entry.Name', function() {
     const pathWithNoLeadingSlash = this.get('path').replace(/^\//, '');
