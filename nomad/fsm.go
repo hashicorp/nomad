@@ -2140,6 +2140,9 @@ func (s *nomadSnapshot) persistSchedulerConfig(sink raft.SnapshotSink,
 	if err != nil {
 		return err
 	}
+	if schedConfig == nil {
+		return nil
+	}
 	// Write out scheduler config
 	sink.Write([]byte{byte(SchedulerConfigSnapshot)})
 	if err := encoder.Encode(schedConfig); err != nil {
@@ -2155,6 +2158,9 @@ func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
 	clusterMetadata, err := s.snap.ClusterMetadata()
 	if err != nil {
 		return err
+	}
+	if clusterMetadata == nil {
+		return nil
 	}
 
 	// Write out the cluster metadata

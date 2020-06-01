@@ -344,7 +344,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
-		EnterpriseClient:     newEnterpriseClient(),
+		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(

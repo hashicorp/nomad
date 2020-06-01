@@ -142,6 +142,13 @@ func (j *Jobs) PrefixList(prefix string) ([]*JobListStub, *QueryMeta, error) {
 	return j.List(&QueryOptions{Prefix: prefix})
 }
 
+// ListAll is used to list all of the existing jobs in all namespaces.
+func (j *Jobs) ListAll() ([]*JobListStub, *QueryMeta, error) {
+	return j.List(&QueryOptions{
+		Params: map[string]string{"all_namespaces": "true"},
+	})
+}
+
 // Info is used to retrieve information about a particular
 // job given its unique ID.
 func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
@@ -867,6 +874,7 @@ type JobListStub struct {
 	ID                string
 	ParentID          string
 	Name              string
+	Namespace         string `json:",omitempty"`
 	Datacenters       []string
 	Type              string
 	Priority          int

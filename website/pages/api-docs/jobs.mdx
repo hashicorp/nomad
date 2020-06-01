@@ -30,6 +30,10 @@ The table below shows this endpoint's support for
 - `prefix` `(string: "")` - Specifies a string to filter jobs on based on
   an index prefix. This is specified as a query string parameter.
 
+- `all_namespaces` `(bool: false)` - Specifies whether to return the all
+  known jobs across all namespaces the token has `namespace:list-jobs` ACL
+  capability on.
+
 ### Sample Request
 
 ```shell-session
@@ -54,6 +58,7 @@ $ curl https://localhost:4646/v1/jobs?prefix=team
     "StatusDescription": "",
     "JobSummary": {
       "JobID": "example",
+      "Namespace": "default",
       "Summary": {
         "cache": {
           "Queued": 1,

@@ -121,6 +121,9 @@ type VaultClient interface {
 	// RevokeTokens takes a set of tokens accessor and revokes the tokens
 	RevokeTokens(ctx context.Context, accessors []*structs.VaultAccessor, committed bool) error
 
+	// MarkForRevocation revokes the tokens in background
+	MarkForRevocation(accessors []*structs.VaultAccessor) error
+
 	// Stop is used to stop token renewal
 	Stop()
 
@@ -248,6 +251,9 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 
 	if logger == nil {
 		return nil, fmt.Errorf("must pass valid logger")
+	}
+	if purgeFn == nil {
+		purgeFn = func(accessors []*structs.VaultAccessor) error { return nil }
 	}
 
 	v := &vaultClient{
@@ -1128,6 +1134,19 @@ func (v *vaultClient) RevokeTokens(ctx context.Context, accessors []*structs.Vau
 	return nil
 }
 
+func (v *vaultClient) MarkForRevocation(accessors []*structs.VaultAccessor) error {
+	if !v.Enabled() {
+		return nil
+	}
+
+	if !v.Active() {
+		return fmt.Errorf("Vault client not active")
+	}
+
+	v.storeForRevocation(accessors)
+	return nil
+}
+
 // storeForRevocation stores the passed set of accessors for revocation. It
 // captures their effective TTL by storing their create TTL plus the current
 // time.
@@ -1207,6 +1226,16 @@ func (v *vaultClient) parallelRevoke(ctx context.Context, accessors []*structs.V
 	return g.Wait()
 }
 
+// maxVaultRevokeBatchSize is the maximum tokens a revokeDaemon should revoke
+// at any given time.
+//
+// Limiting the revocation batch size is beneficial for few reasons:
+// * A single revocation failure of any entry in batch result into retrying the whole batch;
+//   the larger the batch is the higher likelihood of such failure
+// * Smaller batch sizes result into more co-operativeness: provides hooks for
+//   reconsidering token TTL and leadership steps down.
+const maxVaultRevokeBatchSize = 1000
+
 // revokeDaemon should be called in a goroutine and is used to periodically
 // revoke Vault accessors that failed the original revocation
 func (v *vaultClient) revokeDaemon() {
@@ -1231,12 +1260,21 @@ func (v *vaultClient) revokeDaemon() {
 			}
 
 			// Build the list of accessors that need to be revoked while pruning any TTL'd checks
-			revoking := make([]*structs.VaultAccessor, 0, len(v.revoking))
+			toRevoke := len(v.revoking)
+			if toRevoke > maxVaultRevokeBatchSize {
+				toRevoke = maxVaultRevokeBatchSize
+			}
+			revoking := make([]*structs.VaultAccessor, 0, toRevoke)
+			ttlExpired := []*structs.VaultAccessor{}
 			for va, ttl := range v.revoking {
 				if now.After(ttl) {
-					delete(v.revoking, va)
+					ttlExpired = append(ttlExpired, va)
 				} else {
 					revoking = append(revoking, va)
+				}
+
+				if len(revoking) >= toRevoke {
+					break
 				}
 			}
 
@@ -1248,6 +1286,10 @@ func (v *vaultClient) revokeDaemon() {
 
 			// Unlock before a potentially expensive operation
 			v.revLock.Unlock()
+
+			// purge all explicitly revoked as well as ttl expired tokens
+			// and only remove them locally on purge success
+			revoking = append(revoking, ttlExpired...)
 
 			// Call the passed in token revocation function
 			if err := v.purgeFn(revoking); err != nil {
