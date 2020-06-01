@@ -1,29 +1,30 @@
+'use strict';
+
 module.exports = {
   root: true,
   globals: {
     server: true,
   },
-  env: {
-    browser: true,
-    es6: true,
-  },
-  extends: 'eslint:recommended',
   parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
+    ecmaFeatures: {
+      legacyDecorators: true,
+    },
+  },
+  plugins: [
+    'ember',
+  ],
+  extends: [
+    'eslint:recommended',
+    'plugin:ember/recommended',
+  ],
+  env: {
+    browser: true,
   },
   rules: {
-    indent: ['error', 2, { SwitchCase: 1 }],
-    'linebreak-style': ['error', 'unix'],
-    quotes: ['error', 'single', 'avoid-escape'],
-    semi: ['error', 'always'],
-    'no-constant-condition': [
-      'error',
-      {
-        checkLoops: false,
-      },
-    ],
+    'ember/no-jquery': 'error'
   },
   overrides: [
     // node files
