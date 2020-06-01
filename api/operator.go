@@ -1,6 +1,8 @@
 package api
 
 import (
+	"io"
+	"io/ioutil"
 	"strconv"
 	"time"
 )
@@ -192,6 +194,32 @@ func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *W
 	}
 
 	return &out, wm, nil
+}
+
+// Snapshot is used to capture a snapshot state of a running cluster.
+// The returned reader that must be consumed fully
+func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
+	r, err := op.c.newRequest("GET", "/v1/operator/snapshot")
+	if err != nil {
+		return nil, err
+	}
+	r.setQueryOptions(q)
+	_, resp, err := requireOK(op.c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+
+	digest := resp.Header.Get("Digest")
+
+	cr, err := newChecksumValidatingReader(resp.Body, digest)
+	if err != nil {
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+
+		return nil, err
+	}
+
+	return cr, nil
 }
 
 type License struct {
