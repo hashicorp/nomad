@@ -183,6 +183,13 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `mac_address` - (Optional) The MAC address for the container to use (e.g.
   "02:68:b3:29:da:98").
 
+- `memory_hard_limit` - (Optional) The maximum allowable amount of memory used
+  (megabytes) by the container. If set, the [`memory`](http://localhost:3000/docs/job-specification/resources#memory)
+  parameter of the task resource configuration becomes a soft limit passed to the
+  docker driver as [`--memory_reservation`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory),
+  and `memory_hard_limit` is passed as the [`--memory`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory)
+  hard limit.
+
 - `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
   container to be discovered by an alternate name by any other container within
   the scope of a particular network. Network-scoped alias is supported only for
