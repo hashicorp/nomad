@@ -15,7 +15,7 @@ export default Controller.extend({
   }),
 
   network: alias('model.resources.networks.firstObject'),
-  ports: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
+  ports: computed('network.{reservedPorts.[],dynamicPorts.[]}', function() {
     return (this.get('network.reservedPorts') || [])
       .map(port => ({
         name: port.Label,

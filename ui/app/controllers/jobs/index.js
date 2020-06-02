@@ -117,7 +117,7 @@ export default Controller.extend(Sortable, Searchable, {
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  visibleJobs: computed('model.[]', 'model.@each.parent', function() {
+  visibleJobs: computed('model.{[],@each.parent}', function() {
     // Namespace related properties are ommitted from the dependent keys
     // due to a prop invalidation bug caused by region switching.
     const hasNamespaces = this.get('system.namespaces.length');
