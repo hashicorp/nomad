@@ -1,4 +1,3 @@
-import Ember from 'ember';
 import fetch from 'fetch';
 import config from '../config/environment';
 
@@ -9,6 +8,6 @@ const mirageEnabled =
   config['ember-cli-mirage'] &&
   config['ember-cli-mirage'].enabled !== false;
 
-const fetchToUse = Ember.testing || mirageEnabled ? fetch : window.fetch || fetch;
+const fetchToUse = mirageEnabled ? fetch : window.fetch || fetch;
 
 export default fetchToUse;
