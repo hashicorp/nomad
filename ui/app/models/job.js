@@ -1,4 +1,4 @@
-import { alias, equal, or, and } from '@ember/object/computed';
+import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
@@ -130,9 +130,11 @@ export default Model.extend({
       .uniq();
   }),
 
+  allocationsUnhealthyDrivers: mapBy('allocations', 'unhealthyDrivers'),
+
   // Getting all unhealthy drivers for a job can be incredibly expensive if the job
   // has many allocations. This can lead to making an API request for many nodes.
-  unhealthyDrivers: computed('allocations.@each.unhealthyDrivers.[]', function() {
+  unhealthyDrivers: computed('allocationsUnhealthyDrivers.[]', function() {
     return this.allocations
       .mapBy('unhealthyDrivers')
       .reduce((all, drivers) => {
