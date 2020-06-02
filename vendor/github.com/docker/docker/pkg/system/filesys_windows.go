@@ -130,10 +130,12 @@ func mkdirWithACL(name string, sddl string) error {
 // by the daemon. This SHOULD be treated as absolute from a docker processing
 // perspective.
 func IsAbs(path string) bool {
-	if filepath.IsAbs(path) || strings.HasPrefix(path, string(os.PathSeparator)) {
-		return true
+	if !filepath.IsAbs(path) {
+		if !strings.HasPrefix(path, string(os.PathSeparator)) {
+			return false
+		}
 	}
-	return false
+	return true
 }
 
 // The origin of the functions below here are the golang OS and windows packages,
@@ -233,7 +235,7 @@ func windowsOpenSequential(path string, mode int, _ uint32) (fd windows.Handle, 
 		createmode = windows.OPEN_EXISTING
 	}
 	// Use FILE_FLAG_SEQUENTIAL_SCAN rather than FILE_ATTRIBUTE_NORMAL as implemented in golang.
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
+	//https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
 	const fileFlagSequentialScan = 0x08000000 // FILE_FLAG_SEQUENTIAL_SCAN
 	h, e := windows.CreateFile(pathp, access, sharemode, sa, createmode, fileFlagSequentialScan, 0)
 	return h, e
