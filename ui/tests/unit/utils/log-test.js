@@ -10,11 +10,11 @@ import { settled } from '@ember/test-helpers';
 let startSpy, stopSpy, initSpy, fetchSpy;
 
 const MockStreamer = EmberObject.extend({
-  poll: {
-    isRunning: false,
-  },
-
   init() {
+    this.poll = {
+      isRunning: false,
+    };
+
     initSpy(...arguments);
   },
 

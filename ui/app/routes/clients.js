@@ -8,12 +8,12 @@ export default Route.extend(WithForbiddenState, {
   store: service(),
   system: service(),
 
-  breadcrumbs: [
+  breadcrumbs: Object.freeze([
     {
       label: 'Clients',
       args: ['clients.index'],
     },
-  ],
+  ]),
 
   beforeModel() {
     return this.get('system.leader');
