@@ -4,6 +4,7 @@ import { assert } from '@ember/debug';
 import { task, timeout } from 'ember-concurrency';
 import jsonWithDefault from 'nomad-ui/utils/json-with-default';
 
+// eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   url: '',
 

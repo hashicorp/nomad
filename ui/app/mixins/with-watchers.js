@@ -3,6 +3,7 @@ import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import WithVisibilityDetection from './with-route-visibility-detection';
 
+// eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create(WithVisibilityDetection, {
   watchers: computed(() => []),
 
