@@ -16,4 +16,9 @@ steps:
 
         mkdir -p /tmp/test-reports
         sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-        sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+        if [ ! -z $GOTEST_MOD ]; then
+          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+        else
+          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+        fi

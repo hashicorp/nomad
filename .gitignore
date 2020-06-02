@@ -60,6 +60,7 @@ nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
 codecgen-*.generated.go
+**/structs.generated.go
 GNUMakefile.local
 
 .terraform
@@ -104,3 +105,6 @@ azure-hashistack.pem
 
 # generated keys for e2e tests
 e2e/terraform/keys/
+
+# darwin CGO files copied for build
+vendor/github.com/shirou/gopsutil/host/include/

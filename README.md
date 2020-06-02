@@ -229,3 +229,8 @@ $ make release
 $ ls ./pkg
 ...
 ```
+
+API Compatibility
+--------------------
+
+Only the `api/` and `plugins/` packages are intended to be imported by other projects. The root Nomad module does not follow semver and is not intended to be imported directly by other projects.

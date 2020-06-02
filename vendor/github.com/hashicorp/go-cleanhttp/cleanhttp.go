@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// DefaultTransport returns a new http.Transport with the same default values
-// as http.DefaultTransport, but with idle connections and keepalives disabled.
+// DefaultTransport returns a new http.Transport with similar default values to
+// http.DefaultTransport, but with idle connections and keepalives disabled.
 func DefaultTransport() *http.Transport {
 	transport := DefaultPooledTransport()
 	transport.DisableKeepAlives = true
@@ -26,6 +26,7 @@ func DefaultPooledTransport() *http.Transport {
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
+			DualStack: true,
 		}).DialContext,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
@@ -45,10 +46,10 @@ func DefaultClient() *http.Client {
 	}
 }
 
-// DefaultPooledClient returns a new http.Client with the same default values
-// as http.Client, but with a shared Transport. Do not use this function
-// for transient clients as it can leak file descriptors over time. Only use
-// this for clients that will be re-used for the same host(s).
+// DefaultPooledClient returns a new http.Client with similar default values to
+// http.Client, but with a shared Transport. Do not use this function for
+// transient clients as it can leak file descriptors over time. Only use this
+// for clients that will be re-used for the same host(s).
 func DefaultPooledClient() *http.Client {
 	return &http.Client{
 		Transport: DefaultPooledTransport(),

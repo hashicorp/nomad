@@ -3,6 +3,9 @@ parameters:
   test_packages:
     type: string
     default: ""
+  test_module:
+    type: string
+    default: ""
   exclude_packages:
     type: string
     default: ""
@@ -15,6 +18,7 @@ parameters:
 environment:
   GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
   GOTEST_PKGS: "<< parameters.test_packages >>"
+  GOTEST_MOD: "<< parameters.test_module >>"
   GOTESTARCH: "<< parameters.goarch >>"
 steps:
   - checkout
