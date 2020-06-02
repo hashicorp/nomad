@@ -35,8 +35,12 @@ export default Controller.extend(
     sortProperty: 'id',
     sortDescending: false,
 
-    searchProps: computed(() => ['name']),
-    fuzzySearchProps: computed(() => ['name']),
+    searchProps: computed(function() {
+      return ['name'];
+    }),
+    fuzzySearchProps: computed(function() {
+      return ['name'];
+    }),
     fuzzySearchEnabled: true,
 
     /**

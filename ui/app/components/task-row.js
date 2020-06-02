@@ -19,7 +19,9 @@ export default Component.extend({
   // Internal state
   statsError: false,
 
-  enablePolling: computed(() => !Ember.testing),
+  enablePolling: computed(function() {
+    return !Ember.testing;
+  }),
 
   // Since all tasks for an allocation share the same tracker, use the registry
   stats: computed('task', 'task.isRunning', function() {

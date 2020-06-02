@@ -29,15 +29,13 @@ export default Controller.extend(SortableFactory(['updateTime', 'healthy']), {
   selectionType: selection('qpType'),
   selectionHealth: selection('qpHealth'),
 
-  optionsType: computed(() => [
-    { key: 'controller', label: 'Controller' },
-    { key: 'node', label: 'Node' },
-  ]),
+  optionsType: computed(function() {
+    return [{ key: 'controller', label: 'Controller' }, { key: 'node', label: 'Node' }];
+  }),
 
-  optionsHealth: computed(() => [
-    { key: 'true', label: 'Healthy' },
-    { key: 'false', label: 'Unhealthy' },
-  ]),
+  optionsHealth: computed(function() {
+    return [{ key: 'true', label: 'Healthy' }, { key: 'false', label: 'Unhealthy' }];
+  }),
 
   combinedAllocations: computed('model.{controllers.[],nodes.[]}', function() {
     return this.model.controllers.toArray().concat(this.model.nodes.toArray());

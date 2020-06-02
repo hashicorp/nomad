@@ -111,7 +111,7 @@ export let LiveUpdating = () => {
           clearInterval(this.timer);
         },
 
-        distributionBarDataRotating: computed('timerTicks', () => {
+        distributionBarDataRotating: computed('timerTicks', function() {
           return [
             { label: 'one', value: Math.round(Math.random() * 50) },
             { label: 'two', value: Math.round(Math.random() * 50) },

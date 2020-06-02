@@ -22,7 +22,9 @@ export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
-  searchProps: computed(() => ['shortId', 'name']),
+  searchProps: computed(function() {
+    return ['shortId', 'name'];
+  }),
 
   allocations: computed('model.allocations.[]', function() {
     return this.get('model.allocations') || [];

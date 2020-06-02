@@ -26,7 +26,9 @@ export default function sortableFactory(properties, fromSortableMixin) {
     // Override in mixin consumer
     sortProperty: null,
     sortDescending: true,
-    listToSort: computed(() => []),
+    listToSort: computed(function() {
+      return [];
+    }),
 
     _sortableFactoryWarningPrinted: false,
 
