@@ -1,0 +1,106 @@
+---
+layout: docs
+page_title: 'Drivers: nomad-driver-iis'
+sidebar_title: Windows IIS
+description: >-
+  The IIS driver is used for running
+  Windows IIS services.
+---
+
+# Windows IIS Driver
+
+Name: `win_iis`
+
+The Nomad IIS driver provides an interface for running Windows IIS website tasks.
+A "website" is a combination of an application pool and a site (app, vdir, etc.).
+Each allocation will create an application pool and site with the name being the allocation ID (guid).
+
+For more detailed instructions on how to set up and use this driver, please
+refer to the [project README.md][nomad-driver-iis].
+
+## Task Configuration
+
+```hcl
+task "iis-test" {
+  driver = "win_iis"
+
+  config {
+    path = "C:\\inetpub\\wwwroot"
+    apppool_identity {
+      identity="SpecificUser"
+      username="vagrant"
+      password="vagrant"
+    }
+  }
+}
+```
+
+The IIS task driver supports the following parameters:
+
+- `path` (string) - (Required) The path of the website directory.
+
+- `site_config_path` (string) - (Optional) The path should point to a valid IIS Site XML that is generated from an export.
+
+- `apppool_config_path` (string) - (Optional) The path should point to a valid IIS Application Pool XML that is generated from an export.
+
+- `apppool_identity` - (Optional) `ApplicationPoolIdentity` (default). The identity which the Application Pool will run under.
+    - `identity` (string) - (Required) An identity is required to be set for Application Pools. Accepted inputs are `LocalService`, `LocalSystem`, `NetworkService`, `SpecificUser`, and `ApplicationPoolIdentity`.
+    - `username` (string) - (Optional) If `SpecificUser` was chosen, then provide the username.
+    - `password` (string) - (Optional) If `SpecificUser` was chosen, then provide the password.
+
+- `bindings` - (Optional) Bindings set here will be set for IIS.
+    - `hostname` (string)      - (Optional) IIS hostname for a binding.
+    - `ipaddress` (string)     - (Optional). `*` (default). IIS allows a binding to specify the IP Address being sent out.
+    - `resource_port` (string) - (Optional) Use a label from an established network stanza port. It is recommended to use this approach over using `port`.
+    - `port` (number)          - (Optional) Specify a static port to use for the website. A port must be specified between `resource_port` or `port`. Ports set this way will not be recognized by nomad.
+    - `type` (string)          - (Optional) Specifies which binding type IIS should use such as `http` or `https`.
+    - `cert_hash` (string)     - (Optional) For SSL support, supply the cert hash here of a cert installed on the system.
+
+For optional parameters default value is assumed `nil`, if the default value is not specified in the documentation.
+
+## Networking
+
+Currently, `nomad-driver-iis` only supports host networking. No special configuration is needed as `nomad-driver-iis`
+relies on IIS to manage the networking for Windows IIS website tasks.
+
+## Client Requirements
+
+`nomad-driver-iis` requires the following:
+
+- Windows 2016+
+
+- Web Server enabled for IIS
+
+- The Nomad IIS driver binary ([build instructions][nomad-driver-iis])
+
+## Plugin Options ((#plugin_options))
+
+- `enabled` - The `IIS` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
+
+- `stats_interval` - This value defines how frequently you want to send `TaskStats` to nomad client. (defaults to `1 second`).
+
+
+An example of using these plugin options with the new [plugin
+syntax][plugin] is shown below:
+
+```hcl
+plugin "win_iis" {
+  client {
+    enabled = true
+    stats_interval = "30s"
+  }
+}
+```
+
+Please note the plugin name should match whatever name you have specified for the external driver in the [plugin_dir][plugin_dir] directory.
+
+## Client Attributes
+
+The `IIS` driver will set the following client attributes:
+
+- `driver.win_iis.iis_version` - Sets to IIS version of IIS which is running on nomad client.
+
+[nomad-driver-iis]: https://github.com/Roblox/nomad-driver-iis
+[plugin]: /docs/configuration/plugin
+[plugin_dir]: /docs/configuration#plugin_dir
+[plugin-options]: #plugin_options
