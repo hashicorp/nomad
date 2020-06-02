@@ -63,7 +63,9 @@ export default Component.extend({
     do {
       if (this.stats) {
         try {
-          yield this.get('stats.poll').perform();
+          yield this.get('stats.poll')
+            .linked()
+            .perform();
           this.set('statsError', false);
         } catch (error) {
           this.set('statsError', true);
