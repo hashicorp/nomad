@@ -9,6 +9,7 @@ module('Unit | Mixin | Searchable', function(hooks) {
 
   hooks.beforeEach(function() {
     this.subject = function() {
+      // eslint-disable-next-line ember/no-new-mixins
       const SearchableObject = EmberObject.extend(Searchable, {
         source: null,
         searchProps: computed(() => ['id', 'name']),
@@ -193,6 +194,7 @@ module('Unit | Mixin | Searchable (with pagination)', function(hooks) {
 
   hooks.beforeEach(function() {
     this.subject = function() {
+      // eslint-disable-next-line ember/no-new-mixins
       const SearchablePaginatedObject = EmberObject.extend(Searchable, {
         source: null,
         searchProps: computed(() => ['id', 'name']),

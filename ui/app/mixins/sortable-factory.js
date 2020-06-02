@@ -21,6 +21,7 @@ import { warn } from '@ember/debug';
 export default function sortableFactory(properties, fromSortableMixin) {
   const eachProperties = properties.map(property => `listToSort.@each.${property}`);
 
+  // eslint-disable-next-line ember/no-new-mixins
   return Mixin.create({
     // Override in mixin consumer
     sortProperty: null,
