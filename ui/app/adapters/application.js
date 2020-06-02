@@ -24,6 +24,8 @@ export default RESTAdapter.extend({
         'X-Nomad-Token': token,
       };
     }
+
+    return;
   }),
 
   handleResponse(status, headers, payload) {

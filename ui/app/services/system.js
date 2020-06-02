@@ -59,6 +59,7 @@ export default Service.extend({
     set(key, value) {
       if (value == null) {
         window.localStorage.removeItem('nomadActiveRegion');
+        return;
       } else {
         // All localStorage values are strings. Stringify first so
         // the return value is consistent with what is persisted.
@@ -110,6 +111,7 @@ export default Service.extend({
     set(key, value) {
       if (value == null) {
         window.localStorage.removeItem('nomadActiveNamespace');
+        return;
       } else if (typeof value === 'string') {
         window.localStorage.nomadActiveNamespace = value;
         return this.namespaces.findBy('id', value);

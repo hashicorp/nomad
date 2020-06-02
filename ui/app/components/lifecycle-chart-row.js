@@ -8,11 +8,15 @@ export default Component.extend({
     if (this.taskState && this.taskState.state === 'running') {
       return 'is-active';
     }
+
+    return;
   }),
 
   finishedClass: computed('taskState.finishedAt', function() {
     if (this.taskState && this.taskState.finishedAt) {
       return 'is-finished';
     }
+
+    return;
   }),
 });

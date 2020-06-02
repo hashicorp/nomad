@@ -62,6 +62,8 @@ export default Model.extend({
     if (allocation) {
       return allocation.modifyTime;
     }
+
+    return;
   }),
 
   drivers: fragmentArray('node-driver'),

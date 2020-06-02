@@ -43,6 +43,7 @@ export default Service.extend({
 
   selfToken: computed('secret', 'fetchSelfToken.lastSuccessful.value', function() {
     if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');
+    return;
   }),
 
   fetchSelfTokenPolicies: task(function*() {

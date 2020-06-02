@@ -170,6 +170,8 @@ export default Model.extend({
       if (failureEvaluations) {
         return failureEvaluations.sortBy('modifyIndex').get('lastObject');
       }
+
+      return;
     }
   ),
 
@@ -180,6 +182,7 @@ export default Model.extend({
   runningDeployment: computed('latestDeployment', 'latestDeployment.isRunning', function() {
     const latest = this.latestDeployment;
     if (latest.get('isRunning')) return latest;
+    return;
   }),
 
   fetchRawDefinition() {
