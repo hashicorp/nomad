@@ -57,6 +57,7 @@ export default Controller.extend(
 
       // Remove any invalid node classes from the query param/selection
       scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
         this.set('qpClass', serialize(intersection(classes, this.selectionClass)));
       });
 
@@ -78,6 +79,7 @@ export default Controller.extend(
 
       // Remove any invalid datacenters from the query param/selection
       scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
         this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
       });
 
@@ -91,6 +93,7 @@ export default Controller.extend(
       const volumes = Array.from(new Set(allVolumes.mapBy('name')));
 
       scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
         this.set('qpVolume', serialize(intersection(volumes, this.selectionVolume)));
       });
 
