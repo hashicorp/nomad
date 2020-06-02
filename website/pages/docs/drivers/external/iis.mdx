@@ -9,14 +9,14 @@ description: >-
 
 # Windows IIS Driver
 
-Name: `nomad-driver-iis`
+Name: `win_iis`
 
-The nomad iis driver provides an interface for running windows iis website tasks.
-A "Website" is a combination of an application pool and a site (app, vdir, etc.).
+The Nomad IIS driver provides an interface for running Windows IIS website tasks.
+A "website" is a combination of an application pool and a site (app, vdir, etc.).
 Each allocation will create an application pool and site with the name being the allocation ID (guid).
 
 For more detailed instructions on how to set up and use this driver, please
-refer to the [documentation][nomad-driver-iis].
+refer to the [project README.md][nomad-driver-iis].
 
 ## Task Configuration
 
@@ -37,29 +37,31 @@ task "iis-test" {
 
 The IIS task driver supports the following parameters:
 
-- `path` - (Required) The path of the website directory.
+- `path` (string) - (Required) The path of the website directory.
 
-- `site_config_path` - (Optional) The path should point to a valid IIS Site XML that is generated from an export.
+- `site_config_path` (string) - (Optional) The path should point to a valid IIS Site XML that is generated from an export.
 
-- `apppool_config_path` - (Optional) The path should point to a valid IIS Application Pool XML that is generated from an export.
+- `apppool_config_path` (string) - (Optional) The path should point to a valid IIS Application Pool XML that is generated from an export.
 
 - `apppool_identity` - (Optional) `ApplicationPoolIdentity` (default). The identity which the Application Pool will run under.
-    - `identity` - (Required) An identity is required to be set for Application Pools. Accepted inputs are `LocalService`, `LocalSystem`, `NetworkService`, `SpecificUser`, and `ApplicationPoolIdentity`.
-    - `username` - (Optional) If `SpecificUser` was chosen, then provide the username.
-    - `password` - (Optional) If `SpecificUser` was chosen, then provide the password.
+    - `identity` (string) - (Required) An identity is required to be set for Application Pools. Accepted inputs are `LocalService`, `LocalSystem`, `NetworkService`, `SpecificUser`, and `ApplicationPoolIdentity`.
+    - `username` (string) - (Optional) If `SpecificUser` was chosen, then provide the username.
+    - `password` (string) - (Optional) If `SpecificUser` was chosen, then provide the password.
 
 - `bindings` - (Optional) Bindings set here will be set for IIS.
-    - `hostname`      - (Optional) IIS hostname for a binding.
-    - `ipaddress`     - (Optional). `*` (default). IIS allows a binding to specify the IP Address being sent out.
-    - `resource_port` - (Optional) Use a label from an established network stanza port. It is recommended to use this approach over using `port`.
-    - `port`          - (Optional) Specify a static port to use for the website. A port must be specified between `resource_port` or `port`. Ports set this way will not be recognized by nomad.
-    - `type`          - (Optional) Specifies which binding type IIS should use such as `http` or `https`.
-    - `cert_hash`     - (Optional) For SSL support, supply the cert hash here of a cert installed on the system.
+    - `hostname` (string)      - (Optional) IIS hostname for a binding.
+    - `ipaddress` (string)     - (Optional). `*` (default). IIS allows a binding to specify the IP Address being sent out.
+    - `resource_port` (string) - (Optional) Use a label from an established network stanza port. It is recommended to use this approach over using `port`.
+    - `port` (number)          - (Optional) Specify a static port to use for the website. A port must be specified between `resource_port` or `port`. Ports set this way will not be recognized by nomad.
+    - `type` (string)          - (Optional) Specifies which binding type IIS should use such as `http` or `https`.
+    - `cert_hash` (string)     - (Optional) For SSL support, supply the cert hash here of a cert installed on the system.
+
+For optional parameters default value is assumed `nil`, if the default value is not specified in the documentation.
 
 ## Networking
 
-Currently the `nomad-driver-iis` only supports host networking. No special configuration is needed as `nomad-driver-iis`
-relies on IIS to manage the networking for windows IIS website tasks.
+Currently, `nomad-driver-iis` only supports host networking. No special configuration is needed as `nomad-driver-iis`
+relies on IIS to manage the networking for Windows IIS website tasks.
 
 ## Client Requirements
 
@@ -69,7 +71,7 @@ relies on IIS to manage the networking for windows IIS website tasks.
 
 - Web Server enabled for IIS
 
-- The nomad iis driver binary [Build instructions][nomad-driver-iis]
+- The Nomad IIS driver binary ([build instructions][nomad-driver-iis])
 
 ## Plugin Options ((#plugin_options))
 
