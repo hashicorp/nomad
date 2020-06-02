@@ -3,6 +3,7 @@ import { run } from '@ember/runloop';
 import { assert } from '@ember/debug';
 import { on } from '@ember/object/evented';
 
+// eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   windowResizeHandler() {
     assert('windowResizeHandler needs to be overridden in the Component', false);
