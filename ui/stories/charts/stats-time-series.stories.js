@@ -102,11 +102,11 @@ export let HighLowComparison = () => {
           clearInterval(this.timer);
         },
 
-        metricsHigh: computed(() => {
+        metricsHigh: computed(function() {
           return [];
         }),
 
-        metricsLow: computed(() => {
+        metricsLow: computed(function() {
           return [];
         }),
 

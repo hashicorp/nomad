@@ -28,7 +28,9 @@ export default Service.extend({
   // A read-only way of getting a reference to the registry.
   // Since this could be overwritten by a bad actor, it isn't
   // used in getTracker
-  registryRef: computed(() => registry),
+  registryRef: computed(function() {
+    return registry;
+  }),
 
   getTracker(resource) {
     if (!resource) return;
