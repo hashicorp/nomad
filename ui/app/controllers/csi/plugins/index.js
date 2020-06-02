@@ -30,8 +30,12 @@ export default Controller.extend(
     currentPage: 1,
     pageSize: readOnly('userSettings.pageSize'),
 
-    searchProps: computed(() => ['id']),
-    fuzzySearchProps: computed(() => ['id']),
+    searchProps: computed(function() {
+      return ['id'];
+    }),
+    fuzzySearchProps: computed(function() {
+      return ['id'];
+    }),
 
     sortProperty: 'id',
     sortDescending: false,

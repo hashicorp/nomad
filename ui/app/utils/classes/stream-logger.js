@@ -8,9 +8,11 @@ import { fetchFailure } from './log';
 export default EmberObject.extend(AbstractLogger, {
   reader: null,
 
-  additionalParams: computed(() => ({
-    follow: true,
-  })),
+  additionalParams: computed(function() {
+    return {
+      follow: true,
+    };
+  }),
 
   start() {
     return this.poll.perform();

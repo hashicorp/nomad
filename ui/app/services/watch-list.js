@@ -6,7 +6,9 @@ import Service from '@ember/service';
 let list = {};
 
 export default Service.extend({
-  _list: computed(() => copy(list, true)),
+  _list: computed(function() {
+    return copy(list, true);
+  }),
 
   list: readOnly('_list'),
 

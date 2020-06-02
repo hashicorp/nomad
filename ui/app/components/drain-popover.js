@@ -27,14 +27,16 @@ export default Component.extend({
   durationIsCustom: equal('selectedDurationQuickOption.value', 'custom'),
   customDuration: '',
 
-  durationQuickOptions: computed(() => [
-    { label: '1 Hour', value: '1h' },
-    { label: '4 Hours', value: '4h' },
-    { label: '8 Hours', value: '8h' },
-    { label: '12 Hours', value: '12h' },
-    { label: '1 Day', value: '1d' },
-    { label: 'Custom', value: 'custom' },
-  ]),
+  durationQuickOptions: computed(function() {
+    return [
+      { label: '1 Hour', value: '1h' },
+      { label: '4 Hours', value: '4h' },
+      { label: '8 Hours', value: '8h' },
+      { label: '12 Hours', value: '12h' },
+      { label: '1 Day', value: '1d' },
+      { label: 'Custom', value: 'custom' },
+    ];
+  }),
 
   deadline: computed(
     'deadlineEnabled',

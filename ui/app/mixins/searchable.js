@@ -25,7 +25,9 @@ import Fuse from 'fuse.js';
 // eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   searchTerm: '',
-  listToSearch: computed(() => []),
+  listToSearch: computed(function() {
+    return [];
+  }),
 
   searchProps: null,
   exactMatchSearchProps: reads('searchProps'),

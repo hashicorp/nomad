@@ -35,7 +35,9 @@ export default Controller.extend(
     sortProperty: 'modifyIndex',
     sortDescending: true,
 
-    searchProps: computed(() => ['id', 'name', 'datacenter']),
+    searchProps: computed(function() {
+      return ['id', 'name', 'datacenter'];
+    }),
 
     qpClass: '',
     qpState: '',
@@ -60,13 +62,15 @@ export default Controller.extend(
       return classes.sort().map(dc => ({ key: dc, label: dc }));
     }),
 
-    optionsState: computed(() => [
-      { key: 'initializing', label: 'Initializing' },
-      { key: 'ready', label: 'Ready' },
-      { key: 'down', label: 'Down' },
-      { key: 'ineligible', label: 'Ineligible' },
-      { key: 'draining', label: 'Draining' },
-    ]),
+    optionsState: computed(function() {
+      return [
+        { key: 'initializing', label: 'Initializing' },
+        { key: 'ready', label: 'Ready' },
+        { key: 'down', label: 'Down' },
+        { key: 'ineligible', label: 'Ineligible' },
+        { key: 'draining', label: 'Draining' },
+      ];
+    }),
 
     optionsDatacenter: computed('nodes.[]', function() {
       const datacenters = Array.from(new Set(this.nodes.mapBy('datacenter'))).compact();

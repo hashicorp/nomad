@@ -32,8 +32,12 @@ export default Controller.extend(Sortable, Searchable, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
-  searchProps: computed(() => ['id', 'name']),
-  fuzzySearchProps: computed(() => ['name']),
+  searchProps: computed(function() {
+    return ['id', 'name'];
+  }),
+  fuzzySearchProps: computed(function() {
+    return ['name'];
+  }),
   fuzzySearchEnabled: true,
 
   qpType: '',
@@ -46,19 +50,23 @@ export default Controller.extend(Sortable, Searchable, {
   selectionDatacenter: selection('qpDatacenter'),
   selectionPrefix: selection('qpPrefix'),
 
-  optionsType: computed(() => [
-    { key: 'batch', label: 'Batch' },
-    { key: 'parameterized', label: 'Parameterized' },
-    { key: 'periodic', label: 'Periodic' },
-    { key: 'service', label: 'Service' },
-    { key: 'system', label: 'System' },
-  ]),
+  optionsType: computed(function() {
+    return [
+      { key: 'batch', label: 'Batch' },
+      { key: 'parameterized', label: 'Parameterized' },
+      { key: 'periodic', label: 'Periodic' },
+      { key: 'service', label: 'Service' },
+      { key: 'system', label: 'System' },
+    ];
+  }),
 
-  optionsStatus: computed(() => [
-    { key: 'pending', label: 'Pending' },
-    { key: 'running', label: 'Running' },
-    { key: 'dead', label: 'Dead' },
-  ]),
+  optionsStatus: computed(function() {
+    return [
+      { key: 'pending', label: 'Pending' },
+      { key: 'running', label: 'Running' },
+      { key: 'dead', label: 'Dead' },
+    ];
+  }),
 
   optionsDatacenter: computed('visibleJobs.[]', function() {
     const flatten = (acc, val) => acc.concat(val);
