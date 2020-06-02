@@ -76,6 +76,7 @@ export default Controller.extend(Sortable, Searchable, {
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
     scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpDatacenter',
         serialize(intersection(availableDatacenters, this.selectionDatacenter))
@@ -112,6 +113,7 @@ export default Controller.extend(Sortable, Searchable, {
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
       this.set('qpPrefix', serialize(intersection(availablePrefixes, this.selectionPrefix)));
     });
 
