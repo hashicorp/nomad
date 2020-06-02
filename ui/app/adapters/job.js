@@ -3,9 +3,9 @@ import addToPath from 'nomad-ui/utils/add-to-path';
 import WithNamespaceIDs from 'nomad-ui/mixins/with-namespace-ids';
 
 export default Watchable.extend(WithNamespaceIDs, {
-  relationshipFallbackLinks: {
+  relationshipFallbackLinks: Object.freeze({
     summary: '/summary',
-  },
+  }),
 
   fetchRawDefinition(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');

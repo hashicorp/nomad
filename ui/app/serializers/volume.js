@@ -6,7 +6,7 @@ export default ApplicationSerializer.extend({
     externalId: 'ExternalID',
   },
 
-  embeddedRelationships: ['writeAllocations', 'readAllocations'],
+  embeddedRelationships: Object.freeze(['writeAllocations', 'readAllocations']),
 
   // Volumes treat Allocations as embedded records. Ember has an
   // EmbeddedRecords mixin, but it assumes an application is using

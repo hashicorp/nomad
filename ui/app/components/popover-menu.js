@@ -12,7 +12,7 @@ const FOCUSABLE = [
 ].join(', ');
 
 export default Component.extend({
-  classnames: ['popover'],
+  classNames: ['popover'],
 
   triggerClass: '',
   isOpen: false,

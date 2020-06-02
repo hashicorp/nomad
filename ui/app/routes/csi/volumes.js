@@ -7,12 +7,12 @@ export default Route.extend(WithForbiddenState, {
   system: service(),
   store: service(),
 
-  breadcrumbs: [
+  breadcrumbs: Object.freeze([
     {
       label: 'Storage',
       args: ['csi.index'],
     },
-  ],
+  ]),
 
   queryParams: {
     volumeNamespace: {

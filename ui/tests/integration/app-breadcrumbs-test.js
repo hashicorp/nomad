@@ -11,7 +11,10 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
 
   hooks.beforeEach(function() {
     const mockBreadcrumbs = Service.extend({
-      breadcrumbs: [],
+      init() {
+        this._super(...arguments);
+        this.breadcrumbs = [];
+      },
     });
 
     this.owner.register('service:breadcrumbs', mockBreadcrumbs);

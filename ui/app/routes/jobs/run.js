@@ -6,12 +6,12 @@ export default Route.extend({
   store: service(),
   system: service(),
 
-  breadcrumbs: [
+  breadcrumbs: Object.freeze([
     {
       label: 'Run',
       args: ['jobs.run'],
     },
-  ],
+  ]),
 
   beforeModel() {
     if (this.can.cannot('run job')) {

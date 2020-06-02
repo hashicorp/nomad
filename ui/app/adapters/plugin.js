@@ -1,7 +1,7 @@
 import Watchable from './watchable';
 
 export default Watchable.extend({
-  queryParamsToAttrs: {
+  queryParamsToAttrs: Object.freeze({
     type: 'type',
-  },
+  }),
 });
