@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';

@@ -17,23 +17,25 @@ export default Component.extend(WindowResizable, {
       return;
     }
 
-    run.scheduleOnce('actions', () => {
-      switch (this.mode) {
-        case 'head':
-          this.head.perform();
-          break;
-        case 'tail':
-          this.tail.perform();
-          break;
-        case 'streaming':
-          if (this.isStreaming) {
-            this.stream.perform();
-          } else {
-            this.logger.stop();
-          }
-          break;
-      }
-    });
+    run.scheduleOnce('actions', this, this.performTask);
+  },
+
+  performTask() {
+    switch (this.mode) {
+      case 'head':
+        this.head.perform();
+        break;
+      case 'tail':
+        this.tail.perform();
+        break;
+      case 'streaming':
+        if (this.isStreaming) {
+          this.stream.perform();
+        } else {
+          this.logger.stop();
+        }
+        break;
+    }
   },
 
   didInsertElement() {
@@ -54,17 +56,16 @@ export default Component.extend(WindowResizable, {
 
   head: task(function*() {
     yield this.get('logger.gotoHead').perform();
-    run.scheduleOnce('afterRender', () => {
-      this.element.scrollTop = 0;
-    });
+    run.scheduleOnce('afterRender', this, this.scrollToTop);
   }),
+
+  scrollToTop() {
+    this.element.scrollTop = 0;
+  },
 
   tail: task(function*() {
     yield this.get('logger.gotoTail').perform();
-    run.scheduleOnce('afterRender', () => {
-      const cliWindow = this.element;
-      cliWindow.scrollTop = cliWindow.scrollHeight;
-    });
+    run.scheduleOnce('afterRender', this, this.synchronizeScrollPosition, [true]);
   }),
 
   synchronizeScrollPosition(force = false) {
@@ -78,7 +79,7 @@ export default Component.extend(WindowResizable, {
   stream: task(function*() {
     // Force the scroll position to the bottom of the window when starting streaming
     this.logger.one('tick', () => {
-      run.scheduleOnce('afterRender', () => this.synchronizeScrollPosition(true));
+      run.scheduleOnce('afterRender', this.synchronizeScrollPosition, [true]);
     });
 
     // Follow the log if the scroll position is near the bottom of the cli window
@@ -89,7 +90,7 @@ export default Component.extend(WindowResizable, {
   }),
 
   scheduleScrollSynchronization() {
-    run.scheduleOnce('afterRender', () => this.synchronizeScrollPosition());
+    run.scheduleOnce('afterRender', this, this.synchronizeScrollPosition);
   },
 
   willDestroy() {
