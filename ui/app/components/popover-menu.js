@@ -31,10 +31,12 @@ export default Component.extend({
   didReceiveAttrs() {
     const dropdown = this.dropdown;
     if (this.isOpen && dropdown) {
-      run.scheduleOnce('afterRender', () => {
-        dropdown.actions.reposition();
-      });
+      run.scheduleOnce('afterRender', this, this.repositionDropdown);
     }
+  },
+
+  repositionDropdown() {
+    this.dropdown.actions.reposition();
   },
 
   actions: {

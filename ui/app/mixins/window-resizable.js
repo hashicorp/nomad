@@ -10,11 +10,13 @@ export default Mixin.create({
   },
 
   setupWindowResize: on('didInsertElement', function() {
-    run.scheduleOnce('afterRender', this, () => {
-      this.set('_windowResizeHandler', this.windowResizeHandler.bind(this));
-      window.addEventListener('resize', this._windowResizeHandler);
-    });
+    run.scheduleOnce('afterRender', this, this.addResizeListener);
   }),
+
+  addResizeListener() {
+    this.set('_windowResizeHandler', this.windowResizeHandler.bind(this));
+    window.addEventListener('resize', this._windowResizeHandler);
+  },
 
   removeWindowResize: on('willDestroyElement', function() {
     window.removeEventListener('resize', this._windowResizeHandler);
