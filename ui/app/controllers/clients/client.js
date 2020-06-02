@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-observers */
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { computed, observer } from '@ember/object';
