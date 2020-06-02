@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-observers */
 import Component from '@ember/component';
 import { computed, observer } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
