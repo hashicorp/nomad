@@ -39,14 +39,13 @@ export default Controller.extend(SortableFactory(['updateTime', 'healthy']), {
     { key: 'false', label: 'Unhealthy' },
   ]),
 
-  combinedAllocations: computed('model.controllers.[]', 'model.nodes.[]', function() {
+  combinedAllocations: computed('model.{controllers.[],nodes.[]}', function() {
     return this.model.controllers.toArray().concat(this.model.nodes.toArray());
   }),
 
   filteredAllocations: computed(
     'combinedAllocations.[]',
-    'model.controllers.[]',
-    'model.nodes.[]',
+    'model.{controllers.[],nodes.[]}',
     'selectionType',
     'selectionHealth',
     function() {

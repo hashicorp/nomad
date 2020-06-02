@@ -43,14 +43,12 @@ export default Controller.extend({
   allocations: alias('model.allocations'),
 
   taskState: computed(
-    'allocations.[]',
+    'allocations.{[],@each.isActive}',
     'allocationShortId',
-    'allocations.@each.isActive',
     'taskName',
     'taskGroupName',
     'allocation',
-    'allocation.states.@each.name',
-    'allocation.states.@each.isRunning',
+    'allocation.states.@each.{name,isRunning}',
     function() {
       if (!this.allocations) {
         return false;

@@ -61,8 +61,7 @@ export default Model.extend({
     'type',
     'periodic',
     'parameterized',
-    'parent.periodic',
-    'parent.parameterized',
+    'parent.{periodic,parameterized}',
     function() {
       const type = this.type;
 
@@ -149,7 +148,7 @@ export default Model.extend({
 
   hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
 
-  latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
+  latestEvaluation: computed('evaluations.{@each.modifyIndex,isPending}', function() {
     const evaluations = this.evaluations;
     if (!evaluations || evaluations.get('isPending')) {
       return null;
@@ -157,23 +156,19 @@ export default Model.extend({
     return evaluations.sortBy('modifyIndex').get('lastObject');
   }),
 
-  latestFailureEvaluation: computed(
-    'evaluations.@each.modifyIndex',
-    'evaluations.isPending',
-    function() {
-      const evaluations = this.evaluations;
-      if (!evaluations || evaluations.get('isPending')) {
-        return null;
-      }
-
-      const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
-      if (failureEvaluations) {
-        return failureEvaluations.sortBy('modifyIndex').get('lastObject');
-      }
-
-      return;
+  latestFailureEvaluation: computed('evaluations.{@each.modifyIndex,isPending}', function() {
+    const evaluations = this.evaluations;
+    if (!evaluations || evaluations.get('isPending')) {
+      return null;
     }
-  ),
+
+    const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
+    if (failureEvaluations) {
+      return failureEvaluations.sortBy('modifyIndex').get('lastObject');
+    }
+
+    return;
+  }),
 
   supportsDeployments: equal('type', 'service'),
 
