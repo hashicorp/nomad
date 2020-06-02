@@ -72,6 +72,8 @@ export default Controller.extend({
       if (allocation) {
         return allocation.states.find(state => state.name === this.taskName);
       }
+
+      return;
     }
   ),
 
