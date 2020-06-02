@@ -24,6 +24,8 @@ export default Component.extend({
     if (metric === 'cpu' || metric === 'memory') {
       return this[this.metric];
     }
+
+    return;
   }),
 
   formattedStat: computed('metric', 'stat.used', function() {
@@ -39,6 +41,7 @@ export default Component.extend({
     function() {
       if (this.metric === 'memory') return `${this.statsTracker.reservedMemory} MiB`;
       if (this.metric === 'cpu') return `${this.statsTracker.reservedCPU} MHz`;
+      return;
     }
   ),
 });

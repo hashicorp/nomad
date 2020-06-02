@@ -64,6 +64,8 @@ export default Component.extend({
     } else if (this.mode === 'head' || this.mode === 'tail') {
       return 'readat';
     }
+
+    return;
   }),
 
   fileUrl: computed(

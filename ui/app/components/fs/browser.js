@@ -19,6 +19,8 @@ export default Component.extend({
     if (this.model.allocation) {
       return this.model;
     }
+
+    return;
   }),
 
   type: computed('taskState', function() {
@@ -53,5 +55,4 @@ export default Component.extend({
       }
     }
   ),
-
 });
