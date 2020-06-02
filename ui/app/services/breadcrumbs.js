@@ -9,7 +9,7 @@ export default Service.extend({
   // currentRouteName has all information necessary to compute breadcrumbs,
   // but it doesn't change when a transition to the same route with a different
   // model occurs.
-  breadcrumbs: computed('router.currentURL', 'router.currentRouteName', function() {
+  breadcrumbs: computed('router.{currentURL,currentRouteName}', function() {
     const owner = getOwner(this);
     const allRoutes = (this.get('router.currentRouteName') || '')
       .split('.')
