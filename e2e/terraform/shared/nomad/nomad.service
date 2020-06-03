@@ -13,12 +13,9 @@ LimitNPROC=infinity
 TasksMax=infinity
 Restart=on-failure
 RestartSec=2
-
-# systemd>=230 prefer StartLimitIntervalSec,StartLimitBurst in Unit,
-# however Ubuntu 16.04 only has systemd==229. Use these old style settings
-# as they will be supported by newer systemds.
+StartLimitIntervalSec=10
 StartLimitBurst=3
-StartLimitInterval=10
+
 
 [Install]
 WantedBy=multi-user.target

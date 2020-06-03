@@ -136,9 +136,9 @@ ssh into nodes with:
 ssh -i keys/${local.random_name}.pem ubuntu@${aws_instance.server[0].public_ip}
 
 # clients
-%{ for ip in aws_instance.client_linux.*.public_ip ~}
+%{for ip in aws_instance.client_linux.*.public_ip~}
 ssh -i keys/${local.random_name}.pem ubuntu@${ip}
-%{ endfor ~}
+%{endfor~}
 ```
 EOM
 
