@@ -2846,8 +2846,8 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			require.Equal(t, h.Evals[0].Status, structs.EvalStatusComplete)
 			require.Len(t, h.Plans, 1, "plan")
 
-			// Followup eval created
-			require.True(t, len(h.CreateEvals) > 0)
+			// One followup eval created, either delayed or blocked
+			require.Len(t, h.CreateEvals, 1)
 			e := h.CreateEvals[0]
 			require.Equal(t, eval.ID, e.PreviousEval)
 

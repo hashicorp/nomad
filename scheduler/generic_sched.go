@@ -87,6 +87,8 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
+	// followUpEvals are evals with WaitUntil set, which are delayed until that time
+	// before being rescheduled
 	followUpEvals []*structs.Evaluation
 
 	deployment *structs.Deployment
@@ -258,11 +260,13 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// If there are failed allocations, we need to create a blocked evaluation
 	// to place the failed allocations when resources become available. If the
-	// current evaluation is already a blocked eval, we reuse it by submitting
-	// a new eval to the planner in createBlockedEval. If the current eval is
-	// pending with WaitUntil set, it's delayed rather than blocked.
+	// current evaluation is already a blocked eval, we reuse it. If not, submit
+	// a new eval to the planner in createBlockedEval. If rescheduling should
+	// be delayed, do that instead.
+	delayInstead := len(s.followUpEvals) > 0 && s.eval.WaitUntil.IsZero()
+
 	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil &&
-		s.eval.WaitUntil.IsZero() {
+		!delayInstead {
 		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Error("failed to make blocked eval", "error", err)
 			return false, err
@@ -276,8 +280,9 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// Create follow up evals for any delayed reschedule eligible allocations
-	if len(s.followUpEvals) > 0 {
+	// Create follow up evals for any delayed reschedule eligible allocations, except in
+	// the case that this evaluation was already delayed.
+	if delayInstead {
 		for _, eval := range s.followUpEvals {
 			eval.PreviousEval = s.eval.ID
 			// TODO(preetha) this should be batching evals before inserting them

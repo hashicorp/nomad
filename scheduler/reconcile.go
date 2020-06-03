@@ -355,17 +355,11 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
-	rescheduleLater = append(rescheduleLater, lostLater...)
+	a.handleDelayedLost(lostLater, all, tg.Name)
 
 	// Create batched follow up evaluations for allocations that are
 	// reschedulable later and mark the allocations for in place updating
 	a.handleDelayedReschedules(rescheduleLater, all, tg.Name)
-
-	// Allocs that are lost and delayed have an attributeUpdate that correctly links to
-	// the eval, but incorrectly has the current (running) status
-	for _, d := range lostLater {
-		a.result.attributeUpdates[d.allocID].SetStop(structs.AllocClientStatusLost, structs.AllocClientStatusLost)
-	}
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
@@ -423,7 +417,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// * The deployment is not paused or failed
 	// * Not placing any canaries
 	// * If there are any canaries that they have been promoted
-	// * There is no delayed stop_after_client_disconnect alloc
+	// * There is no delayed stop_after_client_disconnect alloc, which delays scheduling for the whole group
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
 		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow)
@@ -845,6 +839,17 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 // handleDelayedReschedules creates batched followup evaluations with the WaitUntil field set
 // for allocations that are eligible to be rescheduled later
 func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+	a.handleDelayedReschedulesImpl(rescheduleLater, all, tgName, true)
+}
+
+// handleDelayedLost creates batched followup evaluations with the WaitUntil field set for lost allocations
+func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+	a.handleDelayedReschedulesImpl(rescheduleLater, all, tgName, false)
+}
+
+// handleDelayedReschedulesImpl creates batched followup evaluations with the WaitUntil field set
+func (a *allocReconciler) handleDelayedReschedulesImpl(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string,
+	createUpdates bool) {
 	if len(rescheduleLater) == 0 {
 		return
 	}
@@ -905,10 +910,12 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 	}
 
 	// Create in-place updates for every alloc ID that needs to be updated with its follow up eval ID
-	for allocID, evalID := range allocIDToFollowupEvalID {
-		existingAlloc := all[allocID]
-		updatedAlloc := existingAlloc.Copy()
-		updatedAlloc.FollowupEvalID = evalID
-		a.result.attributeUpdates[updatedAlloc.ID] = updatedAlloc
+	if createUpdates {
+		for allocID, evalID := range allocIDToFollowupEvalID {
+			existingAlloc := all[allocID]
+			updatedAlloc := existingAlloc.Copy()
+			updatedAlloc.FollowupEvalID = evalID
+			a.result.attributeUpdates[updatedAlloc.ID] = updatedAlloc
+		}
 	}
 }
