@@ -1,6 +1,6 @@
 <HeadLayout />
 {{title (if system.shouldShowRegions (concat system.activeRegion " - ")) "Nomad" separator=" - "}}
-{{partial "svg-patterns"}}
+<SvgPatterns />
 {{#unless error}}
   {{outlet}}
 {{else}}
