@@ -16,6 +16,15 @@ client {
   }
 }
 
+plugin_dir = "/opt/nomad/plugins"
+plugin "nomad-driver-podman" {
+  config {
+    volumes {
+      enabled = true
+    }
+  }
+}
+
 vault {
   enabled = true
   address = "http://active.vault.service.consul:8200"

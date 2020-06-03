@@ -4,17 +4,17 @@ set -e
 
 # Disable interactive apt prompts
 export DEBIAN_FRONTEND=noninteractive
+echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+
 
 sudo mkdir -p /ops/shared
 sudo chown -R ubuntu:ubuntu /ops/shared
-
 cd /ops
 
 CONSULVERSION=1.7.3
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
-
 VAULTVERSION=1.1.1
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
@@ -25,15 +25,16 @@ NOMADVERSION=0.9.1
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
+NOMADPLUGINDIR=/opt/nomad/plugins
 
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq curl tmux awscli nfs-common
+sudo apt-get install -y dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common
 
 # Numpy (for Spark)
 sudo apt-get install -y python-setuptools
-sudo easy_install pip
+sudo python /usr/lib/python2.7/dist-packages/easy_install.py pip
 sudo pip install numpy
 
 # Install sockaddr
@@ -80,6 +81,8 @@ sudo mkdir -p $NOMADCONFIGDIR
 sudo chmod 755 $NOMADCONFIGDIR
 sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
+sudo mkdir -p $NOMADPLUGINDIR
+sudo chmod 755 $NOMADPLUGINDIR
 
 echo "Install Docker"
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
@@ -107,6 +110,48 @@ HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
 sudo mkdir -p "$HADOOPCONFIGDIR"
 
 wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/
+
+echo "Install Podman"
+. /etc/os-release
+sudo sh -c "echo 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
+curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
+sudo apt-get update -qq
+sudo apt-get -qq -y install podman 
+
+# get catatonit (to check podman --init switch)
+cd /tmp
+wget https://github.com/openSUSE/catatonit/releases/download/v0.1.4/catatonit.x86_64
+mkdir -p /usr/libexec/podman
+sudo mv catatonit* /usr/libexec/podman/catatonit
+sudo chmod +x /usr/libexec/podman/catatonit
+
+echo "Install podman task driver"
+# install nomad-podman-driver and move to plugin dir
+wget -P /tmp https://github.com/pascomnet/nomad-driver-podman/releases/download/v0.0.3/nomad-driver-podman_linux_amd64.tar.gz 
+sudo tar -xf /tmp/nomad-driver-podman_linux_amd64.tar.gz -C /tmp
+sudo mv /tmp/nomad-driver-podman/nomad-driver-podman $NOMADPLUGINDIR
+sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
+
+# disable systemd-resolved and configure dnsmasq
+# to forward local requests to consul
+sudo systemctl disable systemd-resolved.service
+sudo rm /etc/resolv.conf
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+echo '
+port=53
+resolv-file=/var/run/dnsmasq/resolv.conf
+bind-interfaces
+listen-address=127.0.0.1
+server=/consul/127.0.0.1#8600
+' | sudo tee /etc/dnsmasq.d/default
+
+# add our hostname to etc/hosts
+echo "127.0.0.1 $(hostname)" | sudo tee -a /etc/hosts
+sudo systemctl restart dnsmasq
+
+# enable cgroup_memory and swap
+sudo sed -i 's/GRUB_CMDLINE_LINUX="[^"]*/& cgroup_enable=memory swapaccount=1/' /etc/default/grub
+sudo update-grub
 
 # note this 'EOF' syntax avoids expansion in the heredoc
 sudo tee "$HADOOPCONFIGDIR/core-site.xml" << 'EOF'

@@ -6,7 +6,7 @@ After=network-online.target
 [Service]
 Restart=on-failure
 Environment=CONSUL_ALLOW_PRIVILEGED_PORTS=true
-ExecStart=/usr/local/bin/consul agent -config-dir="/etc/consul.d" -dns-port="53" -recursor="172.31.0.2"
+ExecStart=/usr/local/bin/consul agent -config-dir="/etc/consul.d" -recursor="172.31.0.2"
 ExecReload=/bin/kill -HUP $MAINPID
 KillSignal=SIGTERM
 User=root

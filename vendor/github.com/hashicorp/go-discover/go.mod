@@ -56,6 +56,7 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go v3.0.83+incompatible
 	github.com/tent/http-link-go v0.0.0-20130702225549-ac974c61c2f9 // indirect
 	github.com/vmware/govmomi v0.18.0
+	golang.org/x/crypto v0.0.0-20181029021203-45a5f77698d3
 	golang.org/x/oauth2 v0.0.0-20170807180024-9a379c6b3e95
 	golang.org/x/text v0.3.0 // indirect
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
