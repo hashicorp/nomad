@@ -45,8 +45,6 @@ endif
 ifeq (Darwin,$(THIS_OS))
 ALL_TARGETS += darwin_amd64
 # Copy CGO files for darwin into place
-#   TODO(shoenig) remove pending github.com/shirou/gopsutil/pull/885
-$(shell cp -R lib/darwin/include vendor/github.com/shirou/gopsutil/host)
 endif
 
 # On FreeBSD, we only build for FreeBSD
