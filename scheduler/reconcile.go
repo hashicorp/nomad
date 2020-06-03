@@ -910,12 +910,17 @@ func (a *allocReconciler) handleDelayedReschedulesImpl(rescheduleLater []*delaye
 	}
 
 	// Create in-place updates for every alloc ID that needs to be updated with its follow up eval ID
-	if createUpdates {
-		for allocID, evalID := range allocIDToFollowupEvalID {
+	for allocID, evalID := range allocIDToFollowupEvalID {
+		if createUpdates {
 			existingAlloc := all[allocID]
 			updatedAlloc := existingAlloc.Copy()
 			updatedAlloc.FollowupEvalID = evalID
 			a.result.attributeUpdates[updatedAlloc.ID] = updatedAlloc
+		} else {
+			// This alloc can just be modified in place. The lost alloc will be
+			// sent to the planner in NodeUpdate, and the planner will commit
+			// the alloc with it's FollowupEvalID as well as the lost status.
+			all[allocID].FollowupEvalID = evalID
 		}
 	}
 }
