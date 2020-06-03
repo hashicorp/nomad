@@ -60,7 +60,7 @@ func (h *heartbeatStop) shouldStop(alloc *structs.Allocation) bool {
 func (h *heartbeatStop) shouldStopAfter(now time.Time, interval time.Duration) bool {
 	lastOk := h.getLastOk()
 	if lastOk.IsZero() {
-		return h.startupGrace.After(now)
+		return now.After(h.startupGrace)
 	}
 	return now.After(lastOk.Add(interval))
 }
