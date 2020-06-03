@@ -212,18 +212,18 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocNotNeeded, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNotNeeded, "", "")
 	}
 
 	// Add all the allocs to migrate
 	for _, e := range diff.migrate {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocNodeTainted, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNodeTainted, "", "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range diff.lost {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost)
+		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost, "")
 	}
 
 	// Attempt to do the upgrades in place
