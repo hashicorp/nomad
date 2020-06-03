@@ -301,8 +301,8 @@ func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescript
 	}
 }
 
-// markDelayed does markStop, but included a FollowupEvalID so that we can update the
-// stopped alloc with it's delayed rescheduling evalID
+// markDelayed does markStop, but optionally includes a FollowupEvalID so that we can update
+// the stopped alloc with its delayed rescheduling evalID
 func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescription string, followupEvals map[string]string) {
 	for _, alloc := range allocs {
 		a.result.stop = append(a.result.stop, allocStopResult{
