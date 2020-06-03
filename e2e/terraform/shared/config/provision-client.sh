@@ -74,7 +74,7 @@ EOF
 cat > /etc/systemd/system/io.podman.socket << EOF
 [Unit]
 Description=Podman Remote API Socket
-Documentation=man:podman-varlink(1)
+Documentation=man:podman-varlink(1) https://podman.io/blogs/2019/01/16/podman-varlink.html
 
 [Socket]
 ListenStream=%t/podman/io.podman
