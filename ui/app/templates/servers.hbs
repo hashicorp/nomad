@@ -1,7 +1,7 @@
 <PageLayout>
   <section class="section">
     {{#if isForbidden}}
-      {{partial "partials/forbidden-message"}}
+      <ForbiddenMessage />
     {{else}}
       <ListPagination
         @source={{sortedAgents}}

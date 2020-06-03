@@ -5,9 +5,12 @@ import d3Format from 'd3-format';
 import d3Scale from 'd3-scale';
 import d3Array from 'd3-array';
 import LineChart from 'nomad-ui/components/line-chart';
+import layout from '../templates/components/line-chart';
 import formatDuration from 'nomad-ui/utils/format-duration';
 
 export default LineChart.extend({
+  layout,
+
   xProp: 'timestamp',
   yProp: 'percent',
   timeseries: true,

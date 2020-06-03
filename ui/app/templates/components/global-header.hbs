@@ -1,10 +1,10 @@
 <nav class="navbar is-primary">
   <div class="navbar-brand">
     <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
-      {{partial "partials/hamburger-menu"}}
+      <HamburgerMenu />
     </span>
     <LinkTo @route="jobs" class="navbar-item is-logo">
-      {{partial "partials/nomad-logo"}}
+      <NomadLogo />
     </LinkTo>
   </div>
   <div class="navbar-end">

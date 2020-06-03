@@ -1,5 +1,5 @@
 {{title "Job " job.name " versions"}}
-{{partial "jobs/job/subnav"}}
+<JobSubnav @job={{job}} />
 <section class="section">
   <JobVersionsStream @versions={{model.versions}} @verbose={{true}} />
 </section>
