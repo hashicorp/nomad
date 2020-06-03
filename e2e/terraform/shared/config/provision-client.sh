@@ -81,7 +81,7 @@ ListenStream=%t/podman/io.podman
 SocketMode=0600
 
 [Install]
-WantedBy=sockets.targett
+WantedBy=sockets.target
 EOF
 
 # enable as a systemd service

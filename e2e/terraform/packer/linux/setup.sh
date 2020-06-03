@@ -33,8 +33,7 @@ sudo apt-get update
 sudo apt-get install -y dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common
 
 # Numpy (for Spark)
-sudo apt-get install -y python-setuptools
-sudo python /usr/lib/python2.7/dist-packages/easy_install.py pip
+sudo apt-get install -y python-setuptools python-pip
 sudo pip install numpy
 
 # Install sockaddr
