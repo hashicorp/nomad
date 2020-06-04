@@ -82,6 +82,7 @@ func testPeriodicDispatcher(t *testing.T) (*PeriodicDispatch, *MockJobEvalDispat
 	logger := testlog.HCLogger(t)
 	m := NewMockJobEvalDispatcher()
 	d := NewPeriodicDispatch(logger, m)
+	t.Cleanup(func() { d.SetEnabled(false) })
 	d.SetEnabled(true)
 	return d, m
 }
