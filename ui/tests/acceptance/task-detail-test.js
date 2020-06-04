@@ -1,9 +1,10 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled, getSettledState } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import moment from 'moment';
+import { getWaiters } from 'ember-test-waiters';
 
 let allocation;
 let task;
@@ -70,11 +71,20 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
+    console.log('jobs job index?', Task.breadcrumbFor('jobs.job.index'));
     await Task.breadcrumbFor('jobs.job.index').visit();
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Job breadcrumb links correctly');
 
+    window.sss = settled;
+    window.gss = getSettledState;
+    window.gw = getWaiters;
     await Task.visit({ id: allocation.id, name: task.name });
+
+    // await this.pauseTest();
+    console.log('befor?', Task.breadcrumbFor('jobs.job.task-group'));
+    console.log('awaiting visit jobs.job.task-group');
     await Task.breadcrumbFor('jobs.job.task-group').visit();
+    console.log('waited?');
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/${taskGroup}`,
