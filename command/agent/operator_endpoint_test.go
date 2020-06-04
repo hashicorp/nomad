@@ -11,12 +11,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -389,14 +391,17 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 	})
 }
 
-func TestOperator_SnapshotSaveRequest(t *testing.T) {
+func TestOperator_SnapshotRequests(t *testing.T) {
 	t.Parallel()
 
-	////// Nomad clusters topology - not specific to test
 	dir, err := ioutil.TempDir("", "nomadtest-operator-")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
+	snapshotPath := filepath.Join(dir, "snapshot.bin")
+	job := mock.Job()
+
+	// test snapshot generation
 	httpTest(t, func(c *Config) {
 		c.Server.BootstrapExpect = 1
 		c.DevMode = false
@@ -404,10 +409,26 @@ func TestOperator_SnapshotSaveRequest(t *testing.T) {
 		c.AdvertiseAddrs.HTTP = "127.0.0.1"
 		c.AdvertiseAddrs.RPC = "127.0.0.1"
 		c.AdvertiseAddrs.Serf = "127.0.0.1"
+
+		// don't actually run the job
+		c.Client.Enabled = false
 	}, func(s *TestAgent) {
+		// make a simple update
+		jargs := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var jresp structs.JobRegisterResponse
+		err := s.Agent.RPC("Job.Register", &jargs, &jresp)
+		require.NoError(t, err)
+
+		// now actually snapshot
 		req, _ := http.NewRequest("GET", "/v1/operator/snapshot", nil)
 		resp := httptest.NewRecorder()
-		_, err := s.Server.SnapshotRequest(resp, req)
+		_, err = s.Server.SnapshotRequest(resp, req)
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.Code)
 
@@ -416,11 +437,52 @@ func TestOperator_SnapshotSaveRequest(t *testing.T) {
 		require.Contains(t, digest, "sha-256=")
 
 		hash := sha256.New()
-		_, err = io.Copy(hash, resp.Body)
+		f, err := os.Create(snapshotPath)
+		require.NoError(t, err)
+		defer f.Close()
+
+		_, err = io.Copy(io.MultiWriter(f, hash), resp.Body)
 		require.NoError(t, err)
 
 		expectedChecksum := "sha-256=" + base64.StdEncoding.EncodeToString(hash.Sum(nil))
 		require.Equal(t, digest, expectedChecksum)
+	})
+
+	// test snapshot restoration
+	httpTest(t, func(c *Config) {
+		c.Server.BootstrapExpect = 1
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server2")
+		c.AdvertiseAddrs.HTTP = "127.0.0.1"
+		c.AdvertiseAddrs.RPC = "127.0.0.1"
+		c.AdvertiseAddrs.Serf = "127.0.0.1"
+
+		// don't actually run the job
+		c.Client.Enabled = false
+	}, func(s *TestAgent) {
+		jobExists := func() bool {
+			// check job isn't present
+			req, _ := http.NewRequest("GET", "/v1/job/"+job.ID, nil)
+			resp := httptest.NewRecorder()
+			j, _ := s.Server.jobCRUD(resp, req, job.ID)
+			return j != nil
+		}
+
+		// job doesn't get initially
+		require.False(t, jobExists())
+
+		// restrore and check if job exists after
+		f, err := os.Open(snapshotPath)
+		require.NoError(t, err)
+		defer f.Close()
+
+		req, _ := http.NewRequest("PUT", "/v1/operator/snapshot", f)
+		resp := httptest.NewRecorder()
+		_, err = s.Server.SnapshotRequest(resp, req)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.Code)
+
+		require.True(t, jobExists())
 	})
 
 }

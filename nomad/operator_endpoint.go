@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
@@ -23,6 +25,7 @@ type Operator struct {
 
 func (op *Operator) register() {
 	op.srv.streamingRpcs.Register("Operator.SnapshotSave", op.snapshotSave)
+	op.srv.streamingRpcs.Register("Operator.SnapshotRestore", op.snapshotRestore)
 }
 
 // RaftGetConfiguration is used to retrieve the current Raft configuration.
@@ -459,8 +462,7 @@ func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
 	}
 	defer snap.Close()
 
-	enc := codec.NewEncoder(conn, structs.MsgpackHandle)
-	if err := enc.Encode(&reply); err != nil {
+	if err := encoder.Encode(&reply); err != nil {
 		handleFailure(500, fmt.Errorf("failed to encode response: %v", err))
 		return
 	}
@@ -469,4 +471,121 @@ func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
 			handleFailure(500, fmt.Errorf("failed to stream snapshot: %v", err))
 		}
 	}
+}
+
+func (op *Operator) snapshotRestore(conn io.ReadWriteCloser) {
+	defer conn.Close()
+
+	var args structs.SnapshotRestoreRequest
+	var reply structs.SnapshotRestoreResponse
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	handleFailure := func(code int, err error) {
+		encoder.Encode(&structs.SnapshotRestoreResponse{
+			ErrorCode: code,
+			ErrorMsg:  err.Error(),
+		})
+	}
+
+	if err := decoder.Decode(&args); err != nil {
+		handleFailure(500, err)
+		return
+	}
+
+	// Forward to appropriate region
+	if args.Region != op.srv.Region() {
+		err := op.forwardStreamingRPC(args.Region, "Operator.SnapshotRestore", args, conn)
+		if err != nil {
+			handleFailure(500, err)
+		}
+		return
+	}
+
+	// forward to leader
+	remoteServer, err := op.srv.getLeaderForRPC()
+	if err != nil {
+		handleFailure(500, err)
+		return
+	}
+	if remoteServer != nil {
+		err := op.forwardStreamingRPCToServer(remoteServer, "Operator.SnapshotRestore", args, conn)
+		if err != nil {
+			handleFailure(500, err)
+		}
+		return
+
+	}
+
+	// Check agent permissions
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
+		code := 500
+		if err == structs.ErrTokenNotFound {
+			code = 400
+		}
+		handleFailure(code, err)
+		return
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		handleFailure(403, structs.ErrPermissionDenied)
+		return
+	}
+
+	op.srv.setQueryMeta(&reply.QueryMeta)
+
+	reader, errCh := decodeStreamOutput(decoder)
+
+	err = snapshot.Restore(op.logger.Named("snapshot"), reader, op.srv.raft)
+	if err != nil {
+		handleFailure(500, fmt.Errorf("failed to restore from snapshot: %v", err))
+		return
+	}
+
+	err = <-errCh
+	if err != nil {
+		handleFailure(400, fmt.Errorf("failed to read stream: %v", err))
+		return
+	}
+
+	reply.Index, _ = op.srv.State().LatestIndex()
+	op.srv.setQueryMeta(&reply.QueryMeta)
+	encoder.Encode(reply)
+}
+
+func decodeStreamOutput(decoder *codec.Decoder) (io.Reader, <-chan error) {
+	pr, pw := io.Pipe()
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+
+		for {
+			var wrapper cstructs.StreamErrWrapper
+
+			err := decoder.Decode(&wrapper)
+			if err != nil {
+				pw.CloseWithError(fmt.Errorf("failed to decode input: %v", err))
+				errCh <- err
+				return
+			}
+
+			if len(wrapper.Payload) != 0 {
+				_, err = pw.Write(wrapper.Payload)
+				if err != nil {
+					pw.CloseWithError(err)
+					errCh <- err
+				}
+			}
+
+			if errW := wrapper.Error; errW != nil {
+				if errW.Message == io.EOF.Error() {
+					pw.CloseWithError(io.EOF)
+				} else {
+					pw.CloseWithError(errors.New(errW.Message))
+				}
+				return
+			}
+		}
+	}()
+
+	return pr, errCh
 }

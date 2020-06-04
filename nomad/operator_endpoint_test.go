@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -709,6 +710,257 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 			require.NotZero(t, resp.Index)
 			require.NotEmpty(t, resp.SnapshotChecksum)
 			require.Contains(t, resp.SnapshotChecksum, "sha-256=")
+
+			io.Copy(ioutil.Discard, p1)
+		})
+	}
+}
+
+func TestOperator_SnapshotRestore(t *testing.T) {
+	targets := []string{"leader", "non_leader", "remote_region"}
+
+	for _, c := range targets {
+		t.Run(c, func(t *testing.T) {
+			snap, job := generateSnapshot(t)
+
+			checkFn := func(t *testing.T, s *Server) {
+				found, err := s.State().JobByID(nil, job.Namespace, job.ID)
+				require.NoError(t, err)
+				require.Equal(t, job.ID, found.ID)
+			}
+
+			var req structs.SnapshotRestoreRequest
+			req.Region = "global"
+			testRestoreSnapshot(t, &req, snap, c, checkFn)
+		})
+	}
+}
+
+func generateSnapshot(t *testing.T) (*snapshot.Snapshot, *structs.Job) {
+	dir, err := ioutil.TempDir("", "nomadtest-operator-")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+
+	s, cleanup := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 1
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server1")
+	})
+	defer cleanup()
+
+	job := mock.Job()
+	jobReq := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var jobResp structs.JobRegisterResponse
+	codec := rpcClient(t, s)
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
+	require.NoError(t, err)
+
+	err = s.State().UpsertJob(1000, job)
+	require.NoError(t, err)
+
+	snapshot, err := snapshot.New(s.logger, s.raft)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { snapshot.Close() })
+
+	return snapshot, job
+}
+
+func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snapshot io.Reader, target string,
+	assertionFn func(t *testing.T, server *Server)) {
+
+	////// Nomad clusters topology - not specific to test
+	dir, err := ioutil.TempDir("", "nomadtest-operator-")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	server1, cleanupLS := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server1")
+	})
+	defer cleanupLS()
+
+	server2, cleanupRS := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "server2")
+	})
+	defer cleanupRS()
+
+	remoteRegionServer, cleanupRRS := TestServer(t, func(c *Config) {
+		c.Region = "two"
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "remote_region_server")
+	})
+	defer cleanupRRS()
+
+	TestJoin(t, server1, server2)
+	TestJoin(t, server1, remoteRegionServer)
+	testutil.WaitForLeader(t, server1.RPC)
+	testutil.WaitForLeader(t, server2.RPC)
+	testutil.WaitForLeader(t, remoteRegionServer.RPC)
+
+	leader, nonLeader := server1, server2
+	if server2.IsLeader() {
+		leader, nonLeader = server2, server1
+	}
+
+	/////////  Actually run query now
+	mapping := map[string]*Server{
+		"leader":        leader,
+		"non_leader":    nonLeader,
+		"remote_region": remoteRegionServer,
+	}
+
+	server := mapping[target]
+	require.NotNil(t, server, "target not found")
+
+	handler, err := server.StreamingRpcHandler("Operator.SnapshotRestore")
+	require.NoError(t, err)
+
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	// start handler
+	go handler(p2)
+
+	var resp structs.SnapshotRestoreResponse
+
+	// send request
+	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+	err = encoder.Encode(req)
+	require.NoError(t, err)
+
+	buf := make([]byte, 1024)
+	for {
+		n, err := snapshot.Read(buf)
+		if n > 0 {
+			require.NoError(t, encoder.Encode(&cstructs.StreamErrWrapper{Payload: buf[:n]}))
+		}
+		if err != nil {
+			require.NoError(t, encoder.Encode(&cstructs.StreamErrWrapper{Error: &cstructs.RpcError{Message: err.Error()}}))
+			break
+		}
+	}
+
+	decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+	err = decoder.Decode(&resp)
+	require.NoError(t, err)
+	require.Empty(t, resp.ErrorMsg)
+
+	t.Run("checking leader state", func(t *testing.T) {
+		assertionFn(t, leader)
+	})
+
+	t.Run("checking nonleader state", func(t *testing.T) {
+		assertionFn(t, leader)
+	})
+}
+
+func TestOperator_SnapshotRestore_ACL(t *testing.T) {
+	t.Parallel()
+
+	dir, err := ioutil.TempDir("", "nomadtest-operator-")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	/////////  Actually run query now
+	cases := []struct {
+		name    string
+		errCode int
+		err     error
+	}{
+		{"root", 0, nil},
+		{"no_permission_token", 403, structs.ErrPermissionDenied},
+		{"invalid token", 400, structs.ErrTokenNotFound},
+		{"unauthenticated", 403, structs.ErrPermissionDenied},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			snapshot, _ := generateSnapshot(t)
+
+			s, root, cleanupLS := TestACLServer(t, func(cfg *Config) {
+				cfg.BootstrapExpect = 1
+				cfg.DevMode = false
+				cfg.DataDir = path.Join(dir, "server_"+c.name)
+			})
+			defer cleanupLS()
+
+			testutil.WaitForLeader(t, s.RPC)
+
+			deniedToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+			token := ""
+			switch c.name {
+			case "root":
+				token = root.SecretID
+			case "no_permission_token":
+				token = deniedToken.SecretID
+			case "invalid token":
+				token = uuid.Generate()
+			case "unauthenticated":
+				token = ""
+			default:
+				t.Fatalf("unexpected case: %v", c.name)
+			}
+
+			handler, err := s.StreamingRpcHandler("Operator.SnapshotRestore")
+			require.NoError(t, err)
+
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			// start handler
+			go handler(p2)
+
+			var req structs.SnapshotRestoreRequest
+			var resp structs.SnapshotRestoreResponse
+
+			req.Region = "global"
+			req.AuthToken = token
+
+			// send request
+			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+			err = encoder.Encode(&req)
+			require.NoError(t, err)
+
+			if c.err == nil {
+				buf := make([]byte, 1024)
+				for {
+					n, err := snapshot.Read(buf)
+					if n > 0 {
+						require.NoError(t, encoder.Encode(&cstructs.StreamErrWrapper{Payload: buf[:n]}))
+					}
+					if err != nil {
+						require.NoError(t, encoder.Encode(&cstructs.StreamErrWrapper{Error: &cstructs.RpcError{Message: err.Error()}}))
+						break
+					}
+				}
+			}
+
+			decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+			err = decoder.Decode(&resp)
+			require.NoError(t, err)
+
+			// streaming errors appear as a response rather than a returned error
+			if c.err != nil {
+				require.Equal(t, c.err.Error(), resp.ErrorMsg)
+				require.Equal(t, c.errCode, resp.ErrorCode)
+				return
+
+			}
+
+			require.NotZero(t, resp.Index)
 
 			io.Copy(ioutil.Discard, p1)
 		})
