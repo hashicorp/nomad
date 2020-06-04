@@ -9460,7 +9460,7 @@ type Plan struct {
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
 // allocation may be optionally set by passing in a non-empty value.
-func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus string) {
+func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, followupEvalID string) {
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
 
@@ -9484,6 +9484,10 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus s
 	}
 
 	newAlloc.AppendState(AllocStateFieldClientStatus, clientStatus)
+
+	if followupEvalID != "" {
+		newAlloc.FollowupEvalID = followupEvalID
+	}
 
 	node := alloc.NodeID
 	existing := p.NodeUpdate[node]
@@ -9559,6 +9563,7 @@ func (p *Plan) NormalizeAllocations() {
 				ID:                 alloc.ID,
 				DesiredDescription: alloc.DesiredDescription,
 				ClientStatus:       alloc.ClientStatus,
+				FollowupEvalID:     alloc.FollowupEvalID,
 			}
 		}
 	}
