@@ -378,7 +378,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Handle the stop
 	for _, stop := range results.stop {
-		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus)
+		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus, stop.followupEvalID)
 	}
 
 	// Handle the in-place updates
@@ -476,7 +476,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
 			prevAllocation := missing.PreviousAllocation()
 			if stopPrevAlloc {
-				s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "")
+				s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "", "")
 			}
 
 			// Compute penalty nodes for rescheduled allocs
