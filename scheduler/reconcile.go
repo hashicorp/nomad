@@ -304,12 +304,17 @@ func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescript
 // markDelayed does markStop, but optionally includes a FollowupEvalID so that we can update
 // the stopped alloc with its delayed rescheduling evalID
 func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescription string, followupEvals map[string]string) {
+	var e string
 	for _, alloc := range allocs {
+		if followupEvals != nil {
+			e = followupEvals[alloc.ID]
+		}
+
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,
 			clientStatus:      clientStatus,
 			statusDescription: statusDescription,
-			followupEvalID:    followupEvals[alloc.ID],
+			followupEvalID:    e,
 		})
 	}
 }
@@ -849,20 +854,31 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	return
 }
 
-// handleDelayedReschedules creates batched followup evaluations with the WaitUntil field set
-// for allocations that are eligible to be rescheduled later
+// handleDelayedReschedules creates batched followup evaluations with the WaitUntil field
+// set for allocations that are eligible to be rescheduled later, and marks the alloc with
+// the followupEvalID
 func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
-	a.handleDelayedReschedulesImpl(rescheduleLater, all, tgName, true)
+	// followupEvals are created in the same way as for delayed lost allocs
+	allocIDToFollowupEvalID := a.handleDelayedLost(rescheduleLater, all, tgName)
+
+	// Initialize the annotations
+	if len(allocIDToFollowupEvalID) != 0 && a.result.attributeUpdates == nil {
+		a.result.attributeUpdates = make(map[string]*structs.Allocation)
+	}
+
+	// Create updates that will be applied to the allocs to mark the FollowupEvalID
+	for allocID, evalID := range allocIDToFollowupEvalID {
+		existingAlloc := all[allocID]
+		updatedAlloc := existingAlloc.Copy()
+		updatedAlloc.FollowupEvalID = evalID
+		a.result.attributeUpdates[updatedAlloc.ID] = updatedAlloc
+	}
 }
 
-// handleDelayedLost creates batched followup evaluations with the WaitUntil field set for lost allocations
+// handleDelayedLost creates batched followup evaluations with the WaitUntil field set for
+// lost allocations. followupEvals are appended to a.result as a side effect, we return a
+// map of alloc IDs to their followupEval IDs
 func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
-	return a.handleDelayedReschedulesImpl(rescheduleLater, all, tgName, false)
-}
-
-// handleDelayedReschedulesImpl creates batched followup evaluations with the WaitUntil field set
-func (a *allocReconciler) handleDelayedReschedulesImpl(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string,
-	createUpdates bool) map[string]string {
 	if len(rescheduleLater) == 0 {
 		return nil
 	}
@@ -916,21 +932,6 @@ func (a *allocReconciler) handleDelayedReschedulesImpl(rescheduleLater []*delaye
 	}
 
 	a.result.desiredFollowupEvals[tgName] = evals
-
-	// Initialize the annotations
-	if len(allocIDToFollowupEvalID) != 0 && a.result.attributeUpdates == nil {
-		a.result.attributeUpdates = make(map[string]*structs.Allocation)
-	}
-
-	// Create in-place updates for every alloc ID that needs to be updated with its follow up eval ID
-	if createUpdates {
-		for allocID, evalID := range allocIDToFollowupEvalID {
-			existingAlloc := all[allocID]
-			updatedAlloc := existingAlloc.Copy()
-			updatedAlloc.FollowupEvalID = evalID
-			a.result.attributeUpdates[updatedAlloc.ID] = updatedAlloc
-		}
-	}
 
 	return allocIDToFollowupEvalID
 }
