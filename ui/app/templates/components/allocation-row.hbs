@@ -1,3 +1,4 @@
+{{!--
 <td data-test-indicators class="is-narrow">
   {{#if allocation.unhealthyDrivers.length}}
     <span data-test-icon="unhealthy-driver" class="tooltip text-center" role="tooltip" aria-label="Allocation depends on unhealthy drivers">
@@ -15,6 +16,7 @@
     </span>
   {{/if}}
 </td>
+--}}
 <td data-test-short-id>
   <LinkTo @route="allocations.allocation" @model={{allocation}} class="is-primary">
     {{allocation.shortId}}
@@ -53,9 +55,12 @@
   </td>
   <td data-test-job-version class="is-1">{{allocation.jobVersion}}</td>
 {{/if}}
+
+{{!--
 {{#if (not (eq context "volume"))}}
   <td data-test-volume>{{if allocation.taskGroup.volumes.length "Yes"}}</td>
 {{/if}}
+--}}
 <td data-test-cpu class="is-1 has-text-centered">
   <AllocationStat
     @metric="cpu"
