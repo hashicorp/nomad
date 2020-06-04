@@ -11,7 +11,11 @@ export default Component.extend({
 
   // An allocation can also be provided directly
   allocation: overridable('allocationId', function() {
-    return this.store.findRecord('allocation', this.allocationId);
+    if (this.allocationId) {
+      return this.store.findRecord('allocation', this.allocationId);
+    }
+
+    return;
   }),
 
   time: null,
