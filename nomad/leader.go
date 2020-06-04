@@ -206,12 +206,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
-	if numWorkers := len(s.workers); numWorkers > 1 {
-		// Disabling 3/4 of the workers frees CPU for raft and the
-		// plan applier which uses 1/2 the cores.
-		for i := 0; i < (3 * numWorkers / 4); i++ {
-			s.workers[i].SetPause(true)
-		}
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(true)
 	}
 
 	// Initialize and start the autopilot routine
@@ -913,12 +909,27 @@ func (s *Server) revokeLeadership() error {
 	}
 
 	// Unpause our worker if we paused previously
-	if len(s.workers) > 1 {
-		for i := 0; i < len(s.workers)/2; i++ {
-			s.workers[i].SetPause(false)
-		}
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(false)
 	}
+
 	return nil
+}
+
+// pausableWorkers returns a slice of the workers
+// to pause on leader transitions.
+//
+// Upon leadership establishment, pause workers to free half
+// the cores for use in the plan queue and evaluation broker
+func (s *Server) pausableWorkers() []*Worker {
+	n := len(s.workers)
+	if n <= 1 {
+		return []*Worker{}
+	}
+
+	// Disabling 3/4 of the workers frees CPU for raft and the
+	// plan applier which uses 1/2 the cores.
+	return s.workers[:3*n/4]
 }
 
 // reconcile is used to reconcile the differences between Serf
