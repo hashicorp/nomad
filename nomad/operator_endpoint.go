@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -544,6 +545,41 @@ func (op *Operator) snapshotRestore(conn io.ReadWriteCloser) {
 	if err != nil {
 		handleFailure(400, fmt.Errorf("failed to read stream: %v", err))
 		return
+	}
+
+	// This'll be used for feedback from the leader loop.
+	timeoutCh := time.After(time.Minute)
+
+	lerrCh := make(chan error, 1)
+
+	select {
+	// Tell the leader loop to reassert leader actions since we just
+	// replaced the state store contents.
+	case op.srv.reassertLeaderCh <- lerrCh:
+
+	// We might have lost leadership while waiting to kick the loop.
+	case <-timeoutCh:
+		handleFailure(500, fmt.Errorf("timed out waiting to re-run leader actions"))
+
+	// Make sure we don't get stuck during shutdown
+	case <-op.srv.shutdownCh:
+	}
+
+	select {
+	// Wait for the leader loop to finish up.
+	case err := <-lerrCh:
+		if err != nil {
+			handleFailure(500, err)
+			return
+		}
+
+	// We might have lost leadership while the loop was doing its
+	// thing.
+	case <-timeoutCh:
+		handleFailure(500, fmt.Errorf("timed out waiting for re-run of leader actions"))
+
+	// Make sure we don't get stuck during shutdown
+	case <-op.srv.shutdownCh:
 	}
 
 	reply.Index, _ = op.srv.State().LatestIndex()

@@ -108,6 +108,9 @@ type Server struct {
 	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
 
+	// reassertLeaderCh is used to signal the leader loop should re-run
+	reassertLeaderCh chan chan error
+
 	// autopilot is the Autopilot instance for this server.
 	autopilot *autopilot.Autopilot
 
@@ -312,22 +315,23 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 
 	// Create the server
 	s := &Server{
-		config:        config,
-		consulCatalog: consulCatalog,
-		connPool:      pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:        logger,
-		tlsWrap:       tlsWrap,
-		rpcServer:     rpc.NewServer(),
-		streamingRpcs: structs.NewStreamingRpcRegistry(),
-		nodeConns:     make(map[string][]*nodeConnState),
-		peers:         make(map[string][]*serverParts),
-		localPeers:    make(map[raft.ServerAddress]*serverParts),
-		reconcileCh:   make(chan serf.Member, 32),
-		eventCh:       make(chan serf.Event, 256),
-		evalBroker:    evalBroker,
-		blockedEvals:  NewBlockedEvals(evalBroker, logger),
-		rpcTLS:        incomingTLS,
-		aclCache:      aclCache,
+		config:           config,
+		consulCatalog:    consulCatalog,
+		connPool:         pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:           logger,
+		tlsWrap:          tlsWrap,
+		rpcServer:        rpc.NewServer(),
+		streamingRpcs:    structs.NewStreamingRpcRegistry(),
+		nodeConns:        make(map[string][]*nodeConnState),
+		peers:            make(map[string][]*serverParts),
+		localPeers:       make(map[raft.ServerAddress]*serverParts),
+		reassertLeaderCh: make(chan chan error),
+		reconcileCh:      make(chan serf.Member, 32),
+		eventCh:          make(chan serf.Event, 256),
+		evalBroker:       evalBroker,
+		blockedEvals:     NewBlockedEvals(evalBroker, logger),
+		rpcTLS:           incomingTLS,
+		aclCache:         aclCache,
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
