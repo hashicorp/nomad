@@ -12,10 +12,11 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+ * core: Fixed a bug impacting performance of scheduler on a server after it steps down [[GH-8089](https://github.com/hashicorp/nomad/issues/8089)]
  * core: Fixed a bug where new leader may take a long time until it can process requests [[GH-8036](https://github.com/hashicorp/nomad/issues/8036)]
- * core: Fixed a bug where an internal metadata, ClusterID, may not be initialized properly upon a slow server upgrade [[GH-8078](https://github.com/hashicorp/nomad/issues/8078)].
- * api: Fixed a bug where setting connect sidecar task resources could fail [[GH-7993](https://github.com/hashicorp/nomad/issues/7993)]
  * core: Fixed a bug where stop_after_client_disconnect could cause the server to become unresponsive [[GH-8098](https://github.com/hashicorp/nomad/issues/8098)
+ * core: Fixed a bug where an internal metadata, ClusterID, may not be initialized properly upon a slow server upgrade [[GH-8078](https://github.com/hashicorp/nomad/issues/8078)]
+ * api: Fixed a bug where setting connect sidecar task resources could fail [[GH-7993](https://github.com/hashicorp/nomad/issues/7993)]
  * client: Fixed a bug where artifact downloads failed on redirects [[GH-7854](https://github.com/hashicorp/nomad/issues/7854)]
  * csi: Validate empty volume arguments in API. [[GH-8027](https://github.com/hashicorp/nomad/issues/8027)]
 
