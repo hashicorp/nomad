@@ -753,6 +753,8 @@ jobs:
     - run:
         command: make checkscripts
     - run:
+        command: mkdir -p ui/dist && make generate-all static-assets
+    - run:
         command: make -C .circleci CIRCLECI="circleci-local-cli --skip-update-check" ci-verify
         name: check .circleci/config.yml is up-to-date
     environment:
