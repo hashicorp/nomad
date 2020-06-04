@@ -304,17 +304,12 @@ func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescript
 // markDelayed does markStop, but optionally includes a FollowupEvalID so that we can update
 // the stopped alloc with its delayed rescheduling evalID
 func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescription string, followupEvals map[string]string) {
-	var e string
 	for _, alloc := range allocs {
-		if followupEvals != nil {
-			e = followupEvals[alloc.ID]
-		}
-
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,
 			clientStatus:      clientStatus,
 			statusDescription: statusDescription,
-			followupEvalID:    e,
+			followupEvalID:    followupEvals[alloc.ID],
 		})
 	}
 }
@@ -880,7 +875,7 @@ func (a *allocReconciler) handleDelayedReschedules(rescheduleLater []*delayedRes
 // map of alloc IDs to their followupEval IDs
 func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) map[string]string {
 	if len(rescheduleLater) == 0 {
-		return nil
+		return map[string]string{}
 	}
 
 	// Sort by time
