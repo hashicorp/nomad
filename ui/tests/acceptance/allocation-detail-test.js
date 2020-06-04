@@ -76,7 +76,7 @@ module('Acceptance | allocation detail', function(hooks) {
   test('/allocation/:id should present task lifecycles', async function(assert) {
     const job = server.create('job', {
       groupsCount: 1,
-      groupTaskCount: 3,
+      groupTaskCount: 4,
       withGroupServices: true,
       createAllocations: false,
     });
@@ -94,9 +94,12 @@ module('Acceptance | allocation detail', function(hooks) {
           if (lifecycle.Sidecar) {
             phases.sidecars.push(state);
             state.lifecycleString = 'Sidecar';
-          } else {
+          } else if (lifecycle.Hook === 'prestart') {
             phases.prestarts.push(state);
             state.lifecycleString = 'Prestart';
+          } else {
+            phases.poststops.push(state);
+            state.lifecycleString = 'Poststop';
           }
         } else {
           phases.mains.push(state);
@@ -109,23 +112,26 @@ module('Acceptance | allocation detail', function(hooks) {
         prestarts: [],
         sidecars: [],
         mains: [],
+        poststops: [],
       }
     );
 
     taskStatePhases.prestarts = taskStatePhases.prestarts.sortBy('name');
     taskStatePhases.sidecars = taskStatePhases.sidecars.sortBy('name');
     taskStatePhases.mains = taskStatePhases.mains.sortBy('name');
+    taskStatePhases.poststops = taskStatePhases.poststops.sortBy('name');
 
     const sortedServerStates = taskStatePhases.prestarts.concat(
       taskStatePhases.sidecars,
-      taskStatePhases.mains
+      taskStatePhases.mains,
+      taskStatePhases.poststops
     );
 
     await Allocation.visit({ id: allocation.id });
 
     assert.ok(Allocation.lifecycleChart.isPresent);
     assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
-    assert.equal(Allocation.lifecycleChart.phases.length, 2);
+    assert.equal(Allocation.lifecycleChart.phases.length, 3);
     assert.equal(Allocation.lifecycleChart.tasks.length, sortedServerStates.length);
 
     const stateActiveIterator = state => state.state === 'running';
@@ -145,6 +151,14 @@ module('Acceptance | allocation detail', function(hooks) {
       assert.notOk(Allocation.lifecycleChart.phases[1].isActive);
     }
 
+    const anyPoststopsActive = taskStatePhases.poststops.some(stateActiveIterator);
+
+    if (anyPoststopsActive) {
+      assert.ok(Allocation.lifecycleChart.phases[2].isActive);
+    } else {
+      assert.notOk(Allocation.lifecycleChart.phases[2].isActive);
+    }
+
     Allocation.lifecycleChart.tasks.forEach((Task, index) => {
       const serverState = sortedServerStates[index];
 
@@ -154,6 +168,8 @@ module('Acceptance | allocation detail', function(hooks) {
         assert.ok(Task.isSidecar);
       } else if (serverState.lifecycleString === 'Prestart') {
         assert.ok(Task.isPrestart);
+      } else if (serverState.lifecycleString === 'Poststop') {
+        assert.ok(Task.isPoststop);
       } else {
         assert.ok(Task.isMain);
       }

@@ -7,11 +7,14 @@
 
         <div class="lifecycle-phases">
           {{#each lifecyclePhases as |phase|}}
-            <div class="lifecycle-phase {{if phase.isActive "is-active"}} {{if (eq phase.name "Main") "main" "prestart"}}" data-test-lifecycle-phase>
+            <div class="lifecycle-phase {{if phase.isActive "is-active"}} {{phase.class}}" data-test-lifecycle-phase>
               <div class="name" data-test-name>{{phase.name}}</div>
             </div>
           {{/each}}
-          <svg class="divider">
+          <svg class="divider prestart">
+            <line x1="0" y1="0" x2="0" y2="100%" />
+          </svg>
+          <svg class="divider poststop">
             <line x1="0" y1="0" x2="0" y2="100%" />
           </svg>
         </div>

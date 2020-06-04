@@ -24,6 +24,10 @@ const tasks = [
     lifecycleName: 'sidecar',
     name: 'sidecar',
   },
+  {
+    lifecycleName: 'poststop',
+    name: 'poststop',
+  },
 ];
 
 module('Integration | Component | lifecycle-chart', function(hooks) {
@@ -37,20 +41,29 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
 
     assert.equal(Chart.phases[0].name, 'Prestart');
     assert.equal(Chart.phases[1].name, 'Main');
+    assert.equal(Chart.phases[2].name, 'Poststop');
 
     Chart.phases.forEach(phase => assert.notOk(phase.isActive));
 
-    assert.deepEqual(Chart.tasks.mapBy('name'), ['prestart', 'sidecar', 'main one', 'main two']);
+    assert.deepEqual(Chart.tasks.mapBy('name'), [
+      'prestart',
+      'sidecar',
+      'main one',
+      'main two',
+      'poststop',
+    ]);
     assert.deepEqual(Chart.tasks.mapBy('lifecycle'), [
       'Prestart Task',
       'Sidecar Task',
       'Main Task',
       'Main Task',
+      'Poststop Task',
     ]);
 
     assert.ok(Chart.tasks[0].isPrestart);
     assert.ok(Chart.tasks[1].isSidecar);
     assert.ok(Chart.tasks[2].isMain);
+    assert.ok(Chart.tasks[4].isPoststop);
 
     Chart.tasks.forEach(task => {
       assert.notOk(task.isActive);

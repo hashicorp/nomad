@@ -11,7 +11,6 @@
 
     .divider {
       position: absolute;
-      left: 25%;
       height: 100%;
 
       stroke: $ui-gray-200;
@@ -19,6 +18,14 @@
       stroke-dasharray: 1, 7;
       stroke-dashoffset: 1;
       stroke-linecap: square;
+
+      &.prestart {
+        left: 25%;
+      }
+
+      &.poststop {
+        left: 75%;
+      }
     }
   }
 
@@ -52,6 +59,11 @@
 
     &.main {
       left: 25%;
+      right: 25%;
+    }
+
+    &.poststop {
+      left: 75%;
       right: 0;
     }
   }
@@ -110,10 +122,19 @@
 
     &.main {
       margin-left: 25%;
+      margin-right: 25%;
     }
 
     &.prestart {
       margin-right: 75%;
+    }
+
+    &.sidecar {
+      margin-right: 25%;
+    }
+
+    &.poststop {
+      margin-left: 75%;
     }
 
     &:last-child .task {

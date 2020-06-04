@@ -21,6 +21,7 @@ export default {
     isMain: hasClass('main'),
     isPrestart: hasClass('prestart'),
     isSidecar: hasClass('sidecar'),
+    isPoststop: hasClass('poststop'),
 
     visit: clickable('a'),
   }),
