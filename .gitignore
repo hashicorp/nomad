@@ -31,7 +31,7 @@ _testmain.go
 /tags
 /bin/
 /pkg/
-.vagrant/
+.vagrant
 website/build/
 website/npm-debug.log
 *.old
