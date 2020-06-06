@@ -945,6 +945,10 @@ func decodeBody(resp *http.Response, out interface{}) error {
 
 // encodeBody is used to encode a request body
 func encodeBody(obj interface{}) (io.Reader, error) {
+	if reader, ok := obj.(io.Reader); ok {
+		return reader, nil
+	}
+
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
 	if err := enc.Encode(obj); err != nil {
