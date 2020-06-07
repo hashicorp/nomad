@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -784,6 +785,13 @@ func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snap
 		c.BootstrapExpect = 2
 		c.DevMode = false
 		c.DataDir = path.Join(dir, "server1")
+
+		// increase times outs to account for I/O operations that
+		// snapshot restore performs - some of which require sync calls
+		c.RaftConfig.LeaderLeaseTimeout = 1 * time.Second
+		c.RaftConfig.HeartbeatTimeout = 1 * time.Second
+		c.RaftConfig.ElectionTimeout = 1 * time.Second
+		c.RaftTimeout = 5 * time.Second
 	})
 	defer cleanupLS()
 
@@ -791,6 +799,13 @@ func testRestoreSnapshot(t *testing.T, req *structs.SnapshotRestoreRequest, snap
 		c.BootstrapExpect = 2
 		c.DevMode = false
 		c.DataDir = path.Join(dir, "server2")
+
+		// increase times outs to account for I/O operations that
+		// snapshot restore performs - some of which require sync calls
+		c.RaftConfig.LeaderLeaseTimeout = 1 * time.Second
+		c.RaftConfig.HeartbeatTimeout = 1 * time.Second
+		c.RaftConfig.ElectionTimeout = 1 * time.Second
+		c.RaftTimeout = 5 * time.Second
 	})
 	defer cleanupRS()
 
