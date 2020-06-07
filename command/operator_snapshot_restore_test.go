@@ -51,7 +51,6 @@ job "snapshot-test-job" {
 		c.DevMode = false
 		c.DataDir = filepath.Join(tmpDir, "server1")
 
-		c.Client.Enabled = false
 		c.AdvertiseAddrs.HTTP = "127.0.0.1"
 		c.AdvertiseAddrs.RPC = "127.0.0.1"
 		c.AdvertiseAddrs.Serf = "127.0.0.1"
