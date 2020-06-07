@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"sync/atomic"
 	"time"
 
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/pkg/errors"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
@@ -49,6 +51,19 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
 
+	// configer logger
+	level := hclog.Trace
+	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
+		level = hclog.LevelFromString(envLogLevel)
+	}
+	opts := &hclog.LoggerOptions{
+		Level:           level,
+		Output:          testlog.NewPrefixWriter(t, config.NodeName+" "),
+		IncludeLocation: true,
+	}
+	config.Logger = hclog.NewInterceptLogger(opts)
+	config.LogOutput = opts.Output
+
 	// Tighten the Serf timing
 	config.SerfConfig.MemberlistConfig.BindAddr = "127.0.0.1"
 	config.SerfConfig.MemberlistConfig.SuspicionMult = 2
@@ -66,9 +81,6 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	// Disable Vault
 	f := false
 	config.VaultConfig.Enabled = &f
-
-	// Squelch output when -v isn't specified
-	config.LogOutput = testlog.NewWriter(t)
 
 	// Tighten the autopilot timing
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
