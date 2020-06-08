@@ -7,12 +7,18 @@ module.exports = {
     browser: true,
     es6: true,
   },
-  extends: 'eslint:recommended',
+  extends: [
+    'eslint:recommended',
+    'plugin:ember/recommended',
+  ],
   parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
   },
+  plugins: [
+    'ember'
+  ],
   rules: {
     indent: ['error', 2, { SwitchCase: 1 }],
     'linebreak-style': ['error', 'unix'],

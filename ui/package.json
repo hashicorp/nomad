@@ -95,6 +95,7 @@
     "ember-test-selectors": "^2.1.0",
     "ember-truth-helpers": "^2.0.0",
     "eslint": "^5.16.0",
+    "eslint-plugin-ember": "^6.2.0",
     "eslint-plugin-node": "^9.0.1",
     "faker": "^4.1.0",
     "flat": "^4.0.0",
