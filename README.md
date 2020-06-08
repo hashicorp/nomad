@@ -11,12 +11,12 @@ Overview
 Nomad is an easy-to-use, flexible, and performant workload orchestrator that deploys:
 
 * [Containers](https://www.nomadproject.io/docs/drivers/docker.html)
-* [Legacy applications](https://www.nomadproject.io/docs/drivers/exec.html)
+* [Non-containerized applications](https://www.nomadproject.io/docs/drivers/exec.html)
 * [Virtual machines](https://www.nomadproject.io/docs/drivers/qemu.html)
 
 Nomad enables developers to use declarative infrastructure-as-code for deploying their applications (jobs).  Nomad uses bin packing to efficiently schedule jobs and optimize for resource utilization.  Nomad is supported on macOS, Windows, and Linux.
 
-Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe Entertainment, and more.
+Nomad is widely adopted and used in production by PagerDuty, CloudFlare, Roblox, Pandora, and more.
 
 * **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure.  Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable task drivers.
 
@@ -24,7 +24,7 @@ Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Tr
 
 * **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI).  Nomad uses device plugins to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
 
-* **Federation for Multi-Region, Multi-Cloud**: Nomad was designed to support infrastructure at a global scale.  Nomad supports federation out-of-the-box and can deploy jobs across multiple regions and clouds.
+* **Federation for Multi-Region, Multi-Cloud**: Nomad was designed to support infrastructure at a global scale.  Nomad supports federation out-of-the-box and can deploy applications across multiple regions and clouds.
 
 * **Proven Scalability**: Nomad is optimistically concurrent, which increases throughput and reduces latency for workloads.  Nomad has been proven to scale to clusters of 10K+ nodes in real-world production environments.
 
@@ -47,18 +47,8 @@ These methods are not meant for production.
 Documentation & Guides
 -------------------------------
 
-* [Installing Nomad for Production](https://www.nomadproject.io/guides/operations/deployment-guide.html)
-* [Advanced Job Scheduling on Nomad with Affinities](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/affinity.html)
-* [Increasing Nomad Fault Tolerance with Spread](https://www.nomadproject.io/guides/operating-a-job/advanced-scheduling/spread.html)
-* [Load Balancing on Nomad with Fabio & Consul](https://learn.hashicorp.com/nomad/load-balancing/fabio)
-* [Deploying Stateful Workloads via Portworx](https://learn.hashicorp.com/nomad/stateful-workloads/portworx)
-* [Running Apache Spark on Nomad](https://www.nomadproject.io/guides/spark/spark.html)
-* [Integrating Vault with Nomad for Secrets Management](https://www.nomadproject.io/guides/operations/vault-integration/index.html)
-* [Securing Nomad with TLS](https://www.nomadproject.io/guides/security/securing-nomad.html)
-* [Continuous Deployment with Nomad and Terraform](https://www.hashicorp.com/blog/continuous-deployment-with-nomad-and-terraform)
-* [Auto-bootstrapping a Nomad Cluster](https://www.hashicorp.com/blog/auto-bootstrapping-a-nomad-cluster)
-
 Documentation is available on the Nomad website [here](https://www.nomadproject.io/docs/index.html).
+Guides are available on HashiCorp Learn website [here](https://learn.hashicorp.com/nomad).
 
 Resources
 -------------------------------
@@ -69,69 +59,60 @@ Resources
   * [Google Groups](https://groups.google.com/group/nomad-tool)
 * Gitter
   * [Nomad Chat Room](https://gitter.im/hashicorp-nomad/Lobby)
-* Webinars
-  * [Running Microservices with Nomad](https://www.hashicorp.com/resources/solutions-engineering-hangout-microservices-with-nomad)
-  * [Running Heterogeneous Apps on Nomad](https://www.hashicorp.com/resources/se-hangout-running-heterogeneous-apps-nomad)
-  * [Supporting Multiple Teams on a Single Nomad Cluster](https://www.hashicorp.com/resources/supporting-multiple-teams-single-nomad-cluster)
-  * [Moving Your Legacy VMWare Workloads to Nomad](https://www.hashicorp.com/resources/move-your-vmware-workloads-nomad)
-  * [Machine Learning Workflows with HashiCorp Nomad & Apache Spark](https://www.hashicorp.com/resources/machine-learning-workflows-hashicorp-nomad-apache-spark)
-* Community Calls
-  * [04/03/2019 with Pandora & Q2EBanking](https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s)
-  * [05/24/2018 with SAP Ariba](https://www.youtube.com/watch?v=eSwZwVVTDqw&t=2660s)
 
 Who Uses Nomad
 --------------------
-* CircleCI
-  * [How CircleCI Processes 4.5 Million Builds Per Month](https://stackshare.io/circleci/how-circleci-processes-4-5-million-builds-per-month)
-  * [Security & Scheduling are Not Your Core Competencies](https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
-* Citadel
-  * [End-to-End Production Nomad at Citadel](https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel)
-  * [Extreme Scaling with HashiCorp Nomad & Consul](https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul)
-* Deluxe Entertainment
-  * [How Deluxe Uses the Complete HashiStack for Video Production](https://www.hashicorp.com/resources/deluxe-hashistack-video-production)
-* Jet.com (Walmart)
-  * [Driving down costs at Jet.com with HashiCorp Nomad](https://www.hashicorp.com/resources/jet-walmart-hashicorp-nomad-azure-run-apps)
-* PagerDuty
-  * [PagerDuty’s Nomadic Journey](https://www.hashicorp.com/resources/pagerduty-nomad-journey)
-* Pandora
-  * [How Pandora Uses Nomad](https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s)
-* SAP Ariba
-  * [HashiCorp Nomad @ SAP Ariba](https://www.hashicorp.com/resources/nomad-community-call-core-team-sap-ariba)
-* SeatGeek
-  * [Nomad Helper Tools](https://github.com/seatgeek/nomad-helper)
-* Spaceflight Industries
-  * [Spaceflight’s Hub-And-Spoke Infrastructure](https://www.hashicorp.com/blog/spaceflight-uses-hashicorp-consul-for-service-discovery-and-real-time-updates-to-their-hub-and-spoke-network-architecture)
-* SpotInst
-  * [SpotInst and HashiCorp Nomad to Reduce EC2 Costs for Users](https://www.hashicorp.com/blog/spotinst-and-hashicorp-nomad-to-reduce-ec2-costs-fo)
-* Target
-  * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds](https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
-  * [Playing with Nomad from HashiCorp](https://danielparker.me/nomad/hashicorp/schedulers/nomad/)
-* Trivago
-  * [Maybe You Don’t Need Kubernetes](https://endler.dev/2019/maybe-you-dont-need-kubernetes/)
-  * [Nomad - Our Experiences and Best Practices](https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/)
 * Roblox
-  * [How Roblox runs a platform for 70 million gamers on HashiCorp Nomad](https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/)
+  * [How Roblox built a platform for 100 million players with Nomad (2020)](https://www.hashicorp.com/case-studies/roblox/)
+  * [How Roblox runs a platform for 70 million gamers on Nomad (2019)](https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/)
+* CloudFlare
+  * [How We Use HashiCorp Nomad (2020)](https://blog.cloudflare.com/how-we-use-hashicorp-nomad/)
+* BetterHelp
+  * [How the world's largest online therapy provider runs on Nomad (2020)](https://www.youtube.com/watch?v=eN2ghrGpiUo)
+* Navi Capital
+  * [How Nomad powers a $1B hedge fund in Brazil (2020)](https://www.hashicorp.com/blog/nomad-community-story-navi-capital/)
+* Trivago
+  * [Maybe You Don’t Need Kubernetes (2019)](https://endler.dev/2019/maybe-you-dont-need-kubernetes/)
+  * [Nomad - Our Experiences and Best Practices (2019)](https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/)
+* Reaktor
+  * [Nomad: Kubernetes, but without the complexity (2019)](https://youtu.be/GkmyNBUugg8)
+* Pandora
+  * [How Pandora Uses Nomad (2019)](https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s)
+* CircleCI
+  * [How CircleCI Processes 4.5 Million Builds Per Month (2019)](https://stackshare.io/circleci/how-circleci-processes-4-5-million-builds-per-month)
+  * [Security & Scheduling are Not Your Core Competencies (2018)](https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling)
+* Q2
+  * [Q2’s Nomad Use and Overview (2019)](https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499)
+* Citadel
+  * [End-to-End Production Nomad at Citadel (2017)](https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel)
+  * [Extreme Scaling with HashiCorp Nomad & Consul (2016)](https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul)
+* Deluxe Entertainment
+  * [How Deluxe Uses the Complete HashiStack for Video Production (2018)](https://www.hashicorp.com/resources/deluxe-hashistack-video-production)
+* Jet.com (Walmart)
+  * [Driving down costs at Jet.com with HashiCorp Nomad (2017)](https://www.hashicorp.com/resources/jet-walmart-hashicorp-nomad-azure-run-apps)
+* PagerDuty
+  * [PagerDuty’s Nomadic Journey (2017)](https://www.hashicorp.com/resources/pagerduty-nomad-journey)
+* SAP Ariba
+  * [HashiCorp Nomad @ SAP Ariba (2018)](https://www.hashicorp.com/resources/nomad-community-call-core-team-sap-ariba)
+* Target
+  * [Nomad at Target:  Scaling Microservices Across Public and Private Clouds (2018)](https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud)
+  * [Playing with Nomad from HashiCorp (2017)](https://danielparker.me/nomad/hashicorp/schedulers/nomad/)
 * Oscar Health
-  * [Scalable CI at Oscar Health with Nomad and Docker](https://www.hashicorp.com/resources/scalable-ci-oscar-health-insurance-nomad-docker)
+  * [Scalable CI at Oscar Health with Nomad and Docker (2018)](https://www.hashicorp.com/resources/scalable-ci-oscar-health-insurance-nomad-docker)
 * eBay
-  * [HashiStack at eBay: A Fully Containerized Platform Based on Infrastructure as Code](https://www.hashicorp.com/resources/ebay-hashistack-fully-containerized-platform-iac)
-* Joyent
-  * [Build Your Own Autoscaling Feature with HashiCorp Nomad](https://www.hashicorp.com/resources/autoscaling-hashicorp-nomad)
+  * [HashiStack at eBay: A Fully Containerized Platform Based on Infrastructure as Code (2018)](https://www.hashicorp.com/resources/ebay-hashistack-fully-containerized-platform-iac)
 * Dutch National Police
-  * [Going Cloud-Native at the Dutch National Police](https://www.hashicorp.com/resources/going-cloud-native-at-the-dutch-national-police)
+  * [Going Cloud-Native at the Dutch National Police (2018)](https://www.hashicorp.com/resources/going-cloud-native-at-the-dutch-national-police)
 * N26
-  * [Tech at N26 - The Bank in the Cloud](https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b)
+  * [Tech at N26 - The Bank in the Cloud (2018)](https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b)
 * Elsevier
-  * [Eslevier’s Container Framework with Nomad, Terraform, and Consul](https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo)
+  * [Eslevier’s Container Framework with Nomad, Terraform, and Consul (2017)](https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo)
 * Graymeta
-  * [Backend Batch Processing At Scale with Nomad](https://www.hashicorp.com/resources/backend-batch-processing-nomad)
+  * [Backend Batch Processing At Scale with Nomad (2017)](https://www.hashicorp.com/resources/backend-batch-processing-nomad)
 * NIH NCBI
-  * [NCBI’s Legacy Migration to Hybrid Cloud with Consul & Nomad](https://www.hashicorp.com/resources/ncbi-legacy-migration-hybrid-cloud-consul-nomad)
-* Q2Ebanking
-  * [Q2’s Nomad Use and Overview](https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499)
+  * [NCBI’s Legacy Migration to Hybrid Cloud with Consul & Nomad (2018)](https://www.hashicorp.com/resources/ncbi-legacy-migration-hybrid-cloud-consul-nomad)
 * imgix
-  * [Cluster Schedulers & Why We Chose Nomad Over Kubernetes](https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896)
-* Region Syddanmark
+  * [Cluster Schedulers & Why We Chose Nomad Over Kubernetes (2017)](https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896)
 
 ...and more!
 
