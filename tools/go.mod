@@ -12,7 +12,6 @@ require (
 	github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/hcl/v2 v2.5.1
-	github.com/jteeuwen/go-bindata v3.0.7+incompatible // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/onsi/ginkgo v1.12.0 // indirect
