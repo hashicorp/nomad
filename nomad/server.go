@@ -108,7 +108,12 @@ type Server struct {
 	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
 
-	// reassertLeaderCh is used to signal the leader loop should re-run
+	// reassertLeaderCh is used to signal that the leader loop must
+	// re-establish leadership.
+	//
+	// This might be relevant in snapshot restores, where leader in-memory
+	// state changed significantly such that leader state (e.g. periodic
+	// jobs, eval brokers) need to be recomputed.
 	reassertLeaderCh chan chan error
 
 	// autopilot is the Autopilot instance for this server.

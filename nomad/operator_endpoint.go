@@ -553,8 +553,8 @@ func (op *Operator) snapshotRestore(conn io.ReadWriteCloser) {
 	lerrCh := make(chan error, 1)
 
 	select {
-	// Tell the leader loop to reassert leader actions since we just
-	// replaced the state store contents.
+	// Reassert leader actions and update all leader related state
+	// with new state store content.
 	case op.srv.reassertLeaderCh <- lerrCh:
 
 	// We might have lost leadership while waiting to kick the loop.

@@ -190,13 +190,16 @@ WAIT:
 		case member := <-reconcileCh:
 			s.reconcileMember(member)
 		case errCh := <-s.reassertLeaderCh:
-			// we can get into this state when the initial
-			// establishLeadership has failed as well as the follow
-			// up leadershipTransfer. Afterwards we will be waiting
-			// for the interval to trigger a reconciliation and can
-			// potentially end up here. There is no point to
-			// reassert because this agent was never leader in the
-			// first place.
+			// Recompute leader state, by asserting leadership and
+			// repopulating leader states.
+
+			// Check first if we are indeed the leaders first. We
+			// can get into this state when the initial
+			// establishLeadership has failed.
+			// Afterwards we will be waiting for the interval to
+			// trigger a reconciliation and can potentially end up
+			// here. There is no point to reassert because this
+			// agent was never leader in the first place.
 			if !establishedLeader {
 				errCh <- fmt.Errorf("leadership has not been established")
 				continue
