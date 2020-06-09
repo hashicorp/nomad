@@ -28,7 +28,7 @@ export default Component.extend({
 
   mode: 'stdout',
 
-  logUrl: computed('allocation.id', 'allocation.node.httpAddr', 'useServer', function() {
+  logUrl: computed('allocation.{id,node.httpAddr}', 'useServer', function() {
     const address = this.get('allocation.node.httpAddr');
     const allocation = this.get('allocation.id');
 

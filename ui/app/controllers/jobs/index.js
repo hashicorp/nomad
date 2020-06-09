@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
@@ -32,8 +33,12 @@ export default Controller.extend(Sortable, Searchable, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
-  searchProps: computed(() => ['id', 'name']),
-  fuzzySearchProps: computed(() => ['name']),
+  searchProps: computed(function() {
+    return ['id', 'name'];
+  }),
+  fuzzySearchProps: computed(function() {
+    return ['name'];
+  }),
   fuzzySearchEnabled: true,
 
   qpType: '',
@@ -46,19 +51,23 @@ export default Controller.extend(Sortable, Searchable, {
   selectionDatacenter: selection('qpDatacenter'),
   selectionPrefix: selection('qpPrefix'),
 
-  optionsType: computed(() => [
-    { key: 'batch', label: 'Batch' },
-    { key: 'parameterized', label: 'Parameterized' },
-    { key: 'periodic', label: 'Periodic' },
-    { key: 'service', label: 'Service' },
-    { key: 'system', label: 'System' },
-  ]),
+  optionsType: computed(function() {
+    return [
+      { key: 'batch', label: 'Batch' },
+      { key: 'parameterized', label: 'Parameterized' },
+      { key: 'periodic', label: 'Periodic' },
+      { key: 'service', label: 'Service' },
+      { key: 'system', label: 'System' },
+    ];
+  }),
 
-  optionsStatus: computed(() => [
-    { key: 'pending', label: 'Pending' },
-    { key: 'running', label: 'Running' },
-    { key: 'dead', label: 'Dead' },
-  ]),
+  optionsStatus: computed(function() {
+    return [
+      { key: 'pending', label: 'Pending' },
+      { key: 'running', label: 'Running' },
+      { key: 'dead', label: 'Dead' },
+    ];
+  }),
 
   optionsDatacenter: computed('visibleJobs.[]', function() {
     const flatten = (acc, val) => acc.concat(val);
@@ -67,6 +76,7 @@ export default Controller.extend(Sortable, Searchable, {
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
     scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpDatacenter',
         serialize(intersection(availableDatacenters, this.selectionDatacenter))
@@ -103,6 +113,7 @@ export default Controller.extend(Sortable, Searchable, {
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
       this.set('qpPrefix', serialize(intersection(availablePrefixes, this.selectionPrefix)));
     });
 
@@ -117,7 +128,7 @@ export default Controller.extend(Sortable, Searchable, {
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  visibleJobs: computed('model.[]', 'model.@each.parent', function() {
+  visibleJobs: computed('model.{[],@each.parent}', function() {
     // Namespace related properties are ommitted from the dependent keys
     // due to a prop invalidation bug caused by region switching.
     const hasNamespaces = this.get('system.namespaces.length');

@@ -22,9 +22,12 @@ import Fuse from 'fuse.js';
   Properties provided:
     - listSearched: a subset of listToSearch of items that meet the search criteria
 */
+// eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   searchTerm: '',
-  listToSearch: computed(() => []),
+  listToSearch: computed(function() {
+    return [];
+  }),
 
   searchProps: null,
   exactMatchSearchProps: reads('searchProps'),
@@ -83,11 +86,7 @@ export default Mixin.create({
 
       if (this.exactMatchEnabled) {
         results.push(
-          ...exactMatchSearch(
-            searchTerm,
-            this.listToSearch,
-            this.exactMatchSearchProps
-          )
+          ...exactMatchSearch(searchTerm, this.listToSearch, this.exactMatchSearchProps)
         );
       }
 
@@ -96,9 +95,7 @@ export default Mixin.create({
       }
 
       if (this.regexEnabled) {
-        results.push(
-          ...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps)
-        );
+        results.push(...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps));
       }
 
       return results.uniq();

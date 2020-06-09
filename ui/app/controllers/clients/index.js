@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { alias, readOnly } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
 import Controller, { inject as controller } from '@ember/controller';
@@ -35,7 +36,9 @@ export default Controller.extend(
     sortProperty: 'modifyIndex',
     sortDescending: true,
 
-    searchProps: computed(() => ['id', 'name', 'datacenter']),
+    searchProps: computed(function() {
+      return ['id', 'name', 'datacenter'];
+    }),
 
     qpClass: '',
     qpState: '',
@@ -54,25 +57,29 @@ export default Controller.extend(
 
       // Remove any invalid node classes from the query param/selection
       scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
         this.set('qpClass', serialize(intersection(classes, this.selectionClass)));
       });
 
       return classes.sort().map(dc => ({ key: dc, label: dc }));
     }),
 
-    optionsState: computed(() => [
-      { key: 'initializing', label: 'Initializing' },
-      { key: 'ready', label: 'Ready' },
-      { key: 'down', label: 'Down' },
-      { key: 'ineligible', label: 'Ineligible' },
-      { key: 'draining', label: 'Draining' },
-    ]),
+    optionsState: computed(function() {
+      return [
+        { key: 'initializing', label: 'Initializing' },
+        { key: 'ready', label: 'Ready' },
+        { key: 'down', label: 'Down' },
+        { key: 'ineligible', label: 'Ineligible' },
+        { key: 'draining', label: 'Draining' },
+      ];
+    }),
 
     optionsDatacenter: computed('nodes.[]', function() {
       const datacenters = Array.from(new Set(this.nodes.mapBy('datacenter'))).compact();
 
       // Remove any invalid datacenters from the query param/selection
       scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
         this.set('qpDatacenter', serialize(intersection(datacenters, this.selectionDatacenter)));
       });
 
@@ -86,6 +93,7 @@ export default Controller.extend(
       const volumes = Array.from(new Set(allVolumes.mapBy('name')));
 
       scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
         this.set('qpVolume', serialize(intersection(volumes, this.selectionVolume)));
       });
 

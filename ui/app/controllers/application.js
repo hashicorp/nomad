@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-observers */
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { run } from '@ember/runloop';

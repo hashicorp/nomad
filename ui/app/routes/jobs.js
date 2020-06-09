@@ -7,12 +7,12 @@ export default Route.extend(WithForbiddenState, {
   system: service(),
   store: service(),
 
-  breadcrumbs: [
+  breadcrumbs: Object.freeze([
     {
       label: 'Jobs',
       args: ['jobs.index'],
     },
-  ],
+  ]),
 
   queryParams: {
     jobNamespace: {

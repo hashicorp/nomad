@@ -25,6 +25,7 @@ export default Component.extend({
       };
     });
 
+    // eslint-disable-next-line ember/no-side-effects
     this.set('stateCache', decoratedSource);
     return decoratedSource;
   }),

@@ -6,12 +6,12 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 export default Route.extend(WithForbiddenState, {
   store: service(),
 
-  breadcrumbs: [
+  breadcrumbs: Object.freeze([
     {
       label: 'Storage',
       args: ['csi.index'],
     },
-  ],
+  ]),
 
   model() {
     return this.store.query('plugin', { type: 'csi' }).catch(notifyForbidden(this));

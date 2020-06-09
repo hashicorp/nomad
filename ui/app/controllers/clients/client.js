@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-observers */
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { computed, observer } from '@ember/object';
@@ -24,7 +25,9 @@ export default Controller.extend(Sortable, Searchable, {
   sortProperty: 'modifyIndex',
   sortDescending: true,
 
-  searchProps: computed(() => ['shortId', 'name']),
+  searchProps: computed(function() {
+    return ['shortId', 'name'];
+  }),
 
   onlyPreemptions: false,
 

@@ -64,19 +64,15 @@ export default Component.extend({
     } else if (this.mode === 'head' || this.mode === 'tail') {
       return 'readat';
     }
+
+    return;
   }),
 
-  fileUrl: computed(
-    'allocation.id',
-    'allocation.node.httpAddr',
-    'fetchMode',
-    'useServer',
-    function() {
-      const address = this.get('allocation.node.httpAddr');
-      const url = `/v1/client/fs/${this.fetchMode}/${this.allocation.id}`;
-      return this.useServer ? url : `//${address}${url}`;
-    }
-  ),
+  fileUrl: computed('allocation.{id,node.httpAddr}', 'fetchMode', 'useServer', function() {
+    const address = this.get('allocation.node.httpAddr');
+    const url = `/v1/client/fs/${this.fetchMode}/${this.allocation.id}`;
+    return this.useServer ? url : `//${address}${url}`;
+  }),
 
   fileParams: computed('taskState.name', 'file', 'mode', function() {
     // The Log class handles encoding query params

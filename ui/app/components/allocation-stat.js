@@ -24,6 +24,8 @@ export default Component.extend({
     if (metric === 'cpu' || metric === 'memory') {
       return this[this.metric];
     }
+
+    return;
   }),
 
   formattedStat: computed('metric', 'stat.used', function() {
@@ -32,13 +34,9 @@ export default Component.extend({
     return this.stat.used;
   }),
 
-  formattedReserved: computed(
-    'metric',
-    'statsTracker.reservedMemory',
-    'statsTracker.reservedCPU',
-    function() {
-      if (this.metric === 'memory') return `${this.statsTracker.reservedMemory} MiB`;
-      if (this.metric === 'cpu') return `${this.statsTracker.reservedCPU} MHz`;
-    }
-  ),
+  formattedReserved: computed('metric', 'statsTracker.{reservedMemory,reservedCPU}', function() {
+    if (this.metric === 'memory') return `${this.statsTracker.reservedMemory} MiB`;
+    if (this.metric === 'cpu') return `${this.statsTracker.reservedCPU} MHz`;
+    return;
+  }),
 });

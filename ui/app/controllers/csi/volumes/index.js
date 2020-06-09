@@ -35,14 +35,18 @@ export default Controller.extend(
     sortProperty: 'id',
     sortDescending: false,
 
-    searchProps: computed(() => ['name']),
-    fuzzySearchProps: computed(() => ['name']),
+    searchProps: computed(function() {
+      return ['name'];
+    }),
+    fuzzySearchProps: computed(function() {
+      return ['name'];
+    }),
     fuzzySearchEnabled: true,
 
     /**
       Visible volumes are those that match the selected namespace
     */
-    visibleVolumes: computed('model.[]', 'model.@each.parent', function() {
+    visibleVolumes: computed('model.{[],@each.parent}', function() {
       if (!this.model) return [];
 
       // Namespace related properties are ommitted from the dependent keys

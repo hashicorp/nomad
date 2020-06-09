@@ -1,4 +1,4 @@
-import { alias, equal, or, and } from '@ember/object/computed';
+import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
@@ -61,8 +61,7 @@ export default Model.extend({
     'type',
     'periodic',
     'parameterized',
-    'parent.periodic',
-    'parent.parameterized',
+    'parent.{periodic,parameterized}',
     function() {
       const type = this.type;
 
@@ -131,9 +130,11 @@ export default Model.extend({
       .uniq();
   }),
 
+  allocationsUnhealthyDrivers: mapBy('allocations', 'unhealthyDrivers'),
+
   // Getting all unhealthy drivers for a job can be incredibly expensive if the job
   // has many allocations. This can lead to making an API request for many nodes.
-  unhealthyDrivers: computed('allocations.@each.unhealthyDrivers.[]', function() {
+  unhealthyDrivers: computed('allocationsUnhealthyDrivers.[]', function() {
     return this.allocations
       .mapBy('unhealthyDrivers')
       .reduce((all, drivers) => {
@@ -149,7 +150,7 @@ export default Model.extend({
 
   hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
 
-  latestEvaluation: computed('evaluations.@each.modifyIndex', 'evaluations.isPending', function() {
+  latestEvaluation: computed('evaluations.{@each.modifyIndex,isPending}', function() {
     const evaluations = this.evaluations;
     if (!evaluations || evaluations.get('isPending')) {
       return null;
@@ -157,21 +158,19 @@ export default Model.extend({
     return evaluations.sortBy('modifyIndex').get('lastObject');
   }),
 
-  latestFailureEvaluation: computed(
-    'evaluations.@each.modifyIndex',
-    'evaluations.isPending',
-    function() {
-      const evaluations = this.evaluations;
-      if (!evaluations || evaluations.get('isPending')) {
-        return null;
-      }
-
-      const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
-      if (failureEvaluations) {
-        return failureEvaluations.sortBy('modifyIndex').get('lastObject');
-      }
+  latestFailureEvaluation: computed('evaluations.{@each.modifyIndex,isPending}', function() {
+    const evaluations = this.evaluations;
+    if (!evaluations || evaluations.get('isPending')) {
+      return null;
     }
-  ),
+
+    const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
+    if (failureEvaluations) {
+      return failureEvaluations.sortBy('modifyIndex').get('lastObject');
+    }
+
+    return;
+  }),
 
   supportsDeployments: equal('type', 'service'),
 
@@ -180,6 +179,7 @@ export default Model.extend({
   runningDeployment: computed('latestDeployment', 'latestDeployment.isRunning', function() {
     const latest = this.latestDeployment;
     if (latest.get('isRunning')) return latest;
+    return;
   }),
 
   fetchRawDefinition() {
