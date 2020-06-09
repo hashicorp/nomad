@@ -64,7 +64,7 @@ func (c *OperatorSnapshotRestoreCommand) Run(args []string) int {
 	// Check for misuse
 	args = flags.Args()
 	if len(args) != 1 {
-		c.Ui.Error("This command takes one: <filename>")
+		c.Ui.Error("This command takes one argument: <filename>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
