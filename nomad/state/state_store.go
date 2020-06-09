@@ -5379,6 +5379,9 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			if allocDiff.ClientStatus != "" {
 				allocCopy.ClientStatus = allocDiff.ClientStatus
 			}
+			if allocDiff.FollowupEvalID != "" {
+				allocCopy.FollowupEvalID = allocDiff.FollowupEvalID
+			}
 		}
 		if allocDiff.ModifyTime != 0 {
 			allocCopy.ModifyTime = allocDiff.ModifyTime

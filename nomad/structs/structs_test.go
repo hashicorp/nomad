@@ -3563,7 +3563,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 	}
 	stoppedAlloc := MockAlloc()
 	desiredDesc := "Desired desc"
-	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost, "followup-eval-id")
 	preemptedAlloc := MockAlloc()
 	preemptingAllocID := uuid.Generate()
 	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
@@ -3575,6 +3575,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 		ID:                 stoppedAlloc.ID,
 		DesiredDescription: desiredDesc,
 		ClientStatus:       AllocClientStatusLost,
+		FollowupEvalID:     "followup-eval-id",
 	}
 	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
 	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
@@ -3593,7 +3594,7 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	alloc := MockAlloc()
 	desiredDesc := "Desired desc"
 
-	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost)
+	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost, "")
 
 	expectedAlloc := new(Allocation)
 	*expectedAlloc = *alloc
