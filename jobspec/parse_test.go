@@ -1337,6 +1337,35 @@ func TestParse(t *testing.T) {
 			nil,
 			true,
 		},
+
+		{
+			"multiregion.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("multiregion_job"),
+				Name: helper.StringToPtr("multiregion_job"),
+				Multiregion: &api.Multiregion{
+					Strategy: &api.MultiregionStrategy{
+						MaxParallel: helper.IntToPtr(1),
+						AutoRevert:  helper.StringToPtr("all"),
+					},
+					Regions: []*api.MultiregionRegion{
+						{
+							Name:        helper.StringToPtr("west"),
+							Count:       helper.IntToPtr(2),
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+						{
+							Name:        helper.StringToPtr("east"),
+							Count:       helper.IntToPtr(1),
+							Datacenters: []string{"east-1", "east-2"},
+							Meta:        map[string]string{"region_code": "E"},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {

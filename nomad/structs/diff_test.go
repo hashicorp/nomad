@@ -1181,6 +1181,118 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			// Multiregion: region added
+			Old: &Job{
+				Multiregion: &Multiregion{
+					Strategy: &MultiregionStrategy{
+						MaxParallel: 1,
+						AutoRevert:  "all",
+					},
+					Regions: []*MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       1,
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+					},
+				},
+			},
+
+			New: &Job{
+				Multiregion: &Multiregion{
+					Strategy: &MultiregionStrategy{
+						MaxParallel: 2,
+						AutoRevert:  "all",
+					},
+					Regions: []*MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       1,
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+						{
+							Name:        "east",
+							Count:       2,
+							Datacenters: []string{"east-1", "east-2"},
+							Meta:        map[string]string{"region_code": "E"},
+						},
+					},
+				},
+			},
+
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Multiregion",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Region",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Count",
+										Old:  "",
+										New:  "2",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Meta[region_code]",
+										Old:  "",
+										New:  "E",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Name",
+										Old:  "",
+										New:  "east",
+									},
+								},
+
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Datacenters",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Datacenters",
+												Old:  "",
+												New:  "east-1",
+											},
+											{
+												Type: DiffTypeAdded,
+												Name: "Datacenters",
+												Old:  "",
+												New:  "east-2",
+											},
+										},
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Strategy",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "MaxParallel",
+										Old:  "1",
+										New:  "2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {

@@ -5239,3 +5239,128 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		require.Equal(out, tc.Parsed)
 	}
 }
+
+func TestMultiregion_CopyCanonicalize(t *testing.T) {
+	require := require.New(t)
+
+	emptyOld := &Multiregion{}
+	expected := &Multiregion{
+		Strategy: &MultiregionStrategy{},
+		Regions:  []*MultiregionRegion{},
+	}
+
+	old := emptyOld.Copy()
+	old.Canonicalize()
+	require.Equal(old, expected)
+	require.False(old.Diff(expected))
+
+	nonEmptyOld := &Multiregion{
+		Strategy: &MultiregionStrategy{
+			MaxParallel: 2,
+			AutoRevert:  "all",
+		},
+		Regions: []*MultiregionRegion{
+			{
+				Name:        "west",
+				Count:       2,
+				Datacenters: []string{"west-1", "west-2"},
+				Meta:        map[string]string{},
+			},
+			{
+				Name:        "east",
+				Count:       1,
+				Datacenters: []string{"east-1"},
+				Meta:        map[string]string{},
+			},
+		},
+	}
+
+	old = nonEmptyOld.Copy()
+	old.Canonicalize()
+	require.Equal(old, nonEmptyOld)
+	require.False(old.Diff(nonEmptyOld))
+}
+
+func TestMultiregion_Validate(t *testing.T) {
+	require := require.New(t)
+	cases := []struct {
+		Name    string
+		JobType string
+		Case    *Multiregion
+		Errors  []string
+	}{
+		{
+			Name:    "empty valid multiregion spec",
+			JobType: JobTypeService,
+			Case:    &Multiregion{},
+			Errors:  []string{},
+		},
+
+		{
+			Name:    "non-empty valid multiregion spec",
+			JobType: JobTypeService,
+			Case: &Multiregion{
+				Strategy: &MultiregionStrategy{
+					MaxParallel: 2,
+					AutoRevert:  "all",
+				},
+				Regions: []*MultiregionRegion{
+					{
+
+						Count:       2,
+						Datacenters: []string{"west-1", "west-2"},
+						Meta:        map[string]string{},
+					},
+					{
+						Name:        "east",
+						Count:       1,
+						Datacenters: []string{"east-1"},
+						Meta:        map[string]string{},
+					},
+				},
+			},
+			Errors: []string{},
+		},
+
+		{
+			Name:    "repeated region, wrong strategy, missing DCs",
+			JobType: JobTypeBatch,
+			Case: &Multiregion{
+				Strategy: &MultiregionStrategy{
+					MaxParallel: 2,
+				},
+				Regions: []*MultiregionRegion{
+					{
+						Name:        "west",
+						Datacenters: []string{"west-1", "west-2"},
+					},
+
+					{
+						Name: "west",
+					},
+				},
+			},
+			Errors: []string{
+				"Multiregion region \"west\" can't be listed twice",
+				"Multiregion region \"west\" must have at least 1 datacenter",
+				"Multiregion batch jobs can't have an update strategy",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Case.Validate(tc.JobType)
+			if len(tc.Errors) == 0 {
+				require.NoError(err)
+			} else {
+				mErr := err.(*multierror.Error)
+				for i, expectedErr := range tc.Errors {
+					if !strings.Contains(mErr.Errors[i].Error(), expectedErr) {
+						t.Fatalf("err: %s, expected: %s", err, expectedErr)
+					}
+				}
+			}
+		})
+	}
+}

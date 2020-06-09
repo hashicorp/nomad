@@ -1096,6 +1096,68 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name: "multiregion",
+			input: &Job{
+				Name:     stringToPtr("foo"),
+				ID:       stringToPtr("bar"),
+				ParentID: stringToPtr("lol"),
+				Multiregion: &Multiregion{
+					Regions: []*MultiregionRegion{
+						{
+							Name:  "west",
+							Count: intToPtr(1),
+						},
+					},
+				},
+			},
+			expected: &Job{
+				Multiregion: &Multiregion{
+					Strategy: &MultiregionStrategy{
+						MaxParallel: intToPtr(0),
+						AutoRevert:  stringToPtr(""),
+					},
+					Regions: []*MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       intToPtr(1),
+							Datacenters: []string{},
+							Meta:        map[string]string{},
+						},
+					},
+				},
+				Namespace:         stringToPtr(DefaultNamespace),
+				ID:                stringToPtr("bar"),
+				Name:              stringToPtr("foo"),
+				Region:            stringToPtr("global"),
+				Type:              stringToPtr("service"),
+				ParentID:          stringToPtr("lol"),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
+				VaultToken:        stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

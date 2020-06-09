@@ -3595,6 +3595,8 @@ type Job struct {
 	// Update provides defaults for the TaskGroup Update stanzas
 	Update UpdateStrategy
 
+	Multiregion *Multiregion
+
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
@@ -3688,6 +3690,10 @@ func (j *Job) Canonicalize() (warnings error) {
 		j.ParameterizedJob.Canonicalize()
 	}
 
+	if j.Multiregion != nil {
+		j.Multiregion.Canonicalize()
+	}
+
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
@@ -3706,6 +3712,7 @@ func (j *Job) Copy() *Job {
 	nj.Datacenters = helper.CopySliceString(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 	nj.Affinities = CopySliceAffinities(nj.Affinities)
+	nj.Multiregion = nj.Multiregion.Copy()
 
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(nj.TaskGroups))
@@ -3850,6 +3857,12 @@ func (j *Job) Validate() error {
 		}
 	}
 
+	if j.IsMultiregion() {
+		if err := j.Multiregion.Validate(j.Type); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -3949,6 +3962,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
+		Multiregion:       j.Multiregion,
 		Type:              j.Type,
 		Priority:          j.Priority,
 		Periodic:          j.IsPeriodic(),
@@ -3978,6 +3992,11 @@ func (j *Job) IsPeriodicActive() bool {
 // IsParameterized returns whether a job is parameterized job.
 func (j *Job) IsParameterized() bool {
 	return j.ParameterizedJob != nil && !j.Dispatched
+}
+
+// IsMultiregion returns whether a job is multiregion
+func (j *Job) IsMultiregion() bool {
+	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
@@ -4116,6 +4135,7 @@ type JobListStub struct {
 	Name              string
 	Namespace         string `json:",omitempty"`
 	Datacenters       []string
+	Multiregion       *Multiregion
 	Type              string
 	Priority          int
 	Periodic          bool
@@ -4330,6 +4350,101 @@ func (u *UpdateStrategy) IsEmpty() bool {
 // Rolling returns if a rolling strategy should be used
 func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
+}
+
+type Multiregion struct {
+	Strategy *MultiregionStrategy
+	Regions  []*MultiregionRegion
+}
+
+func (m *Multiregion) Canonicalize() {
+	if m.Strategy == nil {
+		m.Strategy = &MultiregionStrategy{}
+	}
+	if m.Regions == nil {
+		m.Regions = []*MultiregionRegion{}
+	}
+}
+
+// Diff indicates whether the multiregion config has changed
+func (m *Multiregion) Diff(m2 *Multiregion) bool {
+	return !reflect.DeepEqual(m, m2)
+}
+
+func (m *Multiregion) Copy() *Multiregion {
+	if m == nil {
+		return nil
+	}
+	copy := new(Multiregion)
+	if m.Strategy != nil {
+		copy.Strategy = &MultiregionStrategy{
+			MaxParallel: m.Strategy.MaxParallel,
+			AutoRevert:  m.Strategy.AutoRevert,
+		}
+	}
+	for _, region := range m.Regions {
+		copyRegion := &MultiregionRegion{
+			Name:        region.Name,
+			Count:       region.Count,
+			Datacenters: []string{},
+			Meta:        map[string]string{},
+		}
+		for _, dc := range region.Datacenters {
+			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
+		}
+		for k, v := range region.Meta {
+			copyRegion.Meta[k] = v
+		}
+		copy.Regions = append(copy.Regions, copyRegion)
+	}
+	return copy
+}
+
+func (m *Multiregion) Validate(jobType string) error {
+	var mErr multierror.Error
+	seen := map[string]struct{}{}
+	for _, region := range m.Regions {
+		if _, ok := seen[region.Name]; ok {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Multiregion region %q can't be listed twice",
+					region.Name))
+		}
+		seen[region.Name] = struct{}{}
+		if len(region.Datacenters) == 0 {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Multiregion region %q must have at least 1 datacenter",
+					region.Name),
+			)
+		}
+	}
+	if m.Strategy != nil {
+		switch jobType {
+		case JobTypeBatch:
+			if m.Strategy.AutoRevert != "" || m.Strategy.MaxParallel != 0 {
+				mErr.Errors = append(mErr.Errors,
+					errors.New("Multiregion batch jobs can't have an update strategy"))
+			}
+		case JobTypeSystem:
+			if m.Strategy.AutoRevert != "" {
+				mErr.Errors = append(mErr.Errors,
+					errors.New("Multiregion system jobs can't have an auto_revert setting"))
+			}
+		default: // service
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+type MultiregionStrategy struct {
+	MaxParallel int
+	AutoRevert  string
+}
+
+type MultiregionRegion struct {
+	Name        string
+	Count       int
+	Datacenters []string
+	Meta        map[string]string
 }
 
 const (

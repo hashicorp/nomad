@@ -1575,6 +1575,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Meta: map[string]string{
 			"foo": "bar",
 		},
+		Multiregion: &api.Multiregion{
+			Strategy: &api.MultiregionStrategy{
+				MaxParallel: helper.IntToPtr(2),
+				AutoRevert:  helper.StringToPtr("all"),
+			},
+			Regions: []*api.MultiregionRegion{
+				{
+					Name:        helper.StringToPtr("west"),
+					Count:       helper.IntToPtr(1),
+					Datacenters: []string{"dc1", "dc2"},
+					Meta:        map[string]string{"region_code": "W"},
+				},
+			},
+		},
 		TaskGroups: []*api.TaskGroup{
 			{
 				Name:  helper.StringToPtr("group1"),
@@ -1927,6 +1941,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Payload: []byte("payload"),
 		Meta: map[string]string{
 			"foo": "bar",
+		},
+		Multiregion: &structs.Multiregion{
+			Strategy: &structs.MultiregionStrategy{
+				MaxParallel: 2,
+				AutoRevert:  "all",
+			},
+			Regions: []*structs.MultiregionRegion{
+				{
+					Name:        "west",
+					Count:       1,
+					Datacenters: []string{"dc1", "dc2"},
+					Meta:        map[string]string{"region_code": "W"},
+				},
+			},
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{

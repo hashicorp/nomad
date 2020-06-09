@@ -132,6 +132,11 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 		diff.Objects = append(diff.Objects, cDiff)
 	}
 
+	// Multiregion diff
+	if mrDiff := multiregionDiff(j.Multiregion, other.Multiregion, contextual); mrDiff != nil {
+		diff.Objects = append(diff.Objects, mrDiff)
+	}
+
 	// Check to see if there is a diff. We don't use reflect because we are
 	// filtering quite a few fields that will change on each diff.
 	if diff.Type == DiffTypeNone {
@@ -1004,6 +1009,124 @@ func parameterizedJobDiff(old, new *ParameterizedJobConfig, contextual bool) *Ob
 
 	if requiredDiff := stringSetDiff(old.MetaRequired, new.MetaRequired, "MetaRequired", contextual); requiredDiff != nil {
 		diff.Objects = append(diff.Objects, requiredDiff)
+	}
+
+	return diff
+}
+
+func multiregionDiff(old, new *Multiregion, contextual bool) *ObjectDiff {
+
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Multiregion"}
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &Multiregion{}
+		old.Canonicalize()
+		diff.Type = DiffTypeAdded
+	} else if new == nil {
+		new = &Multiregion{}
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	// strategy diff
+	stratDiff := primitiveObjectDiff(
+		old.Strategy,
+		new.Strategy,
+		[]string{},
+		"Strategy",
+		contextual)
+	if stratDiff != nil {
+		diff.Objects = append(diff.Objects, stratDiff)
+	}
+
+	oldMap := make(map[string]*MultiregionRegion, len(old.Regions))
+	newMap := make(map[string]*MultiregionRegion, len(new.Regions))
+	for _, o := range old.Regions {
+		oldMap[o.Name] = o
+	}
+	for _, n := range new.Regions {
+		newMap[n.Name] = n
+	}
+
+	for name, oldRegion := range oldMap {
+		// Diff the same, deleted and edited
+		newRegion := newMap[name]
+		rdiff := multiregionRegionDiff(newRegion, oldRegion, contextual)
+		if rdiff != nil {
+			diff.Objects = append(diff.Objects, rdiff)
+		}
+	}
+
+	for name, newRegion := range newMap {
+		// Diff the added
+		if oldRegion, ok := oldMap[name]; !ok {
+			rdiff := multiregionRegionDiff(oldRegion, newRegion, contextual)
+			if rdiff != nil {
+				diff.Objects = append(diff.Objects, rdiff)
+			}
+		}
+	}
+	sort.Sort(FieldDiffs(diff.Fields))
+	sort.Sort(ObjectDiffs(diff.Objects))
+	return diff
+}
+
+func multiregionRegionDiff(r, other *MultiregionRegion, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Region"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(r, other) {
+		return nil
+	} else if r == nil {
+		r = &MultiregionRegion{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(other, nil, true)
+	} else if other == nil {
+		other = &MultiregionRegion{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(r, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(r, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(other, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Datacenters diff
+	setDiff := stringSetDiff(r.Datacenters, other.Datacenters, "Datacenters", contextual)
+	if setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	sort.Sort(ObjectDiffs(diff.Objects))
+	sort.Sort(FieldDiffs(diff.Fields))
+
+	var added, deleted, edited bool
+	for _, f := range diff.Fields {
+		switch f.Type {
+		case DiffTypeEdited:
+			edited = true
+			break
+		case DiffTypeDeleted:
+			deleted = true
+		case DiffTypeAdded:
+			added = true
+		}
+	}
+
+	if edited || added && deleted {
+		diff.Type = DiffTypeEdited
+	} else if added {
+		diff.Type = DiffTypeAdded
+	} else if deleted {
+		diff.Type = DiffTypeDeleted
+	} else {
+		return nil
 	}
 
 	return diff

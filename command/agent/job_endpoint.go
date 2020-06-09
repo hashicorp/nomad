@@ -763,6 +763,23 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	if job.Multiregion != nil {
+		j.Multiregion = &structs.Multiregion{}
+		j.Multiregion.Strategy = &structs.MultiregionStrategy{
+			MaxParallel: *job.Multiregion.Strategy.MaxParallel,
+			AutoRevert:  *job.Multiregion.Strategy.AutoRevert,
+		}
+		j.Multiregion.Regions = []*structs.MultiregionRegion{}
+		for _, region := range job.Multiregion.Regions {
+			r := &structs.MultiregionRegion{}
+			r.Name = *region.Name
+			r.Count = *region.Count
+			r.Datacenters = region.Datacenters
+			r.Meta = region.Meta
+			j.Multiregion.Regions = append(j.Multiregion.Regions, r)
+		}
+	}
+
 	if l := len(job.TaskGroups); l != 0 {
 		j.TaskGroups = make([]*structs.TaskGroup, l)
 		for i, taskGroup := range job.TaskGroups {
