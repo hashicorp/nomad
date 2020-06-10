@@ -1,6 +1,7 @@
 package logmon
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -177,6 +178,8 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 // log rotator data. The processOutWriter should be attached to the process and
 // data will be copied from the reader to the rotator.
 type logRotatorWrapper struct {
+	retryCtx          context.Context
+	retryCancel       context.CancelFunc
 	fifoPath          string
 	rotatorWriter     io.WriteCloser
 	hasFinishedCopied chan struct{}
@@ -217,8 +220,11 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 		logger.Error("failed to create FIFO", "stat_error", serr, "create_err", err)
 		return nil, fmt.Errorf("failed to create fifo for extracting logs: %v", err)
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 
 	wrap := &logRotatorWrapper{
+		retryCtx:          ctx,
+		retryCancel:       cancel,
 		fifoPath:          path,
 		rotatorWriter:     rotator,
 		hasFinishedCopied: make(chan struct{}),
@@ -235,6 +241,11 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 func (l *logRotatorWrapper) start(openFn func() (io.ReadCloser, error)) {
 	go func() {
 		defer close(l.hasFinishedCopied)
+	RETRY_COPY:
+		if l.retryCtx.Err() != nil {
+			l.logger.Warn("fifo context cancelled, exiting")
+			return
+		}
 
 		reader, err := openFn()
 		if err != nil {
@@ -256,6 +267,21 @@ func (l *logRotatorWrapper) start(openFn func() (io.ReadCloser, error)) {
 			// force-killed.
 			reader.Close()
 		}
+		// Close reader
+		reader.Close()
+
+		// Check if the context has been closed
+		// return if it has, otherwise wait before
+		// restarting copy
+		select {
+		case <-l.retryCtx.Done():
+			return
+		case <-time.After(1 * time.Second):
+		}
+
+		// reset openCompleted
+		l.openCompleted = make(chan struct{})
+		goto RETRY_COPY
 	}()
 	return
 }
@@ -263,6 +289,9 @@ func (l *logRotatorWrapper) start(openFn func() (io.ReadCloser, error)) {
 // Close closes the rotator and the process writer to ensure that the Wait
 // command exits.
 func (l *logRotatorWrapper) Close() {
+	// Cancel the retryable context
+	l.retryCancel()
+
 	// Wait up to the close tolerance before we force close
 	select {
 	case <-l.hasFinishedCopied:

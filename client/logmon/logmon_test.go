@@ -131,15 +131,9 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	})
 	require.True(impl.tl.IsRunning())
 
-	// Close stdout and assert that logmon no longer writes to the file
+	// Close stdout and stderr
 	require.NoError(stdout.Close())
 	require.NoError(stderr.Close())
-
-	testutil.WaitForResult(func() (bool, error) {
-		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
-	}, func(err error) {
-		require.NoError(err)
-	})
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
 	require.NoError(err)
@@ -234,15 +228,9 @@ func TestLogmon_Start_restart(t *testing.T) {
 	})
 	require.True(impl.tl.IsRunning())
 
-	// Close stdout and assert that logmon no longer writes to the file
+	// Close stdout and assert that logmon no longer writes to the fileA
 	require.NoError(stdout.Close())
 	require.NoError(stderr.Close())
-
-	testutil.WaitForResult(func() (bool, error) {
-		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
-	}, func(err error) {
-		require.NoError(err)
-	})
 
 	// Start logmon again and assert that it can receive logs again
 	require.NoError(lm.Start(cfg))
@@ -265,6 +253,74 @@ func TestLogmon_Start_restart(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
+}
+
+// asserts that start goroutine properly exists when ctx is cancelled
+func TestLogmon_Start_restart_Close(t *testing.T) {
+	require := require.New(t)
+	var stdoutFifoPath, stderrFifoPath string
+
+	dir, err := ioutil.TempDir("", "nomadtest")
+	require.NoError(err)
+	defer os.RemoveAll(dir)
+
+	if runtime.GOOS == "windows" {
+		stdoutFifoPath = "//./pipe/test-restart.stdout"
+		stderrFifoPath = "//./pipe/test-restart.stderr"
+	} else {
+		stdoutFifoPath = filepath.Join(dir, "stdout.fifo")
+		stderrFifoPath = filepath.Join(dir, "stderr.fifo")
+	}
+
+	cfg := &LogConfig{
+		LogDir:        dir,
+		StdoutLogFile: "stdout",
+		StdoutFifo:    stdoutFifoPath,
+		StderrLogFile: "stderr",
+		StderrFifo:    stderrFifoPath,
+		MaxFiles:      2,
+		MaxFileSizeMB: 1,
+	}
+
+	lm := NewLogMon(testlog.HCLogger(t))
+	impl, ok := lm.(*logmonImpl)
+	require.True(ok)
+	require.NoError(lm.Start(cfg))
+
+	stdout, err := fifo.OpenWriter(stdoutFifoPath)
+	require.NoError(err)
+	stderr, err := fifo.OpenWriter(stderrFifoPath)
+	require.NoError(err)
+
+	// Write a string and assert it was written to the file
+	_, err = stdout.Write([]byte("test\n"))
+	require.NoError(err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		if err != nil {
+			return false, err
+		}
+		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
+	}, func(err error) {
+		require.NoError(err)
+	})
+	require.True(impl.tl.IsRunning())
+
+	// Close stdout and assert that logmon no longer writes to the fileA
+	require.NoError(stdout.Close())
+	require.NoError(stderr.Close())
+
+	// Close the task logger
+	impl.tl.Close()
+
+	// Ensure that the task logger is no longer running
+	testutil.WaitForResult(func() (bool, error) {
+		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
+	}, func(err error) {
+		require.NoError(err)
+	})
+
 }
 
 // panicWriter panics on use
