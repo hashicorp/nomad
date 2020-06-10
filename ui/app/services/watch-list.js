@@ -5,23 +5,24 @@ import Service from '@ember/service';
 
 let list = {};
 
-export default Service.extend({
-  _list: computed(function() {
+export default class WatchListService extends Service {
+  @computed
+  get _list() {
     return copy(list, true);
-  }),
+  }
 
-  list: readOnly('_list'),
+  @readOnly('_list') list;
 
-  init() {
-    this._super(...arguments);
+  constructor() {
+    super(...arguments);
     list = {};
-  },
+  }
 
   getIndexFor(url) {
     return list[url] || 1;
-  },
+  }
 
   setIndexFor(url, value) {
     list[url] = +value;
-  },
-});
+  }
+}

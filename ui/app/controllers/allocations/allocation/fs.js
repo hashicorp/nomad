@@ -1,22 +1,23 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
 
-export default Controller.extend({
-  queryParams: {
+export default class FsController extends Controller {
+  queryParams = {
     sortProperty: 'sort',
     sortDescending: 'desc',
-  },
+  };
 
-  sortProperty: 'Name',
-  sortDescending: false,
+  sortProperty = 'Name';
+  sortDescending = false;
 
-  path: null,
-  allocation: null,
-  directoryEntries: null,
-  isFile: null,
-  stat: null,
+  path = null;
+  allocation = null;
+  directoryEntries = null;
+  isFile = null;
+  stat = null;
 
-  pathWithLeadingSlash: computed('path', function() {
+  @computed('path')
+  get pathWithLeadingSlash() {
     const path = this.path;
 
     if (path.startsWith('/')) {
@@ -24,5 +25,5 @@ export default Controller.extend({
     } else {
       return `/${path}`;
     }
-  }),
-});
+  }
+}

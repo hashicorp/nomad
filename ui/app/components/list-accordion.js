@@ -1,17 +1,20 @@
 import Component from '@ember/component';
 import { computed, get } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  classNames: ['accordion'],
+@classic
+@classNames('accordion')
+export default class ListAccordion extends Component {
+  key = 'id';
+  @overridable(() => []) source;
 
-  key: 'id',
-  source: overridable(() => []),
+  onToggle /* item, isOpen */() {}
+  startExpanded = false;
 
-  onToggle(/* item, isOpen */) {},
-  startExpanded: false,
-
-  decoratedSource: computed('source.[]', function() {
+  @computed('source.[]')
+  get decoratedSource() {
     const stateCache = this.stateCache;
     const key = this.key;
     const deepKey = `item.${key}`;
@@ -28,9 +31,9 @@ export default Component.extend({
     // eslint-disable-next-line ember/no-side-effects
     this.set('stateCache', decoratedSource);
     return decoratedSource;
-  }),
+  }
 
   // When source updates come in, the state cache is used to preserve
   // open/close state.
-  stateCache: overridable(() => []),
-});
+  @overridable(() => []) stateCache;
+}

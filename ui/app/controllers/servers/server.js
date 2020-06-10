@@ -1,10 +1,13 @@
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend({
-  activeTab: 'tags',
+@classic
+export default class ServerController extends Controller {
+  activeTab = 'tags';
 
-  sortedTags: computed('model.tags', function() {
+  @computed('model.tags')
+  get sortedTags() {
     const tags = this.get('model.tags') || {};
     return Object.keys(tags)
       .map(name => ({
@@ -12,11 +15,10 @@ export default Controller.extend({
         value: tags[name],
       }))
       .sortBy('name');
-  }),
+  }
 
-  actions: {
-    setTab(tab) {
-      this.set('activeTab', tab);
-    },
-  },
-});
+  @action
+  setTab(tab) {
+    this.set('activeTab', tab);
+  }
+}

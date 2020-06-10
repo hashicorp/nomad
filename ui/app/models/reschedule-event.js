@@ -3,14 +3,14 @@ import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
-export default Fragment.extend({
-  allocation: fragmentOwner(),
+export default class RescheduleEvent extends Fragment {
+  @fragmentOwner() allocation;
 
-  previousAllocationId: attr('string'),
-  previousNodeId: attr('string'),
-  time: attr('date'),
-  delay: attr('string'),
+  @attr('string') previousAllocationId;
+  @attr('string') previousNodeId;
+  @attr('date') time;
+  @attr('string') delay;
 
-  previousAllocationShortId: shortUUIDProperty('previousAllocationId'),
-  previousNodeShortId: shortUUIDProperty('previousNodeShortId'),
-});
+  @shortUUIDProperty('previousAllocationId') previousAllocationShortId;
+  @shortUUIDProperty('previousNodeShortId') previousNodeShortId;
+}

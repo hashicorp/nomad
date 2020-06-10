@@ -3,45 +3,52 @@ import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
+import classic from 'ember-classic-decorator';
 
 const maybe = arr => arr || [];
 
-export default Fragment.extend({
-  job: fragmentOwner(),
+@classic
+export default class TaskGroup extends Fragment {
+  @fragmentOwner() job;
 
-  name: attr('string'),
-  count: attr('number'),
+  @attr('string') name;
+  @attr('number') count;
 
-  tasks: fragmentArray('task'),
+  @fragmentArray('task') tasks;
 
-  services: fragmentArray('service'),
+  @fragmentArray('service') services;
 
-  volumes: fragmentArray('volume-definition'),
+  @fragmentArray('volume-definition') volumes;
 
-  drivers: computed('tasks.@each.driver', function() {
+  @computed('tasks.@each.driver')
+  get drivers() {
     return this.tasks.mapBy('driver').uniq();
-  }),
+  }
 
-  allocations: computed('job.allocations.@each.taskGroup', function() {
+  @computed('job.allocations.@each.taskGroup')
+  get allocations() {
     return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.name);
-  }),
+  }
 
-  reservedCPU: sumAggregation('tasks', 'reservedCPU'),
-  reservedMemory: sumAggregation('tasks', 'reservedMemory'),
-  reservedDisk: sumAggregation('tasks', 'reservedDisk'),
+  @sumAggregation('tasks', 'reservedCPU') reservedCPU;
+  @sumAggregation('tasks', 'reservedMemory') reservedMemory;
+  @sumAggregation('tasks', 'reservedDisk') reservedDisk;
 
-  reservedEphemeralDisk: attr('number'),
+  @attr('number') reservedEphemeralDisk;
 
-  placementFailures: computed('job.latestFailureEvaluation.failedTGAllocs.[]', function() {
+  @computed('job.latestFailureEvaluation.failedTGAllocs.[]')
+  get placementFailures() {
     const placementFailures = this.get('job.latestFailureEvaluation.failedTGAllocs');
     return placementFailures && placementFailures.findBy('name', this.name);
-  }),
+  }
 
-  queuedOrStartingAllocs: computed('summary.{queuedAllocs,startingAllocs}', function() {
+  @computed('summary.{queuedAllocs,startingAllocs}')
+  get queuedOrStartingAllocs() {
     return this.get('summary.queuedAllocs') + this.get('summary.startingAllocs');
-  }),
+  }
 
-  summary: computed('job.taskGroupSummaries.[]', function() {
+  @computed('job.taskGroupSummaries.[]')
+  get summary() {
     return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.name);
-  }),
-});
+  }
+}

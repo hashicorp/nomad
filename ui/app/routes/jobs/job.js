@@ -4,15 +4,15 @@ import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { jobCrumbs } from 'nomad-ui/utils/breadcrumb-utils';
 
-export default Route.extend({
-  store: service(),
-  token: service(),
+export default class JobRoute extends Route {
+  @service store;
+  @service token;
 
-  breadcrumbs: jobCrumbs,
+  breadcrumbs = jobCrumbs;
 
   serialize(model) {
     return { job_name: model.get('plainId') };
-  },
+  }
 
   model(params, transition) {
     const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
@@ -24,5 +24,5 @@ export default Route.extend({
         return RSVP.all([job.get('allocations'), job.get('evaluations')]).then(() => job);
       })
       .catch(notifyError(this));
-  },
-});
+  }
+}

@@ -1,25 +1,32 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import {
+  classNames,
+  attributeBindings,
+  classNameBindings,
+  tagName,
+} from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: 'th',
-
-  attributeBindings: ['title'],
-
+@classic
+@tagName('th')
+@attributeBindings('title')
+@classNames('is-selectable')
+@classNameBindings('isActive:is-active', 'sortDescending:desc:asc')
+export default class SortBy extends Component {
   // The prop that the table is currently sorted by
-  currentProp: '',
+  currentProp = '';
 
   // The prop this sorter controls
-  prop: '',
+  prop = '';
 
-  classNames: ['is-selectable'],
-  classNameBindings: ['isActive:is-active', 'sortDescending:desc:asc'],
-
-  isActive: computed('currentProp', 'prop', function() {
+  @computed('currentProp', 'prop')
+  get isActive() {
     return this.currentProp === this.prop;
-  }),
+  }
 
-  shouldSortDescending: computed('sortDescending', 'isActive', function() {
+  @computed('sortDescending', 'isActive')
+  get shouldSortDescending() {
     return !this.isActive || !this.sortDescending;
-  }),
-});
+  }
+}

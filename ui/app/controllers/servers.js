@@ -2,24 +2,24 @@ import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import Sortable from 'nomad-ui/mixins/sortable';
 
-export default Controller.extend(Sortable, {
-  nodes: alias('model.nodes'),
-  agents: alias('model.agents'),
+export default class ServersController extends Controller.extend(Sortable) {
+  @alias('model.nodes') nodes;
+  @alias('model.agents') agents;
 
-  queryParams: {
+  queryParams = {
     currentPage: 'page',
     sortProperty: 'sort',
     sortDescending: 'desc',
-  },
+  };
 
-  currentPage: 1,
-  pageSize: 8,
+  currentPage = 1;
+  pageSize = 8;
 
-  sortProperty: 'isLeader',
-  sortDescending: true,
+  sortProperty = 'isLeader';
+  sortDescending = true;
 
-  isForbidden: false,
+  isForbidden = false;
 
-  listToSort: alias('agents'),
-  sortedAgents: alias('listSorted'),
-});
+  @alias('agents') listToSort;
+  @alias('listSorted') sortedAgents;
+}

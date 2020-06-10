@@ -1,42 +1,49 @@
-import { alias, readOnly } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
+import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
-  userSettings: service(),
+@classic
+export default class TaskGroupController extends Controller.extend(
+    Sortable,
+    Searchable,
+    WithNamespaceResetting
+  ) {
+  @service userSettings;
 
-  queryParams: {
+  queryParams = {
     currentPage: 'page',
     searchTerm: 'search',
     sortProperty: 'sort',
     sortDescending: 'desc',
-  },
+  };
 
-  currentPage: 1,
-  pageSize: readOnly('userSettings.pageSize'),
+  currentPage = 1;
+  @readOnly('userSettings.pageSize') pageSize;
 
-  sortProperty: 'modifyIndex',
-  sortDescending: true,
+  sortProperty = 'modifyIndex';
+  sortDescending = true;
 
-  searchProps: computed(function() {
+  @computed
+  get searchProps() {
     return ['shortId', 'name'];
-  }),
+  }
 
-  allocations: computed('model.allocations.[]', function() {
+  @computed('model.allocations.[]')
+  get allocations() {
     return this.get('model.allocations') || [];
-  }),
+  }
 
-  listToSort: alias('allocations'),
-  listToSearch: alias('listSorted'),
-  sortedAllocations: alias('listSearched'),
+  @alias('allocations') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedAllocations;
 
-  actions: {
-    gotoAllocation(allocation) {
-      this.transitionToRoute('allocations.allocation', allocation);
-    },
-  },
-});
+  @action
+  gotoAllocation(allocation) {
+    this.transitionToRoute('allocations.allocation', allocation);
+  }
+}

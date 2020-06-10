@@ -4,20 +4,22 @@ import { lazyClick } from '../helpers/lazy-click';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithVisibilityDetection from 'nomad-ui/mixins/with-component-visibility-detection';
 import { computed } from '@ember/object';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend(WithVisibilityDetection, {
-  store: service(),
+@classic
+@tagName('tr')
+@classNames('client-node-row', 'is-interactive')
+export default class ClientNodeRow extends Component.extend(WithVisibilityDetection) {
+  @service store;
 
-  tagName: 'tr',
-  classNames: ['client-node-row', 'is-interactive'],
+  node = null;
 
-  node: null,
-
-  onClick() {},
+  onClick() {}
 
   click(event) {
     lazyClick([this.onClick, event]);
-  },
+  }
 
   didReceiveAttrs() {
     // Reload the node in order to get detail information
@@ -27,7 +29,7 @@ export default Component.extend(WithVisibilityDetection, {
         this.watch.perform(node, 100);
       });
     }
-  },
+  }
 
   visibilityHandler() {
     if (document.hidden) {
@@ -38,16 +40,17 @@ export default Component.extend(WithVisibilityDetection, {
         this.watch.perform(node, 100);
       }
     }
-  },
+  }
 
   willDestroy() {
     this.watch.cancelAll();
-    this._super(...arguments);
-  },
+    super.willDestroy(...arguments);
+  }
 
-  watch: watchRelationship('allocations'),
+  @watchRelationship('allocations') watch;
 
-  compositeStatusClass: computed('node.compositeStatus', function() {
+  @computed('node.compositeStatus')
+  get compositeStatusClass() {
     let compositeStatus = this.get('node.compositeStatus');
 
     if (compositeStatus === 'draining') {
@@ -59,5 +62,5 @@ export default Component.extend(WithVisibilityDetection, {
     } else {
       return '';
     }
-  }),
-});
+  }
+}

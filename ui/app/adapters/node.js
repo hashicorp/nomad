@@ -1,14 +1,14 @@
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
 
-export default Watchable.extend({
+export default class Node extends Watchable {
   setEligible(node) {
     return this.setEligibility(node, true);
-  },
+  }
 
   setIneligible(node) {
     return this.setEligibility(node, false);
-  },
+  }
 
   setEligibility(node, isEligible) {
     const url = addToPath(this.urlForFindRecord(node.id, 'node'), '/eligibility');
@@ -18,7 +18,7 @@ export default Watchable.extend({
         Eligibility: isEligible ? 'eligible' : 'ineligible',
       },
     });
-  },
+  }
 
   // Force: -1s deadline
   // No Deadline: 0 deadline
@@ -36,7 +36,7 @@ export default Watchable.extend({
         ),
       },
     });
-  },
+  }
 
   forceDrain(node, drainSpec) {
     return this.drain(
@@ -45,7 +45,7 @@ export default Watchable.extend({
         Deadline: -1,
       })
     );
-  },
+  }
 
   cancelDrain(node) {
     const url = addToPath(this.urlForFindRecord(node.id, 'node'), '/drain');
@@ -55,5 +55,5 @@ export default Watchable.extend({
         DrainSpec: null,
       },
     });
-  },
-});
+  }
+}

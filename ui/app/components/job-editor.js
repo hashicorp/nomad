@@ -5,44 +5,48 @@ import { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  store: service(),
-  config: service(),
+@classic
+export default class JobEditor extends Component {
+  @service store;
+  @service config;
 
-  'data-test-job-editor': true,
+  'data-test-job-editor' = true;
 
-  job: null,
-  onSubmit() {},
-  context: computed({
-    get() {
-      return this._context;
-    },
-    set(key, value) {
-      const allowedValues = ['new', 'edit'];
+  job = null;
+  onSubmit() {}
 
-      assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
+  @computed
+  get context() {
+    return this._context;
+  }
 
-      this.set('_context', value);
-      return value;
-    },
-  }),
+  set context(value) {
+    const allowedValues = ['new', 'edit'];
 
-  _context: null,
-  parseError: null,
-  planError: null,
-  runError: null,
+    assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
 
-  planOutput: null,
+    this.set('_context', value);
+    return value;
+  }
 
-  showPlanMessage: localStorageProperty('nomadMessageJobPlan', true),
-  showEditorMessage: localStorageProperty('nomadMessageJobEditor', true),
+  _context = null;
+  parseError = null;
+  planError = null;
+  runError = null;
 
-  stage: computed('planOutput', function() {
+  planOutput = null;
+
+  @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
+  @localStorageProperty('nomadMessageJobEditor', true) showEditorMessage;
+
+  @computed('planOutput')
+  get stage() {
     return this.planOutput ? 'plan' : 'editor';
-  }),
+  }
 
-  plan: task(function*() {
+  @(task(function*() {
     this.reset();
 
     try {
@@ -62,9 +66,10 @@ export default Component.extend({
       this.set('planError', error);
       this.scrollToError();
     }
-  }).drop(),
+  }).drop())
+  plan;
 
-  submit: task(function*() {
+  @task(function*() {
     try {
       if (this.context === 'new') {
         yield this.job.run();
@@ -85,18 +90,19 @@ export default Component.extend({
       this.set('planOutput', null);
       this.scrollToError();
     }
-  }),
+  })
+  submit;
 
   reset() {
     this.set('planOutput', null);
     this.set('planError', null);
     this.set('parseError', null);
     this.set('runError', null);
-  },
+  }
 
   scrollToError() {
     if (!this.get('config.isTest')) {
       window.scrollTo(0, 0);
     }
-  },
-});
+  }
+}

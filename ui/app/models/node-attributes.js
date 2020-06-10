@@ -5,10 +5,11 @@ import flat from 'flat';
 
 const { unflatten } = flat;
 
-export default Fragment.extend({
-  nodeAttributes: attr(),
+export default class NodeAttributes extends Fragment {
+  @attr() nodeAttributes;
 
-  attributesStructured: computed('nodeAttributes', function() {
+  @computed('nodeAttributes')
+  get attributesStructured() {
     const original = this.nodeAttributes;
 
     if (!original) {
@@ -23,7 +24,7 @@ export default Fragment.extend({
         return obj;
       }, {});
     return unflatten(attrs, { overwrite: true });
-  }),
+  }
 
   unknownProperty(key) {
     // Returns the exact value in index 0 and the subtree in index 1
@@ -33,5 +34,5 @@ export default Fragment.extend({
     if (this.attributesStructured) {
       return get(this.attributesStructured, key);
     }
-  },
-});
+  }
+}

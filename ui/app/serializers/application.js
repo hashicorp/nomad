@@ -5,19 +5,19 @@ import JSONSerializer from 'ember-data/serializers/json';
 import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
 
-export default JSONSerializer.extend({
-  primaryKey: 'ID',
+export default class Application extends JSONSerializer {
+  primaryKey = 'ID';
 
   keyForAttribute(attr) {
     return attr.camelize().capitalize();
-  },
+  }
 
   keyForRelationship(attr, relationshipType) {
     const key = `${singularize(attr)
       .camelize()
       .capitalize()}ID`;
     return relationshipType === 'hasMany' ? pluralize(key) : key;
-  },
+  }
 
   // Modeled after the pushPayload for ember-data/serializers/rest
   pushPayload(store, payload) {
@@ -41,13 +41,13 @@ export default JSONSerializer.extend({
     });
 
     store.push(documentHash);
-  },
+  }
 
   normalizeFindAllResponse(store, modelClass) {
-    const result = this._super(...arguments);
+    const result = super.normalizeFindAllResponse(...arguments);
     this.cullStore(store, modelClass.modelName, result.data);
     return result;
-  },
+  }
 
   // When records are removed server-side, and therefore don't show up in requests,
   // the local copies of those records need to be unloaded from the store.
@@ -65,9 +65,9 @@ export default JSONSerializer.extend({
           newRecords.removeObject(newRecord);
         }
       });
-  },
+  }
 
   modelNameFromPayloadKey(key) {
     return singularize(key.dasherize());
-  },
-});
+  }
+}

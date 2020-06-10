@@ -1,34 +1,37 @@
 import { reads } from '@ember/object/computed';
 import Component from '@ember/component';
+import { action } from '@ember/object';
 import { run } from '@ember/runloop';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
+@classic
+@classNames('search-box', 'field', 'has-addons')
+export default class SearchBox extends Component {
   // Passed to the component (mutable)
-  searchTerm: null,
+  searchTerm = null;
 
   // Used as a debounce buffer
-  _searchTerm: reads('searchTerm'),
+  @reads('searchTerm') _searchTerm;
 
   // Used to throttle sets to searchTerm
-  debounce: 150,
+  debounce = 150;
 
   // A hook that's called when the search value changes
-  onChange() {},
+  onChange() {}
 
-  classNames: ['search-box', 'field', 'has-addons'],
+  @action
+  setSearchTerm(e) {
+    this.set('_searchTerm', e.target.value);
+    run.debounce(this, updateSearch, this.debounce);
+  }
 
-  actions: {
-    setSearchTerm(e) {
-      this.set('_searchTerm', e.target.value);
-      run.debounce(this, updateSearch, this.debounce);
-    },
-
-    clear() {
-      this.set('_searchTerm', '');
-      run.debounce(this, updateSearch, this.debounce);
-    },
-  },
-});
+  @action
+  clear() {
+    this.set('_searchTerm', '');
+    run.debounce(this, updateSearch, this.debounce);
+  }
+}
 
 function updateSearch() {
   const newTerm = this._searchTerm;

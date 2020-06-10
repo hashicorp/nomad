@@ -1,10 +1,10 @@
 import { inject as service } from '@ember/service';
 import { default as ApplicationAdapter, namespace } from './application';
 
-export default ApplicationAdapter.extend({
-  store: service(),
+export default class Token extends ApplicationAdapter {
+  @service store;
 
-  namespace: namespace + '/acl',
+  namespace = namespace + '/acl';
 
   findSelf() {
     return this.ajax(`${this.buildURL()}/token/self`, 'GET').then(token => {
@@ -15,5 +15,5 @@ export default ApplicationAdapter.extend({
 
       return store.peekRecord('token', store.normalize('token', token).data.id);
     });
-  },
-});
+  }
+}

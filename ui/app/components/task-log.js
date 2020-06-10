@@ -1,49 +1,53 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import RSVP from 'rsvp';
 import { logger } from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
 import { AbortController } from 'fetch';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  token: service(),
+@classic
+@classNames('boxed-section', 'task-log')
+export default class TaskLog extends Component {
+  @service token;
 
-  classNames: ['boxed-section', 'task-log'],
-
-  allocation: null,
-  task: null,
+  allocation = null;
+  task = null;
 
   // When true, request logs from the server agent
-  useServer: false,
+  useServer = false;
 
   // When true, logs cannot be fetched from either the client or the server
-  noConnection: false,
+  noConnection = false;
 
-  clientTimeout: 1000,
-  serverTimeout: 5000,
+  clientTimeout = 1000;
+  serverTimeout = 5000;
 
-  isStreaming: true,
-  streamMode: 'streaming',
+  isStreaming = true;
+  streamMode = 'streaming';
 
-  mode: 'stdout',
+  mode = 'stdout';
 
-  logUrl: computed('allocation.{id,node.httpAddr}', 'useServer', function() {
+  @computed('allocation.{id,node.httpAddr}', 'useServer')
+  get logUrl() {
     const address = this.get('allocation.node.httpAddr');
     const allocation = this.get('allocation.id');
 
     const url = `/v1/client/fs/logs/${allocation}`;
     return this.useServer ? url : `//${address}${url}`;
-  }),
+  }
 
-  logParams: computed('task', 'mode', function() {
+  @computed('task', 'mode')
+  get logParams() {
     return {
       task: this.task,
       type: this.mode,
     };
-  }),
+  }
 
-  logger: logger('logUrl', 'logParams', function logFetch() {
+  @logger('logUrl', 'logParams', function logFetch() {
     // If the log request can't settle in one second, the client
     // must be unavailable and the server should be used instead
 
@@ -71,28 +75,36 @@ export default Component.extend({
           throw error;
         }
       );
-  }),
+  })
+  logger;
 
-  actions: {
-    setMode(mode) {
-      if (this.mode === mode) return;
-      this.logger.stop();
-      this.set('mode', mode);
-    },
-    toggleStream() {
-      this.set('streamMode', 'streaming');
-      this.toggleProperty('isStreaming');
-    },
-    gotoHead() {
-      this.set('streamMode', 'head');
-      this.set('isStreaming', false);
-    },
-    gotoTail() {
-      this.set('streamMode', 'tail');
-      this.set('isStreaming', false);
-    },
-    failoverToServer() {
-      this.set('useServer', true);
-    },
-  },
-});
+  @action
+  setMode(mode) {
+    if (this.mode === mode) return;
+    this.logger.stop();
+    this.set('mode', mode);
+  }
+
+  @action
+  toggleStream() {
+    this.set('streamMode', 'streaming');
+    this.toggleProperty('isStreaming');
+  }
+
+  @action
+  gotoHead() {
+    this.set('streamMode', 'head');
+    this.set('isStreaming', false);
+  }
+
+  @action
+  gotoTail() {
+    this.set('streamMode', 'tail');
+    this.set('isStreaming', false);
+  }
+
+  @action
+  failoverToServer() {
+    this.set('useServer', true);
+  }
+}

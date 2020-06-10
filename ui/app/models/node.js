@@ -8,52 +8,63 @@ import RSVP from 'rsvp';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import ipParts from '../utils/ip-parts';
 
-export default Model.extend({
+export default class Node extends Model {
   // Available from list response
-  name: attr('string'),
-  datacenter: attr('string'),
-  nodeClass: attr('string'),
-  isDraining: attr('boolean'),
-  schedulingEligibility: attr('string'),
-  status: attr('string'),
-  statusDescription: attr('string'),
-  shortId: shortUUIDProperty('id'),
-  modifyIndex: attr('number'),
+  @attr('string') name;
+  @attr('string') datacenter;
+  @attr('string') nodeClass;
+  @attr('boolean') isDraining;
+  @attr('string') schedulingEligibility;
+  @attr('string') status;
+  @attr('string') statusDescription;
+  @shortUUIDProperty('id') shortId;
+  @attr('number') modifyIndex;
 
   // Available from single response
-  httpAddr: attr('string'),
-  tlsEnabled: attr('boolean'),
-  attributes: fragment('node-attributes'),
-  meta: fragment('node-attributes'),
-  resources: fragment('resources'),
-  reserved: fragment('resources'),
-  drainStrategy: fragment('drain-strategy'),
+  @attr('string') httpAddr;
+  @attr('boolean') tlsEnabled;
+  @fragment('node-attributes') attributes;
+  @fragment('node-attributes') meta;
+  @fragment('resources') resources;
+  @fragment('resources') reserved;
+  @fragment('drain-strategy') drainStrategy;
 
-  isEligible: equal('schedulingEligibility', 'eligible'),
+  @equal('schedulingEligibility', 'eligible') isEligible;
 
-  address: computed('httpAddr', function() {
+  @computed('httpAddr')
+  get address() {
     return ipParts(this.httpAddr).address;
-  }),
+  }
 
-  port: computed('httpAddr', function() {
+  @computed('httpAddr')
+  get port() {
     return ipParts(this.httpAddr).port;
-  }),
+  }
 
-  isPartial: computed('httpAddr', function() {
+  @computed('httpAddr')
+  get isPartial() {
     return this.httpAddr == null;
-  }),
+  }
 
-  allocations: hasMany('allocations', { inverse: 'node' }),
-  completeAllocations: computed('allocations.@each.clientStatus', function() {
+  @hasMany('allocations', { inverse: 'node' }) allocations;
+
+  @computed('allocations.@each.clientStatus')
+  get completeAllocations() {
     return this.allocations.filterBy('clientStatus', 'complete');
-  }),
-  runningAllocations: computed('allocations.@each.isRunning', function() {
+  }
+
+  @computed('allocations.@each.isRunning')
+  get runningAllocations() {
     return this.allocations.filterBy('isRunning');
-  }),
-  migratingAllocations: computed('allocations.@each.{isMigrating,isRunning}', function() {
+  }
+
+  @computed('allocations.@each.{isMigrating,isRunning}')
+  get migratingAllocations() {
     return this.allocations.filter(alloc => alloc.isRunning && alloc.isMigrating);
-  }),
-  lastMigrateTime: computed('allocations.@each.{isMigrating,isRunning,modifyTime}', function() {
+  }
+
+  @computed('allocations.@each.{isMigrating,isRunning,modifyTime}')
+  get lastMigrateTime() {
     const allocation = this.allocations
       .filterBy('isRunning', false)
       .filterBy('isMigrating')
@@ -64,27 +75,31 @@ export default Model.extend({
     }
 
     return;
-  }),
+  }
 
-  drivers: fragmentArray('node-driver'),
-  events: fragmentArray('node-event'),
-  hostVolumes: fragmentArray('host-volume'),
+  @fragmentArray('node-driver') drivers;
+  @fragmentArray('node-event') events;
+  @fragmentArray('host-volume') hostVolumes;
 
-  detectedDrivers: computed('drivers.@each.detected', function() {
+  @computed('drivers.@each.detected')
+  get detectedDrivers() {
     return this.drivers.filterBy('detected');
-  }),
+  }
 
-  unhealthyDrivers: computed('detectedDrivers.@each.healthy', function() {
+  @computed('detectedDrivers.@each.healthy')
+  get unhealthyDrivers() {
     return this.detectedDrivers.filterBy('healthy', false);
-  }),
+  }
 
-  unhealthyDriverNames: computed('unhealthyDrivers.@each.name', function() {
+  @computed('unhealthyDrivers.@each.name')
+  get unhealthyDriverNames() {
     return this.unhealthyDrivers.mapBy('name');
-  }),
+  }
 
   // A status attribute that includes states not included in node status.
   // Useful for coloring and sorting nodes
-  compositeStatus: computed('isDraining', 'isEligible', 'status', function() {
+  @computed('isDraining', 'isEligible', 'status')
+  get compositeStatus() {
     if (this.isDraining) {
       return 'draining';
     } else if (!this.isEligible) {
@@ -92,9 +107,10 @@ export default Model.extend({
     } else {
       return this.status;
     }
-  }),
+  }
 
-  compositeStatusIcon: computed('isDraining', 'isEligible', 'status', function() {
+  @computed('isDraining', 'isEligible', 'status')
+  get compositeStatusIcon() {
     if (this.isDraining || !this.isEligible) {
       return 'alert-circle-fill';
     } else if (this.status === 'down') {
@@ -103,31 +119,31 @@ export default Model.extend({
       return 'node-init-circle-fill';
     }
     return 'check-circle-fill';
-  }),
+  }
 
   setEligible() {
     if (this.isEligible) return RSVP.resolve();
     // Optimistically update schedulingEligibility for immediate feedback
     this.set('schedulingEligibility', 'eligible');
     return this.store.adapterFor('node').setEligible(this);
-  },
+  }
 
   setIneligible() {
     if (!this.isEligible) return RSVP.resolve();
     // Optimistically update schedulingEligibility for immediate feedback
     this.set('schedulingEligibility', 'ineligible');
     return this.store.adapterFor('node').setIneligible(this);
-  },
+  }
 
   drain(drainSpec) {
     return this.store.adapterFor('node').drain(this, drainSpec);
-  },
+  }
 
   forceDrain(drainSpec) {
     return this.store.adapterFor('node').forceDrain(this, drainSpec);
-  },
+  }
 
   cancelDrain() {
     return this.store.adapterFor('node').cancelDrain(this);
-  },
-});
+  }
+}

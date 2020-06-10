@@ -1,53 +1,56 @@
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend(
-  SortableFactory([
-    'plainId',
-    'controllersHealthyProportion',
-    'nodesHealthyProportion',
-    'provider',
-  ]),
-  Searchable,
-  {
-    userSettings: service(),
-    pluginsController: controller('csi/plugins'),
+@classic
+export default class IndexController extends Controller.extend(
+    SortableFactory([
+      'plainId',
+      'controllersHealthyProportion',
+      'nodesHealthyProportion',
+      'provider',
+    ]),
+    Searchable
+  ) {
+  @service userSettings;
+  @controller('csi/plugins') pluginsController;
 
-    isForbidden: alias('pluginsController.isForbidden'),
+  @alias('pluginsController.isForbidden') isForbidden;
 
-    queryParams: {
-      currentPage: 'page',
-      searchTerm: 'search',
-      sortProperty: 'sort',
-      sortDescending: 'desc',
-    },
+  queryParams = {
+    currentPage: 'page',
+    searchTerm: 'search',
+    sortProperty: 'sort',
+    sortDescending: 'desc',
+  };
 
-    currentPage: 1,
-    pageSize: readOnly('userSettings.pageSize'),
+  currentPage = 1;
+  @readOnly('userSettings.pageSize') pageSize;
 
-    searchProps: computed(function() {
-      return ['id'];
-    }),
-    fuzzySearchProps: computed(function() {
-      return ['id'];
-    }),
-
-    sortProperty: 'id',
-    sortDescending: false,
-
-    listToSort: alias('model'),
-    listToSearch: alias('listSorted'),
-    sortedPlugins: alias('listSearched'),
-
-    actions: {
-      gotoPlugin(plugin, event) {
-        lazyClick([() => this.transitionToRoute('csi.plugins.plugin', plugin.plainId), event]);
-      },
-    },
+  @computed
+  get searchProps() {
+    return ['id'];
   }
-);
+
+  @computed
+  get fuzzySearchProps() {
+    return ['id'];
+  }
+
+  sortProperty = 'id';
+  sortDescending = false;
+
+  @alias('model') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedPlugins;
+
+  @action
+  gotoPlugin(plugin, event) {
+    lazyClick([() => this.transitionToRoute('csi.plugins.plugin', plugin.plainId), event]);
+  }
+}

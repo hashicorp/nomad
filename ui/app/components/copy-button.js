@@ -1,16 +1,19 @@
 import Component from '@ember/component';
 import { task, timeout } from 'ember-concurrency';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  classNames: ['copy-button'],
+@classic
+@classNames('copy-button')
+export default class CopyButton extends Component {
+  clipboardText = null;
+  state = null;
 
-  clipboardText: null,
-  state: null,
-
-  indicateSuccess: task(function*() {
+  @(task(function*() {
     this.set('state', 'success');
 
     yield timeout(2000);
     this.set('state', null);
-  }).restartable(),
-});
+  }).restartable())
+  indicateSuccess;
+}

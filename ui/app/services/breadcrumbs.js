@@ -1,15 +1,18 @@
 import { getOwner } from '@ember/application';
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Service.extend({
-  router: service(),
+@classic
+export default class BreadcrumbsService extends Service {
+  @service router;
 
   // currentURL is only used to listen to all transitions.
   // currentRouteName has all information necessary to compute breadcrumbs,
   // but it doesn't change when a transition to the same route with a different
   // model occurs.
-  breadcrumbs: computed('router.{currentURL,currentRouteName}', function() {
+  @computed('router.{currentURL,currentRouteName}')
+  get breadcrumbs() {
     const owner = getOwner(this);
     const allRoutes = (this.get('router.currentRouteName') || '')
       .split('.')
@@ -38,5 +41,5 @@ export default Service.extend({
     });
 
     return crumbs;
-  }),
-});
+  }
+}

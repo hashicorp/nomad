@@ -1,27 +1,28 @@
-import { collect, sum } from '@ember/object/computed';
+import { sum, collect } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 
-export default Fragment.extend({
-  job: fragmentOwner(),
-  name: attr('string'),
+export default class TaskGroupSummary extends Fragment {
+  @fragmentOwner() job;
+  @attr('string') name;
 
-  queuedAllocs: attr('number'),
-  startingAllocs: attr('number'),
-  runningAllocs: attr('number'),
-  completeAllocs: attr('number'),
-  failedAllocs: attr('number'),
-  lostAllocs: attr('number'),
+  @attr('number') queuedAllocs;
+  @attr('number') startingAllocs;
+  @attr('number') runningAllocs;
+  @attr('number') completeAllocs;
+  @attr('number') failedAllocs;
+  @attr('number') lostAllocs;
 
-  allocsList: collect(
+  @collect(
     'queuedAllocs',
     'startingAllocs',
     'runningAllocs',
     'completeAllocs',
     'failedAllocs',
     'lostAllocs'
-  ),
+  )
+  allocsList;
 
-  totalAllocs: sum('allocsList'),
-});
+  @sum('allocsList') totalAllocs;
+}

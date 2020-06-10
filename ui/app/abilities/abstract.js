@@ -2,19 +2,23 @@ import { Ability } from 'ember-can';
 import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
 import { equal, not } from '@ember/object/computed';
+import classic from 'ember-classic-decorator';
 
-export default Ability.extend({
-  system: service(),
-  token: service(),
+@classic
+export default class Abstract extends Ability {
+  @service system;
+  @service token;
 
-  bypassAuthorization: not('token.aclEnabled'),
-  selfTokenIsManagement: equal('token.selfToken.type', 'management'),
+  @not('token.aclEnabled') bypassAuthorization;
+  @equal('token.selfToken.type', 'management') selfTokenIsManagement;
 
-  activeNamespace: computed('system.activeNamespace.name', function() {
+  @computed('system.activeNamespace.name')
+  get activeNamespace() {
     return this.get('system.activeNamespace.name') || 'default';
-  }),
+  }
 
-  rulesForActiveNamespace: computed('activeNamespace', 'token.selfTokenPolicies.[]', function() {
+  @computed('activeNamespace', 'token.selfTokenPolicies.[]')
+  get rulesForActiveNamespace() {
     let activeNamespace = this.activeNamespace;
 
     return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
@@ -28,7 +32,7 @@ export default Ability.extend({
 
       return rules;
     }, []);
-  }),
+  }
 
   // Chooses the closest namespace as described at the bottom here:
   // https://www.nomadproject.io/guides/security/acl.html#namespace-rules
@@ -67,5 +71,5 @@ export default Ability.extend({
     } else if (namespaceNames.includes('default')) {
       return 'default';
     }
-  },
-});
+  }
+}

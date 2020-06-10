@@ -1,41 +1,48 @@
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend(Sortable, Searchable, WithNamespaceResetting, {
-  queryParams: {
+@classic
+export default class AllocationsController extends Controller.extend(
+    Sortable,
+    Searchable,
+    WithNamespaceResetting
+  ) {
+  queryParams = {
     currentPage: 'page',
     searchTerm: 'search',
     sortProperty: 'sort',
     sortDescending: 'desc',
-  },
+  };
 
-  currentPage: 1,
-  pageSize: 25,
+  currentPage = 1;
+  pageSize = 25;
 
-  sortProperty: 'modifyIndex',
-  sortDescending: true,
+  sortProperty = 'modifyIndex';
+  sortDescending = true;
 
-  job: alias('model'),
+  @alias('model') job;
 
-  searchProps: computed(function() {
+  @computed
+  get searchProps() {
     return ['shortId', 'name', 'taskGroupName'];
-  }),
+  }
 
-  allocations: computed('model.allocations.[]', function() {
+  @computed('model.allocations.[]')
+  get allocations() {
     return this.get('model.allocations') || [];
-  }),
+  }
 
-  listToSort: alias('allocations'),
-  listToSearch: alias('listSorted'),
-  sortedAllocations: alias('listSearched'),
+  @alias('allocations') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedAllocations;
 
-  actions: {
-    gotoAllocation(allocation) {
-      this.transitionToRoute('allocations.allocation', allocation);
-    },
-  },
-});
+  @action
+  gotoAllocation(allocation) {
+    this.transitionToRoute('allocations.allocation', allocation);
+  }
+}

@@ -6,9 +6,9 @@ import queryString from 'query-string';
 import ApplicationAdapter from './application';
 import removeRecord from '../utils/remove-record';
 
-export default ApplicationAdapter.extend({
-  watchList: service(),
-  store: service(),
+export default class Watchable extends ApplicationAdapter {
+  @service watchList;
+  @service store;
 
   // Overriding ajax is not advised, but this is a minimal modification
   // that sets off a series of events that results in query params being
@@ -19,7 +19,7 @@ export default ApplicationAdapter.extend({
   // to ajaxOptions or overriding ajax completely.
   ajax(url, type, options) {
     const hasParams = hasNonBlockingQueryParams(options);
-    if (!hasParams || type !== 'GET') return this._super(url, type, options);
+    if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
 
     const params = { ...options.data };
     delete params.index;
@@ -29,8 +29,8 @@ export default ApplicationAdapter.extend({
     // at this point since everything else is added to the URL in advance.
     options.data = options.data.index ? { index: options.data.index } : {};
 
-    return this._super(`${url}?${queryString.stringify(params)}`, type, options);
-  },
+    return super.ajax(`${url}?${queryString.stringify(params)}`, type, options);
+  }
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
     const params = assign(this.buildQuery(), additionalParams);
@@ -45,7 +45,7 @@ export default ApplicationAdapter.extend({
       signal,
       data: params,
     });
-  },
+  }
 
   findRecord(store, type, id, snapshot, additionalParams = {}) {
     let [url, params] = this.buildURL(type.modelName, id, snapshot, 'findRecord').split('?');
@@ -65,7 +65,7 @@ export default ApplicationAdapter.extend({
       }
       throw error;
     });
-  },
+  }
 
   query(store, type, query, snapshotRecordArray, options, additionalParams = {}) {
     const url = this.buildURL(type.modelName, null, null, 'query', query);
@@ -107,7 +107,7 @@ export default ApplicationAdapter.extend({
 
       return payload;
     });
-  },
+  }
 
   reloadRelationship(model, relationshipName, options = { watch: false, abortController: null }) {
     const { watch, abortController } = options;
@@ -156,7 +156,7 @@ export default ApplicationAdapter.extend({
         }
       );
     }
-  },
+  }
 
   handleResponse(status, headers, payload, requestData) {
     // Some browsers lowercase all headers. Others keep them
@@ -166,9 +166,9 @@ export default ApplicationAdapter.extend({
       this.watchList.setIndexFor(requestData.url, newIndex);
     }
 
-    return this._super(...arguments);
-  },
-});
+    return super.handleResponse(...arguments);
+  }
+}
 
 function hasNonBlockingQueryParams(options) {
   if (!options || !options.data) return false;

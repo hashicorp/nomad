@@ -1,6 +1,6 @@
 import Route from '@ember/routing/route';
 
-export default Route.extend({
+export default class DefinitionRoute extends Route {
   model() {
     const job = this.modelFor('jobs.job');
     if (!job) return;
@@ -9,7 +9,7 @@ export default Route.extend({
       job,
       definition,
     }));
-  },
+  }
 
   resetController(controller, isExiting) {
     if (isExiting) {
@@ -18,5 +18,5 @@ export default Route.extend({
       job.resetId();
       controller.set('isEditing', false);
     }
-  },
-});
+  }
+}

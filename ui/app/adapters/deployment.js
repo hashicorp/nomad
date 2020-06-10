@@ -1,6 +1,6 @@
 import Watchable from './watchable';
 
-export default Watchable.extend({
+export default class Deployment extends Watchable {
   promote(deployment) {
     const id = deployment.get('id');
     const url = urlForAction(this.urlForFindRecord(id, 'deployment'), '/promote');
@@ -10,8 +10,8 @@ export default Watchable.extend({
         All: true,
       },
     });
-  },
-});
+  }
+}
 
 // The deployment action API endpoints all end with the ID
 // /deployment/:action/:deployment_id instead of /deployment/:deployment_id/:action

@@ -6,29 +6,31 @@ import { assign } from '@ember/polyfills';
 import { task } from 'ember-concurrency';
 import queryString from 'query-string';
 import fetch from 'nomad-ui/utils/fetch';
+import classic from 'ember-classic-decorator';
 
-export default Service.extend({
-  store: service(),
-  system: service(),
+@classic
+export default class TokenService extends Service {
+  @service store;
+  @service system;
 
-  aclEnabled: true,
+  aclEnabled = true;
 
-  secret: computed({
-    get() {
-      return window.localStorage.nomadTokenSecret;
-    },
-    set(key, value) {
-      if (value == null) {
-        window.localStorage.removeItem('nomadTokenSecret');
-      } else {
-        window.localStorage.nomadTokenSecret = value;
-      }
+  @computed
+  get secret() {
+    return window.localStorage.nomadTokenSecret;
+  }
 
-      return value;
-    },
-  }),
+  set secret(value) {
+    if (value == null) {
+      window.localStorage.removeItem('nomadTokenSecret');
+    } else {
+      window.localStorage.nomadTokenSecret = value;
+    }
 
-  fetchSelfToken: task(function*() {
+    return value;
+  }
+
+  @task(function*() {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
       return yield TokenAdapter.findSelf();
@@ -39,14 +41,16 @@ export default Service.extend({
       }
       return null;
     }
-  }),
+  })
+  fetchSelfToken;
 
-  selfToken: computed('secret', 'fetchSelfToken.lastSuccessful.value', function() {
+  @computed('secret', 'fetchSelfToken.lastSuccessful.value')
+  get selfToken() {
     if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');
     return;
-  }),
+  }
 
-  fetchSelfTokenPolicies: task(function*() {
+  @task(function*() {
     try {
       if (this.selfToken) {
         return yield this.selfToken.get('policies');
@@ -57,16 +61,18 @@ export default Service.extend({
     } catch (e) {
       return [];
     }
-  }),
+  })
+  fetchSelfTokenPolicies;
 
-  selfTokenPolicies: alias('fetchSelfTokenPolicies.lastSuccessful.value'),
+  @alias('fetchSelfTokenPolicies.lastSuccessful.value') selfTokenPolicies;
 
-  fetchSelfTokenAndPolicies: task(function*() {
+  @task(function*() {
     yield this.fetchSelfToken.perform();
     if (this.aclEnabled) {
       yield this.fetchSelfTokenPolicies.perform();
     }
-  }),
+  })
+  fetchSelfTokenAndPolicies;
 
   // All non Ember Data requests should go through authorizedRequest.
   // However, the request that gets regions falls into that category.
@@ -83,7 +89,7 @@ export default Service.extend({
     }
 
     return fetch(url, assign(options, { headers, credentials }));
-  },
+  }
 
   authorizedRequest(url, options) {
     if (this.get('system.shouldIncludeRegion')) {
@@ -94,14 +100,14 @@ export default Service.extend({
     }
 
     return this.authorizedRawRequest(url, options);
-  },
+  }
 
   reset() {
     this.fetchSelfToken.cancelAll({ resetState: true });
     this.fetchSelfTokenPolicies.cancelAll({ resetState: true });
     this.fetchSelfTokenAndPolicies.cancelAll({ resetState: true });
-  },
-});
+  }
+}
 
 function addParams(url, params) {
   const paramsStr = queryString.stringify(params);

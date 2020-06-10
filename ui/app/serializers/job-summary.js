@@ -1,7 +1,7 @@
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class JobSummary extends ApplicationSerializer {
   normalize(modelClass, hash) {
     // Transform the map-based Summary object into an array-based
     // TaskGroupSummary fragment list
@@ -29,6 +29,6 @@ export default ApplicationSerializer.extend({
       );
     }
 
-    return this._super(modelClass, hash);
-  },
-});
+    return super.normalize(modelClass, hash);
+  }
+}

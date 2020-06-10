@@ -2,20 +2,22 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import moment from 'moment';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: 'ol',
-  classNames: ['timeline'],
+@classic
+@tagName('ol')
+@classNames('timeline')
+export default class JobDeploymentsStream extends Component {
+  @overridable(() => []) deployments;
 
-  deployments: overridable(() => []),
+  @computed('deployments.@each.versionSubmitTime')
+  get sortedDeployments() {
+    return this.deployments.sortBy('versionSubmitTime').reverse();
+  }
 
-  sortedDeployments: computed('deployments.@each.versionSubmitTime', function() {
-    return this.deployments
-      .sortBy('versionSubmitTime')
-      .reverse();
-  }),
-
-  annotatedDeployments: computed('sortedDeployments.@each.version', function() {
+  @computed('sortedDeployments.@each.version')
+  get annotatedDeployments() {
     const deployments = this.sortedDeployments;
     return deployments.map((deployment, index) => {
       const meta = {};
@@ -39,5 +41,5 @@ export default Component.extend({
 
       return { deployment, meta };
     });
-  }),
-});
+  }
+}

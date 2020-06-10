@@ -1,23 +1,27 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: 'figure',
-  classNames: 'image-file',
-  'data-test-image-file': true,
+@classic
+@tagName('figure')
+@classNames('image-file')
+export default class ImageFile extends Component {
+  'data-test-image-file' = true;
 
-  src: null,
-  alt: null,
-  size: null,
+  src = null;
+  alt = null;
+  size = null;
 
   // Set by updateImageMeta
-  width: 0,
-  height: 0,
+  width = 0;
+  height = 0;
 
-  fileName: computed('src', function() {
+  @computed('src')
+  get fileName() {
     if (!this.src) return;
     return this.src.includes('/') ? this.src.match(/^.*\/(.*)$/)[1] : this.src;
-  }),
+  }
 
   updateImageMeta(event) {
     const img = event.target;
@@ -25,5 +29,5 @@ export default Component.extend({
       width: img.naturalWidth,
       height: img.naturalHeight,
     });
-  },
-});
+  }
+}

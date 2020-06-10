@@ -2,32 +2,35 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
+import { action } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend(WithNamespaceResetting, {
-  system: service(),
+@classic
+export default class IndexController extends Controller.extend(WithNamespaceResetting) {
+  @service system;
 
-  queryParams: {
+  queryParams = {
     currentPage: 'page',
     sortProperty: 'sort',
     sortDescending: 'desc',
-  },
+  };
 
-  currentPage: 1,
+  currentPage = 1;
 
-  job: alias('model'),
+  @alias('model') job;
 
-  sortProperty: 'name',
-  sortDescending: false,
+  sortProperty = 'name';
+  sortDescending = false;
 
-  actions: {
-    gotoTaskGroup(taskGroup) {
-      this.transitionToRoute('jobs.job.task-group', taskGroup.get('job'), taskGroup);
-    },
+  @action
+  gotoTaskGroup(taskGroup) {
+    this.transitionToRoute('jobs.job.task-group', taskGroup.get('job'), taskGroup);
+  }
 
-    gotoJob(job) {
-      this.transitionToRoute('jobs.job', job, {
-        queryParams: { jobNamespace: job.get('namespace.name') },
-      });
-    },
-  },
-});
+  @action
+  gotoJob(job) {
+    this.transitionToRoute('jobs.job', job, {
+      queryParams: { jobNamespace: job.get('namespace.name') },
+    });
+  }
+}

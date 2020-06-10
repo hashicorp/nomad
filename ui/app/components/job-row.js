@@ -1,18 +1,20 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { lazyClick } from '../helpers/lazy-click';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  store: service(),
+@classic
+@tagName('tr')
+@classNames('job-row', 'is-interactive')
+export default class JobRow extends Component {
+  @service store;
 
-  tagName: 'tr',
-  classNames: ['job-row', 'is-interactive'],
+  job = null;
 
-  job: null,
-
-  onClick() {},
+  onClick() {}
 
   click(event) {
     lazyClick([this.onClick, event]);
-  },
-});
+  }
+}

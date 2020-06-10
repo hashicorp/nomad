@@ -1,12 +1,12 @@
 import Watchable from './watchable';
 
-export default Watchable.extend({
+export default class JobSummary extends Watchable {
   urlForFindRecord(id, type, hash) {
     const [name, namespace] = JSON.parse(id);
-    let url = this._super(name, 'job', hash) + '/summary';
+    let url = super.urlForFindRecord(name, 'job', hash) + '/summary';
     if (namespace && namespace !== 'default') {
       url += `?namespace=${namespace}`;
     }
     return url;
-  },
-});
+  }
+}

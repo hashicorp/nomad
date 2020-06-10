@@ -3,44 +3,47 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { belongsTo, hasMany } from 'ember-data/relationships';
 
-export default Model.extend({
-  plainId: attr('string'),
-  name: attr('string'),
+export default class Volume extends Model {
+  @attr('string') plainId;
+  @attr('string') name;
 
-  namespace: belongsTo('namespace'),
-  plugin: belongsTo('plugin'),
+  @belongsTo('namespace') namespace;
+  @belongsTo('plugin') plugin;
 
-  writeAllocations: hasMany('allocation'),
-  readAllocations: hasMany('allocation'),
+  @hasMany('allocation') writeAllocations;
+  @hasMany('allocation') readAllocations;
 
-  allocations: computed('writeAllocations.[]', 'readAllocations.[]', function() {
+  @computed('writeAllocations.[]', 'readAllocations.[]')
+  get allocations() {
     return [...this.writeAllocations.toArray(), ...this.readAllocations.toArray()];
-  }),
+  }
 
-  externalId: attr('string'),
-  topologies: attr(),
-  accessMode: attr('string'),
-  attachmentMode: attr('string'),
-  schedulable: attr('boolean'),
-  provider: attr('string'),
-  version: attr('string'),
+  @attr('string') externalId;
+  @attr() topologies;
+  @attr('string') accessMode;
+  @attr('string') attachmentMode;
+  @attr('boolean') schedulable;
+  @attr('string') provider;
+  @attr('string') version;
 
-  controllerRequired: attr('boolean'),
-  controllersHealthy: attr('number'),
-  controllersExpected: attr('number'),
+  @attr('boolean') controllerRequired;
+  @attr('number') controllersHealthy;
+  @attr('number') controllersExpected;
 
-  controllersHealthyProportion: computed('controllersHealthy', 'controllersExpected', function() {
+  @computed('controllersHealthy', 'controllersExpected')
+  get controllersHealthyProportion() {
     return this.controllersHealthy / this.controllersExpected;
-  }),
+  }
 
-  nodesHealthy: attr('number'),
-  nodesExpected: attr('number'),
+  @attr('number') nodesHealthy;
+  @attr('number') nodesExpected;
 
-  nodesHealthyProportion: computed('nodesHealthy', 'nodesExpected', function() {
+  @computed('nodesHealthy', 'nodesExpected')
+  get nodesHealthyProportion() {
     return this.nodesHealthy / this.nodesExpected;
-  }),
+  }
 
-  resourceExhausted: attr('number'),
-  createIndex: attr('number'),
-  modifyIndex: attr('number'),
-});
+  @attr('number') resourceExhausted;
+  @attr('number') createIndex;
+  @attr('number') modifyIndex;
+}

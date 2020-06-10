@@ -3,24 +3,24 @@ import { belongsTo } from 'ember-data/relationships';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 
-export default Fragment.extend({
-  plugin: fragmentOwner(),
+export default class StorageNode extends Fragment {
+  @fragmentOwner() plugin;
 
-  node: belongsTo('node'),
-  allocID: attr('string'),
+  @belongsTo('node') node;
+  @attr('string') allocID;
 
-  provider: attr('string'),
-  version: attr('string'),
-  healthy: attr('boolean'),
-  healthDescription: attr('string'),
-  updateTime: attr('date'),
-  requiresControllerPlugin: attr('boolean'),
-  requiresTopologies: attr('boolean'),
+  @attr('string') provider;
+  @attr('string') version;
+  @attr('boolean') healthy;
+  @attr('string') healthDescription;
+  @attr('date') updateTime;
+  @attr('boolean') requiresControllerPlugin;
+  @attr('boolean') requiresTopologies;
 
-  nodeInfo: attr(),
+  @attr() nodeInfo;
 
   // Fragments can't have relationships, so provider a manual getter instead.
   async getAllocation() {
     return this.store.findRecord('allocation', this.allocID);
-  },
-});
+  }
+}

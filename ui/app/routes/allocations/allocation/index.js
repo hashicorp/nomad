@@ -1,6 +1,6 @@
 import Route from '@ember/routing/route';
 
-export default Route.extend({
+export default class IndexRoute extends Route {
   setupController(controller, model) {
     // Suppress the preemptedByAllocation fetch error in the event it's a 404
     if (model) {
@@ -8,12 +8,12 @@ export default Route.extend({
       model.preemptedByAllocation.then(setPreempter, setPreempter);
     }
 
-    return this._super(...arguments);
-  },
+    return super.setupController(...arguments);
+  }
 
   resetController(controller, isExiting) {
     if (isExiting) {
       controller.watchNext.cancelAll();
     }
-  },
-});
+  }
+}

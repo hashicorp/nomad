@@ -1,5 +1,5 @@
 import { default as ApplicationAdapter, namespace } from './application';
 
-export default ApplicationAdapter.extend({
-  namespace: namespace + '/acl',
-});
+export default class Policy extends ApplicationAdapter {
+  namespace = namespace + '/acl';
+}
