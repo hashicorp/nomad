@@ -109,6 +109,11 @@ function urlForRecord(id, modelName) {
   }
 
   if (id) {
+    // FIXME a hack to exclude namespace from job queries
+    if (id.includes('[')) {
+      id = JSON.parse(id)[0];
+    }
+
     url.push(encodeURIComponent(id));
   }
 
