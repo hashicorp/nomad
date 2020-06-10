@@ -29,12 +29,12 @@ export default class AllocationStat extends Component {
       return this[this.metric];
     }
 
-    return;
+    return undefined;
   }
 
   @computed('metric', 'stat.used')
   get formattedStat() {
-    if (!this.stat) return;
+    if (!this.stat) return undefined;
     if (this.metric === 'memory') return formatBytes([this.stat.used]);
     return this.stat.used;
   }
@@ -43,6 +43,6 @@ export default class AllocationStat extends Component {
   get formattedReserved() {
     if (this.metric === 'memory') return `${this.statsTracker.reservedMemory} MiB`;
     if (this.metric === 'cpu') return `${this.statsTracker.reservedCPU} MHz`;
-    return;
+    return undefined;
   }
 }

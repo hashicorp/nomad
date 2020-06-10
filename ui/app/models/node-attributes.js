@@ -13,7 +13,7 @@ export default class NodeAttributes extends Fragment {
     const original = this.nodeAttributes;
 
     if (!original) {
-      return;
+      return undefined;
     }
 
     // `unflatten` doesn't sort keys before unflattening, so manual preprocessing is necessary.

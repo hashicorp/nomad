@@ -24,7 +24,7 @@ export default class Browser extends Component {
       return this.model;
     }
 
-    return;
+    return undefined;
   }
 
   @computed('taskState')

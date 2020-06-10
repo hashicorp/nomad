@@ -28,7 +28,7 @@ export default class Application extends RESTAdapter {
       };
     }
 
-    return;
+    return undefined;
   }
 
   handleResponse(status, headers, payload) {

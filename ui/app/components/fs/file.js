@@ -69,7 +69,7 @@ export default class File extends Component {
       return 'readat';
     }
 
-    return;
+    return undefined;
   }
 
   @computed('allocation.{id,node.httpAddr}', 'fetchMode', 'useServer')

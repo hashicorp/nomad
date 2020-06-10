@@ -47,7 +47,7 @@ export default class TokenService extends Service {
   @computed('secret', 'fetchSelfToken.lastSuccessful.value')
   get selfToken() {
     if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');
-    return;
+    return undefined;
   }
 
   @task(function*() {

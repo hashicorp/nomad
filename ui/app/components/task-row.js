@@ -29,14 +29,14 @@ export default class TaskRow extends Component {
   // Since all tasks for an allocation share the same tracker, use the registry
   @computed('task', 'task.isRunning')
   get stats() {
-    if (!this.get('task.isRunning')) return;
+    if (!this.get('task.isRunning')) return undefined;
 
     return this.statsTrackersRegistry.getTracker(this.get('task.allocation'));
   }
 
   @computed('task.name', 'stats.tasks.[]')
   get taskStats() {
-    if (!this.stats) return;
+    if (!this.stats) return undefined;
 
     return this.get('stats.tasks').findBy('task', this.get('task.name'));
   }

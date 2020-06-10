@@ -174,7 +174,7 @@ export default class Job extends Model {
       return failureEvaluations.sortBy('modifyIndex').get('lastObject');
     }
 
-    return;
+    return undefined;
   }
 
   @equal('type', 'service') supportsDeployments;
@@ -185,7 +185,7 @@ export default class Job extends Model {
   get runningDeployment() {
     const latest = this.latestDeployment;
     if (latest.get('isRunning')) return latest;
-    return;
+    return undefined;
   }
 
   fetchRawDefinition() {

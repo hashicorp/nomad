@@ -19,7 +19,7 @@ export default class ImageFile extends Component {
 
   @computed('src')
   get fileName() {
-    if (!this.src) return;
+    if (!this.src) return undefined;
     return this.src.includes('/') ? this.src.match(/^.*\/(.*)$/)[1] : this.src;
   }
 

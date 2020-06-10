@@ -30,7 +30,7 @@ export default class AllocationRow extends Component {
 
   @computed('allocation', 'allocation.isRunning')
   get stats() {
-    if (!this.get('allocation.isRunning')) return;
+    if (!this.get('allocation.isRunning')) return undefined;
 
     return AllocationStatsTracker.create({
       fetch: url => this.token.authorizedRequest(url),

@@ -74,7 +74,7 @@ export default class Node extends Model {
       return allocation.modifyTime;
     }
 
-    return;
+    return undefined;
   }
 
   @fragmentArray('node-driver') drivers;

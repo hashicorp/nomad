@@ -12,7 +12,7 @@ export default class LifecycleChartRow extends Component {
       return 'is-active';
     }
 
-    return;
+    return undefined;
   }
 
   @computed('taskState.finishedAt')
@@ -21,6 +21,6 @@ export default class LifecycleChartRow extends Component {
       return 'is-finished';
     }
 
-    return;
+    return undefined;
   }
 }
