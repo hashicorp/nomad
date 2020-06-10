@@ -10,10 +10,6 @@ export const namespace = 'v1';
 
 @classic
 export default class Application extends RESTAdapter {
-  // TODO: This can be removed once jquery-integration is turned off for
-  // the entire app.
-  useFetch = true;
-
   namespace = namespace;
 
   @service system;
