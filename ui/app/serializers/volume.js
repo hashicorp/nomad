@@ -1,12 +1,12 @@
 import { set, get } from '@ember/object';
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class VolumeSerializer extends ApplicationSerializer {
+  attrs = {
     externalId: 'ExternalID',
-  },
+  };
 
-  embeddedRelationships: Object.freeze(['writeAllocations', 'readAllocations']),
+  embeddedRelationships = Object.freeze(['writeAllocations', 'readAllocations']);
 
   // Volumes treat Allocations as embedded records. Ember has an
   // EmbeddedRecords mixin, but it assumes an application is using
@@ -35,15 +35,15 @@ export default ApplicationSerializer.extend({
     hash.ReadAllocations = Object.keys(readAllocs).map(bindIDToAlloc(readAllocs));
     hash.WriteAllocations = Object.keys(writeAllocs).map(bindIDToAlloc(writeAllocs));
 
-    const normalizedHash = this._super(typeHash, hash);
+    const normalizedHash = super.normalize(typeHash, hash);
     return this.extractEmbeddedRecords(this, this.store, typeHash, normalizedHash);
-  },
+  }
 
   keyForRelationship(attr, relationshipType) {
     //Embedded relationship attributes don't end in IDs
     if (this.embeddedRelationships.includes(attr)) return attr.capitalize();
-    return this._super(attr, relationshipType);
-  },
+    return super.keyForRelationship(attr, relationshipType);
+  }
 
   // Convert the embedded relationship arrays into JSONAPI included records
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
@@ -84,7 +84,7 @@ export default ApplicationSerializer.extend({
     });
 
     return partial;
-  },
+  }
 
   normalizeEmbeddedRelationship(store, relationshipMeta, relationshipHash) {
     const modelName = relationshipMeta.type;
@@ -92,5 +92,5 @@ export default ApplicationSerializer.extend({
     const serializer = store.serializerFor(modelName);
 
     return serializer.normalize(modelClass, relationshipHash, null);
-  },
-});
+  }
+}

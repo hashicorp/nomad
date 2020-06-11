@@ -1,12 +1,12 @@
 import ApplicationSerializer from './application';
 import AdapterError from '@ember-data/adapter/error';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class AgentSerializer extends ApplicationSerializer {
+  attrs = {
     datacenter: 'dc',
     address: 'Addr',
     serfPort: 'Port',
-  },
+  };
 
   normalize(typeHash, hash) {
     if (!hash) {
@@ -24,14 +24,14 @@ export default ApplicationSerializer.extend({
     hash.Region = hash.Tags && hash.Tags.region;
     hash.RpcPort = hash.Tags && hash.Tags.port;
 
-    return this._super(typeHash, hash);
-  },
+    return super.normalize(typeHash, hash);
+  }
 
   normalizeResponse(store, typeClass, hash, ...args) {
-    return this._super(store, typeClass, hash.Members || [], ...args);
-  },
+    return super.normalizeResponse(store, typeClass, hash.Members || [], ...args);
+  }
 
   normalizeSingleResponse(store, typeClass, hash, id, ...args) {
-    return this._super(store, typeClass, hash.findBy('Name', id), id, ...args);
-  },
-});
+    return super.normalizeSingleResponse(store, typeClass, hash.findBy('Name', id), id, ...args);
+  }
+}

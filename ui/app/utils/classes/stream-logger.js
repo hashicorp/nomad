@@ -4,19 +4,22 @@ import TextDecoder from 'nomad-ui/utils/classes/text-decoder';
 import { decode } from 'nomad-ui/utils/stream-frames';
 import AbstractLogger from './abstract-logger';
 import { fetchFailure } from './log';
+import classic from 'ember-classic-decorator';
 
-export default EmberObject.extend(AbstractLogger, {
-  reader: null,
+@classic
+export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
+  reader = null;
 
-  additionalParams: computed(function() {
+  @computed()
+  get additionalParams() {
     return {
       follow: true,
     };
-  }),
+  }
 
   start() {
     return this.poll.perform();
-  },
+  }
 
   stop() {
     const reader = this.reader;
@@ -24,9 +27,9 @@ export default EmberObject.extend(AbstractLogger, {
       reader.cancel();
     }
     return this.poll.cancelAll();
-  },
+  }
 
-  poll: task(function*() {
+  @task(function*() {
     const url = this.fullUrl;
     const logFetch = this.logFetch;
 
@@ -81,8 +84,11 @@ export default EmberObject.extend(AbstractLogger, {
         }
       });
     }
-  }),
-}).reopenClass({
+  })
+  poll;
+}
+
+StreamLogger.reopenClass({
   isSupported: !!window.ReadableStream && !isSafari(),
 });
 
