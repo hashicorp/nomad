@@ -25,12 +25,20 @@ export default class IndexController extends Controller.extend(
   @alias('volumesController.isForbidden')
   isForbidden;
 
-  queryParams = {
-    currentPage: 'page',
-    searchTerm: 'search',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      searchTerm: 'search',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;

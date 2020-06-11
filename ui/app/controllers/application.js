@@ -14,9 +14,11 @@ export default class ApplicationController extends Controller {
   @service config;
   @service system;
 
-  queryParams = {
-    region: 'region',
-  };
+  queryParams = [
+    {
+      region: 'region',
+    },
+  ];
 
   region = null;
 

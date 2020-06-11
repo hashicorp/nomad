@@ -18,16 +18,32 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
   @alias('jobsController.isForbidden') isForbidden;
 
-  queryParams = {
-    currentPage: 'page',
-    searchTerm: 'search',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-    qpType: 'type',
-    qpStatus: 'status',
-    qpDatacenter: 'dc',
-    qpPrefix: 'prefix',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      searchTerm: 'search',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+    {
+      qpType: 'type',
+    },
+    {
+      qpStatus: 'status',
+    },
+    {
+      qpDatacenter: 'dc',
+    },
+    {
+      qpPrefix: 'prefix',
+    },
+  ];
 
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;

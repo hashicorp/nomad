@@ -4,9 +4,11 @@ import Controller from '@ember/controller';
 export default class JobsController extends Controller {
   @service system;
 
-  queryParams = {
-    jobNamespace: 'namespace',
-  };
+  queryParams = [
+    {
+      jobNamespace: 'namespace',
+    },
+  ];
 
   isForbidden = false;
 

@@ -21,16 +21,32 @@ export default class IndexController extends Controller.extend(
   @alias('model.nodes') nodes;
   @alias('model.agents') agents;
 
-  queryParams = {
-    currentPage: 'page',
-    searchTerm: 'search',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-    qpClass: 'class',
-    qpState: 'state',
-    qpDatacenter: 'dc',
-    qpVolume: 'volume',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      searchTerm: 'search',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+    {
+      qpClass: 'class',
+    },
+    {
+      qpState: 'state',
+    },
+    {
+      qpDatacenter: 'dc',
+    },
+    {
+      qpVolume: 'volume',
+    },
+  ];
 
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;
