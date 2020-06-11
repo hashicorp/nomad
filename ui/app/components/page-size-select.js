@@ -1,11 +1,11 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 
-export default Component.extend({
-  userSettings: service(),
+export default class PageSizeSelect extends Component {
+  @service userSettings;
 
-  tagName: '',
-  pageSizeOptions: Object.freeze([10, 25, 50]),
+  tagName = '';
+  pageSizeOptions = Object.freeze([10, 25, 50]);
 
-  onChange() {},
-});
+  onChange() {}
+}

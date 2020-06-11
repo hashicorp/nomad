@@ -1,6 +1,6 @@
 import Watchable from './watchable';
 
-export default class Deployment extends Watchable {
+export default class DeploymentAdapter extends Watchable {
   promote(deployment) {
     const id = deployment.get('id');
     const url = urlForAction(this.urlForFindRecord(id, 'deployment'), '/promote');

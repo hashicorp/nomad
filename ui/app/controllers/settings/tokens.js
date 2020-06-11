@@ -3,66 +3,69 @@ import { reads } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
+import { action } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend({
-  token: service(),
-  system: service(),
-  store: service(),
+@classic
+export default class Tokens extends Controller {
+  @service token;
+  @service system;
+  @service store;
 
-  secret: reads('token.secret'),
+  @reads('token.secret') secret;
 
-  tokenIsValid: false,
-  tokenIsInvalid: false,
-  tokenRecord: alias('token.selfToken'),
+  tokenIsValid = false;
+  tokenIsInvalid = false;
+  @alias('token.selfToken') tokenRecord;
 
   resetStore() {
     this.store.unloadAll();
-  },
+  }
 
-  actions: {
-    clearTokenProperties() {
-      this.token.setProperties({
-        secret: undefined,
-      });
-      this.setProperties({
-        tokenIsValid: false,
-        tokenIsInvalid: false,
-      });
-      this.resetStore();
-      this.token.reset();
-    },
+  @action
+  clearTokenProperties() {
+    this.token.setProperties({
+      secret: undefined,
+    });
+    this.setProperties({
+      tokenIsValid: false,
+      tokenIsInvalid: false,
+    });
+    this.resetStore();
+    this.token.reset();
+  }
 
-    verifyToken() {
-      const { secret } = this;
-      const TokenAdapter = getOwner(this).lookup('adapter:token');
+  @action
+  verifyToken() {
+    const { secret } = this;
+    const TokenAdapter = getOwner(this).lookup('adapter:token');
 
-      this.set('token.secret', secret);
+    this.set('token.secret', secret);
 
-      TokenAdapter.findSelf().then(
-        () => {
-          // Clear out all data to ensure only data the new token is privileged to
-          // see is shown
-          this.system.reset();
-          this.resetStore();
+    TokenAdapter.findSelf().then(
+      () => {
+        // Clear out all data to ensure only data the new token is privileged to
+        // see is shown
+        this.system.reset();
+        this.resetStore();
 
-          // Refetch the token and associated policies
-          this.get('token.fetchSelfTokenAndPolicies')
-            .perform()
-            .catch();
+        // Refetch the token and associated policies
+        this.get('token.fetchSelfTokenAndPolicies')
+          .perform()
+          .catch();
 
-          this.setProperties({
-            tokenIsValid: true,
-            tokenIsInvalid: false,
-          });
-        },
-        () => {
-          this.set('token.secret', undefined);
-          this.setProperties({
-            tokenIsValid: false,
-            tokenIsInvalid: true,
-          });
-        }
-      );
-    },
-  },
-});
+        this.setProperties({
+          tokenIsValid: true,
+          tokenIsInvalid: false,
+        });
+      },
+      () => {
+        this.set('token.secret', undefined);
+        this.setProperties({
+          tokenIsValid: false,
+          tokenIsInvalid: true,
+        });
+      }
+    );
+  }
+}

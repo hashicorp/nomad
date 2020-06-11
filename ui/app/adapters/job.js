@@ -1,27 +1,27 @@
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 
-export default WatchableNamespaceIDs.extend({
-  relationshipFallbackLinks: Object.freeze({
+export default class JobAdapter extends WatchableNamespaceIDs {
+  relationshipFallbackLinks = Object.freeze({
     summary: '/summary',
-  }),
+  });
 
   fetchRawDefinition(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'GET');
-  },
+  }
 
   forcePeriodic(job) {
     if (job.get('periodic')) {
       const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/periodic/force');
       return this.ajax(url, 'POST');
     }
-  },
+  }
 
   stop(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'DELETE');
-  },
+  }
 
   parse(spec) {
     const url = addToPath(this.urlForFindAll('job'), '/parse');
@@ -31,7 +31,7 @@ export default WatchableNamespaceIDs.extend({
         Canonicalize: true,
       },
     });
-  },
+  }
 
   plan(job) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
@@ -48,7 +48,7 @@ export default WatchableNamespaceIDs.extend({
       store.pushPayload('job-plan', { jobPlans: [json] });
       return store.peekRecord('job-plan', jobId);
     });
-  },
+  }
 
   // Running a job doesn't follow REST create semantics so it's easier to
   // treat it as an action.
@@ -58,7 +58,7 @@ export default WatchableNamespaceIDs.extend({
         Job: job.get('_newDefinitionJSON'),
       },
     });
-  },
+  }
 
   update(job) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
@@ -68,5 +68,5 @@ export default WatchableNamespaceIDs.extend({
         Job: job.get('_newDefinitionJSON'),
       },
     });
-  },
-});
+  }
+}

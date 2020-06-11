@@ -1,7 +1,7 @@
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
 
-export default class Node extends Watchable {
+export default class NodeAdapter extends Watchable {
   setEligible(node) {
     return this.setEligibility(node, true);
   }

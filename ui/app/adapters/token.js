@@ -1,7 +1,7 @@
 import { inject as service } from '@ember/service';
 import { default as ApplicationAdapter, namespace } from './application';
 
-export default class Token extends ApplicationAdapter {
+export default class TokenAdapter extends ApplicationAdapter {
   @service store;
 
   namespace = namespace + '/acl';

@@ -9,7 +9,7 @@ import classic from 'ember-classic-decorator';
 export const namespace = 'v1';
 
 @classic
-export default class Application extends RESTAdapter {
+export default class ApplicationAdapter extends RESTAdapter {
   namespace = namespace;
 
   @service system;

@@ -1,6 +1,6 @@
 import ApplicationAdapter from './application';
 
-export default class Agent extends ApplicationAdapter {
+export default class AgentAdapter extends ApplicationAdapter {
   pathForType = () => 'agent/members';
 
   urlForFindRecord() {

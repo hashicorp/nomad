@@ -1,84 +1,99 @@
 /* eslint-disable ember/no-observers */
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed, observer } from '@ember/object';
+import { action, computed } from '@ember/object';
+import { observes } from '@ember-decorators/object';
 import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend(Sortable, Searchable, {
-  queryParams: {
-    currentPage: 'page',
-    searchTerm: 'search',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-    onlyPreemptions: 'preemptions',
-  },
+@classic
+export default class ClientController extends Controller.extend(Sortable, Searchable) {
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      searchTerm: 'search',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+    {
+      onlyPreemptions: 'preemptions',
+    },
+  ];
 
   // Set in the route
-  flagAsDraining: false,
+  flagAsDraining = false;
 
-  currentPage: 1,
-  pageSize: 8,
+  currentPage = 1;
+  pageSize = 8;
 
-  sortProperty: 'modifyIndex',
-  sortDescending: true,
+  sortProperty = 'modifyIndex';
+  sortDescending = true;
 
-  searchProps: computed(function() {
+  @computed()
+  get searchProps() {
     return ['shortId', 'name'];
-  }),
+  }
 
-  onlyPreemptions: false,
+  onlyPreemptions = false;
 
-  visibleAllocations: computed(
-    'model.allocations.[]',
-    'preemptions.[]',
-    'onlyPreemptions',
-    function() {
-      return this.onlyPreemptions ? this.preemptions : this.model.allocations;
-    }
-  ),
+  @computed('model.allocations.[]', 'preemptions.[]', 'onlyPreemptions')
+  get visibleAllocations() {
+    return this.onlyPreemptions ? this.preemptions : this.model.allocations;
+  }
 
-  listToSort: alias('visibleAllocations'),
-  listToSearch: alias('listSorted'),
-  sortedAllocations: alias('listSearched'),
+  @alias('visibleAllocations') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedAllocations;
 
-  eligibilityError: null,
-  stopDrainError: null,
-  drainError: null,
-  showDrainNotification: false,
-  showDrainUpdateNotification: false,
-  showDrainStoppedNotification: false,
+  eligibilityError = null;
+  stopDrainError = null;
+  drainError = null;
+  showDrainNotification = false;
+  showDrainUpdateNotification = false;
+  showDrainStoppedNotification = false;
 
-  preemptions: computed('model.allocations.@each.wasPreempted', function() {
+  @computed('model.allocations.@each.wasPreempted')
+  get preemptions() {
     return this.model.allocations.filterBy('wasPreempted');
-  }),
+  }
 
-  sortedEvents: computed('model.events.@each.time', function() {
+  @computed('model.events.@each.time')
+  get sortedEvents() {
     return this.get('model.events')
       .sortBy('time')
       .reverse();
-  }),
+  }
 
-  sortedDrivers: computed('model.drivers.@each.name', function() {
+  @computed('model.drivers.@each.name')
+  get sortedDrivers() {
     return this.get('model.drivers').sortBy('name');
-  }),
+  }
 
-  sortedHostVolumes: computed('model.hostVolumes.@each.name', function() {
+  @computed('model.hostVolumes.@each.name')
+  get sortedHostVolumes() {
     return this.model.hostVolumes.sortBy('name');
-  }),
+  }
 
-  setEligibility: task(function*(value) {
+  @(task(function*(value) {
     try {
       yield value ? this.model.setEligible() : this.model.setIneligible();
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not set eligibility';
       this.set('eligibilityError', error);
     }
-  }).drop(),
+  }).drop())
+  setEligibility;
 
-  stopDrain: task(function*() {
+  @(task(function*() {
     try {
       this.set('flagAsDraining', false);
       yield this.model.cancelDrain();
@@ -88,9 +103,10 @@ export default Controller.extend(Sortable, Searchable, {
       const error = messageFromAdapterError(err) || 'Could not stop drain';
       this.set('stopDrainError', error);
     }
-  }).drop(),
+  }).drop())
+  stopDrain;
 
-  forceDrain: task(function*() {
+  @(task(function*() {
     try {
       yield this.model.forceDrain({
         IgnoreSystemJobs: this.model.drainStrategy.ignoreSystemJobs,
@@ -99,32 +115,36 @@ export default Controller.extend(Sortable, Searchable, {
       const error = messageFromAdapterError(err) || 'Could not force drain';
       this.set('drainError', error);
     }
-  }).drop(),
+  }).drop())
+  forceDrain;
 
-  triggerDrainNotification: observer('model.isDraining', function() {
+  @observes('model.isDraining')
+  triggerDrainNotification() {
     if (!this.model.isDraining && this.flagAsDraining) {
       this.set('showDrainNotification', true);
     }
 
     this.set('flagAsDraining', this.model.isDraining);
-  }),
+  }
 
-  actions: {
-    gotoAllocation(allocation) {
-      this.transitionToRoute('allocations.allocation', allocation);
-    },
+  @action
+  gotoAllocation(allocation) {
+    this.transitionToRoute('allocations.allocation', allocation);
+  }
 
-    setPreemptionFilter(value) {
-      this.set('onlyPreemptions', value);
-    },
+  @action
+  setPreemptionFilter(value) {
+    this.set('onlyPreemptions', value);
+  }
 
-    drainNotify(isUpdating) {
-      this.set('showDrainUpdateNotification', isUpdating);
-    },
+  @action
+  drainNotify(isUpdating) {
+    this.set('showDrainUpdateNotification', isUpdating);
+  }
 
-    drainError(err) {
-      const error = messageFromAdapterError(err) || 'Could not run drain';
-      this.set('drainError', error);
-    },
-  },
-});
+  @action
+  drainError(err) {
+    const error = messageFromAdapterError(err) || 'Could not run drain';
+    this.set('drainError', error);
+  }
+}
