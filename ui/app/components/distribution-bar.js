@@ -20,7 +20,7 @@ const sumAggregate = (total, val) => total + val;
 @classNameBindings('isNarrow:is-narrow')
 export default class DistributionBar extends Component.extend(WindowResizable) {
   chart = null;
-  data = null;
+  // data = null; FIXME causing a getter-only exception
   activeDatum = null;
   isNarrow = false;
 
