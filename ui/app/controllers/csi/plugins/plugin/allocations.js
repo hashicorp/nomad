@@ -13,13 +13,23 @@ export default class AllocationsController extends Controller.extend(
   ) {
   @service userSettings;
 
-  queryParams = {
-    currentPage: 'page',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-    qpHealth: 'healthy',
-    qpType: 'type',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+    {
+      qpHealth: 'healthy',
+    },
+    {
+      qpType: 'type',
+    },
+  ];
 
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;

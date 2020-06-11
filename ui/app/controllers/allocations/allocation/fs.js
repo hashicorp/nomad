@@ -2,10 +2,14 @@ import Controller from '@ember/controller';
 import { computed } from '@ember/object';
 
 export default class FsController extends Controller {
-  queryParams = {
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  };
+  queryParams = [
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
   sortProperty = 'Name';
   sortDescending = false;

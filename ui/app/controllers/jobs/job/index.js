@@ -9,11 +9,17 @@ import classic from 'ember-classic-decorator';
 export default class IndexController extends Controller.extend(WithNamespaceResetting) {
   @service system;
 
-  queryParams = {
-    currentPage: 'page',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
   currentPage = 1;
 

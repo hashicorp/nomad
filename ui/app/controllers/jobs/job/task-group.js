@@ -15,12 +15,20 @@ export default class TaskGroupController extends Controller.extend(
   ) {
   @service userSettings;
 
-  queryParams = {
-    currentPage: 'page',
-    searchTerm: 'search',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      searchTerm: 'search',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;

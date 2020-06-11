@@ -12,12 +12,20 @@ export default class AllocationsController extends Controller.extend(
     Searchable,
     WithNamespaceResetting
   ) {
-  queryParams = {
-    currentPage: 'page',
-    searchTerm: 'search',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      searchTerm: 'search',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
   currentPage = 1;
   pageSize = 25;

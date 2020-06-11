@@ -9,10 +9,14 @@ export default class EvaluationsController extends Controller.extend(
     WithNamespaceResetting,
     Sortable
   ) {
-  queryParams = {
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  };
+  queryParams = [
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
   sortProperty = 'modifyIndex';
   sortDescending = true;

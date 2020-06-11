@@ -6,11 +6,17 @@ export default class ServersController extends Controller.extend(Sortable) {
   @alias('model.nodes') nodes;
   @alias('model.agents') agents;
 
-  queryParams = {
-    currentPage: 'page',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  };
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
   currentPage = 1;
   pageSize = 8;
