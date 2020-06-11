@@ -637,11 +637,11 @@ socket. Nomad will need to be able to read/write to this socket. If you do not
 run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
 
-For example, on Ubuntu you can use the `usermod` command to add the `vagrant`
+For example, on Ubuntu you can use the `usermod` command to add the `nomad`
 user to the `docker` group so you can run Nomad without root:
 
 ```shell-session
-$ sudo usermod -G docker -a vagrant
+$ sudo usermod -G docker -a nomad
 ```
 
 For the best performance and security features you should use recent versions
