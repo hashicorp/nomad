@@ -1064,6 +1064,22 @@ type DeploymentPauseRequest struct {
 	WriteRequest
 }
 
+// DeploymentUnblockRequest is used to remotely unblock a deployment.
+// Used only for multiregion deployments.
+type DeploymentUnblockRequest struct {
+	DeploymentID string
+
+	WriteRequest
+}
+
+// DeploymentCancelRequest is used to remotely cancel a deployment.
+// Used only for multiregion deployments.
+type DeploymentCancelRequest struct {
+	DeploymentID string
+
+	WriteRequest
+}
+
 // DeploymentSpecificRequest is used to make a request specific to a particular
 // deployment
 type DeploymentSpecificRequest struct {
@@ -7866,6 +7882,8 @@ const (
 	DeploymentStatusFailed     = "failed"
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
+	DeploymentStatusBlocked    = "blocked"
+	DeploymentStatusUnblocking = "unblocking"
 
 	// TODO Statuses and Descriptions do not match 1:1 and we sometimes use the Description as a status flag
 
@@ -7982,7 +8000,7 @@ func (d *Deployment) Copy() *Deployment {
 // Active returns whether the deployment is active or terminal.
 func (d *Deployment) Active() bool {
 	switch d.Status {
-	case DeploymentStatusRunning, DeploymentStatusPaused:
+	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked, DeploymentStatusUnblocking:
 		return true
 	default:
 		return false
