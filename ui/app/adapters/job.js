@@ -2,9 +2,9 @@ import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 
 export default class JobAdapter extends WatchableNamespaceIDs {
-  relationshipFallbackLinks = Object.freeze({
+  relationshipFallbackLinks = {
     summary: '/summary',
-  });
+  };
 
   fetchRawDefinition(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');

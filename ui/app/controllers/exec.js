@@ -32,7 +32,7 @@ export default class ExecController extends Controller {
   @mapBy('pendingAndRunningAllocations', 'taskGroup') pendingAndRunningTaskGroups;
   @uniq('pendingAndRunningTaskGroups') uniquePendingAndRunningTaskGroups;
 
-  taskGroupSorting = Object.freeze(['name']);
+  taskGroupSorting = ['name'];
   @sort('uniquePendingAndRunningTaskGroups', 'taskGroupSorting') sortedTaskGroups;
 
   setUpTerminal(Terminal) {

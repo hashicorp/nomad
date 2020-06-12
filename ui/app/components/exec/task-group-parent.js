@@ -63,7 +63,7 @@ export default class TaskGroupParent extends Component {
     return this.taskGroup.tasks.filter(task => activeTaskStateNames.includes(task.name));
   }
 
-  taskSorting = Object.freeze(['name']);
+  taskSorting = ['name'];
   @sort('tasksWithRunningStates', 'taskSorting') sortedTasks;
 
   clickedOpen = false;

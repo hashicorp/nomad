@@ -9,12 +9,12 @@ export default class VolumesRoute extends Route.extend(WithForbiddenState) {
   @service system;
   @service store;
 
-  breadcrumbs = Object.freeze([
+  breadcrumbs = [
     {
       label: 'Storage',
       args: ['csi.index'],
     },
-  ]);
+  ];
 
   queryParams = {
     volumeNamespace: {

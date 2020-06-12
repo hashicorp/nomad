@@ -10,12 +10,12 @@ export default class JobsRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
-  breadcrumbs = Object.freeze([
+  breadcrumbs = [
     {
       label: 'Jobs',
       args: ['jobs.index'],
     },
-  ]);
+  ];
 
   queryParams = {
     jobNamespace: {
