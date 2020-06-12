@@ -838,7 +838,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.MemorySwap = 0
 		hostConfig.MemorySwappiness = nil
 	} else {
-		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+		hostConfig.MemorySwap = memory
 
 		// disable swap explicitly in non-Windows environments
 		var swapiness int64 = 0
