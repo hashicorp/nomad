@@ -10,12 +10,12 @@ export default class ServersRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
-  breadcrumbs = Object.freeze([
+  breadcrumbs = [
     {
       label: 'Servers',
       args: ['servers.index'],
     },
-  ]);
+  ];
 
   beforeModel() {
     return this.get('system.leader');

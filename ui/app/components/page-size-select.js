@@ -5,7 +5,7 @@ export default class PageSizeSelect extends Component {
   @service userSettings;
 
   tagName = '';
-  pageSizeOptions = Object.freeze([10, 25, 50]);
+  pageSizeOptions = [10, 25, 50];
 
   onChange() {}
 }

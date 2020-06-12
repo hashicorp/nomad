@@ -8,12 +8,12 @@ export default class RunRoute extends Route {
   @service store;
   @service system;
 
-  breadcrumbs = Object.freeze([
+  breadcrumbs = [
     {
       label: 'Run',
       args: ['jobs.run'],
     },
-  ]);
+  ];
 
   beforeModel() {
     if (this.can.cannot('run job')) {
