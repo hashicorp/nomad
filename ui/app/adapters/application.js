@@ -120,6 +120,6 @@ export default class Application extends RESTAdapter {
   }
 
   urlForUpdateRecord() {
-    return this.urlForRecord(...arguments);
+    return this.urlForFindRecord(...arguments);
   }
 }
