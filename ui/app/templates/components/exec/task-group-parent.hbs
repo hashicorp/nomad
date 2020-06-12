@@ -5,19 +5,19 @@
 {{#if isOpen}}
   <ul class="task-list">
     {{#each sortedTasks as |task|}}
-      {{#if openInNewWindow}}
+      {{#if shouldOpenInNewWindow}}
         <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
           <Exec::TaskContents
             @task={{task}}
             @active={{and currentRouteIsThisTaskGroup (eq task.name activeTaskName)}}
-            @openInNewWindow={{openInNewWindow}} />
+            @shouldOpenInNewWindow={{shouldOpenInNewWindow}} />
         </a>
       {{else}}
         <LinkTo @route="exec.task-group.task" @models={{array taskGroup.job.plainId taskGroup.name task.name}} class="task-item" data-test-task={{true}}>
           <Exec::TaskContents
             @task={{task}}
             @active={{and currentRouteIsThisTaskGroup (eq task.name activeTaskName)}}
-            @openInNewWindow={{openInNewWindow}} />
+            @shouldOpenInNewWindow={{shouldOpenInNewWindow}} />
         </LinkTo>
       {{/if}}
     {{/each}}
