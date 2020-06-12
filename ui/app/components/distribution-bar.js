@@ -6,6 +6,7 @@ import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { guidFor } from '@ember/object/internals';
 import { copy } from 'ember-copy';
+import { computed as overridable } from 'ember-overridable-computed';
 import d3 from 'd3-selection';
 import 'd3-transition';
 import WindowResizable from '../mixins/window-resizable';
@@ -20,7 +21,7 @@ const sumAggregate = (total, val) => total + val;
 @classNameBindings('isNarrow:is-narrow')
 export default class DistributionBar extends Component.extend(WindowResizable) {
   chart = null;
-  // data = null; FIXME causing a getter-only exception
+  @overridable(() => null) data;
   activeDatum = null;
   isNarrow = false;
 
