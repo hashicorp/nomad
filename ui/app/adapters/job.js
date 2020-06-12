@@ -1,8 +1,7 @@
-import Watchable from './watchable';
+import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
-import WithNamespaceIDs from 'nomad-ui/mixins/with-namespace-ids';
 
-export default Watchable.extend(WithNamespaceIDs, {
+export default WatchableNamespaceIDs.extend({
   relationshipFallbackLinks: Object.freeze({
     summary: '/summary',
   }),
