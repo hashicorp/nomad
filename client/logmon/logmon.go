@@ -110,14 +110,10 @@ type TaskLogger struct {
 
 // IsRunning will return true as long as one rotator wrapper is still running
 func (tl *TaskLogger) IsRunning() bool {
-	if tl.lro != nil && tl.lro.isRunning() {
-		return true
-	}
-	if tl.lre != nil && tl.lre.isRunning() {
-		return true
-	}
+	lroRunning := tl.lro != nil && tl.lro.isRunning()
+	lreRunning := tl.lre != nil && tl.lre.isRunning()
 
-	return false
+	return lroRunning && lreRunning
 }
 
 func (tl *TaskLogger) Close() {
