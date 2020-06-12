@@ -1,7 +1,6 @@
-import Watchable from './watchable';
-import WithNamespaceIDs from 'nomad-ui/mixins/with-namespace-ids';
+import WatchableNamespaceIDs from './watchable-namespace-ids';
 
-export default class Volume extends Watchable.extend(WithNamespaceIDs) {
+export default class VolumeAdapter extends WatchableNamespaceIDs {
   queryParamsToAttrs = Object.freeze({
     type: 'type',
     plugin_id: 'plugin.id',
