@@ -305,12 +305,8 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 	return nil, fmt.Errorf("rpc error: lead thread didn't get connection")
 }
 
-type HalfCloserConn interface {
-	net.Conn
-	CloseWrite() error
-}
-
-func (p *ConnPool) DialTimeout(region string, addr net.Addr, version int, mode RPCType) (net.Conn, error) {
+// getNewConn is used to return a new connection
+func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn, error) {
 	// Try to dial the conn
 	conn, err := net.DialTimeout("tcp", addr.String(), 10*time.Second)
 	if err != nil {
@@ -341,19 +337,8 @@ func (p *ConnPool) DialTimeout(region string, addr net.Addr, version int, mode R
 	}
 
 	// Write the multiplex byte to set the mode
-	if _, err := conn.Write([]byte{byte(mode)}); err != nil {
+	if _, err := conn.Write([]byte{byte(RpcMultiplexV2)}); err != nil {
 		conn.Close()
-		return nil, err
-	}
-
-	return conn, nil
-}
-
-// getNewConn is used to return a new connection
-func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn, error) {
-
-	conn, err := p.DialTimeout(region, addr, version, RpcMultiplexV2)
-	if err != nil {
 		return nil, err
 	}
 
