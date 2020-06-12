@@ -39,12 +39,6 @@ export default class WatchableNamespaceIDs extends Watchable {
     return associateNamespace(url, namespace);
   }
 
-  urlForUpdateRecord(id, type, hash) {
-    const [name, namespace] = JSON.parse(id);
-    let url = super.urlForUpdateRecord(name, type, hash);
-    return associateNamespace(url, namespace);
-  }
-
   xhrKey(url, method, options = {}) {
     const plainKey = super.xhrKey(...arguments);
     const namespace = options.data && options.data.namespace;
