@@ -143,7 +143,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
   }
 
   @action
-  drainError(err) {
+  setDrainError(err) {
     const error = messageFromAdapterError(err) || 'Could not run drain';
     this.set('drainError', error);
   }
