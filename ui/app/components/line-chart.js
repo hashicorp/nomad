@@ -43,7 +43,11 @@ export default class LineChart extends Component.extend(WindowResizable) {
   chartClass = 'is-primary';
 
   title = 'Line Chart';
-  description = null;
+
+  @overridable(function() {
+    return null;
+  })
+  description;
 
   // Private Properties
 
