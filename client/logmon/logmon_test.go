@@ -234,7 +234,8 @@ func TestLogmon_Start_restart(t *testing.T) {
 	})
 	require.True(impl.tl.IsRunning())
 
-	// Close stdout and assert that logmon no longer writes to the file
+	// Close stderr and assert that logmon no longer writes to the file
+	// Keep stdout open to ensure that IsRunning requires both
 	require.NoError(stderr.Close())
 
 	testutil.WaitForResult(func() (bool, error) {
