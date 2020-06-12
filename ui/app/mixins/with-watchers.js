@@ -5,19 +5,15 @@ import WithVisibilityDetection from './with-route-visibility-detection';
 
 // eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create(WithVisibilityDetection, {
-  // FIXME restore
   watchers: computed(function() {
     return [];
   }),
 
   cancelAllWatchers() {
-    // FIXME remove guard or add assertion for presence?
-    if (this.watchers && this.watchers.forEach) {
-      this.watchers.forEach(watcher => {
-        assert('Watchers must be Ember Concurrency Tasks.', !!watcher.cancelAll);
-        watcher.cancelAll();
-      });
-    }
+    this.watchers.forEach(watcher => {
+      assert('Watchers must be Ember Concurrency Tasks.', !!watcher.cancelAll);
+      watcher.cancelAll();
+    });
   },
 
   startWatchers() {
