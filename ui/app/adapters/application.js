@@ -90,41 +90,36 @@ export default class Application extends RESTAdapter {
   //
   // This is the original implementation of _buildURL
   // without the pluralization of modelName
-  urlForFindRecord = urlForRecord;
+  urlForFindRecord(id, modelName) {
+    let path;
+    let url = [];
+    let host = get(this, 'host');
+    let prefix = this.urlPrefix();
 
-  urlForUpdateRecord = urlForRecord;
-}
-
-function urlForRecord(id, modelName) {
-  let path;
-  let url = [];
-  let host = get(this, 'host');
-  let prefix = this.urlPrefix();
-
-  if (modelName) {
-    path = modelName.camelize();
-    if (path) {
-      url.push(path);
-    }
-  }
-
-  if (id) {
-    // FIXME a hack to exclude namespace from job queries
-    if (id.includes('[')) {
-      id = JSON.parse(id)[0];
+    if (modelName) {
+      path = modelName.camelize();
+      if (path) {
+        url.push(path);
+      }
     }
 
-    url.push(encodeURIComponent(id));
+    if (id) {
+      url.push(encodeURIComponent(id));
+    }
+
+    if (prefix) {
+      url.unshift(prefix);
+    }
+
+    url = url.join('/');
+    if (!host && url && url.charAt(0) !== '/') {
+      url = '/' + url;
+    }
+
+    return url;
   }
 
-  if (prefix) {
-    url.unshift(prefix);
+  urlForUpdateRecord() {
+    return this.urlForRecord(...arguments);
   }
-
-  url = url.join('/');
-  if (!host && url && url.charAt(0) !== '/') {
-    url = '/' + url;
-  }
-
-  return url;
 }
