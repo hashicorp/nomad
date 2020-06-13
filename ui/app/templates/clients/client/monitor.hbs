@@ -1,4 +1,8 @@
 {{title "Client " (or model.name model.shortId)}}
 <ClientSubnav @client={{model}} />
 <section class="section">
+  <AgentMonitor
+    @level={{level}}
+    @client={{model}}
+    @onLevelChange={{action (mut level) value="value"}} />
 </section>

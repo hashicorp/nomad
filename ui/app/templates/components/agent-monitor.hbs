@@ -1,0 +1,20 @@
+<div class="boxed-section">
+  <div class="boxed-section-head">
+    <PowerSelect
+      data-test-level-switcher
+      @tagName="div"
+      @triggerClass="is-compact pull-left"
+      @options={{levels}}
+      @selected={{_level}}
+      @searchEnabled={{false}}
+      @onChange={{action setLevel}} as |level|>
+      <span class="ember-power-select-prefix">Level: </span>{{level.label}}
+    </PowerSelect>
+    <button data-test-toggle class="button is-white is-compact pull-right">
+      {{x-icon (if true "media-pause" "media-play") class="is-text"}}
+    </button>
+  </div>
+  <div class="boxed-section-body is-dark is-full-bleed">
+    <pre><code>Monitor goes here</code></pre>
+  </div>
+</div>
