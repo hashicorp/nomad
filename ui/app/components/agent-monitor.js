@@ -5,37 +5,20 @@ import { assert } from '@ember/debug';
 import { tagName } from '@ember-decorators/component';
 import { logger } from 'nomad-ui/utils/classes/log';
 
-const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'].map(level => ({
-  value: level,
-  label: level.capitalize(),
-}));
+const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'];
 
 @tagName('')
 export default class AgentMonitor extends Component {
   @service token;
 
-  levels = LEVELS;
   client = null;
   server = null;
+  level = LEVELS[2];
   onLevelChange() {}
 
-  // Public string interface
-  level = null;
-
-  // Private object interface (value, label)
-  _level = null;
-
+  levels = LEVELS;
   monitorUrl = '/v1/agent/monitor';
   isStreaming = true;
-
-  init() {
-    super.init(...arguments);
-    this.set('_level', LEVELS.findBy('value', 'info'));
-  }
-
-  didReceiveAttrs() {
-    this.set('_level', LEVELS.findBy('value', this.level));
-  }
 
   @computed('level', 'client.id', 'server.id')
   get monitorParams() {
@@ -63,7 +46,7 @@ export default class AgentMonitor extends Component {
 
   setLevel(level) {
     this.logger.stop();
-    this.set('_level', level);
+    this.set('level', level);
     this.onLevelChange(level);
   }
 

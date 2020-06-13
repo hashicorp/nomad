@@ -5,10 +5,10 @@
       @tagName="div"
       @triggerClass="is-compact pull-left"
       @options={{levels}}
-      @selected={{_level}}
+      @selected={{level}}
       @searchEnabled={{false}}
       @onChange={{action setLevel}} as |level|>
-      <span class="ember-power-select-prefix">Level: </span>{{level.label}}
+      <span class="ember-power-select-prefix">Level: </span>{{capitalize level}}
     </PowerSelect>
     <button data-test-toggle class="button is-white is-compact pull-right" {{action toggleStream}}>
       {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
