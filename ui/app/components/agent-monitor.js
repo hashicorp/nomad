@@ -3,7 +3,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import { tagName } from '@ember-decorators/component';
-import { logger } from 'nomad-ui/utils/classes/log';
+import Log from 'nomad-ui/utils/classes/log';
 
 const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'];
 
@@ -19,6 +19,7 @@ export default class AgentMonitor extends Component {
   levels = LEVELS;
   monitorUrl = '/v1/agent/monitor';
   isStreaming = true;
+  logger = null;
 
   @computed('level', 'client.id', 'server.id')
   get monitorParams() {
@@ -36,18 +37,31 @@ export default class AgentMonitor extends Component {
     };
   }
 
-  @logger('monitorUrl', 'monitorParams', function logFetch() {
-    return url =>
-      this.token.authorizedRequest(url).then(response => {
-        return response;
-      });
-  })
-  logger;
+  didInsertElement() {
+    this.updateLogger();
+  }
+
+  updateLogger() {
+    let currentTail = this.logger ? this.logger.tail : '';
+    if (currentTail) {
+      currentTail += `\n...changing log level to ${this.level}...\n\n`;
+    }
+    this.set(
+      'logger',
+      Log.create({
+        logFetch: url => this.token.authorizedRequest(url),
+        params: this.monitorParams,
+        url: this.monitorUrl,
+        tail: currentTail,
+      })
+    );
+  }
 
   setLevel(level) {
     this.logger.stop();
     this.set('level', level);
     this.onLevelChange(level);
+    this.updateLogger();
   }
 
   toggleStream() {
