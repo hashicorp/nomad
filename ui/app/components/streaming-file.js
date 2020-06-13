@@ -14,6 +14,10 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   mode = 'streaming'; // head, tail, streaming
   isStreaming = true;
   logger = null;
+  follow = true;
+
+  // Internal bookkeeping to avoid multiple scroll events on one frame
+  requestFrame = true;
 
   didReceiveAttrs() {
     if (!this.logger) {
@@ -26,12 +30,15 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
   performTask() {
     switch (this.mode) {
       case 'head':
+        this.set('follow', false);
         this.head.perform();
         break;
       case 'tail':
+        this.set('follow', true);
         this.tail.perform();
         break;
       case 'streaming':
+        this.set('follow', true);
         if (this.isStreaming) {
           this.stream.perform();
         } else {
@@ -41,8 +48,25 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     }
   }
 
+  scrollHandler() {
+    const cli = this.element;
+    window.requestAnimationFrame(() => {
+      // If the scroll position is close enough to the bottom, autoscroll to the bottom
+      this.set('follow', cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20);
+      this.requestFrame = true;
+    });
+    this.requestFrame = false;
+  }
+
   didInsertElement() {
     this.fillAvailableHeight();
+
+    this.set('_scrollHandler', this.scrollHandler.bind(this));
+    this.element.addEventListener('scroll', this._scrollHandler);
+  }
+
+  willDestroyElement() {
+    this.element.removeEventListener('scroll', this._scrollHandler);
   }
 
   windowResizeHandler() {
@@ -69,24 +93,16 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
 
   @task(function*() {
     yield this.get('logger.gotoTail').perform();
-    run.scheduleOnce('afterRender', this, this.synchronizeScrollPosition, [true]);
   })
   tail;
 
-  synchronizeScrollPosition(force = false) {
-    const cliWindow = this.element;
-    if (cliWindow.scrollHeight - cliWindow.scrollTop < 10 || force) {
-      // If the window is approximately scrolled to the bottom, follow the log
-      cliWindow.scrollTop = cliWindow.scrollHeight;
+  synchronizeScrollPosition() {
+    if (this.follow) {
+      this.element.scrollTop = this.element.scrollHeight;
     }
   }
 
   @task(function*() {
-    // Force the scroll position to the bottom of the window when starting streaming
-    this.logger.one('tick', () => {
-      run.scheduleOnce('afterRender', this, this.synchronizeScrollPosition, [true]);
-    });
-
     // Follow the log if the scroll position is near the bottom of the cli window
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
 
