@@ -47,6 +47,9 @@ func (s *HTTPServer) DeploymentSpecificRequest(resp http.ResponseWriter, req *ht
 	case strings.HasPrefix(path, "allocation-health/"):
 		deploymentID := strings.TrimPrefix(path, "allocation-health/")
 		return s.deploymentSetAllocHealth(resp, req, deploymentID)
+	case strings.HasPrefix(path, "unblock/"):
+		deploymentID := strings.TrimPrefix(path, "unblock/")
+		return s.deploymentUnblock(resp, req, deploymentID)
 	default:
 		return s.deploymentQuery(resp, req, path)
 	}
@@ -114,6 +117,31 @@ func (s *HTTPServer) deploymentPromote(resp http.ResponseWriter, req *http.Reque
 
 	var out structs.DeploymentUpdateResponse
 	if err := s.agent.RPC("Deployment.Promote", &promoteRequest, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) deploymentUnblock(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var unblockRequest structs.DeploymentUnblockRequest
+	if err := decodeBody(req, &unblockRequest); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+	if unblockRequest.DeploymentID == "" {
+		return nil, CodedError(400, "DeploymentID must be specified")
+	}
+	if unblockRequest.DeploymentID != deploymentID {
+		return nil, CodedError(400, "Deployment ID does not match")
+	}
+	s.parseWriteRequest(req, &unblockRequest.WriteRequest)
+
+	var out structs.DeploymentUpdateResponse
+	if err := s.agent.RPC("Deployment.Unblock", &unblockRequest, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)

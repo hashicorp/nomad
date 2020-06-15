@@ -107,6 +107,19 @@ func (d *Deployments) PromoteGroups(deploymentID string, groups []string, q *Wri
 	return &resp, wm, nil
 }
 
+// Unblock is used to unblock the given deployment.
+func (d *Deployments) Unblock(deploymentID string, q *WriteOptions) (*DeploymentUpdateResponse, *WriteMeta, error) {
+	var resp DeploymentUpdateResponse
+	req := &DeploymentUnblockRequest{
+		DeploymentID: deploymentID,
+	}
+	wm, err := d.client.write("/v1/deployment/unblock/"+deploymentID, req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // SetAllocHealth is used to set allocation health for allocs that are part of
 // the given deployment
 func (d *Deployments) SetAllocHealth(deploymentID string, healthy, unhealthy []string, q *WriteOptions) (*DeploymentUpdateResponse, *WriteMeta, error) {
@@ -256,6 +269,12 @@ type DeploymentSpecificRequest struct {
 
 // DeploymentFailRequest is used to fail a particular deployment
 type DeploymentFailRequest struct {
+	DeploymentID string
+	WriteRequest
+}
+
+// DeploymentUnblockRequest is used to unblock a particular deployment
+type DeploymentUnblockRequest struct {
 	DeploymentID string
 	WriteRequest
 }

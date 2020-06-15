@@ -236,6 +236,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"deployment unblock": func() (cli.Command, error) {
+			return &DeploymentUnblockCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval": func() (cli.Command, error) {
 			return &EvalCommand{
 				Meta: meta,
