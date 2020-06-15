@@ -580,7 +580,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		humanize.IBytes(uint64(*alloc.Resources.DiskMB*bytesPerMegabyte)),
 		firstAddr))
 	for i := 1; i < len(addr); i++ {
-		resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("|||%v", addr[i]))
 	}
 	c.Ui.Output(formatListWithSpaces(resourcesOutput))
 
