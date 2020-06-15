@@ -1,0 +1,13 @@
+  <PowerSelect
+    @tagName="div"
+    class="global-search"
+    data-test-search
+    @searchEnabled={{true}}
+    @search={{perform this.search}}
+    @onChange={{action 'select'}}
+    @dropdownClass="global-search-dropdown"
+    @calculatePosition={{this.calculatePosition}}
+    @searchMessageComponent="global-search/message"
+    @triggerComponent="global-search/trigger"
+    as |option|>
+  </PowerSelect>

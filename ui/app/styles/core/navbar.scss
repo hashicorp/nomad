@@ -8,6 +8,8 @@
     padding-left: 20px;
     padding-right: 20px;
     overflow: hidden;
+    align-items: center;
+    justify-content: space-between;
 
     .navbar-item {
       color: rgba($primary-invert, 0.8);
@@ -35,7 +37,7 @@
           display: block;
           position: absolute;
           left: 0px;
-          top: 1.25em;
+          top: 1.25em; // FIXME positioning is off with .is-primary align-items: center
         }
       }
     }
@@ -44,7 +46,7 @@
       display: flex;
       align-items: stretch;
       justify-content: flex-end;
-      margin-left: auto;
+      margin-left: inherit;
     }
 
     .navbar-end > a.navbar-item {
@@ -100,7 +102,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      margin-left: auto;
+      margin-left: inherit;
     }
 
     .navbar-end > a.navbar-item {
