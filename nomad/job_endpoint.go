@@ -933,6 +933,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 
 	// If the count is present, commit the job update via Raft
 	// for now, we'll do this even if count didn't change
+	prevCount := found.Count
 	if args.Count != nil {
 		truncCount := int(*args.Count)
 		if int64(truncCount) != *args.Count {
@@ -997,11 +998,12 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		JobID:     job.ID,
 		TaskGroup: groupName,
 		ScalingEvent: &structs.ScalingEvent{
-			Time:    now,
-			Count:   args.Count,
-			Message: args.Message,
-			Error:   args.Error,
-			Meta:    args.Meta,
+			Time:          now,
+			PreviousCount: int64(prevCount),
+			Count:         args.Count,
+			Message:       args.Message,
+			Error:         args.Error,
+			Meta:          args.Meta,
 		},
 	}
 	if reply.EvalID != "" {
