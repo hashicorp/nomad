@@ -772,7 +772,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		j.Multiregion.Regions = []*structs.MultiregionRegion{}
 		for _, region := range job.Multiregion.Regions {
 			r := &structs.MultiregionRegion{}
-			r.Name = *region.Name
+			r.Name = region.Name
 			r.Count = *region.Count
 			r.Datacenters = region.Datacenters
 			r.Meta = region.Meta

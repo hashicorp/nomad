@@ -7948,6 +7948,9 @@ type Deployment struct {
 	// present the correct list of deployments for the job and not old ones.
 	JobCreateIndex uint64
 
+	// Multiregion specifies if deployment is part of multiregion deployment
+	IsMultiregion bool
+
 	// TaskGroups is the set of task groups effected by the deployment and their
 	// current deployment status.
 	TaskGroups map[string]*DeploymentState
@@ -7973,6 +7976,7 @@ func NewDeployment(job *Job) *Deployment {
 		JobModifyIndex:     job.ModifyIndex,
 		JobSpecModifyIndex: job.JobModifyIndex,
 		JobCreateIndex:     job.CreateIndex,
+		IsMultiregion:      job.IsMultiregion(),
 		Status:             DeploymentStatusRunning,
 		StatusDescription:  DeploymentStatusDescriptionRunning,
 		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),

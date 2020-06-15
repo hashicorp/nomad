@@ -645,9 +645,6 @@ func (m *Multiregion) Canonicalize() {
 		m.Regions = []*MultiregionRegion{}
 	}
 	for _, region := range m.Regions {
-		if region.Name == nil {
-			region.Name = stringToPtr("")
-		}
 		if region.Count == nil {
 			region.Count = intToPtr(1)
 		}
@@ -672,7 +669,7 @@ func (m *Multiregion) Copy() *Multiregion {
 	}
 	for _, region := range m.Regions {
 		copyRegion := new(MultiregionRegion)
-		copyRegion.Name = stringToPtr(*region.Name)
+		copyRegion.Name = region.Name
 		copyRegion.Count = intToPtr(*region.Count)
 		for _, dc := range region.Datacenters {
 			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
@@ -691,7 +688,7 @@ type MultiregionStrategy struct {
 }
 
 type MultiregionRegion struct {
-	Name        *string
+	Name        string
 	Count       *int
 	Datacenters []string
 	Meta        map[string]string

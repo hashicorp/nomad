@@ -150,6 +150,9 @@ type Deployment struct {
 	// present the correct list of deployments for the job and not old ones.
 	JobCreateIndex uint64
 
+	// IsMultiregion specifies if this deployment is part of a multi-region deployment
+	IsMultiregion bool
+
 	// TaskGroups is the set of task groups effected by the deployment and their
 	// current deployment status.
 	TaskGroups map[string]*DeploymentState

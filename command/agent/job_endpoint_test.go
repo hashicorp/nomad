@@ -1582,7 +1582,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 			Regions: []*api.MultiregionRegion{
 				{
-					Name:        helper.StringToPtr("west"),
+					Name:        "west",
 					Count:       helper.IntToPtr(1),
 					Datacenters: []string{"dc1", "dc2"},
 					Meta:        map[string]string{"region_code": "W"},

@@ -144,7 +144,7 @@ func parseMultiregionRegions(result *api.Multiregion, list *ast.ObjectList) erro
 
 		// Build the region with the basic decode
 		var r api.MultiregionRegion
-		r.Name = helper.StringToPtr(n)
+		r.Name = n
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 			WeaklyTypedInput: true,
 			Result:           &r,
