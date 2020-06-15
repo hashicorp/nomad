@@ -14,7 +14,7 @@
       {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
     </button>
   </div>
-  <div class="boxed-section-body is-dark is-full-bleed">
+  <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">
     <StreamingFile @logger={{logger}} @isStreaming={{isStreaming}} />
   </div>
 </div>
