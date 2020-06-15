@@ -3748,7 +3748,7 @@ func (j *Job) Copy() *Job {
 func (j *Job) Validate() error {
 	var mErr multierror.Error
 
-	if j.Region == "" {
+	if j.Region == "" && j.Multiregion == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job region"))
 	}
 	if j.ID == "" {

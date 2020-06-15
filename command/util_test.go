@@ -70,6 +70,7 @@ func testMultiRegionJob(jobID, region, datacenter string) *api.Job {
 		})
 
 	job := api.NewServiceJob(jobID, jobID, region, 1).AddDatacenter(datacenter).AddTaskGroup(group)
+	job.Region = nil
 	job.Multiregion = &api.Multiregion{
 		Regions: []*api.MultiregionRegion{
 			{

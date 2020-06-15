@@ -171,7 +171,7 @@ func (c *JobStopCommand) Run(args []string) int {
 		return 0
 	}
 
-	if detach {
+	if detach || job.IsMultiregion() {
 		c.Ui.Output(evalID)
 		return 0
 	}

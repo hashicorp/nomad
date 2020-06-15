@@ -814,6 +814,11 @@ func (j *Job) IsParameterized() bool {
 	return j.ParameterizedJob != nil && !j.Dispatched
 }
 
+// IsMultiregion returns whether a job is a multiregion job
+func (j *Job) IsMultiregion() bool {
+	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
+}
+
 func (j *Job) Canonicalize() {
 	if j.ID == nil {
 		j.ID = stringToPtr("")

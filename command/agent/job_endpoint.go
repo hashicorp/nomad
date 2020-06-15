@@ -146,16 +146,20 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
+	var region *string
+
 	// Region in http request query param takes precedence over region in job hcl config
 	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
+		region = helper.StringToPtr(args.WriteRequest.Region)
 	}
 	// If 'global' region is specified or if no region is given,
 	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
+	if region == nil || args.Job.Region == nil ||
+		*args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
+		region = &s.agent.config.Region
 	}
 
+	args.Job.Region = regionForJob(args.Job, region)
 	sJob := ApiJobToStructJob(args.Job)
 
 	planReq := structs.JobPlanRequest{
@@ -163,7 +167,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		Diff:           args.Diff,
 		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
-			Region: sJob.Region,
+			Region: *region,
 		},
 	}
 	// parseWriteRequest overrides Namespace, Region and AuthToken
@@ -395,17 +399,27 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
+	if args.Job.Multiregion != nil && args.Job.Region != nil {
+		region := *args.Job.Region
+		if !(region == "global" || region == "") {
+			return nil, CodedError(400, "Job can't have both multiregion and region blocks")
+		}
+	}
+
+	var region *string
 
 	// Region in http request query param takes precedence over region in job hcl config
 	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
+		region = helper.StringToPtr(args.WriteRequest.Region)
 	}
 	// If 'global' region is specified or if no region is given,
 	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
+	if region == nil || args.Job.Region == nil ||
+		*args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
+		region = &s.agent.config.Region
 	}
 
+	args.Job.Region = regionForJob(args.Job, region)
 	sJob := ApiJobToStructJob(args.Job)
 
 	regReq := structs.JobRegisterRequest{
@@ -415,7 +429,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		PolicyOverride: args.PolicyOverride,
 		PreserveCounts: args.PreserveCounts,
 		WriteRequest: structs.WriteRequest{
-			Region:    sJob.Region,
+			Region:    *region,
 			AuthToken: args.WriteRequest.SecretID,
 		},
 	}
