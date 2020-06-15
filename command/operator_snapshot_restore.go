@@ -15,7 +15,7 @@ type OperatorSnapshotRestoreCommand struct {
 
 func (c *OperatorSnapshotRestoreCommand) Help() string {
 	helpText := `
-Usage: nomad snapshot restore [options] FILE
+Usage: nomad operator snapshot restore [options] FILE
 
   Restores an atomic, point-in-time snapshot of the state of the Nomad servers
   which includes jobs, nodes, allocations, periodic jobs, and ACLs.
@@ -30,7 +30,7 @@ Usage: nomad snapshot restore [options] FILE
 
   To restore a snapshot from the file "backup.snap":
 
-    $ nomad snapshot restore backup.snap
+    $ nomad operator snapshot restore backup.snap
 
 General Options:
 
@@ -83,7 +83,7 @@ func (c *OperatorSnapshotRestoreCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Fetch the current configuration.
+	// Call snapshot restore API with backup file.
 	_, err = client.Operator().SnapshotRestore(snap, &api.WriteOptions{})
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to get restore snapshot: %v", err))

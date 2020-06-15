@@ -609,6 +609,7 @@ func decodeStreamOutput(decoder *codec.Decoder) (io.Reader, <-chan error) {
 				if err != nil {
 					pw.CloseWithError(err)
 					errCh <- err
+					return
 				}
 			}
 
