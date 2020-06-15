@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ import (
 func TestOperatorSnapshotInspect_Works(t *testing.T) {
 	t.Parallel()
 
-	snapPath := generateSnapshotFile(t)
+	snapPath := generateSnapshotFile(t, nil)
 
 	ui := new(cli.MockUi)
 	cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
@@ -67,14 +68,14 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 
 }
 
-func generateSnapshotFile(t *testing.T) string {
+func generateSnapshotFile(t *testing.T, prepare func(srv *agent.TestAgent, client *api.Client, url string)) string {
 
 	tmpDir, err := ioutil.TempDir("", "nomad-tempdir")
 	require.NoError(t, err)
 
 	t.Cleanup(func() { os.RemoveAll(tmpDir) })
 
-	srv, _, url := testServer(t, false, func(c *agent.Config) {
+	srv, api, url := testServer(t, false, func(c *agent.Config) {
 		c.DevMode = false
 		c.DataDir = filepath.Join(tmpDir, "server")
 
@@ -84,6 +85,10 @@ func generateSnapshotFile(t *testing.T) string {
 	})
 
 	defer srv.Shutdown()
+
+	if prepare != nil {
+		prepare(srv, api, url)
+	}
 
 	ui := new(cli.MockUi)
 	cmd := &OperatorSnapshotSaveCommand{Meta: Meta{Ui: ui}}

@@ -223,7 +223,8 @@ RETRY:
 
 func (a *TestAgent) start() (*Agent, error) {
 	if a.LogOutput == nil {
-		a.LogOutput = testlog.NewWriter(a.T)
+		prefix := fmt.Sprintf("%v:%v ", a.Config.BindAddr, a.Config.Ports.RPC)
+		a.LogOutput = testlog.NewPrefixWriter(a.T, prefix)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)

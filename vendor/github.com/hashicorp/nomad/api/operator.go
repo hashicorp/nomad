@@ -222,6 +222,17 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 	return cr, nil
 }
 
+// SnapshotRestore is used to restore a running nomad cluster to an original
+// state.
+func (op *Operator) SnapshotRestore(in io.Reader, q *WriteOptions) (*WriteMeta, error) {
+	wm, err := op.c.write("/v1/operator/snapshot", in, nil, q)
+	if err != nil {
+		return nil, err
+	}
+
+	return wm, nil
+}
+
 type License struct {
 	// The unique identifier of the license
 	LicenseID string

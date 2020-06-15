@@ -246,3 +246,14 @@ type SnapshotSaveResponse struct {
 
 	QueryMeta
 }
+
+type SnapshotRestoreRequest struct {
+	WriteRequest
+}
+
+type SnapshotRestoreResponse struct {
+	ErrorCode int    `codec:",omitempty"`
+	ErrorMsg  string `codec:",omitempty"`
+
+	QueryMeta
+}

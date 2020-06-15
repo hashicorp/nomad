@@ -517,6 +517,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator snapshot restore": func() (cli.Command, error) {
+			return &OperatorSnapshotRestoreCommand{
+				Meta: meta,
+			}, nil
+		},
 
 		"plan": func() (cli.Command, error) {
 			return &JobPlanCommand{
