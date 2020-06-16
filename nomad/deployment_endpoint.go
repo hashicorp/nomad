@@ -112,7 +112,7 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 	}
 
 	if !deploy.Active() {
-		return fmt.Errorf("can't fail terminal deployment")
+		return structs.ErrDeploymentTerminalNoFail
 	}
 
 	// Call into the deployment watcher
@@ -155,10 +155,10 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 
 	if !deploy.Active() {
 		if args.Pause {
-			return fmt.Errorf("can't pause terminal deployment")
+			return structs.ErrDeploymentTerminalNoPause
 		}
 
-		return fmt.Errorf("can't resume terminal deployment")
+		return structs.ErrDeploymentTerminalNoResume
 	}
 
 	// Call into the deployment watcher
@@ -200,7 +200,7 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	}
 
 	if !deploy.Active() {
-		return fmt.Errorf("can't promote terminal deployment")
+		return structs.ErrDeploymentTerminalNoPromote
 	}
 
 	// Call into the deployment watcher
@@ -331,7 +331,7 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 	}
 
 	if !deploy.Active() {
-		return fmt.Errorf("can't set health of allocations for a terminal deployment")
+		return structs.ErrDeploymentTerminalNoSetHealth
 	}
 
 	// Call into the deployment watcher

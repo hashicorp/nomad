@@ -62,6 +62,10 @@ type deploymentWatcher struct {
 	// deployment
 	deploymentTriggers
 
+	// multiregionTriggers holds the methods required to trigger
+	// changes on behalf of the deployment in enterprise edition
+	multiregionTriggers
+
 	// state is the state that is watched for state changes.
 	state *state.StateStore
 

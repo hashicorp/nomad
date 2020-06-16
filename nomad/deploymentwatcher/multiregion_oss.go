@@ -4,7 +4,11 @@ package deploymentwatcher
 
 import "github.com/hashicorp/nomad/nomad/structs"
 
-// TODO: move this into multiregion_oss.go once #269 is merged
+type multiregionTriggers interface{}
+
+func (w *deploymentWatcher) nextRegion(status string) error {
+	return nil
+}
 
 // UnblockDeployment is used to unblock a multiregion deployment.  In
 // single-region deployments, the blocked state is unused.

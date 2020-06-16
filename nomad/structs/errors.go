@@ -28,6 +28,15 @@ const (
 	ErrUnknownDeploymentPrefix = "Unknown deployment"
 
 	errRPCCodedErrorPrefix = "RPC Error:: "
+
+	errDeploymentTerminalNoCancel    = "can't cancel terminal deployment"
+	errDeploymentTerminalNoFail      = "can't fail terminal deployment"
+	errDeploymentTerminalNoPause     = "can't pause terminal deployment"
+	errDeploymentTerminalNoPromote   = "can't promote terminal deployment"
+	errDeploymentTerminalNoResume    = "can't resume terminal deployment"
+	errDeploymentTerminalNoUnblock   = "can't unblock terminal deployment"
+	errDeploymentTerminalNoSetHealth = "can't set health of allocations for a terminal deployment"
+	errDeploymentRunningNoUnblock    = "can't unblock running deployment"
 )
 
 var (
@@ -41,6 +50,15 @@ var (
 	ErrUnknownNomadVersion        = errors.New(errUnknownNomadVersion)
 	ErrNodeLacksRpc               = errors.New(errNodeLacksRpc)
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
+
+	ErrDeploymentTerminalNoCancel    = errors.New(errDeploymentTerminalNoCancel)
+	ErrDeploymentTerminalNoFail      = errors.New(errDeploymentTerminalNoFail)
+	ErrDeploymentTerminalNoPause     = errors.New(errDeploymentTerminalNoPause)
+	ErrDeploymentTerminalNoPromote   = errors.New(errDeploymentTerminalNoPromote)
+	ErrDeploymentTerminalNoResume    = errors.New(errDeploymentTerminalNoResume)
+	ErrDeploymentTerminalNoUnblock   = errors.New(errDeploymentTerminalNoUnblock)
+	ErrDeploymentTerminalNoSetHealth = errors.New(errDeploymentTerminalNoSetHealth)
+	ErrDeploymentRunningNoUnblock    = errors.New(errDeploymentRunningNoUnblock)
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
