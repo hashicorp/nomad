@@ -19,7 +19,7 @@ import (
 
 func testDeploymentWatcher(t *testing.T, qps float64, batchDur time.Duration) (*Watcher, *mockBackend) {
 	m := newMockBackend(t)
-	w := NewDeploymentsWatcher(testlog.HCLogger(t), m, qps, batchDur)
+	w := NewDeploymentsWatcher(testlog.HCLogger(t), m, nil, nil, qps, batchDur)
 	return w, m
 }
 

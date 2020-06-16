@@ -200,6 +200,14 @@ func (a *allocReconciler) Compute() *reconcileResults {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
+	if a.deployment == nil {
+		// When we create the deployment later, it will be in a paused
+		// state. But we also need to tell Compute we're paused, otherwise we
+		// make placements on the paused deployment.
+		if a.job.IsMultiregion() && a.job.Region != a.job.Multiregion.Regions[0].Name {
+			a.deploymentPaused = true
+		}
+	}
 
 	// Reconcile each group
 	complete := true
@@ -550,6 +558,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 			// running state
 			if a.job.IsMultiregion() && a.job.Region != a.job.Multiregion.Regions[0].Name {
 				a.deployment.Status = structs.DeploymentStatusPaused
+				a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPausedForPeer
 			}
 			a.result.deployment = a.deployment
 		}

@@ -4,7 +4,10 @@ package deploymentwatcher
 
 import "github.com/hashicorp/nomad/nomad/structs"
 
-type multiregionTriggers interface{}
+// DeploymentRPC and JobRPC hold methods for interacting with peer regions
+// in enterprise edition.
+type DeploymentRPC interface{}
+type JobRPC interface{}
 
 func (w *deploymentWatcher) nextRegion(status string) error {
 	return nil
