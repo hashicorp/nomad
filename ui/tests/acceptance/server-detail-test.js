@@ -34,17 +34,6 @@ module('Acceptance | server detail', function(hooks) {
     });
   });
 
-  test('the list of servers from /servers should still be present', async function(assert) {
-    assert.equal(ServerDetail.servers.length, server.db.agents.length, '# of servers');
-  });
-
-  test('the active server should be denoted in the table', async function(assert) {
-    const activeServers = ServerDetail.servers.filter(server => server.isActive);
-
-    assert.equal(activeServers.length, 1, 'Only one active server');
-    assert.equal(ServerDetail.activeServer.name, agent.name, 'Active server matches current route');
-  });
-
   test('when the server is not found, an error message is shown, but the URL persists', async function(assert) {
     await ServerDetail.visit({ name: 'not-a-real-server' });
 
