@@ -311,6 +311,24 @@ export default function() {
     };
   });
 
+  this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
+    const serverId = queryParams.server_id;
+    const clientId = queryParams.client_id;
+
+    if (serverId && clientId)
+      return new Response(400, {}, 'specify a client or a server, not both');
+    if (serverId && !agents.find(serverId))
+      return new Response(400, {}, 'specified server does not exist');
+    if (clientId && !nodes.find(clientId))
+      return new Response(400, {}, 'specified client does not exist');
+
+    if (queryParams.plain) {
+      return logFrames.join('');
+    }
+
+    return logEncode(logFrames, logFrames.length - 1);
+  });
+
   this.get('/status/leader', function(schema) {
     return JSON.stringify(findLeader(schema));
   });
