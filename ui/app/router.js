@@ -32,7 +32,9 @@ Router.map(function() {
   });
 
   this.route('servers', function() {
-    this.route('server', { path: '/:agent_id' });
+    this.route('server', { path: '/:agent_id' }, function() {
+      this.route('monitor');
+    });
   });
 
   this.route('csi', function() {
