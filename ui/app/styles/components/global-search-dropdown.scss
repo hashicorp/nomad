@@ -3,6 +3,11 @@
   border: 0;
   position: fixed;
 
+  .ember-power-select-search {
+    margin-left: $icon-dimensions;
+    border: 0;
+  }
+
   input,
   input:focus {
     background: transparent;
