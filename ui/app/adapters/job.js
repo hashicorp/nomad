@@ -62,7 +62,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
   update(job) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
-    // debugger;
     return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
