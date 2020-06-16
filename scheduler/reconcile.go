@@ -546,6 +546,11 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		// A previous group may have made the deployment already
 		if a.deployment == nil {
 			a.deployment = structs.NewDeployment(a.job)
+			// only the first region of a multiregion job starts in the
+			// running state
+			if a.job.IsMultiregion() && a.job.Region != a.job.Multiregion.Regions[0].Name {
+				a.deployment.Status = structs.DeploymentStatusPaused
+			}
 			a.result.deployment = a.deployment
 		}
 
