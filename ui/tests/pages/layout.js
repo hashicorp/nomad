@@ -25,7 +25,7 @@ export default create({
       }),
 
       field: {
-        scope: '.ember-power-select-dropdown--active',
+        scope: '.ember-power-select-search input',
         testContainer: 'html',
         resetScope: true,
       },

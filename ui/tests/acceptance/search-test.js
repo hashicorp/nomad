@@ -25,4 +25,14 @@ module('Acceptance | search', function(hooks) {
       assert.equal(search.options[1].text, 'vwxyz');
     });
   });
+
+  test('clicking the search field starts search immediately', async function(assert) {
+    await visit('/');
+
+    assert.notOk(PageLayout.navbar.search.field.isPresent);
+
+    await PageLayout.navbar.search.click();
+
+    assert.ok(PageLayout.navbar.search.field.isPresent);
+  });
 });
