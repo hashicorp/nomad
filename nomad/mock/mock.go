@@ -1292,7 +1292,7 @@ func MultiregionJob() *structs.Job {
 	job.Multiregion = &structs.Multiregion{
 		Strategy: &structs.MultiregionStrategy{
 			MaxParallel: 1,
-			AutoRevert:  "all",
+			OnFailure:   "fail_all",
 		},
 		Regions: []*structs.MultiregionRegion{
 			{

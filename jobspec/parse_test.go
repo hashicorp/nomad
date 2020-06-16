@@ -1346,7 +1346,7 @@ func TestParse(t *testing.T) {
 				Multiregion: &api.Multiregion{
 					Strategy: &api.MultiregionStrategy{
 						MaxParallel: helper.IntToPtr(1),
-						AutoRevert:  helper.StringToPtr("all"),
+						OnFailure:   helper.StringToPtr("fail_all"),
 					},
 					Regions: []*api.MultiregionRegion{
 						{

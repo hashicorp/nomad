@@ -631,14 +631,14 @@ func (m *Multiregion) Canonicalize() {
 	if m.Strategy == nil {
 		m.Strategy = &MultiregionStrategy{
 			MaxParallel: intToPtr(0),
-			AutoRevert:  stringToPtr(""),
+			OnFailure:   stringToPtr(""),
 		}
 	} else {
 		if m.Strategy.MaxParallel == nil {
 			m.Strategy.MaxParallel = intToPtr(0)
 		}
-		if m.Strategy.AutoRevert == nil {
-			m.Strategy.AutoRevert = stringToPtr("")
+		if m.Strategy.OnFailure == nil {
+			m.Strategy.OnFailure = stringToPtr("")
 		}
 	}
 	if m.Regions == nil {
@@ -665,7 +665,7 @@ func (m *Multiregion) Copy() *Multiregion {
 	if m.Strategy != nil {
 		copy.Strategy = new(MultiregionStrategy)
 		copy.Strategy.MaxParallel = intToPtr(*m.Strategy.MaxParallel)
-		copy.Strategy.AutoRevert = stringToPtr(*m.Strategy.AutoRevert)
+		copy.Strategy.OnFailure = stringToPtr(*m.Strategy.OnFailure)
 	}
 	for _, region := range m.Regions {
 		copyRegion := new(MultiregionRegion)
@@ -684,7 +684,7 @@ func (m *Multiregion) Copy() *Multiregion {
 
 type MultiregionStrategy struct {
 	MaxParallel *int    `mapstructure:"max_parallel"`
-	AutoRevert  *string `mapstructure:"auto_revert"`
+	OnFailure   *string `mapstructure:"on_failure"`
 }
 
 type MultiregionRegion struct {

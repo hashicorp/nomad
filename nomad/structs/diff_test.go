@@ -1188,7 +1188,7 @@ func TestJobDiff(t *testing.T) {
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
 						MaxParallel: 1,
-						AutoRevert:  "all",
+						OnFailure:   "fail_all",
 					},
 					Regions: []*MultiregionRegion{
 						{
@@ -1205,7 +1205,7 @@ func TestJobDiff(t *testing.T) {
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
 						MaxParallel: 2,
-						AutoRevert:  "all",
+						OnFailure:   "fail_all",
 					},
 					Regions: []*MultiregionRegion{
 						{

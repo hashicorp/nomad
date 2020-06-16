@@ -1578,7 +1578,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Multiregion: &api.Multiregion{
 			Strategy: &api.MultiregionStrategy{
 				MaxParallel: helper.IntToPtr(2),
-				AutoRevert:  helper.StringToPtr("all"),
+				OnFailure:   helper.StringToPtr("fail_all"),
 			},
 			Regions: []*api.MultiregionRegion{
 				{
@@ -1945,7 +1945,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Multiregion: &structs.Multiregion{
 			Strategy: &structs.MultiregionStrategy{
 				MaxParallel: 2,
-				AutoRevert:  "all",
+				OnFailure:   "fail_all",
 			},
 			Regions: []*structs.MultiregionRegion{
 				{

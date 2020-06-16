@@ -4395,7 +4395,7 @@ func (m *Multiregion) Copy() *Multiregion {
 	if m.Strategy != nil {
 		copy.Strategy = &MultiregionStrategy{
 			MaxParallel: m.Strategy.MaxParallel,
-			AutoRevert:  m.Strategy.AutoRevert,
+			OnFailure:   m.Strategy.OnFailure,
 		}
 	}
 	for _, region := range m.Regions {
@@ -4436,14 +4436,14 @@ func (m *Multiregion) Validate(jobType string) error {
 	if m.Strategy != nil {
 		switch jobType {
 		case JobTypeBatch:
-			if m.Strategy.AutoRevert != "" || m.Strategy.MaxParallel != 0 {
+			if m.Strategy.OnFailure != "" || m.Strategy.MaxParallel != 0 {
 				mErr.Errors = append(mErr.Errors,
 					errors.New("Multiregion batch jobs can't have an update strategy"))
 			}
 		case JobTypeSystem:
-			if m.Strategy.AutoRevert != "" {
+			if m.Strategy.OnFailure != "" {
 				mErr.Errors = append(mErr.Errors,
-					errors.New("Multiregion system jobs can't have an auto_revert setting"))
+					errors.New("Multiregion system jobs can't have an on_failure setting"))
 			}
 		default: // service
 		}
@@ -4453,7 +4453,7 @@ func (m *Multiregion) Validate(jobType string) error {
 
 type MultiregionStrategy struct {
 	MaxParallel int
-	AutoRevert  string
+	OnFailure   string
 }
 
 type MultiregionRegion struct {

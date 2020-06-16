@@ -781,7 +781,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		j.Multiregion = &structs.Multiregion{}
 		j.Multiregion.Strategy = &structs.MultiregionStrategy{
 			MaxParallel: *job.Multiregion.Strategy.MaxParallel,
-			AutoRevert:  *job.Multiregion.Strategy.AutoRevert,
+			OnFailure:   *job.Multiregion.Strategy.OnFailure,
 		}
 		j.Multiregion.Regions = []*structs.MultiregionRegion{}
 		for _, region := range job.Multiregion.Regions {

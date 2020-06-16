@@ -1116,7 +1116,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
 						MaxParallel: intToPtr(0),
-						AutoRevert:  stringToPtr(""),
+						OnFailure:   stringToPtr(""),
 					},
 					Regions: []*MultiregionRegion{
 						{

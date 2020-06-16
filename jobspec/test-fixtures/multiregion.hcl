@@ -4,7 +4,7 @@ job "multiregion_job" {
 
     strategy {
       max_parallel = 1
-      auto_revert  = "all"
+      on_failure   = "fail_all"
     }
 
     region "west" {

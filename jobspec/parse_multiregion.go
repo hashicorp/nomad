@@ -74,7 +74,7 @@ func parseMultiregionStrategy(final **api.MultiregionStrategy, list *ast.ObjectL
 	// Check for invalid keys
 	valid := []string{
 		"max_parallel",
-		"auto_revert",
+		"on_failure",
 	}
 	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
 		return err

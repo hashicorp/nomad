@@ -5257,7 +5257,7 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 	nonEmptyOld := &Multiregion{
 		Strategy: &MultiregionStrategy{
 			MaxParallel: 2,
-			AutoRevert:  "all",
+			OnFailure:   "fail_all",
 		},
 		Regions: []*MultiregionRegion{
 			{
@@ -5302,7 +5302,7 @@ func TestMultiregion_Validate(t *testing.T) {
 			Case: &Multiregion{
 				Strategy: &MultiregionStrategy{
 					MaxParallel: 2,
-					AutoRevert:  "all",
+					OnFailure:   "fail_all",
 				},
 				Regions: []*MultiregionRegion{
 					{
