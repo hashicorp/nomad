@@ -317,7 +317,7 @@ export default function() {
 
     if (serverId && clientId)
       return new Response(400, {}, 'specify a client or a server, not both');
-    if (serverId && !agents.find(serverId))
+    if (serverId && !agents.findBy({ name: serverId }))
       return new Response(400, {}, 'specified server does not exist');
     if (clientId && !nodes.find(clientId))
       return new Response(400, {}, 'specified client does not exist');
