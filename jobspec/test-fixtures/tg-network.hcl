@@ -9,8 +9,9 @@ job "foo" {
       mode = "bridge"
 
       port "http" {
-        static = 80
-        to     = 8080
+        static       = 80
+        to           = 8080
+        host_network = "public"
       }
 
       dns {

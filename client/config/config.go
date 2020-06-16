@@ -254,6 +254,9 @@ type Config struct {
 
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
+
+	// HostNetworks is a map of the conigured host networks by name.
+	HostNetworks map[string]*structs.ClientHostNetworkConfig
 }
 
 type ClientTemplateConfig struct {
@@ -313,6 +316,7 @@ func DefaultConfig() *Config {
 		CNIPath:                    "/opt/cni/bin",
 		CNIConfigDir:               "/opt/cni/config",
 		CNIInterfacePrefix:         "eth",
+		HostNetworks:               map[string]*structs.ClientHostNetworkConfig{},
 	}
 }
 

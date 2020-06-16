@@ -138,6 +138,12 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "host_volume")
 	}
 
+	// Remove HostNetwork extra keys
+	for _, hn := range c.Client.HostNetworks {
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, hn.Name)
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "host_network")
+	}
+
 	// Remove AuditConfig extra keys
 	for _, f := range c.Audit.Filters {
 		helper.RemoveEqualFold(&c.Audit.ExtraKeysHCL, f.Name)

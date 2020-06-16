@@ -373,6 +373,8 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 // Tests that bin packing iterator fails due to overprovisioning of network
 // This test has network resources at task group and task level
 func TestBinPackIterator_Network_Failure(t *testing.T) {
+	// Bandwidth tracking is deprecated
+	t.Skip()
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
 		{

@@ -615,6 +615,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
 	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
 
+	for _, hn := range agentConfig.Client.HostNetworks {
+		conf.HostNetworks[hn.Name] = hn
+	}
+
 	return conf, nil
 }
 
