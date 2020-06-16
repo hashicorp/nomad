@@ -12,6 +12,7 @@ BUG FIXES:
 
  * cli: Fixed malformed alloc status address list when listing more than 1 address [[GH-8161](https://github.com/hashicorp/nomad/issues/8161)]
  * client: Fixed a bug where stdout/stderr were not properly reopened for community task drivers. [[GH-8155](https://github.com/hashicorp/nomad/issues/8155)]
+ * driver/docker: Fixed a bug to set correct value for `memory-swap` when using `memory_hard_limit` [[GH-8153](https://github.com/hashicorp/nomad/issues/8153)]
 
 ## 0.11.3 (June 5, 2020)
 
