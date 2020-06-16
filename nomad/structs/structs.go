@@ -549,6 +549,11 @@ type JobRegisterRequest struct {
 	EnforceIndex   bool
 	JobModifyIndex uint64
 
+	// PreserveCounts indicates that during job update, existing task group
+	// counts should be preserved, over those specified in the new job spec
+	// PreserveCounts is ignored for newly created jobs.
+	PreserveCounts bool
+
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 

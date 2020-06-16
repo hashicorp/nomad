@@ -87,6 +87,7 @@ type RegisterOptions struct {
 	EnforceIndex   bool
 	ModifyIndex    uint64
 	PolicyOverride bool
+	PreserveCounts bool
 }
 
 // Register is used to register a new job. It returns the ID
@@ -1041,9 +1042,10 @@ type JobRegisterRequest struct {
 	// If EnforceIndex is set then the job will only be registered if the passed
 	// JobModifyIndex matches the current Jobs index. If the index is zero, the
 	// register only occurs if the job is new.
-	EnforceIndex   bool
-	JobModifyIndex uint64
-	PolicyOverride bool
+	EnforceIndex   bool   `json:",omitempty"`
+	JobModifyIndex uint64 `json:",omitempty"`
+	PolicyOverride bool   `json:",omitempty"`
+	PreserveCounts bool   `json:",omitempty"`
 
 	WriteRequest
 }
