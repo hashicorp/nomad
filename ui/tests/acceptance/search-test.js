@@ -12,7 +12,7 @@ module('Acceptance | search', function(hooks) {
 
   test('search searches jobs and nodes and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
-    server.create('node', { name: 'aaa' });
+    const otherNode = server.create('node', { name: 'aaa' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
     server.create('job', { id: 'xyz', namespace: 'default' });
@@ -42,11 +42,10 @@ module('Acceptance | search', function(hooks) {
     await PageLayout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), '/jobs/xyz');
 
-    // Search only works once for unknown reasons!
-    // await selectSearch(PageLayout.navbar.search.scope, otherNode.id.substr(0, 3));
+    await selectSearch(PageLayout.navbar.search.scope, otherNode.id.substr(0, 3));
 
-    // await PageLayout.navbar.search.groups[0].options[0].click();
-    // assert.equal(currentURL(), `/clients/${otherNode.id}`);
+    await PageLayout.navbar.search.groups[1].options[0].click();
+    assert.equal(currentURL(), `/clients/${otherNode.id}`);
   });
 
   test('clicking the search field starts search immediately', async function(assert) {
