@@ -58,13 +58,28 @@ export default class GlobalSearchControl extends Component {
   })
   search;
 
-  @action select(model) {
+  @action
+  open() {
+    if (this.select) {
+      this.select.actions.open();
+    }
+  }
+
+  @action
+  selectOption(model) {
     const itemModelName = model.constructor.modelName;
 
     if (itemModelName === 'job') {
       this.router.transitionTo('jobs.job', model.name);
     } else if (itemModelName === 'node') {
       this.router.transitionTo('clients.client', model.id);
+    }
+  }
+
+  @action
+  storeSelect(select) {
+    if (select) {
+      this.select = select;
     }
   }
 
