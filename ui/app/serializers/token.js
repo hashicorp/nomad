@@ -1,16 +1,16 @@
 import { copy } from 'ember-copy';
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
-  primaryKey: 'AccessorID',
+export default class TokenSerializer extends ApplicationSerializer {
+  primaryKey = 'AccessorID';
 
-  attrs: {
+  attrs = {
     secret: 'SecretID',
-  },
+  };
 
   normalize(typeHash, hash) {
     hash.PolicyIDs = hash.Policies;
     hash.PolicyNames = copy(hash.Policies);
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

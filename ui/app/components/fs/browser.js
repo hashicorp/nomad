@@ -1,58 +1,59 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { filterBy } from '@ember/object/computed';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: '',
+@classic
+@tagName('')
+export default class Browser extends Component {
+  model = null;
 
-  model: null,
-
-  allocation: computed('model', function() {
+  @computed('model')
+  get allocation() {
     if (this.model.allocation) {
       return this.model.allocation;
     } else {
       return this.model;
     }
-  }),
+  }
 
-  taskState: computed('model', function() {
+  @computed('model')
+  get taskState() {
     if (this.model.allocation) {
       return this.model;
     }
 
-    return;
-  }),
+    return undefined;
+  }
 
-  type: computed('taskState', function() {
+  @computed('taskState')
+  get type() {
     if (this.taskState) {
       return 'task';
     } else {
       return 'allocation';
     }
-  }),
+  }
 
-  directories: filterBy('directoryEntries', 'IsDir'),
-  files: filterBy('directoryEntries', 'IsDir', false),
+  @filterBy('directoryEntries', 'IsDir') directories;
+  @filterBy('directoryEntries', 'IsDir', false) files;
 
-  sortedDirectoryEntries: computed(
-    'directoryEntries.[]',
-    'sortProperty',
-    'sortDescending',
-    function() {
-      const sortProperty = this.sortProperty;
+  @computed('directoryEntries.[]', 'sortProperty', 'sortDescending')
+  get sortedDirectoryEntries() {
+    const sortProperty = this.sortProperty;
 
-      const directorySortProperty = sortProperty === 'Size' ? 'Name' : sortProperty;
+    const directorySortProperty = sortProperty === 'Size' ? 'Name' : sortProperty;
 
-      const sortedDirectories = this.directories.sortBy(directorySortProperty);
-      const sortedFiles = this.files.sortBy(sortProperty);
+    const sortedDirectories = this.directories.sortBy(directorySortProperty);
+    const sortedFiles = this.files.sortBy(sortProperty);
 
-      const sortedDirectoryEntries = sortedDirectories.concat(sortedFiles);
+    const sortedDirectoryEntries = sortedDirectories.concat(sortedFiles);
 
-      if (this.sortDescending) {
-        return sortedDirectoryEntries.reverse();
-      } else {
-        return sortedDirectoryEntries;
-      }
+    if (this.sortDescending) {
+      return sortedDirectoryEntries.reverse();
+    } else {
+      return sortedDirectoryEntries;
     }
-  ),
-});
+  }
+}

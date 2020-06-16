@@ -1,7 +1,7 @@
 import { copy } from 'ember-copy';
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class TaskGroup extends ApplicationSerializer {
   normalize(typeHash, hash) {
     // Provide EphemeralDisk to each task
     hash.Tasks.forEach(task => {
@@ -14,6 +14,6 @@ export default ApplicationSerializer.extend({
     const volumes = hash.Volumes || {};
     hash.Volumes = Object.keys(volumes).map(key => volumes[key]);
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

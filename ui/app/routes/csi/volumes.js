@@ -2,23 +2,25 @@ import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
+import classic from 'ember-classic-decorator';
 
-export default Route.extend(WithForbiddenState, {
-  system: service(),
-  store: service(),
+@classic
+export default class VolumesRoute extends Route.extend(WithForbiddenState) {
+  @service system;
+  @service store;
 
-  breadcrumbs: Object.freeze([
+  breadcrumbs = [
     {
       label: 'Storage',
       args: ['csi.index'],
     },
-  ]),
+  ];
 
-  queryParams: {
+  queryParams = {
     volumeNamespace: {
       refreshModel: true,
     },
-  },
+  };
 
   beforeModel(transition) {
     return this.get('system.namespaces').then(namespaces => {
@@ -27,7 +29,7 @@ export default Route.extend(WithForbiddenState, {
 
       return namespaces;
     });
-  },
+  }
 
   model() {
     return this.store
@@ -37,5 +39,5 @@ export default Route.extend(WithForbiddenState, {
         return volumes;
       })
       .catch(notifyForbidden(this));
-  },
-});
+  }
+}

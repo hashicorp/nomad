@@ -2,15 +2,15 @@ import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 
-export default Fragment.extend({
-  state: fragmentOwner(),
+export default class TaskEvent extends Fragment {
+  @fragmentOwner() state;
 
-  type: attr('string'),
-  signal: attr('number'),
-  exitCode: attr('number'),
+  @attr('string') type;
+  @attr('number') signal;
+  @attr('number') exitCode;
 
-  time: attr('date'),
-  timeNanos: attr('number'),
+  @attr('date') time;
+  @attr('number') timeNanos;
 
-  message: attr('string'),
-});
+  @attr('string') message;
+}

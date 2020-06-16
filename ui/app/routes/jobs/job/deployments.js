@@ -4,21 +4,21 @@ import { collect } from '@ember/object/computed';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend(WithWatchers, {
+export default class DeploymentsRoute extends Route.extend(WithWatchers) {
   model() {
     const job = this.modelFor('jobs.job');
     return job && RSVP.all([job.get('deployments'), job.get('versions')]).then(() => job);
-  },
+  }
 
   startWatchers(controller, model) {
     if (model) {
       controller.set('watchDeployments', this.watchDeployments.perform(model));
       controller.set('watchVersions', this.watchVersions.perform(model));
     }
-  },
+  }
 
-  watchDeployments: watchRelationship('deployments'),
-  watchVersions: watchRelationship('versions'),
+  @watchRelationship('deployments') watchDeployments;
+  @watchRelationship('versions') watchVersions;
 
-  watchers: collect('watchDeployments', 'watchVersions'),
-});
+  @collect('watchDeployments', 'watchVersions') watchers;
+}

@@ -5,47 +5,52 @@ import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  store: service(),
-  token: service(),
-  statsTrackersRegistry: service('stats-trackers-registry'),
+@classic
+@tagName('tr')
+@classNames('task-row', 'is-interactive')
+export default class TaskRow extends Component {
+  @service store;
+  @service token;
+  @service('stats-trackers-registry') statsTrackersRegistry;
 
-  tagName: 'tr',
-  classNames: ['task-row', 'is-interactive'],
-
-  task: null,
+  task = null;
 
   // Internal state
-  statsError: false,
+  statsError = false;
 
-  enablePolling: computed(function() {
+  @computed
+  get enablePolling() {
     return !Ember.testing;
-  }),
+  }
 
   // Since all tasks for an allocation share the same tracker, use the registry
-  stats: computed('task', 'task.isRunning', function() {
-    if (!this.get('task.isRunning')) return;
+  @computed('task', 'task.isRunning')
+  get stats() {
+    if (!this.get('task.isRunning')) return undefined;
 
     return this.statsTrackersRegistry.getTracker(this.get('task.allocation'));
-  }),
+  }
 
-  taskStats: computed('task.name', 'stats.tasks.[]', function() {
-    if (!this.stats) return;
+  @computed('task.name', 'stats.tasks.[]')
+  get taskStats() {
+    if (!this.stats) return undefined;
 
     return this.get('stats.tasks').findBy('task', this.get('task.name'));
-  }),
+  }
 
-  cpu: alias('taskStats.cpu.lastObject'),
-  memory: alias('taskStats.memory.lastObject'),
+  @alias('taskStats.cpu.lastObject') cpu;
+  @alias('taskStats.memory.lastObject') memory;
 
-  onClick() {},
+  onClick() {}
 
   click(event) {
     lazyClick([this.onClick, event]);
-  },
+  }
 
-  fetchStats: task(function*() {
+  @(task(function*() {
     do {
       if (this.stats) {
         try {
@@ -58,7 +63,8 @@ export default Component.extend({
 
       yield timeout(500);
     } while (this.enablePolling);
-  }).drop(),
+  }).drop())
+  fetchStats;
 
   didReceiveAttrs() {
     const allocation = this.get('task.allocation');
@@ -68,5 +74,5 @@ export default Component.extend({
     } else {
       this.fetchStats.cancelAll();
     }
-  },
-});
+  }
+}

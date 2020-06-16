@@ -2,7 +2,7 @@ import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-export default Route.extend({
+export default class FsRoute extends Route {
   model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const allocation = this.modelFor('allocations.allocation');
@@ -33,10 +33,10 @@ export default Route.extend({
         }
       })
       .catch(notifyError(this));
-  },
+  }
 
   setupController(controller, { path, allocation, directoryEntries, isFile, stat } = {}) {
-    this._super(...arguments);
+    super.setupController(...arguments);
     controller.setProperties({ path, allocation, directoryEntries, isFile, stat });
-  },
-});
+  }
+}

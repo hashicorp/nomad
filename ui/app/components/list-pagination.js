@@ -1,26 +1,32 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  source: overridable(() => []),
-  size: 25,
-  page: 1,
-  spread: 2,
+@classic
+export default class ListPagination extends Component {
+  @overridable(() => []) source;
+  size = 25;
+  page = 1;
+  spread = 2;
 
-  startsAt: computed('size', 'page', function() {
+  @computed('size', 'page')
+  get startsAt() {
     return (this.page - 1) * this.size + 1;
-  }),
+  }
 
-  endsAt: computed('source.[]', 'size', 'page', function() {
+  @computed('source.[]', 'size', 'page')
+  get endsAt() {
     return Math.min(this.page * this.size, this.get('source.length'));
-  }),
+  }
 
-  lastPage: computed('source.[]', 'size', function() {
+  @computed('source.[]', 'size')
+  get lastPage() {
     return Math.ceil(this.get('source.length') / this.size);
-  }),
+  }
 
-  pageLinks: computed('source.[]', 'page', 'spread', function() {
+  @computed('source.[]', 'page', 'spread')
+  get pageLinks() {
     const { spread, page, lastPage } = this;
 
     // When there is only one page, don't bother with page links
@@ -36,11 +42,12 @@ export default Component.extend({
       .map((_, index) => ({
         pageNumber: lowerBound + index,
       }));
-  }),
+  }
 
-  list: computed('source.[]', 'page', 'size', function() {
+  @computed('source.[]', 'page', 'size')
+  get list() {
     const size = this.size;
     const start = (this.page - 1) * size;
     return this.source.slice(start, start + size);
-  }),
-});
+  }
+}

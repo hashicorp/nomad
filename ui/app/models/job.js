@@ -6,121 +6,122 @@ import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
+import classic from 'ember-classic-decorator';
 
 const JOB_TYPES = ['service', 'batch', 'system'];
 
-export default Model.extend({
-  region: attr('string'),
-  name: attr('string'),
-  plainId: attr('string'),
-  type: attr('string'),
-  priority: attr('number'),
-  allAtOnce: attr('boolean'),
+@classic
+export default class Job extends Model {
+  @attr('string') region;
+  @attr('string') name;
+  @attr('string') plainId;
+  @attr('string') type;
+  @attr('number') priority;
+  @attr('boolean') allAtOnce;
 
-  status: attr('string'),
-  statusDescription: attr('string'),
-  createIndex: attr('number'),
-  modifyIndex: attr('number'),
+  @attr('string') status;
+  @attr('string') statusDescription;
+  @attr('number') createIndex;
+  @attr('number') modifyIndex;
 
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
-  periodic: attr('boolean'),
-  parameterized: attr('boolean'),
-  dispatched: attr('boolean'),
+  @attr('boolean') periodic;
+  @attr('boolean') parameterized;
+  @attr('boolean') dispatched;
 
-  periodicDetails: attr(),
-  parameterizedDetails: attr(),
+  @attr() periodicDetails;
+  @attr() parameterizedDetails;
 
-  hasChildren: computed('periodic', 'parameterized', 'dispatched', function() {
+  @computed('periodic', 'parameterized', 'dispatched')
+  get hasChildren() {
     return this.periodic || (this.parameterized && !this.dispatched);
-  }),
+  }
 
-  parent: belongsTo('job', { inverse: 'children' }),
-  children: hasMany('job', { inverse: 'parent' }),
+  @belongsTo('job', { inverse: 'children' }) parent;
+  @hasMany('job', { inverse: 'parent' }) children;
 
   // The parent job name is prepended to child launch job names
-  trimmedName: computed('name', 'parent', function() {
+  @computed('name', 'parent')
+  get trimmedName() {
     return this.get('parent.content') ? this.name.replace(/.+?\//, '') : this.name;
-  }),
+  }
 
   // A composite of type and other job attributes to determine
   // a better type descriptor for human interpretation rather
   // than for scheduling.
-  displayType: computed('type', 'periodic', 'parameterized', function() {
+  @computed('type', 'periodic', 'parameterized')
+  get displayType() {
     if (this.periodic) {
       return 'periodic';
     } else if (this.parameterized) {
       return 'parameterized';
     }
     return this.type;
-  }),
+  }
 
   // A composite of type and other job attributes to determine
   // type for templating rather than scheduling
-  templateType: computed(
-    'type',
-    'periodic',
-    'parameterized',
-    'parent.{periodic,parameterized}',
-    function() {
-      const type = this.type;
+  @computed('type', 'periodic', 'parameterized', 'parent.{periodic,parameterized}')
+  get templateType() {
+    const type = this.type;
 
-      if (this.get('parent.periodic')) {
-        return 'periodic-child';
-      } else if (this.get('parent.parameterized')) {
-        return 'parameterized-child';
-      } else if (this.periodic) {
-        return 'periodic';
-      } else if (this.parameterized) {
-        return 'parameterized';
-      } else if (JOB_TYPES.includes(type)) {
-        // Guard against the API introducing a new type before the UI
-        // is prepared to handle it.
-        return this.type;
-      }
-
-      // A fail-safe in the event the API introduces a new type.
-      return 'service';
+    if (this.get('parent.periodic')) {
+      return 'periodic-child';
+    } else if (this.get('parent.parameterized')) {
+      return 'parameterized-child';
+    } else if (this.periodic) {
+      return 'periodic';
+    } else if (this.parameterized) {
+      return 'parameterized';
+    } else if (JOB_TYPES.includes(type)) {
+      // Guard against the API introducing a new type before the UI
+      // is prepared to handle it.
+      return this.type;
     }
-  ),
 
-  datacenters: attr(),
-  taskGroups: fragmentArray('task-group', { defaultValue: () => [] }),
-  summary: belongsTo('job-summary'),
+    // A fail-safe in the event the API introduces a new type.
+    return 'service';
+  }
+
+  @attr() datacenters;
+  @fragmentArray('task-group', { defaultValue: () => [] }) taskGroups;
+  @belongsTo('job-summary') summary;
 
   // A job model created from the jobs list response will be lacking
   // task groups. This is an indicator that it needs to be reloaded
   // if task group information is important.
-  isPartial: equal('taskGroups.length', 0),
+  @equal('taskGroups.length', 0) isPartial;
 
   // If a job has only been loaded through the list request, the task groups
   // are still unknown. However, the count of task groups is available through
   // the job-summary model which is embedded in the jobs list response.
-  taskGroupCount: or('taskGroups.length', 'taskGroupSummaries.length'),
+  @or('taskGroups.length', 'taskGroupSummaries.length') taskGroupCount;
 
   // Alias through to the summary, as if there was no relationship
-  taskGroupSummaries: alias('summary.taskGroupSummaries'),
-  queuedAllocs: alias('summary.queuedAllocs'),
-  startingAllocs: alias('summary.startingAllocs'),
-  runningAllocs: alias('summary.runningAllocs'),
-  completeAllocs: alias('summary.completeAllocs'),
-  failedAllocs: alias('summary.failedAllocs'),
-  lostAllocs: alias('summary.lostAllocs'),
-  totalAllocs: alias('summary.totalAllocs'),
-  pendingChildren: alias('summary.pendingChildren'),
-  runningChildren: alias('summary.runningChildren'),
-  deadChildren: alias('summary.deadChildren'),
-  totalChildren: alias('summary.totalChildren'),
+  @alias('summary.taskGroupSummaries') taskGroupSummaries;
+  @alias('summary.queuedAllocs') queuedAllocs;
+  @alias('summary.startingAllocs') startingAllocs;
+  @alias('summary.runningAllocs') runningAllocs;
+  @alias('summary.completeAllocs') completeAllocs;
+  @alias('summary.failedAllocs') failedAllocs;
+  @alias('summary.lostAllocs') lostAllocs;
+  @alias('summary.totalAllocs') totalAllocs;
+  @alias('summary.pendingChildren') pendingChildren;
+  @alias('summary.runningChildren') runningChildren;
+  @alias('summary.deadChildren') deadChildren;
+  @alias('summary.totalChildren') totalChildren;
 
-  version: attr('number'),
+  @attr('number') version;
 
-  versions: hasMany('job-versions'),
-  allocations: hasMany('allocations'),
-  deployments: hasMany('deployments'),
-  evaluations: hasMany('evaluations'),
-  namespace: belongsTo('namespace'),
+  @hasMany('job-versions') versions;
+  @hasMany('allocations') allocations;
+  @hasMany('deployments') deployments;
+  @hasMany('evaluations') evaluations;
+  @belongsTo('namespace') namespace;
 
-  drivers: computed('taskGroups.@each.drivers', function() {
+  @computed('taskGroups.@each.drivers')
+  get drivers() {
     return this.taskGroups
       .mapBy('drivers')
       .reduce((all, drivers) => {
@@ -128,13 +129,14 @@ export default Model.extend({
         return all;
       }, [])
       .uniq();
-  }),
+  }
 
-  allocationsUnhealthyDrivers: mapBy('allocations', 'unhealthyDrivers'),
+  @mapBy('allocations', 'unhealthyDrivers') allocationsUnhealthyDrivers;
 
   // Getting all unhealthy drivers for a job can be incredibly expensive if the job
   // has many allocations. This can lead to making an API request for many nodes.
-  unhealthyDrivers: computed('allocationsUnhealthyDrivers.[]', function() {
+  @computed('allocationsUnhealthyDrivers.[]')
+  get unhealthyDrivers() {
     return this.allocations
       .mapBy('unhealthyDrivers')
       .reduce((all, drivers) => {
@@ -142,23 +144,26 @@ export default Model.extend({
         return all;
       }, [])
       .uniq();
-  }),
+  }
 
-  hasBlockedEvaluation: computed('evaluations.@each.isBlocked', function() {
+  @computed('evaluations.@each.isBlocked')
+  get hasBlockedEvaluation() {
     return this.evaluations.toArray().some(evaluation => evaluation.get('isBlocked'));
-  }),
+  }
 
-  hasPlacementFailures: and('latestFailureEvaluation', 'hasBlockedEvaluation'),
+  @and('latestFailureEvaluation', 'hasBlockedEvaluation') hasPlacementFailures;
 
-  latestEvaluation: computed('evaluations.{@each.modifyIndex,isPending}', function() {
+  @computed('evaluations.{@each.modifyIndex,isPending}')
+  get latestEvaluation() {
     const evaluations = this.evaluations;
     if (!evaluations || evaluations.get('isPending')) {
       return null;
     }
     return evaluations.sortBy('modifyIndex').get('lastObject');
-  }),
+  }
 
-  latestFailureEvaluation: computed('evaluations.{@each.modifyIndex,isPending}', function() {
+  @computed('evaluations.{@each.modifyIndex,isPending}')
+  get latestFailureEvaluation() {
     const evaluations = this.evaluations;
     if (!evaluations || evaluations.get('isPending')) {
       return null;
@@ -169,45 +174,46 @@ export default Model.extend({
       return failureEvaluations.sortBy('modifyIndex').get('lastObject');
     }
 
-    return;
-  }),
+    return undefined;
+  }
 
-  supportsDeployments: equal('type', 'service'),
+  @equal('type', 'service') supportsDeployments;
 
-  latestDeployment: belongsTo('deployment', { inverse: 'jobForLatest' }),
+  @belongsTo('deployment', { inverse: 'jobForLatest' }) latestDeployment;
 
-  runningDeployment: computed('latestDeployment', 'latestDeployment.isRunning', function() {
+  @computed('latestDeployment', 'latestDeployment.isRunning')
+  get runningDeployment() {
     const latest = this.latestDeployment;
     if (latest.get('isRunning')) return latest;
-    return;
-  }),
+    return undefined;
+  }
 
   fetchRawDefinition() {
     return this.store.adapterFor('job').fetchRawDefinition(this);
-  },
+  }
 
   forcePeriodic() {
     return this.store.adapterFor('job').forcePeriodic(this);
-  },
+  }
 
   stop() {
     return this.store.adapterFor('job').stop(this);
-  },
+  }
 
   plan() {
     assert('A job must be parsed before planned', this._newDefinitionJSON);
     return this.store.adapterFor('job').plan(this);
-  },
+  }
 
   run() {
     assert('A job must be parsed before ran', this._newDefinitionJSON);
     return this.store.adapterFor('job').run(this);
-  },
+  }
 
   update() {
     assert('A job must be parsed before updated', this._newDefinitionJSON);
     return this.store.adapterFor('job').update(this);
-  },
+  }
 
   parse() {
     const definition = this._newDefinition;
@@ -237,7 +243,7 @@ export default Model.extend({
     }
 
     return promise;
-  },
+  }
 
   setIdByPayload(payload) {
     const namespace = payload.Namespace || 'default';
@@ -250,13 +256,14 @@ export default Model.extend({
     if (namespaceRecord) {
       this.set('namespace', namespaceRecord);
     }
-  },
+  }
 
   resetId() {
     this.set('id', JSON.stringify([this.plainId, this.get('namespace.name') || 'default']));
-  },
+  }
 
-  statusClass: computed('status', function() {
+  @computed('status')
+  get statusClass() {
     const classMap = {
       pending: 'is-pending',
       running: 'is-primary',
@@ -264,20 +271,22 @@ export default Model.extend({
     };
 
     return classMap[this.status] || 'is-dark';
-  }),
+  }
 
-  payload: attr('string'),
-  decodedPayload: computed('payload', function() {
+  @attr('string') payload;
+
+  @computed('payload')
+  get decodedPayload() {
     // Lazily decode the base64 encoded payload
     return window.atob(this.payload || '');
-  }),
+  }
 
   // An arbitrary HCL or JSON string that is used by the serializer to plan
   // and run this job. Used for both new job models and saved job models.
-  _newDefinition: attr('string'),
+  @attr('string') _newDefinition;
 
   // The new definition may be HCL, in which case the API will need to parse the
   // spec first. In order to preserve both the original HCL and the parsed response
   // that will be submitted to the create job endpoint, another prop is necessary.
-  _newDefinitionJSON: attr('string'),
-});
+  @attr('string') _newDefinitionJSON;
+}

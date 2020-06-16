@@ -4,30 +4,34 @@ import { equal } from '@ember/object/computed';
 import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';
 import Duration from 'duration-js';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: '',
+@classic
+@tagName('')
+export default class DrainPopover extends Component {
+  client = null;
+  isDisabled = false;
 
-  client: null,
-  isDisabled: false,
+  onError() {}
+  onDrain() {}
 
-  onError() {},
-  onDrain() {},
+  parseError = '';
 
-  parseError: '',
+  deadlineEnabled = false;
+  forceDrain = false;
+  drainSystemJobs = true;
 
-  deadlineEnabled: false,
-  forceDrain: false,
-  drainSystemJobs: true,
-
-  selectedDurationQuickOption: overridable(function() {
+  @overridable(function() {
     return this.durationQuickOptions[0];
-  }),
+  })
+  selectedDurationQuickOption;
 
-  durationIsCustom: equal('selectedDurationQuickOption.value', 'custom'),
-  customDuration: '',
+  @equal('selectedDurationQuickOption.value', 'custom') durationIsCustom;
+  customDuration = '';
 
-  durationQuickOptions: computed(function() {
+  @computed
+  get durationQuickOptions() {
     return [
       { label: '1 Hour', value: '1h' },
       { label: '4 Hours', value: '4h' },
@@ -36,21 +40,21 @@ export default Component.extend({
       { label: '1 Day', value: '1d' },
       { label: 'Custom', value: 'custom' },
     ];
-  }),
+  }
 
-  deadline: computed(
+  @computed(
     'deadlineEnabled',
     'durationIsCustom',
     'customDuration',
-    'selectedDurationQuickOption.value',
-    function() {
-      if (!this.deadlineEnabled) return 0;
-      if (this.durationIsCustom) return this.customDuration;
-      return this.selectedDurationQuickOption.value;
-    }
-  ),
+    'selectedDurationQuickOption.value'
+  )
+  get deadline() {
+    if (!this.deadlineEnabled) return 0;
+    if (this.durationIsCustom) return this.customDuration;
+    return this.selectedDurationQuickOption.value;
+  }
 
-  drain: task(function*(close) {
+  @task(function*(close) {
     if (!this.client) return;
     const isUpdating = this.client.isDraining;
 
@@ -79,9 +83,10 @@ export default Component.extend({
     } catch (err) {
       this.onError(err);
     }
-  }),
+  })
+  drain;
 
   preventDefault(e) {
     e.preventDefault();
-  },
-});
+  }
+}

@@ -1,16 +1,17 @@
 import Component from '@ember/component';
 import { lazyClick } from '../helpers/lazy-click';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: 'tr',
+@classic
+@tagName('tr')
+@classNames('task-group-row', 'is-interactive')
+export default class TaskGroupRow extends Component {
+  taskGroup = null;
 
-  classNames: ['task-group-row', 'is-interactive'],
-
-  taskGroup: null,
-
-  onClick() {},
+  onClick() {}
 
   click(event) {
     lazyClick([this.onClick, event]);
-  },
-});
+  }
+}

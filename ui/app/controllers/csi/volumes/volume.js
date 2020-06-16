@@ -1,22 +1,23 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 
-export default Controller.extend({
+export default class VolumeController extends Controller {
   // Used in the template
-  system: service(),
+  @service system;
 
-  sortedReadAllocations: computed('model.readAllocations.@each.modifyIndex', function() {
+  @computed('model.readAllocations.@each.modifyIndex')
+  get sortedReadAllocations() {
     return this.model.readAllocations.sortBy('modifyIndex').reverse();
-  }),
+  }
 
-  sortedWriteAllocations: computed('model.writeAllocations.@each.modifyIndex', function() {
+  @computed('model.writeAllocations.@each.modifyIndex')
+  get sortedWriteAllocations() {
     return this.model.writeAllocations.sortBy('modifyIndex').reverse();
-  }),
+  }
 
-  actions: {
-    gotoAllocation(allocation) {
-      this.transitionToRoute('allocations.allocation', allocation);
-    },
-  },
-});
+  @action
+  gotoAllocation(allocation) {
+    this.transitionToRoute('allocations.allocation', allocation);
+  }
+}

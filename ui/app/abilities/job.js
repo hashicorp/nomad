@@ -2,13 +2,15 @@ import AbstractAbility from './abstract';
 import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';
 
-export default AbstractAbility.extend({
-  canRun: or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportRunning'),
+export default class Job extends AbstractAbility {
+  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportRunning')
+  canRun;
 
-  policiesSupportRunning: computed('rulesForActiveNamespace.@each.capabilities', function() {
+  @computed('rulesForActiveNamespace.@each.capabilities')
+  get policiesSupportRunning() {
     return this.rulesForActiveNamespace.some(rules => {
       let capabilities = get(rules, 'Capabilities') || [];
       return capabilities.includes('submit-job');
     });
-  }),
-});
+  }
+}

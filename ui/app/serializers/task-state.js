@@ -1,6 +1,6 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class TaskState extends ApplicationSerializer {
   normalize(typeHash, hash) {
     // TODO API: finishedAt is always marshaled as a date even when unset.
     // To simplify things, unset it here when it's the empty date value.
@@ -8,6 +8,6 @@ export default ApplicationSerializer.extend({
       hash.FinishedAt = null;
     }
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

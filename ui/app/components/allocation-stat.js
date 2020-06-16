@@ -2,41 +2,47 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: '',
+@classic
+@tagName('')
+export default class AllocationStat extends Component {
+  allocation = null;
+  statsTracker = null;
+  isLoading = false;
+  error = null;
+  metric = 'memory'; // Either memory or cpu
 
-  allocation: null,
-  statsTracker: null,
-  isLoading: false,
-  error: null,
-  metric: 'memory', // Either memory or cpu
-
-  statClass: computed('metric', function() {
+  @computed('metric')
+  get statClass() {
     return this.metric === 'cpu' ? 'is-info' : 'is-danger';
-  }),
+  }
 
-  cpu: alias('statsTracker.cpu.lastObject'),
-  memory: alias('statsTracker.memory.lastObject'),
+  @alias('statsTracker.cpu.lastObject') cpu;
+  @alias('statsTracker.memory.lastObject') memory;
 
-  stat: computed('metric', 'cpu', 'memory', function() {
+  @computed('metric', 'cpu', 'memory')
+  get stat() {
     const { metric } = this;
     if (metric === 'cpu' || metric === 'memory') {
       return this[this.metric];
     }
 
-    return;
-  }),
+    return undefined;
+  }
 
-  formattedStat: computed('metric', 'stat.used', function() {
-    if (!this.stat) return;
+  @computed('metric', 'stat.used')
+  get formattedStat() {
+    if (!this.stat) return undefined;
     if (this.metric === 'memory') return formatBytes([this.stat.used]);
     return this.stat.used;
-  }),
+  }
 
-  formattedReserved: computed('metric', 'statsTracker.{reservedMemory,reservedCPU}', function() {
+  @computed('metric', 'statsTracker.{reservedMemory,reservedCPU}')
+  get formattedReserved() {
     if (this.metric === 'memory') return `${this.statsTracker.reservedMemory} MiB`;
     if (this.metric === 'cpu') return `${this.statsTracker.reservedCPU} MHz`;
-    return;
-  }),
-});
+    return undefined;
+  }
+}

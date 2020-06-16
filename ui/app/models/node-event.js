@@ -3,13 +3,13 @@ import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 
-export default Fragment.extend({
-  node: fragmentOwner(),
+export default class NodeEvent extends Fragment {
+  @fragmentOwner() node;
 
-  message: attr('string'),
-  subsystem: attr('string'),
-  details: attr(),
-  time: attr('date'),
+  @attr('string') message;
+  @attr('string') subsystem;
+  @attr() details;
+  @attr('date') time;
 
-  driver: alias('details.driver'),
-});
+  @alias('details.driver') driver;
+}

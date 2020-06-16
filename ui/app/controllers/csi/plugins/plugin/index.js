@@ -1,18 +1,19 @@
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 
-export default Controller.extend({
-  sortedControllers: computed('model.controllers.@each.updateTime', function() {
+export default class IndexController extends Controller {
+  @computed('model.controllers.@each.updateTime')
+  get sortedControllers() {
     return this.model.controllers.sortBy('updateTime').reverse();
-  }),
+  }
 
-  sortedNodes: computed('model.nodes.@each.updateTime', function() {
+  @computed('model.nodes.@each.updateTime')
+  get sortedNodes() {
     return this.model.nodes.sortBy('updateTime').reverse();
-  }),
+  }
 
-  actions: {
-    gotoAllocation(allocation) {
-      this.transitionToRoute('allocations.allocation', allocation);
-    },
-  },
-});
+  @action
+  gotoAllocation(allocation) {
+    this.transitionToRoute('allocations.allocation', allocation);
+  }
+}

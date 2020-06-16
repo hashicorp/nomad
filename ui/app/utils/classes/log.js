@@ -11,45 +11,54 @@ import StreamLogger from 'nomad-ui/utils/classes/stream-logger';
 import PollLogger from 'nomad-ui/utils/classes/poll-logger';
 import { decode } from 'nomad-ui/utils/stream-frames';
 import Anser from 'anser';
+import classic from 'ember-classic-decorator';
 
 const MAX_OUTPUT_LENGTH = 50000;
 
 // eslint-disable-next-line
 export const fetchFailure = url => () => console.warn(`LOG FETCH: Couldn't connect to ${url}`);
 
-const Log = EmberObject.extend(Evented, {
+@classic
+class Log extends EmberObject.extend(Evented) {
   // Parameters
 
-  url: '',
-  params: overridable(() => ({})),
-  plainText: false,
+  url = '';
+
+  @overridable(() => ({}))
+  params;
+
+  plainText = false;
+
   logFetch() {
     assert('Log objects need a logFetch method, which should have an interface like window.fetch');
-  },
+  }
 
   // Read-only state
 
-  isStreaming: alias('logStreamer.poll.isRunning'),
-  logPointer: null,
-  logStreamer: null,
+  @alias('logStreamer.poll.isRunning')
+  isStreaming;
+
+  logPointer = null;
+  logStreamer = null;
 
   // The top of the log
-  head: '',
+  head = '';
 
   // The bottom of the log
-  tail: '',
+  tail = '';
 
   // The top or bottom of the log, depending on whether
   // the logPointer is pointed at head or tail
-  output: computed('logPointer', 'head', 'tail', function() {
+  @computed('logPointer', 'head', 'tail')
+  get output() {
     let logs = this.logPointer === 'head' ? this.head : this.tail;
     logs = logs.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let colouredLogs = Anser.ansiToHtml(logs);
     return htmlSafe(colouredLogs);
-  }),
+  }
 
   init() {
-    this._super();
+    super.init();
 
     const args = this.getProperties('url', 'params', 'logFetch');
     args.write = chunk => {
@@ -66,14 +75,14 @@ const Log = EmberObject.extend(Evented, {
     } else {
       this.set('logStreamer', PollLogger.create(args));
     }
-  },
+  }
 
   destroy() {
     this.stop();
-    this._super();
-  },
+    super.destroy();
+  }
 
-  gotoHead: task(function*() {
+  @task(function*() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
       assign(
@@ -96,9 +105,10 @@ const Log = EmberObject.extend(Evented, {
     }
     this.set('head', text);
     this.set('logPointer', 'head');
-  }),
+  })
+  gotoHead;
 
-  gotoTail: task(function*() {
+  @task(function*() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
       assign(
@@ -117,17 +127,18 @@ const Log = EmberObject.extend(Evented, {
 
     this.set('tail', text);
     this.set('logPointer', 'tail');
-  }),
+  })
+  gotoTail;
 
   startStreaming() {
     this.set('logPointer', 'tail');
     return this.logStreamer.start();
-  },
+  }
 
   stop() {
     this.logStreamer.stop();
-  },
-});
+  }
+}
 
 export default Log;
 

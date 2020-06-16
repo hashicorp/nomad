@@ -2,16 +2,19 @@ import Component from '@ember/component';
 import { task } from 'ember-concurrency';
 import { ForbiddenError } from '@ember-data/adapter/error';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  job: null,
-  tagName: '',
+@classic
+@tagName('')
+export default class LatestDeployment extends Component {
+  job = null;
 
-  handleError() {},
+  handleError() {}
 
-  isShowingDeploymentDetails: false,
+  isShowingDeploymentDetails = false;
 
-  promote: task(function*() {
+  @task(function*() {
     try {
       yield this.get('job.latestDeployment.content').promote();
     } catch (err) {
@@ -26,5 +29,6 @@ export default Component.extend({
         description: message,
       });
     }
-  }),
-});
+  })
+  promote;
+}

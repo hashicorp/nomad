@@ -4,12 +4,15 @@ import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
 import jsonWithDefault from '../utils/json-with-default';
+import classic from 'ember-classic-decorator';
 
-export default Service.extend({
-  token: service(),
-  store: service(),
+@classic
+export default class SystemService extends Service {
+  @service token;
+  @service store;
 
-  leader: computed('activeRegion', function() {
+  @computed('activeRegion')
+  get leader() {
     const token = this.token;
 
     return PromiseObject.create({
@@ -23,9 +26,10 @@ export default Service.extend({
           return leader;
         }),
     });
-  }),
+  }
 
-  defaultRegion: computed(function() {
+  @computed
+  get defaultRegion() {
     const token = this.token;
     return PromiseObject.create({
       promise: token
@@ -35,94 +39,94 @@ export default Service.extend({
           return { region: json.ServerRegion };
         }),
     });
-  }),
+  }
 
-  regions: computed(function() {
+  @computed
+  get regions() {
     const token = this.token;
 
     return PromiseArray.create({
       promise: token.authorizedRawRequest(`/${namespace}/regions`).then(jsonWithDefault([])),
     });
-  }),
+  }
 
-  activeRegion: computed('regions.[]', {
-    get() {
-      const regions = this.regions;
-      const region = window.localStorage.nomadActiveRegion;
+  @computed('regions.[]')
+  get activeRegion() {
+    const regions = this.regions;
+    const region = window.localStorage.nomadActiveRegion;
 
-      if (regions.includes(region)) {
-        return region;
-      }
-
-      return null;
-    },
-    set(key, value) {
-      if (value == null) {
-        window.localStorage.removeItem('nomadActiveRegion');
-        return;
-      } else {
-        // All localStorage values are strings. Stringify first so
-        // the return value is consistent with what is persisted.
-        const strValue = value + '';
-        window.localStorage.nomadActiveRegion = strValue;
-        return strValue;
-      }
-    },
-  }),
-
-  shouldShowRegions: computed('regions.[]', function() {
-    return this.get('regions.length') > 1;
-  }),
-
-  shouldIncludeRegion: computed(
-    'activeRegion',
-    'defaultRegion.region',
-    'shouldShowRegions',
-    function() {
-      return this.shouldShowRegions && this.activeRegion !== this.get('defaultRegion.region');
+    if (regions.includes(region)) {
+      return region;
     }
-  ),
 
-  namespaces: computed('activeRegion', function() {
+    return null;
+  }
+
+  set activeRegion(value) {
+    if (value == null) {
+      window.localStorage.removeItem('nomadActiveRegion');
+      return;
+    } else {
+      // All localStorage values are strings. Stringify first so
+      // the return value is consistent with what is persisted.
+      const strValue = value + '';
+      window.localStorage.nomadActiveRegion = strValue;
+      return strValue;
+    }
+  }
+
+  @computed('regions.[]')
+  get shouldShowRegions() {
+    return this.get('regions.length') > 1;
+  }
+
+  @computed('activeRegion', 'defaultRegion.region', 'shouldShowRegions')
+  get shouldIncludeRegion() {
+    return this.shouldShowRegions && this.activeRegion !== this.get('defaultRegion.region');
+  }
+
+  @computed('activeRegion')
+  get namespaces() {
     return PromiseArray.create({
       promise: this.store.findAll('namespace').then(namespaces => namespaces.compact()),
     });
-  }),
+  }
 
-  shouldShowNamespaces: computed('namespaces.[]', function() {
+  @computed('namespaces.[]')
+  get shouldShowNamespaces() {
     const namespaces = this.namespaces.toArray();
     return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
-  }),
+  }
 
-  activeNamespace: computed('namespaces.[]', {
-    get() {
-      const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
-      const namespace = this.namespaces.findBy('id', namespaceId);
+  @computed('namespaces.[]')
+  get activeNamespace() {
+    const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
+    const namespace = this.namespaces.findBy('id', namespaceId);
 
-      if (namespace) {
-        return namespace;
-      }
+    if (namespace) {
+      return namespace;
+    }
 
-      // If the namespace in localStorage is no longer in the cluster, it needs to
-      // be cleared from localStorage
+    // If the namespace in localStorage is no longer in the cluster, it needs to
+    // be cleared from localStorage
+    window.localStorage.removeItem('nomadActiveNamespace');
+    return this.namespaces.findBy('id', 'default');
+  }
+
+  set activeNamespace(value) {
+    if (value == null) {
       window.localStorage.removeItem('nomadActiveNamespace');
-      return this.namespaces.findBy('id', 'default');
-    },
-    set(key, value) {
-      if (value == null) {
-        window.localStorage.removeItem('nomadActiveNamespace');
-        return;
-      } else if (typeof value === 'string') {
-        window.localStorage.nomadActiveNamespace = value;
-        return this.namespaces.findBy('id', value);
-      } else {
-        window.localStorage.nomadActiveNamespace = value.get('name');
-        return value;
-      }
-    },
-  }),
+      return;
+    } else if (typeof value === 'string') {
+      window.localStorage.nomadActiveNamespace = value;
+      return this.namespaces.findBy('id', value);
+    } else {
+      window.localStorage.nomadActiveNamespace = value.get('name');
+      return value;
+    }
+  }
 
   reset() {
     this.set('activeNamespace', null);
-  },
-});
+  }
+}

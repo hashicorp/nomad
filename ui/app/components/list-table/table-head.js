@@ -1,5 +1,7 @@
 import Component from '@ember/component';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: 'thead',
-});
+@classic
+@tagName('thead')
+export default class TableHead extends Component {}

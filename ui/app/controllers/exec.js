@@ -1,36 +1,39 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { alias, mapBy, sort, uniq } from '@ember/object/computed';
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
 import ExecSocketXtermAdapter from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+import classic from 'ember-classic-decorator';
 
 const ANSI_UI_GRAY_400 = '\x1b[38;2;142;150;163m';
 const ANSI_WHITE = '\x1b[0m';
 
-export default Controller.extend({
-  sockets: service(),
-  system: service(),
-  token: service(),
+@classic
+export default class ExecController extends Controller {
+  @service sockets;
+  @service system;
+  @service token;
 
-  queryParams: ['allocation'],
+  queryParams = ['allocation'];
 
-  command: localStorageProperty('nomadExecCommand', '/bin/bash'),
-  socketOpen: false,
+  @localStorageProperty('nomadExecCommand', '/bin/bash') command;
+  socketOpen = false;
 
-  pendingAndRunningAllocations: computed('model.allocations.@each.clientStatus', function() {
+  @computed('model.allocations.@each.clientStatus')
+  get pendingAndRunningAllocations() {
     return this.model.allocations.filter(
       allocation => allocation.clientStatus === 'pending' || allocation.clientStatus === 'running'
     );
-  }),
+  }
 
-  pendingAndRunningTaskGroups: mapBy('pendingAndRunningAllocations', 'taskGroup'),
-  uniquePendingAndRunningTaskGroups: uniq('pendingAndRunningTaskGroups'),
+  @mapBy('pendingAndRunningAllocations', 'taskGroup') pendingAndRunningTaskGroups;
+  @uniq('pendingAndRunningTaskGroups') uniquePendingAndRunningTaskGroups;
 
-  taskGroupSorting: Object.freeze(['name']),
-  sortedTaskGroups: sort('uniquePendingAndRunningTaskGroups', 'taskGroupSorting'),
+  taskGroupSorting = ['name'];
+  @sort('uniquePendingAndRunningTaskGroups', 'taskGroupSorting') sortedTaskGroups;
 
   setUpTerminal(Terminal) {
     this.terminal = new Terminal({ fontFamily: 'monospace', fontWeight: '400' });
@@ -38,86 +41,85 @@ export default Controller.extend({
 
     this.terminal.write(ANSI_UI_GRAY_400);
     this.terminal.writeln('Select a task to start your session.');
-  },
+  }
 
-  allocations: alias('model.allocations'),
+  @alias('model.allocations') allocations;
 
-  taskState: computed(
+  @computed(
     'allocations.{[],@each.isActive}',
     'allocationShortId',
     'taskName',
     'taskGroupName',
     'allocation',
-    'allocation.states.@each.{name,isRunning}',
-    function() {
-      if (!this.allocations) {
-        return false;
-      }
-
-      let allocation;
-
-      if (this.allocationShortId) {
-        allocation = this.allocations.findBy('shortId', this.allocationShortId);
-      } else {
-        allocation = this.allocations.find(allocation =>
-          allocation.states
-            .filterBy('isActive')
-            .mapBy('name')
-            .includes(this.taskName)
-        );
-      }
-
-      if (allocation) {
-        return allocation.states.find(state => state.name === this.taskName);
-      }
-
-      return;
+    'allocation.states.@each.{name,isRunning}'
+  )
+  get taskState() {
+    if (!this.allocations) {
+      return false;
     }
-  ),
 
-  actions: {
-    setTaskProperties({ allocationShortId, taskName, taskGroupName }) {
-      this.setProperties({
-        allocationShortId,
-        taskName,
-        taskGroupName,
-      });
+    let allocation;
 
-      if (this.taskState) {
-        this.terminal.write(ANSI_UI_GRAY_400);
-        this.terminal.writeln('');
+    if (this.allocationShortId) {
+      allocation = this.allocations.findBy('shortId', this.allocationShortId);
+    } else {
+      allocation = this.allocations.find(allocation =>
+        allocation.states
+          .filterBy('isActive')
+          .mapBy('name')
+          .includes(this.taskName)
+      );
+    }
 
-        if (!allocationShortId) {
-          this.terminal.writeln(
-            'Multiple instances of this task are running. The allocation below was selected by random draw.'
-          );
-          this.terminal.writeln('');
-        }
+    if (allocation) {
+      return allocation.states.find(state => state.name === this.taskName);
+    }
 
-        this.terminal.writeln('Customize your command, then hit ‘return’ to run.');
-        this.terminal.writeln('');
-        this.terminal.write(
-          `$ nomad alloc exec -i -t -task ${escapeTaskName(taskName)} ${
-            this.taskState.allocation.shortId
-          } `
+    return undefined;
+  }
+
+  @action
+  setTaskProperties({ allocationShortId, taskName, taskGroupName }) {
+    this.setProperties({
+      allocationShortId,
+      taskName,
+      taskGroupName,
+    });
+
+    if (this.taskState) {
+      this.terminal.write(ANSI_UI_GRAY_400);
+      this.terminal.writeln('');
+
+      if (!allocationShortId) {
+        this.terminal.writeln(
+          'Multiple instances of this task are running. The allocation below was selected by random draw.'
         );
-
-        this.terminal.write(ANSI_WHITE);
-
-        this.terminal.write(this.command);
-
-        if (this.commandEditorAdapter) {
-          this.commandEditorAdapter.destroy();
-        }
-
-        this.commandEditorAdapter = new ExecCommandEditorXtermAdapter(
-          this.terminal,
-          this.openAndConnectSocket.bind(this),
-          this.command
-        );
+        this.terminal.writeln('');
       }
-    },
-  },
+
+      this.terminal.writeln('Customize your command, then hit ‘return’ to run.');
+      this.terminal.writeln('');
+      this.terminal.write(
+        `$ nomad alloc exec -i -t -task ${escapeTaskName(taskName)} ${
+          this.taskState.allocation.shortId
+        } `
+      );
+
+      this.terminal.write(ANSI_WHITE);
+
+      this.terminal.write(this.command);
+
+      if (this.commandEditorAdapter) {
+        this.commandEditorAdapter.destroy();
+      }
+
+      this.commandEditorAdapter = new ExecCommandEditorXtermAdapter(
+        this.terminal,
+        this.openAndConnectSocket.bind(this),
+        this.command
+      );
+    }
+  }
 
   openAndConnectSocket(command) {
     if (this.taskState) {
@@ -129,5 +131,5 @@ export default Controller.extend({
     } else {
       this.terminal.writeln(`Failed to open a socket because task ${this.taskName} is not active.`);
     }
-  },
-});
+  }
+}

@@ -1,5 +1,5 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
-  primaryKey: 'Name',
-});
+export default class Namespace extends ApplicationSerializer {
+  primaryKey = 'Name';
+}

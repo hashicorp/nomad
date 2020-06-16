@@ -1,58 +1,68 @@
 /* eslint-disable ember/no-observers */
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { computed, observer } from '@ember/object';
+import { action, computed } from '@ember/object';
+import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend(Sortable, {
-  token: service(),
+@classic
+export default class IndexController extends Controller.extend(Sortable) {
+  @service token;
 
-  queryParams: {
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-  },
+  queryParams = [
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+  ];
 
-  sortProperty: 'name',
-  sortDescending: false,
+  sortProperty = 'name';
+  sortDescending = false;
 
-  listToSort: alias('model.states'),
-  sortedStates: alias('listSorted'),
+  @alias('model.states') listToSort;
+  @alias('listSorted') sortedStates;
 
   // Set in the route
-  preempter: null,
+  preempter = null;
 
-  error: overridable(() => {
+  @overridable(function() {
     // { title, description }
     return null;
-  }),
+  })
+  error;
 
-  network: alias('model.allocatedResources.networks.firstObject'),
+  @alias('model.allocatedResources.networks.firstObject') network;
 
-  services: computed('model.taskGroup.services.@each.name', function() {
+  @computed('model.taskGroup.services.@each.name')
+  get services() {
     return this.get('model.taskGroup.services').sortBy('name');
-  }),
+  }
 
   onDismiss() {
     this.set('error', null);
-  },
+  }
 
-  watchNext: watchRecord('allocation'),
+  @watchRecord('allocation') watchNext;
 
-  observeWatchNext: observer('model.nextAllocation.clientStatus', function() {
+  @observes('model.nextAllocation.clientStatus')
+  observeWatchNext() {
     const nextAllocation = this.model.nextAllocation;
     if (nextAllocation && nextAllocation.content) {
       this.watchNext.perform(nextAllocation);
     } else {
       this.watchNext.cancelAll();
     }
-  }),
+  }
 
-  stopAllocation: task(function*() {
+  @task(function*() {
     try {
       yield this.model.stop();
       // Eagerly update the allocation clientStatus to avoid flickering
@@ -63,9 +73,10 @@ export default Controller.extend(Sortable, {
         description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
-  }),
+  })
+  stopAllocation;
 
-  restartAllocation: task(function*() {
+  @task(function*() {
     try {
       yield this.model.restart();
     } catch (err) {
@@ -74,15 +85,16 @@ export default Controller.extend(Sortable, {
         description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
-  }),
+  })
+  restartAllocation;
 
-  actions: {
-    gotoTask(allocation, task) {
-      this.transitionToRoute('allocations.allocation.task', task);
-    },
+  @action
+  gotoTask(allocation, task) {
+    this.transitionToRoute('allocations.allocation.task', task);
+  }
 
-    taskClick(allocation, task, event) {
-      lazyClick([() => this.send('gotoTask', allocation, task), event]);
-    },
-  },
-});
+  @action
+  taskClick(allocation, task, event) {
+    lazyClick([() => this.send('gotoTask', allocation, task), event]);
+  }
+}

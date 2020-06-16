@@ -1,7 +1,7 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class NodeAttributes extends ApplicationSerializer {
   normalize(typeHash, hash) {
-    return this._super(typeHash, { NodeAttributes: hash });
-  },
-});
+    return super.normalize(typeHash, { NodeAttributes: hash });
+  }
+}

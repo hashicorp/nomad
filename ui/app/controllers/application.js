@@ -2,49 +2,61 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 import { run } from '@ember/runloop';
-import { observer, computed } from '@ember/object';
+import { observes } from '@ember-decorators/object';
+import { computed } from '@ember/object';
 import Ember from 'ember';
 import codesForError from '../utils/codes-for-error';
 import NoLeaderError from '../utils/no-leader-error';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend({
-  config: service(),
-  system: service(),
+@classic
+export default class ApplicationController extends Controller {
+  @service config;
+  @service system;
 
-  queryParams: {
-    region: 'region',
-  },
+  queryParams = [
+    {
+      region: 'region',
+    },
+  ];
 
-  region: null,
+  region = null;
 
-  error: null,
+  error = null;
 
-  errorStr: computed('error', function() {
+  @computed('error')
+  get errorStr() {
     return this.error.toString();
-  }),
+  }
 
-  errorCodes: computed('error', function() {
+  @computed('error')
+  get errorCodes() {
     return codesForError(this.error);
-  }),
+  }
 
-  is403: computed('errorCodes.[]', function() {
+  @computed('errorCodes.[]')
+  get is403() {
     return this.errorCodes.includes('403');
-  }),
+  }
 
-  is404: computed('errorCodes.[]', function() {
+  @computed('errorCodes.[]')
+  get is404() {
     return this.errorCodes.includes('404');
-  }),
+  }
 
-  is500: computed('errorCodes.[]', function() {
+  @computed('errorCodes.[]')
+  get is500() {
     return this.errorCodes.includes('500');
-  }),
+  }
 
-  isNoLeader: computed('error', function() {
+  @computed('error')
+  get isNoLeader() {
     const error = this.error;
     return error instanceof NoLeaderError;
-  }),
+  }
 
-  throwError: observer('error', function() {
+  @observes('error')
+  throwError() {
     if (this.get('config.isDev')) {
       run.next(() => {
         throw this.error;
@@ -55,5 +67,5 @@ export default Controller.extend({
         console.warn('UNRECOVERABLE ERROR:', this.error);
       });
     }
-  }),
-});
+  }
+}

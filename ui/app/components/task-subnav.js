@@ -1,14 +1,20 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { equal, or } from '@ember/object/computed';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  router: service(),
+@classic
+@tagName('')
+export default class TaskSubnav extends Component {
+  @service router;
 
-  tagName: '',
+  @equal('router.currentRouteName', 'allocations.allocation.task.fs')
+  fsIsActive;
 
-  fsIsActive: equal('router.currentRouteName', 'allocations.allocation.task.fs'),
-  fsRootIsActive: equal('router.currentRouteName', 'allocations.allocation.task.fs-root'),
+  @equal('router.currentRouteName', 'allocations.allocation.task.fs-root')
+  fsRootIsActive;
 
-  filesLinkActive: or('fsIsActive', 'fsRootIsActive'),
-});
+  @or('fsIsActive', 'fsRootIsActive')
+  filesLinkActive;
+}

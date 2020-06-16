@@ -5,12 +5,12 @@ import notifyError from 'nomad-ui/utils/notify-error';
 import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend(WithWatchers, {
-  store: service(),
+export default class ClientRoute extends Route.extend(WithWatchers) {
+  @service store;
 
   model() {
-    return this._super(...arguments).catch(notifyError(this));
-  },
+    return super.model(...arguments).catch(notifyError(this));
+  }
 
   breadcrumbs(model) {
     if (!model) return [];
@@ -20,20 +20,20 @@ export default Route.extend(WithWatchers, {
         args: ['clients.client', model.get('id')],
       },
     ];
-  },
+  }
 
   afterModel(model) {
     if (model && model.get('isPartial')) {
       return model.reload().then(node => node.get('allocations'));
     }
     return model && model.get('allocations');
-  },
+  }
 
   setupController(controller, model) {
     controller.set('flagAsDraining', model && model.isDraining);
 
-    return this._super(...arguments);
-  },
+    return super.setupController(...arguments);
+  }
 
   resetController(controller) {
     controller.setProperties({
@@ -45,17 +45,17 @@ export default Route.extend(WithWatchers, {
       showDrainUpdateNotification: false,
       showDrainStoppedNotification: false,
     });
-  },
+  }
 
   startWatchers(controller, model) {
     if (model) {
       controller.set('watchModel', this.watch.perform(model));
       controller.set('watchAllocations', this.watchAllocations.perform(model));
     }
-  },
+  }
 
-  watch: watchRecord('node'),
-  watchAllocations: watchRelationship('allocations'),
+  @watchRecord('node') watch;
+  @watchRelationship('allocations') watchAllocations;
 
-  watchers: collect('watch', 'watchAllocations'),
-});
+  @collect('watch', 'watchAllocations') watchers;
+}

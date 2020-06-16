@@ -14,23 +14,24 @@ let registry;
 const exists = (tracker, prop) =>
   tracker.get(prop) && !tracker.get(prop).isDestroyed && !tracker.get(prop).isDestroying;
 
-export default Service.extend({
-  token: service(),
+export default class StatsTrackersRegistryService extends Service {
+  @service token;
 
-  init() {
-    this._super(...arguments);
+  constructor() {
+    super(...arguments);
 
     // The LRUMap limits the number of trackers tracked by making room for
     // new entries beyond the limit by removing the least recently used entry.
     registry = new LRUMap(MAX_STAT_TRACKERS);
-  },
+  }
 
   // A read-only way of getting a reference to the registry.
   // Since this could be overwritten by a bad actor, it isn't
   // used in getTracker
-  registryRef: computed(function() {
+  @computed
+  get registryRef() {
     return registry;
-  }),
+  }
 
   getTracker(resource) {
     if (!resource) return;
@@ -56,5 +57,5 @@ export default Service.extend({
     registry.set(key, tracker);
 
     return tracker;
-  },
-});
+  }
+}

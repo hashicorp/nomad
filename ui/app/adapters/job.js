@@ -1,28 +1,27 @@
-import Watchable from './watchable';
+import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
-import WithNamespaceIDs from 'nomad-ui/mixins/with-namespace-ids';
 
-export default Watchable.extend(WithNamespaceIDs, {
-  relationshipFallbackLinks: Object.freeze({
+export default class JobAdapter extends WatchableNamespaceIDs {
+  relationshipFallbackLinks = {
     summary: '/summary',
-  }),
+  };
 
   fetchRawDefinition(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'GET');
-  },
+  }
 
   forcePeriodic(job) {
     if (job.get('periodic')) {
       const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/periodic/force');
       return this.ajax(url, 'POST');
     }
-  },
+  }
 
   stop(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'DELETE');
-  },
+  }
 
   parse(spec) {
     const url = addToPath(this.urlForFindAll('job'), '/parse');
@@ -32,7 +31,7 @@ export default Watchable.extend(WithNamespaceIDs, {
         Canonicalize: true,
       },
     });
-  },
+  }
 
   plan(job) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
@@ -49,7 +48,7 @@ export default Watchable.extend(WithNamespaceIDs, {
       store.pushPayload('job-plan', { jobPlans: [json] });
       return store.peekRecord('job-plan', jobId);
     });
-  },
+  }
 
   // Running a job doesn't follow REST create semantics so it's easier to
   // treat it as an action.
@@ -59,7 +58,7 @@ export default Watchable.extend(WithNamespaceIDs, {
         Job: job.get('_newDefinitionJSON'),
       },
     });
-  },
+  }
 
   update(job) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
@@ -68,5 +67,5 @@ export default Watchable.extend(WithNamespaceIDs, {
         Job: job.get('_newDefinitionJSON'),
       },
     });
-  },
-});
+  }
+}

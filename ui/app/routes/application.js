@@ -3,24 +3,27 @@ import { next } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
+import { action } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Route.extend({
-  config: service(),
-  system: service(),
-  store: service(),
-  token: service(),
+@classic
+export default class ApplicationRoute extends Route {
+  @service config;
+  @service system;
+  @service store;
+  @service token;
 
-  queryParams: {
+  queryParams = {
     region: {
       refreshModel: true,
     },
-  },
+  };
 
   resetController(controller, isExiting) {
     if (isExiting) {
       controller.set('error', null);
     }
-  },
+  }
 
   beforeModel(transition) {
     const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
@@ -51,13 +54,13 @@ export default Route.extend({
 
       return promises;
     });
-  },
+  }
 
   // Model is being used as a way to transfer the provided region
   // query param to update the controller state.
   model(params) {
     return params.region;
-  },
+  }
 
   setupController(controller, model) {
     const queryParam = model;
@@ -68,24 +71,25 @@ export default Route.extend({
       });
     }
 
-    return this._super(...arguments);
-  },
+    return super.setupController(...arguments);
+  }
 
-  actions: {
-    didTransition() {
-      if (!this.get('config.isTest')) {
-        window.scrollTo(0, 0);
-      }
-    },
+  @action
+  didTransition() {
+    if (!this.get('config.isTest')) {
+      window.scrollTo(0, 0);
+    }
+  }
 
-    willTransition() {
-      this.controllerFor('application').set('error', null);
-    },
+  @action
+  willTransition() {
+    this.controllerFor('application').set('error', null);
+  }
 
-    error(error) {
-      if (!(error instanceof AbortError)) {
-        this.controllerFor('application').set('error', error);
-      }
-    },
-  },
-});
+  @action
+  error(error) {
+    if (!(error instanceof AbortError)) {
+      this.controllerFor('application').set('error', error);
+    }
+  }
+}

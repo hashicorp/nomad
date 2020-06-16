@@ -4,36 +4,39 @@ import attr from 'ember-data/attr';
 import { belongsTo } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
+import classic from 'ember-classic-decorator';
 
-export default Model.extend({
-  job: belongsTo('job'),
+@classic
+export default class JobSummary extends Model {
+  @belongsTo('job') job;
 
-  taskGroupSummaries: fragmentArray('task-group-summary'),
+  @fragmentArray('task-group-summary') taskGroupSummaries;
 
   // Aggregate allocation counts across all summaries
-  queuedAllocs: sumAggregation('taskGroupSummaries', 'queuedAllocs'),
-  startingAllocs: sumAggregation('taskGroupSummaries', 'startingAllocs'),
-  runningAllocs: sumAggregation('taskGroupSummaries', 'runningAllocs'),
-  completeAllocs: sumAggregation('taskGroupSummaries', 'completeAllocs'),
-  failedAllocs: sumAggregation('taskGroupSummaries', 'failedAllocs'),
-  lostAllocs: sumAggregation('taskGroupSummaries', 'lostAllocs'),
+  @sumAggregation('taskGroupSummaries', 'queuedAllocs') queuedAllocs;
+  @sumAggregation('taskGroupSummaries', 'startingAllocs') startingAllocs;
+  @sumAggregation('taskGroupSummaries', 'runningAllocs') runningAllocs;
+  @sumAggregation('taskGroupSummaries', 'completeAllocs') completeAllocs;
+  @sumAggregation('taskGroupSummaries', 'failedAllocs') failedAllocs;
+  @sumAggregation('taskGroupSummaries', 'lostAllocs') lostAllocs;
 
-  allocsList: collect(
+  @collect(
     'queuedAllocs',
     'startingAllocs',
     'runningAllocs',
     'completeAllocs',
     'failedAllocs',
     'lostAllocs'
-  ),
+  )
+  allocsList;
 
-  totalAllocs: sum('allocsList'),
+  @sum('allocsList') totalAllocs;
 
-  pendingChildren: attr('number'),
-  runningChildren: attr('number'),
-  deadChildren: attr('number'),
+  @attr('number') pendingChildren;
+  @attr('number') runningChildren;
+  @attr('number') deadChildren;
 
-  childrenList: collect('pendingChildren', 'runningChildren', 'deadChildren'),
+  @collect('pendingChildren', 'runningChildren', 'deadChildren') childrenList;
 
-  totalChildren: sum('childrenList'),
-});
+  @sum('childrenList') totalChildren;
+}

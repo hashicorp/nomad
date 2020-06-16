@@ -3,25 +3,25 @@ import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 
-export default Fragment.extend({
-  deployment: fragmentOwner(),
+export default class TaskGroupDeploymentSummary extends Fragment {
+  @fragmentOwner() deployment;
 
-  name: attr('string'),
+  @attr('string') name;
 
-  autoRevert: attr('boolean'),
-  promoted: attr('boolean'),
-  requiresPromotion: gt('desiredCanaries', 0),
+  @attr('boolean') autoRevert;
+  @attr('boolean') promoted;
+  @gt('desiredCanaries', 0) requiresPromotion;
 
   // The list of canary allocation IDs
   // hasMany is not supported in fragments
-  placedCanaryAllocations: attr({ defaultValue: () => [] }),
+  @attr({ defaultValue: () => [] }) placedCanaryAllocations;
 
-  placedCanaries: alias('placedCanaryAllocations.length'),
-  desiredCanaries: attr('number'),
-  desiredTotal: attr('number'),
-  placedAllocs: attr('number'),
-  healthyAllocs: attr('number'),
-  unhealthyAllocs: attr('number'),
+  @alias('placedCanaryAllocations.length') placedCanaries;
+  @attr('number') desiredCanaries;
+  @attr('number') desiredTotal;
+  @attr('number') placedAllocs;
+  @attr('number') healthyAllocs;
+  @attr('number') unhealthyAllocs;
 
-  requireProgressBy: attr('date'),
-});
+  @attr('date') requireProgressBy;
+}

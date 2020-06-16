@@ -1,6 +1,6 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class RescheduleEvent extends ApplicationSerializer {
   normalize(typeHash, hash) {
     // Time is in the form of nanoseconds since epoch, but JS dates
     // only understand time to the millisecond precision. So store
@@ -12,6 +12,6 @@ export default ApplicationSerializer.extend({
     hash.PreviousAllocationId = hash.PrevAllocID ? hash.PrevAllocID : null;
     hash.PreviousNodeId = hash.PrevNodeID ? hash.PrevNodeID : null;
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

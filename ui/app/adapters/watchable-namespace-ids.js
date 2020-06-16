@@ -1,57 +1,50 @@
 import { inject as service } from '@ember/service';
-import Mixin from '@ember/object/mixin';
+import Watchable from './watchable';
 
-// eslint-disable-next-line ember/no-new-mixins
-export default Mixin.create({
-  system: service(),
+export default class WatchableNamespaceIDs extends Watchable {
+  @service system;
 
   findAll() {
     const namespace = this.get('system.activeNamespace');
-    return this._super(...arguments).then(data => {
+    return super.findAll(...arguments).then(data => {
       data.forEach(record => {
         record.Namespace = namespace ? namespace.get('id') : 'default';
       });
       return data;
     });
-  },
+  }
 
   findRecord(store, type, id, snapshot) {
     const [, namespace] = JSON.parse(id);
     const namespaceQuery = namespace && namespace !== 'default' ? { namespace } : {};
 
-    return this._super(store, type, id, snapshot, namespaceQuery);
-  },
+    return super.findRecord(store, type, id, snapshot, namespaceQuery);
+  }
 
   urlForFindAll() {
-    const url = this._super(...arguments);
+    const url = super.urlForFindAll(...arguments);
     const namespace = this.get('system.activeNamespace.id');
     return associateNamespace(url, namespace);
-  },
+  }
 
   urlForQuery() {
-    const url = this._super(...arguments);
+    const url = super.urlForQuery(...arguments);
     const namespace = this.get('system.activeNamespace.id');
     return associateNamespace(url, namespace);
-  },
+  }
 
   urlForFindRecord(id, type, hash) {
     const [name, namespace] = JSON.parse(id);
-    let url = this._super(name, type, hash);
+    let url = super.urlForFindRecord(name, type, hash);
     return associateNamespace(url, namespace);
-  },
-
-  urlForUpdateRecord(id, type, hash) {
-    const [name, namespace] = JSON.parse(id);
-    let url = this._super(name, type, hash);
-    return associateNamespace(url, namespace);
-  },
+  }
 
   xhrKey(url, method, options = {}) {
-    const plainKey = this._super(...arguments);
+    const plainKey = super.xhrKey(...arguments);
     const namespace = options.data && options.data.namespace;
     return associateNamespace(plainKey, namespace);
-  },
-});
+  }
+}
 
 function associateNamespace(url, namespace) {
   if (namespace && namespace !== 'default') {
