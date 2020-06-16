@@ -4,19 +4,19 @@
   <h1 data-test-title class="title">
     Server {{model.name}}
     {{#if model.isLeader}}
-      <span class="bumper-left tag is-primary">Leader</span>
+      <span data-test-leader-badge class="bumper-left tag is-primary">Leader</span>
     {{/if}}
   </h1>
   <div class="boxed-section is-small">
     <div data-test-server-details class="boxed-section-body inline-definitions">
       <span class="label">Server Details</span>
-      <span class="pair"><span class="term">Status</span>
+      <span data-test-status class="pair"><span class="term">Status</span>
         {{model.status}}
       </span>
-      <span class="pair"><span class="term">Address</span>
+      <span data-test-address class="pair"><span class="term">Address</span>
         {{model.rpcAddr}}
       </span>
-      <span class="pair"><span class="term">Datacenter</span>
+      <span data-test-datacenter class="pair"><span class="term">Datacenter</span>
         {{model.datacenter}}
       </span>
     </div>
