@@ -10,6 +10,7 @@ import classic from 'ember-classic-decorator';
 
 @tagName('')
 export default class GlobalSearchControl extends Component {
+  @service router;
   @service store;
 
   searchString = null;
@@ -57,7 +58,15 @@ export default class GlobalSearchControl extends Component {
   })
   search;
 
-  @action select() {}
+  @action select(model) {
+    const itemModelName = model.constructor.modelName;
+
+    if (itemModelName === 'job') {
+      this.router.transitionTo('jobs.job', model.name);
+    } else if (itemModelName === 'node') {
+      this.router.transitionTo('clients.client', model.id);
+    }
+  }
 
   @action
   openOnClickOrTab(select, { target }) {
