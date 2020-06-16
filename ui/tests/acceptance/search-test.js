@@ -11,7 +11,7 @@ module('Acceptance | search', function(hooks) {
 
   test('search searches jobs and nodes and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
-    const otherNode = server.create('node', { name: 'aaa' });
+    server.create('node', { name: 'aaa' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
     server.create('job', { id: 'xyz', namespace: 'default' });
