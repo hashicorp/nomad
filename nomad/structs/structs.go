@@ -4701,6 +4701,9 @@ type ScalingEvent struct {
 	// Count is the new scaling count, if provided
 	Count *int64
 
+	// PreviousCount is the count at the time of the scaling event
+	PreviousCount int64
+
 	// Message is the message describing a scaling event
 	Message string
 

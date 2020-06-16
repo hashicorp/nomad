@@ -1776,10 +1776,11 @@ func TestJobs_ScaleAction(t *testing.T) {
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
-	groupCount := *job.TaskGroups[0].Count
+	origCount := *job.TaskGroups[0].Count
+	newCount := origCount + 1
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing", intToPtr(groupCount+1), "this won't work",
+	_, _, err := jobs.Scale(id, "missing", intToPtr(newCount), "this won't work",
 		false, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
@@ -1790,7 +1791,6 @@ func TestJobs_ScaleAction(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Perform scaling action
-	newCount := groupCount + 1
 	scalingResp, wm, err := jobs.Scale(id, groupName,
 		intToPtr(newCount), "need more instances", false,
 		map[string]interface{}{
@@ -1822,6 +1822,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	require.Greater(scalingEvent.Time, uint64(0))
 	require.NotNil(scalingEvent.EvalID)
 	require.Equal(scalingResp.EvalID, *scalingEvent.EvalID)
+	require.Equal(int64(origCount), scalingEvent.PreviousCount)
 }
 
 func TestJobs_ScaleAction_Error(t *testing.T) {

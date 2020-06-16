@@ -4,6 +4,10 @@ FEATURES:
  * **Preemption**: Preemption is now an open source feature
  * **Licensing (Enterprise)**: Nomad Enterprise now requires a license [[GH-8076](https://github.com/hashicorp/nomad/issues/8076)]
 
+IMPROVEMENTS:
+
+* api: Persist previous count with scaling events [[GH-8167](https://github.com/hashicorp/nomad/issues/8167)]
+
 ## 0.11.3 (June 5, 2020)
 
 IMPROVEMENTS:

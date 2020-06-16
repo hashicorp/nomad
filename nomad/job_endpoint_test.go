@@ -5458,16 +5458,17 @@ func TestJobEndpoint_Scale(t *testing.T) {
 	state := s1.fsm.State()
 
 	job := mock.Job()
-	count := job.TaskGroups[0].Count
+	originalCount := job.TaskGroups[0].Count
 	err := state.UpsertJob(1000, job)
 	require.Nil(err)
 
+	groupName := job.TaskGroups[0].Name
 	scale := &structs.JobScaleRequest{
 		JobID: job.ID,
 		Target: map[string]string{
-			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+			structs.ScalingTargetGroup: groupName,
 		},
-		Count:   helper.Int64ToPtr(int64(count + 1)),
+		Count:   helper.Int64ToPtr(int64(originalCount + 1)),
 		Message: "because of the load",
 		Meta: map[string]interface{}{
 			"metrics": map[string]string{
@@ -5487,6 +5488,10 @@ func TestJobEndpoint_Scale(t *testing.T) {
 	require.NoError(err)
 	require.NotEmpty(resp.EvalID)
 	require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
+
+	events, _, _ := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+	require.Equal(1, len(events[groupName]))
+	require.Equal(int64(originalCount), events[groupName][0].PreviousCount)
 }
 
 func TestJobEndpoint_Scale_ACL(t *testing.T) {
@@ -5637,6 +5642,7 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 
 	job := mock.Job()
 	groupName := job.TaskGroups[0].Name
+	originalCount := job.TaskGroups[0].Count
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
 		Job: job,
@@ -5683,6 +5689,10 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	event := groupEvents[0]
 	require.Nil(event.EvalID)
 	require.Greater(eventsIndex, jobCreateIndex)
+
+	events, _, _ := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+	require.Equal(1, len(events[groupName]))
+	require.Equal(int64(originalCount), events[groupName][0].PreviousCount)
 }
 
 func TestJobEndpoint_InvalidCount(t *testing.T) {
