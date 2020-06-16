@@ -30,7 +30,7 @@ require (
 	github.com/container-storage-interface/spec v1.2.0-rc1.0.20191021210849-a33ece0a8a9f
 	github.com/containerd/console v1.0.0 // indirect
 	github.com/containerd/go-cni v0.0.0-20190904155053-d20b7eebc7ee
-	github.com/containernetworking/cni v0.7.2-0.20190612152420-dc953e2fd91f // indirect
+	github.com/containernetworking/cni v0.7.2-0.20190612152420-dc953e2fd91f
 	github.com/containernetworking/plugins v0.7.3-0.20190501191748-2d6d46d308b2
 	github.com/coreos/go-iptables v0.4.3-0.20190724151750-969b135e941d
 	github.com/coreos/go-semver v0.3.0
@@ -41,6 +41,7 @@ require (
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200330121334-7f8b4b621b5d+incompatible
 	github.com/docker/docker-credential-helpers v0.6.2-0.20180719074751-73e5f5dbfea3 // indirect
 	github.com/docker/go-units v0.4.0
+	github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
 	github.com/dustin/go-humanize v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
 	github.com/fatih/color v1.9.0
@@ -87,6 +88,7 @@ require (
 	github.com/hashicorp/vault/sdk v0.1.14-0.20190730042320-0dc007d98cc8
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
+	github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07 // indirect
 	github.com/joyent/triton-go v0.0.0-20190112182421-51ffac552869 // indirect
 	github.com/kr/pretty v0.2.0
 	github.com/kr/pty v1.1.5
