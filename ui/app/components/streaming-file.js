@@ -5,6 +5,8 @@ import WindowResizable from 'nomad-ui/mixins/window-resizable';
 import { classNames, tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
+const A_KEY = 65;
+
 @classic
 @tagName('pre')
 @classNames('cli-window')
@@ -58,15 +60,32 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     this.requestFrame = false;
   }
 
+  keyDownHandler(e) {
+    // Rebind select-all shortcut to only select the text in the
+    // streaming file output.
+    if ((e.metaKey || e.ctrlKey) && e.keyCode === A_KEY) {
+      e.preventDefault();
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      const range = document.createRange();
+      range.selectNode(this.element);
+      selection.addRange(range);
+    }
+  }
+
   didInsertElement() {
     this.fillAvailableHeight();
 
     this.set('_scrollHandler', this.scrollHandler.bind(this));
     this.element.addEventListener('scroll', this._scrollHandler);
+
+    this.set('_keyDownHandler', this.keyDownHandler.bind(this));
+    document.addEventListener('keydown', this._keyDownHandler);
   }
 
   willDestroyElement() {
     this.element.removeEventListener('scroll', this._scrollHandler);
+    document.removeEventListener('keydown', this._keyDownHandler);
   }
 
   windowResizeHandler() {
