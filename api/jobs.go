@@ -114,9 +114,8 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 			req.EnforceIndex = true
 			req.JobModifyIndex = opts.ModifyIndex
 		}
-		if opts.PolicyOverride {
-			req.PolicyOverride = true
-		}
+		req.PolicyOverride = opts.PolicyOverride
+		req.PreserveCounts = opts.PreserveCounts
 	}
 
 	var resp JobRegisterResponse

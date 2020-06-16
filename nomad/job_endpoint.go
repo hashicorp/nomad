@@ -278,6 +278,19 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Clear the Consul token
 	args.Job.ConsulToken = ""
 
+	// Preserve the existing task group counts, if so requested
+	if existingJob != nil && args.PreserveCounts {
+		prevCounts := make(map[string]int)
+		for _, tg := range existingJob.TaskGroups {
+			prevCounts[tg.Name] = tg.Count
+		}
+		for _, tg := range args.Job.TaskGroups {
+			if count, ok := prevCounts[tg.Name]; ok {
+				tg.Count = count
+			}
+		}
+	}
+
 	// Check if the job has changed at all
 	if existingJob == nil || existingJob.SpecChanged(args.Job) {
 		// Set the submit time
