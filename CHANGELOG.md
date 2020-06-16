@@ -8,6 +8,10 @@ IMPROVEMENTS:
 
 * api: Persist previous count with scaling events [[GH-8167](https://github.com/hashicorp/nomad/issues/8167)]
 
+BUG FIXES:
+
+ * cli: Fixed malformed alloc status address list when listing more than 1 address [[GH-8161](https://github.com/hashicorp/nomad/issues/8161)]
+
 ## 0.11.3 (June 5, 2020)
 
 IMPROVEMENTS:
