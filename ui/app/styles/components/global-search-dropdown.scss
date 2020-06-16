@@ -29,4 +29,12 @@
       }
     }
   }
+
+  .ember-power-select-group-name {
+    text-transform: uppercase;
+    display: inline;
+    color: darken($grey-blue, 20%);
+    font-size: $size-7;
+    font-weight: $weight-semibold;
+  }
 }

@@ -20,6 +20,10 @@ export default class GlobalSearchControl extends Component {
     this.jobSearch = JobSearch.create({
       something: this, // FIXME what’s a good name?
     });
+
+    this.nodeSearch = NodeSearch.create({
+      something: this,
+    });
   }
 
   @task(function*(string) {
@@ -27,15 +31,28 @@ export default class GlobalSearchControl extends Component {
 
     // FIXME no need to fetch on every search!
     const jobs = yield this.store.findAll('job');
+    const nodes = yield this.store.findAll('node');
 
     this.jobs = jobs.toArray();
+    this.nodes = nodes.toArray();
 
     try {
       const jobResults = this.jobSearch.listSearched;
-      return jobResults;
+      const nodeResults = this.nodeSearch.listSearched;
+
+      return [
+        {
+          groupName: `Jobs (${jobResults.length})`,
+          options: jobResults,
+        },
+        {
+          groupName: `Clients (${nodeResults.length})`,
+          options: nodeResults,
+        },
+      ];
     } catch (e) {
       // eslint-disable-next-line
-      console.log('exception searching jobs', e);
+      console.log('exception searching', e);
     }
   })
   search;
@@ -83,6 +100,24 @@ class JobSearch extends EmberObject.extend(Searchable) {
   }
 
   @alias('something.jobs') listToSearch;
+  @alias('something.searchString') searchTerm;
+
+  fuzzySearchEnabled = true;
+}
+
+@classic
+class NodeSearch extends EmberObject.extend(Searchable) {
+  @computed
+  get searchProps() {
+    return ['id', 'name'];
+  }
+
+  @computed
+  get fuzzySearchProps() {
+    return ['name'];
+  }
+
+  @alias('something.nodes') listToSearch;
   @alias('something.searchString') searchTerm;
 
   fuzzySearchEnabled = true;

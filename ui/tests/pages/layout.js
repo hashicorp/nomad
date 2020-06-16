@@ -18,10 +18,14 @@ export default create({
 
       click: clickable('.ember-power-select-trigger'),
 
-      options: collection('.ember-power-select-option', {
+      groups: collection('.ember-power-select-group', {
         testContainer: '.ember-power-select-options',
         resetScope: true,
-        label: text(),
+        name: text('.ember-power-select-group-name'),
+
+        options: collection('.ember-power-select-option', {
+          label: text(),
+        }),
       }),
 
       field: {
