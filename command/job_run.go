@@ -208,7 +208,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if output {
-		req := api.RegisterJobRequest{Job: job}
+		req := struct {
+			Job *api.Job
+		}{
+			Job: job,
+		}
 		buf, err := json.MarshalIndent(req, "", "    ")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))

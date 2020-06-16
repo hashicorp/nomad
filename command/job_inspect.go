@@ -162,7 +162,11 @@ func (c *JobInspectCommand) Run(args []string) int {
 	}
 
 	// Print the contents of the job
-	req := api.RegisterJobRequest{Job: job}
+	req := struct {
+		Job *api.Job
+	}{
+		Job: job,
+	}
 	f, err := DataFormat("json", "")
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))

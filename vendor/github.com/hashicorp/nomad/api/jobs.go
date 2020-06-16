@@ -106,7 +106,7 @@ func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*
 // of the evaluation, along with any errors encountered.
 func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	// Format the request
-	req := &RegisterJobRequest{
+	req := &JobRegisterRequest{
 		Job: job,
 	}
 	if opts != nil {
@@ -1036,7 +1036,7 @@ type JobRevertRequest struct {
 	WriteRequest
 }
 
-// JobUpdateRequest is used to update a job
+// JobRegisterRequest is used to update a job
 type JobRegisterRequest struct {
 	Job *Job
 	// If EnforceIndex is set then the job will only be registered if the passed
@@ -1048,14 +1048,6 @@ type JobRegisterRequest struct {
 	PreserveCounts bool   `json:",omitempty"`
 
 	WriteRequest
-}
-
-// RegisterJobRequest is used to serialize a job registration
-type RegisterJobRequest struct {
-	Job            *Job
-	EnforceIndex   bool   `json:",omitempty"`
-	JobModifyIndex uint64 `json:",omitempty"`
-	PolicyOverride bool   `json:",omitempty"`
 }
 
 // JobRegisterResponse is used to respond to a job registration
