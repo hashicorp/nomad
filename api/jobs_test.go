@@ -44,6 +44,148 @@ func TestJobs_Register(t *testing.T) {
 	}
 }
 
+func TestJobs_Register_PreserveCounts(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	require.Nil(err)
+	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/sleep").
+		Require(&Resources{
+			CPU:      intToPtr(100),
+			MemoryMB: intToPtr(256),
+		}).
+		SetLogConfig(&LogConfig{
+			MaxFiles:      intToPtr(1),
+			MaxFileSizeMB: intToPtr(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	group2 := NewTaskGroup("group2", 2).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1).
+		AddTaskGroup(group2)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotEmpty(resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	group1.Count = nil
+	group2.Count = intToPtr(0)
+	group3 := NewTaskGroup("group3", 3).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	job.AddTaskGroup(group3)
+
+	// Update the job, with PreserveCounts = true
+	_, _, err = jobs.RegisterOpts(job, &RegisterOptions{
+		PreserveCounts: true,
+	}, nil)
+	require.NoError(err)
+
+	// Query the job scale status
+	status, _, err := jobs.ScaleStatus(*job.ID, nil)
+	require.NoError(err)
+	require.Equal(1, status.TaskGroups["group1"].Desired) // present and nil => preserved
+	require.Equal(2, status.TaskGroups["group2"].Desired) // present and specified => preserved
+	require.Equal(3, status.TaskGroups["group3"].Desired) // new => as specific in job spec
+}
+
+func TestJobs_Register_NoPreserveCounts(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	require.Nil(err)
+	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/sleep").
+		Require(&Resources{
+			CPU:      intToPtr(100),
+			MemoryMB: intToPtr(256),
+		}).
+		SetLogConfig(&LogConfig{
+			MaxFiles:      intToPtr(1),
+			MaxFileSizeMB: intToPtr(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	group2 := NewTaskGroup("group2", 2).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1).
+		AddTaskGroup(group2)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotEmpty(resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	group1.Count = intToPtr(0)
+	group2.Count = nil
+	group3 := NewTaskGroup("group3", 3).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	job.AddTaskGroup(group3)
+
+	// Update the job, with PreserveCounts = default [false]
+	_, _, err = jobs.Register(job, nil)
+	require.NoError(err)
+
+	// Query the job scale status
+	status, _, err := jobs.ScaleStatus(*job.ID, nil)
+	require.NoError(err)
+	require.Equal(0, status.TaskGroups["group1"].Desired) // present => as specified
+	require.Equal(1, status.TaskGroups["group2"].Desired) // nil     => default (1)
+	require.Equal(3, status.TaskGroups["group3"].Desired) // new     => as specified
+}
+
 func TestJobs_Validate(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
