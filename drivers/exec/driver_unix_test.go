@@ -120,7 +120,11 @@ func TestExec_dnsConfig(t *testing.T) {
 	ctestutils.RequireRoot(t)
 	ctestutils.ExecCompatible(t)
 	require := require.New(t)
-	d := NewExecDriver(testlog.HCLogger(t))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 

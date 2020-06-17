@@ -367,7 +367,10 @@ func Test_dnsConfig(t *testing.T) {
 	ctestutil.RequireRoot(t)
 	javaCompatible(t)
 	require := require.New(t)
-	d := NewDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
