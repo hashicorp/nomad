@@ -55,7 +55,7 @@ func (tc *LifecycleE2ETest) TestBatchJob(f *framework.F) {
 	afi, _, err := nomadClient.AllocFS().List(alloc, "alloc", nil)
 	require.NoError(err)
 	expected := map[string]bool{
-		"init-ran": true, "main-ran": true, "poststart-ran": true,
+		"init-ran": true, "main-ran": true, "poststart-ran": true, "poststop-ran": true,
 		"init-running": false, "main-running": false, "poststart-running": false}
 	got := checkFiles(expected, afi)
 	require.Equal(expected, got)
@@ -115,13 +115,15 @@ func (tc *LifecycleE2ETest) TestServiceJob(f *framework.F) {
 	require.NoError(err)
 	e2eutil.WaitForAllocStopped(t, nomadClient, allocID)
 
+	require.False(alloc.TaskStates["poststop"].Failed)
+
 	// assert the files were written as expected
 	afi, _, err := nomadClient.AllocFS().List(alloc, "alloc", nil)
 	require.NoError(err)
 	expected := map[string]bool{
-		"init-ran": true, "sidecar-ran": true, "main-ran": true, "poststart-ran": true,
-		"poststart-started": true, "main-started": true,
-		"init-running": false, "poststart-running": false,
+		"init-ran": true, "sidecar-ran": true, "main-ran": true, "poststart-ran": true, "poststop-ran": true,
+		"poststart-started": true, "main-started": true, "poststop-started": true,
+		"init-running": false, "poststart-running": false, "poststop-running": false,
 		"main-checked": true}
 	got := checkFiles(expected, afi)
 	require.Equal(expected, got)

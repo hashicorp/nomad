@@ -394,6 +394,89 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 	})
 }
 
+// TestAllocRunner_Lifecycle_Poststop asserts that a service job with 1
+// postop lifecycle hook starts all 3 tasks, only
+// the ephemeral one finishes, and the other 2 exit when the alloc is stopped.
+func TestAllocRunner_Lifecycle_Poststop(t *testing.T) {
+	alloc := mock.LifecycleAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+	alloc.Job.Type = structs.JobTypeService
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	mainTask.Config["run_for"] = "100s"
+
+	ephemeralTask := alloc.Job.TaskGroups[0].Tasks[1]
+	ephemeralTask.Name = "quit"
+	ephemeralTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststop
+	ephemeralTask.Config["run_for"] = "10s"
+
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{mainTask, ephemeralTask}
+	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
+		mainTask.Name:      tr,
+		ephemeralTask.Name: tr,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	// Wait for main task to be running
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected main task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStatePending {
+			return false, fmt.Errorf("expected ephemeral task to be pending not %s", s)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+	// Tell the alloc to stop
+	stopAlloc := alloc.Copy()
+	stopAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(stopAlloc)
+
+	// Wait for main task to die & poststop task to run.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected main task to be dead not %s", s)
+		}
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected poststop task to be running not %s", s)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+}
+
 func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	t.Parallel()
 
