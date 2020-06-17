@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { tagName } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
-import EmberObject, { action, computed } from '@ember/object';
+import EmberObject, { action, computed, set } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
 import { run } from '@ember/runloop';
@@ -29,14 +29,14 @@ export default class GlobalSearchControl extends Component {
 
   @task(function*(string) {
     try {
-      this.searchString = string;
+      set(this, 'searchString', string);
 
       // FIXME no need to fetch on every search!
       const jobs = yield this.store.findAll('job');
       const nodes = yield this.store.findAll('node');
 
-      this.jobs = jobs.toArray();
-      this.nodes = nodes.toArray();
+      set(this, 'jobs', jobs.toArray());
+      set(this, 'nodes', nodes.toArray());
 
       const jobResults = this.jobSearch.listSearched;
       const nodeResults = this.nodeSearch.listSearched;
