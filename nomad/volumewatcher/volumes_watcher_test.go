@@ -223,30 +223,6 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	require.Eventually(func() bool {
 		return !watcher.watchers[vol.ID+vol.Namespace].isRunning()
 	}, time.Second*5, 10*time.Millisecond)
-
-	// the watcher will have incremented the index so we need to make sure
-	// our inserts will trigger new events
-	index, _ = srv.State().LatestIndex()
-
-	// create a new claim
-	alloc3 := mock.Alloc()
-	alloc3.ClientStatus = structs.AllocClientStatusRunning
-	index++
-	err = srv.State().UpsertAllocs(index, []*structs.Allocation{alloc3})
-	require.NoError(err)
-	claim3 := &structs.CSIVolumeClaim{
-		AllocationID: alloc3.ID,
-		NodeID:       node.ID,
-		Mode:         structs.CSIVolumeClaimRelease,
-	}
-	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim3)
-	require.NoError(err)
-
-	// a stopped watcher should restore itself on notification
-	require.Eventually(func() bool {
-		return watcher.watchers[vol.ID+vol.Namespace].isRunning()
-	}, time.Second*5, 10*time.Millisecond)
 }
 
 // TestVolumeWatch_RegisterDeregister tests the start and stop of
