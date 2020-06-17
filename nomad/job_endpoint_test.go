@@ -5555,6 +5555,178 @@ func TestJobEndpoint_Scale(t *testing.T) {
 	require.Equal(int64(originalCount), events[groupName][0].PreviousCount)
 }
 
+func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	type testCase struct {
+		latestDeploymentStatus string
+	}
+	cases := []string{
+		structs.DeploymentStatusSuccessful,
+		structs.DeploymentStatusPaused,
+		structs.DeploymentStatusRunning,
+	}
+
+	for _, tc := range cases {
+		// create a job with a deployment history
+		job := mock.Job()
+		require.Nil(state.UpsertJob(1000, job), "UpsertJob")
+		d1 := mock.Deployment()
+		d1.Status = structs.DeploymentStatusCancelled
+		d1.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
+		d1.JobID = job.ID
+		d1.JobCreateIndex = job.CreateIndex
+		require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+		d2 := mock.Deployment()
+		d2.Status = structs.DeploymentStatusSuccessful
+		d2.StatusDescription = structs.DeploymentStatusDescriptionSuccessful
+		d2.JobID = job.ID
+		d2.JobCreateIndex = job.CreateIndex
+		require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+		// add the latest deployment for the test case
+		dLatest := mock.Deployment()
+		dLatest.Status = tc
+		dLatest.StatusDescription = "description does not matter for this test"
+		dLatest.JobID = job.ID
+		dLatest.JobCreateIndex = job.CreateIndex
+		require.Nil(state.UpsertDeployment(1003, dLatest), "UpsertDeployment")
+
+		// attempt to scale
+		originalCount := job.TaskGroups[0].Count
+		newCount := int64(originalCount+1)
+		groupName := job.TaskGroups[0].Name
+		scalingMetadata :=	map[string]interface{}{
+			"meta": "data",
+		}
+		scalingMessage := "original reason for scaling"
+		scale := &structs.JobScaleRequest{
+			JobID: job.ID,
+			Target: map[string]string{
+				structs.ScalingTargetGroup: groupName,
+			},
+			Meta:    scalingMetadata,
+			Message: scalingMessage,
+			Count:   helper.Int64ToPtr(newCount),
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: job.Namespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+		if dLatest.Active() {
+			// should fail
+			require.Error(err, "test case %q", tc)
+			require.Contains(err.Error(), "active deployment")
+		} else {
+			require.NoError(err, "test case %q", tc)
+			require.NotEmpty(resp.EvalID)
+			require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
+		}
+
+		events, _, _ := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+		require.Equal(1, len(events[groupName]))
+		latestEvent := events[groupName][0]
+		if dLatest.Active() {
+			require.True(latestEvent.Error)
+			require.Nil(latestEvent.Count)
+			require.Contains(latestEvent.Message, "blocked due to active deployment")
+			require.Equal(latestEvent.Meta["OriginalCount"], newCount)
+			require.Equal(latestEvent.Meta["OriginalMessage"], scalingMessage)
+			require.Equal(latestEvent.Meta["OriginalMeta"], scalingMetadata)
+		} else {
+			require.False(latestEvent.Error)
+			require.NotNil(latestEvent.Count)
+			require.Equal(newCount, *latestEvent.Count)
+		}
+	}
+}
+
+func TestJobEndpoint_Scale_InformationalEventsShouldNotBeBlocked(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	type testCase struct {
+		latestDeploymentStatus string
+	}
+	cases := []string{
+		structs.DeploymentStatusSuccessful,
+		structs.DeploymentStatusPaused,
+		structs.DeploymentStatusRunning,
+	}
+
+	for _, tc := range cases {
+		// create a job with a deployment history
+		job := mock.Job()
+		require.Nil(state.UpsertJob(1000, job), "UpsertJob")
+		d1 := mock.Deployment()
+		d1.Status = structs.DeploymentStatusCancelled
+		d1.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
+		d1.JobID = job.ID
+		d1.JobCreateIndex = job.CreateIndex
+		require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+		d2 := mock.Deployment()
+		d2.Status = structs.DeploymentStatusSuccessful
+		d2.StatusDescription = structs.DeploymentStatusDescriptionSuccessful
+		d2.JobID = job.ID
+		d2.JobCreateIndex = job.CreateIndex
+		require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
+
+		// add the latest deployment for the test case
+		dLatest := mock.Deployment()
+		dLatest.Status = tc
+		dLatest.StatusDescription = "description does not matter for this test"
+		dLatest.JobID = job.ID
+		dLatest.JobCreateIndex = job.CreateIndex
+		require.Nil(state.UpsertDeployment(1003, dLatest), "UpsertDeployment")
+
+		// register informational scaling event
+		groupName := job.TaskGroups[0].Name
+		scalingMetadata :=	map[string]interface{}{
+			"meta": "data",
+		}
+		scalingMessage := "original reason for scaling"
+		scale := &structs.JobScaleRequest{
+			JobID: job.ID,
+			Target: map[string]string{
+				structs.ScalingTargetGroup: groupName,
+			},
+			Meta:    scalingMetadata,
+			Message: scalingMessage,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: job.Namespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+		require.NoError(err, "test case %q", tc)
+		require.Empty(resp.EvalID)
+
+		events, _, _ := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
+		require.Equal(1, len(events[groupName]))
+		latestEvent := events[groupName][0]
+		require.False(latestEvent.Error)
+		require.Nil(latestEvent.Count)
+		require.Equal(scalingMessage, latestEvent.Message)
+		require.Equal(scalingMetadata, latestEvent.Meta)
+	}
+}
+
 func TestJobEndpoint_Scale_ACL(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

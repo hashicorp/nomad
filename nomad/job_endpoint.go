@@ -931,6 +931,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	ws := memdb.NewWatchSet()
 	job, err := snap.JobByID(ws, namespace, args.JobID)
 	if err != nil {
+		j.logger.Error("unable to lookup job", "error", err)
 		return err
 	}
 	if job == nil {
@@ -955,11 +956,46 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	// for now, we'll do this even if count didn't change
 	prevCount := found.Count
 	if args.Count != nil {
+
+		// Lookup the latest deployment, to see whether this scaling event should be blocked
+		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
+		if err != nil {
+			j.logger.Error("unable to lookup latest deployment", "error", err)
+			return err
+		}
+		// explicitly filter deployment by JobCreateIndex to be safe, because LatestDeploymentByJobID doesn't
+		if d != nil && d.JobCreateIndex == job.CreateIndex && d.Active() {
+			// attempt to register the scaling event
+			JobScalingBlockedByActiveDeployment := "job scaling blocked due to active deployment"
+			event := &structs.ScalingEventRequest{
+				Namespace: job.Namespace,
+				JobID:     job.ID,
+				TaskGroup: groupName,
+				ScalingEvent: &structs.ScalingEvent{
+					Time:          now,
+					PreviousCount: int64(prevCount),
+					Message:       JobScalingBlockedByActiveDeployment,
+					Error:         true,
+					Meta: map[string]interface{}{
+						"OriginalMessage": args.Message,
+						"OriginalCount":   *args.Count,
+						"OriginalMeta":    args.Meta,
+					},
+				},
+			}
+			if _, _, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event); err != nil {
+				// just log the error, this was a best-effort attempt
+				j.logger.Error("scaling event create failed during block scaling action", "error", err)
+			}
+			return structs.NewErrRPCCoded(400, JobScalingBlockedByActiveDeployment)
+		}
+
 		truncCount := int(*args.Count)
 		if int64(truncCount) != *args.Count {
 			return structs.NewErrRPCCoded(400,
 				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", args.Count))
 		}
+		// update the task group count
 		found.Count = truncCount
 
 		registerReq := structs.JobRegisterRequest{
