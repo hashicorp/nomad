@@ -28,16 +28,16 @@ export default class GlobalSearchControl extends Component {
   }
 
   @task(function*(string) {
-    this.searchString = string;
-
-    // FIXME no need to fetch on every search!
-    const jobs = yield this.store.findAll('job');
-    const nodes = yield this.store.findAll('node');
-
-    this.jobs = jobs.toArray();
-    this.nodes = nodes.toArray();
-
     try {
+      this.searchString = string;
+
+      // FIXME no need to fetch on every search!
+      const jobs = yield this.store.findAll('job');
+      const nodes = yield this.store.findAll('node');
+
+      this.jobs = jobs.toArray();
+      this.nodes = nodes.toArray();
+
       const jobResults = this.jobSearch.listSearched;
       const nodeResults = this.nodeSearch.listSearched;
 
