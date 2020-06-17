@@ -3,10 +3,12 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 import Log from 'nomad-ui/utils/classes/log';
 
 const LEVELS = ['error', 'warn', 'info', 'debug', 'trace'];
 
+@classic
 @tagName('')
 export default class AgentMonitor extends Component {
   @service token;
