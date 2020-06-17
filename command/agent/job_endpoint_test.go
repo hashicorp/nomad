@@ -146,7 +146,7 @@ func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/jobs?all_namespaces=true", nil)
+		req, err := http.NewRequest("GET", "/v1/jobs?namespace=*", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 

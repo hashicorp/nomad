@@ -1216,7 +1216,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
-	if args.AllNamespaces {
+	if args.RequestNamespace() == structs.AllNamespacesSentinel {
 		return j.listAllNamespaces(args, reply)
 	}
 

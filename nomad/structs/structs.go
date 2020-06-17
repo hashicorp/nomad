@@ -137,6 +137,10 @@ const (
 	DefaultNamespace            = "default"
 	DefaultNamespaceDescription = "Default shared namespace"
 
+	// AllNamespacesSentinel is the value used as a namespace RPC value
+	// to indicate that endpoints must search in all namespaces
+	AllNamespacesSentinel = "*"
+
 	// JitterFraction is a the limit to the amount of jitter we apply
 	// to a user specified MaxQueryTime. We divide the specified time by
 	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
@@ -614,7 +618,6 @@ type JobSpecificRequest struct {
 
 // JobListRequest is used to parameterize a list request
 type JobListRequest struct {
-	AllNamespaces bool
 	QueryOptions
 }
 
