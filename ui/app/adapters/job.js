@@ -68,4 +68,20 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       },
     });
   }
+
+  scale(job, group, count, reason) {
+    const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/scale');
+    return this.ajax(url, 'POST', {
+      data: {
+        Count: count,
+        Reason: reason,
+        Target: {
+          Group: group,
+        },
+        Meta: {
+          Source: 'nomad-ui',
+        },
+      },
+    });
+  }
 }

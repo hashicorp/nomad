@@ -53,4 +53,8 @@ export default class TaskGroup extends Fragment {
   get summary() {
     return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.name);
   }
+
+  scale(count, reason) {
+    return this.job.scale(this.name, count, reason);
+  }
 }
