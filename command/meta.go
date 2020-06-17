@@ -45,6 +45,9 @@ type Meta struct {
 	// namespace to send API requests
 	namespace string
 
+	// Whether to look for jobs/allocations in all namespaces
+	allNamespaces bool
+
 	// token is used for ACLs to access privileged information
 	token string
 
@@ -69,6 +72,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.flagAddress, "address", "", "")
 		f.StringVar(&m.region, "region", "", "")
 		f.StringVar(&m.namespace, "namespace", "", "")
+		f.BoolVar(&m.allNamespaces, "all-namespaces", false, "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
@@ -96,6 +100,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-address":         complete.PredictAnything,
 		"-region":          complete.PredictAnything,
 		"-namespace":       NamespacePredictor(m.Client, nil),
+		"-all-namespaces":  complete.PredictNothing,
 		"-no-color":        complete.PredictNothing,
 		"-ca-cert":         complete.PredictFiles("*"),
 		"-ca-path":         complete.PredictDirs("*"),
@@ -123,6 +128,11 @@ func (m *Meta) Client() (*api.Client, error) {
 	}
 	if m.namespace != "" {
 		config.Namespace = m.namespace
+		config.AllNamespaces = false
+	}
+	if m.allNamespaces {
+		config.AllNamespaces = m.allNamespaces
+		config.Namespace = ""
 	}
 
 	// If we need custom TLS configuration, then set it
@@ -143,6 +153,10 @@ func (m *Meta) Client() (*api.Client, error) {
 	}
 
 	return api.NewClient(config)
+}
+
+func (m *Meta) AllNamespaces() bool {
+	return m.allNamespaces || (m.namespace != "" && api.DefaultConfig().AllNamespaces)
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
@@ -170,6 +184,10 @@ func generalOptionsUsage() string {
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
     Defaults to the "default" namespace.
+
+  -all-namespaces
+    Target all namespaces for queries and actions.  Overrides the
+    NOMAD_ALL_NAMESPACES environment variable if set.
 
   -no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be

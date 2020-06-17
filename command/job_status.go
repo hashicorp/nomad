@@ -122,9 +122,12 @@ func (c *JobStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	allNamespaces := c.AllNamespaces()
+
 	// Invoke list mode if no job ID.
 	if len(args) == 0 {
 		jobs, _, err := client.Jobs().List(nil)
+
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying jobs: %s", err))
 			return 1
@@ -134,7 +137,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 			// No output if we have no jobs
 			c.Ui.Output("No running jobs")
 		} else {
-			c.Ui.Output(createStatusListOutput(jobs))
+			c.Ui.Output(createStatusListOutput(jobs, allNamespaces))
 		}
 		return 0
 	}
@@ -152,11 +155,12 @@ func (c *JobStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
 		return 1
 	}
 	// Prefix lookup matched a single job
-	job, _, err := client.Jobs().Info(jobs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
+	job, _, err := client.Jobs().Info(jobs[0].ID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
 		return 1
@@ -313,20 +317,24 @@ func (c *JobStatusCommand) outputParameterizedInfo(client *api.Client, job *api.
 // outputJobInfo prints information about the passed non-periodic job. If a
 // request fails, an error is returned.
 func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error {
+	var q *api.QueryOptions
+	if job.Namespace != nil {
+		q = &api.QueryOptions{Namespace: *job.Namespace}
+	}
 
 	// Query the allocations
-	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, nil)
+	jobAllocs, _, err := client.Jobs().Allocations(*job.ID, c.allAllocs, q)
 	if err != nil {
 		return fmt.Errorf("Error querying job allocations: %s", err)
 	}
 
 	// Query the evaluations
-	jobEvals, _, err := client.Jobs().Evaluations(*job.ID, nil)
+	jobEvals, _, err := client.Jobs().Evaluations(*job.ID, q)
 	if err != nil {
 		return fmt.Errorf("Error querying job evaluations: %s", err)
 	}
 
-	latestDeployment, _, err := client.Jobs().LatestDeployment(*job.ID, nil)
+	latestDeployment, _, err := client.Jobs().LatestDeployment(*job.ID, q)
 	if err != nil {
 		return fmt.Errorf("Error querying latest job deployment: %s", err)
 	}
@@ -494,7 +502,8 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 // where appropriate
 func (c *JobStatusCommand) outputJobSummary(client *api.Client, job *api.Job) error {
 	// Query the summary
-	summary, _, err := client.Jobs().Summary(*job.ID, nil)
+	q := &api.QueryOptions{Namespace: *job.Namespace}
+	summary, _, err := client.Jobs().Summary(*job.ID, q)
 	if err != nil {
 		return fmt.Errorf("Error querying job summary: %s", err)
 	}
@@ -639,16 +648,29 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 }
 
 // list general information about a list of jobs
-func createStatusListOutput(jobs []*api.JobListStub) string {
+func createStatusListOutput(jobs []*api.JobListStub, displayNS bool) string {
 	out := make([]string, len(jobs)+1)
-	out[0] = "ID|Type|Priority|Status|Submit Date"
-	for i, job := range jobs {
-		out[i+1] = fmt.Sprintf("%s|%s|%d|%s|%s",
-			job.ID,
-			getTypeString(job),
-			job.Priority,
-			getStatusString(job.Status, &job.Stop),
-			formatTime(time.Unix(0, job.SubmitTime)))
+	if displayNS {
+		out[0] = "ID|Namespace|Type|Priority|Status|Submit Date"
+		for i, job := range jobs {
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s",
+				job.ID,
+				job.JobSummary.Namespace,
+				getTypeString(job),
+				job.Priority,
+				getStatusString(job.Status, &job.Stop),
+				formatTime(time.Unix(0, job.SubmitTime)))
+		}
+	} else {
+		out[0] = "ID|Type|Priority|Status|Submit Date"
+		for i, job := range jobs {
+			out[i+1] = fmt.Sprintf("%s|%s|%d|%s|%s",
+				job.ID,
+				getTypeString(job),
+				job.Priority,
+				getStatusString(job.Status, &job.Stop),
+				formatTime(time.Unix(0, job.SubmitTime)))
+		}
 	}
 	return formatList(out)
 }

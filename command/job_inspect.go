@@ -127,7 +127,7 @@ func (c *JobInspectCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.AllNamespaces())))
 		return 1
 	}
 
@@ -143,7 +143,7 @@ func (c *JobInspectCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single job
-	job, err := getJob(client, jobs[0].ID, version)
+	job, err := getJob(client, jobs[0].JobSummary.Namespace, jobs[0].ID, version)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error inspecting job: %s", err))
 		return 1
@@ -183,13 +183,17 @@ func (c *JobInspectCommand) Run(args []string) int {
 }
 
 // getJob retrieves the job optionally at a particular version.
-func getJob(client *api.Client, jobID string, version *uint64) (*api.Job, error) {
+func getJob(client *api.Client, namespace, jobID string, version *uint64) (*api.Job, error) {
+	var q *api.QueryOptions
+	if namespace != "" {
+		q = &api.QueryOptions{Namespace: namespace}
+	}
 	if version == nil {
-		job, _, err := client.Jobs().Info(jobID, nil)
+		job, _, err := client.Jobs().Info(jobID, q)
 		return job, err
 	}
 
-	versions, _, _, err := client.Jobs().Versions(jobID, false, nil)
+	versions, _, _, err := client.Jobs().Versions(jobID, false, q)
 	if err != nil {
 		return nil, err
 	}

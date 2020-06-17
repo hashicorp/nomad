@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -126,11 +127,12 @@ func (c *JobStopCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.AllNamespaces())))
 		return 1
 	}
 	// Prefix lookup matched a single job
-	job, _, err := client.Jobs().Info(jobs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
+	job, _, err := client.Jobs().Info(jobs[0].ID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1
@@ -160,7 +162,8 @@ func (c *JobStopCommand) Run(args []string) int {
 	}
 
 	// Invoke the stop
-	evalID, _, err := client.Jobs().Deregister(*job.ID, purge, nil)
+	wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
+	evalID, _, err := client.Jobs().Deregister(*job.ID, purge, wq)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1

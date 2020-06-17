@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -144,12 +145,13 @@ func (c *JobRevertCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.AllNamespaces())))
 		return 1
 	}
 
 	// Prefix lookup matched a single job
-	resp, _, err := client.Jobs().Revert(jobs[0].ID, revertVersion, nil, nil, consulToken, vaultToken)
+	q := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
+	resp, _, err := client.Jobs().Revert(jobs[0].ID, revertVersion, nil, q, consulToken, vaultToken)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1

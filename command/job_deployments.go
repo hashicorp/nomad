@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -119,10 +120,11 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.AllNamespaces())))
 		return 1
 	}
 	jobID = jobs[0].ID
+	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
 
 	// Truncate the id unless full length is requested
 	length := shortId
@@ -131,7 +133,7 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 	}
 
 	if latest {
-		deploy, _, err := client.Jobs().LatestDeployment(jobID, nil)
+		deploy, _, err := client.Jobs().LatestDeployment(jobID, q)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
 			return 1
@@ -152,7 +154,7 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 		return 0
 	}
 
-	deploys, _, err := client.Jobs().Deployments(jobID, all, nil)
+	deploys, _, err := client.Jobs().Deployments(jobID, all, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
 		return 1
