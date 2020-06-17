@@ -115,7 +115,7 @@ final region will unblock the regions to mark them as `successful`.
     that led to the failure and resubmit the job.
 
 ~> For `system` jobs, only [`max_parallel`](#max_parallel) is enforced. The
-`system` scheduler will be updated to support the `auto_revert` when the the
+`system` scheduler will be updated to support `on_failure` when the the
 [`update` stanza] is fully supported for system jobs in a future release.
 
 ### `region` Parameters
@@ -163,7 +163,7 @@ multiregion {
 }
 ```
 
-### Auto-Revert Regions
+### Rollback Regions
 
 This example shows the default value of `on_failure`. Because `max_parallel = 1`,
 the "north" region will deploy first, followed by "south", and so on. But
