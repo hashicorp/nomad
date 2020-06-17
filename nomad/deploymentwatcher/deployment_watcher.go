@@ -62,6 +62,14 @@ type deploymentWatcher struct {
 	// deployment
 	deploymentTriggers
 
+	// DeploymentRPC holds methods for interacting with peer regions
+	// in enterprise edition
+	DeploymentRPC
+
+	// JobRPC holds methods for interacting with peer regions
+	// in enterprise edition
+	JobRPC
+
 	// state is the state that is watched for state changes.
 	state *state.StateStore
 
@@ -100,7 +108,8 @@ type deploymentWatcher struct {
 // deployments and trigger the scheduler as needed.
 func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 	logger log.Logger, state *state.StateStore, d *structs.Deployment,
-	j *structs.Job, triggers deploymentTriggers) *deploymentWatcher {
+	j *structs.Job, triggers deploymentTriggers,
+	deploymentRPC DeploymentRPC, jobRPC JobRPC) *deploymentWatcher {
 
 	ctx, exitFn := context.WithCancel(parent)
 	w := &deploymentWatcher{
@@ -111,6 +120,8 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 		j:                  j,
 		state:              state,
 		deploymentTriggers: triggers,
+		DeploymentRPC:      deploymentRPC,
+		JobRPC:             jobRPC,
 		logger:             logger.With("deployment_id", d.ID, "job", j.NamespacedID()),
 		ctx:                ctx,
 		exitFn:             exitFn,
@@ -432,6 +443,10 @@ FAIL:
 
 			w.logger.Debug("deadline hit", "rollback", rback)
 			rollback = rback
+			err = w.nextRegion(structs.DeploymentStatusFailed)
+			if err != nil {
+				w.logger.Error("multiregion deployment error", "error", err)
+			}
 			break FAIL
 		case <-w.deploymentUpdateCh:
 			// Get the updated deployment and check if we should change the
@@ -463,6 +478,11 @@ FAIL:
 				}
 			}
 
+			err := w.nextRegion(w.getStatus())
+			if err != nil {
+				break FAIL
+			}
+
 		case updates = <-w.getAllocsCh(allocIndex):
 			if err := updates.err; err != nil {
 				if err == context.Canceled || w.ctx.Err() == context.Canceled {
@@ -490,6 +510,10 @@ FAIL:
 			// handle the failure
 			if res.failDeployment {
 				rollback = res.rollback
+				err := w.nextRegion(structs.DeploymentStatusFailed)
+				if err != nil {
+					w.logger.Error("multiregion deployment error", "error", err)
+				}
 				break FAIL
 			}
 
@@ -813,6 +837,13 @@ func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *stru
 		Status:            status,
 		StatusDescription: desc,
 	}
+}
+
+// getStatus returns the current status of the deployment
+func (w *deploymentWatcher) getStatus() string {
+	w.l.RLock()
+	defer w.l.RUnlock()
+	return w.d.Status
 }
 
 type allocUpdates struct {

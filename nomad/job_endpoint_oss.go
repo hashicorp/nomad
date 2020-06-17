@@ -8,3 +8,8 @@ import "github.com/hashicorp/nomad/nomad/structs"
 func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
 	return nil, nil
 }
+
+// multiregionRegister is used to send a job across multiple regions
+func (j *Job) multiregionRegister(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
+	return nil
+}

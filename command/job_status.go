@@ -381,7 +381,7 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 
 	if latestDeployment != nil {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Latest Deployment[reset]"))
-		c.Ui.Output(c.Colorize().Color(c.formatDeployment(latestDeployment)))
+		c.Ui.Output(c.Colorize().Color(c.formatDeployment(client, latestDeployment)))
 	}
 
 	// Format the allocs
@@ -390,7 +390,7 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 	return nil
 }
 
-func (c *JobStatusCommand) formatDeployment(d *api.Deployment) string {
+func (c *JobStatusCommand) formatDeployment(client *api.Client, d *api.Deployment) string {
 	// Format the high-level elements
 	high := []string{
 		fmt.Sprintf("ID|%s", limit(d.ID, c.length)),
@@ -399,6 +399,17 @@ func (c *JobStatusCommand) formatDeployment(d *api.Deployment) string {
 	}
 
 	base := formatKV(high)
+
+	if d.IsMultiregion {
+		regions, err := fetchMultiRegionDeployments(client, d)
+		if err != nil {
+			base += "\n\nError fetching Multiregion deployments\n\n"
+		} else if len(regions) > 0 {
+			base += "\n\n[bold]Multiregion Deployment[reset]\n"
+			base += formatMultiregionDeployment(regions, 8)
+		}
+	}
+
 	if len(d.TaskGroups) == 0 {
 		return base
 	}

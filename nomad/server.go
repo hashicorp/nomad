@@ -1005,9 +1005,13 @@ func (s *Server) setupDeploymentWatcher() error {
 
 	// Create the deployment watcher
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
-		s.logger, raftShim,
+		s.logger,
+		raftShim,
+		s.staticEndpoints.Deployment,
+		s.staticEndpoints.Job,
 		deploymentwatcher.LimitStateQueriesPerSecond,
-		deploymentwatcher.CrossDeploymentUpdateBatchDuration)
+		deploymentwatcher.CrossDeploymentUpdateBatchDuration,
+	)
 
 	return nil
 }

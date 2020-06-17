@@ -622,6 +622,78 @@ func (u *UpdateStrategy) Empty() bool {
 	return true
 }
 
+type Multiregion struct {
+	Strategy *MultiregionStrategy
+	Regions  []*MultiregionRegion
+}
+
+func (m *Multiregion) Canonicalize() {
+	if m.Strategy == nil {
+		m.Strategy = &MultiregionStrategy{
+			MaxParallel: intToPtr(0),
+			OnFailure:   stringToPtr(""),
+		}
+	} else {
+		if m.Strategy.MaxParallel == nil {
+			m.Strategy.MaxParallel = intToPtr(0)
+		}
+		if m.Strategy.OnFailure == nil {
+			m.Strategy.OnFailure = stringToPtr("")
+		}
+	}
+	if m.Regions == nil {
+		m.Regions = []*MultiregionRegion{}
+	}
+	for _, region := range m.Regions {
+		if region.Count == nil {
+			region.Count = intToPtr(1)
+		}
+		if region.Datacenters == nil {
+			region.Datacenters = []string{}
+		}
+		if region.Meta == nil {
+			region.Meta = map[string]string{}
+		}
+	}
+}
+
+func (m *Multiregion) Copy() *Multiregion {
+	if m == nil {
+		return nil
+	}
+	copy := new(Multiregion)
+	if m.Strategy != nil {
+		copy.Strategy = new(MultiregionStrategy)
+		copy.Strategy.MaxParallel = intToPtr(*m.Strategy.MaxParallel)
+		copy.Strategy.OnFailure = stringToPtr(*m.Strategy.OnFailure)
+	}
+	for _, region := range m.Regions {
+		copyRegion := new(MultiregionRegion)
+		copyRegion.Name = region.Name
+		copyRegion.Count = intToPtr(*region.Count)
+		for _, dc := range region.Datacenters {
+			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
+		}
+		for k, v := range region.Meta {
+			copyRegion.Meta[k] = v
+		}
+		copy.Regions = append(copy.Regions, copyRegion)
+	}
+	return copy
+}
+
+type MultiregionStrategy struct {
+	MaxParallel *int    `mapstructure:"max_parallel"`
+	OnFailure   *string `mapstructure:"on_failure"`
+}
+
+type MultiregionRegion struct {
+	Name        string
+	Count       *int
+	Datacenters []string
+	Meta        map[string]string
+}
+
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
 	Enabled         *bool
@@ -711,6 +783,7 @@ type Job struct {
 	Affinities        []*Affinity
 	TaskGroups        []*TaskGroup
 	Update            *UpdateStrategy
+	Multiregion       *Multiregion
 	Spreads           []*Spread
 	Periodic          *PeriodicConfig
 	ParameterizedJob  *ParameterizedJobConfig
@@ -739,6 +812,11 @@ func (j *Job) IsPeriodic() bool {
 // IsParameterized returns whether a job is parameterized job.
 func (j *Job) IsParameterized() bool {
 	return j.ParameterizedJob != nil && !j.Dispatched
+}
+
+// IsMultiregion returns whether a job is a multiregion job
+func (j *Job) IsMultiregion() bool {
+	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
 }
 
 func (j *Job) Canonicalize() {
@@ -806,6 +884,9 @@ func (j *Job) Canonicalize() {
 		j.Update.Canonicalize()
 	} else if *j.Type == JobTypeService {
 		j.Update = DefaultUpdateStrategy()
+	}
+	if j.Multiregion != nil {
+		j.Multiregion.Canonicalize()
 	}
 
 	for _, tg := range j.TaskGroups {

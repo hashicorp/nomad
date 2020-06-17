@@ -291,6 +291,13 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
+	// Submit a multiregion job to other regions (enterprise only).
+	// The job will have its region interpolated.
+	err = j.multiregionRegister(args, reply)
+	if err != nil {
+		return err
+	}
+
 	// Check if the job has changed at all
 	if existingJob == nil || existingJob.SpecChanged(args.Job) {
 		// Set the submit time

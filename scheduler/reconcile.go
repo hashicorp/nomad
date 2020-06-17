@@ -198,7 +198,16 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// Detect if the deployment is paused
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
+		//||			a.deployment.Status == structs.DeploymentStatusPending
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
+	}
+	if a.deployment == nil {
+		// When we create the deployment later, it will be in a paused
+		// state. But we also need to tell Compute we're paused, otherwise we
+		// make placements on the paused deployment.
+		if a.job.IsMultiregion() && a.job.Region != a.job.Multiregion.Regions[0].Name {
+			a.deploymentPaused = true
+		}
 	}
 
 	// Reconcile each group
@@ -210,10 +219,22 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Mark the deployment as complete if possible
 	if a.deployment != nil && complete {
+
+		var status string
+		var desc string
+
+		if a.job.IsMultiregion() {
+			status = structs.DeploymentStatusBlocked
+			desc = structs.DeploymentStatusDescriptionBlocked
+		} else {
+			status = structs.DeploymentStatusSuccessful
+			desc = structs.DeploymentStatusDescriptionSuccessful
+		}
+
 		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 			DeploymentID:      a.deployment.ID,
-			Status:            structs.DeploymentStatusSuccessful,
-			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+			Status:            status,
+			StatusDescription: desc,
 		})
 	}
 
@@ -534,6 +555,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		// A previous group may have made the deployment already
 		if a.deployment == nil {
 			a.deployment = structs.NewDeployment(a.job)
+			// only the first region of a multiregion job starts in the
+			// running state
+			if a.job.IsMultiregion() && a.job.Region != a.job.Multiregion.Regions[0].Name {
+				a.deployment.Status = structs.DeploymentStatusPending
+				a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
+			}
 			a.result.deployment = a.deployment
 		}
 

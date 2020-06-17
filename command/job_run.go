@@ -191,6 +191,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	// Check if the job is periodic or is a parameterized job
 	periodic := job.IsPeriodic()
 	paramjob := job.IsParameterized()
+	multiregion := job.IsMultiregion()
 
 	// Parse the Consul token
 	if consulToken == "" {
@@ -271,7 +272,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	evalID := resp.EvalID
 
 	// Check if we should enter monitor mode
-	if detach || periodic || paramjob {
+	if detach || periodic || paramjob || multiregion {
 		c.Ui.Output("Job registration successful")
 		if periodic && !paramjob {
 			loc, err := job.Periodic.GetLocation()

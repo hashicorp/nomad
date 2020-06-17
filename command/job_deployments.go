@@ -148,7 +148,7 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 			return 0
 		}
 
-		c.Ui.Output(c.Colorize().Color(formatDeployment(deploy, length)))
+		c.Ui.Output(c.Colorize().Color(formatDeployment(client, deploy, length)))
 		return 0
 	}
 
