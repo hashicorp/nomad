@@ -108,6 +108,67 @@ func TestJobEndpoint_Register(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_PreserveCounts(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Name = "group1"
+	job.TaskGroups[0].Count = 10
+	job.Canonicalize()
+
+	// Register the job
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &structs.JobRegisterResponse{}))
+
+	// Check the job in the FSM state
+	state := s1.fsm.State()
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(10, out.TaskGroups[0].Count)
+
+	// New version:
+	// new "group2" with 2 instances
+	// "group1" goes from 10 -> 0 in the spec
+	job = job.Copy()
+	job.TaskGroups[0].Count = 0 // 10 -> 0 in the job spec
+	job.TaskGroups = append(job.TaskGroups, job.TaskGroups[0].Copy())
+	job.TaskGroups[1].Name = "group2"
+	job.TaskGroups[1].Count = 2
+
+	// Perform the update
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		PreserveCounts: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &structs.JobRegisterResponse{}))
+
+	// Check the job in the FSM state
+	out, err = state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(10, out.TaskGroups[0].Count) // should not change
+	require.Equal(2, out.TaskGroups[1].Count) // should be as in job spec
+}
+
+
 func TestJobEndpoint_Register_Connect(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

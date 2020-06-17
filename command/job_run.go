@@ -86,6 +86,9 @@ Run Options:
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
+  -preserve-counts
+    If set, the existing task group counts will be preserved when updating a job.
+ 
   -consul-token
     If set, the passed Consul token is stored in the job before sending to the
     Nomad servers. This allows passing the Consul token without storing it in
@@ -118,6 +121,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-vault-token":     complete.PredictAnything,
 			"-output":          complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
+			"-preserve-counts": complete.PredictNothing,
 		})
 }
 
@@ -128,7 +132,7 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
-	var detach, verbose, output, override bool
+	var detach, verbose, output, override, preserveCounts bool
 	var checkIndexStr, consulToken, vaultToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -137,6 +141,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
 	flags.BoolVar(&override, "policy-override", false, "")
+	flags.BoolVar(&preserveCounts, "preserve-counts", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
@@ -208,7 +213,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	if output {
-		req := api.RegisterJobRequest{Job: job}
+		req := struct {
+			Job *api.Job
+		}{
+			Job: job,
+		}
 		buf, err := json.MarshalIndent(req, "", "    ")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
@@ -232,9 +241,8 @@ func (c *JobRunCommand) Run(args []string) int {
 		opts.EnforceIndex = true
 		opts.ModifyIndex = checkIndex
 	}
-	if override {
-		opts.PolicyOverride = true
-	}
+	opts.PolicyOverride = override
+	opts.PreserveCounts = preserveCounts
 
 	// Submit the job
 	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)
