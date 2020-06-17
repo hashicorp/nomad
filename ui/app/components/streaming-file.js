@@ -52,11 +52,16 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
 
   scrollHandler() {
     const cli = this.element;
-    window.requestAnimationFrame(() => {
-      // If the scroll position is close enough to the bottom, autoscroll to the bottom
-      this.set('follow', cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20);
-      this.requestFrame = true;
-    });
+
+    // Scroll events can fire multiple times per frame, this eliminates
+    // redundant computation.
+    if (this.requestFrame) {
+      window.requestAnimationFrame(() => {
+        // If the scroll position is close enough to the bottom, autoscroll to the bottom
+        this.set('follow', cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20);
+        this.requestFrame = true;
+      });
+    }
     this.requestFrame = false;
   }
 
