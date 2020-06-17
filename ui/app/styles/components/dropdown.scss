@@ -73,6 +73,17 @@
     }
   }
 
+  // Buttons have their own focus treatment that needs to be overrided here.
+  // Since .button.is-color takes precedence over .button-bar .button, each
+  // color needs the override.
+  .button {
+    @each $name, $pair in $colors {
+      &.is-#{$name}:focus {
+        box-shadow: inset 0 0 0 2px $grey-lighter;
+      }
+    }
+  }
+
   .dropdown:first-child .ember-power-select-trigger,
   .dropdown:first-child .dropdown-trigger,
   .button:first-child {
