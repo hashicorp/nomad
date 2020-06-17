@@ -37,6 +37,9 @@ type QueryOptions struct {
 	// Namespace is the target namespace for the query.
 	Namespace string
 
+	// AllNamespaces indicates whether to query all namespaces.
+	AllNamespaces bool
+
 	// AllowStale allows any Nomad server (non-leader) to service
 	// a read. This allows for lower latency and higher throughput
 	AllowStale bool
@@ -122,6 +125,9 @@ type Config struct {
 	// Namespace to use. If not provided the default namespace is used.
 	Namespace string
 
+	// AllNamespaces indicates that search queries should query all namespaces
+	AllNamespaces bool
+
 	// HttpClient is the client to use. Default will be used if not provided.
 	//
 	// If set, it expected to be configured for tls already, and TLSConfig is ignored.
@@ -150,14 +156,15 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		scheme = "https"
 	}
 	config := &Config{
-		Address:    fmt.Sprintf("%s://%s", scheme, address),
-		Region:     region,
-		Namespace:  c.Namespace,
-		HttpClient: c.HttpClient,
-		SecretID:   c.SecretID,
-		HttpAuth:   c.HttpAuth,
-		WaitTime:   c.WaitTime,
-		TLSConfig:  c.TLSConfig.Copy(),
+		Address:       fmt.Sprintf("%s://%s", scheme, address),
+		Region:        region,
+		Namespace:     c.Namespace,
+		AllNamespaces: c.AllNamespaces,
+		HttpClient:    c.HttpClient,
+		SecretID:      c.SecretID,
+		HttpAuth:      c.HttpAuth,
+		WaitTime:      c.WaitTime,
+		TLSConfig:     c.TLSConfig.Copy(),
 	}
 
 	// Update the tls server name for connecting to a client
@@ -238,6 +245,9 @@ func DefaultConfig() *Config {
 	}
 	if v := os.Getenv("NOMAD_NAMESPACE"); v != "" {
 		config.Namespace = v
+	}
+	if v, _ := strconv.ParseBool(os.Getenv("NOMAD_ALL_NAMESPACES")); v {
+		config.AllNamespaces = true
 	}
 	if auth := os.Getenv("NOMAD_HTTP_AUTH"); auth != "" {
 		var username, password string
@@ -525,6 +535,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Namespace != "" {
 		r.params.Set("namespace", q.Namespace)
 	}
+	if q.AllNamespaces {
+		r.params.Set("all_namespaces", "true")
+	}
 	if q.AuthToken != "" {
 		r.token = q.AuthToken
 	}
@@ -631,6 +644,9 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 	}
 	if c.config.Namespace != "" {
 		r.params.Set("namespace", c.config.Namespace)
+	}
+	if c.config.AllNamespaces {
+		r.params.Set("all_namespaces", "true")
 	}
 	if c.config.WaitTime != 0 {
 		r.params.Set("wait", durToMsec(r.config.WaitTime))
