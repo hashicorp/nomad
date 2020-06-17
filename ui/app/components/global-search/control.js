@@ -55,8 +55,8 @@ export default class GlobalSearchControl extends Component {
       set(this, 'searchString', string);
 
       // FIXME no need to fetch on every search!
-      const jobs = yield this.store.findAll('job');
-      const nodes = yield this.store.findAll('node');
+      const jobs = yield this.fetchJobs();
+      const nodes = yield this.fetchNodes();
 
       set(this, 'jobs', jobs.toArray());
       set(this, 'nodes', nodes.toArray());
@@ -131,6 +131,22 @@ export default class GlobalSearchControl extends Component {
         top,
       },
     };
+  }
+
+  async fetchJobs() {
+    if (this.router.isActive('jobs')) {
+      return this.store.peekAll('job');
+    } else {
+      return this.store.findAll('job');
+    }
+  }
+
+  async fetchNodes() {
+    if (this.router.isActive('clients')) {
+      return this.store.peekAll('node');
+    } else {
+      return this.store.findAll('node');
+    }
   }
 }
 

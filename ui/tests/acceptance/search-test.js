@@ -5,11 +5,15 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import PageLayout from 'nomad-ui/tests/pages/layout';
 import { selectSearch } from 'ember-power-select/test-support';
 
+function getRequestCount(server, url) {
+  return server.pretender.handledRequests.filterBy('url', url).length;
+}
+
 module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('search searches jobs and nodes and navigates to chosen items', async function(assert) {
+  test('search searches jobs and nodes with route-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'aaa' });
 
@@ -18,6 +22,9 @@ module('Acceptance | search', function(hooks) {
     server.create('job', { id: 'abc', namespace: 'default' });
 
     await visit('/');
+
+    let presearchJobsRequestCount = getRequestCount(server, '/v1/jobs');
+    let presearchNodesRequestCount = getRequestCount(server, '/v1/nodes');
 
     await selectSearch(PageLayout.navbar.search.scope, 'xy');
 
@@ -38,6 +45,17 @@ module('Acceptance | search', function(hooks) {
       });
     });
 
+    assert.equal(
+      presearchJobsRequestCount,
+      getRequestCount(server, '/v1/jobs'),
+      'no new jobs request should be sent when in the jobs hierarchy'
+    );
+    assert.equal(
+      presearchNodesRequestCount + 1,
+      getRequestCount(server, '/v1/nodes'),
+      'a nodes request should happen when not in the clients hierarchy'
+    );
+
     await PageLayout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), '/jobs/xyz');
 
@@ -45,6 +63,22 @@ module('Acceptance | search', function(hooks) {
 
     await PageLayout.navbar.search.groups[1].options[0].click();
     assert.equal(currentURL(), `/clients/${otherNode.id}`);
+
+    presearchJobsRequestCount = getRequestCount(server, '/v1/jobs');
+    presearchNodesRequestCount = getRequestCount(server, '/v1/nodes');
+
+    await selectSearch(PageLayout.navbar.search.scope, otherNode.id.substr(0, 3));
+
+    assert.equal(
+      presearchJobsRequestCount + 1,
+      getRequestCount(server, '/v1/jobs'),
+      'a jobs request should happen when not not in the jobs hierarchy'
+    );
+    assert.equal(
+      presearchNodesRequestCount,
+      getRequestCount(server, '/v1/nodes'),
+      'no new nodes request should happen when in the clients hierarchy'
+    );
   });
 
   test('clicking the search field starts search immediately', async function(assert) {
