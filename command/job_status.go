@@ -154,7 +154,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
+	if len(jobs) > 1 && (allNamespaces || strings.TrimSpace(jobID) != jobs[0].ID) {
 		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
 		return 1
 	}
