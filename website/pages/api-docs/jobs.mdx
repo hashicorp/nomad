@@ -1783,6 +1783,7 @@ $ curl \
 
 This endpoint performs a scaling action against a job.
 Currently, this endpoint supports scaling the count for a task group.
+This will return a 400 error if the job has an active deployment.
 
 | Method | Path                    | Produces           |
 | ------ | ----------------------- | ------------------ |
