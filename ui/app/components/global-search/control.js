@@ -19,11 +19,11 @@ export default class GlobalSearchControl extends Component {
     super(...arguments);
 
     this.jobSearch = JobSearch.create({
-      something: this, // FIXME what’s a good name?
+      dataSource: this,
     });
 
     this.nodeSearch = NodeSearch.create({
-      something: this,
+      dataSource: this,
     });
   }
 
@@ -123,8 +123,8 @@ class JobSearch extends EmberObject.extend(Searchable) {
     return ['name'];
   }
 
-  @alias('something.jobs') listToSearch;
-  @alias('something.searchString') searchTerm;
+  @alias('dataSource.jobs') listToSearch;
+  @alias('dataSource.searchString') searchTerm;
 
   fuzzySearchEnabled = true;
 }
@@ -141,8 +141,8 @@ class NodeSearch extends EmberObject.extend(Searchable) {
     return ['name'];
   }
 
-  @alias('something.nodes') listToSearch;
-  @alias('something.searchString') searchTerm;
+  @alias('dataSource.nodes') listToSearch;
+  @alias('dataSource.searchString') searchTerm;
 
   fuzzySearchEnabled = true;
 }
