@@ -32,6 +32,7 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+	args.AllNamespaces, _ = strconv.ParseBool(req.URL.Query().Get("all_namespaces"))
 
 	var out structs.AllocListResponse
 	if err := s.agent.RPC("Alloc.List", &args, &out); err != nil {

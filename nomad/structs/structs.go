@@ -859,6 +859,7 @@ type AllocStopResponse struct {
 
 // AllocListRequest is used to request a list of allocations
 type AllocListRequest struct {
+	AllNamespaces bool
 	QueryOptions
 }
 
