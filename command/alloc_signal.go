@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -100,7 +101,8 @@ func (c *AllocSignalCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single allocation
-	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: allocs[0].Namespace}
+	alloc, _, err := client.Allocations().Info(allocs[0].ID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
