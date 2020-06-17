@@ -969,10 +969,10 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 					PreviousCount: int64(prevCount),
 					Message:       JobScalingBlockedByActiveDeployment,
 					Error:         true,
-					Meta:          map[string]interface{}{
+					Meta: map[string]interface{}{
 						"OriginalMessage": args.Message,
-						"OriginalCount": *args.Count,
-						"OriginalMeta": args.Meta,
+						"OriginalCount":   *args.Count,
+						"OriginalMeta":    args.Meta,
 					},
 				},
 			}
