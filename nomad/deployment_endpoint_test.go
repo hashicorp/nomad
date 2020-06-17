@@ -724,6 +724,46 @@ func TestDeploymentEndpoint_Cancel_ACL(t *testing.T) {
 	}
 }
 
+func TestDeploymentEndpoint_Run(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	assert := assert.New(t)
+
+	// Create the deployment
+	j := mock.Job()
+	d := mock.Deployment()
+	d.JobID = j.ID
+	state := s1.fsm.State()
+
+	assert.Nil(state.UpsertJob(999, j), "UpsertJob")
+	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+
+	// Mark the deployment as failed
+	req := &structs.DeploymentRunRequest{
+		DeploymentID: d.ID,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.DeploymentUpdateResponse
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.Run", req, &resp), "RPC")
+	assert.NotEqual(resp.Index, uint64(0), "bad response index")
+
+	// Lookup the deployment
+	ws := memdb.NewWatchSet()
+	dout, err := state.DeploymentByID(ws, d.ID)
+	assert.Nil(err, "DeploymentByID failed")
+	assert.Equal(structs.DeploymentStatusRunning, dout.Status, "wrong status")
+	assert.Equal(structs.DeploymentStatusDescriptionRunning, dout.StatusDescription, "wrong status description")
+	assert.Equal(dout.ModifyIndex, resp.DeploymentModifyIndex, "wrong modify index")
+}
+
 func TestDeploymentEndpoint_Unblock(t *testing.T) {
 	t.Parallel()
 

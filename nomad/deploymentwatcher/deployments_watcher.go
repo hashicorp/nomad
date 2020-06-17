@@ -375,6 +375,17 @@ func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *struc
 	return watcher.FailDeployment(req, resp)
 }
 
+// RunDeployment is used to run a pending multiregion deployment.  In
+// single-region deployments, the pending state is unused.
+func (w *Watcher) RunDeployment(req *structs.DeploymentRunRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
+	if err != nil {
+		return err
+	}
+
+	return watcher.RunDeployment(req, resp)
+}
+
 // UnblockDeployment is used to unblock a multiregion deployment.  In
 // single-region deployments, the blocked state is unused.
 func (w *Watcher) UnblockDeployment(req *structs.DeploymentUnblockRequest, resp *structs.DeploymentUpdateResponse) error {

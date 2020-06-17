@@ -35,6 +35,7 @@ const (
 	errDeploymentTerminalNoPromote   = "can't promote terminal deployment"
 	errDeploymentTerminalNoResume    = "can't resume terminal deployment"
 	errDeploymentTerminalNoUnblock   = "can't unblock terminal deployment"
+	errDeploymentTerminalNoRun       = "can't run terminal deployment"
 	errDeploymentTerminalNoSetHealth = "can't set health of allocations for a terminal deployment"
 	errDeploymentRunningNoUnblock    = "can't unblock running deployment"
 )
@@ -57,6 +58,7 @@ var (
 	ErrDeploymentTerminalNoPromote   = errors.New(errDeploymentTerminalNoPromote)
 	ErrDeploymentTerminalNoResume    = errors.New(errDeploymentTerminalNoResume)
 	ErrDeploymentTerminalNoUnblock   = errors.New(errDeploymentTerminalNoUnblock)
+	ErrDeploymentTerminalNoRun       = errors.New(errDeploymentTerminalNoRun)
 	ErrDeploymentTerminalNoSetHealth = errors.New(errDeploymentTerminalNoSetHealth)
 	ErrDeploymentRunningNoUnblock    = errors.New(errDeploymentRunningNoUnblock)
 )

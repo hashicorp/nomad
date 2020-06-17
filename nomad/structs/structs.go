@@ -1064,6 +1064,14 @@ type DeploymentPauseRequest struct {
 	WriteRequest
 }
 
+// DeploymentRunRequest is used to remotely start a pending deployment.
+// Used only for multiregion deployments.
+type DeploymentRunRequest struct {
+	DeploymentID string
+
+	WriteRequest
+}
+
 // DeploymentUnblockRequest is used to remotely unblock a deployment.
 // Used only for multiregion deployments.
 type DeploymentUnblockRequest struct {
@@ -7882,6 +7890,7 @@ const (
 	DeploymentStatusFailed     = "failed"
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
+	DeploymentStatusPending    = "pending"
 	DeploymentStatusBlocked    = "blocked"
 	DeploymentStatusUnblocking = "unblocking"
 
@@ -7901,10 +7910,10 @@ const (
 	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
 
 	// used only in multiregion deployments
-	DeploymentStatusDescriptionFailedByPeer  = "Failed because of an error in peer region"
-	DeploymentStatusDescriptionBlocked       = "Deployment is complete but waiting for peer region"
-	DeploymentStatusDescriptionUnblocking    = "Deployment is unblocking remaining regions"
-	DeploymentStatusDescriptionPausedForPeer = "Deployment is paused waiting for peer region"
+	DeploymentStatusDescriptionFailedByPeer   = "Failed because of an error in peer region"
+	DeploymentStatusDescriptionBlocked        = "Deployment is complete but waiting for peer region"
+	DeploymentStatusDescriptionUnblocking     = "Deployment is unblocking remaining regions"
+	DeploymentStatusDescriptionPendingForPeer = "Deployment is pending, waiting for peer region"
 )
 
 // DeploymentStatusDescriptionRollback is used to get the status description of
@@ -8010,7 +8019,7 @@ func (d *Deployment) Copy() *Deployment {
 // Active returns whether the deployment is active or terminal.
 func (d *Deployment) Active() bool {
 	switch d.Status {
-	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked, DeploymentStatusUnblocking:
+	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked, DeploymentStatusUnblocking, DeploymentStatusPending:
 		return true
 	default:
 		return false

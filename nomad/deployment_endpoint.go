@@ -207,6 +207,48 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	return d.srv.deploymentWatcher.PromoteDeployment(args, reply)
 }
 
+// Run is used to start a pending deployment
+func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.DeploymentUpdateResponse) error {
+	if done, err := d.srv.forward("Deployment.Run", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "deployment", "run"}, time.Now())
+
+	// Validate the arguments
+	if args.DeploymentID == "" {
+		return fmt.Errorf("missing deployment ID")
+	}
+
+	// Lookup the deployment
+	snap, err := d.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	deploy, err := snap.DeploymentByID(ws, args.DeploymentID)
+	if err != nil {
+		return err
+	}
+	if deploy == nil {
+		return fmt.Errorf("deployment not found")
+	}
+
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	if !deploy.Active() {
+		return structs.ErrDeploymentTerminalNoRun
+	}
+
+	// Call into the deployment watcher
+	return d.srv.deploymentWatcher.RunDeployment(args, reply)
+}
+
 // Unblock is used to unblock a deployment
 func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *structs.DeploymentUpdateResponse) error {
 	if done, err := d.srv.forward("Deployment.Unblock", args, args, reply); done {
@@ -242,7 +284,7 @@ func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *stru
 	}
 
 	if !deploy.Active() {
-		return fmt.Errorf("can't unblock terminal deployment")
+		return structs.ErrDeploymentTerminalNoUnblock
 	}
 
 	// Call into the deployment watcher
@@ -284,7 +326,7 @@ func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *struct
 	}
 
 	if !deploy.Active() {
-		return fmt.Errorf("can't cancel terminal deployment")
+		return structs.ErrDeploymentTerminalNoCancel
 	}
 
 	// Call into the deployment watcher
