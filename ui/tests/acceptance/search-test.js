@@ -1,10 +1,9 @@
-import { module, skip, test } from 'qunit';
-import { currentURL, visit } from '@ember/test-helpers';
+import { module, test } from 'qunit';
+import { click, currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import PageLayout from 'nomad-ui/tests/pages/layout';
 import { selectSearch } from 'ember-power-select/test-support';
-import { keyDown } from 'ember-keyboard/test-support/test-helpers';
 
 module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
@@ -58,12 +57,33 @@ module('Acceptance | search', function(hooks) {
     assert.ok(PageLayout.navbar.search.field.isPresent);
   });
 
-  // This DOES work but keyDown doesn’t seem quite right…
-  skip('pressing slash starts a search', async function(assert) {
+  test('pressing slash starts a search', async function(assert) {
     await visit('/');
 
     assert.notOk(PageLayout.navbar.search.field.isPresent);
-    await keyDown('/');
+
+    await triggerEvent('.page-layout', 'keydown', {
+      keyCode: 191, // slash
+    });
+
     assert.ok(PageLayout.navbar.search.field.isPresent);
+  });
+
+  test('pressing slash when an input element is focused does not start a search', async function(assert) {
+    server.create('node');
+    server.create('job');
+
+    await visit('/');
+
+    assert.notOk(PageLayout.navbar.search.field.isPresent);
+
+    // FIXME use page objects for this and below? 🤔
+    await click('.search-box input');
+
+    await triggerEvent('.search-box input', 'keydown', {
+      keyCode: 191, // slash
+    });
+
+    assert.notOk(PageLayout.navbar.search.field.isPresent);
   });
 });

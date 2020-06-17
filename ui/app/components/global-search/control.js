@@ -8,6 +8,8 @@ import { run } from '@ember/runloop';
 import Searchable from 'nomad-ui/mixins/searchable';
 import classic from 'ember-classic-decorator';
 
+const SLASH_KEY = 191;
+
 @tagName('')
 export default class GlobalSearchControl extends Component {
   @service router;
@@ -25,6 +27,27 @@ export default class GlobalSearchControl extends Component {
     this.nodeSearch = NodeSearch.create({
       dataSource: this,
     });
+  }
+
+  keyDownHandler(e) {
+    const targetElementName = e.target.nodeName.toLowerCase();
+
+    // FIXME are more and/or other-approach exceptions needed?
+    if (targetElementName != 'input' && targetElementName != 'textarea') {
+      if (e.keyCode === SLASH_KEY) {
+        e.preventDefault();
+        this.open();
+      }
+    }
+  }
+
+  didInsertElement() {
+    this.set('_keyDownHandler', this.keyDownHandler.bind(this));
+    document.addEventListener('keydown', this._keyDownHandler);
+  }
+
+  willDestroyElement() {
+    document.removeEventListener('keydown', this._keyDownHandler);
   }
 
   @task(function*(string) {

@@ -30,10 +30,6 @@ module.exports = function(environment) {
       mirageWithTokens: true,
       mirageWithRegions: true,
     },
-
-    emberKeyboard: {
-      disableInputsInitializer: true,
-    },
   };
 
   if (environment === 'development') {
