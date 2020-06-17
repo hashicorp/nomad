@@ -210,10 +210,22 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Mark the deployment as complete if possible
 	if a.deployment != nil && complete {
+
+		var status string
+		var desc string
+
+		if a.job.IsMultiregion() {
+			status = structs.DeploymentStatusBlocked
+			desc = structs.DeploymentStatusDescriptionBlocked
+		} else {
+			status = structs.DeploymentStatusSuccessful
+			desc = structs.DeploymentStatusDescriptionSuccessful
+		}
+
 		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 			DeploymentID:      a.deployment.ID,
-			Status:            structs.DeploymentStatusSuccessful,
-			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+			Status:            status,
+			StatusDescription: desc,
 		})
 	}
 

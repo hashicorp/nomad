@@ -363,6 +363,29 @@ func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *struc
 	return watcher.FailDeployment(req, resp)
 }
 
+// UnblockDeployment is used to unblock a multiregion deployment.  In
+// single-region deployments, the blocked state is unused.
+func (w *Watcher) UnblockDeployment(req *structs.DeploymentUnblockRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
+	if err != nil {
+		return err
+	}
+
+	return watcher.UnblockDeployment(req, resp)
+}
+
+// CancelDeployment is used to cancel a multiregion deployment.  In
+// single-region deployments, the deploymentwatcher has sole responsibility to
+// cancel deployments so this RPC is never used.
+func (w *Watcher) CancelDeployment(req *structs.DeploymentCancelRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
+	if err != nil {
+		return err
+	}
+
+	return watcher.CancelDeployment(req, resp)
+}
+
 // createUpdate commits the given allocation desired transition and evaluation
 // to Raft but batches the commit with other calls.
 func (w *Watcher) createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error) {

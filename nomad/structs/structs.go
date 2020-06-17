@@ -7899,6 +7899,7 @@ const (
 	DeploymentStatusDescriptionFailedAllocations     = "Failed due to unhealthy allocations"
 	DeploymentStatusDescriptionProgressDeadline      = "Failed due to progress deadline"
 	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
+	DeploymentStatusDescriptionBlocked               = "Deployment is complete but waiting for peer region"
 )
 
 // DeploymentStatusDescriptionRollback is used to get the status description of

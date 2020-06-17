@@ -207,6 +207,90 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	return d.srv.deploymentWatcher.PromoteDeployment(args, reply)
 }
 
+// Unblock is used to unblock a deployment
+func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *structs.DeploymentUpdateResponse) error {
+	if done, err := d.srv.forward("Deployment.Unblock", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "deployment", "unblock"}, time.Now())
+
+	// Validate the arguments
+	if args.DeploymentID == "" {
+		return fmt.Errorf("missing deployment ID")
+	}
+
+	// Lookup the deployment
+	snap, err := d.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	deploy, err := snap.DeploymentByID(ws, args.DeploymentID)
+	if err != nil {
+		return err
+	}
+	if deploy == nil {
+		return fmt.Errorf("deployment not found")
+	}
+
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	if !deploy.Active() {
+		return fmt.Errorf("can't unblock terminal deployment")
+	}
+
+	// Call into the deployment watcher
+	return d.srv.deploymentWatcher.UnblockDeployment(args, reply)
+}
+
+// Cancel is used to cancel a deployment
+func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *structs.DeploymentUpdateResponse) error {
+	if done, err := d.srv.forward("Deployment.Cancel", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "deployment", "cancel"}, time.Now())
+
+	// Validate the arguments
+	if args.DeploymentID == "" {
+		return fmt.Errorf("missing deployment ID")
+	}
+
+	// Lookup the deployment
+	snap, err := d.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	deploy, err := snap.DeploymentByID(ws, args.DeploymentID)
+	if err != nil {
+		return err
+	}
+	if deploy == nil {
+		return fmt.Errorf("deployment not found")
+	}
+
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	if !deploy.Active() {
+		return fmt.Errorf("can't cancel terminal deployment")
+	}
+
+	// Call into the deployment watcher
+	return d.srv.deploymentWatcher.CancelDeployment(args, reply)
+}
+
 // SetAllocHealth is used to set the health of allocations that are part of the
 // deployment.
 func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, reply *structs.DeploymentUpdateResponse) error {
