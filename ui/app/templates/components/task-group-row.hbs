@@ -4,11 +4,23 @@
   </LinkTo>
 </td>
 <td data-test-task-group-count class="nowrap">
-  {{taskGroup.count}}
+  {{count}}
   {{#if taskGroup.scaling}}
     <div class="button-bar is-shadowless is-text bumper-left">
-      <button role="button" class="button is-xsmall is-light">{{x-icon "minus-plain" class="is-text"}}</button>
-      <button role="button" class="button is-xsmall is-light">{{x-icon "plus-plain" class="is-text"}}</button>
+      <button
+        role="button"
+        class="button is-xsmall is-light"
+        disabled={{isMinimum}}
+        onclick={{action "countDown"}}>
+        {{x-icon "minus-plain" class="is-text"}}
+      </button>
+      <button
+        role="button"
+        class="button is-xsmall is-light"
+        disabled={{isMaximum}}
+        onclick={{action "countUp"}}>
+        {{x-icon "plus-plain" class="is-text"}}
+      </button>
     </div>
   {{/if}}
 </td>
