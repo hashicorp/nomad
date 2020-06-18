@@ -1,0 +1,22 @@
+<label>{{yield}}</label>
+<input
+  type="number"
+  min={{min}}
+  max={{max}}
+  value={{internalValue}}
+  onKeyDown={{action "resetTextInput"}}
+  onChange={{action "setValue"}}>
+<button
+  role="button"
+  class="button"
+  disabled={{lte internalValue min}}
+  onclick={{action "decrement"}}>
+  {{x-icon "minus-plain"}}
+</button>
+<button
+  role="button"
+  class="button"
+  disabled={{gte internalValue max}}
+  onclick={{action "increment"}}>
+  {{x-icon "plus-plain"}}
+</button>
