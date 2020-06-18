@@ -18,6 +18,8 @@ export default Factory.extend({
     volumes: () => ({}),
   }),
 
+  withScaling: faker.random.boolean,
+
   volumes: makeHostVolumes(),
 
   // Directive used to control whether or not allocations are automatically
@@ -37,6 +39,31 @@ export default Factory.extend({
   afterCreate(group, server) {
     let taskIds = [];
     let volumes = Object.keys(group.volumes);
+
+    if (group.withScaling) {
+      group.update({
+        scaling: {
+          Min: 1,
+          Max: 5,
+          Policy: faker.random.boolean() && {
+            EvaluationInterval: '10s',
+            Cooldown: '2m',
+            Check: {
+              avg_conn: {
+                Source: 'prometheus',
+                Query:
+                  'scalar(avg((haproxy_server_current_sessions{backend="http_back"}) and (haproxy_server_up{backend="http_back"} == 1)))',
+                Strategy: {
+                  'target-value': {
+                    target: 20,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+    }
 
     if (!group.shallow) {
       const tasks = provide(group.count, () => {
