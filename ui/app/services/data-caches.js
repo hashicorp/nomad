@@ -10,7 +10,6 @@ export default class DataCachesService extends Service {
   collectionLastFetched = {};
 
   async fetch(modelName) {
-    // Could this be dynamically generated based on use of watchers? 🤔
     const modelNameToRoute = {
       job: 'jobs',
       node: 'clients',
