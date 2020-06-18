@@ -50,8 +50,8 @@ async function main() {
 
 async function indexSearchContent(objects) {
   const {
-    ALGOLIA_APP_ID: appId,
-    ALGOLIA_INDEX: index,
+    NEXT_PUBLIC_ALGOLIA_APP_ID: appId,
+    NEXT_PUBLIC_ALGOLIA_INDEX: index,
     ALGOLIA_API_KEY: apiKey,
   } = process.env
 

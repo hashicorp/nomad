@@ -11,4 +11,4 @@ jobs:
       filters:
         branches:
           only:
-            - master
+            - stable-website
