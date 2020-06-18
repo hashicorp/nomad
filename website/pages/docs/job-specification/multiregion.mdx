@@ -122,9 +122,11 @@ final region will unblock the regions to mark them as `successful`.
 
 The name of a region must match the name of one of the [federated regions].
 
-- `count` `(int: <optional>)` - Specifies a default count for task
-  groups in the region. If a task group specifies its own `count`, this value
-  will be ignored. This value must be non-negative.
+- `count` `(int: <optional>)` - Specifies a count override for task groups in
+  the region. If a task group specifies a `count = 0`, its count will be
+  replaced with this value. If a task group specifies its own `count` or omits
+  the `count` field, this value will be ignored. This value must be
+  non-negative.
 
 - `datacenters` `(array<string>: <optional>)` - A list of
   datacenters in the region which are eligible for task placement. If not
@@ -212,7 +214,9 @@ multiregion {
   }
 }
 
-group "worker" {}
+group "worker" {
+  count = 0
+}
 
 group "controller" {
   count = 1
