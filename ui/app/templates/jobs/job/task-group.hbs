@@ -7,7 +7,14 @@
 <section class="section">
   <h1 class="title with-flex">
     <span>{{model.name}}</span>
-    <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
+    <div>
+      <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
+      {{#if model.scaling}}
+      <StepperInput @min={{model.scaling.min}} @max={{model.scaling.max}} @value={{model.count}}>
+        Count
+      </StepperInput>
+      {{/if}}
+    </div>
   </h1>
 
   <div class="boxed-section is-small">
