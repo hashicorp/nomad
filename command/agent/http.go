@@ -291,6 +291,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
+	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))
 
 	// Monitor is *not* an untrusted endpoint despite the log contents
 	// potentially containing unsanitized user input. Monitor, like
@@ -661,6 +662,7 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 }
 
 // parse is a convenience method for endpoints that need to parse multiple flags
+// It sets r to the region and b to the QueryOptions in req
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
 	s.parseToken(req, &b.AuthToken)
