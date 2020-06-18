@@ -1,8 +1,9 @@
 import { module, test } from 'qunit';
-import { click, currentURL, triggerEvent, visit } from '@ember/test-helpers';
+import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import PageLayout from 'nomad-ui/tests/pages/layout';
+import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import { selectSearch } from 'ember-power-select/test-support';
 import sinon from 'sinon';
 
@@ -131,12 +132,8 @@ module('Acceptance | search', function(hooks) {
 
     assert.notOk(PageLayout.navbar.search.field.isPresent);
 
-    // FIXME use page objects for this and below? 🤔
-    await click('.search-box input');
-
-    await triggerEvent('.search-box input', 'keydown', {
-      keyCode: 191, // slash
-    });
+    await JobsList.search.click();
+    await JobsList.search.keydown({ keyCode: 191 });
 
     assert.notOk(PageLayout.navbar.search.field.isPresent);
   });

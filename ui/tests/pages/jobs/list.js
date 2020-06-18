@@ -3,10 +3,10 @@ import {
   create,
   collection,
   clickable,
-  fillable,
   isPresent,
   property,
   text,
+  triggerable,
   visitable,
 } from 'ember-cli-page-object';
 
@@ -18,7 +18,10 @@ export default create({
 
   visit: visitable('/jobs'),
 
-  search: fillable('[data-test-jobs-search] input'),
+  search: {
+    scope: '[data-test-jobs-search] input',
+    keydown: triggerable('keydown'),
+  },
 
   runJobButton: {
     scope: '[data-test-run-job]',
