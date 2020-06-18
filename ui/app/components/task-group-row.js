@@ -11,7 +11,7 @@ import { lazyClick } from '../helpers/lazy-click';
 @classNames('task-group-row', 'is-interactive')
 export default class TaskGroupRow extends Component {
   taskGroup = null;
-  debounce = 300;
+  debounce = 500;
 
   @oneWay('taskGroup.count') count;
   @alias('taskGroup.job.runningDeployment') runningDeployment;
