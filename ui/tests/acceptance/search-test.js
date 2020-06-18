@@ -4,6 +4,9 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import PageLayout from 'nomad-ui/tests/pages/layout';
 import { selectSearch } from 'ember-power-select/test-support';
+import sinon from 'sinon';
+
+import { COLLECTION_CACHE_DURATION } from 'nomad-ui/services/data-caches';
 
 function getRequestCount(server, url) {
   return server.pretender.handledRequests.filterBy('url', url).length;
@@ -13,7 +16,7 @@ module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('search searches jobs and nodes with route-based caching and navigates to chosen items', async function(assert) {
+  test('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'aaa' });
 
@@ -22,6 +25,11 @@ module('Acceptance | search', function(hooks) {
     server.create('job', { id: 'abc', namespace: 'default' });
 
     await visit('/');
+
+    const clock = sinon.useFakeTimers({
+      now: new Date(),
+      shouldAdvanceTime: true,
+    });
 
     let presearchJobsRequestCount = getRequestCount(server, '/v1/jobs');
     let presearchNodesRequestCount = getRequestCount(server, '/v1/nodes');
@@ -46,13 +54,13 @@ module('Acceptance | search', function(hooks) {
     });
 
     assert.equal(
-      presearchJobsRequestCount,
       getRequestCount(server, '/v1/jobs'),
+      presearchJobsRequestCount,
       'no new jobs request should be sent when in the jobs hierarchy'
     );
     assert.equal(
-      presearchNodesRequestCount + 1,
       getRequestCount(server, '/v1/nodes'),
+      presearchNodesRequestCount + 1,
       'a nodes request should happen when not in the clients hierarchy'
     );
 
@@ -67,18 +75,30 @@ module('Acceptance | search', function(hooks) {
     presearchJobsRequestCount = getRequestCount(server, '/v1/jobs');
     presearchNodesRequestCount = getRequestCount(server, '/v1/nodes');
 
-    await selectSearch(PageLayout.navbar.search.scope, otherNode.id.substr(0, 3));
+    await selectSearch(PageLayout.navbar.search.scope, 'zzzzzzzzzzz');
 
     assert.equal(
-      presearchJobsRequestCount + 1,
       getRequestCount(server, '/v1/jobs'),
-      'a jobs request should happen when not not in the jobs hierarchy'
+      presearchJobsRequestCount,
+      'a jobs request should not because the cache hasn’t expired'
     );
     assert.equal(
       presearchNodesRequestCount,
       getRequestCount(server, '/v1/nodes'),
       'no new nodes request should happen when in the clients hierarchy'
     );
+
+    clock.tick(COLLECTION_CACHE_DURATION * 2);
+
+    await selectSearch(PageLayout.navbar.search.scope, otherNode.id.substr(0, 3));
+
+    assert.equal(
+      getRequestCount(server, '/v1/jobs'),
+      presearchJobsRequestCount + 1,
+      'a jobs request should happen because the cache has expired'
+    );
+
+    clock.restore();
   });
 
   test('clicking the search field starts search immediately', async function(assert) {
