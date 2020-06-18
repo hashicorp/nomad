@@ -32,6 +32,18 @@
       color: rgba($white, 0.75);
     }
   }
+
+  &.is-compact {
+    margin: -0.25em 0;
+
+    &.pull-right {
+      margin-right: -1em;
+    }
+
+    &.pull-left {
+      margin-left: -1em;
+    }
+  }
 }
 
 .button-bar {
