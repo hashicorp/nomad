@@ -86,7 +86,7 @@ export default [
 
       {
         category: 'deployment',
-        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status']
+        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
       },
       'eval-status',
       {
@@ -167,6 +167,7 @@ export default [
       'logs',
       'meta',
       'migrate',
+      'multiregion',
       'network',
       'parameterized',
       'periodic',

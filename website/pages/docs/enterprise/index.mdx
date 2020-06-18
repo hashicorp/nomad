@@ -86,7 +86,21 @@ When a Nomad cluster is at capacity for a given set of placement constraints, an
 
 Preemption enables Nomad's scheduler to automatically evict lower priority allocations of service and batch jobs so that allocations from higher priority jobs can be placed. This behavior ensures that critical workloads can run when resources are limited or when partial outages require workloads to be rescheduled across a smaller set of client nodes.
 
+## Multi-Cluster & Efficiency
+
+Multi-Cluster & Efficiency features are part of an add-on module that enables
+an organization to operate Nomad at scale across multiple clusters through
+features such as Multiregion Deployments.
+
+### Multiregion Deployments
+
+[Multiregion Deployments] enable an operator to deploy a single job to multiple
+federated regions.  This includes the ability to control the order of rollouts
+and how each region will behave in the event of a deployment failure.
+
 ## Try Nomad Enterprise
 
 Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or request a trial
 of Nomad Enterprise.
+
+[Multiregion Deployments]: /docs/job-specification/multiregion
