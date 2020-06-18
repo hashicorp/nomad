@@ -1,6 +1,6 @@
 import Service, { inject as service } from '@ember/service';
 
-export const COLLECTION_CACHE_DURATION = 5000;
+export const COLLECTION_CACHE_DURATION = 60000; // one minute
 
 export default class DataCachesService extends Service {
   @service router;
