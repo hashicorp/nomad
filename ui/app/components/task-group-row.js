@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { computed, action } from '@ember/object';
-import { oneWay } from '@ember/object/computed';
+import { alias, oneWay } from '@ember/object/computed';
 import { debounce } from '@ember/runloop';
 import { classNames, tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -14,6 +14,7 @@ export default class TaskGroupRow extends Component {
   debounce = 300;
 
   @oneWay('taskGroup.count') count;
+  @alias('taskGroup.job.runningDeployment') runningDeployment;
 
   onClick() {}
 
