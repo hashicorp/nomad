@@ -33,7 +33,6 @@ export default class GlobalSearchControl extends Component {
   keyDownHandler(e) {
     const targetElementName = e.target.nodeName.toLowerCase();
 
-    // FIXME are more and/or other-approach exceptions needed?
     if (targetElementName != 'input' && targetElementName != 'textarea') {
       if (e.keyCode === SLASH_KEY) {
         e.preventDefault();

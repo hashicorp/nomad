@@ -21,7 +21,7 @@ export default class DataCachesService extends Service {
     const now = Date.now();
 
     if (this.router.isActive(route)) {
-      // FIXME Incorrect because it’s constantly being fetched by watchers, shouldn’t be marked as last fetched only on search
+      // TODO Incorrect because it’s constantly being fetched by watchers, shouldn’t be marked as last fetched only on search
       this.collectionLastFetched[modelName] = now;
       return this.store.peekAll(modelName);
     } else if (lastFetched && now - lastFetched < COLLECTION_CACHE_DURATION) {
