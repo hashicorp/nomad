@@ -270,6 +270,23 @@ Due to the large refactor of the Nomad client in 0.9, downgrading to a
 previous version of the client after upgrading it to Nomad 0.9 is not supported.
 To downgrade safely, users should erase the Nomad client's data directory.
 
+### `port_map` Environment Variable Changes
+
+Before Nomad 0.9.0 ports mapped via a task driver's `port_map` stanza could be
+interpolated via the `NOMAD_PORT_<label>` environment variables.
+
+However, in Nomad 0.9.0 no parameters in a driver's `config` stanza, including
+its `port_map`, are available for interpolation. This means `{{ env
+NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT =
+"${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the *host* ports,
+not the container's.
+
+Nomad 0.10 introduced Task Group Networking which natively supports port
+mapping without relying on task driver specific `port_map` fields. The
+[`to`](/docs/job-specification/network/#to) field on group network port stanzas
+will be interpolated properly. Please see the
+[`network`](/docs/job-specification/network/) stanza documentation for details.
+
 ## Nomad 0.8.0
 
 ### Raft Protocol Version Compatibility
