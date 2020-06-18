@@ -1,0 +1,7 @@
+steps:
+  - run:
+      name: Push content to Algolia Index
+      command: |
+        cd website/
+        npm i
+        node scripts/index_search_content.js
