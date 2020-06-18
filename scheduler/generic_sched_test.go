@@ -5204,6 +5204,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 		},
 		Networks: []*structs.NetworkResource{
 			{
+				Mode:   "host",
 				Device: "eth0",
 				CIDR:   "192.168.0.100/32",
 				MBits:  1000,

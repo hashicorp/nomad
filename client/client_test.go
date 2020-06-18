@@ -1184,17 +1184,16 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu:      structs.NodeCpuResources{CpuShares: 123},
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+			Networks: []*structs.NetworkResource{{Mode: "host", Device: "any-interface"}},
 		},
 		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+			CPU: 80,
 		},
 	})
-	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
-	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
-	assert.Equal(t, 80, client.config.Node.Resources.CPU)
-	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
+	idx := len(client.config.Node.NodeResources.Networks) - 1
+	require.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+	require.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[idx].Device)
+	require.Equal(t, 80, client.config.Node.Resources.CPU)
 
 	// lookup an interface. client.Node starts with a hardcoded value, eth0,
 	// and is only updated async through fingerprinter.
@@ -1210,48 +1209,43 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	client, cleanup = TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
 		c.Node.Name = name
+		c.Options["fingerprint.blacklist"] = "network"
 		// Node is already a mock.Node, with a device
 		c.Node.NodeResources.Networks[0].Device = dev
-		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{
-				{Device: "any-interface", MBits: 20},
-				{Device: dev, MBits: 20},
+				{Mode: "host", Device: "any-interface", MBits: 20},
 			},
 		},
-		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
-		},
 	})
-	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+	require.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
 	// only the configured device is kept
-	assert.Equal(t, 1, len(client.config.Node.NodeResources.Networks))
-	assert.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
-	// network speed updates to the configured network are kept
-	assert.Equal(t, 20, client.config.Node.NodeResources.Networks[0].MBits)
-	assert.Equal(t, 80, client.config.Node.Resources.CPU)
-	assert.Equal(t, dev, client.config.Node.Resources.Networks[0].Device)
+	require.Equal(t, 2, len(client.config.Node.NodeResources.Networks))
+	require.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
+	require.Equal(t, "bridge", client.config.Node.NodeResources.Networks[1].Mode)
 
 	// Network speed is applied to all NetworkResources
 	client.config.NetworkInterface = ""
 	client.config.NetworkSpeed = 100
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu:      structs.NodeCpuResources{CpuShares: 123},
-			Networks: []*structs.NetworkResource{{Device: "any-interface", MBits: 20}},
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{
+				{Mode: "host", Device: "any-interface", MBits: 20},
+			},
 		},
 		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+			CPU: 80,
 		},
 	})
-	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
-	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[0].MBits)
+	assert.Equal(t, 3, len(client.config.Node.NodeResources.Networks))
+	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[2].Device)
+	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[2].MBits)
+	assert.Equal(t, 0, client.config.Node.NodeResources.Networks[1].MBits)
 }
 
 // Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
@@ -1269,7 +1263,7 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
-		c.Node.NodeResources.Networks[0].Device = dev
+		c.Options["fingerprint.blacklist"] = "network,cni,bridge"
 		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()
@@ -1284,12 +1278,13 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 		},
 	})
 
-	two := structs.Networks{
+	nets := structs.Networks{
+		mock.Node().NodeResources.Networks[0],
 		{Device: dev, IP: "127.0.0.1"},
 		{Device: dev, IP: "::1"},
 	}
 
-	require.Equal(t, two, client.config.Node.NodeResources.Networks)
+	require.Equal(t, nets, client.config.Node.NodeResources.Networks)
 }
 
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
@@ -1479,6 +1474,9 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	})
 
 	result := client.getAllocatedResources(client.config.Node)
+
+	// Ignore comparing networks for now
+	result.Flattened.Networks = nil
 
 	expected := structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{

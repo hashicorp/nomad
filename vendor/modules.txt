@@ -254,6 +254,11 @@ github.com/docker/go-metrics
 # github.com/docker/go-units v0.4.0
 ## explicit
 github.com/docker/go-units
+# github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
+## explicit
+github.com/docker/libnetwork/resolvconf
+github.com/docker/libnetwork/resolvconf/dns
+github.com/docker/libnetwork/types
 # github.com/dustin/go-humanize v1.0.0
 ## explicit
 github.com/dustin/go-humanize
@@ -508,6 +513,9 @@ github.com/hpcloud/tail/ratelimiter
 github.com/hpcloud/tail/util
 github.com/hpcloud/tail/watch
 github.com/hpcloud/tail/winfile
+# github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07
+## explicit
+github.com/ishidawataru/sctp
 # github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
 github.com/jmespath/go-jmespath
 # github.com/joyent/triton-go v0.0.0-20190112182421-51ffac552869

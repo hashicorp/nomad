@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"math"
 	"net"
 	"os"
@@ -2246,65 +2247,42 @@ type Port struct {
 	To    int
 }
 
+type DNSConfig struct {
+	Servers  []string
+	Searches []string
+	Options  []string
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
-	Mode          string // Mode of the network
-	Device        string // Name of the device
-	CIDR          string // CIDR block of addresses
-	IP            string // Host IP address
-	MBits         int    // Throughput
-	ReservedPorts []Port // Host Reserved ports
-	DynamicPorts  []Port // Host Dynamically assigned ports
+	Mode          string     // Mode of the network
+	Device        string     // Name of the device
+	CIDR          string     // CIDR block of addresses
+	IP            string     // Host IP address
+	MBits         int        // Throughput
+	DNS           *DNSConfig // DNS Configuration
+	ReservedPorts []Port     // Host Reserved ports
+	DynamicPorts  []Port     // Host Dynamically assigned ports
+}
+
+func (nr *NetworkResource) Hash() uint32 {
+	var data []byte
+	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.MBits))...)
+
+	for i, port := range nr.ReservedPorts {
+		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
+	}
+
+	for i, port := range nr.DynamicPorts {
+		data = append(data, []byte(fmt.Sprintf("d%d%s%d%d", i, port.Label, port.Value, port.To))...)
+	}
+
+	return crc32.ChecksumIEEE(data)
 }
 
 func (nr *NetworkResource) Equals(other *NetworkResource) bool {
-	if nr.Mode != other.Mode {
-		return false
-	}
-
-	if nr.Device != other.Device {
-		return false
-	}
-
-	if nr.CIDR != other.CIDR {
-		return false
-	}
-
-	if nr.IP != other.IP {
-		return false
-	}
-
-	if nr.MBits != other.MBits {
-		return false
-	}
-
-	if len(nr.ReservedPorts) != len(other.ReservedPorts) {
-		return false
-	}
-
-	for i, port := range nr.ReservedPorts {
-		if len(other.ReservedPorts) <= i {
-			return false
-		}
-		if port != other.ReservedPorts[i] {
-			return false
-		}
-	}
-
-	if len(nr.DynamicPorts) != len(other.DynamicPorts) {
-		return false
-	}
-	for i, port := range nr.DynamicPorts {
-		if len(other.DynamicPorts) <= i {
-			return false
-		}
-		if port != other.DynamicPorts[i] {
-			return false
-		}
-	}
-
-	return true
+	return nr.Hash() == other.Hash()
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -2606,7 +2584,7 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	n.Disk.Merge(&o.Disk)
 
 	if len(o.Networks) != 0 {
-		n.Networks = o.Networks
+		n.Networks = append(n.Networks, o.Networks...)
 	}
 
 	if len(o.Devices) != 0 {
