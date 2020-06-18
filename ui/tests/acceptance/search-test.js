@@ -80,7 +80,7 @@ module('Acceptance | search', function(hooks) {
     assert.equal(
       getRequestCount(server, '/v1/jobs'),
       presearchJobsRequestCount,
-      'a jobs request should not because the cache hasn’t expired'
+      'a jobs request should not happen because the cache hasn’t expired'
     );
     assert.equal(
       presearchNodesRequestCount,
