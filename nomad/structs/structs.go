@@ -2389,7 +2389,7 @@ func (n *NetworkResource) Canonicalize() {
 	}
 	for i, p := range n.ReservedPorts {
 		if p.HostNetwork == "" {
-			n.DynamicPorts[i].HostNetwork = "default"
+			n.ReservedPorts[i].HostNetwork = "default"
 		}
 	}
 }
