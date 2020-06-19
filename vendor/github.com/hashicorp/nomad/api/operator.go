@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/ioutil"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -276,10 +277,22 @@ type LicenseReply struct {
 }
 
 func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, error) {
-	wm, err := op.c.write("/v1/operator/license", license, nil, q)
+	r, err := op.c.newRequest("PUT", "/v1/operator/license")
 	if err != nil {
 		return nil, err
 	}
+	r.setWriteOptions(q)
+	r.body = strings.NewReader(license)
+
+	rtt, resp, err := requireOK(op.c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	wm := &WriteMeta{RequestTime: rtt}
+	parseWriteMeta(resp, wm)
+
 	return wm, nil
 }
 
