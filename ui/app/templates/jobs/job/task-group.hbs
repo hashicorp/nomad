@@ -98,7 +98,7 @@
               <th>CPU</th>
               <th>Memory</th>
             </t.head>
-            <t.body as |row|>
+            <t.body @key="model.id" as |row|>
               <AllocationRow @data-test-allocation={{row.model.id}} @allocation={{row.model}} @context="taskGroup" @onClick={{action "gotoAllocation" row.model}} />
             </t.body>
           </ListTable>
