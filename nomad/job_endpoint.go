@@ -96,6 +96,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 	args.Job = job
 
+	// Attach the Nomad token's accessor ID so that deploymentwatcher
+	// can reference the token later
+	tokenID, err := j.srv.ResolveSecretToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if tokenID != nil {
+		args.Job.NomadTokenID = tokenID.AccessorID
+	}
+
 	// Set the warning message
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 

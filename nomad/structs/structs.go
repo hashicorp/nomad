@@ -3631,6 +3631,10 @@ type Job struct {
 	// transfer the token and is not stored after Job submission.
 	VaultToken string
 
+	// NomadTokenID is the Accessor ID of the ACL token (if any)
+	// used to register this version of the job. Used by deploymentwatcher.
+	NomadTokenID string
+
 	// Job status
 	Status string
 

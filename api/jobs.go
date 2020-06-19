@@ -787,6 +787,7 @@ type Job struct {
 	Meta              map[string]string
 	ConsulToken       *string `mapstructure:"consul_token"`
 	VaultToken        *string `mapstructure:"vault_token"`
+	NomadTokenID      *string `mapstructure:"nomad_token_id"`
 	Status            *string
 	StatusDescription *string
 	Stable            *bool
@@ -848,6 +849,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.VaultToken == nil {
 		j.VaultToken = stringToPtr("")
+	}
+	if j.NomadTokenID == nil {
+		j.NomadTokenID = stringToPtr("")
 	}
 	if j.Status == nil {
 		j.Status = stringToPtr("")
