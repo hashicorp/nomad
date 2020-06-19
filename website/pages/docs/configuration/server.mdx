@@ -141,6 +141,25 @@ server {
   features and is typically not required as the agent internally knows the
   latest version, but may be useful in some upgrade scenarios.
 
+- `raft_multiplier` `(int: 1)` - An integer multiplier used by Nomad servers to
+  scale key Raft timing parameters. Omitting this value or setting it to 0 uses
+  default timing described below. Lower values are used to tighten timing and
+  increase sensitivity while higher values relax timings and reduce sensitivity.
+  Tuning this affects the time it takes Nomad to detect leader failures and to
+  perform leader elections, at the expense of requiring more network and CPU
+  resources for better performance. The maximum allowed value is 10.
+
+  By default, Nomad will use the highest-performance timing, currently equivalent
+  to setting this to a value of 1. Increasing the timings makes leader election
+  less likely during periods of networking issues or resource starvation. Since
+  leader elections pause Nomad's normal work, it may be beneficial for slow or
+  unreliable networks to wait longer before electing a new leader. The tradeoff
+  when raising this value is that during network partitions or other events
+  (server crash) where a leader is lost, Nomad will not elect a new leader for
+  a longer period of time than the default. The ['nomad.nomad.leader.barrier' and
+  `nomad.raft.leader.lastContact` metrics](/docs/telemetry/metrics is a good
+  indicator of how often leader elections occur and raft latency.
+
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
   information, see the [Autopilot Guide](https://learn.hashicorp.com/nomad/operating-nomad/autopilot).

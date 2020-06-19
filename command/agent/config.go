@@ -355,6 +355,9 @@ type ServerConfig struct {
 	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
 	RaftProtocol int `hcl:"raft_protocol"`
 
+	// RaftMultiplier scales the Raft timing parameters
+	RaftMultiplier *int `hcl:"raft_multiplier"`
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -1314,6 +1317,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.RaftProtocol != 0 {
 		result.RaftProtocol = b.RaftProtocol
+	}
+	if b.RaftMultiplier != nil {
+		c := *b.RaftMultiplier
+		result.RaftMultiplier = &c
 	}
 	if b.NumSchedulers != nil {
 		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)

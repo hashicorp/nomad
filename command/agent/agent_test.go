@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -358,6 +359,113 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 			serverConf, err := convertServerConfig(conf)
 			assert.NoError(t, err)
 			require.NotNil(t, serverConf)
+		})
+	}
+}
+
+func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		multiplier         *int
+		electionTimout     time.Duration
+		heartbeatTimeout   time.Duration
+		leaderLeaseTimeout time.Duration
+		commitTimeout      time.Duration
+	}{
+		// nil, 0 are the defaults of the Raft library.
+		// Expected values are hardcoded to detect changes from raft.
+		{
+			multiplier: nil,
+
+			electionTimout:     1 * time.Second,
+			heartbeatTimeout:   1 * time.Second,
+			leaderLeaseTimeout: 500 * time.Millisecond,
+			commitTimeout:      50 * time.Millisecond,
+		},
+
+		{
+			multiplier: helper.IntToPtr(0),
+
+			electionTimout:     1 * time.Second,
+			heartbeatTimeout:   1 * time.Second,
+			leaderLeaseTimeout: 500 * time.Millisecond,
+			commitTimeout:      50 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(1),
+
+			electionTimout:     1 * time.Second,
+			heartbeatTimeout:   1 * time.Second,
+			leaderLeaseTimeout: 500 * time.Millisecond,
+			commitTimeout:      50 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(5),
+
+			electionTimout:     5 * time.Second,
+			heartbeatTimeout:   5 * time.Second,
+			leaderLeaseTimeout: 2500 * time.Millisecond,
+			commitTimeout:      250 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(6),
+
+			electionTimout:     6 * time.Second,
+			heartbeatTimeout:   6 * time.Second,
+			leaderLeaseTimeout: 3000 * time.Millisecond,
+			commitTimeout:      300 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(10),
+
+			electionTimout:     10 * time.Second,
+			heartbeatTimeout:   10 * time.Second,
+			leaderLeaseTimeout: 5000 * time.Millisecond,
+			commitTimeout:      500 * time.Millisecond,
+		},
+	}
+
+	for _, tc := range cases {
+		v := "default"
+		if tc.multiplier != nil {
+			v = fmt.Sprintf("%v", *tc.multiplier)
+		}
+		t.Run(v, func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftMultiplier = tc.multiplier
+
+			serverConf, err := convertServerConfig(conf)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.electionTimout, serverConf.RaftConfig.ElectionTimeout, "election timeout")
+			assert.Equal(t, tc.heartbeatTimeout, serverConf.RaftConfig.HeartbeatTimeout, "heartbeat timeout")
+			assert.Equal(t, tc.leaderLeaseTimeout, serverConf.RaftConfig.LeaderLeaseTimeout, "leader lease timeout")
+			assert.Equal(t, tc.commitTimeout, serverConf.RaftConfig.CommitTimeout, "commit timeout")
+		})
+	}
+}
+
+func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
+	t.Parallel()
+
+	cases := []int{
+		-1,
+		100,
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftMultiplier = &tc
+
+			_, err := convertServerConfig(conf)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "raft_multiplier cannot be")
 		})
 	}
 }
