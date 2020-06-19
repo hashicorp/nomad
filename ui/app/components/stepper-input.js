@@ -2,13 +2,14 @@ import Component from '@ember/component';
 import { action } from '@ember/object';
 import { debounce } from '@ember/runloop';
 import { oneWay } from '@ember/object/computed';
-import { classNames } from '@ember-decorators/component';
+import { classNames, classNameBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 const ESC = 27;
 
 @classic
 @classNames('stepper-input')
+@classNameBindings('class')
 export default class StepperInput extends Component {
   min = 0;
   max = 10;
@@ -20,13 +21,6 @@ export default class StepperInput extends Component {
   // Value is still the public API and is expected to mutate and re-render
   // On onChange which is debounced.
   @oneWay('value') internalValue;
-
-  // text change: debounce set value if value changed
-  //    debouncing here means when the text input blurs to click a button
-  //    things don't get weird and send two change events
-  // text focus ESC: revert value
-  //
-  // Also add the xsmall button to the existing button story
 
   @action
   increment() {
