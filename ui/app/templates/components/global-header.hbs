@@ -7,6 +7,9 @@
       {{partial "partials/nomad-logo"}}
     </LinkTo>
   </div>
+  {{#unless (media "isMobile")}}
+    <GlobalSearch::Control />
+  {{/unless}}
   <div class="navbar-end">
     <a href="https://nomadproject.io/docs" class="navbar-item">Documentation</a>
     <LinkTo @route="settings.tokens" class="navbar-item">ACL Tokens</LinkTo>

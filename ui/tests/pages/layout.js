@@ -12,6 +12,28 @@ export default create({
         label: text(),
       }),
     },
+
+    search: {
+      scope: '[data-test-search]',
+
+      click: clickable('.ember-power-select-trigger'),
+
+      groups: collection('.ember-power-select-group', {
+        testContainer: '.ember-power-select-options',
+        resetScope: true,
+        name: text('.ember-power-select-group-name'),
+
+        options: collection('.ember-power-select-option', {
+          label: text(),
+        }),
+      }),
+
+      field: {
+        scope: '.ember-power-select-search input',
+        testContainer: 'html',
+        resetScope: true,
+      },
+    },
   },
 
   gutter: {
