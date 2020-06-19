@@ -16,11 +16,11 @@ export function watchRecord(modelName) {
       'To watch a record, the record adapter MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
     );
-    const controller = new AbortController();
     if (typeof id === 'object') {
       id = get(id, 'id');
     }
     while (isEnabled && !Ember.testing) {
+      const controller = new AbortController();
       try {
         yield RSVP.all([
           this.store.findRecord(modelName, id, {
@@ -45,8 +45,8 @@ export function watchRelationship(relationshipName) {
       'To watch a relationship, the adapter of the model provided to the watchRelationship task MUST extend Watchable',
       this.store.adapterFor(model.constructor.modelName) instanceof Watchable
     );
-    const controller = new AbortController();
     while (isEnabled && !Ember.testing) {
+      const controller = new AbortController();
       try {
         yield RSVP.all([
           this.store
@@ -73,8 +73,8 @@ export function watchAll(modelName) {
       'To watch all, the respective adapter MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
     );
-    const controller = new AbortController();
     while (isEnabled && !Ember.testing) {
+      const controller = new AbortController();
       try {
         yield RSVP.all([
           this.store.findAll(modelName, {
@@ -99,8 +99,8 @@ export function watchQuery(modelName) {
       'To watch a query, the adapter for the type being queried MUST extend Watchable',
       this.store.adapterFor(modelName) instanceof Watchable
     );
-    const controller = new AbortController();
     while (isEnabled && !Ember.testing) {
+      const controller = new AbortController();
       try {
         yield RSVP.all([
           this.store.query(modelName, params, {

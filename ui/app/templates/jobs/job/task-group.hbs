@@ -7,7 +7,21 @@
 <section class="section">
   <h1 class="title with-flex">
     <span>{{model.name}}</span>
-    <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
+    <div>
+      <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
+      {{#if model.scaling}}
+      <StepperInput
+        data-test-task-group-count-stepper
+        @min={{model.scaling.min}}
+        @max={{model.scaling.max}}
+        @value={{model.count}}
+        @class="is-primary is-small"
+        @disabled={{or model.job.runningDeployment (cannot "scale job")}}
+        @onChange={{action "scaleTaskGroup"}}>
+        Count
+      </StepperInput>
+      {{/if}}
+    </div>
   </h1>
 
   <div class="boxed-section is-small">
@@ -18,6 +32,14 @@
       <span class="pair" data-test-task-group-cpu><span class="term">Reserved CPU</span> {{model.reservedCPU}} MHz</span>
       <span class="pair" data-test-task-group-mem><span class="term">Reserved Memory</span> {{model.reservedMemory}} MiB</span>
       <span class="pair" data-test-task-group-disk><span class="term">Reserved Disk</span> {{model.reservedEphemeralDisk}} MiB</span>
+      {{#if model.scaling}}
+        <span class="pair" data-test-task-group-min><span class="term">Count Range</span>
+          {{model.scaling.min}} to {{model.scaling.max}}
+        </span>
+        <span class="pair" data-test-task-group-max><span class="term">Scaling Policy?</span>
+          {{if model.scaling.policy "Yes" "No"}}
+        </span>
+      {{/if}}
     </div>
   </div>
 

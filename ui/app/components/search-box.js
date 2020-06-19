@@ -1,7 +1,7 @@
 import { reads } from '@ember/object/computed';
 import Component from '@ember/component';
 import { action } from '@ember/object';
-import { run } from '@ember/runloop';
+import { debounce } from '@ember/runloop';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
@@ -23,13 +23,13 @@ export default class SearchBox extends Component {
   @action
   setSearchTerm(e) {
     this.set('_searchTerm', e.target.value);
-    run.debounce(this, updateSearch, this.debounce);
+    debounce(this, updateSearch, this.debounce);
   }
 
   @action
   clear() {
     this.set('_searchTerm', '');
-    run.debounce(this, updateSearch, this.debounce);
+    debounce(this, updateSearch, this.debounce);
   }
 }
 

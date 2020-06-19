@@ -1,7 +1,7 @@
 import { computed } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
-import { fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
+import { fragmentOwner, fragmentArray, fragment } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 import classic from 'ember-classic-decorator';
 
@@ -19,6 +19,8 @@ export default class TaskGroup extends Fragment {
   @fragmentArray('service') services;
 
   @fragmentArray('volume-definition') volumes;
+
+  @fragment('group-scaling') scaling;
 
   @computed('tasks.@each.driver')
   get drivers() {
@@ -50,5 +52,9 @@ export default class TaskGroup extends Fragment {
   @computed('job.taskGroupSummaries.[]')
   get summary() {
     return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.name);
+  }
+
+  scale(count, reason) {
+    return this.job.scale(this.name, count, reason);
   }
 }

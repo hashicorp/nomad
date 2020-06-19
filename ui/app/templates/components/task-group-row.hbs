@@ -3,7 +3,32 @@
     {{taskGroup.name}}
   </LinkTo>
 </td>
-<td data-test-task-group-count>{{taskGroup.count}}</td>
+<td data-test-task-group-count class="nowrap">
+  {{count}}
+  {{#if taskGroup.scaling}}
+  <div
+    data-test-scale-controls
+    class="button-bar is-shadowless is-text bumper-left {{if (cannot "scale job") "tooltip"}}"
+    aria-label={{if (cannot "scale job") "You aren't allowed to scale task groups"}}>
+      <button
+        data-test-scale="decrement"
+        role="button"
+        class="button is-xsmall is-light"
+        disabled={{or isMinimum runningDeployment (cannot "scale job")}}
+        onclick={{action "countDown"}}>
+        {{x-icon "minus-plain" class="is-text"}}
+      </button>
+      <button
+        data-test-scale="increment"
+        role="button"
+        class="button is-xsmall is-light"
+        disabled={{or isMaximum runningDeployment (cannot "scale job")}}
+        onclick={{action "countUp"}}>
+        {{x-icon "plus-plain" class="is-text"}}
+      </button>
+    </div>
+  {{/if}}
+</td>
 <td data-test-task-group-allocs>
   <div class="inline-chart"><AllocationStatusBar @allocationContainer={{taskGroup.summary}} @isNarrow={{true}} /></div>
 </td>

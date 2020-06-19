@@ -15,6 +15,7 @@ $icon-dimensions-large: 2rem;
   &.is-text {
     width: 1.2em;
     height: 1.2em;
+    pointer-events: none;
   }
 
   &.is-small {

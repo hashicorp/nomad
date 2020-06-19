@@ -245,6 +245,10 @@ export default class Job extends Model {
     return promise;
   }
 
+  scale(group, count, reason = 'Manual scaling event from the Nomad UI') {
+    return this.store.adapterFor('job').scale(this, group, count, reason);
+  }
+
   setIdByPayload(payload) {
     const namespace = payload.Namespace || 'default';
     const id = payload.Name;

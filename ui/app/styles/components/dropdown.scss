@@ -51,17 +51,20 @@
   flex-direction: row;
   box-shadow: $button-box-shadow-standard;
 
-  .dropdown {
+  .dropdown,
+  .button {
     display: flex;
     position: relative;
 
-    & + .dropdown {
+    & + .dropdown,
+    & + .button {
       margin-left: -1px;
     }
   }
 
   .ember-power-select-trigger,
-  .dropdown-trigger {
+  .dropdown-trigger,
+  .button {
     border-radius: 0;
     box-shadow: none;
 
@@ -70,20 +73,41 @@
     }
   }
 
-  .dropdown:first-child {
-    .ember-power-select-trigger,
-    .dropdown-trigger {
-      border-top-left-radius: $radius;
-      border-bottom-left-radius: $radius;
+  // Buttons have their own focus treatment that needs to be overrided here.
+  // Since .button.is-color takes precedence over .button-bar .button, each
+  // color needs the override.
+  .button {
+    @each $name, $pair in $colors {
+      &.is-#{$name}:focus {
+        box-shadow: inset 0 0 0 2px $grey-lighter;
+      }
     }
   }
 
-  .dropdown:last-child {
-    .ember-power-select-trigger,
-    .dropdown-trigger {
-      border-top-right-radius: $radius;
-      border-bottom-right-radius: $radius;
-    }
+  .dropdown:first-child .ember-power-select-trigger,
+  .dropdown:first-child .dropdown-trigger,
+  .button:first-child {
+    border-top-left-radius: $radius;
+    border-bottom-left-radius: $radius;
+  }
+
+  .dropdown:last-child .ember-power-select-trigger,
+  .dropdown:last-child .dropdown-trigger,
+  .button:last-child {
+    border-top-right-radius: $radius;
+    border-bottom-right-radius: $radius;
+  }
+
+  &.is-shadowless {
+    box-shadow: none;
+  }
+
+  // Used to minimize any extra height the buttons would add to an otherwise
+  // text only container.
+  &.is-text {
+    margin-top: -0.5em;
+    margin-bottom: -0.5em;
+    vertical-align: middle;
   }
 }
 

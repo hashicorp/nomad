@@ -172,6 +172,10 @@ export default function() {
     return okEmpty();
   });
 
+  this.post('/job/:id/scale', function({ jobs }, { params }) {
+    return this.serialize(jobs.find(params.id));
+  });
+
   this.delete('/job/:id', function(schema, { params }) {
     const job = schema.jobs.find(params.id);
     job.update({ status: 'dead' });

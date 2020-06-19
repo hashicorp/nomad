@@ -58,6 +58,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
         job: this.watchJob.perform(job),
         summary: this.watchSummary.perform(job.get('summary')),
         allocations: this.watchAllocations.perform(job),
+        latestDeployment: job.get('supportsDeployments') && this.watchLatestDeployment.perform(job),
       });
     }
   }
@@ -65,6 +66,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
   @watchRecord('job') watchJob;
   @watchRecord('job-summary') watchSummary;
   @watchRelationship('allocations') watchAllocations;
+  @watchRelationship('latestDeployment') watchLatestDeployment;
 
-  @collect('watchJob', 'watchSummary', 'watchAllocations') watchers;
+  @collect('watchJob', 'watchSummary', 'watchAllocations', 'watchLatestDeployment') watchers;
 }
