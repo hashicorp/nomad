@@ -13,8 +13,6 @@ import {
 export default scope => ({
   scope,
 
-  isPresent: isPresent(),
-
   label: text('[data-test-stepper-label]'),
 
   input: {
