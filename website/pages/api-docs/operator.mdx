@@ -475,8 +475,8 @@ server state is authoritative.
 
 This endpoint gets information about the current license.
 
-| Method | Path                | Produces           |
-| ------ | ------------------- | ------------------ |
+| Method | Path                   | Produces           |
+| ------ | ---------------------- | ------------------ |
 | `GET`  | `/v1/operator/license` | `application/json` |
 
 
@@ -484,16 +484,16 @@ The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
 [required ACLs](/api-docs#acls).
 
-| Blocking Queries | ACL Required     |
-| ---------------- | ---------------- |
-| `NO`             | `operator:write` |
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
 
 
 ### Sample Request
 
 ```shell-session
 $ curl \
-    http://127.0.0.1:8500/v1/operator/license
+    https://localhost:4646/v1/operator/license
 ```
 
 ### Sample Response
@@ -540,8 +540,8 @@ $ curl \
 This endpoint updates the Nomad license.
 
 
-| Method | Path                | Produces           |
-| ------ | ------------------- | ------------------ |
+| Method | Path                   | Produces           |
+| ------ | ---------------------- | ------------------ |
 | `PUT`  | `/v1/operator/license` | `application/json` |
 
 
@@ -564,8 +564,8 @@ The payload is the raw license blob.
 ```shell-session
 $ curl \
     --request PUT \
-    --data @consul.license \
-    http://127.0.0.1:8500/v1/operator/license
+    --data @nomad.license \
+    https://localhost:4646/v1/operator/license
 ```
 
 ### Sample Response
