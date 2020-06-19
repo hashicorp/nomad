@@ -7,7 +7,7 @@ export default Factory.extend({
   provider: faker.helpers.randomize(STORAGE_PROVIDERS),
   providerVersion: '1.0.1',
 
-  healthy: faker.random.boolean,
+  healthy: i => [true, false][i % 2],
   healthDescription() {
     this.healthy ? 'healthy' : 'unhealthy';
   },
