@@ -850,6 +850,9 @@ func (j *Job) Canonicalize() {
 	if j.VaultToken == nil {
 		j.VaultToken = stringToPtr("")
 	}
+	if j.NomadTokenID == nil {
+		j.NomadTokenID = stringToPtr("")
+	}
 	if j.Status == nil {
 		j.Status = stringToPtr("")
 	}
