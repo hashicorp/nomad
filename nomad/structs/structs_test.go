@@ -5281,6 +5281,64 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 	require.False(old.Diff(nonEmptyOld))
 }
 
+func TestMultiregion_Starter(t *testing.T) {
+	require := require.New(t)
+
+	j := &Job{}
+	j.Type = "service"
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+
+	tc := &Multiregion{
+		Strategy: &MultiregionStrategy{},
+		Regions: []*MultiregionRegion{
+			{Name: "north"},
+			{Name: "south"},
+			{Name: "east"},
+			{Name: "west"},
+		},
+	}
+
+	b := &Job{}
+	b.Type = "batch"
+	b.Multiregion = tc
+	b.Region = "west"
+	require.True(j.IsMultiregionStarter())
+
+	j.Multiregion = tc
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "south"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "east"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "west"
+	require.True(j.IsMultiregionStarter())
+
+	tc.Strategy = &MultiregionStrategy{MaxParallel: 1}
+	j.Multiregion = tc
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "south"
+	require.False(j.IsMultiregionStarter())
+	j.Region = "east"
+	require.False(j.IsMultiregionStarter())
+	j.Region = "west"
+	require.False(j.IsMultiregionStarter())
+
+	tc.Strategy = &MultiregionStrategy{MaxParallel: 2}
+	j.Multiregion = tc
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "south"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "east"
+	require.False(j.IsMultiregionStarter())
+	j.Region = "west"
+	require.False(j.IsMultiregionStarter())
+
+}
+
 func TestNodeResources_Merge(t *testing.T) {
 	res := &NodeResources{
 		Cpu: NodeCpuResources{

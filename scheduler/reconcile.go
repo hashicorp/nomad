@@ -556,10 +556,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 			a.deployment = structs.NewDeployment(a.job)
 			// in a multiregion job, if max_parallel is set, only the first
 			// region starts in the running state
-			if a.job.IsMultiregion() &&
-				a.job.Multiregion.Strategy != nil &&
-				a.job.Multiregion.Strategy.MaxParallel != 0 &&
-				a.job.Region != a.job.Multiregion.Regions[0].Name {
+			if !a.job.IsMultiregionStarter() {
 				a.deployment.Status = structs.DeploymentStatusPending
 				a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
 			}
