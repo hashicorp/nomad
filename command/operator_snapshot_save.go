@@ -32,6 +32,13 @@ Usage: nomad operator snapshot save [options] <filename>
   To create a potentially stale snapshot from any available server (useful if no
   leader is available):
 
+    $ consul snapshot save -stale backup.snap
+
+  This is useful for situations where a cluster is in a degraded state and no
+  leader is available. To target a specific server for a snapshot, you can run
+  the 'nomad operator snapshot save' command on that specific server.
+
+
 General Options:
 
   ` + generalOptionsUsage() + `
