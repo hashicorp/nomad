@@ -5785,6 +5785,9 @@ func (tg *TaskGroup) validateNetworks() error {
 				if other, ok := staticPorts[port.Value]; ok {
 					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
 					mErr.Errors = append(mErr.Errors, err)
+				} else if port.Value > math.MaxUint16 {
+					err := fmt.Errorf("Port %s (%d) cannot be greater than %d", port.Label, port.Value, math.MaxUint16)
+					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					staticPorts[port.Value] = fmt.Sprintf("taskgroup network:%s", port.Label)
 				}
@@ -5792,6 +5795,9 @@ func (tg *TaskGroup) validateNetworks() error {
 
 			if port.To < -1 {
 				err := fmt.Errorf("Port %q cannot be mapped to negative value %d", port.Label, port.To)
+				mErr.Errors = append(mErr.Errors, err)
+			} else if port.To > math.MaxUint16 {
+				err := fmt.Errorf("Port %q cannot be mapped to a port (%d) greater than %d", port.Label, port.To, math.MaxUint16)
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
@@ -5811,6 +5817,9 @@ func (tg *TaskGroup) validateNetworks() error {
 				if port.Value != 0 {
 					if other, ok := staticPorts[port.Value]; ok {
 						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else if port.Value > math.MaxUint16 {
+						err := fmt.Errorf("Port %s (%d) cannot be greater than %d", port.Label, port.Value, math.MaxUint16)
 						mErr.Errors = append(mErr.Errors, err)
 					} else {
 						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
