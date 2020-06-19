@@ -1,5 +1,6 @@
-<label class="stepper-input-label">{{yield}}</label>
+<label data-test-stepper-label class="stepper-input-label">{{yield}}</label>
 <input
+  data-test-stepper-input
   type="number"
   min={{min}}
   max={{max}}
@@ -8,6 +9,7 @@
   onKeyDown={{action "resetTextInput"}}
   onChange={{action "setValue"}}>
 <button
+  data-test-stepper-decrement
   role="button"
   class="stepper-input-stepper button {{class}}"
   disabled={{lte internalValue min}}
@@ -15,6 +17,7 @@
   {{x-icon "minus-plain"}}
 </button>
 <button
+  data-test-stepper-increment
   role="button"
   class="stepper-input-stepper button {{class}}"
   disabled={{gte internalValue max}}
