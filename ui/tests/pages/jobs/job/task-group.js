@@ -12,6 +12,7 @@ import {
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import error from 'nomad-ui/tests/pages/components/error';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
+import stepperInput from 'nomad-ui/tests/pages/components/stepper-input';
 import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
 export default create({
@@ -20,6 +21,8 @@ export default create({
   visit: visitable('/jobs/:id/:name'),
 
   search: fillable('.search-box input'),
+
+  countStepper: stepperInput('[data-test-task-group-count-stepper]'),
 
   tasksCount: text('[data-test-task-group-tasks]'),
   cpu: text('[data-test-task-group-cpu]'),

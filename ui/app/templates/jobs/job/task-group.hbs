@@ -11,6 +11,7 @@
       <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
       {{#if model.scaling}}
       <StepperInput
+        data-test-task-group-count-stepper
         @min={{model.scaling.min}}
         @max={{model.scaling.max}}
         @value={{model.count}}

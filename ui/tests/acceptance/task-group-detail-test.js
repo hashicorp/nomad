@@ -1,4 +1,4 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -11,6 +11,7 @@ let job;
 let taskGroup;
 let tasks;
 let allocations;
+let managementToken;
 
 const sum = (total, n) => total + n;
 
@@ -60,6 +61,8 @@ module('Acceptance | task group detail', function(hooks) {
     allocations[1].update({
       previousAllocation: allocations[0].id,
     });
+
+    managementToken = server.create('token');
 
     window.localStorage.clear();
   });
@@ -295,6 +298,59 @@ module('Acceptance | task group detail', function(hooks) {
       assert.equal(volumeRow.source, volume.Source);
       assert.equal(volumeRow.permissions, volume.ReadOnly ? 'Read' : 'Read/Write');
     });
+  });
+
+  test('the count stepper sends the appropriate POST request', async function(assert) {
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+
+    job = server.create('job', {
+      groupCount: 0,
+      createAllocations: false,
+      shallow: true,
+      noActiveDeployment: true,
+    });
+    const scalingGroup = server.create('task-group', {
+      job,
+      name: 'scaling',
+      count: 1,
+      shallow: true,
+      withScaling: true,
+    });
+    job.update({ taskGroupIds: [scalingGroup.id] });
+
+    await TaskGroup.visit({ id: job.id, name: scalingGroup.name });
+    await TaskGroup.countStepper.increment.click();
+    await settled();
+
+    const scaleRequest = server.pretender.handledRequests.find(req => req.url.endsWith('/scale'));
+    const requestBody = JSON.parse(scaleRequest.requestBody);
+    assert.equal(requestBody.Target.Group, scalingGroup.name);
+    assert.equal(requestBody.Count, scalingGroup.count + 1);
+  });
+
+  test('the count stepper is disabled when a deployment is running', async function(assert) {
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+
+    job = server.create('job', {
+      groupCount: 0,
+      createAllocations: false,
+      shallow: true,
+      activeDeployment: true,
+    });
+    const scalingGroup = server.create('task-group', {
+      job,
+      name: 'scaling',
+      count: 1,
+      shallow: true,
+      withScaling: true,
+    });
+    job.update({ taskGroupIds: [scalingGroup.id] });
+
+    await TaskGroup.visit({ id: job.id, name: scalingGroup.name });
+
+    assert.ok(TaskGroup.countStepper.input.isDisabled);
+    assert.ok(TaskGroup.countStepper.increment.isDisabled);
+    assert.ok(TaskGroup.countStepper.decrement.isDisabled);
   });
 
   test('when the job for the task group is not found, an error message is shown, but the URL persists', async function(assert) {

@@ -24,6 +24,7 @@ export default scope => ({
     blur: blurrable(),
     value: value(),
     esc: triggerable('keydown', '', { eventProperties: { keyCode: 27 } }),
+    isDisabled: attribute('disabled'),
   },
 
   decrement: {
