@@ -410,31 +410,31 @@ func TestNetworkChecker(t *testing.T) {
 
 	checker := NewNetworkChecker(ctx)
 	cases := []struct {
-		mode    string
+		network *structs.NetworkResource
 		results []bool
 	}{
 		{
-			mode:    "host",
+			network: &structs.NetworkResource{Mode: "host"},
 			results: []bool{true, true, true},
 		},
 		{
-			mode:    "bridge",
+			network: &structs.NetworkResource{Mode: "bridge"},
 			results: []bool{true, true, false},
 		},
 		{
-			mode:    "cni/mynet",
+			network: &structs.NetworkResource{Mode: "cni/mynet"},
 			results: []bool{false, false, true},
 		},
 		{
-			mode:    "cni/nonexistent",
+			network: &structs.NetworkResource{Mode: "cni/nonexistent"},
 			results: []bool{false, false, false},
 		},
 	}
 
 	for _, c := range cases {
-		checker.SetNetworkMode(c.mode)
+		checker.SetNetwork(c.network)
 		for i, node := range nodes {
-			require.Equal(t, c.results[i], checker.Feasible(node), "mode=%q, idx=%d", c.mode, i)
+			require.Equal(t, c.results[i], checker.Feasible(node), "mode=%q, idx=%d", c.network.Mode, i)
 		}
 	}
 }

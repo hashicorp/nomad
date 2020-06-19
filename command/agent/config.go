@@ -286,6 +286,8 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
+	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -1529,6 +1531,12 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.BridgeNetworkSubnet != "" {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
+	}
+
+	if len(b.HostNetworks) != 0 {
+		result.HostNetworks = append(a.HostNetworks, b.HostNetworks...)
+	} else {
+		result.HostNetworks = a.HostNetworks
 	}
 
 	return &result

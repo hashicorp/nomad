@@ -1013,9 +1013,10 @@ func TestParse(t *testing.T) {
 								Mode: "bridge",
 								ReservedPorts: []api.Port{
 									{
-										Label: "http",
-										Value: 80,
-										To:    8080,
+										Label:       "http",
+										Value:       80,
+										To:          8080,
+										HostNetwork: "public",
 									},
 								},
 								DNS: &api.DNSConfig{

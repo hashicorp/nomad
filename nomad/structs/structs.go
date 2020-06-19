@@ -1811,6 +1811,30 @@ func (n *Node) Canonicalize() {
 			n.SchedulingEligibility = NodeSchedulingEligible
 		}
 	}
+
+	// COMPAT remove in 1.0
+	// In v0.12.0 we introduced a separate node specific network resource struct
+	// so we need to covert any pre 0.12 clients to the correct struct
+	if n.NodeResources != nil && n.NodeResources.NodeNetworks == nil {
+		if n.NodeResources.Networks != nil {
+			for _, nr := range n.NodeResources.Networks {
+				nnr := &NodeNetworkResource{
+					Mode:   nr.Mode,
+					Speed:  nr.MBits,
+					Device: nr.Device,
+				}
+				if nr.IP != "" {
+					nnr.Addresses = []NodeNetworkAddress{
+						{
+							Alias:   "default",
+							Address: nr.IP,
+						},
+					}
+				}
+				n.NodeResources.NodeNetworks = append(n.NodeResources.NodeNetworks, nnr)
+			}
+		}
+	}
 }
 
 func (n *Node) Copy() *Node {
@@ -2244,10 +2268,70 @@ func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
 
+// NodeNetworkResource is used to describe a fingerprinted network of a node
+type NodeNetworkResource struct {
+	Mode string // host for physical networks, cni/<name> for cni networks
+
+	// The following apply only to host networks
+	Device     string // interface name
+	MacAddress string
+	Speed      int
+
+	Addresses []NodeNetworkAddress // not valid for cni, for bridge there will only be 1 ip
+}
+
+func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
+	return reflect.DeepEqual(n, o)
+}
+
+func (n *NodeNetworkResource) HasAlias(alias string) bool {
+	for _, addr := range n.Addresses {
+		if addr.Alias == alias {
+			return true
+		}
+	}
+	return false
+}
+
+type NodeNetworkAF string
+
+const (
+	NodeNetworkAF_IPv4 NodeNetworkAF = "ipv4"
+	NodeNetworkAF_IPv6 NodeNetworkAF = "ipv6"
+)
+
+type NodeNetworkAddress struct {
+	Family        NodeNetworkAF
+	Alias         string
+	Address       string
+	ReservedPorts string
+	Gateway       string // default route for this address
+}
+
+type AllocatedPortMapping struct {
+	Label  string
+	Value  int
+	To     int
+	HostIP string
+}
+
+type AllocatedPorts []AllocatedPortMapping
+
+func (p AllocatedPorts) Get(label string) (AllocatedPortMapping, bool) {
+	for _, port := range p {
+		if port.Label == label {
+			return port, true
+		}
+	}
+
+	return AllocatedPortMapping{}, false
+}
+
 type Port struct {
-	Label string
-	Value int
-	To    int
+	Label       string
+	Value       int
+	To          int
+	HostNetwork string
 }
 
 type DNSConfig struct {
@@ -2296,6 +2380,17 @@ func (n *NetworkResource) Canonicalize() {
 	}
 	if len(n.DynamicPorts) == 0 {
 		n.DynamicPorts = nil
+	}
+
+	for i, p := range n.DynamicPorts {
+		if p.HostNetwork == "" {
+			n.DynamicPorts[i].HostNetwork = "default"
+		}
+	}
+	for i, p := range n.ReservedPorts {
+		if p.HostNetwork == "" {
+			n.ReservedPorts[i].HostNetwork = "default"
+		}
 	}
 }
 
@@ -2523,11 +2618,12 @@ func (r *RequestedDevice) Validate() error {
 
 // NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
-	Cpu      NodeCpuResources
-	Memory   NodeMemoryResources
-	Disk     NodeDiskResources
-	Networks Networks
-	Devices  []*NodeDeviceResource
+	Cpu          NodeCpuResources
+	Memory       NodeMemoryResources
+	Disk         NodeDiskResources
+	Networks     Networks
+	NodeNetworks []*NodeNetworkResource
+	Devices      []*NodeDeviceResource
 }
 
 func (n *NodeResources) Copy() *NodeResources {
@@ -2593,6 +2689,25 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	if len(o.Devices) != 0 {
 		n.Devices = o.Devices
 	}
+
+	if len(o.NodeNetworks) != 0 {
+		lookupNetwork := func(nets []*NodeNetworkResource, name string) (int, *NodeNetworkResource) {
+			for i, nw := range nets {
+				if nw.Device == name {
+					return i, nw
+				}
+			}
+			return 0, nil
+		}
+
+		for _, nw := range o.NodeNetworks {
+			if i, nnw := lookupNetwork(n.NodeNetworks, nw.Device); nnw != nil {
+				n.NodeNetworks[i] = nw
+			} else {
+				n.NodeNetworks = append(n.NodeNetworks, nw)
+			}
+		}
+	}
 }
 
 func (n *NodeResources) Equals(o *NodeResources) bool {
@@ -2619,6 +2734,10 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 
 	// Check the devices
 	if !DevicesEquals(n.Devices, o.Devices) {
+		return false
+	}
+
+	if !NodeNetworksEquals(n.NodeNetworks, o.NodeNetworks) {
 		return false
 	}
 
@@ -2664,6 +2783,25 @@ func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 	}
 
 	return true
+}
+
+func NodeNetworksEquals(n1, n2 []*NodeNetworkResource) bool {
+	if len(n1) != len(n2) {
+		return false
+	}
+
+	netMap := make(map[string]*NodeNetworkResource, len(n1))
+	for _, n := range n1 {
+		netMap[n.Device] = n
+	}
+	for _, otherN := range n2 {
+		if n, ok := netMap[otherN.Device]; !ok || !n.Equals(otherN) {
+			return false
+		}
+	}
+
+	return true
+
 }
 
 // NodeCpuResources captures the CPU resources of the node.
@@ -3275,6 +3413,7 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 type AllocatedSharedResources struct {
 	Networks Networks
 	DiskMB   int64
+	Ports    AllocatedPorts
 }
 
 func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
@@ -5656,7 +5795,6 @@ func (tg *TaskGroup) validateNetworks() error {
 	var mErr multierror.Error
 	portLabels := make(map[string]string)
 	staticPorts := make(map[int]string)
-	mappedPorts := make(map[int]string)
 
 	for _, net := range tg.Networks {
 		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
@@ -5676,20 +5814,13 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 			}
 
-			if port.To > 0 {
-				if other, ok := mappedPorts[port.To]; ok {
-					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
-					mErr.Errors = append(mErr.Errors, err)
-				} else {
-					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
-				}
-			} else if port.To < -1 {
+			if port.To < -1 {
 				err := fmt.Errorf("Port %q cannot be mapped to negative value %d", port.Label, port.To)
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
 	}
-	// Check for duplicate tasks or port labels, and no duplicated static or mapped ports
+	// Check for duplicate tasks or port labels, and no duplicated static ports
 	for _, task := range tg.Tasks {
 		if task.Resources == nil {
 			continue
@@ -5707,15 +5838,6 @@ func (tg *TaskGroup) validateNetworks() error {
 						mErr.Errors = append(mErr.Errors, err)
 					} else {
 						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
-					}
-				}
-
-				if port.To != 0 {
-					if other, ok := mappedPorts[port.To]; ok {
-						err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
-						mErr.Errors = append(mErr.Errors, err)
-					} else {
-						mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
 					}
 				}
 			}

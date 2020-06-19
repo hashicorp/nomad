@@ -242,8 +242,8 @@ OUTER:
 		// Check if we need task group network resource
 		if len(iter.taskGroup.Networks) > 0 {
 			ask := iter.taskGroup.Networks[0].Copy()
-			offer, err := netIdx.AssignNetwork(ask)
-			if offer == nil {
+			offer, err := netIdx.AssignPorts(ask)
+			if err != nil {
 				// If eviction is not enabled, mark this node as exhausted and continue
 				if !iter.evict {
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
@@ -272,8 +272,8 @@ OUTER:
 				netIdx.SetNode(option.Node)
 				netIdx.AddAllocs(proposed)
 
-				offer, err = netIdx.AssignNetwork(ask)
-				if offer == nil {
+				offer, err = netIdx.AssignPorts(ask)
+				if err != nil {
 					iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create network offer after considering preemption", "error", err)
 					netIdx.Release()
 					continue OUTER
@@ -281,13 +281,15 @@ OUTER:
 			}
 
 			// Reserve this to prevent another task from colliding
-			netIdx.AddReserved(offer)
+			netIdx.AddReservedPorts(offer)
 
 			// Update the network ask to the offer
-			total.Shared.Networks = []*structs.NetworkResource{offer}
+			nwRes := structs.AllocatedPortsToNetworkResouce(ask, offer)
+			total.Shared.Networks = []*structs.NetworkResource{nwRes}
 			option.AllocResources = &structs.AllocatedSharedResources{
-				Networks: []*structs.NetworkResource{offer},
+				Networks: []*structs.NetworkResource{nwRes},
 				DiskMB:   int64(iter.taskGroup.EphemeralDisk.SizeMB),
+				Ports:    offer,
 			}
 
 		}

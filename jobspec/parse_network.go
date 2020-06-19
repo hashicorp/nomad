@@ -79,6 +79,7 @@ func parsePorts(networkObj *ast.ObjectList, nw *api.NetworkResource) error {
 		valid := []string{
 			"static",
 			"to",
+			"host_network",
 		}
 		if err := helper.CheckHCLKeys(port.Val, valid); err != nil {
 			return err

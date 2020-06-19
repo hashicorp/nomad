@@ -1142,27 +1142,28 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
 			for j, dp := range nw.DynamicPorts {
-				out[i].DynamicPorts[j] = structs.Port{
-					Label: dp.Label,
-					Value: dp.Value,
-					To:    dp.To,
-				}
+				out[i].DynamicPorts[j] = ApiPortToStructs(dp)
 			}
 		}
 
 		if l := len(nw.ReservedPorts); l != 0 {
 			out[i].ReservedPorts = make([]structs.Port, l)
 			for j, rp := range nw.ReservedPorts {
-				out[i].ReservedPorts[j] = structs.Port{
-					Label: rp.Label,
-					Value: rp.Value,
-					To:    rp.To,
-				}
+				out[i].ReservedPorts[j] = ApiPortToStructs(rp)
 			}
 		}
 	}
 
 	return out
+}
+
+func ApiPortToStructs(in api.Port) structs.Port {
+	return structs.Port{
+		Label:       in.Label,
+		Value:       in.Value,
+		To:          in.To,
+		HostNetwork: in.HostNetwork,
+	}
 }
 
 //TODO(schmichael) refactor and reuse in service parsing above

@@ -2931,8 +2931,9 @@ func TestTaskGroupDiff(t *testing.T) {
 						MBits:  200,
 						DynamicPorts: []Port{
 							{
-								Label: "bar",
-								To:    8081,
+								Label:       "bar",
+								To:          8081,
+								HostNetwork: "public",
 							},
 						},
 						DNS: &DNSConfig{
@@ -2966,6 +2967,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeAdded,
 								Name: "Dynamic Port",
 								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "HostNetwork",
+										Old:  "",
+										New:  "public",
+									},
 									{
 										Type: DiffTypeAdded,
 										Name: "Label",
@@ -3016,6 +3023,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Static Port",
 								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeNone,
+										Name: "HostNetwork",
+										Old:  "",
+										New:  "",
+									},
 									{
 										Type: DiffTypeDeleted,
 										Name: "Label",
@@ -4560,6 +4573,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "baz[b]",
 								Old:  "2",
 								New:  "2",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "boom.HostNetwork",
+								Old:  "",
+								New:  "",
 							},
 							{
 								Type: DiffTypeNone,

@@ -23,6 +23,12 @@ func (f *BridgeFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 				Mode: "bridge",
 			},
 		},
+		NodeNetworks: []*structs.NodeNetworkResource{
+			{
+				Mode:   "bridge",
+				Device: req.Config.BridgeNetworkName,
+			},
+		},
 	}
 	resp.Detected = true
 	return nil

@@ -137,7 +137,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
 	if len(tg.Networks) > 0 {
-		s.taskGroupNetwork.SetNetworkMode(tg.Networks[0].Mode)
+		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
 	}
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
