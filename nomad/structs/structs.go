@@ -4008,6 +4008,30 @@ func (j *Job) IsMultiregion() bool {
 	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
 }
 
+// IsMultiregionStarter returns whether a regional job should begin
+// in the running state
+func (j *Job) IsMultiregionStarter() bool {
+	if !j.IsMultiregion() {
+		return true
+	}
+	if j.Type == "system" || j.Type == "batch" {
+		return true
+	}
+	if j.Multiregion.Strategy == nil || j.Multiregion.Strategy.MaxParallel == 0 {
+		return true
+	}
+	for i, region := range j.Multiregion.Regions {
+		if j.Region == region.Name {
+			if i < j.Multiregion.Strategy.MaxParallel {
+				return true
+			} else {
+				break
+			}
+		}
+	}
+	return false
+}
+
 // VaultPolicies returns the set of Vault policies per task group, per task
 func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	policies := make(map[string]map[string]*Vault, len(j.TaskGroups))

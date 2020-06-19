@@ -198,7 +198,6 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// Detect if the deployment is paused
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
-		//||			a.deployment.Status == structs.DeploymentStatusPending
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
 	if a.deployment == nil {
@@ -555,9 +554,9 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		// A previous group may have made the deployment already
 		if a.deployment == nil {
 			a.deployment = structs.NewDeployment(a.job)
-			// only the first region of a multiregion job starts in the
-			// running state
-			if a.job.IsMultiregion() && a.job.Region != a.job.Multiregion.Regions[0].Name {
+			// in a multiregion job, if max_parallel is set, only the first
+			// region starts in the running state
+			if !a.job.IsMultiregionStarter() {
 				a.deployment.Status = structs.DeploymentStatusPending
 				a.deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
 			}
