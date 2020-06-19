@@ -71,6 +71,13 @@ func Node() *structs.Node {
 					MBits:  1000,
 				},
 			},
+			NodeNetworks: []*structs.NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Speed:  1000,
+				},
+			},
 		},
 		ReservedResources: &structs.NodeReservedResources{
 			Cpu: structs.NodeReservedCpuResources{
