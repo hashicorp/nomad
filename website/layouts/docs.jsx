@@ -8,7 +8,7 @@ import Placement from '../components/placement-table'
 
 const MDXProvider = createMdxProvider({
   product: 'nomad',
-  additionalComponents: [Placement],
+  additionalComponents: { Placement },
 })
 
 function DocsLayoutWrapper(pageMeta) {
