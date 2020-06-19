@@ -196,7 +196,8 @@ func (f *AllocFSCommand) Run(args []string) int {
 		return 1
 	}
 	// Prefix lookup matched a single allocation
-	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: allocs[0].Namespace}
+	alloc, _, err := client.Allocations().Info(allocs[0].ID, q)
 	if err != nil {
 		f.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1

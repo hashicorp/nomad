@@ -152,7 +152,7 @@ func TestJobEndpoint_Register_PreserveCounts(t *testing.T) {
 
 	// Perform the update
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
-		Job: job,
+		Job:            job,
 		PreserveCounts: true,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -165,9 +165,8 @@ func TestJobEndpoint_Register_PreserveCounts(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(out)
 	require.Equal(10, out.TaskGroups[0].Count) // should not change
-	require.Equal(2, out.TaskGroups[1].Count) // should be as in job spec
+	require.Equal(2, out.TaskGroups[1].Count)  // should be as in job spec
 }
-
 
 func TestJobEndpoint_Register_Connect(t *testing.T) {
 	t.Parallel()
@@ -3864,10 +3863,9 @@ func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
 
 	// Lookup the jobs
 	get := &structs.JobListRequest{
-		AllNamespaces: true,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
-			Namespace: job.Namespace,
+			Namespace: "*",
 		},
 	}
 	var resp2 structs.JobListResponse
@@ -3880,10 +3878,9 @@ func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
 
 	// Lookup the jobs by prefix
 	get = &structs.JobListRequest{
-		AllNamespaces: true,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
-			Namespace: job.Namespace,
+			Namespace: "*",
 			Prefix:    resp2.Jobs[0].ID[:4],
 		},
 	}
@@ -3897,10 +3894,9 @@ func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
 
 	// Lookup the jobs by prefix
 	get = &structs.JobListRequest{
-		AllNamespaces: true,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
-			Namespace: job.Namespace,
+			Namespace: "*",
 			Prefix:    "z" + resp2.Jobs[0].ID[:4],
 		},
 	}

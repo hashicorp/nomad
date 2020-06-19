@@ -113,7 +113,7 @@ type ApiClientFactory func() (*api.Client, error)
 
 // Client is used to initialize and return a new API client using
 // the default command line arguments and env vars.
-func (m *Meta) Client() (*api.Client, error) {
+func (m *Meta) clientConfig() *api.Config {
 	config := api.DefaultConfig()
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
@@ -142,7 +142,15 @@ func (m *Meta) Client() (*api.Client, error) {
 		config.SecretID = m.token
 	}
 
-	return api.NewClient(config)
+	return config
+}
+
+func (m *Meta) Client() (*api.Client, error) {
+	return api.NewClient(m.clientConfig())
+}
+
+func (m *Meta) allNamespaces() bool {
+	return m.clientConfig().Namespace == api.AllNamespacesNamespace
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {

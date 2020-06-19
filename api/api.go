@@ -28,6 +28,12 @@ var (
 	ClientConnTimeout = 1 * time.Second
 )
 
+const (
+	// AllNamespacesNamespace is a sentinel Namespace value to indicate that api should search for
+	// jobs and allocations in all the namespaces the requester can access.
+	AllNamespacesNamespace = "*"
+)
+
 // QueryOptions are used to parametrize a query
 type QueryOptions struct {
 	// Providing a datacenter overwrites the region provided
