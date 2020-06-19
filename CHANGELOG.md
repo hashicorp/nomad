@@ -5,6 +5,9 @@ FEATURES:
  * **Licensing (Enterprise)**: Nomad Enterprise now requires a license [[GH-8076](https://github.com/hashicorp/nomad/issues/8076)]
  * **Multiregion Deployments (Enterprise)**: Nomad Enterprise now allows running deployments to multiple regions. [[GH-8184](https://github.com/hashicorp/nomad/issues/8184)]
  * **Snapshot Backup and Restore **: Nomad eases disaster recovery with new endpoints and commands for point-in-time snapshots.
+ * **Global Search**: Access jobs and clients from anywhere in the UI using the always available global search bar. [[GH-8175](https://github.com/hashicorp/nomad/issues/8175)]
+ * **Monitor UI**: Stream client and agent logs from the UI just like you would with the nomad monitor CLI command. [[GH-8177](https://github.com/hashicorp/nomad/issues/8177)]
+ * **Scaling UI**: Quickly adjust the count of a task group from the UI for task groups with a scaling declaration. [[GH-8207](https://github.com/hashicorp/nomad/issues/8207)]
 
 IMPROVEMENTS:
 
@@ -20,6 +23,9 @@ BUG FIXES:
  * cli: Fixed malformed alloc status address list when listing more than 1 address [[GH-8161](https://github.com/hashicorp/nomad/issues/8161)]
  * client: Fixed a bug where stdout/stderr were not properly reopened for community task drivers. [[GH-8155](https://github.com/hashicorp/nomad/issues/8155)]
  * driver/docker: Fixed a bug to set correct value for `memory-swap` when using `memory_hard_limit` [[GH-8153](https://github.com/hashicorp/nomad/issues/8153)]
+ * ui: The log streamer will now always follow logs when the current scroll position is the end of the buffer. [[GH-8177](https://github.com/hashicorp/nomad/issues/8177)]
+ * ui: The task group detail page no longer makes excessive requests to the allocation and stats endpoints. [[GH-8216](https://github.com/hashicorp/nomad/issues/8216)]
+ * ui: Polling endpoints that have yet to be fetched normally works as expected (regression from 0.11.3). [[GH-8207](https://github.com/hashicorp/nomad/issues/8207)]
 
 ## 0.11.3 (June 5, 2020)
 
