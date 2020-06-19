@@ -364,7 +364,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 			// Try to stochastically pick the dynamic ports as it is faster and
 			// lower memory usage.
 			var dynPorts []int
-			// TODO: its more efficient to find muliple dynamic ports at once
+			// TODO: its more efficient to find multiple dynamic ports at once
 			dynPorts, addrErr = getDynamicPortsStochastic(used, reservedIdx[port.HostNetwork], 1)
 			if addrErr != nil {
 				// Fall back to the precise method if the random sampling failed.
@@ -531,83 +531,6 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, reservedPorts []Port, count int)
 	}
 
 	for i := 0; i < count; i++ {
-		attempts := 0
-	PICK:
-		attempts++
-		if attempts > maxRandPortAttempts {
-			return nil, fmt.Errorf("stochastic dynamic port selection failed")
-		}
-
-		randPort := MinDynamicPort + rand.Intn(MaxDynamicPort-MinDynamicPort)
-		if nodeUsed != nil && nodeUsed.Check(uint(randPort)) {
-			goto PICK
-		}
-
-		for _, ports := range [][]int{reserved, dynamic} {
-			if isPortReserved(ports, randPort) {
-				goto PICK
-			}
-		}
-		dynamic = append(dynamic, randPort)
-	}
-
-	return dynamic, nil
-}
-
-// getDynamicPortsPrecise takes the nodes used port bitmap which may be nil if
-// no ports have been allocated yet, the network ask and returns a set of unused
-// ports to fulfil the ask's DynamicPorts or an error if it failed. An error
-// means the ask can not be satisfied as the method does a precise search.
-func getDynamicPortsPreciseV2(nodeUsed Bitmap, ask *NetworkResource) ([]int, error) {
-	// Create a copy of the used ports and apply the new reserves
-	var usedSet Bitmap
-	var err error
-	if nodeUsed != nil {
-		usedSet, err = nodeUsed.Copy()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		usedSet, err = NewBitmap(maxValidPort)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	for _, port := range ask.ReservedPorts {
-		usedSet.Set(uint(port.Value))
-	}
-
-	// Get the indexes of the unset
-	availablePorts := usedSet.IndexesInRange(false, MinDynamicPort, MaxDynamicPort)
-
-	// Randomize the amount we need
-	numDyn := len(ask.DynamicPorts)
-	if len(availablePorts) < numDyn {
-		return nil, fmt.Errorf("dynamic port selection failed")
-	}
-
-	numAvailable := len(availablePorts)
-	for i := 0; i < numDyn; i++ {
-		j := rand.Intn(numAvailable)
-		availablePorts[i], availablePorts[j] = availablePorts[j], availablePorts[i]
-	}
-
-	return availablePorts[:numDyn], nil
-}
-
-// getDynamicPortsStochastic takes the nodes used port bitmap which may be nil if
-// no ports have been allocated yet, the network ask and returns a set of unused
-// ports to fulfil the ask's DynamicPorts or an error if it failed. An error
-// does not mean the ask can not be satisfied as the method has a fixed amount
-// of random probes and if these fail, the search is aborted.
-func getDynamicPortsStochasticV2(nodeUsed Bitmap, ask *NetworkResource) ([]int, error) {
-	var reserved, dynamic []int
-	for _, port := range ask.ReservedPorts {
-		reserved = append(reserved, port.Value)
-	}
-
-	for i := 0; i < len(ask.DynamicPorts); i++ {
 		attempts := 0
 	PICK:
 		attempts++

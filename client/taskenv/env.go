@@ -626,7 +626,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 
-		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusivly
+		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusively
 		// Add ports from other tasks
 		for taskName, resources := range alloc.AllocatedResources.Tasks {
 			// Add ports from other tasks
@@ -644,7 +644,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 
-		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusivly
+		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusively
 		// Add ports from group networks
 		//TODO Expose IPs but possibly only via variable interpolation
 		for _, nw := range alloc.AllocatedResources.Shared.Networks {

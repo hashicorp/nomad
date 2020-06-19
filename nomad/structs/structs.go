@@ -1813,7 +1813,7 @@ func (n *Node) Canonicalize() {
 	}
 
 	// COMPAT remove in 1.0
-	// In v0.12.0 we introduced a seperate node specific network resource struct
+	// In v0.12.0 we introduced a separate node specific network resource struct
 	// so we need to covert any pre 0.12 clients to the correct struct
 	if n.NodeResources != nil && n.NodeResources.NodeNetworks == nil {
 		if n.NodeResources.Networks != nil {
