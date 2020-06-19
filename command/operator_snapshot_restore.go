@@ -15,7 +15,7 @@ type OperatorSnapshotRestoreCommand struct {
 
 func (c *OperatorSnapshotRestoreCommand) Help() string {
 	helpText := `
-Usage: nomad operator snapshot restore [options] FILE
+Usage: nomad operator snapshot restore [options] <file>
 
   Restores an atomic, point-in-time snapshot of the state of the Nomad servers
   which includes jobs, nodes, allocations, periodic jobs, and ACLs.
