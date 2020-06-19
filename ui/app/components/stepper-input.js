@@ -9,7 +9,7 @@ const ESC = 27;
 
 @classic
 @classNames('stepper-input')
-@classNameBindings('class')
+@classNameBindings('class', 'disabled:is-disabled')
 export default class StepperInput extends Component {
   min = 0;
   max = 10;

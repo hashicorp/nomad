@@ -10,7 +10,12 @@
     <div>
       <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
       {{#if model.scaling}}
-      <StepperInput @min={{model.scaling.min}} @max={{model.scaling.max}} @value={{model.count}}>
+      <StepperInput
+        @min={{model.scaling.min}}
+        @max={{model.scaling.max}}
+        @value={{model.count}}
+        @class="is-primary is-small"
+        @disabled={{or model.job.runningDeployment (cannot "scale job")}}>
         Count
       </StepperInput>
       {{/if}}

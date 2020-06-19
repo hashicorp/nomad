@@ -7,8 +7,10 @@
   line-height: 1;
   border-radius: $radius;
   padding-left: 0.75em;
-  whitespace: nowrap;
+  white-space: nowrap;
   height: 2.25em;
+  font-size: $body-size;
+  vertical-align: top;
 
   .stepper-input-label {
     display: flex;
@@ -73,6 +75,28 @@
           box-shadow: inset 0 0 0 1px rgba($white, 0.4);
         }
       }
+    }
+  }
+
+  &.is-small {
+    font-size: $size-small;
+  }
+
+  &.is-medium {
+    font-size: $size-medium;
+  }
+
+  &.is-large {
+    font-size: $size-large;
+  }
+
+  &.is-disabled {
+    opacity: 0.5;
+
+    .stepper-input-input {
+      opacity: 1;
+      color: $grey;
+      background-color: $white;
     }
   }
 }

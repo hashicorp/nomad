@@ -5,6 +5,7 @@
   min={{min}}
   max={{max}}
   value={{internalValue}}
+  disabled={{disabled}}
   class="stepper-input-input"
   onKeyDown={{action "resetTextInput"}}
   onChange={{action "setValue"}}>
@@ -12,7 +13,7 @@
   data-test-stepper-decrement
   role="button"
   class="stepper-input-stepper button {{class}}"
-  disabled={{lte internalValue min}}
+  disabled={{or disabled (lte internalValue min)}}
   onclick={{action "decrement"}}>
   {{x-icon "minus-plain"}}
 </button>
@@ -20,7 +21,7 @@
   data-test-stepper-increment
   role="button"
   class="stepper-input-stepper button {{class}}"
-  disabled={{gte internalValue max}}
+  disabled={{or disabled (gte internalValue max)}}
   onclick={{action "increment"}}>
   {{x-icon "plus-plain"}}
 </button>
