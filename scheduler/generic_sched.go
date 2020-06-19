@@ -500,6 +500,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				}
 				if option.AllocResources != nil {
 					resources.Shared.Networks = option.AllocResources.Networks
+					resources.Shared.Ports = option.AllocResources.Ports
 				}
 
 				// Create an allocation for this

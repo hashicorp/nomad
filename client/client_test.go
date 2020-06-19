@@ -1113,8 +1113,9 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 	// initial check
 	expectedResources := &structs.NodeResources{
 		// computed through test client initialization
-		Networks: client.configCopy.Node.NodeResources.Networks,
-		Disk:     client.configCopy.Node.NodeResources.Disk,
+		Networks:     client.configCopy.Node.NodeResources.Networks,
+		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
+		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
 		Cpu:    structs.NodeCpuResources{CpuShares: 123},
@@ -1150,8 +1151,9 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 
 	expectedResources2 := &structs.NodeResources{
 		// computed through test client initialization
-		Networks: client.configCopy.Node.NodeResources.Networks,
-		Disk:     client.configCopy.Node.NodeResources.Disk,
+		Networks:     client.configCopy.Node.NodeResources.Networks,
+		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
+		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
 		Cpu:    structs.NodeCpuResources{CpuShares: 123},

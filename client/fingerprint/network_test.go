@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -197,6 +198,8 @@ func TestNetworkFingerprint_basic(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	spew.Dump(response)
+	os.Exit(0)
 	if !response.Detected {
 		t.Fatalf("expected response to be applicable")
 	}

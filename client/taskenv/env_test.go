@@ -360,6 +360,15 @@ func TestEnvironment_AllValues(t *testing.T) {
 		},
 	}
 
+	a.AllocatedResources.Shared.Ports = structs.AllocatedPorts{
+		{
+			Label:  "admin",
+			Value:  32000,
+			To:     9000,
+			HostIP: "127.0.0.1",
+		},
+	}
+
 	sharedNet := a.AllocatedResources.Shared.Networks[0]
 
 	// Add group network port with only a host port.
@@ -463,6 +472,13 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_HOST_PORT_hostonly":                  "9998",
 		"NOMAD_PORT_static":                         "97",
 		"NOMAD_HOST_PORT_static":                    "9997",
+		"NOMAD_ADDR_admin":                          "127.0.0.1:32000",
+		"NOMAD_HOST_ADDR_admin":                     "127.0.0.1:32000",
+		"NOMAD_IP_admin":                            "127.0.0.1",
+		"NOMAD_HOST_IP_admin":                       "127.0.0.1",
+		"NOMAD_PORT_admin":                          "9000",
+		"NOMAD_ALLOC_PORT_admin":                    "9000",
+		"NOMAD_HOST_PORT_admin":                     "32000",
 
 		// 0.9 style env map
 		`env["taskEnvKey"]`:        "taskEnvVal",

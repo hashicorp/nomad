@@ -164,16 +164,33 @@ func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
 // portmapping capability arguments for the portmap CNI plugin
 func getPortMapping(alloc *structs.Allocation) []cni.PortMapping {
 	ports := []cni.PortMapping{}
-	for _, network := range alloc.AllocatedResources.Shared.Networks {
-		for _, port := range append(network.DynamicPorts, network.ReservedPorts...) {
+
+	if len(alloc.AllocatedResources.Shared.Ports) == 0 && len(alloc.AllocatedResources.Shared.Networks) > 0 {
+		for _, network := range alloc.AllocatedResources.Shared.Networks {
+			for _, port := range append(network.DynamicPorts, network.ReservedPorts...) {
+				if port.To < 1 {
+					port.To = port.Value
+				}
+				for _, proto := range []string{"tcp", "udp"} {
+					ports = append(ports, cni.PortMapping{
+						HostPort:      int32(port.Value),
+						ContainerPort: int32(port.To),
+						Protocol:      proto,
+					})
+				}
+			}
+		}
+	} else {
+		for _, port := range alloc.AllocatedResources.Shared.Ports {
 			if port.To < 1 {
-				continue
+				port.To = port.Value
 			}
 			for _, proto := range []string{"tcp", "udp"} {
 				ports = append(ports, cni.PortMapping{
 					HostPort:      int32(port.Value),
 					ContainerPort: int32(port.To),
 					Protocol:      proto,
+					HostIP:        port.HostIP,
 				})
 			}
 		}

@@ -319,23 +319,60 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 type NetworkChecker struct {
 	ctx         Context
 	networkMode string
+	ports       []structs.Port
 }
 
 func NewNetworkChecker(ctx Context) *NetworkChecker {
 	return &NetworkChecker{ctx: ctx, networkMode: "host"}
 }
 
-func (c *NetworkChecker) SetNetworkMode(netMode string) {
-	c.networkMode = netMode
+func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
+	c.networkMode = network.Mode
+	if c.networkMode == "" {
+		c.networkMode = "host"
+	}
+
+	c.ports = make([]structs.Port, len(network.DynamicPorts)+len(network.ReservedPorts))
+	for _, port := range network.DynamicPorts {
+		c.ports = append(c.ports, port)
+	}
+	for _, port := range network.ReservedPorts {
+		c.ports = append(c.ports, port)
+	}
 }
 
 func (c *NetworkChecker) Feasible(option *structs.Node) bool {
-	if c.hasNetwork(option) {
-		return true
+	if !c.hasNetwork(option) {
+		c.ctx.Metrics().FilterNode(option, "missing network")
+		return false
 	}
 
-	c.ctx.Metrics().FilterNode(option, "missing network")
-	return false
+	if c.ports != nil {
+		if !c.hasHostNetworks(option) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *NetworkChecker) hasHostNetworks(option *structs.Node) bool {
+	for _, port := range c.ports {
+		if port.HostNetwork != "" {
+			found := false
+			for _, net := range option.NodeResources.NodeNetworks {
+				if net.HasAlias(port.HostNetwork) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", port.HostNetwork, port.Label))
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (c *NetworkChecker) hasNetwork(option *structs.Node) bool {

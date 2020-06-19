@@ -58,16 +58,22 @@ func (f *CNIFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 	}
 
 	var nodeNetworks structs.Networks
+	var newNodeNetworks []*structs.NodeNetworkResource
 
 	for name := range networks {
+		mode := fmt.Sprintf("cni/%s", name)
 		nodeNetworks = append(nodeNetworks, &structs.NetworkResource{
-			Mode: fmt.Sprintf("cni/%s", name),
+			Mode: mode,
+		})
+		newNodeNetworks = append(newNodeNetworks, &structs.NodeNetworkResource{
+			Mode: mode,
 		})
 		f.logger.Debug("detected CNI network", "name", name)
 	}
 
 	resp.NodeResources = &structs.NodeResources{
-		Networks: nodeNetworks,
+		Networks:     nodeNetworks,
+		NodeNetworks: newNodeNetworks,
 	}
 
 	resp.Detected = true
