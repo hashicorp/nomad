@@ -15,7 +15,7 @@ type OperatorSnapshotInspectCommand struct {
 
 func (c *OperatorSnapshotInspectCommand) Help() string {
 	helpText := `
-Usage: nomad operator snapshot inspect [options] FILE
+Usage: nomad operator snapshot inspect [options] <file>
 
   Displays information about a snapshot file on disk.
 

@@ -12,28 +12,29 @@
 }
 
 /* Global Transpiled Components */
-@import '~@hashicorp/react-mega-nav/style.css';
-@import '~@hashicorp/react-text-input/dist/style.css';
+@import '~@hashicorp/react-alert/dist/style.css';
 @import '~@hashicorp/react-button/dist/style.css';
-@import '~@hashicorp/react-use-cases/dist/style.css';
-@import '~@hashicorp/react-consent-manager/dist/style.css';
-@import '~@hashicorp/react-hero/dist/style.css';
-@import '~@hashicorp/react-section-header/dist/style.css';
-@import '~@hashicorp/react-logo-grid/dist/style.css';
-@import '~@hashicorp/react-product-downloader/dist/style.css';
-@import '~@hashicorp/react-vertical-text-block-list/dist/style.css';
-@import '~@hashicorp/react-docs-sidenav/dist/style.css';
-@import '~@hashicorp/react-content/dist/style.css';
-@import '~@hashicorp/react-subnav/dist/style.css';
-@import '~@hashicorp/react-text-and-content/dist/style.css';
+@import '~@hashicorp/react-call-to-action/dist/style.css';
 @import '~@hashicorp/react-code-block/dist/style.css';
 @import '~@hashicorp/react-consent-manager/dist/style.css';
-@import '~@hashicorp/react-toggle/dist/style.css';
-@import '~@hashicorp/react-alert/dist/style.css';
-@import '~@hashicorp/react-call-to-action/dist/style.css';
-@import '~@hashicorp/react-text-split/dist/style.css';
-@import '~@hashicorp/react-text-split-with-code/dist/style.css';
+@import '~@hashicorp/react-content/dist/style.css';
 @import '~@hashicorp/react-docs-page/dist/style.css';
+@import '~@hashicorp/react-docs-sidenav/dist/style.css';
+@import '~@hashicorp/react-enterprise-alert/dist/style.css';
+@import '~@hashicorp/react-hero/dist/style.css';
+@import '~@hashicorp/react-logo-grid/dist/style.css';
+@import '~@hashicorp/react-mega-nav/style.css';
+@import '~@hashicorp/react-product-downloader/dist/style.css';
+@import '~@hashicorp/react-section-header/dist/style.css';
+@import '~@hashicorp/react-subnav/dist/style.css';
+@import '~@hashicorp/react-tabs/dist/style.css';
+@import '~@hashicorp/react-text-and-content/dist/style.css';
+@import '~@hashicorp/react-text-input/dist/style.css';
+@import '~@hashicorp/react-text-split-with-code/dist/style.css';
+@import '~@hashicorp/react-text-split/dist/style.css';
+@import '~@hashicorp/react-toggle/dist/style.css';
+@import '~@hashicorp/react-use-cases/dist/style.css';
+@import '~@hashicorp/react-vertical-text-block-list/dist/style.css';
 
 /* Local Components */
 @import '../components/placement-table/style.css';
@@ -71,16 +72,16 @@
 .g-section-block section {
   padding-top: 96px;
   padding-bottom: 96px;
-}
 
-.g-section-block section > .g-section-header + *,
-.g-section-block section > .g-container > .g-section-header + * {
+& > .g-section-header + *,
+& > .g-container > .g-section-header + * {
   margin-top: 72px;
 }
 
-.g-section-block section > * + *,
-.g-section-block section > .g-container > * + * {
+& > * + *,
+& > .g-container > * + * {
   margin-top: 96px;
+}
 }
 
 .g-section-block .button-container {

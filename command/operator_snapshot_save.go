@@ -17,7 +17,7 @@ type OperatorSnapshotSaveCommand struct {
 
 func (c *OperatorSnapshotSaveCommand) Help() string {
 	helpText := `
-Usage: nomad operator snapshot save [options] <filename>
+Usage: nomad operator snapshot save [options] <file>
 
   Retrieves an atomic, point-in-time snapshot of the state of the Nomad servers
   which includes jobs, nodes, allocations, periodic jobs, and ACLs.
@@ -31,6 +31,13 @@ Usage: nomad operator snapshot save [options] <filename>
 
   To create a potentially stale snapshot from any available server (useful if no
   leader is available):
+
+    $ nomad snapshot save -stale backup.snap
+
+  This is useful for situations where a cluster is in a degraded state and no
+  leader is available. To target a specific server for a snapshot, you can run
+  the 'nomad operator snapshot save' command on that specific server.
+
 
 General Options:
 

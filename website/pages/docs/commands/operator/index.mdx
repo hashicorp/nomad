@@ -41,6 +41,14 @@ The following subcommands are available:
 - [`operator raft remove-peer`][remove] - Remove a Nomad server from the Raft
   configuration
 
+- [`operator snapshot agent`][snapshot-agent] <EnterpriseAlert inline /> - Inspects a snapshot of the Nomad server state
+
+- [`operator snapshot save`][snapshot-save] - Saves a snapshot of the Nomad server state
+
+- [`operator snapshot restore`][snapshot-restore] - Restores a snapshot of the Nomad server state
+
+- [`operator snapshot inspect`][snapshot-inspect] - Inspects a snapshot of the Nomad server state
+
 [get-config]: /docs/commands/operator/autopilot-get-config 'Autopilot Get Config command'
 [keygen]: /docs/commands/operator/keygen 'Generates a new encryption key'
 [keyring]: /docs/commands/operator/keyring 'Manages gossip layer encryption keys'
@@ -49,3 +57,7 @@ The following subcommands are available:
 [outage recovery guide]: https://learn.hashicorp.com/nomad/operating-nomad/outage
 [remove]: /docs/commands/operator/raft-remove-peer 'Raft Remove Peer command'
 [set-config]: /docs/commands/operator/autopilot-set-config 'Autopilot Set Config command'
+[snapshot-save]: /docs/commands/operator/snapshot-save 'Snapshot Save command'
+[snapshot-restore]: /docs/commands/operator/snapshot-restore 'Snapshot Restore command'
+[snapshot-inspect]: /docs/commands/operator/snapshot-inspect 'Snapshot Inspect command'
+[snapshot-agent]: /docs/commands/operator/snapshot-agent 'Snapshot Agent command'

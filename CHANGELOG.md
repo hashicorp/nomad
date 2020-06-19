@@ -4,13 +4,16 @@ FEATURES:
  * **Preemption**: Preemption is now an open source feature
  * **Licensing (Enterprise)**: Nomad Enterprise now requires a license [[GH-8076](https://github.com/hashicorp/nomad/issues/8076)]
  * **Multiregion Deployments (Enterprise)**: Nomad Enterprise now allows running deployments to multiple regions. [[GH-8184](https://github.com/hashicorp/nomad/issues/8184)]
+ * **Snapshot Backup and Restore **: Nomad eases disaster recovery with new endpoints and commands for point-in-time snapshots.
 
 IMPROVEMENTS:
 
-* core: support for persisting previous task group counts when updating a job [[GH-8168](https://github.com/hashicorp/nomad/issues/8168)]
-* core: block Job.Scale actions when the job is under active deployment [[GH-8187](https://github.com/hashicorp/nomad/issues/8187)]
+* core: Support for persisting previous task group counts when updating a job [[GH-8168](https://github.com/hashicorp/nomad/issues/8168)]
+* core: Block Job.Scale actions when the job is under active deployment [[GH-8187](https://github.com/hashicorp/nomad/issues/8187)]
 * api: Persist previous count with scaling events [[GH-8167](https://github.com/hashicorp/nomad/issues/8167)]
+* api: Support querying for jobs and allocations across all namespaces [[GH-8192](https://github.com/hashicorp/nomad/issues/8192)]
 * build: Updated to Go 1.14.4 [[GH-8172](https://github.com/hashicorp/nomad/issues/9172)]
+* server: Added `raft_multiplier` config to tweak Raft related timeouts [[GH-8082](https://github.com/hashicorp/nomad/issues/8082)]
 
 BUG FIXES:
 

@@ -129,7 +129,11 @@ export default [
           'keygen',
           'keyring',
           'raft-list-peers',
-          'raft-remove-peer'
+          'raft-remove-peer',
+          'snapshot-agent',
+          'snapshot-inspect',
+          'snapshot-restore',
+          'snapshot-save'
         ]
       },
       { category: 'plugin', content: ['status'] },
