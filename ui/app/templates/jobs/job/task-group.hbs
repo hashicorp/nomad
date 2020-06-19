@@ -15,7 +15,8 @@
         @max={{model.scaling.max}}
         @value={{model.count}}
         @class="is-primary is-small"
-        @disabled={{or model.job.runningDeployment (cannot "scale job")}}>
+        @disabled={{or model.job.runningDeployment (cannot "scale job")}}
+        @onChange={{action "scaleTaskGroup"}}>
         Count
       </StepperInput>
       {{/if}}

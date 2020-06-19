@@ -54,4 +54,9 @@ export default class TaskGroupController extends Controller.extend(
   gotoAllocation(allocation) {
     this.transitionToRoute('allocations.allocation', allocation);
   }
+
+  @action
+  scaleTaskGroup(count) {
+    return this.model.scale(count);
+  }
 }
