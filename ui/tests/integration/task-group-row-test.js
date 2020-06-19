@@ -8,6 +8,11 @@ import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initialize
 const jobName = 'test-job';
 const jobId = JSON.stringify([jobName, 'default']);
 
+const countChange = () => {
+  const initial = find('[data-test-task-group-count]').textContent;
+  return () => find('[data-test-task-group-count]').textContent !== initial;
+};
+
 let managementToken;
 let clientToken;
 
@@ -64,7 +69,7 @@ module('Integration | Component | task group row', function(hooks) {
   `;
 
   test('Task group row conditionally shows scaling buttons based on the presence of the scaling attr on the task group', async function(assert) {
-    makeJob(this.server);
+    makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
 
@@ -81,7 +86,7 @@ module('Integration | Component | task group row', function(hooks) {
   });
 
   test('Clicking scaling buttons immediately updates the rendered count but debounces the scaling API request', async function(assert) {
-    makeJob(this.server);
+    makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
 
@@ -92,11 +97,11 @@ module('Integration | Component | task group row', function(hooks) {
     assert.equal(find('[data-test-task-group-count]').textContent, 2);
 
     click('[data-test-scale="increment"]');
-    await waitUntil(() => !find('[data-test-task-group-count]').textContent.includes('1'));
+    await waitUntil(countChange());
     assert.equal(find('[data-test-task-group-count]').textContent, 3);
 
     click('[data-test-scale="increment"]');
-    await waitUntil(() => !find('[data-test-task-group-count]').textContent.includes('2'));
+    await waitUntil(countChange());
     assert.equal(find('[data-test-task-group-count]').textContent, 4);
 
     assert.notOk(
@@ -114,7 +119,7 @@ module('Integration | Component | task group row', function(hooks) {
   });
 
   test('When the current count is equal to the max count, the increment count button is disabled', async function(assert) {
-    makeJob(this.server);
+    makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
 
@@ -128,7 +133,7 @@ module('Integration | Component | task group row', function(hooks) {
   });
 
   test('When the current count is equal to the min count, the decrement count button is disabled', async function(assert) {
-    makeJob(this.server);
+    makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
 
@@ -155,7 +160,7 @@ module('Integration | Component | task group row', function(hooks) {
   });
 
   test('When the current ACL token does not have the namespace:scale-job or namespace:submit-job policy rule', async function(assert) {
-    makeJob(this.server);
+    makeJob(this.server, { noActiveDeployment: true });
     window.localStorage.nomadTokenSecret = clientToken.secretId;
     this.token.fetchSelfTokenAndPolicies.perform();
     await settled();
