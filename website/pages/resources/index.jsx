@@ -115,6 +115,11 @@ export default function ResourcesPage() {
                     </a>
                   </li>
                   <li>
+                    <a href="https://www.hashicorp.com/resources/ground-control-to-nomad-job-dispatch/">
+                      2/27 Ground Control to Nomad Job Dispatch (2020)
+                    </a>
+                  </li>
+                  <li>
                     <a href="https://www.hashicorp.com/resources/nomad-best-practices-for-reliable-deploys/">
                       2/27 Best Practices for Reliable Deploys on Nomad (2020)
                     </a>
