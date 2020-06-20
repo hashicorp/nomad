@@ -18,7 +18,7 @@ export default function ResourcesPage() {
               <h2>Resources</h2>
               <p>
                 Nomad is widely adopted and used in production by organizations
-                likeCloudflare, Roblox, Pandora, PagerDuty, and more.
+                like Cloudflare, Roblox, Pandora, PagerDuty, and more.
               </p>
               <p>
                 This is a collection of resources for joining our community and
