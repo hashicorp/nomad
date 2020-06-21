@@ -17,14 +17,12 @@ export default function ResourcesPage() {
             <>
               <h2>Resources</h2>
               <p>
-                Nomad is widely adopted and used in production by PagerDuty,
-                Target, Citadel, Trivago, SAP, Pandora, Roblox, eBay, Deluxe
-                Entertainment, and more.
+                Nomad is widely adopted and used in production by organizations
+                like Cloudflare, Roblox, Pandora, PagerDuty, and more.
               </p>
               <p>
-                This is a collection of resources for installing Nomad, joining
-                our community, learning Nomad&apos;s real world use-cases, or
-                integrating with third-party tools.
+                This is a collection of resources for joining our community and
+                learning Nomad&apos;s real world use-cases.
               </p>
               <h3>Community</h3>
               <p>
@@ -32,7 +30,7 @@ export default function ResourcesPage() {
                 <ul>
                   <li>
                     <a href="https://discuss.hashicorp.com/c/nomad">
-                      HashiCorp Discussion Forum (Nomad Category)
+                      HashiCorp Discuss
                     </a>
                   </li>
                 </ul>
@@ -58,16 +56,77 @@ export default function ResourcesPage() {
                 </ul>
               </p>
               <p>
-                <strong>Community Calls</strong>
+                <strong>Virtual Talks</strong>
                 <ul>
                   <li>
-                    <a href="https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s">
-                      04/03/2019 with Pandora &amp; Q2EBanking
+                    <a href="https://www.hashicorp.com/resources/nomad-scheduling-101-why-let-container-runtimes-have-all-the-fun/">
+                      6/9 Scheduling Containers, .NET, Java Applications with
+                      Nomad (2020)
                     </a>
                   </li>
                   <li>
-                    <a href="https://www.youtube.com/watch?v=eSwZwVVTDqw&t=2660s">
-                      05/24/2018 with SAP Ariba
+                    <a href="https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations/">
+                      5/29 Build a CI/CD Pipeline with Nomad & Gitlab (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/cloud-bursting-made-real-with-nomad-and-consul/">
+                      5/29 Cloud Bursting Demo with Nomad & Consul (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/nomad-expert-panel-live-q2-2020/">
+                      5/29 Nomad Expert Panel Live Q&A (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/governance-for-multiple-teams-sharing-a-nomad-cluster/">
+                      5/15 Governance for Multiple Teams Sharing a Nomad Cluster
+                      (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/modern-scheduling-for-modern-applications-with-nomad/">
+                      {' '}
+                      4/20 Modern Scheduling for Modern Applications with Nomad
+                      (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/solutions-engineering-hangout-integrating-nomad-with-vault/">
+                      {' '}
+                      4/17 Integrating Nomad with Vault Demo (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/nomad-tech-deep-dive-autoscaling-csi-plugins-and-more/">
+                      4/14 Nomad Deep Dive: Autoscaling, CSI Plugins, and More
+                      (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/nomad-virtual-day-2020-panel-discussion/">
+                      3/16 Nomad Panel Discussion with Roblox (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/hashicorp-nomad-vs-kubernetes-comparing-complexity/">
+                      3/3 Nomad vs. Kubernetes - Comparing Complexity (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/ground-control-to-nomad-job-dispatch/">
+                      2/27 Ground Control to Nomad Job Dispatch (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/nomad-best-practices-for-reliable-deploys/">
+                      2/27 Best Practices for Reliable Deploys on Nomad (2020)
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://www.hashicorp.com/resources/monitoring-nomad-with-prometheus-and-icinga/">
+                      2/27 Monitoring Nomad with Prometheus and Incinga (2020)
                     </a>
                   </li>
                 </ul>
@@ -85,344 +144,228 @@ export default function ResourcesPage() {
                 use our mailing list or Gitter.
               </p>
               <h3>Who Uses Nomad</h3>
-              <ul>
-                <li>CircleCI</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling">
-                      Security &amp; Scheduling are Not Your Core Competencies
-                    </a>
-                  </li>
-                </ul>
-                <li>Citadel</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel">
-                      End-to-End Production Nomad at Citadel
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul">
-                      Extreme Scaling with HashiCorp Nomad &amp; Consul
-                    </a>
-                  </li>
-                </ul>
-                <li>Deluxe Entertainment</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/deluxe-hashistack-video-production">
-                      How Deluxe Uses the Complete HashiStack for Video
-                      Production
-                    </a>
-                  </li>
-                </ul>
-                <li>Jet.com (Walmart)</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/jet-walmart-hashicorp-nomad-azure-run-apps">
-                      Driving down costs at Jet.com with HashiCorp Nomad
-                    </a>
-                  </li>
-                </ul>
-                <li>PagerDuty</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/pagerduty-nomad-journey">
-                      PagerDuty&apos;s Nomadic Journey
-                    </a>
-                  </li>
-                </ul>
-                <li>Pandora</li>
-                <ul>
-                  <li>
-                    <a href="https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s">
-                      How Pandora Uses Nomad
-                    </a>
-                  </li>
-                </ul>
-                <li>SAP Ariba</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/nomad-community-call-core-team-sap-ariba">
-                      HashiCorp Nomad @ SAP Ariba
-                    </a>
-                  </li>
-                </ul>
-                <li>SeatGeek</li>
-                <ul>
-                  <li>
-                    <a href="https://github.com/seatgeek/nomad-helper">
-                      Nomad Helper Tools
-                    </a>
-                  </li>
-                </ul>
-                <li>Spaceflight Industries</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/blog/spaceflight-uses-hashicorp-consul-for-service-discovery-and-real-time-updates-to-their-hub-and-spoke-network-architecture">
-                      Spaceflight&apos;s Hub-And-Spoke Infrastructure
-                    </a>
-                  </li>
-                </ul>
-                <li>SpotInst</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/blog/spotinst-and-hashicorp-nomad-to-reduce-ec2-costs-fo">
-                      SpotInst and HashiCorp Nomad to Reduce EC2 Costs for Users
-                    </a>
-                  </li>
-                </ul>
-                <li>Target</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud">
-                      Nomad at Target: Scaling Microservices Across Public and
-                      Private Cloud
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://danielparker.me/nomad/hashicorp/schedulers/nomad/">
-                      Playing with Nomad from HashiCorp
-                    </a>
-                  </li>
-                </ul>
-                <li>Trivago</li>
-                <ul>
-                  <li>
-                    <a href="https://matthias-endler.de/2019/maybe-you-dont-need-kubernetes/">
-                      Maybe You Don&apos;t Need Kubernetes
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/">
-                      Nomad - Our Experiences and Best Practices
-                    </a>
-                  </li>
-                </ul>
-                <li>Roblox</li>
-                <ul>
-                  <li>
-                    <a href="https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/">
-                      How Roblox runs a platform for 70 million gamers on
-                      HashiCorp Nomad
-                    </a>
-                  </li>
-                </ul>
-                <li>Oscar Health</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/scalable-ci-oscar-health-insurance-nomad-docker">
-                      Scalable CI at Oscar Health with Nomad and Docker
-                    </a>
-                  </li>
-                </ul>
-                <li>eBay</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/ebay-hashistack-fully-containerized-platform-iac">
-                      HashiStack at eBay: A Fully Containerized Platform Based
-                      on Infrastructure as Code
-                    </a>
-                  </li>
-                </ul>
-                <li>Joyent</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/autoscaling-hashicorp-nomad">
-                      Build Your Own Autoscaling Feature with HashiCorp Nomad
-                    </a>
-                  </li>
-                </ul>
-                <li>Dutch National Police</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/going-cloud-native-at-the-dutch-national-police">
-                      Going Cloud-Native at the Dutch National Police
-                    </a>
-                  </li>
-                </ul>
-                <li>N26</li>
-                <ul>
-                  <li>
-                    <a href="https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b">
-                      Tech at N26 - The Bank in the Cloud
-                    </a>
-                  </li>
-                </ul>
-                <li>Elsevier</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo">
-                      Eslevier&apos;s Container Framework with Nomad, Terraform,
-                      and Consul
-                    </a>
-                  </li>
-                </ul>
-                <li>Graymeta</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/backend-batch-processing-nomad">
-                      Backend Batch Processing At Scale with Nomad
-                    </a>
-                  </li>
-                </ul>
-                <li>NIH NCBI</li>
-                <ul>
-                  <li>
-                    <a href="https://www.hashicorp.com/resources/ncbi-legacy-migration-hybrid-cloud-consul-nomad">
-                      NCBI’s Legacy Migration to Hybrid Cloud with Consul &amp;
-                      Nomad
-                    </a>
-                  </li>
-                </ul>
-                <li>Q2EBanking</li>
-                <ul>
-                  <li>
-                    <a href="https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499">
-                      Q2&apos;s Nomad Use and Overview
-                    </a>
-                  </li>
-                </ul>
-                <li>imgix</li>
-                <ul>
-                  <li>
-                    <a href="https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896">
-                      Cluster Schedulers &amp; Why We Chose Nomad Over
-                      Kubernetes
-                    </a>
-                  </li>
-                </ul>
-                <li>Region Syddanmark</li>
-              </ul>
-              <br />
-              <p>...and more!</p>
-              <h3>Webinars</h3>
+              <h4>Roblox</h4>
               <ul>
                 <li>
-                  <a href="https://www.hashicorp.com/resources/solutions-engineering-hangout-microservices-with-nomad">
-                    Running Microservices with Nomad
+                  <a href="https://www.hashicorp.com/case-studies/roblox/">
+                    How Roblox built a platform for 100 million players on Nomad
+                    (2020)
                   </a>
                 </li>
                 <li>
-                  <a href="https://www.hashicorp.com/resources/se-hangout-running-heterogeneous-apps-nomad">
-                    Running Heterogeneous Apps on Nomad
-                  </a>
-                </li>
-                <li>
-                  <a href="https://www.hashicorp.com/resources/supporting-multiple-teams-single-nomad-cluster">
-                    Supporting Multiple Teams on a Single Nomad Cluster
-                  </a>
-                </li>
-                <li>
-                  <a href="https://www.hashicorp.com/resources/move-your-vmware-workloads-nomad">
-                    Moving Your Legacy VMWare Workloads to Nomad
-                  </a>
-                </li>
-                <li>
-                  <a href="https://www.hashicorp.com/resources/machine-learning-workflows-hashicorp-nomad-apache-spark">
-                    Machine Learning Workflows with HashiCorp Nomad & Apache
-                    Spark
+                  <a href="https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/">
+                    How Roblox built a platform for 70 million gamers on Nomad
+                    (2019)
                   </a>
                 </li>
               </ul>
-              <h3>Integrations</h3>
+              <h4>Cloudflare</h4>
               <ul>
                 <li>
-                  <a href="https://github.com/jet/damon">
-                    <strong>Jet.com</strong> Damon
-                  </a>{' '}
-                  - A Program to Constrain Windows Executables under Nomad
-                  raw_exec
-                </li>
-                <li>
-                  <a href="https://apache.github.io/incubator-heron/docs/operators/deployment/schedulers/nomad/">
-                    Apache Heron Nomad Integration
-                  </a>{' '}
-                  - Realtime, Distributed Stream Processing on Nomad
-                </li>
-                <li>
-                  <a href="https://github.com/jet/nomad-service-alerter">
-                    <strong>Jet.com</strong> Nomad Service Alerter
-                  </a>{' '}
-                  - Alerting for your Nomad services
-                </li>
-                <li>
-                  <a href="https://getnelson.github.io/nelson/">Nelson</a> -
-                  Automated, Multi-region Container Deployment with HashiCorp
-                  Nomad
-                </li>
-                <li>
-                  <a href="https://github.com/jrasell/chemtrail">Chemtrail</a> -
-                  Chemtrail is a client auto scaler allowing for dynamic and
-                  safe scaling of the client workerpool based on demand
-                </li>
-                <li>
-                  <a href="https://github.com/jrasell/sherpa">Sherpa</a> - A job
-                  scaler for HashiCorp Nomad that aims to be highly flexible so
-                  it can support a wide range of architectures and budgets
-                </li>
-                <li>
-                  <a href="https://github.com/jrasell/levant">Levant</a> - An
-                  open source templating and deployment tool for HashiCorp Nomad
-                  jobs
-                </li>
-                <li>
-                  <a href="https://github.com/underarmour/libra">
-                    <strong>Under Armour</strong> Libra
-                  </a>{' '}
-                  - A Nomad Auto Scaler
-                </li>
-                <li>
-                  <a href="https://docs.datadoghq.com/integrations/nomad">
-                    Datadog Nomad Integration
-                  </a>{' '}
-                  - Monitor Nomad Clusters with Datadog
-                </li>
-                <li>
-                  <a href="https://help.spotinst.com/hc/en-us/articles/115005038289-Nomad-Container-Management">
-                    Nomad Container Management with SpotInst
-                  </a>{' '}
-                  - Nomad Integration for SpotInst Elastigroup
-                </li>
-                <li>
-                  <a href="https://github.com/jenkinsci/nomad-plugin">
-                    Jenkins Nomad Plugin
-                  </a>{' '}
-                  - Nomad Cloud Plugin for Jenkins
-                </li>
-                <li>
-                  OpenFaaS (
-                  <a href="https://registry.terraform.io/modules/nicholasjackson/open-faas-nomad/aws/0.4.0">
-                    Terraform
-                  </a>{' '}
-                  | <a href="https://github.com/openfaas/faas">GitHub</a>) -
-                  Nomad Integration for OpenFaas (Functions as a Service)
-                </li>
-                <li>
-                  <a href="https://github.com/ValFadeev/rundeck-nomad-plugin">
-                    Rundeck Plugin for Nomad
-                  </a>{' '}
-                  - A Rundeck Plugin for Running Jobs on a Nomad Cluster
+                  <a href="https://blog.cloudflare.com/how-we-use-hashicorp-nomad/">
+                    How Cloudflare Uses HashiCorp Nomad (2020)
+                  </a>
                 </li>
               </ul>
-              <h3>Other</h3>
+              <h4>BetterHelp</h4>
               <ul>
                 <li>
-                  <a href="https://github.com/jippi/hashi-ui">hashi-ui</a> -
-                  Hashi-UI is a simple to deploy, web based UI for interacting
-                  with Nomad and Consul
+                  <a href="https://www.youtube.com/watch?v=eN2ghrGpiUo">
+                    How the world's largest online therapy provider runs on
+                    Nomad (2020)
+                  </a>
+                </li>
+              </ul>
+              <h4>Navi Capital</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/blog/nomad-community-story-navi-capital/">
+                    How Nomad powers a $1B hedge fund in Brazil (2020)
+                  </a>
+                </li>
+              </ul>
+              <h4>Trivago</h4>
+              <ul>
+                <li>
+                  <a href="https://endler.dev/2019/maybe-you-dont-need-kubernetes/">
+                    Maybe You Don't Need Kubernetes (2019)
+                  </a>
                 </li>
                 <li>
-                  <a href="https://github.com/jippi/awesome-nomad">
-                    jippi/awesome-nomad
-                  </a>{' '}
-                  - A Curated List of Nomad Tools
+                  <a href="https://tech.trivago.com/2019/01/25/nomad-our-experiences-and-best-practices/">
+                    Nomad - Our Experiences and Best Practices (2019)
+                  </a>
+                </li>
+              </ul>
+              <h4>Reaktor</h4>
+              <ul>
+                <li>
+                  <a href="https://youtu.be/GkmyNBUugg8">
+                    Nomad: Kubernetes, but without the complexity (2019)
+                  </a>
+                </li>
+              </ul>
+              <h4>Pandora</h4>
+              <ul>
+                <li>
+                  <a href="https://www.youtube.com/watch?v=OsZeKTP2u98&t=2s">
+                    How Pandora Uses Nomad (2019)
+                  </a>
+                </li>
+              </ul>
+              <h4>CircleCI</h4>
+              <ul>
+                <li>
+                  <a href="https://stackshare.io/circleci/how-circleci-processes-4-5-million-builds-per-month">
+                    {' '}
+                    How CircleCI Processes 4.5 Million Builds Per Month with
+                    Nomad (2019)
+                  </a>
                 </li>
                 <li>
-                  <a href="https://github.com/jrasell/nomadfiles">
-                    jrasell/nomadfiles
-                  </a>{' '}
-                  - A Collection of Nomad Job Files for Deploying Applications
+                  <a href="https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling">
+                    {' '}
+                    Security & Scheduling Are Not Your Core Competencies (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>Q2</h4>
+              <ul>
+                <li>
+                  <a href="https://www.youtube.com/watch?v=OsZeKTP2u98&feature=youtu.be&t=1499">
+                    {' '}
+                    Q2's Nomad Use and Overview (2019)
+                  </a>
+                </li>
+              </ul>
+              <h4>Deluxe Entertainment</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/deluxe-hashistack-video-production">
+                    {' '}
+                    How We Use the HashiStack for Video Production (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>SAP</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/nomad-community-call-core-team-sap-ariba">
+                    How We Use Nomad @ SAP Ariba (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>PagerDuty</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/pagerduty-nomad-journey">
+                    PagerDuty's Nomadic Journey (2017)
+                  </a>
+                </li>
+              </ul>
+              <h4>Target</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/nomad-scaling-target-microservices-across-cloud">
+                    {' '}
+                    Nomad at Target: Scaling Microservices Across Public and
+                    Private Clouds (2018)
+                  </a>
+                </li>
+                <li>
+                  <a href="https://danielparker.me/nomad/hashicorp/schedulers/nomad/">
+                    {' '}
+                    Playing with Nomad from HashiCorp (2017)
+                  </a>
+                </li>
+              </ul>
+              <h4>Oscar Health</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/scalable-ci-oscar-health-insurance-nomad-docker">
+                    Scalable CI at Oscar Health with Nomad and Docker (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>eBay</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/ebay-hashistack-fully-containerized-platform-iac">
+                    HashiStack at eBay: A Fully Containerized Platform Based on
+                    Infrastructure as Code (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>Dutch National Police</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/going-cloud-native-at-the-dutch-national-police">
+                    Going Cloud-Native at the Dutch National Police (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>N26</h4>
+              <ul>
+                <li>
+                  <a href="https://medium.com/insiden26/tech-at-n26-the-bank-in-the-cloud-e5ff818b528b">
+                    Tech at N26 - The Bank in the Cloud (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>NIH NCBI</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/ncbi-legacy-migration-hybrid-cloud-consul-nomad">
+                    NCBI's Legacy Migration to Hybrid Cloud with Nomad & Consul
+                    (2018)
+                  </a>
+                </li>
+              </ul>
+              <h4>Citadel</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel">
+                    End-to-End Production Nomad at Citadel (2017)
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/citadel-scaling-hashicorp-nomad-consul">
+                    Extreme Scaling with HashiCorp Nomoad & Consul (2016)
+                  </a>
+                </li>
+              </ul>
+              <h4>Jet.com</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/jet-walmart-hashicorp-nomad-azure-run-apps">
+                    Driving down costs at Jet.com with HashiCorp Nomad (2017)
+                  </a>
+                </li>
+              </ul>
+              <h4>Elsevier</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/elsevier-nomad-container-framework-demo">
+                    Elsevier's Container Framework with Nomad, Terraform, and
+                    Consul (2017)
+                  </a>
+                </li>
+              </ul>
+              <h4>Graymeta</h4>
+              <ul>
+                <li>
+                  <a href="https://www.hashicorp.com/resources/backend-batch-processing-nomad">
+                    Backend Batch Process at Scale with Nomad (2017)
+                  </a>
+                </li>
+              </ul>
+              <h4>imigx</h4>
+              <ul>
+                <li>
+                  <a href="https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896">
+                    Cluster Schedulers & Why We Chose Nomad over Kubernetes
+                    (2017)
+                  </a>
                 </li>
               </ul>
             </>
