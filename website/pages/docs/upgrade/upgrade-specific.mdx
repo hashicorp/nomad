@@ -15,6 +15,13 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.11.3
+
+Nomad 0.11.3 fixes a critical bug causing the nomad agent to become
+unresponsive. The issue is due to a [Go 1.14.1 runtime
+bug](https://github.com/golang/go/issues/38023) and affects Nomad 0.11.1 and
+0.11.2.
+
 ## Nomad 0.11.2
 
 ### Scheduler Scoring Changes
