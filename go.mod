@@ -124,7 +124,7 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.5.1
-	github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8
+	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	github.com/vishvananda/netlink v1.1.0 // indirect
 	github.com/zclconf/go-cty v1.4.1
 	go.opencensus.io v0.22.1-0.20190713072201-b4a14686f0a9 // indirect

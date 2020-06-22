@@ -748,7 +748,7 @@ github.com/stretchr/objx
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
-# github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8
+# github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 ## explicit
 github.com/syndtr/gocapability/capability
 # github.com/tencentcloud/tencentcloud-sdk-go v3.0.83+incompatible
