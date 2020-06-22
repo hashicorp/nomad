@@ -2558,6 +2558,7 @@ func TestTaskGroupDiff(t *testing.T) {
 				Services: []*Service{
 					{
 						Name:              "foo",
+						TaskName:          "task1",
 						EnableTagOverride: false,
 						Checks: []*ServiceCheck{
 							{
@@ -2573,6 +2574,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 						},
 						Connect: &ConsulConnect{
+							Native: false,
 							SidecarTask: &SidecarTask{
 								Name:   "sidecar",
 								Driver: "docker",
@@ -2592,6 +2594,7 @@ func TestTaskGroupDiff(t *testing.T) {
 				Services: []*Service{
 					{
 						Name:              "foo",
+						TaskName:          "task2",
 						EnableTagOverride: true,
 						Checks: []*ServiceCheck{
 							{
@@ -2609,6 +2612,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 						},
 						Connect: &ConsulConnect{
+							Native: true,
 							SidecarService: &ConsulSidecarService{
 								Port: "http",
 								Proxy: &ConsulProxy{
@@ -2660,6 +2664,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "PortLabel",
 								Old:  "",
 								New:  "",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "TaskName",
+								Old:  "task1",
+								New:  "task2",
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -2786,10 +2796,10 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "ConsulConnect",
 								Fields: []*FieldDiff{
 									{
-										Type: DiffTypeNone,
+										Type: DiffTypeEdited,
 										Name: "Native",
-										Old:  "",
-										New:  "",
+										Old:  "false",
+										New:  "true",
 									},
 								},
 								Objects: []*ObjectDiff{
@@ -4726,6 +4736,7 @@ func TestTaskDiff(t *testing.T) {
 						Name:        "foo",
 						PortLabel:   "bar",
 						AddressMode: "driver",
+						TaskName:    "task1",
 					},
 				},
 			},
@@ -4759,6 +4770,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "PortLabel",
 								Old:  "foo",
 								New:  "bar",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "TaskName",
+								Old:  "",
+								New:  "task1",
 							},
 						},
 					},
@@ -4890,6 +4907,10 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeNone,
 								Name: "PortLabel",
 							},
+							{
+								Type: DiffTypeNone,
+								Name: "TaskName",
+							},
 						},
 					},
 				},
@@ -4925,6 +4946,14 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeAdded,
 								Name: "ConsulConnect",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Native",
+										Old:  "",
+										New:  "false",
+									},
+								},
 								Objects: []*ObjectDiff{
 									{
 										Type: DiffTypeAdded,
@@ -4950,9 +4979,10 @@ func TestTaskDiff(t *testing.T) {
 			New: &Task{
 				Services: []*Service{
 					{
-						Name: "foo",
+						Name:     "foo",
+						TaskName: "task1",
 						Connect: &ConsulConnect{
-							Native: "task1",
+							Native: true,
 						},
 					},
 				},
@@ -4963,6 +4993,14 @@ func TestTaskDiff(t *testing.T) {
 					{
 						Type: DiffTypeEdited,
 						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "TaskName",
+								Old:  "",
+								New:  "task1",
+							},
+						},
 						Objects: []*ObjectDiff{
 							{
 								Type: DiffTypeAdded,
@@ -4972,7 +5010,7 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeAdded,
 										Name: "Native",
 										Old:  "",
-										New:  "task1",
+										New:  "true",
 									},
 								},
 							},
@@ -5330,6 +5368,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "PortLabel",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "TaskName",
 								Old:  "",
 								New:  "",
 							},

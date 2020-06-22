@@ -351,6 +351,12 @@ type Service struct {
 	// as one of the seed values when generating a Consul ServiceID.
 	Name string
 
+	// Name of the Task associated with this service.
+	//
+	// Currently only used to identify the implementing task of a Consul
+	// Connect Native enabled service.
+	TaskName string
+
 	// PortLabel is either the numeric port number or the `host:port`.
 	// To specify the port number using the host's Consul Advertise
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
@@ -422,8 +428,7 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 		"TASKGROUP": taskGroup,
 		"TASK":      task,
 		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
-	},
-	)
+	})
 
 	for _, check := range s.Checks {
 		check.Canonicalize(s.Name)
@@ -450,6 +455,7 @@ func (s *Service) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
+	// check checks
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
@@ -469,9 +475,15 @@ func (s *Service) Validate() error {
 		}
 	}
 
+	// check connect
 	if s.Connect != nil {
 		if err := s.Connect.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		// if service is connect native, service task must be set
+		if s.Connect.IsNative() && len(s.TaskName) == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is connect native and requires setting the task", s.Name))
 		}
 	}
 
@@ -620,13 +632,8 @@ OUTER:
 
 // ConsulConnect represents a Consul Connect jobspec stanza.
 type ConsulConnect struct {
-	// Native is empty if the service represents a legacy application that
-	// requires an Envoy (or otherwise configured via SidecarTask) sidecar
-	// that is managed via xDS by Consul.
-	//
-	// If non-empty, Native indicates the Connect-Native Task associated with
-	// the service definition in which this Connect stanza resides.
-	Native string
+	// Native indicates whether the service is Consul Connect Native enabled.
+	Native bool
 
 	// SidecarService is non-nil if a service requires a sidecar.
 	SidecarService *ConsulSidecarService
@@ -667,7 +674,7 @@ func (c *ConsulConnect) HasSidecar() bool {
 }
 
 func (c *ConsulConnect) IsNative() bool {
-	return c != nil && c.Native != ""
+	return c != nil && c.Native
 }
 
 // Validate that the Connect stanza has exactly one of Native or sidecar.

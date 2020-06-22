@@ -842,7 +842,7 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 		try(t, &TaskGroup{
 			Services: []*Service{
 				{Connect: nil},
-				{Connect: &ConsulConnect{Native: "foo"}},
+				{Connect: &ConsulConnect{Native: true}},
 			},
 		}, true)
 	})
@@ -2714,10 +2714,14 @@ func TestService_Validate(t *testing.T) {
 	// Base service should be valid
 	require.NoError(t, s.Validate())
 
-	// Native Connect should be valid
+	// Native Connect requires task name on service
 	s.Connect = &ConsulConnect{
-		Native: "testtask",
+		Native: true,
 	}
+	require.Error(t, s.Validate())
+
+	// Native Connect should work with task name on service set
+	s.TaskName = "testtask"
 	require.NoError(t, s.Validate())
 
 	// Native Connect + Sidecar should be invalid
@@ -2763,7 +2767,7 @@ func TestService_Equals(t *testing.T) {
 	o.Checks = []*ServiceCheck{{Name: "diff"}}
 	assertDiff()
 
-	o.Connect = &ConsulConnect{Native: "testtask"}
+	o.Connect = &ConsulConnect{Native: true}
 	assertDiff()
 
 	o.EnableTagOverride = true

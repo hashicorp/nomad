@@ -110,6 +110,7 @@ type Service struct {
 	Connect           *ConsulConnect
 	Meta              map[string]string
 	CanaryMeta        map[string]string
+	TaskName          string `mapstructure:"task"`
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
@@ -140,7 +141,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 // ConsulConnect represents a Consul Connect jobspec stanza.
 type ConsulConnect struct {
-	Native         string
+	Native         bool
 	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service"`
 	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task"`
 }

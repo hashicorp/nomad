@@ -47,9 +47,11 @@ job "countdash" {
 
 ## `connect` Parameters
 
-- `native` - `(string: "")` - If non-empty, this indicates the task represented
-  by this service, for use with [Connect Native](https://www.consul.io/docs/connect/native)
-  applications. Incompatible with `sidecar_service` and `sidecar_task`.
+- `native` - `(bool: false)` - This is used to configure the service as supporting
+  [Connect Native](https://www.consul.io/docs/connect/native) applications. If set,
+  the service definition must provide the name of the implementing task in the
+  [task][service_task] field.
+  Incompatible with `sidecar_service` and `sidecar_task`.
 
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to configure the sidecar
   service injected by Nomad for Consul Connect. Incompatible with `native`.
@@ -169,13 +171,19 @@ job "countdash" {
 
 ### Using Connect Native
 
-The following example is a minimal connect stanza for a
+The following example is a minimal service stanza for a
 [Consul Connect Native](https://www.consul.io/docs/connect/native)
-application with task name `myTask`.
+application implemented by a task named `generate`.
 
 ```hcl
-connect {
-  native = "myTask"
+service {
+  name = "uuid-api"
+  port = "${NOMAD_PORT_api}"
+  task = "generate"
+
+  connect {
+    native = true
+  }
 }
 ```
 
@@ -191,3 +199,4 @@ connect {
 [sidecar_task]: /docs/job-specification/sidecar_task 'Nomad sidecar task config Specification'
 [upstreams]: /docs/job-specification/upstreams 'Nomad sidecar service upstreams Specification'
 [native]: https://www.consul.io/docs/connect/native.html
+[service_task]: /docs/job-specification/service#task-1 'Nomad service task'

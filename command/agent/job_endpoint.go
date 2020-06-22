@@ -1177,6 +1177,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 		out[i] = &structs.Service{
 			Name:              s.Name,
 			PortLabel:         s.PortLabel,
+			TaskName:          s.TaskName,
 			Tags:              s.Tags,
 			CanaryTags:        s.CanaryTags,
 			EnableTagOverride: s.EnableTagOverride,

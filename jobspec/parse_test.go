@@ -1168,7 +1168,7 @@ func TestParse(t *testing.T) {
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
-							Native:         "",
+							Native:         false,
 							SidecarService: &api.ConsulSidecarService{},
 							SidecarTask: &api.SidecarTask{
 								Name: "my-sidecar",
@@ -1190,7 +1190,7 @@ func TestParse(t *testing.T) {
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
-							Native: "",
+							Native: false,
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
 									LocalServiceAddress: "10.0.1.2",
@@ -1237,7 +1237,7 @@ func TestParse(t *testing.T) {
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
-							Native: "",
+							Native: false,
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
 									LocalServiceAddress: "10.0.1.2",
@@ -1284,9 +1284,10 @@ func TestParse(t *testing.T) {
 				TaskGroups: []*api.TaskGroup{{
 					Name: helper.StringToPtr("group"),
 					Services: []*api.Service{{
-						Name: "example",
+						Name:     "example",
+						TaskName: "task1",
 						Connect: &api.ConsulConnect{
-							Native: "foo",
+							Native: true,
 						},
 					}},
 				}},

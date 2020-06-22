@@ -1693,7 +1693,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Connect: &api.ConsulConnect{
-							Native: "",
+							Native: false,
 							SidecarService: &api.ConsulSidecarService{
 								Tags: []string{"f", "g"},
 								Port: "9000",
@@ -2061,7 +2061,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Connect: &structs.ConsulConnect{
-							Native: "",
+							Native: false,
 							SidecarService: &structs.ConsulSidecarService{
 								Tags: []string{"f", "g"},
 								Port: "9000",
@@ -2767,11 +2767,11 @@ func TestConversion_ApiConsulConnectToStructs_legacy(t *testing.T) {
 	t.Parallel()
 	require.Nil(t, ApiConsulConnectToStructs(nil))
 	require.Equal(t, &structs.ConsulConnect{
-		Native:         "",
+		Native:         false,
 		SidecarService: &structs.ConsulSidecarService{Port: "myPort"},
 		SidecarTask:    &structs.SidecarTask{Name: "task"},
 	}, ApiConsulConnectToStructs(&api.ConsulConnect{
-		Native:         "",
+		Native:         false,
 		SidecarService: &api.ConsulSidecarService{Port: "myPort"},
 		SidecarTask:    &api.SidecarTask{Name: "task"},
 	}))
@@ -2781,8 +2781,8 @@ func TestConversion_ApiConsulConnectToStructs_native(t *testing.T) {
 	t.Parallel()
 	require.Nil(t, ApiConsulConnectToStructs(nil))
 	require.Equal(t, &structs.ConsulConnect{
-		Native: "foo",
+		Native: true,
 	}, ApiConsulConnectToStructs(&api.ConsulConnect{
-		Native: "foo",
+		Native: true,
 	}))
 }
