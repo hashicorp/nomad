@@ -1,6 +1,8 @@
 import { inject as service } from '@ember/service';
 import Watchable from './watchable';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class WatchableNamespaceIDs extends Watchable {
   @service system;
 
