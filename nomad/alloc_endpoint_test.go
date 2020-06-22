@@ -217,6 +217,84 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	}
 }
 
+// TestAllocEndpoint_List_AllNamespaces_OSS asserts that server
+// returns all allocations across namespaces.
+func TestAllocEndpoint_List_AllNamespaces_OSS(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	alloc := mock.Alloc()
+	summary := mock.JobSummary(alloc.JobID)
+	state := s1.fsm.State()
+
+	err := state.UpsertJobSummary(999, summary)
+	require.NoError(t, err)
+	err = state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+
+	t.Run("looking up all allocations", func(t *testing.T) {
+		get := &structs.AllocListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+			},
+		}
+		var resp structs.AllocListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1000), resp.Index)
+		require.Len(t, resp.Allocations, 1)
+		require.Equal(t, alloc.ID, resp.Allocations[0].ID)
+		require.Equal(t, structs.DefaultNamespace, resp.Allocations[0].Namespace)
+	})
+
+	t.Run("looking up allocations with prefix", func(t *testing.T) {
+		get := &structs.AllocListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				Prefix:    alloc.ID[:4],
+			},
+		}
+		var resp structs.AllocListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1000), resp.Index)
+		require.Len(t, resp.Allocations, 1)
+		require.Equal(t, alloc.ID, resp.Allocations[0].ID)
+		require.Equal(t, structs.DefaultNamespace, resp.Allocations[0].Namespace)
+	})
+
+	t.Run("looking up allocations with mismatch prefix", func(t *testing.T) {
+		// ensure that prefix doesn't match the alloc
+		badPrefix := alloc.ID[:4]
+		if badPrefix[0] == '0' {
+			badPrefix = "1" + badPrefix[1:]
+		} else {
+			badPrefix = "0" + badPrefix[1:]
+		}
+
+		get := &structs.AllocListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				Prefix:    badPrefix,
+			},
+		}
+		var resp structs.AllocListResponse
+		err = msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1000), resp.Index)
+		require.Empty(t, resp.Allocations)
+	})
+
+}
+
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	t.Parallel()
 

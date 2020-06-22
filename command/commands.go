@@ -791,5 +791,10 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 	for k, v := range deprecated {
 		all[k] = v
 	}
+
+	for k, v := range EntCommands(metaPtr, agentUi) {
+		all[k] = v
+	}
+
 	return all
 }

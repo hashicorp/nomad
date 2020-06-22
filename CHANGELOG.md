@@ -37,6 +37,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
+ * core: Fixed a critical bug causing agent to become unresponsive [[GH-7431](https://github.com/hashicorp/nomad/issues/7970)], [[GH-8163](https://github.com/hashicorp/nomad/issues/8163)]
  * core: Fixed a bug impacting performance of scheduler on a server after it steps down [[GH-8089](https://github.com/hashicorp/nomad/issues/8089)]
  * core: Fixed a bug where new leader may take a long time until it can process requests [[GH-8036](https://github.com/hashicorp/nomad/issues/8036)]
  * core: Fixed a bug where stop_after_client_disconnect could cause the server to become unresponsive [[GH-8098](https://github.com/hashicorp/nomad/issues/8098)

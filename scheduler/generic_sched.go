@@ -671,7 +671,7 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 	return option
 }
 
-// handlePreemptions sets relevant preeemption related fields. In OSS this is a no op.
+// handlePreemptions sets relevant preeemption related fields.
 func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.Allocation, missing placementResult) {
 	if option.PreemptedAllocs == nil {
 		return
