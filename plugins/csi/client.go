@@ -12,7 +12,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/grpc-middleware/logging"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"google.golang.org/grpc"
@@ -496,46 +495,33 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 	return result, nil
 }
 
-func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error {
+func (c *client) NodeStageVolume(ctx context.Context, req *NodeStageVolumeRequest, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
 	if c.nodeClient == nil {
 		return fmt.Errorf("Client not initialized")
 	}
-
-	// These errors should not be returned during production use but exist as aids
-	// during Nomad development
-	if volumeID == "" {
-		return fmt.Errorf("missing volumeID")
-	}
-	if stagingTargetPath == "" {
-		return fmt.Errorf("missing stagingTargetPath")
-	}
-
-	req := &csipbv1.NodeStageVolumeRequest{
-		VolumeId:          volumeID,
-		PublishContext:    publishContext,
-		StagingTargetPath: stagingTargetPath,
-		VolumeCapability:  capabilities.ToCSIRepresentation(),
-		Secrets:           secrets,
+	err := req.Validate()
+	if err != nil {
+		return err
 	}
 
 	// NodeStageVolume's response contains no extra data. If err == nil, we were
 	// successful.
-	_, err := c.nodeClient.NodeStageVolume(ctx, req, opts...)
+	_, err = c.nodeClient.NodeStageVolume(ctx, req.ToCSIRepresentation(), opts...)
 	if err != nil {
 		code := status.Code(err)
 		switch code {
 		case codes.NotFound:
-			err = fmt.Errorf("volume %q could not be found: %v", volumeID, err)
+			err = fmt.Errorf("volume %q could not be found: %v", req.ExternalID, err)
 		case codes.AlreadyExists:
 			err = fmt.Errorf(
 				"volume %q is already staged to %q but with incompatible capabilities for this request: %v",
-				volumeID, stagingTargetPath, err)
+				req.ExternalID, req.StagingTargetPath, err)
 		case codes.FailedPrecondition:
 			err = fmt.Errorf("volume %q is already published on another node and does not have MULTI_NODE volume capability: %v",
-				volumeID, err)
+				req.ExternalID, err)
 		case codes.Internal:
 			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
 		}
