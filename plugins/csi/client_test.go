@@ -628,8 +628,11 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 			nc.NextErr = tc.ResponseErr
 			nc.NextStageVolumeResponse = tc.Response
 
-			err := client.NodeStageVolume(context.TODO(), "foo", nil, "/path",
-				&VolumeCapability{}, structs.CSISecrets{})
+			err := client.NodeStageVolume(context.TODO(), &NodeStageVolumeRequest{
+				ExternalID:        "foo",
+				StagingTargetPath: "/path",
+				VolumeCapability:  &VolumeCapability{},
+			})
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {

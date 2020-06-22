@@ -56,7 +56,7 @@ type CSIPlugin interface {
 	// NodeStageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
 	// to prepare a volume for usage on a host. If err == nil, the response should
 	// be assumed to be successful.
-	NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, secrets structs.CSISecrets, opts ...grpc.CallOption) error
+	NodeStageVolume(ctx context.Context, req *NodeStageVolumeRequest, opts ...grpc.CallOption) error
 
 	// NodeUnstageVolume is used when a plugin has the STAGE_UNSTAGE volume capability
 	// to undo the work performed by NodeStageVolume. If a volume has been staged,
@@ -114,6 +114,11 @@ type NodePublishVolumeRequest struct {
 	// Secrets required by plugins to complete the node publish volume
 	// request. This field is OPTIONAL.
 	Secrets structs.CSISecrets
+
+	// Volume context as returned by SP in the CSI
+	// CreateVolumeResponse.Volume.volume_context which we don't implement but
+	// can be entered by hand in the volume spec.  This field is OPTIONAL.
+	VolumeContext map[string]string
 }
 
 func (r *NodePublishVolumeRequest) ToCSIRepresentation() *csipbv1.NodePublishVolumeRequest {
@@ -129,6 +134,7 @@ func (r *NodePublishVolumeRequest) ToCSIRepresentation() *csipbv1.NodePublishVol
 		VolumeCapability:  r.VolumeCapability.ToCSIRepresentation(),
 		Readonly:          r.Readonly,
 		Secrets:           r.Secrets,
+		VolumeContext:     r.VolumeContext,
 	}
 }
 
@@ -139,6 +145,69 @@ func (r *NodePublishVolumeRequest) Validate() error {
 
 	if r.TargetPath == "" {
 		return errors.New("missing TargetPath")
+	}
+
+	if r.VolumeCapability == nil {
+		return errors.New("missing VolumeCapabilities")
+	}
+
+	return nil
+}
+
+type NodeStageVolumeRequest struct {
+	// The external ID of the volume to stage.
+	ExternalID string
+
+	// If the volume was attached via a call to `ControllerPublishVolume` then
+	// we need to provide the returned PublishContext here.
+	PublishContext map[string]string
+
+	// The path to which the volume MAY be staged. It MUST be an
+	// absolute path in the root filesystem of the process serving this
+	// request, and MUST be a directory. The CO SHALL ensure that there
+	// is only one `staging_target_path` per volume. The CO SHALL ensure
+	// that the path is directory and that the process serving the
+	// request has `read` and `write` permission to that directory. The
+	// CO SHALL be responsible for creating the directory if it does not
+	// exist.
+	// This is a REQUIRED field.
+	StagingTargetPath string
+
+	// Volume capability describing how the CO intends to use this volume.
+	VolumeCapability *VolumeCapability
+
+	// Secrets required by plugins to complete the node stage volume
+	// request. This field is OPTIONAL.
+	Secrets structs.CSISecrets
+
+	// Volume context as returned by SP in the CSI
+	// CreateVolumeResponse.Volume.volume_context which we don't implement but
+	// can be entered by hand in the volume spec.  This field is OPTIONAL.
+	VolumeContext map[string]string
+}
+
+func (r *NodeStageVolumeRequest) ToCSIRepresentation() *csipbv1.NodeStageVolumeRequest {
+	if r == nil {
+		return nil
+	}
+
+	return &csipbv1.NodeStageVolumeRequest{
+		VolumeId:          r.ExternalID,
+		PublishContext:    r.PublishContext,
+		StagingTargetPath: r.StagingTargetPath,
+		VolumeCapability:  r.VolumeCapability.ToCSIRepresentation(),
+		Secrets:           r.Secrets,
+		VolumeContext:     r.VolumeContext,
+	}
+}
+
+func (r *NodeStageVolumeRequest) Validate() error {
+	if r.ExternalID == "" {
+		return errors.New("missing volume ID")
+	}
+
+	if r.StagingTargetPath == "" {
+		return errors.New("missing StagingTargetPath")
 	}
 
 	if r.VolumeCapability == nil {
