@@ -27,6 +27,7 @@ require (
 	github.com/aws/aws-sdk-go v1.25.41
 	github.com/boltdb/bolt v1.3.1
 	github.com/checkpoint-restore/go-criu v0.0.0-20190109184317-bdb7599cd87b // indirect
+	github.com/cilium/ebpf v0.0.0-20200617135954-7acf5cc039f4 // indirect
 	github.com/container-storage-interface/spec v1.2.0-rc1.0.20191021210849-a33ece0a8a9f
 	github.com/containerd/console v1.0.0 // indirect
 	github.com/containerd/go-cni v0.0.0-20190904155053-d20b7eebc7ee
@@ -34,7 +35,6 @@ require (
 	github.com/containernetworking/plugins v0.7.3-0.20190501191748-2d6d46d308b2
 	github.com/coreos/go-iptables v0.4.3-0.20190724151750-969b135e941d
 	github.com/coreos/go-semver v0.3.0
-	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3-0.20190205144030-7efe413b52e1 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/cli v0.0.0-20200303215952-eb310fca4956
@@ -107,7 +107,7 @@ require (
 	github.com/oklog/run v1.0.1-0.20180308005104-6934b124db28 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
-	github.com/opencontainers/runc v1.0.0-rc7
+	github.com/opencontainers/runc v1.0.0-rc90
 	github.com/opencontainers/runtime-spec v1.0.2-0.20200307132014-f49fed0d6290 // indirect
 	github.com/opencontainers/selinux v1.4.1-0.20200311111634-a2f0d9c2aafc // indirect
 	github.com/pkg/errors v0.9.1
