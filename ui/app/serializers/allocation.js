@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
 const taskGroupFromJob = (job, taskGroupName) => {
   const taskGroups = job && job.TaskGroups;
@@ -8,6 +9,7 @@ const taskGroupFromJob = (job, taskGroupName) => {
   return taskGroup ? taskGroup : null;
 };
 
+@classic
 export default class AllocationSerializer extends ApplicationSerializer {
   @service system;
 

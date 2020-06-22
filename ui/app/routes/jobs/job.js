@@ -3,7 +3,9 @@ import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { jobCrumbs } from 'nomad-ui/utils/breadcrumb-utils';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class JobRoute extends Route {
   @service store;
   @service token;
