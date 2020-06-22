@@ -42,7 +42,7 @@ export default class GlobalSearchControl extends Component {
   }
 
   didInsertElement() {
-    this.set('_keyDownHandler', this.keyDownHandler.bind(this));
+    set(this, '_keyDownHandler', this.keyDownHandler.bind(this));
     document.addEventListener('keydown', this._keyDownHandler);
   }
 
