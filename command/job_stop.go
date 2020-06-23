@@ -40,6 +40,10 @@ Stop Options:
     Purge is used to stop the job and purge it from the system. If not set, the
     job will still be queryable and will be purged by the garbage collector.
 
+  -global
+    Stop a multi-region job in all its regions. By default job stop will stop
+    only a single region at a time. Ignored for single-region jobs.
+
   -yes
     Automatic yes to prompts.
 
@@ -58,6 +62,7 @@ func (c *JobStopCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-detach":  complete.PredictNothing,
 			"-purge":   complete.PredictNothing,
+			"-global":  complete.PredictNothing,
 			"-yes":     complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
 		})
@@ -81,12 +86,13 @@ func (c *JobStopCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobStopCommand) Name() string { return "job stop" }
 
 func (c *JobStopCommand) Run(args []string) int {
-	var detach, purge, verbose, autoYes bool
+	var detach, purge, verbose, global, autoYes bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&global, "global", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "")
 	flags.BoolVar(&purge, "purge", false, "")
 
@@ -138,27 +144,60 @@ func (c *JobStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Confirm the stop if the job was a prefix match.
-	if jobID != *job.ID && !autoYes {
-		question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", *job.ID)
+	getConfirmation := func(question string) (int, bool) {
 		answer, err := c.Ui.Ask(question)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to parse answer: %v", err))
-			return 1
+			return 1, false
 		}
 
 		if answer == "" || strings.ToLower(answer)[0] == 'n' {
 			// No case
 			c.Ui.Output("Cancelling job stop")
-			return 0
+			return 0, false
 		} else if strings.ToLower(answer)[0] == 'y' && len(answer) > 1 {
 			// Non exact match yes
 			c.Ui.Output("For confirmation, an exact ‘y’ is required.")
-			return 0
+			return 0, false
 		} else if answer != "y" {
 			c.Ui.Output("No confirmation detected. For confirmation, an exact 'y' is required.")
-			return 1
+			return 1, false
 		}
+		return 0, true
+	}
+
+	// Confirm the stop if the job was a prefix match
+	if jobID != *job.ID && !autoYes {
+		question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", *job.ID)
+		code, confirmed := getConfirmation(question)
+		if !confirmed {
+			return code
+		}
+	}
+
+	// Confirm we want to stop only a single region of a multiregion job
+	if job.IsMultiregion() && !global {
+		question := fmt.Sprintf(
+			"Are you sure you want to stop multi-region job %q in a single region? [y/N]", *job.ID)
+		code, confirmed := getConfirmation(question)
+		if !confirmed {
+			return code
+		}
+	}
+
+	// Scatter-gather job stop for multi-region jobs
+	if global && job.IsMultiregion() {
+		for _, region := range job.Multiregion.Regions {
+			// Invoke the stop
+			wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace, Region: region.Name}
+			evalID, _, err := client.Jobs().Deregister(*job.ID, purge, wq)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error deregistering job in %q: %s", region.Name, err))
+				return 1
+			}
+			c.Ui.Output(evalID)
+		}
+		return 0
 	}
 
 	// Invoke the stop
@@ -174,7 +213,7 @@ func (c *JobStopCommand) Run(args []string) int {
 		return 0
 	}
 
-	if detach || job.IsMultiregion() {
+	if detach {
 		c.Ui.Output(evalID)
 		return 0
 	}
