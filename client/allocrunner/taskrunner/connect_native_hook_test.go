@@ -148,9 +148,9 @@ func TestConnectNativeHook_tlsEnv(t *testing.T) {
 		result := fullHook.tlsEnv(nil)
 		require.Equal(t, map[string]string{
 			// ca files are specifically copied into FS namespace
-			"CONSUL_CACERT":          "/secrets/consul_ca_file",
-			"CONSUL_CLIENT_CERT":     "/secrets/consul_cert_file",
-			"CONSUL_CLIENT_KEY":      "/secrets/consul_key_file",
+			"CONSUL_CACERT":          "/secrets/consul_ca_file.pem",
+			"CONSUL_CLIENT_CERT":     "/secrets/consul_cert_file.pem",
+			"CONSUL_CLIENT_KEY":      "/secrets/consul_key_file.pem",
 			"CONSUL_HTTP_SSL":        "true",
 			"CONSUL_HTTP_SSL_VERIFY": "true",
 		}, result)
@@ -209,9 +209,10 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
 	tg := alloc.Job.TaskGroups[0]
 	tg.Services = []*structs.Service{{
-		Name: "cn-service",
+		Name:     "cn-service",
+		TaskName: tg.Tasks[0].Name,
 		Connect: &structs.ConsulConnect{
-			Native: tg.Tasks[0].Name,
+			Native: true,
 		}},
 	}
 	tg.Tasks[0].Kind = structs.NewTaskKind("connect-native", "cn-service")
@@ -272,9 +273,10 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
 	tg := alloc.Job.TaskGroups[0]
 	tg.Services = []*structs.Service{{
-		Name: "cn-service",
+		Name:     "cn-service",
+		TaskName: tg.Tasks[0].Name,
 		Connect: &structs.ConsulConnect{
-			Native: tg.Tasks[0].Name,
+			Native: true,
 		}},
 	}
 	tg.Tasks[0].Kind = structs.NewTaskKind("connect-native", "cn-service")
@@ -347,9 +349,10 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
 		tg := alloc.Job.TaskGroups[0]
 		tg.Services = []*structs.Service{{
-			Name: "cn-service",
+			Name:     "cn-service",
+			TaskName: tg.Tasks[0].Name,
 			Connect: &structs.ConsulConnect{
-				Native: tg.Tasks[0].Name,
+				Native: true,
 			}},
 		}
 		tg.Tasks[0].Kind = structs.NewTaskKind("connect-native", "cn-service")
@@ -403,9 +406,9 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		// Assert environment variable for token is set
 		require.NotEmpty(t, response.Env)
 		require.Equal(t, map[string]string{
-			"CONSUL_CACERT":          "/secrets/consul_ca_file",
-			"CONSUL_CLIENT_CERT":     "/secrets/consul_cert_file",
-			"CONSUL_CLIENT_KEY":      "/secrets/consul_key_file",
+			"CONSUL_CACERT":          "/secrets/consul_ca_file.pem",
+			"CONSUL_CLIENT_CERT":     "/secrets/consul_cert_file.pem",
+			"CONSUL_CLIENT_KEY":      "/secrets/consul_key_file.pem",
 			"CONSUL_HTTP_SSL":        "true",
 			"CONSUL_HTTP_SSL_VERIFY": "true",
 		}, response.Env)
@@ -462,9 +465,10 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{Mode: "host", IP: "1.1.1.1"}}
 	tg := alloc.Job.TaskGroups[0]
 	tg.Services = []*structs.Service{{
-		Name: "cn-service",
+		Name:     "cn-service",
+		TaskName: tg.Tasks[0].Name,
 		Connect: &structs.ConsulConnect{
-			Native: tg.Tasks[0].Name,
+			Native: true,
 		}},
 	}
 	tg.Tasks[0].Kind = structs.NewTaskKind("connect-native", "cn-service")
