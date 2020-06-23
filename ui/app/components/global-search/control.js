@@ -125,6 +125,15 @@ export default class GlobalSearchControl extends Component {
     }
   }
 
+  @action
+  onCloseEvent(select, event) {
+    if (event.key === 'Escape') {
+      run.next(() => {
+        this.select.actions.setIsActive(false);
+      });
+    }
+  }
+
   calculatePosition(trigger) {
     const { top, left, width } = trigger.getBoundingClientRect();
     return {
