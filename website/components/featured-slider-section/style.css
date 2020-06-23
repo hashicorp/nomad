@@ -5,7 +5,7 @@
   color: var(--white);
 
   & h2 {
-    margin-top: 0px;
+    margin-top: 0;
     color: var(--white);
     text-align: center;
   }

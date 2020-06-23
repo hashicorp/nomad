@@ -10,10 +10,10 @@ import useAnchorLinkAnalytics from '@hashicorp/nextjs-scripts/lib/anchor-link-an
 import MegaNav from '@hashicorp/react-mega-nav'
 import AlertBanner from '@hashicorp/react-alert-banner'
 import HashiHead from '@hashicorp/react-head'
-import Footer from '../components/footer'
-import ProductSubnav from '../components/subnav'
+import Footer from 'components/footer'
+import ProductSubnav from 'components/subnav'
 import Error from './_error'
-import alertBannerData, { ALERT_BANNER_ACTIVE } from '../data/alert-banner'
+import alertBannerData, { ALERT_BANNER_ACTIVE } from 'data/alert-banner'
 
 NProgress({ Router })
 const { ConsentManager, openConsentManager } = createConsentManager({
@@ -31,12 +31,6 @@ function App({ Component, pageProps }) {
         siteName="Nomad by HashiCorp"
         description="Nomad is a highly available, distributed, data-center aware cluster and application scheduler designed to support the modern datacenter with support for long-running services, batch jobs, and much more."
         image="https://www.nomadproject.io/img/og-image.png"
-        stylesheet={[
-          {
-            href:
-              'https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&display=swap',
-          },
-        ]}
         icon={[{ href: '/favicon.ico' }]}
         preload={[
           { href: '/fonts/klavika/medium.woff2', as: 'font' },

@@ -6,7 +6,6 @@ module.exports = withHashicorp({
   transpileModules: ['is-absolute-url', '@hashicorp/react-mega-nav'],
   mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') },
 })({
-  exportTrailingSlash: true,
   experimental: {
     modern: true,
     rewrites: () => [
