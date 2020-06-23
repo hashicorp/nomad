@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,17 @@ import (
 
 type DebugCommand struct {
 	Meta
+	duration    time.Duration
+	interval    time.Duration
+	logLevel    string
+	nodeIDs     []string
+	consulToken string
+	vaultToken  string
 }
+
+const (
+	userAgent = "nomad debug"
+)
 
 func (c *DebugCommand) Help() string {
 	helpText := `
@@ -35,18 +46,35 @@ General Options:
 
 Debug Options:
 
-  -job <job> [job]
-    Select the context for the job, and any client nodes running the job.
+  -duration=2m
+   The duration of the log capture command. Defaults to 2m.
 
-  -node <node> [node]
-    Select the context for the node and all jobs running on the node.
+  -interval=2m
+   The interval between snapshots of the Nomad state. If unspecified, only one snapshot is
+   captured.
 
-  -plugin <plugin> [plugin]
-    Select the context for the plugin and all jobs providing it.
+  -log-level=DEBUG
+   The log level of logs to capture. Defaults to DEBUG.
 
-  -volume <volume> [volume]
-    Select the context for the volume and all jobs providing its plugins or
-    using the volume, and nodes where the volume is mounted.
+  -node-id=n1,n2
+   Comma seperated list of Nomad client node ids, for which we capture logs and pprof data.
+   Accepts id prefixes.
+
+  -server-id=s1,s2
+   Comma seperated list of Nomad server node ids, for which we capture logs and pprof data.
+   Accepts id prefixes.
+
+  -output=path
+   Path to the parent directory of the output directory. Defaults to the current directory.
+
+  -archive
+   Build an archive and delete the output directory. Defaults to true.
+
+  -consul-token
+   Token use to query Consul. Defaults to CONSUL_TOKEN
+
+  -vault-token
+   Token use to query Vault. Defaults to VAULT_TOKEN
 `
 	return strings.TrimSpace(helpText)
 }
@@ -58,10 +86,15 @@ func (c *DebugCommand) Synopsis() string {
 func (c *DebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-job":    complete.PredictAnything,
-			"-node":   complete.PredictAnything,
-			"-plugin": complete.PredictAnything,
-			"-volume": complete.PredictAnything,
+			"-duration":     complete.PredictAnything,
+			"-interval":     complete.PredictAnything,
+			"-log-level":    complete.PredictAnything,
+			"-node-id":      complete.PredictAnything,
+			"-server-id":    complete.PredictAnything,
+			"-output":       complete.PredictAnything,
+			"-archive":      complete.PredictAnything,
+			"-consul-token": complete.PredictAnything,
+			"-vault-token":  complete.PredictAnything,
 		})
 }
 
@@ -72,22 +105,77 @@ func (c *DebugCommand) AutocompleteArgs() complete.Predictor {
 func (c *DebugCommand) Name() string { return "debug" }
 
 func (c *DebugCommand) Run(args []string) int {
-	tmp, err := ioutil.TempDir(os.TempDir(), "nomad-debug-")
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("error creating tmp directory: %s", err.Error()))
-		return 2
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
+
+	var duration, interval, output string
+	var nodeIDs, serverIDs string
+	var archive bool
+
+	flags.StringVar(&duration, "duration", "2m", "")
+	flags.StringVar(&interval, "interval", "2m", "")
+	flags.StringVar(&c.logLevel, "log-level", "", "")
+	flags.StringVar(&nodeIDs, "node-id", "", "")
+	flags.StringVar(&serverIDs, "server-id", "", "")
+	flags.StringVar(&output, "output", "", "")
+	flags.BoolVar(&archive, "archive", true, "")
+	flags.StringVar(&c.consulToken, "consul-token", "", "")
+	flags.StringVar(&c.vaultToken, "vault-token", "", "")
+
+	if err := flags.Parse(args); err != nil {
+		return 1
 	}
-	defer os.RemoveAll(tmp)
+
+	// Parse the time durations
+	d, err := time.ParseDuration(duration)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing duration: %s: %s", duration, err.Error()))
+		return 1
+	}
+	c.duration = d
+
+	i, err := time.ParseDuration(interval)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing interval: %s: %s", interval, err.Error()))
+		return 1
+	}
+	c.interval = i
+
+	args = flags.Args()
+	if l := len(args); l != 0 {
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
+	// Setup the output path
+	format := "2006-01-02-150405Z"
+	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
+
+	var tmp string
+	if output != "" {
+		tmp = filepath.Join(output, stamped)
+	} else {
+		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error creating tmp directory: %s", err.Error()))
+			return 2
+		}
+		defer os.RemoveAll(tmp)
+	}
 
 	err = c.collect(tmp)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("error collecting data: %s", err.Error()))
+		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
 	}
 
-	format := "2006-01-02-150405Z"
-	archive := "nomad-debug-" + time.Now().UTC().Format(format) + ".tar.gz"
-	err = TarCZF(archive, tmp)
+	// FIXME does output imply no archive?
+	if !archive || output != "" {
+		return 0
+	}
+
+	err = TarCZF(stamped+".tar.gz", tmp)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("error creating archive: %s", err.Error()))
 		return 2
@@ -116,9 +204,17 @@ func (c *DebugCommand) collect(root string) error {
 	}
 	writeJSON(dir, "agent-self.json", self)
 
-	// consul := self.Config["consul"]
-	// vaultMap := self.Config["vault"].(map[string]interface{})
-	// vault := vaultMap["addr"]
+	// Fetch data directly from consul and vault. Ignore errors
+	var consul, vault string
+	consulRaw := self.Config["consul"]
+	consul, _ = consulRaw.(string)
+	vaultMap, ok := self.Config["vault"].(map[string]interface{})
+	if ok {
+		vaultRaw := vaultMap["addr"]
+		vault, _ = vaultRaw.(string)
+	}
+	c.collectConsul(dir, consul)
+	c.collectVault(dir, vault)
 
 	// For each server, collect the agent host state
 	dir = filepath.Join(root, "server")
@@ -184,7 +280,75 @@ func (c *DebugCommand) collect(root string) error {
 	return nil
 }
 
-func writeBytes(path string, data []byte) error {
+func (c *DebugCommand) collectLogs(root string) error {
+	return nil
+}
+
+// collectConsul calls the consul api directly to collect data
+func (c *DebugCommand) collectConsul(root, consul string) error {
+	if consul == "" {
+		return nil
+	}
+
+	token := c.consulToken
+	if token == "" {
+		os.Getenv("CONSUL_TOKEN")
+	}
+
+	client := http.Client{
+		Timeout: 2 * time.Second,
+	}
+
+	req, _ := http.NewRequest("GET", consul+"/agent/self", nil)
+	req.Header.Add("X-Consul-Token", token)
+	req.Header.Add("User-Agent", userAgent)
+	resp, err := client.Do(req)
+	if err == nil {
+		body := make([]byte, resp.ContentLength)
+		resp.Body.Read(body)
+		writeBytes(root, "consul-agent-self.json", body)
+	}
+
+	req, _ = http.NewRequest("GET", consul+"/agent/members", nil)
+	req.Header.Add("X-Consul-Token", token)
+	req.Header.Add("User-Agent", userAgent)
+	resp, err = client.Do(req)
+	if err == nil {
+		body := make([]byte, resp.ContentLength)
+		resp.Body.Read(body)
+		writeBytes(root, "consul-agent-members.json", body)
+	}
+
+	return nil
+}
+
+func (c *DebugCommand) collectVault(root, vault string) error {
+	if vault == "" {
+		return nil
+	}
+
+	token := c.vaultToken
+	if token == "" {
+		os.Getenv("VAULT_TOKEN")
+	}
+
+	client := http.Client{
+		Timeout: 2 * time.Second,
+	}
+
+	req, _ := http.NewRequest("GET", vault+"/sys/health", nil)
+	req.Header.Add("X-Vault-Token", token)
+	req.Header.Add("User-Agent", userAgent)
+	resp, _ := client.Do(req)
+	body := make([]byte, resp.ContentLength)
+	resp.Body.Read(body)
+	writeBytes(root, "consul-agent-self.json", body)
+
+	return nil
+}
+
+func writeBytes(dir, file string, data []byte) error {
+	path := filepath.Join(dir, file)
 	fh, err := os.Create(path)
 	if err != nil {
 		return err
@@ -200,8 +364,7 @@ func writeJSON(dir, file string, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	file = filepath.Join(dir, file)
-	return writeBytes(file, bytes)
+	return writeBytes(dir, file, bytes)
 }
 
 // TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
