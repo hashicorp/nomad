@@ -14,18 +14,20 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/kr/pretty"
 	"github.com/posener/complete"
 )
 
 type DebugCommand struct {
 	Meta
+
+	collectDir  string
 	duration    time.Duration
 	interval    time.Duration
 	logLevel    string
 	nodeIDs     []string
 	consulToken string
 	vaultToken  string
+	manifest    []string
 }
 
 const (
@@ -149,6 +151,8 @@ func (c *DebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.manifest = make([]string, 0)
+
 	// Setup the output path
 	format := "2006-01-02-150405Z"
 	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
@@ -165,7 +169,9 @@ func (c *DebugCommand) Run(args []string) int {
 		defer os.RemoveAll(tmp)
 	}
 
-	err = c.collect(tmp)
+	c.collectDir = tmp
+
+	err = c.collect()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
@@ -186,15 +192,15 @@ func (c *DebugCommand) Run(args []string) int {
 }
 
 // collect collects data from our endpoints and writes the archive bundle
-func (c *DebugCommand) collect(root string) error {
+func (c *DebugCommand) collect() error {
 	client, err := c.Meta.Client()
 	if err != nil {
 		return fmt.Errorf("Error initializing client: %s", err.Error())
 	}
 
 	// Version contains cluster meta information
-	dir := filepath.Join(root, "version")
-	err = os.Mkdir(dir, 0755)
+	dir := "version"
+	err = c.Mkdir(dir)
 	if err != nil {
 		return err
 	}
@@ -203,7 +209,7 @@ func (c *DebugCommand) collect(root string) error {
 	if err != nil {
 		return fmt.Errorf("error agent self: %s", err.Error())
 	}
-	writeJSON(dir, "agent-self.json", self)
+	c.writeJSON(dir, "agent-self.json", self)
 
 	// Fetch data directly from consul and vault. Ignore errors
 
@@ -228,14 +234,12 @@ func (c *DebugCommand) collect(root string) error {
 		vault, _ = raw.(string)
 	}
 
-	pretty.Log("GOT", consul, vault)
-
 	c.collectConsul(dir, consul)
 	c.collectVault(dir, vault)
 
 	// For each server, collect the agent host state
-	dir = filepath.Join(root, "server")
-	err = os.Mkdir(dir, 0755)
+	dir = "server"
+	err = c.Mkdir(dir)
 	if err != nil {
 		return err
 	}
@@ -243,56 +247,98 @@ func (c *DebugCommand) collect(root string) error {
 	var qo *api.QueryOptions
 
 	hostdata, _, err := client.Operator().ServerHosts(qo)
-	writeJSON(dir, "operator-server-hosts.json", hostdata)
+	c.writeJSON(dir, "operator-server-hosts.json", hostdata)
 
-	// Nomad contains nomad cluster state
-	dir = filepath.Join(root, "nomad")
-	err = os.Mkdir(dir, 0755)
+	c.startMonitors()
+	c.awaitMonitors(client)
+	c.collectPProfs()
+
+	return nil
+}
+
+func (c *DebugCommand) Mkdir(dir string) error {
+	dir = filepath.Join(c.collectDir, dir)
+	return os.MkdirAll(dir, 0755)
+}
+
+func (c *DebugCommand) startMonitors() {
+}
+
+func (c *DebugCommand) startServerMonitor(nodeID string) {
+}
+
+func (c *DebugCommand) collectPProfs() {
+}
+
+// await runs for duration, capturing the cluster state every interval. It flushes and stops
+// the monitor requests
+func (c *DebugCommand) awaitMonitors(client *api.Client) {
+	duration := time.After(c.duration)
+	interval := time.After(0 * time.Second)
+	var intervalCount int
+	var dir string
+
+	select {
+	case <-duration:
+
+	case <-interval:
+		dir = filepath.Join("nomad", fmt.Sprintf("%02d", intervalCount))
+		c.collectNomad(dir, client)
+		interval = time.After(c.interval)
+		intervalCount += 1
+	}
+}
+
+// collectNomad captures the nomad cluster state
+func (c *DebugCommand) collectNomad(dir string, client *api.Client) error {
+	err := c.Mkdir(dir)
 	if err != nil {
 		return err
 	}
+
+	var qo *api.QueryOptions
 
 	js, _, err := client.Jobs().List(qo)
 	if err != nil {
 		return fmt.Errorf("error listing jobs: %s", err.Error())
 	}
-	writeJSON(dir, "jobs.json", js)
+	c.writeJSON(dir, "jobs.json", js)
 
 	ds, _, err := client.Deployments().List(qo)
 	if err != nil {
 		return fmt.Errorf("error listing deployments: %s", err.Error())
 	}
-	writeJSON(dir, "deployments.json", ds)
+	c.writeJSON(dir, "deployments.json", ds)
 
 	es, _, err := client.Evaluations().List(qo)
 	if err != nil {
 		return fmt.Errorf("error listing evaluations: %s", err.Error())
 	}
-	writeJSON(dir, "evaluations.json", es)
+	c.writeJSON(dir, "evaluations.json", es)
 
 	as, _, err := client.Allocations().List(qo)
 	if err != nil {
 		return fmt.Errorf("error listing allocations: %s", err.Error())
 	}
-	writeJSON(dir, "allocations.json", as)
+	c.writeJSON(dir, "allocations.json", as)
 
 	ns, _, err := client.Nodes().List(qo)
 	if err != nil {
 		return fmt.Errorf("error listing nodes: %s", err.Error())
 	}
-	writeJSON(dir, "nodes.json", ns)
+	c.writeJSON(dir, "nodes.json", ns)
 
 	ps, _, err := client.CSIPlugins().List(qo)
 	if err != nil {
 		return fmt.Errorf("error listing plugins: %s", err.Error())
 	}
-	writeJSON(dir, "plugins.json", ps)
+	c.writeJSON(dir, "plugins.json", ps)
 
 	vs, _, err := client.CSIVolumes().List(qo)
 	if err != nil {
 		return fmt.Errorf("error listing volumes: %s", err.Error())
 	}
-	writeJSON(dir, "volumes.json", vs)
+	c.writeJSON(dir, "volumes.json", vs)
 
 	return nil
 }
@@ -302,7 +348,7 @@ func (c *DebugCommand) collectLogs(root string) error {
 }
 
 // collectConsul calls the consul api directly to collect data
-func (c *DebugCommand) collectConsul(root, consul string) error {
+func (c *DebugCommand) collectConsul(dir, consul string) error {
 	if consul == "" {
 		return nil
 	}
@@ -320,18 +366,18 @@ func (c *DebugCommand) collectConsul(root, consul string) error {
 	req.Header.Add("X-Consul-Token", token)
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
-	writeBody(root, "consul-agent-self.json", resp, err)
+	c.writeBody(dir, "consul-agent-self.json", resp, err)
 
 	req, _ = http.NewRequest("GET", consul+"/v1/agent/members", nil)
 	req.Header.Add("X-Consul-Token", token)
 	req.Header.Add("User-Agent", userAgent)
 	resp, err = client.Do(req)
-	writeBody(root, "consul-agent-members.json", resp, err)
+	c.writeBody(dir, "consul-agent-members.json", resp, err)
 
 	return nil
 }
 
-func (c *DebugCommand) collectVault(root, vault string) error {
+func (c *DebugCommand) collectVault(dir, vault string) error {
 	if vault == "" {
 		return nil
 	}
@@ -349,13 +395,16 @@ func (c *DebugCommand) collectVault(root, vault string) error {
 	req.Header.Add("X-Vault-Token", token)
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
-	writeBody(root, "vault-sys-health.json", resp, err)
+	c.writeBody(dir, "vault-sys-health.json", resp, err)
 
 	return nil
 }
 
-func writeBytes(dir, file string, data []byte) error {
+func (c *DebugCommand) writeBytes(dir, file string, data []byte) error {
 	path := filepath.Join(dir, file)
+	c.manifest = append(c.manifest, path)
+	path = filepath.Join(c.collectDir, path)
+
 	fh, err := os.Create(path)
 	if err != nil {
 		return err
@@ -366,15 +415,15 @@ func writeBytes(dir, file string, data []byte) error {
 	return err
 }
 
-func writeJSON(dir, file string, data interface{}) error {
+func (c *DebugCommand) writeJSON(dir, file string, data interface{}) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
-	return writeBytes(dir, file, bytes)
+	return c.writeBytes(dir, file, bytes)
 }
 
-func writeBody(dir, file string, resp *http.Response, err error) {
+func (c *DebugCommand) writeBody(dir, file string, resp *http.Response, err error) {
 	if err != nil {
 		return
 	}
@@ -389,7 +438,7 @@ func writeBody(dir, file string, resp *http.Response, err error) {
 		return
 	}
 
-	writeBytes(dir, file, body)
+	c.writeBytes(dir, file, body)
 }
 
 // TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
