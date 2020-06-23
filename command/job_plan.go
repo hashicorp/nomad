@@ -49,6 +49,7 @@ Alias: nomad plan
   submitting the job using "nomad run -check-index", which will check that the job
   was not modified between the plan and run command before invoking the
   scheduler. This ensures the job has not been modified since the plan.
+  Multiregion jobs do not return a job modify index.
 
   A structured diff between the local and remote job is displayed to
   give insight into what the scheduler will attempt to do and why.
@@ -153,12 +154,48 @@ func (c *JobPlanCommand) Run(args []string) int {
 		opts.PolicyOverride = true
 	}
 
+	if job.IsMultiregion() {
+		return c.multiregionPlan(client, job, opts, diff, verbose)
+	}
+
 	// Submit the job
 	resp, _, err := client.Jobs().PlanOpts(job, opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
 		return 255
 	}
+
+	exitCode := c.formatPlannedJob(job, resp, diff, verbose)
+	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
+	return exitCode
+}
+
+func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts *api.PlanOptions, diff, verbose bool) int {
+
+	var exitCode int
+
+	for _, region := range job.Multiregion.Regions {
+		regionName := region.Name
+		client.SetRegion(region.Name)
+
+		// Submit the job for this region
+		resp, _, err := client.Jobs().PlanOpts(job, opts, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error during plan for region %q: %s", regionName, err))
+			return 255
+		}
+
+		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("[bold]Region: %q[reset]", regionName)))
+
+		regionExitCode := c.formatPlannedJob(job, resp, verbose, diff)
+		if regionExitCode > exitCode {
+			exitCode = regionExitCode
+		}
+	}
+	return exitCode
+}
+
+func (c *JobPlanCommand) formatPlannedJob(job *api.Job, resp *api.JobPlanResponse, diff, verbose bool) int {
 
 	// Print the diff if not disabled
 	if diff {
@@ -182,8 +219,6 @@ func (c *JobPlanCommand) Run(args []string) int {
 		c.addPreemptions(resp)
 	}
 
-	// Print the job index info
-	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return getExitCode(resp)
 }
 
