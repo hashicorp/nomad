@@ -108,9 +108,9 @@ func (h *connectNativeHook) Prestart(
 }
 
 const (
-	secretCAFilename       = "consul_ca_file"
-	secretCertfileFilename = "consul_cert_file"
-	secretKeyfileFilename  = "consul_key_file"
+	secretCAFilename       = "consul_ca_file.pem"
+	secretCertfileFilename = "consul_cert_file.pem"
+	secretKeyfileFilename  = "consul_key_file.pem"
 )
 
 func (h *connectNativeHook) copyCertificates(consulConfig consulTransportConfig, dir string) error {
