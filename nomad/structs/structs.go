@@ -2328,9 +2328,21 @@ func (p AllocatedPorts) Get(label string) (AllocatedPortMapping, bool) {
 }
 
 type Port struct {
-	Label       string
-	Value       int
-	To          int
+	// Label is the key for HCL port stanzas: port "foo" {}
+	Label string
+
+	// Value is the static or dynamic port value. For dynamic ports this
+	// will be 0 in the jobspec and set by the scheduler.
+	Value int
+
+	// To is the port inside a network namespace where this port is
+	// forwarded. -1 is an internal sentinel value used by Consul Connect
+	// to mean "same as the host port."
+	To int
+
+	// HostNetwork is the name of the network this port should be assigned
+	// to. Jobs with a HostNetwork set can only be placed on nodes with
+	// that host network available.
 	HostNetwork string
 }
 
