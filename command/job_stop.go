@@ -185,7 +185,7 @@ func (c *JobStopCommand) Run(args []string) int {
 		}
 	}
 
-	// scatter-gather job stop for multi-region jobs
+	// Scatter-gather job stop for multi-region jobs
 	if global && job.IsMultiregion() {
 		for _, region := range job.Multiregion.Regions {
 			// Invoke the stop
