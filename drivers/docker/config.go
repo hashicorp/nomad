@@ -237,10 +237,7 @@ var (
 		// defaulted needed for both if the volumes {...} block is not set and
 		// if the default fields are missing
 		"volumes": hclspec.NewDefault(hclspec.NewBlock("volumes", false, hclspec.NewObject(map[string]*hclspec.Spec{
-			"enabled": hclspec.NewDefault(
-				hclspec.NewAttr("enabled", "bool", false),
-				hclspec.NewLiteral("true"),
-			),
+			"enabled":      hclspec.NewAttr("enabled", "bool", false),
 			"selinuxlabel": hclspec.NewAttr("selinuxlabel", "string", false),
 		})), hclspec.NewLiteral("{ enabled = true }")),
 		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
