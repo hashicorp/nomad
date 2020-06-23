@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/kr/pretty"
 	"github.com/posener/complete"
 )
 
@@ -205,14 +206,30 @@ func (c *DebugCommand) collect(root string) error {
 	writeJSON(dir, "agent-self.json", self)
 
 	// Fetch data directly from consul and vault. Ignore errors
+
 	var consul, vault string
-	consulRaw := self.Config["consul"]
-	consul, _ = consulRaw.(string)
-	vaultMap, ok := self.Config["vault"].(map[string]interface{})
+
+	m, ok := self.Config["Consul"].(map[string]interface{})
 	if ok {
-		vaultRaw := vaultMap["addr"]
-		vault, _ = vaultRaw.(string)
+		raw := m["Addr"]
+		consul, _ = raw.(string)
+		raw = m["EnableSSL"]
+		ssl, _ := raw.(bool)
+		if ssl {
+			consul = "https://" + consul
+		} else {
+			consul = "http://" + consul
+		}
 	}
+
+	m, ok = self.Config["Vault"].(map[string]interface{})
+	if ok {
+		raw := m["Addr"]
+		vault, _ = raw.(string)
+	}
+
+	pretty.Log("GOT", consul, vault)
+
 	c.collectConsul(dir, consul)
 	c.collectVault(dir, vault)
 
@@ -299,25 +316,17 @@ func (c *DebugCommand) collectConsul(root, consul string) error {
 		Timeout: 2 * time.Second,
 	}
 
-	req, _ := http.NewRequest("GET", consul+"/agent/self", nil)
+	req, err := http.NewRequest("GET", consul+"/v1/agent/self", nil)
 	req.Header.Add("X-Consul-Token", token)
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
-	if err == nil {
-		body := make([]byte, resp.ContentLength)
-		resp.Body.Read(body)
-		writeBytes(root, "consul-agent-self.json", body)
-	}
+	writeBody(root, "consul-agent-self.json", resp, err)
 
-	req, _ = http.NewRequest("GET", consul+"/agent/members", nil)
+	req, _ = http.NewRequest("GET", consul+"/v1/agent/members", nil)
 	req.Header.Add("X-Consul-Token", token)
 	req.Header.Add("User-Agent", userAgent)
 	resp, err = client.Do(req)
-	if err == nil {
-		body := make([]byte, resp.ContentLength)
-		resp.Body.Read(body)
-		writeBytes(root, "consul-agent-members.json", body)
-	}
+	writeBody(root, "consul-agent-members.json", resp, err)
 
 	return nil
 }
@@ -339,10 +348,8 @@ func (c *DebugCommand) collectVault(root, vault string) error {
 	req, _ := http.NewRequest("GET", vault+"/sys/health", nil)
 	req.Header.Add("X-Vault-Token", token)
 	req.Header.Add("User-Agent", userAgent)
-	resp, _ := client.Do(req)
-	body := make([]byte, resp.ContentLength)
-	resp.Body.Read(body)
-	writeBytes(root, "consul-agent-self.json", body)
+	resp, err := client.Do(req)
+	writeBody(root, "vault-sys-health.json", resp, err)
 
 	return nil
 }
@@ -365,6 +372,24 @@ func writeJSON(dir, file string, data interface{}) error {
 		return err
 	}
 	return writeBytes(dir, file, bytes)
+}
+
+func writeBody(dir, file string, resp *http.Response, err error) {
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.ContentLength == 0 {
+		return
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	writeBytes(dir, file, body)
 }
 
 // TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
