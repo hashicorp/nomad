@@ -1048,6 +1048,19 @@ jobs:
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+  algolia_index:
+    docker:
+    - image: circleci/buildpack-deps
+    shell: /usr/bin/env bash -euo pipefail -c
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        command: |
+          cd website/
+          npm i
+          node scripts/index_search_content.js
+        name: Push content to Algolia Index
   test-docker:
     machine:
       image: circleci/classic:201808-01
@@ -1459,5 +1472,11 @@ workflows:
           branches:
             only:
             - master
+        context: static-sites
+    - algolia_index:
+        filters:
+          branches:
+            only:
+            - stable-website
         context: static-sites
   version: 2
