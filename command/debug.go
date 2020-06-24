@@ -107,7 +107,6 @@ func (c *DebugCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *DebugCommand) Name() string { return "debug" }
 
-// parse implements just the parsing phase of the
 func (c *DebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -377,7 +376,7 @@ func (c *DebugCommand) collectPprof(path, id string, client *api.Client) {
 	}
 }
 
-// await runs for duration, capturing the cluster state every interval. It flushes and stops
+// collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
 // the monitor requests
 func (c *DebugCommand) collectPeriodic(client *api.Client) {
 	// Not monitoring any logs, just capture the nomad context before exit
@@ -388,6 +387,7 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 	}
 
 	duration := time.After(c.duration)
+	// Set interval to 0 so that we immediately execute, wait the interval next time
 	interval := time.After(0 * time.Second)
 	var intervalCount int
 	var dir string
