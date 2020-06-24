@@ -1,0 +1,12 @@
+docker:
+  - image: circleci/buildpack-deps
+shell: /usr/bin/env bash -euo pipefail -c
+steps:
+  - checkout
+  - setup_remote_docker
+  - run:
+      name: Push content to Algolia Index
+      command: |
+        cd website/
+        npm i
+        node scripts/index_search_content.js
