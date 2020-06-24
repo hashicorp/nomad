@@ -123,7 +123,6 @@ func TestConsulConnect_Validate(t *testing.T) {
 	// An empty Connect stanza is invalid
 	require.Error(t, c.Validate())
 
-	// Native=true is valid
 	c.Native = true
 	require.NoError(t, c.Validate())
 
@@ -131,7 +130,6 @@ func TestConsulConnect_Validate(t *testing.T) {
 	c.SidecarService = &ConsulSidecarService{}
 	require.Error(t, c.Validate())
 
-	// Native=false + Sidecar!=nil is valid
 	c.Native = false
 	require.NoError(t, c.Validate())
 }

@@ -351,6 +351,12 @@ type Service struct {
 	// as one of the seed values when generating a Consul ServiceID.
 	Name string
 
+	// Name of the Task associated with this service.
+	//
+	// Currently only used to identify the implementing task of a Consul
+	// Connect Native enabled service.
+	TaskName string
+
 	// PortLabel is either the numeric port number or the `host:port`.
 	// To specify the port number using the host's Consul Advertise
 	// address, specify an empty host in the PortLabel (e.g. `:port`).
@@ -422,8 +428,7 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 		"TASKGROUP": taskGroup,
 		"TASK":      task,
 		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
-	},
-	)
+	})
 
 	for _, check := range s.Checks {
 		check.Canonicalize(s.Name)
@@ -450,6 +455,7 @@ func (s *Service) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
+	// check checks
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
@@ -469,9 +475,15 @@ func (s *Service) Validate() error {
 		}
 	}
 
+	// check connect
 	if s.Connect != nil {
 		if err := s.Connect.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		// if service is connect native, service task must be set
+		if s.Connect.IsNative() && len(s.TaskName) == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is Connect Native and requires setting the task", s.Name))
 		}
 	}
 
@@ -620,8 +632,7 @@ OUTER:
 
 // ConsulConnect represents a Consul Connect jobspec stanza.
 type ConsulConnect struct {
-	// Native is true if a service implements Connect directly and does not
-	// need a sidecar.
+	// Native indicates whether the service is Consul Connect Native enabled.
 	Native bool
 
 	// SidecarService is non-nil if a service requires a sidecar.
@@ -662,17 +673,21 @@ func (c *ConsulConnect) HasSidecar() bool {
 	return c != nil && c.SidecarService != nil
 }
 
+func (c *ConsulConnect) IsNative() bool {
+	return c != nil && c.Native
+}
+
 // Validate that the Connect stanza has exactly one of Native or sidecar.
 func (c *ConsulConnect) Validate() error {
 	if c == nil {
 		return nil
 	}
 
-	if c.Native && c.SidecarService != nil {
+	if c.IsNative() && c.HasSidecar() {
 		return fmt.Errorf("Consul Connect must be native or use a sidecar service; not both")
 	}
 
-	if !c.Native && c.SidecarService == nil {
+	if !c.IsNative() && !c.HasSidecar() {
 		return fmt.Errorf("Consul Connect must be native or use a sidecar service")
 	}
 

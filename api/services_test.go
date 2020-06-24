@@ -69,7 +69,7 @@ func TestService_Connect_Canonicalize(t *testing.T) {
 	t.Run("empty connect", func(t *testing.T) {
 		cc := new(ConsulConnect)
 		cc.Canonicalize()
-		require.False(t, cc.Native)
+		require.Empty(t, cc.Native)
 		require.Nil(t, cc.SidecarService)
 		require.Nil(t, cc.SidecarTask)
 	})

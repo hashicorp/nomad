@@ -52,7 +52,7 @@ func (*consulSockHook) Name() string {
 func (h *consulSockHook) shouldRun() bool {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 	for _, s := range tg.Services {
-		if s.Connect != nil {
+		if s.Connect.HasSidecar() {
 			return true
 		}
 	}

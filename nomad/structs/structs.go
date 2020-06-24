@@ -5979,7 +5979,7 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 func (tg *TaskGroup) UsesConnect() bool {
 	for _, service := range tg.Services {
 		if service.Connect != nil {
-			if service.Connect.Native || service.Connect.SidecarService != nil {
+			if service.Connect.IsNative() || service.Connect.HasSidecar() {
 				return true
 			}
 		}
@@ -6179,18 +6179,10 @@ type Task struct {
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
 // of Consul Connect features. This will be indicated in the TaskKind of the
-// Task, which exports known types of Tasks.
-//
-// Currently only Consul Connect Proxy tasks are known.
-// (Consul Connect Native tasks will be supported soon).
+// Task, which exports known types of Tasks. UsesConnect will be true if the
+// task is a connect proxy, or if the task is connect native.
 func (t *Task) UsesConnect() bool {
-	// todo(shoenig): native tasks
-	switch {
-	case t.Kind.IsConnectProxy():
-		return true
-	default:
-		return false
-	}
+	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative()
 }
 
 func (t *Task) Copy() *Task {

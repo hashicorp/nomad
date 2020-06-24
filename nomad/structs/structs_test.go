@@ -814,13 +814,20 @@ func TestTask_UsesConnect(t *testing.T) {
 	t.Run("sidecar proxy", func(t *testing.T) {
 		task := &Task{
 			Name: "connect-proxy-task1",
-			Kind: "connect-proxy:task1",
+			Kind: NewTaskKind(ConnectProxyPrefix, "task1"),
 		}
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
 
-	// todo(shoenig): add native case
+	t.Run("native task", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectNativePrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
@@ -2707,10 +2714,14 @@ func TestService_Validate(t *testing.T) {
 	// Base service should be valid
 	require.NoError(t, s.Validate())
 
-	// Native Connect should be valid
+	// Native Connect requires task name on service
 	s.Connect = &ConsulConnect{
 		Native: true,
 	}
+	require.Error(t, s.Validate())
+
+	// Native Connect should work with task name on service set
+	s.TaskName = "testtask"
 	require.NoError(t, s.Validate())
 
 	// Native Connect + Sidecar should be invalid
