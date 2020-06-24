@@ -66,7 +66,7 @@ Debug Options:
    Accepts id prefixes.
 
   -server-id=s1,s2
-   Comma seperated list of Nomad server names, or "leader" to monitor for logs and include pprof
+   Comma separated list of Nomad server names, or "leader" to monitor for logs and include pprof
    data.
 
   -output=path
@@ -328,7 +328,36 @@ func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Clie
 
 // collectPProfs captures the /agent/pprof for each listed node
 func (c *DebugCommand) collectPProfs(client *api.Client) {
+	for _, n := range c.nodeIDs {
+		c.collectPprof("client", n, client)
+	}
 
+	for _, n := range c.serverIDs {
+		c.collectPprof("server", n, client)
+	}
+
+}
+
+// collectPprof captures pprof data for the node
+func (c *DebugCommand) collectPprof(path, id string, client *api.Client) {
+	opts := api.PprofOptions{Seconds: 1}
+	if path == "server" {
+		opts.ServerID = id
+	} else {
+		opts.NodeID = id
+	}
+
+	path = filepath.Join(path, id)
+
+	bs, err := client.Agent().CPUProfile(opts, nil)
+	if err == nil {
+		c.writeBytes(path, "pprof_cpu.bin", bs)
+	}
+
+	bs, err = client.Agent().Trace(opts, nil)
+	if err == nil {
+		c.writeBytes(path, "pprof_trace.bin", bs)
+	}
 }
 
 // await runs for duration, capturing the cluster state every interval. It flushes and stops
