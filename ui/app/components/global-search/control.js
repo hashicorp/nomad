@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { tagName } from '@ember-decorators/component';
+import { classNames } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
 import EmberObject, { action, computed, set } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -10,7 +10,7 @@ import classic from 'ember-classic-decorator';
 
 const SLASH_KEY = 191;
 
-@tagName('')
+@classNames('global-search-container')
 export default class GlobalSearchControl extends Component {
   @service dataCaches;
   @service router;
