@@ -160,6 +160,7 @@ class JobSearch extends EmberObject.extend(Searchable) {
   @alias('dataSource.searchString') searchTerm;
 
   fuzzySearchEnabled = true;
+  includeFuzzySearchMatches = true;
 }
 
 @classic
@@ -178,4 +179,5 @@ class NodeSearch extends EmberObject.extend(Searchable) {
   @alias('dataSource.searchString') searchTerm;
 
   fuzzySearchEnabled = true;
+  includeFuzzySearchMatches = true;
 }

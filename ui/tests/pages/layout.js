@@ -25,6 +25,7 @@ export default create({
 
         options: collection('.ember-power-select-option', {
           label: text(),
+          highlighted: text('.highlighted'),
         }),
       }),
 
