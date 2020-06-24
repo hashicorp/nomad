@@ -27,7 +27,7 @@ job "example" {
   #
   # For more information, please see the online documentation at:
   #
-  #     https://www.nomadproject.io/docs/jobspec/schedulers
+  #     https://www.nomadproject.io/docs/schedulers
   #
   type = "service"
 
