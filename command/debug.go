@@ -189,6 +189,11 @@ func (c *DebugCommand) Run(args []string) int {
 	var tmp string
 	if output != "" {
 		tmp = filepath.Join(output, stamped)
+		_, err := os.Stat(tmp)
+		if !os.IsNotExist(err) {
+			c.Ui.Error("Output directory already exists")
+			return 2
+		}
 	} else {
 		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
 		if err != nil {
@@ -261,7 +266,7 @@ func (c *DebugCommand) collect(client *api.Client) error {
 
 	c.startMonitors(client)
 	c.collectPeriodic(client)
-	c.collectPProfs(client)
+	c.collectPprofs(client)
 
 	return nil
 }
@@ -326,8 +331,8 @@ func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Clie
 	}
 }
 
-// collectPProfs captures the /agent/pprof for each listed node
-func (c *DebugCommand) collectPProfs(client *api.Client) {
+// collectPprofs captures the /agent/pprof for each listed node
+func (c *DebugCommand) collectPprofs(client *api.Client) {
 	for _, n := range c.nodeIDs {
 		c.collectPprof("client", n, client)
 	}
@@ -351,12 +356,17 @@ func (c *DebugCommand) collectPprof(path, id string, client *api.Client) {
 
 	bs, err := client.Agent().CPUProfile(opts, nil)
 	if err == nil {
-		c.writeBytes(path, "pprof_cpu.bin", bs)
+		c.writeBytes(path, "profile.prof", bs)
 	}
 
 	bs, err = client.Agent().Trace(opts, nil)
 	if err == nil {
-		c.writeBytes(path, "pprof_trace.bin", bs)
+		c.writeBytes(path, "trace.prof", bs)
+	}
+
+	bs, err = client.Agent().Lookup("goroutine", opts, nil)
+	if err == nil {
+		c.writeBytes(path, "goroutine.prof", bs)
 	}
 }
 
