@@ -165,7 +165,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 		return 255
 	}
 
-	exitCode := c.formatPlannedJob(job, resp, diff, verbose)
+	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
 	return exitCode
 }
@@ -173,21 +173,29 @@ func (c *JobPlanCommand) Run(args []string) int {
 func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts *api.PlanOptions, diff, verbose bool) int {
 
 	var exitCode int
+	plans := map[string]*api.JobPlanResponse{}
 
+	// collect all the plans first so that we can report all errors
 	for _, region := range job.Multiregion.Regions {
 		regionName := region.Name
-		client.SetRegion(region.Name)
+		client.SetRegion(regionName)
 
 		// Submit the job for this region
 		resp, _, err := client.Jobs().PlanOpts(job, opts, nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error during plan for region %q: %s", regionName, err))
-			return 255
+			exitCode = 255
 		}
+		plans[regionName] = resp
+	}
 
+	if exitCode > 0 {
+		return exitCode
+	}
+
+	for regionName, resp := range plans {
 		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("[bold]Region: %q[reset]", regionName)))
-
-		regionExitCode := c.formatPlannedJob(job, resp, verbose, diff)
+		regionExitCode := c.outputPlannedJob(job, resp, verbose, diff)
 		if regionExitCode > exitCode {
 			exitCode = regionExitCode
 		}
@@ -195,7 +203,7 @@ func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts 
 	return exitCode
 }
 
-func (c *JobPlanCommand) formatPlannedJob(job *api.Job, resp *api.JobPlanResponse, diff, verbose bool) int {
+func (c *JobPlanCommand) outputPlannedJob(job *api.Job, resp *api.JobPlanResponse, diff, verbose bool) int {
 
 	// Print the diff if not disabled
 	if diff {

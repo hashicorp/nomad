@@ -14,7 +14,7 @@ func (j *Job) multiregionRegister(args *structs.JobRegisterRequest, reply *struc
 	return nil
 }
 
-// multiregionPlan interpolates a job for a specific region
-func (j *Job) multiregionPlan(args *structs.JobPlanRequest) error {
+// interpolateMultiregionFields interpolates a job for a specific region
+func (j *Job) interpolateMultiregionFields(args *structs.JobPlanRequest) error {
 	return nil
 }

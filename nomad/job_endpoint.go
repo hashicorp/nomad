@@ -1604,7 +1604,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Interpolate the job for this region
-	err = j.multiregionPlan(args)
+	err = j.interpolateMultiregionFields(args)
 	if err != nil {
 		return err
 	}
