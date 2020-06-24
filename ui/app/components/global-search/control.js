@@ -4,7 +4,7 @@ import { task } from 'ember-concurrency';
 import EmberObject, { action, computed, set } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
-import { run } from '@ember/runloop';
+import { debounce, run } from '@ember/runloop';
 import Searchable from 'nomad-ui/mixins/searchable';
 import classic from 'ember-classic-decorator';
 
@@ -119,9 +119,7 @@ export default class GlobalSearchControl extends Component {
     const triggerIsNotActive = !targetClassList.contains('ember-power-select-trigger--active');
 
     if (targetIsTrigger && triggerIsNotActive) {
-      run.next(() => {
-        select.actions.open();
-      });
+      debounce(this, this.open, 150);
     }
   }
 
