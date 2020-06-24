@@ -216,15 +216,18 @@ func (c *DebugCommand) Run(args []string) int {
 	c.writeManifest()
 
 	if output != "" {
+		c.Ui.Output(fmt.Sprintf("Created debug directory: %s", c.collectDir))
 		return 0
 	}
 
-	err = TarCZF(stamped+".tar.gz", tmp)
+	archiveFile := stamped + ".tar.gz"
+	err = TarCZF(archiveFile, tmp)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("error creating archive: %s", err.Error()))
+		c.Ui.Error(fmt.Sprintf("Error creating archive: %s", err.Error()))
 		return 2
 	}
 
+	c.Ui.Output(fmt.Sprintf("Created debug archive: %s", archiveFile))
 	return 0
 }
 
@@ -239,7 +242,7 @@ func (c *DebugCommand) collect(client *api.Client) error {
 
 	self, err := client.Agent().Self()
 	if err != nil {
-		return fmt.Errorf("error agent self: %s", err.Error())
+		return fmt.Errorf("Error agent self: %s", err.Error())
 	}
 	c.writeJSON(dir, "agent-self.json", self)
 
