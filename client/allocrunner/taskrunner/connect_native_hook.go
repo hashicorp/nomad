@@ -193,7 +193,7 @@ func (h *connectNativeHook) tlsEnv(env map[string]string) map[string]string {
 
 // maybeSetSITokenEnv will set the CONSUL_HTTP_TOKEN environment variable in
 // the given env map, if the token is found to exist in the task's secrets
-// directory.
+// directory AND the CONSUL_HTTP_TOKEN environment variable is not already set.
 //
 // Following the pattern of the envoy_bootstrap_hook, the Consul Service Identity
 // ACL Token is generated prior to this hook, if Consul ACLs are enabled. This is
@@ -201,6 +201,13 @@ func (h *connectNativeHook) tlsEnv(env map[string]string) map[string]string {
 // workspace. The content of that file is the SI token specific to this task
 // instance.
 func (h *connectNativeHook) maybeSetSITokenEnv(dir, task string, env map[string]string) error {
+	if _, exists := env["CONSUL_HTTP_TOKEN"]; exists {
+		// Consul token was already set - typically by using the Vault integration
+		// and a template stanza to set the environment. Ignore the SI token as
+		// the configured token takes precedence.
+		return nil
+	}
+
 	token, err := ioutil.ReadFile(filepath.Join(dir, sidsTokenFile))
 	if err != nil {
 		if !os.IsNotExist(err) {
