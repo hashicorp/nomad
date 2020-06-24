@@ -4,11 +4,13 @@ import base64js from 'base64-js';
 import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
 
 export default class ExecSocketXtermAdapter {
-  constructor(terminal, socket) {
+  constructor(terminal, socket, token) {
     this.terminal = terminal;
     this.socket = socket;
+    this.token = token;
 
     socket.onopen = () => {
+      this.sendWsHandshake();
       this.sendTtySize();
 
       terminal.onData(data => {
@@ -41,6 +43,10 @@ export default class ExecSocketXtermAdapter {
     this.socket.send(
       JSON.stringify({ tty_size: { width: this.terminal.cols, height: this.terminal.rows } })
     );
+  }
+
+  sendWsHandshake() {
+    this.socket.send(JSON.stringify({ version: 1, auth_token: this.token || '' }));
   }
 
   handleData(data) {

@@ -1,16 +1,20 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import PromiseArray from 'nomad-ui/utils/classes/promise-array';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  classNames: ['boxed-section'],
+@classic
+@classNames('boxed-section')
+export default class RecentAllocations extends Component {
+  @service router;
 
-  router: service(),
+  sortProperty = 'modifyIndex';
+  sortDescending = true;
 
-  sortProperty: 'modifyIndex',
-  sortDescending: true,
-  sortedAllocations: computed('job.allocations.@each.modifyIndex', function() {
+  @computed('job.allocations.@each.modifyIndex')
+  get sortedAllocations() {
     return PromiseArray.create({
       promise: this.get('job.allocations').then(allocations =>
         allocations
@@ -19,11 +23,10 @@ export default Component.extend({
           .slice(0, 5)
       ),
     });
-  }),
+  }
 
-  actions: {
-    gotoAllocation(allocation) {
-      this.router.transitionTo('allocations.allocation', allocation.id);
-    },
-  },
-});
+  @action
+  gotoAllocation(allocation) {
+    this.router.transitionTo('allocations.allocation', allocation.id);
+  }
+}

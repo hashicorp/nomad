@@ -65,9 +65,17 @@ func Node() *structs.Node {
 			},
 			Networks: []*structs.NetworkResource{
 				{
+					Mode:   "host",
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
 					MBits:  1000,
+				},
+			},
+			NodeNetworks: []*structs.NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Speed:  1000,
 				},
 			},
 		},
@@ -1287,6 +1295,31 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 	return job, policy
 }
 
+func MultiregionJob() *structs.Job {
+	job := Job()
+	job.Multiregion = &structs.Multiregion{
+		Strategy: &structs.MultiregionStrategy{
+			MaxParallel: 1,
+			OnFailure:   "fail_all",
+		},
+		Regions: []*structs.MultiregionRegion{
+			{
+				Name:        "west",
+				Count:       2,
+				Datacenters: []string{"west-1", "west-2"},
+				Meta:        map[string]string{"region_code": "W"},
+			},
+			{
+				Name:        "east",
+				Count:       1,
+				Datacenters: []string{"east-1"},
+				Meta:        map[string]string{"region_code": "E"},
+			},
+		},
+	}
+	return job
+}
+
 func CSIPlugin() *structs.CSIPlugin {
 	return &structs.CSIPlugin{
 		ID:                 uuid.Generate(),
@@ -1311,8 +1344,14 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		AccessMode:          structs.CSIVolumeAccessModeSingleNodeWriter,
 		AttachmentMode:      structs.CSIVolumeAttachmentModeFilesystem,
 		MountOptions:        &structs.CSIMountOptions{},
+		Secrets:             structs.CSISecrets{},
+		Parameters:          map[string]string{},
+		Context:             map[string]string{},
 		ReadAllocs:          map[string]*structs.Allocation{},
 		WriteAllocs:         map[string]*structs.Allocation{},
+		ReadClaims:          map[string]*structs.CSIVolumeClaim{},
+		WriteClaims:         map[string]*structs.CSIVolumeClaim{},
+		PastClaims:          map[string]*structs.CSIVolumeClaim{},
 		PluginID:            plugin.ID,
 		Provider:            plugin.Provider,
 		ProviderVersion:     plugin.Version,

@@ -127,6 +127,46 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		for i := 0; i < 3; i++ {
+			// Create the job
+			job := mock.Job()
+			args := structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+			}
+			var resp structs.JobRegisterResponse
+			err := s.Agent.RPC("Job.Register", &args, &resp)
+			require.NoError(t, err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/jobs?namespace=*", nil)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		require.NoError(t, err)
+
+		// Check for the index
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+
+		// Check the job
+		j := obj.([]*structs.JobListStub)
+		require.Len(t, j, 3)
+
+		require.Equal(t, "default", j[0].Namespace)
+	})
+}
+
 func TestHTTP_JobsRegister(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -1535,6 +1575,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Meta: map[string]string{
 			"foo": "bar",
 		},
+		Multiregion: &api.Multiregion{
+			Strategy: &api.MultiregionStrategy{
+				MaxParallel: helper.IntToPtr(2),
+				OnFailure:   helper.StringToPtr("fail_all"),
+			},
+			Regions: []*api.MultiregionRegion{
+				{
+					Name:        "west",
+					Count:       helper.IntToPtr(1),
+					Datacenters: []string{"dc1", "dc2"},
+					Meta:        map[string]string{"region_code": "W"},
+				},
+			},
+		},
 		TaskGroups: []*api.TaskGroup{
 			{
 				Name:  helper.StringToPtr("group1"),
@@ -1887,6 +1941,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Payload: []byte("payload"),
 		Meta: map[string]string{
 			"foo": "bar",
+		},
+		Multiregion: &structs.Multiregion{
+			Strategy: &structs.MultiregionStrategy{
+				MaxParallel: 2,
+				OnFailure:   "fail_all",
+			},
+			Regions: []*structs.MultiregionRegion{
+				{
+					Name:        "west",
+					Count:       1,
+					Datacenters: []string{"dc1", "dc2"},
+					Meta:        map[string]string{"region_code": "W"},
+				},
+			},
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{

@@ -1,10 +1,10 @@
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class JobVersionSerializer extends ApplicationSerializer {
+  attrs = {
     number: 'Version',
-  },
+  };
 
   normalizeFindHasManyResponse(store, modelClass, hash, id, requestType) {
     const zippedVersions = hash.Versions.map((version, index) =>
@@ -16,6 +16,13 @@ export default ApplicationSerializer.extend({
         SubmitTimeNanos: version.SubmitTime % 1000000,
       })
     );
-    return this._super(store, modelClass, zippedVersions, hash, id, requestType);
-  },
-});
+    return super.normalizeFindHasManyResponse(
+      store,
+      modelClass,
+      zippedVersions,
+      hash,
+      id,
+      requestType
+    );
+  }
+}

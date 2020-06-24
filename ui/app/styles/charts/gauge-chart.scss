@@ -1,0 +1,52 @@
+.gauge-chart {
+  position: relative;
+  display: block;
+  width: auto;
+
+  svg {
+    display: block;
+    margin: auto;
+    width: 100%;
+    max-width: 200px;
+    height: 100%;
+  }
+
+  .background,
+  .fill {
+    transform: translate(50%, 100%);
+  }
+
+  .background {
+    fill: $ui-gray-100;
+  }
+
+  @each $name, $pair in $colors {
+    $color: nth($pair, 1);
+
+    .canvas.is-#{$name} {
+      .line {
+        stroke: $color;
+      }
+    }
+
+    linearGradient {
+      &.is-#{$name} {
+        > .start {
+          stop-color: $color;
+          stop-opacity: 0.2;
+        }
+
+        > .end {
+          stop-color: $color;
+          stop-opacity: 1;
+        }
+      }
+    }
+  }
+
+  .metric {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+  }
+}

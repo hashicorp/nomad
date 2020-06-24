@@ -16,6 +16,14 @@ Nomad Enterprise adds collaboration, operational, and governance capabilities to
 
 Please navigate the sub-sections for more information about each package and its features in detail.
 
+## Nomad Enterprise Licensing
+
+Nomad Enterprise requires a license to run. When a Enterprise server first starts it will be set with a temporary license that includes all features. This will be valid for 6 hours and allows users to test enterprise features and provide enough time for operators to apply their enterprise license.
+
+If a server is never given a valid license and the temporary license expires, the server will shutdown. If a valid (non-temporary) license expires, the cluster will continue to function, but write operations to enterprise features will be disabled.
+
+See the [License commands](/docs/commands/license) for more information on interacting with the Enterprise License.
+
 ## Nomad Enterprise Platform
 
 Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as enhances performance and availability through Advanced Autopilot features such as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
@@ -78,7 +86,21 @@ When a Nomad cluster is at capacity for a given set of placement constraints, an
 
 Preemption enables Nomad's scheduler to automatically evict lower priority allocations of service and batch jobs so that allocations from higher priority jobs can be placed. This behavior ensures that critical workloads can run when resources are limited or when partial outages require workloads to be rescheduled across a smaller set of client nodes.
 
+## Multi-Cluster & Efficiency
+
+Multi-Cluster & Efficiency features are part of an add-on module that enables
+an organization to operate Nomad at scale across multiple clusters through
+features such as Multiregion Deployments.
+
+### Multiregion Deployments
+
+[Multiregion Deployments] enable an operator to deploy a single job to multiple
+federated regions.  This includes the ability to control the order of rollouts
+and how each region will behave in the event of a deployment failure.
+
 ## Try Nomad Enterprise
 
 Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or request a trial
 of Nomad Enterprise.
+
+[Multiregion Deployments]: /docs/job-specification/multiregion

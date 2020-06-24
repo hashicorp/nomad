@@ -12,6 +12,41 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+var (
+	commonTaskKeys = []string{
+		"driver",
+		"user",
+		"config",
+		"env",
+		"resources",
+		"meta",
+		"logs",
+		"kill_timeout",
+		"shutdown_delay",
+		"kill_signal",
+	}
+
+	normalTaskKeys = append(commonTaskKeys,
+		"artifact",
+		"constraint",
+		"affinity",
+		"dispatch_payload",
+		"lifecycle",
+		"leader",
+		"restart",
+		"service",
+		"template",
+		"vault",
+		"kind",
+		"volume_mount",
+		"csi_plugin",
+	)
+
+	sidecarTaskKeys = append(commonTaskKeys,
+		"name",
+	)
+)
+
 func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 	list = list.Children()
 	if len(list.Items) == 0 {
@@ -29,7 +64,7 @@ func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 		}
 		seen[n] = struct{}{}
 
-		t, err := parseTask(item)
+		t, err := parseTask(item, normalTaskKeys)
 		if err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 		}
@@ -42,7 +77,7 @@ func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseTask(item *ast.ObjectItem) (*api.Task, error) {
+func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	// We need this later
 	var listVal *ast.ObjectList
 	if ot, ok := item.Val.(*ast.ObjectType); ok {
@@ -52,32 +87,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	}
 
 	// Check for invalid keys
-	valid := []string{
-		"artifact",
-		"config",
-		"constraint",
-		"affinity",
-		"dispatch_payload",
-		"lifecycle",
-		"driver",
-		"env",
-		"kill_timeout",
-		"leader",
-		"logs",
-		"meta",
-		"resources",
-		"restart",
-		"service",
-		"shutdown_delay",
-		"template",
-		"user",
-		"vault",
-		"kill_signal",
-		"kind",
-		"volume_mount",
-		"csi_plugin",
-	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, keys); err != nil {
 		return nil, err
 	}
 

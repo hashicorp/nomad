@@ -61,7 +61,7 @@ var (
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewQemuDriver(l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewQemuDriver(ctx, l) },
 	}
 
 	versionRegex = regexp.MustCompile(`version (\d[\.\d+]+)`)
@@ -98,9 +98,10 @@ var (
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
-		SendSignals: false,
-		Exec:        false,
-		FSIsolation: drivers.FSIsolationImage,
+		SendSignals:  false,
+		Exec:         false,
+		FSIsolation:  drivers.FSIsolationImage,
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -141,23 +142,17 @@ type Driver struct {
 	// nomadConf is the client agent's configuration
 	nomadConfig *base.ClientDriverConfig
 
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
-func NewQemuDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewQemuDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -346,6 +341,17 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		"-nographic",
 	}
 
+	var netdevArgs []string
+	if cfg.DNS != nil {
+		if len(cfg.DNS.Servers) > 0 {
+			netdevArgs = append(netdevArgs, "dns="+cfg.DNS.Servers[0])
+		}
+
+		for _, s := range cfg.DNS.Searches {
+			netdevArgs = append(netdevArgs, "dnssearch="+s)
+		}
+	}
+
 	var monitorPath string
 	if driverConfig.GracefulShutdown {
 		if runtime.GOOS == "windows" {
@@ -384,7 +390,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		// Loop through the port map and construct the hostfwd string, to map
 		// reserved ports to the ports listenting in the VM
 		// Ex: hostfwd=tcp::22000-:22,hostfwd=tcp::80-:8080
-		var forwarding []string
 		taskPorts := cfg.Resources.NomadResources.Networks[0].PortLabels()
 		for label, guest := range driverConfig.PortMap {
 			host, ok := taskPorts[label]
@@ -393,14 +398,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			}
 
 			for _, p := range protocols {
-				forwarding = append(forwarding, fmt.Sprintf("hostfwd=%s::%d-:%d", p, host, guest))
+				netdevArgs = append(netdevArgs, fmt.Sprintf("hostfwd=%s::%d-:%d", p, host, guest))
 			}
 		}
 
-		if len(forwarding) != 0 {
+		if len(netdevArgs) != 0 {
 			args = append(args,
 				"-netdev",
-				fmt.Sprintf("user,id=user.0,%s", strings.Join(forwarding, ",")),
+				fmt.Sprintf("user,id=user.0,%s", strings.Join(netdevArgs, ",")),
 				"-device", "virtio-net,netdev=user.0",
 			)
 		}
@@ -651,8 +656,4 @@ func sendQemuShutdown(logger hclog.Logger, monitorPath string, userPid int) erro
 		logger.Warn("failed to send shutdown message", "shutdown message", qemuGracefulShutdownMsg, "monitorPath", monitorPath, "userPid", userPid, "error", err)
 	}
 	return err
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }

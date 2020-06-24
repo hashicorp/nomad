@@ -12,34 +12,37 @@ description: The "connect" stanza allows specifying options for Consul Connect i
 The `connect` stanza allows configuring various options for
 [Consul Connect](/docs/integrations/consul-connect). It is
 valid only within the context of a service definition at the task group
-level.
+level. For using `connect` when Consul ACLs are enabled, be sure to read through
+the [Secure Nomad Jobs with Consul Connect](https://learn.hashicorp.com/nomad/consul-integration/nomad-connect-acl)
+guide.
 
 ```hcl
- job "countdash" {
-   datacenters = ["dc1"]
-   group "api" {
-     network {
-       mode = "bridge"
-     }
+job "countdash" {
+  datacenters = ["dc1"]
 
-     service {
-       name = "count-api"
-       port = "9001"
+  group "api" {
+    network {
+      mode = "bridge"
+    }
 
-       connect {
-         sidecar_service {}
-       }
-     }
+    service {
+      name = "count-api"
+      port = "9001"
 
-     task "web" {
-       driver = "docker"
-       config {
-         image = "test/test:v1"
-       }
-     }
-   }
- }
+      connect {
+        sidecar_service {}
+      }
+    }
 
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+    }
+  }
+}
 ```
 
 ## `connect` Parameters
@@ -77,10 +80,91 @@ The following example includes specifying [`upstreams`][upstreams].
   }
 ```
 
+The following is the complete `countdash` example. It includes an API service
+and a frontend Dashboard service which connects to the API service as a Connect
+upstream. Once running, the dashboard is accessible at `localhost:9002`.
+
+```hcl
+job "countdash" {
+  datacenters = ["dc1"]
+
+  group "api" {
+    network {
+      mode = "bridge"
+    }
+
+    service {
+      name = "count-api"
+      port = "9001"
+
+      connect {
+        sidecar_service {}
+      }
+
+      check {
+        expose   = true
+        type     = "http"
+        name     = "api-health"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "3s"
+      }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+    }
+  }
+
+  group "dashboard" {
+    network {
+      mode = "bridge"
+
+      port "http" {
+        static = 9002
+        to     = 9002
+      }
+    }
+
+    service {
+      name = "count-dashboard"
+      port = "9002"
+
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "count-api"
+              local_bind_port  = 8080
+            }
+          }
+        }
+      }
+    }
+
+    task "dashboard" {
+      driver = "docker"
+
+      env {
+        COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+      }
+
+      config {
+        image = "hashicorpnomad/counter-dashboard:v2"
+      }
+    }
+  }
+}
+```
+
 ### Limitations
 
 [Consul Connect Native services][native] and [Nomad variable
-interpolation][interpolation] are _not_ supported in Nomad 0.10.0.
+interpolation][interpolation] are _not_ yet supported.
 
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [group]: /docs/job-specification/group 'Nomad group Job Specification'

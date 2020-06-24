@@ -14,7 +14,7 @@
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
-    "storybook": "STORYBOOK=true ember serve & start-storybook -p 6006 -s dist",
+    "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "./node_modules/ember-cli/bin/ember test"
   },
   "husky": {
@@ -24,21 +24,19 @@
   },
   "lint-staged": {
     "{app,tests,config,lib,mirage,stories}/**/*.js": [
-      "prettier --write",
-      "git add"
+      "prettier --write"
     ],
     "app/styles/**/*.*": [
-      "prettier --write",
-      "git add"
+      "prettier --write"
     ]
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "^7.4.3",
-    "@ember/jquery": "^0.6.0",
     "@ember/optional-features": "^0.7.0",
     "@hashicorp/structure-icons": "^1.3.0",
     "@storybook/ember-cli-storybook": "^0.2.0",
     "anser": "^1.4.8",
+    "babel-eslint": "^10.1.0",
     "base64-js": "^1.3.1",
     "broccoli-asset-rev": "^3.0.0",
     "bulma": "0.6.1",
@@ -55,6 +53,7 @@
     "ember-ajax": "^5.0.0",
     "ember-auto-import": "^1.2.21",
     "ember-can": "^2.0.0",
+    "ember-classic-decorator": "^1.0.8",
     "ember-cli": "~3.12.0",
     "ember-cli-babel": "^7.7.3",
     "ember-cli-clipboard": "^0.13.0",
@@ -67,7 +66,7 @@
     "ember-cli-inject-live-reload": "^2.0.1",
     "ember-cli-mirage": "^1.1.2",
     "ember-cli-moment-shim": "^3.5.0",
-    "ember-cli-page-object": "^1.15.1",
+    "ember-cli-page-object": "^1.17.2",
     "ember-cli-sass": "^10.0.0",
     "ember-cli-sri": "^2.1.1",
     "ember-cli-string-helpers": "^1.5.0",
@@ -78,9 +77,9 @@
     "ember-copy": "^1.0.0",
     "ember-data": "~3.12.0",
     "ember-data-model-fragments": "4.0.0",
+    "ember-decorators": "^6.1.1",
     "ember-export-application-global": "^2.0.0",
     "ember-fetch": "^6.5.0",
-    "ember-freestyle": "~0.10.0",
     "ember-inflector": "^3.0.0",
     "ember-inline-svg": "^0.3.0",
     "ember-load-initializers": "^2.0.0",
@@ -98,16 +97,17 @@
     "ember-test-selectors": "^2.1.0",
     "ember-truth-helpers": "^2.0.0",
     "eslint": "^5.16.0",
+    "eslint-plugin-ember": "^6.2.0",
     "eslint-plugin-node": "^9.0.1",
     "faker": "^4.1.0",
     "flat": "^4.0.0",
     "fuse.js": "^3.4.4",
     "glob": "^4.0.5",
     "http-proxy": "^1.1.6",
-    "husky": "^1.3.1",
+    "husky": "^4.2.5",
     "is-ip": "^3.1.0",
     "ivy-codemirror": "IvyApp/ivy-codemirror#c3b7f49f8e6492878619f8055695581240cce21a",
-    "lint-staged": "^8.1.5",
+    "lint-staged": "^10.1.3",
     "loader.js": "^4.7.0",
     "lodash.intersection": "^4.4.0",
     "morgan": "^1.3.2",
@@ -119,7 +119,7 @@
     "testem": "^3.0.3",
     "testem-multi-reporter": "^1.2.0",
     "text-encoder-lite": "^2.0.0",
-    "xterm": "^4.2.0-vscode1",
+    "xterm": "^4.6.0",
     "xterm-addon-fit": "^0.3.0"
   },
   "optionalDependencies": {

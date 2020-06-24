@@ -90,12 +90,20 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
+- `csi_volume_claim_gc_threshold` `(string: "1h")` - Specifies the minimum age of
+  a CSI volume before it is eligible to have its claims garbage collected.
+  This is specified using a label suffix like "30s" or "1h".
+
+- `csi_plugin_gc_threshold` `(string: "1h")` - Specifies the minimum age of a
+  CSI plugin before it is eligible for garbage collection if not in use.
+  This is specified using a label suffix like "30s" or "1h".
+
 - `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
   nil)</code> - Specifies the initial default scheduler config when
   bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or
   value is updated through the [API endpoint][update-scheduler-config]. See [the
   example section](#configuring-scheduler-config) for more details
-  `default_scheduler_config` was introduced in Nomad 0.11.4.
+  `default_scheduler_config` was introduced in Nomad 0.10.4.
 
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given as a
   grace period beyond the heartbeat TTL of nodes to account for network and
@@ -132,6 +140,25 @@ server {
   communicating with other Nomad servers. This affects available Autopilot
   features and is typically not required as the agent internally knows the
   latest version, but may be useful in some upgrade scenarios.
+
+- `raft_multiplier` `(int: 1)` - An integer multiplier used by Nomad servers to
+  scale key Raft timing parameters. Omitting this value or setting it to 0 uses
+  default timing described below. Lower values are used to tighten timing and
+  increase sensitivity while higher values relax timings and reduce sensitivity.
+  Tuning this affects the time it takes Nomad to detect leader failures and to
+  perform leader elections, at the expense of requiring more network and CPU
+  resources for better performance. The maximum allowed value is 10.
+
+  By default, Nomad will use the highest-performance timing, currently equivalent
+  to setting this to a value of 1. Increasing the timings makes leader election
+  less likely during periods of networking issues or resource starvation. Since
+  leader elections pause Nomad's normal work, it may be beneficial for slow or
+  unreliable networks to wait longer before electing a new leader. The tradeoff
+  when raising this value is that during network partitions or other events
+  (server crash) where a leader is lost, Nomad will not elect a new leader for
+  a longer period of time than the default. The ['nomad.nomad.leader.barrier' and
+  `nomad.raft.leader.lastContact` metrics](/docs/telemetry/metrics is a good
+  indicator of how often leader elections occur and raft latency.
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
@@ -231,13 +258,30 @@ server {
 }
 ```
 
-### Configuring Scheduler Config
+### Bootstrapping with a Custom Scheduler Config ((#configuring-scheduler-config))
 
-This example shows enabling preemption for all schedulers.
+While [bootstrapping a cluster], you can use the `default_scheduler_config` stanza
+to prime the cluster with a [`SchedulerConfig`][update-scheduler-config]. The
+scheduler configuration determines which scheduling algorithm is configured—
+spread scheduling or binpacking—and which job types are eligible for preemption.
+
+~> **Warning:** Once the cluster is bootstrapped, you must configure this using
+   the [update scheduler configuration][update-scheduler-config] API. This
+   option is only consulted during bootstrap.
+
+The structure matches the [Update Scheduler Config][update-scheduler-config] API
+endpoint, which you should consult for canonical documentation. However, the
+attributes names must be adapted to HCL syntax by using snake case
+representations rather than camel case.
+
+This example shows configuring spread scheduling and enabling preemption for all
+job-type schedulers.
 
 ```hcl
 server {
   default_scheduler_config {
+    scheduler_algorithm = "spread"
+
     preemption_config {
       batch_scheduler_enabled   = true
       system_scheduler_enabled  = true
@@ -247,14 +291,7 @@ server {
 }
 ```
 
-The structure matches the [Update Scheduler Config][update-scheduler-config] endpoint,
-but adopted to hcl syntax (namely using snake case rather than camel case).
-
-Nomad servers check their `default_scheduler_config` only during cluster
-bootstrap. During upgrades, if a previously bootstrapped cluster already set
-scheduler configuration via the [Update Scheduler Config][update-scheduler-config]
-endpoint, that is always preferred.
-
 [encryption]: https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 'Nomad Encryption Overview'
 [server-join]: /docs/configuration/server_join 'Server Join'
 [update-scheduler-config]: /api-docs/operator#update-scheduler-configuration 'Scheduler Config'
+[bootstrapping a cluster]: /docs/faq#bootstrapping

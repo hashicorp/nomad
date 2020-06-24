@@ -43,7 +43,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     https://localhost:4646/v1/volumes?type=csi&node_id=foo&plugin_id=plugin-id1
 ```
@@ -74,7 +74,7 @@ $ curl \
     "NodesExpected": 18,
     "ResourceExhausted": 0,
     "CreateIndex": 42,
-    "ModifyIndex": 64,
+    "ModifyIndex": 64
   }
 ]
 ```
@@ -91,8 +91,8 @@ The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
 [required ACLs](/api-docs#acls).
 
-| Blocking Queries | ACL Required         |
-| ---------------- | -------------------- |
+| Blocking Queries | ACL Required                |
+| ---------------- | --------------------------- |
 | `YES`            | `namespace:csi-read-volume` |
 
 ### Parameters
@@ -103,7 +103,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     https://localhost:4646/v1/volume/csi/volume-id1
 ```
@@ -116,9 +116,7 @@ $ curl \
   "Name": "volume id1",
   "Namespace": "default",
   "ExternalID": "volume-id1",
-  "Topologies": [
-    {"foo": "bar"}
-  ],
+  "Topologies": [{ "foo": "bar" }],
   "AccessMode": "multi-node-single-writer",
   "AttachmentMode": "file-system",
   "Allocations": [
@@ -243,7 +241,7 @@ $ curl \
   "NodesExpected": 18,
   "ResourceExhausted": 0,
   "CreateIndex": 42,
-  "ModifyIndex": 64,
+  "ModifyIndex": 64
 }
 ```
 
@@ -260,9 +258,9 @@ The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
 [required ACLs](/api-docs#acls).
 
-| Blocking Queries | ACL Required         |
-| ---------------- | -------------------- |
-| `YES`            | `namespace:csi-write-volume` |
+| Blocking Queries | ACL Required                 |
+| ---------------- | ---------------------------- |
+| `NO`             | `namespace:csi-write-volume` |
 
 ### Parameters
 
@@ -281,18 +279,16 @@ parameters.
   "Name": "volume id1",
   "Namespace": "default",
   "ExternalID": "volume-id1",
-  "Topologies": [
-    {"foo": "bar"}
-  ],
+  "Topologies": [{ "foo": "bar" }],
   "AccessMode": "multi-node-single-writer",
   "AttachmentMode": "file-system",
-  "PluginID": "plugin-id1",
+  "PluginID": "plugin-id1"
 }
 ```
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     --request PUT \
     --data @payload.json \
@@ -304,17 +300,17 @@ $ curl \
 This endpoint deregisters an external volume with Nomad. It is an
 error to deregister a volume that is in use.
 
-| Method   | Path                        | Produces           |
-| -------- | --------------------------- | ------------------ |
-| `DELTE`  | `/v1/volume/csi/:volume_id` | `application/json` |
+| Method  | Path                        | Produces           |
+| ------- | --------------------------- | ------------------ |
+| `DELTE` | `/v1/volume/csi/:volume_id` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
 [required ACLs](/api-docs#acls).
 
-| Blocking Queries | ACL Required         |
-| ---------------- | -------------------- |
-| `YES`            | `namespace:csi-write-volume` |
+| Blocking Queries | ACL Required                 |
+| ---------------- | ---------------------------- |
+| `NO`             | `namespace:csi-write-volume` |
 
 ### Parameters
 
@@ -324,7 +320,7 @@ The table below shows this endpoint's support for
 
 ### Sample Request
 
-```shell
+```shell-session
 $ curl \
     --request DELETE \
     --data @payload.json \

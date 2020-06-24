@@ -197,6 +197,12 @@ func (c *Conn) GetUnitPathProperties(path dbus.ObjectPath) (map[string]interface
 	return c.getProperties(path, "org.freedesktop.systemd1.Unit")
 }
 
+// GetAllProperties takes the (unescaped) unit name and returns all of its dbus object properties.
+func (c *Conn) GetAllProperties(unit string) (map[string]interface{}, error) {
+	path := unitPath(unit)
+	return c.getProperties(path, "")
+}
+
 func (c *Conn) getProperty(unit string, dbusInterface string, propertyName string) (*Property, error) {
 	var err error
 	var prop dbus.Variant

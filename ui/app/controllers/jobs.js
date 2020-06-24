@@ -1,14 +1,16 @@
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
 
-export default Controller.extend({
-  system: service(),
+export default class JobsController extends Controller {
+  @service system;
 
-  queryParams: {
-    jobNamespace: 'namespace',
-  },
+  queryParams = [
+    {
+      jobNamespace: 'namespace',
+    },
+  ];
 
-  isForbidden: false,
+  isForbidden = false;
 
-  jobNamespace: 'default',
-});
+  jobNamespace = 'default';
+}

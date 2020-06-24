@@ -55,6 +55,35 @@ module('Acceptance | clients list', function(hooks) {
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
   });
 
+  test('each client record should show running allocations', async function(assert) {
+    server.createList('agent', 1);
+
+    const node = server.create('node', {
+      modifyIndex: 4,
+      status: 'ready',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+
+    server.create('job', { createAllocations: false });
+
+    const running = server.createList('allocation', 2, { clientStatus: 'running' });
+    server.createList('allocation', 3, { clientStatus: 'pending' });
+    server.createList('allocation', 10, { clientStatus: 'complete' });
+
+    await ClientsList.visit();
+
+    const nodeRow = ClientsList.nodes.objectAt(0);
+
+    assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
+    assert.equal(
+      nodeRow.compositeStatus.text,
+      'ready',
+      'Combined status, draining, and eligbility'
+    );
+    assert.equal(nodeRow.allocations, running.length, '# Allocations');
+  });
+
   test('client status, draining, and eligibility are collapsed into one column that stays sorted', async function(assert) {
     server.createList('agent', 1);
 

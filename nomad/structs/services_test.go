@@ -174,6 +174,8 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 }
 
 func TestSidecarTask_MergeIntoTask(t *testing.T) {
+	t.Parallel()
+
 	task := MockJob().TaskGroups[0].Tasks[0]
 	sTask := &SidecarTask{
 		Name:   "sidecar",
@@ -300,6 +302,8 @@ func TestConsulExposePath_exposePathsEqual(t *testing.T) {
 }
 
 func TestConsulExposeConfig_Copy(t *testing.T) {
+	t.Parallel()
+
 	require.Nil(t, (*ConsulExposeConfig)(nil).Copy())
 	require.Equal(t, &ConsulExposeConfig{
 		Paths: []ConsulExposePath{{
@@ -313,6 +317,8 @@ func TestConsulExposeConfig_Copy(t *testing.T) {
 }
 
 func TestConsulExposeConfig_Equals(t *testing.T) {
+	t.Parallel()
+
 	require.True(t, (*ConsulExposeConfig)(nil).Equals(nil))
 	require.True(t, (&ConsulExposeConfig{
 		Paths: []ConsulExposePath{{
@@ -323,4 +329,28 @@ func TestConsulExposeConfig_Equals(t *testing.T) {
 			Path: "/health",
 		}},
 	}))
+}
+
+func TestConsulSidecarService_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		s := (*ConsulSidecarService)(nil)
+		result := s.Copy()
+		require.Nil(t, result)
+	})
+
+	t.Run("not nil", func(t *testing.T) {
+		s := &ConsulSidecarService{
+			Tags:  []string{"foo", "bar"},
+			Port:  "port1",
+			Proxy: &ConsulProxy{LocalServiceAddress: "10.0.0.1"},
+		}
+		result := s.Copy()
+		require.Equal(t, &ConsulSidecarService{
+			Tags:  []string{"foo", "bar"},
+			Port:  "port1",
+			Proxy: &ConsulProxy{LocalServiceAddress: "10.0.0.1"},
+		}, result)
+	})
 }

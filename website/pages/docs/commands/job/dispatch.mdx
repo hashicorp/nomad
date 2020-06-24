@@ -63,7 +63,7 @@ client connection issues or internal errors, are indicated by exit code 1.
 Dispatch against a parameterized job with the ID "video-encode" and
 passing in a configuration payload via stdin:
 
-```shell
+```shell-session
 $ cat << EOF | nomad job dispatch video-encode -
 {
   "s3-input": "https://video-bucket.s3-us-west-1.amazonaws.com/cb31dabb1",
@@ -86,7 +86,7 @@ Evaluation ID     = 31199841
 Dispatch against a parameterized job with the ID "video-encode" and
 passing in a configuration payload via a file:
 
-```shell
+```shell-session
 $ nomad job dispatch video-encode video-config.json
 Dispatched Job ID = video-encode/dispatch-1485379325-cb38d00d
 Evaluation ID     = 31199841
@@ -101,7 +101,7 @@ Evaluation ID     = 31199841
 Dispatch against a parameterized job with the ID "video-encode" using the detach
 flag:
 
-```shell
+```shell-session
 $ nomad job dispatch -detach video-encode video-config.json
 Dispatched Job ID = example/dispatch-1485380684-c37b3dba
 Evaluation ID     = d9034c4e

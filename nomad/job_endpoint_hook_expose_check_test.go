@@ -346,6 +346,36 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 		}, s, c)
 		require.EqualError(t, err, `unable to determine local service port for service check group1->service1->check1`)
 	})
+
+	t.Run("empty check port", func(t *testing.T) {
+		c := &structs.ServiceCheck{
+			Name: "check1",
+			Type: "http",
+			Path: "/health",
+		}
+		s := &structs.Service{
+			Name:      "service1",
+			PortLabel: "9999",
+			Checks:    []*structs.ServiceCheck{c},
+		}
+		tg := &structs.TaskGroup{
+			Name:     "group1",
+			Services: []*structs.Service{s},
+			Networks: structs.Networks{{
+				Mode:         "bridge",
+				DynamicPorts: []structs.Port{},
+			}},
+		}
+		ePath, err := exposePathForCheck(tg, s, c)
+		require.NoError(t, err)
+		require.Len(t, tg.Networks[0].DynamicPorts, 1)
+		require.Equal(t, &structs.ConsulExposePath{
+			Path:          "/health",
+			Protocol:      "",
+			LocalPathPort: 9999,
+			ListenerPort:  tg.Networks[0].DynamicPorts[0].Label,
+		}, ePath)
+	})
 }
 
 func TestJobExposeCheckHook_containsExposePath(t *testing.T) {

@@ -40,7 +40,7 @@ func TestAllocations_Restart(t *testing.T) {
 		Mode:     nstructs.RestartPolicyModeFail,
 	}
 	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10ms",
+		"run_for": "10s",
 	}
 	require.Nil(client.addAlloc(a, ""))
 

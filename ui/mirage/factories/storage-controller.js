@@ -7,15 +7,17 @@ export default Factory.extend({
   provider: faker.helpers.randomize(STORAGE_PROVIDERS),
   providerVersion: '1.0.1',
 
-  healthy: faker.random.boolean,
+  healthy: i => [true, false][i % 2],
   healthDescription() {
     this.healthy ? 'healthy' : 'unhealthy';
   },
 
-  updateTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+  updateTime: () => faker.date.past(2 / 365, REF_TIME),
 
   requiresControllerPlugin: true,
   requiresTopologies: true,
+
+  shallow: false,
 
   controllerInfo: () => ({
     SupportsReadOnlyAttach: true,
@@ -27,11 +29,13 @@ export default Factory.extend({
   afterCreate(storageController, server) {
     const alloc = server.create('allocation', {
       jobId: storageController.job.id,
+      forceRunningClientStatus: true,
+      modifyTime: storageController.updateTime * 1000000,
+      shallow: storageController.shallow,
     });
 
     storageController.update({
-      allocation: alloc,
-      allocId: alloc.id,
+      allocID: alloc.id,
       nodeId: alloc.nodeId,
     });
   },

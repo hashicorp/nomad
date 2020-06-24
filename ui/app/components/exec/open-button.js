@@ -1,36 +1,27 @@
 import Component from '@ember/component';
+import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
 import openExecUrl from 'nomad-ui/utils/open-exec-url';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: '',
+@classic
+@tagName('')
+export default class OpenButton extends Component {
+  @service router;
 
-  router: service(),
-
-  actions: {
-    open() {
-      openExecUrl(this.generateUrl());
-    },
-  },
+  @action
+  open() {
+    openExecUrl(this.generateUrl());
+  }
 
   generateUrl() {
-    let urlSegments = {
-      job: this.job.get('name'),
-    };
-
-    if (this.taskGroup) {
-      urlSegments.taskGroup = this.taskGroup.get('name');
-    }
-
-    if (this.task) {
-      urlSegments.task = this.task.get('name');
-    }
-
-    if (this.allocation) {
-      urlSegments.allocation = this.allocation.get('shortId');
-    }
-
-    return generateExecUrl(this.router, urlSegments);
-  },
-});
+    return generateExecUrl(this.router, {
+      job: this.job,
+      taskGroup: this.taskGroup,
+      task: this.task,
+      allocation: this.task,
+    });
+  }
+}

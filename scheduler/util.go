@@ -445,6 +445,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 			return true
 		}
 
+		if !reflect.DeepEqual(an.DNS, bn.DNS) {
+			return true
+		}
+
 		aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
 		if !reflect.DeepEqual(aPorts, bPorts) {
 			return true
@@ -601,7 +605,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
@@ -614,22 +618,25 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			continue
 		}
 
-		// Restore the network offers from the existing allocation.
+		// Restore the network and device offers from the existing allocation.
 		// We do not allow network resources (reserved/dynamic ports)
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
 			var networks structs.Networks
+			var devices []*structs.AllocatedDeviceResource
 			if update.Alloc.AllocatedResources != nil {
 				if tr, ok := update.Alloc.AllocatedResources.Tasks[task]; ok {
 					networks = tr.Networks
+					devices = tr.Devices
 				}
 			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
 				networks = tr.Networks
 			}
 
-			// Add thhe networks back
+			// Add the networks and devices back
 			resources.Networks = networks
+			resources.Devices = devices
 		}
 
 		// Create a shallow copy
@@ -667,7 +674,7 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]
-		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "")
+		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 		diff.place = append(diff.place, a)
 	}
 	if n <= *limit {
@@ -809,8 +816,8 @@ func adjustQueuedAllocations(logger log.Logger, result *structs.PlanResult, queu
 	}
 }
 
-// updateNonTerminalAllocsToLost updates the allocations which are in pending/running state on tainted node
-// to lost
+// updateNonTerminalAllocsToLost updates the allocations which are in pending/running state
+// on tainted node to lost, but only for allocs already DesiredStatus stop or evict
 func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*structs.Node, allocs []*structs.Allocation) {
 	for _, alloc := range allocs {
 		node, ok := tainted[alloc.NodeID]
@@ -823,13 +830,12 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			continue
 		}
 
-		// If the scheduler has marked it as stop or evict already but the alloc
-		// wasn't terminal on the client change the status to lost.
+		// If the alloc is already correctly marked lost, we're done
 		if (alloc.DesiredStatus == structs.AllocDesiredStatusStop ||
 			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
-			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost)
+			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost, "")
 		}
 	}
 }
@@ -879,7 +885,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions
@@ -892,15 +898,17 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			return false, true, nil
 		}
 
-		// Restore the network offers from the existing allocation.
+		// Restore the network and device offers from the existing allocation.
 		// We do not allow network resources (reserved/dynamic ports)
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
 			var networks structs.Networks
+			var devices []*structs.AllocatedDeviceResource
 			if existing.AllocatedResources != nil {
 				if tr, ok := existing.AllocatedResources.Tasks[task]; ok {
 					networks = tr.Networks
+					devices = tr.Devices
 				}
 			} else if tr, ok := existing.TaskResources[task]; ok {
 				networks = tr.Networks
@@ -908,6 +916,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 
 			// Add the networks back
 			resources.Networks = networks
+			resources.Devices = devices
 		}
 
 		// Create a shallow copy

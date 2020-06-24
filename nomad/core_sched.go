@@ -8,9 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
 	version "github.com/hashicorp/go-version"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -56,6 +54,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.deploymentGC(eval)
 	case structs.CoreJobCSIVolumeClaimGC:
 		return c.csiVolumeClaimGC(eval)
+	case structs.CoreJobCSIPluginGC:
+		return c.csiPluginGC(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -72,6 +72,12 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 		return err
 	}
 	if err := c.deploymentGC(eval); err != nil {
+		return err
+	}
+	if err := c.csiPluginGC(eval); err != nil {
+		return err
+	}
+	if err := c.csiVolumeClaimGC(eval); err != nil {
 		return err
 	}
 
@@ -156,11 +162,6 @@ OUTER:
 	}
 	c.logger.Debug("job GC found eligible objects",
 		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
-
-	// Clean up any outstanding volume claims
-	if err := c.volumeClaimReap(gcJob, eval.LeaderACL); err != nil {
-		return err
-	}
 
 	// Reap the evals and allocs
 	if err := c.evalReap(gcEval, gcAlloc); err != nil {
@@ -718,199 +719,147 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 
 // csiVolumeClaimGC is used to garbage collect CSI volume claims
 func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
-	c.logger.Trace("garbage collecting unclaimed CSI volume claims")
 
-	// JobID smuggled in with the eval's own JobID
-	var jobID string
-	evalJobID := strings.Split(eval.JobID, ":")
-	if len(evalJobID) != 2 {
-		c.logger.Error("volume gc called without jobID")
-		return nil
+	gcClaims := func(ns, volID string) error {
+		req := &structs.CSIVolumeClaimRequest{
+			VolumeID: volID,
+			Claim:    structs.CSIVolumeClaimRelease,
+		}
+		req.Namespace = ns
+		req.Region = c.srv.config.Region
+		err := c.srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
+		return err
 	}
 
-	jobID = evalJobID[1]
-	job, err := c.srv.State().JobByID(nil, eval.Namespace, jobID)
-	if err != nil || job == nil {
-		c.logger.Trace(
-			"cannot find job to perform volume claim GC. it may have been garbage collected",
-			"job", jobID)
-		return nil
+	c.logger.Trace("garbage collecting unclaimed CSI volume claims", "eval.JobID", eval.JobID)
+
+	// Volume ID smuggled in with the eval's own JobID
+	evalVolID := strings.Split(eval.JobID, ":")
+
+	// COMPAT(1.0): 0.11.0 shipped with 3 fields. tighten this check to len == 2
+	if len(evalVolID) > 1 {
+		volID := evalVolID[1]
+		return gcClaims(eval.Namespace, volID)
 	}
-	return c.volumeClaimReap([]*structs.Job{job}, eval.LeaderACL)
-}
 
-// volumeClaimReap contacts the leader and releases volume claims from terminal allocs
-func (c *CoreScheduler) volumeClaimReap(jobs []*structs.Job, leaderACL string) error {
-	return volumeClaimReap(c.srv, c.logger, jobs, leaderACL, false)
-}
-
-// volumeClaimReap contacts the leader and releases volume claims from terminal allocs
-func volumeClaimReap(srv *Server, logger log.Logger, jobs []*structs.Job, leaderACL string, runningAllocs bool) error {
 	ws := memdb.NewWatchSet()
-	var result *multierror.Error
 
-	for _, job := range jobs {
-		logger.Trace("garbage collecting unclaimed CSI volume claims for job", "job", job.ID)
-		for _, taskGroup := range job.TaskGroups {
-			for _, tgVolume := range taskGroup.Volumes {
-				if tgVolume.Type != structs.VolumeTypeCSI {
-					continue // filter to just CSI volumes
-				}
-				volID := tgVolume.Source
-				vol, err := srv.State().CSIVolumeByID(ws, job.Namespace, volID)
+	iter, err := c.snap.CSIVolumes(ws)
+	if err != nil {
+		return err
+	}
+
+	// Get the time table to calculate GC cutoffs.
+	var oldThreshold uint64
+	if eval.JobID == structs.CoreJobForceGC {
+		// The GC was forced, so set the threshold to its maximum so
+		// everything will GC.
+		oldThreshold = math.MaxUint64
+		c.logger.Debug("forced volume claim GC")
+	} else {
+		tt := c.srv.fsm.TimeTable()
+		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIVolumeClaimGCThreshold)
+		oldThreshold = tt.NearestIndex(cutoff)
+	}
+
+	c.logger.Debug("CSI volume claim GC scanning before cutoff index",
+		"index", oldThreshold,
+		"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
+
+NEXT_VOLUME:
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		vol := i.(*structs.CSIVolume)
+
+		// Ignore new volumes
+		if vol.CreateIndex > oldThreshold {
+			continue
+		}
+
+		// we only call the claim release RPC if the volume has claims
+		// that no longer have valid allocations. otherwise we'd send
+		// out a lot of do-nothing RPCs.
+		for id := range vol.ReadClaims {
+			alloc, err := c.snap.AllocByID(ws, id)
+			if err != nil {
+				return err
+			}
+			if alloc == nil {
+				err = gcClaims(vol.Namespace, vol.ID)
 				if err != nil {
-					result = multierror.Append(result, err)
-					continue
+					return err
 				}
-				if vol == nil {
-					logger.Trace("cannot find volume to be GC'd. it may have been deregistered",
-						"volume", volID)
-					continue
-				}
-				vol, err = srv.State().CSIVolumeDenormalize(ws, vol)
-				if err != nil {
-					result = multierror.Append(result, err)
-					continue
-				}
-
-				plug, err := srv.State().CSIPluginByID(ws, vol.PluginID)
-				if err != nil {
-					result = multierror.Append(result, err)
-					continue
-				}
-
-				gcClaims, nodeClaims := collectClaimsToGCImpl(vol, runningAllocs)
-
-				for _, claim := range gcClaims {
-					nodeClaims, err = volumeClaimReapImpl(srv,
-						&volumeClaimReapArgs{
-							vol:        vol,
-							plug:       plug,
-							allocID:    claim.allocID,
-							nodeID:     claim.nodeID,
-							mode:       claim.mode,
-							region:     job.Region,
-							namespace:  job.Namespace,
-							leaderACL:  leaderACL,
-							nodeClaims: nodeClaims,
-						},
-					)
-					if err != nil {
-						result = multierror.Append(result, err)
-						continue
-					}
-				}
+				goto NEXT_VOLUME
 			}
 		}
-	}
-	return result.ErrorOrNil()
-}
-
-type gcClaimRequest struct {
-	allocID string
-	nodeID  string
-	mode    structs.CSIVolumeClaimMode
-}
-
-func collectClaimsToGCImpl(vol *structs.CSIVolume, runningAllocs bool) ([]gcClaimRequest, map[string]int) {
-	gcAllocs := []gcClaimRequest{}
-	nodeClaims := map[string]int{} // node IDs -> count
-
-	collectFunc := func(allocs map[string]*structs.Allocation,
-		mode structs.CSIVolumeClaimMode) {
-		for _, alloc := range allocs {
-			// we call denormalize on the volume above to populate
-			// Allocation pointers. But the alloc might have been
-			// garbage collected concurrently, so if the alloc is
-			// still nil we can safely skip it.
+		for id := range vol.WriteClaims {
+			alloc, err := c.snap.AllocByID(ws, id)
+			if err != nil {
+				return err
+			}
 			if alloc == nil {
+				err = gcClaims(vol.Namespace, vol.ID)
+				if err != nil {
+					return err
+				}
+				goto NEXT_VOLUME
+			}
+		}
+		if len(vol.PastClaims) > 0 {
+			err = gcClaims(vol.Namespace, vol.ID)
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+
+}
+
+// csiPluginGC is used to garbage collect unused plugins
+func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
+
+	ws := memdb.NewWatchSet()
+
+	iter, err := c.snap.CSIPlugins(ws)
+	if err != nil {
+		return err
+	}
+
+	// Get the time table to calculate GC cutoffs.
+	var oldThreshold uint64
+	if eval.JobID == structs.CoreJobForceGC {
+		// The GC was forced, so set the threshold to its maximum so
+		// everything will GC.
+		oldThreshold = math.MaxUint64
+		c.logger.Debug("forced plugin GC")
+	} else {
+		tt := c.srv.fsm.TimeTable()
+		cutoff := time.Now().UTC().Add(-1 * c.srv.config.CSIPluginGCThreshold)
+		oldThreshold = tt.NearestIndex(cutoff)
+	}
+
+	c.logger.Debug("CSI plugin GC scanning before cutoff index",
+		"index", oldThreshold, "csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
+
+	for i := iter.Next(); i != nil; i = iter.Next() {
+		plugin := i.(*structs.CSIPlugin)
+
+		// Ignore new plugins
+		if plugin.CreateIndex > oldThreshold {
+			continue
+		}
+
+		req := &structs.CSIPluginDeleteRequest{ID: plugin.ID}
+		req.Region = c.srv.Region()
+		err := c.srv.RPC("CSIPlugin.Delete", req, &structs.CSIPluginDeleteResponse{})
+		if err != nil {
+			if err.Error() == "plugin in use" {
 				continue
 			}
-			nodeClaims[alloc.NodeID]++
-			if runningAllocs || alloc.Terminated() {
-				gcAllocs = append(gcAllocs, gcClaimRequest{
-					allocID: alloc.ID,
-					nodeID:  alloc.NodeID,
-					mode:    mode,
-				})
-			}
+			c.logger.Error("failed to GC plugin", "plugin_id", plugin.ID, "error", err)
+			return err
 		}
 	}
-
-	collectFunc(vol.WriteAllocs, structs.CSIVolumeClaimWrite)
-	collectFunc(vol.ReadAllocs, structs.CSIVolumeClaimRead)
-	return gcAllocs, nodeClaims
-}
-
-type volumeClaimReapArgs struct {
-	vol        *structs.CSIVolume
-	plug       *structs.CSIPlugin
-	allocID    string
-	nodeID     string
-	mode       structs.CSIVolumeClaimMode
-	region     string
-	namespace  string
-	leaderACL  string
-	nodeClaims map[string]int // node IDs -> count
-}
-
-func volumeClaimReapImpl(srv RPCServer, args *volumeClaimReapArgs) (map[string]int, error) {
-	vol := args.vol
-	nodeID := args.nodeID
-
-	// (1) NodePublish / NodeUnstage must be completed before controller
-	// operations or releasing the claim.
-	nReq := &cstructs.ClientCSINodeDetachVolumeRequest{
-		PluginID:       args.plug.ID,
-		VolumeID:       vol.RemoteID(),
-		AllocID:        args.allocID,
-		NodeID:         nodeID,
-		AttachmentMode: vol.AttachmentMode,
-		AccessMode:     vol.AccessMode,
-		ReadOnly:       args.mode == structs.CSIVolumeClaimRead,
-	}
-	err := srv.RPC("ClientCSI.NodeDetachVolume", nReq,
-		&cstructs.ClientCSINodeDetachVolumeResponse{})
-	if err != nil {
-		return args.nodeClaims, err
-	}
-	args.nodeClaims[nodeID]--
-
-	// (2) we only emit the controller unpublish if no other allocs
-	// on the node need it, but we also only want to make this
-	// call at most once per node
-	if vol.ControllerRequired && args.nodeClaims[nodeID] < 1 {
-		controllerNodeID, err := nodeForControllerPlugin(srv.State(), args.plug)
-		if err != nil || nodeID == "" {
-			return args.nodeClaims, err
-		}
-		cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
-			VolumeID:        vol.RemoteID(),
-			ClientCSINodeID: nodeID,
-		}
-		cReq.PluginID = args.plug.ID
-		cReq.ControllerNodeID = controllerNodeID
-		err = srv.RPC("ClientCSI.ControllerDetachVolume", cReq,
-			&cstructs.ClientCSIControllerDetachVolumeResponse{})
-		if err != nil {
-			return args.nodeClaims, err
-		}
-	}
-
-	// (3) release the claim from the state store, allowing it to be rescheduled
-	req := &structs.CSIVolumeClaimRequest{
-		VolumeID:     vol.ID,
-		AllocationID: args.allocID,
-		Claim:        structs.CSIVolumeClaimRelease,
-		WriteRequest: structs.WriteRequest{
-			Region:    args.region,
-			Namespace: args.namespace,
-			AuthToken: args.leaderACL,
-		},
-	}
-	err = srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
-	if err != nil {
-		return args.nodeClaims, err
-	}
-	return args.nodeClaims, nil
+	return nil
 }

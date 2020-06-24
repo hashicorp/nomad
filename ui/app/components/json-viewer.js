@@ -1,11 +1,15 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  classNames: ['json-viewer'],
+@classic
+@classNames('json-viewer')
+export default class JsonViewer extends Component {
+  json = null;
 
-  json: null,
-  jsonStr: computed('json', function() {
+  @computed('json')
+  get jsonStr() {
     return JSON.stringify(this.json, null, 2);
-  }),
-});
+  }
+}

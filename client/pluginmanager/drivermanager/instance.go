@@ -248,10 +248,6 @@ func (i *instanceManager) cleanup() {
 		return
 	}
 
-	if internalPlugin, ok := i.plugin.Plugin().(drivers.InternalDriverPlugin); ok {
-		internalPlugin.Shutdown()
-	}
-
 	if !i.plugin.Exited() {
 		i.plugin.Kill()
 		if err := i.storeReattach(nil); err != nil {

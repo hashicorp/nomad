@@ -127,6 +127,8 @@ logging as well as reducing the amount of events generated.
 
 `endpoints`, `stages`, and `operations` support [globbed pattern](https://github.com/ryanuber/go-glob/blob/master/README.md#example) matching.
 
+Query parameters are ignored when evaluating filters.
+
 ```hcl
 audit {
   enabled = true

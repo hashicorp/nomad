@@ -51,7 +51,7 @@
     </span>
     {{object.Name}} {
       <div data-test-diff-section-label="nested-object" class="diff-section-label">
-        {{job-diff-fields-and-objects fields=object.Fields objects=object.Objects}}
+        <JobDiffFieldsAndObjects @fields={{object.Fields}} @objects={{object.Objects}} />
       </div>
     }
   </div>

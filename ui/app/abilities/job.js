@@ -1,80 +1,26 @@
-import { Ability } from 'ember-can';
-import { inject as service } from '@ember/service';
-import { computed, get } from '@ember/object';
-import { equal, or, not } from '@ember/object/computed';
+import AbstractAbility from './abstract';
+import { computed } from '@ember/object';
+import { or } from '@ember/object/computed';
 
-export default Ability.extend({
-  system: service(),
-  token: service(),
+export default class Job extends AbstractAbility {
+  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportRunning')
+  canRun;
 
-  canRun: or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportRunning'),
+  @or(
+    'bypassAuthorization',
+    'selfTokenIsManagement',
+    'policiesSupportRunning',
+    'policiesSupportScaling'
+  )
+  canScale;
 
-  bypassAuthorization: not('token.aclEnabled'),
-  selfTokenIsManagement: equal('token.selfToken.type', 'management'),
+  @computed('rulesForActiveNamespace.@each.capabilities')
+  get policiesSupportRunning() {
+    return this.activeNamespaceIncludesCapability('submit-job');
+  }
 
-  activeNamespace: computed('system.activeNamespace.name', function() {
-    return this.get('system.activeNamespace.name') || 'default';
-  }),
-
-  rulesForActiveNamespace: computed('activeNamespace', 'token.selfTokenPolicies.[]', function() {
-    let activeNamespace = this.activeNamespace;
-
-    return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
-      let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
-
-      let matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
-
-      if (matchingNamespace) {
-        rules.push(policyNamespaces.find(namespace => namespace.Name === matchingNamespace));
-      }
-
-      return rules;
-    }, []);
-  }),
-
-  policiesSupportRunning: computed('rulesForActiveNamespace.@each.capabilities', function() {
-    return this.rulesForActiveNamespace.some(rules => {
-      let capabilities = get(rules, 'Capabilities') || [];
-      return capabilities.includes('submit-job');
-    });
-  }),
-
-  // Chooses the closest namespace as described at the bottom here:
-  // https://www.nomadproject.io/guides/security/acl.html#namespace-rules
-  _findMatchingNamespace(policyNamespaces, activeNamespace) {
-    let namespaceNames = policyNamespaces.mapBy('Name');
-
-    if (namespaceNames.includes(activeNamespace)) {
-      return activeNamespace;
-    }
-
-    let globNamespaceNames = namespaceNames.filter(namespaceName => namespaceName.includes('*'));
-
-    let matchingNamespaceName = globNamespaceNames.reduce(
-      (mostMatching, namespaceName) => {
-        // Convert * wildcards to .* for regex matching
-        let namespaceNameRegExp = new RegExp(namespaceName.replace(/\*/g, '.*'));
-        let characterDifference = activeNamespace.length - namespaceName.length;
-
-        if (
-          characterDifference < mostMatching.mostMatchingCharacterDifference &&
-          activeNamespace.match(namespaceNameRegExp)
-        ) {
-          return {
-            mostMatchingNamespaceName: namespaceName,
-            mostMatchingCharacterDifference: characterDifference,
-          };
-        } else {
-          return mostMatching;
-        }
-      },
-      { mostMatchingNamespaceName: null, mostMatchingCharacterDifference: Number.MAX_SAFE_INTEGER }
-    ).mostMatchingNamespaceName;
-
-    if (matchingNamespaceName) {
-      return matchingNamespaceName;
-    } else if (namespaceNames.includes('default')) {
-      return 'default';
-    }
-  },
-});
+  @computed('rulesForActiveNamespace.@each.capabilities')
+  get policiesSupportScaling() {
+    return this.activeNamespaceIncludesCapability('scale-job');
+  }
+}

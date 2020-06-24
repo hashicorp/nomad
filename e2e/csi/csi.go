@@ -92,6 +92,7 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-ebs-volume.nomad", writeJobID, "")
 	writeAllocID := writeAllocs[0].ID
+	tc.testJobIDs = append(tc.testJobIDs, writeJobID) // ensure failed tests clean up
 	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocID)
 
 	// read data from volume and assert the writer wrote a file to it
@@ -101,11 +102,19 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 	_, err = readFile(nomadClient, writeAlloc, expectedPath)
 	require.NoError(err)
 
-	// Shutdown the writer so we can run a reader.
+	// Shutdown (and purge) the writer so we can run a reader.
 	// we could mount the EBS volume with multi-attach, but we
 	// want this test to exercise the unpublish workflow.
 	// this runs the equivalent of 'nomad job stop -purge'
 	nomadClient.Jobs().Deregister(writeJobID, true, nil)
+	// instead of waiting for the alloc to stop, wait for the volume claim gc run
+	require.Eventuallyf(func() bool {
+		vol, _, err := nomadClient.CSIVolumes().Info(volID, nil)
+		if err != nil {
+			return false
+		}
+		return len(vol.WriteAllocs) == 0
+	}, 90*time.Second, 5*time.Second, "write-ebs alloc claim was not released")
 
 	// deploy a job so we can read from the volume
 	readJobID := "read-ebs-" + uuid[0:8]
@@ -165,6 +174,7 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	writeAllocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient,
 		"csi/input/use-efs-volume-write.nomad", writeJobID, "")
 	writeAllocID := writeAllocs[0].ID
+	tc.testJobIDs = append(tc.testJobIDs, writeJobID) // ensure failed tests clean up
 	e2eutil.WaitForAllocRunning(t, nomadClient, writeAllocID)
 
 	// read data from volume and assert the writer wrote a file to it
@@ -179,6 +189,14 @@ func (tc *CSIVolumesTest) TestEFSVolumeClaim(f *framework.F) {
 	// does not.
 	// this runs the equivalent of 'nomad job stop'
 	nomadClient.Jobs().Deregister(writeJobID, false, nil)
+	// instead of waiting for the alloc to stop, wait for the volume claim gc run
+	require.Eventuallyf(func() bool {
+		vol, _, err := nomadClient.CSIVolumes().Info(volID, nil)
+		if err != nil {
+			return false
+		}
+		return len(vol.WriteAllocs) == 0
+	}, 90*time.Second, 5*time.Second, "write-efs alloc claim was not released")
 
 	// deploy a job that reads from the volume.
 	readJobID := "read-efs-" + uuid[0:8]

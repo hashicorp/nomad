@@ -5,7 +5,7 @@
     </div>
     <div class="boxed-section-body">
       {{#each job.taskGroups as |taskGroup|}}
-        {{placement-failure taskGroup=taskGroup}}
+        <PlacementFailure @taskGroup={{taskGroup}} />
       {{/each}}
     </div>
   </div>

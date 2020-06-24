@@ -39,16 +39,16 @@
       {{/if}}
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{ivy-codemirror
+      <IvyCodemirror
         data-test-editor
-        value=(or job._newDefinition jobSpec)
-        valueUpdated=(action (mut job._newDefinition))
-        options=(hash
+        @value={{or job._newDefinition jobSpec}}
+        @valueUpdated={{action (mut job._newDefinition)}}
+        @options={{hash
           mode="javascript"
           theme="hashi"
           tabSize=2
           lineNumbers=true
-        )}}
+        }} />
     </div>
   </div>
   <div class="content is-associative">
@@ -73,7 +73,7 @@
   <div class="boxed-section">
     <div class="boxed-section-head">Job Plan</div>
     <div class="boxed-section-body is-dark">
-      {{job-diff data-test-plan-output diff=planOutput.diff verbose=false}}
+      <JobDiff data-test-plan-output @diff={{planOutput.diff}} @verbose={{false}} />
     </div>
   </div>
   <div class="boxed-section {{if planOutput.failedTGAllocs "is-warning" "is-primary"}}" data-test-dry-run-message>
@@ -81,7 +81,7 @@
     <div class="boxed-section-body" data-test-dry-run-body>
       {{#if planOutput.failedTGAllocs}}
         {{#each planOutput.failedTGAllocs as |placementFailure|}}
-          {{placement-failure failedTGAlloc=placementFailure}}
+          <PlacementFailure @failedTGAlloc={{placementFailure}} />
         {{/each}}
       {{else}}
         All tasks successfully allocated.
@@ -94,10 +94,10 @@
         Preemptions (if you choose to run this job, these allocations will be stopped)
       </div>
       <div class="boxed-section-body" data-test-preemptions-body>
-        {{#list-table
-          source=planOutput.preemptions
-          class="allocations is-isolated" as |t|}}
-          {{#t.head}}
+        <ListTable
+          @source={{planOutput.preemptions}}
+          @class="allocations is-isolated" as |t|>
+          <t.head>
             <th class="is-narrow"></th>
             <th>ID</th>
             <th>Task Group</th>
@@ -109,11 +109,11 @@
             <th>Volume</th>
             <th>CPU</th>
             <th>Memory</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
-            {{allocation-row allocation=row.model context="job"}}
-          {{/t.body}}
-        {{/list-table}}
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow @allocation={{row.model}} @context="job" />
+          </t.body>
+        </ListTable>
       </div>
     </div>
   {{/if}}

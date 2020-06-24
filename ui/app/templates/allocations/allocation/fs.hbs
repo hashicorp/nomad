@@ -1,0 +1,10 @@
+{{title pathWithLeadingSlash " -  Allocation " allocation.shortId " filesystem"}}
+<AllocationSubnav @allocation={{allocation}} />
+<Fs::Browser
+  @model={{allocation}}
+  @path={{path}}
+  @stat={{stat}}
+  @isFile={{isFile}}
+  @directoryEntries={{directoryEntries}}
+  @sortProperty={{sortProperty}}
+  @sortDescending={{sortDescending}} />

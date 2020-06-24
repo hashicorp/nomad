@@ -285,6 +285,8 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
+	config.Server.DefaultSchedulerConfig.Canonicalize()
+
 	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}
@@ -347,34 +349,36 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
-	if config.DevMode {
-		// Skip the rest of the validation for dev mode
-		return true
-	}
-
-	// Ensure that we have the directories we need to run.
-	if config.Server.Enabled && config.DataDir == "" {
-		c.Ui.Error("Must specify data directory")
+	if err := config.Server.DefaultSchedulerConfig.Validate(); err != nil {
+		c.Ui.Error(err.Error())
 		return false
 	}
 
-	// The config is valid if the top-level data-dir is set or if both
-	// alloc-dir and state-dir are set.
-	if config.Client.Enabled && config.DataDir == "" {
-		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
-			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+	if !config.DevMode {
+		// Ensure that we have the directories we need to run.
+		if config.Server.Enabled && config.DataDir == "" {
+			c.Ui.Error("Must specify data directory")
 			return false
 		}
-	}
 
-	// Check the bootstrap flags
-	if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
-		// report an error if BootstrapExpect is set in CLI but server is disabled
-		c.Ui.Error("Bootstrap requires server mode to be enabled")
-		return false
-	}
-	if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
-		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+		// The config is valid if the top-level data-dir is set or if both
+		// alloc-dir and state-dir are set.
+		if config.Client.Enabled && config.DataDir == "" {
+			if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
+				c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+				return false
+			}
+		}
+
+		// Check the bootstrap flags
+		if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
+			// report an error if BootstrapExpect is set in CLI but server is disabled
+			c.Ui.Error("Bootstrap requires server mode to be enabled")
+			return false
+		}
+		if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
+			c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+		}
 	}
 
 	return true
@@ -640,10 +644,12 @@ func (c *Command) Run(args []string) int {
 		logGate.Flush()
 		return 1
 	}
-	defer c.agent.Shutdown()
 
-	// Shutdown the HTTP server at the end
 	defer func() {
+		c.agent.Shutdown()
+
+		// Shutdown the http server at the end, to ease debugging if
+		// the agent takes long to shutdown
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
 		}

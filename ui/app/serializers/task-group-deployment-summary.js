@@ -1,9 +1,9 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class TaskGroupDeploymentSummary extends ApplicationSerializer {
   normalize(typeHash, hash) {
     hash.PlacedCanaryAllocations = hash.PlacedCanaries || [];
     delete hash.PlacedCanaries;
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

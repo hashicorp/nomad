@@ -109,7 +109,7 @@ message FingerprintResponse {
 
 
     // Attributes are key/value pairs that annotate the nomad client and can be
-    // used in scheduling contraints and affinities.
+    // used in scheduling constraints and affinities.
     map<string, hashicorp.nomad.plugins.shared.structs.Attribute> attributes = 1;
 
     enum HealthState {
@@ -369,6 +369,15 @@ message DriverCapabilities {
     repeated NetworkIsolationSpec.NetworkIsolationMode network_isolation_modes = 4;
 
     bool must_create_network = 5;
+
+    enum MountConfigs {
+        option allow_alias = true;
+        UNKNOWN_MOUNTS = 0; // treated as ANY_MOUNTS for backwards compatibility
+        ANY_MOUNTS = 0;
+        NO_MOUNTS = 1;
+    }
+    // MountConfigs indicates whether the driver supports mount configurations.
+    MountConfigs mount_configs = 6;
 }
 
 message NetworkIsolationSpec {
@@ -383,6 +392,12 @@ message NetworkIsolationSpec {
   string path = 2;
 
   map<string,string> labels = 3;
+}
+
+message DNSConfig {
+    repeated string servers = 1;
+    repeated string searches = 2;
+    repeated string options = 3;
 }
 
 message TaskConfig {
@@ -440,6 +455,9 @@ message TaskConfig {
     // NetworkIsolationSpec specifies the configuration for the network namespace
     // to use for the task. *Only supported on Linux
     NetworkIsolationSpec network_isolation_spec = 16;
+
+    // DNSConfig is the configuration for task DNS resolvers and other options
+    DNSConfig dns = 17;
 }
 
 message Resources {

@@ -19,13 +19,13 @@ module('Integration | Component | list table', function(hooks) {
   test('component exposes a thead contextual component', async function(assert) {
     this.set('source', commonTable);
     await render(hbs`
-      {{#list-table source=source sortProperty=sortProperty sortDescending=sortDescending as |t|}}
-        {{#t.head class="head"}}
+      <ListTable @source={{source}} @sortProperty={{sortProperty}} @sortDescending={{sortDescending}} as |t|>
+        <t.head @class="head">
           <th>First Name</th>
           <th>Last Name</th>
           <th>Age</th>
-        {{/t.head}}
-      {{/list-table}}
+        </t.head>
+      </ListTable>
     `);
 
     assert.ok(findAll('.head').length, 'Table head is rendered');
@@ -40,15 +40,15 @@ module('Integration | Component | list table', function(hooks) {
       sortDescending: false,
     });
     await render(hbs`
-      {{#list-table source=source sortProperty=sortProperty sortDescending=sortDescending as |t|}}
-        {{#t.body class="body" as |row|}}
+      <ListTable @source={{source}} @sortProperty={{sortProperty}} @sortDescending={{sortDescending}} as |t|>
+        <t.body @class="body" as |row|>
           <tr class="item">
             <td>{{row.model.firstName}}</td>
             <td>{{row.model.lastName}}</td>
             <td>{{row.model.age}}</td>
           </tr>
-        {{/t.body}}
-      {{/list-table}}
+        </t.body>
+      </ListTable>
     `);
 
     assert.ok(findAll('.body').length, 'Table body is rendered');

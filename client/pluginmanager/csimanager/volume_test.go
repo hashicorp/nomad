@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/hashicorp/nomad/helper/mount"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -23,7 +24,21 @@ func tmpDir(t testing.TB) string {
 	return dir
 }
 
+func checkMountSupport() bool {
+	path, err := os.Getwd()
+	if err != nil {
+		return false
+	}
+
+	m := mount.New()
+	_, err = m.IsNotAMountPoint(path)
+	return err == nil
+}
+
 func TestVolumeManager_ensureStagingDir(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
 
 	cases := []struct {
@@ -118,7 +133,11 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 }
 
 func TestVolumeManager_stageVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name         string
 		Volume       *structs.CSIVolume
@@ -193,7 +212,11 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 }
 
 func TestVolumeManager_unstageVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name                 string
 		Volume               *structs.CSIVolume
@@ -236,7 +259,8 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unstageVolume(ctx, tc.Volume.ID, tc.UsageOptions)
+			err := manager.unstageVolume(ctx,
+				tc.Volume.ID, tc.Volume.RemoteID(), tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -250,7 +274,11 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 }
 
 func TestVolumeManager_publishVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name                     string
 		Allocation               *structs.Allocation
@@ -370,7 +398,11 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 }
 
 func TestVolumeManager_unpublishVolume(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
+
 	cases := []struct {
 		Name                 string
 		Allocation           *structs.Allocation
@@ -416,7 +448,8 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 			ctx := context.Background()
 
-			err := manager.unpublishVolume(ctx, tc.Volume.ID, tc.Allocation.ID, tc.UsageOptions)
+			err := manager.unpublishVolume(ctx,
+				tc.Volume.ID, tc.Volume.RemoteID(), tc.Allocation.ID, tc.UsageOptions)
 
 			if tc.ExpectedErr != nil {
 				require.EqualError(t, err, tc.ExpectedErr.Error())
@@ -430,6 +463,9 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 }
 
 func TestVolumeManager_MountVolumeEvents(t *testing.T) {
+	if !checkMountSupport() {
+		t.Skip("mount point detection not supported for this platform")
+	}
 	t.Parallel()
 
 	tmpPath := tmpDir(t)
@@ -476,7 +512,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	require.Equal(t, "true", e.Details["success"])
 	events = events[1:]
 
-	err = manager.UnmountVolume(ctx, vol.ID, alloc.ID, usage)
+	err = manager.UnmountVolume(ctx, vol.ID, vol.RemoteID(), alloc.ID, usage)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(events))

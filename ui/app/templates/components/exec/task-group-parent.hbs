@@ -1,18 +1,24 @@
-<button {{action "toggleOpen"}} class="toggle-button" data-test-task-group-name>
+<button {{action "toggleOpen"}} class="toggle-button {{if hasPendingAllocations "is-loading"}}" data-test-task-group-name>
   {{x-icon (if isOpen "chevron-down" "chevron-right")}}
   {{taskGroup.name}}
 </button>
 {{#if isOpen}}
   <ul class="task-list">
-    {{#each tasksWithRunningStates as |task|}}
-      {{#if openInNewWindow}}
+    {{#each sortedTasks as |task|}}
+      {{#if shouldOpenInNewWindow}}
         <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
-          {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}
+          <Exec::TaskContents
+            @task={{task}}
+            @active={{and currentRouteIsThisTaskGroup (eq task.name activeTaskName)}}
+            @shouldOpenInNewWindow={{shouldOpenInNewWindow}} />
         </a>
       {{else}}
-        {{#link-to "exec.task-group.task" taskGroup.job.name taskGroup.name task.name class="task-item" data-test-task=true}}
-          {{exec/task-contents task=task active=(eq task activeTaskState.task) openInNewWindow=openInNewWindow}}
-        {{/link-to}}
+        <LinkTo @route="exec.task-group.task" @models={{array taskGroup.job.plainId taskGroup.name task.name}} class="task-item" data-test-task={{true}}>
+          <Exec::TaskContents
+            @task={{task}}
+            @active={{and currentRouteIsThisTaskGroup (eq task.name activeTaskName)}}
+            @shouldOpenInNewWindow={{shouldOpenInNewWindow}} />
+        </LinkTo>
       {{/if}}
     {{/each}}
   </ul>

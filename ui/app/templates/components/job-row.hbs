@@ -1,4 +1,4 @@
-<td data-test-job-name>{{#link-to "jobs.job" job.plainId class="is-primary"}}{{job.name}}{{/link-to}}</td>
+<td data-test-job-name><LinkTo @route="jobs.job" @model={{job.plainId}} class="is-primary">{{job.name}}</LinkTo></td>
 <td data-test-job-status>
   <span class="tag {{job.statusClass}}">{{job.status}}</span>
 </td>
@@ -15,12 +15,12 @@
   <div class="inline-chart">
     {{#if job.hasChildren}}
       {{#if (gt job.totalChildren 0)}}
-        {{children-status-bar job=job isNarrow=true}}
+        <ChildrenStatusBar @job={{job}} @isNarrow={{true}} />
       {{else}}
         <em class="is-faded">No Children</em>
       {{/if}}
     {{else}}
-      {{allocation-status-bar allocationContainer=job isNarrow=true}}
+      <AllocationStatusBar @allocationContainer={{job}} @isNarrow={{true}} />
     {{/if}}
   </div>
 </td>

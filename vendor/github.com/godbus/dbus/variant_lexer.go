@@ -51,7 +51,7 @@ func varLex(s string) []varToken {
 }
 
 func (l *varLexer) accept(valid string) bool {
-	if strings.ContainsRune(valid, l.next()) {
+	if strings.IndexRune(valid, l.next()) >= 0 {
 		return true
 	}
 	l.backup()
@@ -214,17 +214,17 @@ func varLexNumber(l *varLexer) lexState {
 			digits = "01234567"
 		}
 	}
-	for strings.ContainsRune(digits, l.next()) {
+	for strings.IndexRune(digits, l.next()) >= 0 {
 	}
 	l.backup()
 	if l.accept(".") {
-		for strings.ContainsRune(digits, l.next()) {
+		for strings.IndexRune(digits, l.next()) >= 0 {
 		}
 		l.backup()
 	}
 	if l.accept("eE") {
 		l.accept("+-")
-		for strings.ContainsRune("0123456789", l.next()) {
+		for strings.IndexRune("0123456789", l.next()) >= 0 {
 		}
 		l.backup()
 	}

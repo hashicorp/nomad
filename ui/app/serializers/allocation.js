@@ -1,14 +1,22 @@
 import { inject as service } from '@ember/service';
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
-export default ApplicationSerializer.extend({
-  system: service(),
+const taskGroupFromJob = (job, taskGroupName) => {
+  const taskGroups = job && job.TaskGroups;
+  const taskGroup = taskGroups && taskGroups.find(group => group.Name === taskGroupName);
+  return taskGroup ? taskGroup : null;
+};
 
-  attrs: {
+@classic
+export default class AllocationSerializer extends ApplicationSerializer {
+  @service system;
+
+  attrs = {
     taskGroupName: 'TaskGroup',
     states: 'TaskStates',
-  },
+  };
 
   normalize(typeHash, hash) {
     // Transform the map-based TaskStates object into an array-based
@@ -54,6 +62,9 @@ export default ApplicationSerializer.extend({
     // When present, the resources are nested under AllocatedResources.Shared
     hash.AllocatedResources = hash.AllocatedResources && hash.AllocatedResources.Shared;
 
-    return this._super(typeHash, hash);
-  },
-});
+    // The Job definition for an allocation is only included in findRecord responses.
+    hash.AllocationTaskGroup = !hash.Job ? null : taskGroupFromJob(hash.Job, hash.TaskGroup);
+
+    return super.normalize(typeHash, hash);
+  }
+}

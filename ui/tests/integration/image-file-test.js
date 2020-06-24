@@ -10,7 +10,7 @@ module('Integration | Component | image file', function(hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
-    {{image-file src=src alt=alt size=size}}
+    <ImageFile @src={{src}} @alt={{alt}} @size={{size}} />
   `;
 
   const commonProperties = {
@@ -59,7 +59,7 @@ module('Integration | Component | image file', function(hooks) {
     this.set('spy', wrapper);
 
     this.render(hbs`
-      {{image-file src=src alt=alt size=size updateImageMeta=spy}}
+      <ImageFile @src={{src}} @alt={{alt}} @size={{size}} @updateImageMeta={{spy}} />
     `);
 
     await notifier;

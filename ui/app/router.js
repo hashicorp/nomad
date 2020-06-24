@@ -1,10 +1,10 @@
 import EmberRouter from '@ember/routing/router';
 import config from './config/environment';
 
-const Router = EmberRouter.extend({
-  location: config.locationType,
-  rootURL: config.rootURL,
-});
+class Router extends EmberRouter {
+  location = config.locationType;
+  rootURL = config.rootURL;
+}
 
 Router.map(function() {
   this.route('exec', { path: '/exec/:job_name' }, function() {
@@ -26,21 +26,34 @@ Router.map(function() {
   });
 
   this.route('clients', function() {
-    this.route('client', { path: '/:node_id' });
+    this.route('client', { path: '/:node_id' }, function() {
+      this.route('monitor');
+    });
   });
 
   this.route('servers', function() {
-    this.route('server', { path: '/:agent_id' });
+    this.route('server', { path: '/:agent_id' }, function() {
+      this.route('monitor');
+    });
   });
 
   this.route('csi', function() {
     this.route('volumes', function() {
       this.route('volume', { path: '/:volume_name' });
     });
+
+    this.route('plugins', function() {
+      this.route('plugin', { path: '/:plugin_name' }, function() {
+        this.route('allocations');
+      });
+    });
   });
 
   this.route('allocations', function() {
     this.route('allocation', { path: '/:allocation_id' }, function() {
+      this.route('fs-root', { path: '/fs' });
+      this.route('fs', { path: '/fs/*path' });
+
       this.route('task', { path: '/:name' }, function() {
         this.route('logs');
         this.route('fs-root', { path: '/fs' });

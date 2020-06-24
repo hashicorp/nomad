@@ -1,0 +1,27 @@
+<label data-test-stepper-label class="stepper-input-label">{{yield}}</label>
+<input
+  data-test-stepper-input
+  type="number"
+  min={{min}}
+  max={{max}}
+  value={{internalValue}}
+  disabled={{disabled}}
+  class="stepper-input-input"
+  onKeyDown={{action "resetTextInput"}}
+  onChange={{action "setValue"}}>
+<button
+  data-test-stepper-decrement
+  role="button"
+  class="stepper-input-stepper button {{class}}"
+  disabled={{or disabled (lte internalValue min)}}
+  onclick={{action "decrement"}}>
+  {{x-icon "minus-plain"}}
+</button>
+<button
+  data-test-stepper-increment
+  role="button"
+  class="stepper-input-stepper button {{class}}"
+  disabled={{or disabled (gte internalValue max)}}
+  onclick={{action "increment"}}>
+  {{x-icon "plus-plain"}}
+</button>

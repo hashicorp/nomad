@@ -1,15 +1,17 @@
 import { equal } from '@ember/object/computed';
 import Component from '@ember/component';
+import { classNames, classNameBindings } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  classNames: ['job-diff'],
-  classNameBindings: ['isEdited:is-edited', 'isAdded:is-added', 'isDeleted:is-deleted'],
+@classic
+@classNames('job-diff')
+@classNameBindings('isEdited:is-edited', 'isAdded:is-added', 'isDeleted:is-deleted')
+export default class JobDiff extends Component {
+  diff = null;
 
-  diff: null,
+  verbose = true;
 
-  verbose: true,
-
-  isEdited: equal('diff.Type', 'Edited'),
-  isAdded: equal('diff.Type', 'Added'),
-  isDeleted: equal('diff.Type', 'Deleted'),
-});
+  @equal('diff.Type', 'Edited') isEdited;
+  @equal('diff.Type', 'Added') isAdded;
+  @equal('diff.Type', 'Deleted') isDeleted;
+}

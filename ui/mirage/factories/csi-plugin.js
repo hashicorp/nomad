@@ -11,15 +11,39 @@ export default Factory.extend({
 
   provider: faker.helpers.randomize(STORAGE_PROVIDERS),
   version: '1.0.1',
-  controllerRequired: faker.random.boolean,
-  controllersHealthy: () => faker.random.number(10),
 
-  nodesHealthy: () => faker.random.number(10),
+  controllerRequired: faker.random.boolean,
+
+  controllersHealthy() {
+    if (!this.controllerRequired) return 0;
+    return faker.random.number(3);
+  },
+  controllersExpected() {
+    // This property must be read before the conditional
+    // or Mirage will incorrectly sort dependent properties.
+    const healthy = this.controllersHealthy;
+    if (!this.controllerRequired) return 0;
+    return healthy + faker.random.number({ min: 1, max: 2 });
+  },
+
+  nodesHealthy: () => faker.random.number(3),
+  nodesExpected() {
+    return this.nodesHealthy + faker.random.number({ min: 1, max: 2 });
+  },
 
   // Internal property to determine whether or not this plugin
   // Should create one or two Jobs to represent Node and
   // Controller plugins.
-  isMonolith: faker.random.boolean,
+  isMonolith() {
+    if (!this.controllerRequired) return false;
+    return faker.random.boolean;
+  },
+
+  // When false, the plugin will not make its own volumes
+  createVolumes: true,
+
+  // When true, doesn't create any resources, state, or events for associated allocations
+  shallow: false,
 
   afterCreate(plugin, server) {
     let storageNodes;
@@ -27,20 +51,38 @@ export default Factory.extend({
 
     if (plugin.isMonolith) {
       const pluginJob = server.create('job', { type: 'service', createAllocations: false });
-      const count = faker.random.number({ min: 1, max: 5 });
-      storageNodes = server.createList('storage-node', count, { job: pluginJob });
-      storageControllers = server.createList('storage-controller', count, { job: pluginJob });
-    } else {
-      const controllerJob = server.create('job', { type: 'service', createAllocations: false });
-      const nodeJob = server.create('job', { type: 'service', createAllocations: false });
-      storageNodes = server.createList('storage-node', faker.random.number({ min: 1, max: 5 }), {
-        job: nodeJob,
+      const count = plugin.nodesExpected;
+      storageNodes = server.createList('storage-node', count, {
+        job: pluginJob,
+        shallow: plugin.shallow,
       });
-      storageControllers = server.createList(
-        'storage-controller',
-        faker.random.number({ min: 1, max: 5 }),
-        { job: controllerJob }
-      );
+      storageControllers = server.createList('storage-controller', count, {
+        job: pluginJob,
+        shallow: plugin.shallow,
+      });
+    } else {
+      const controllerJob =
+        plugin.controllerRequired &&
+        server.create('job', {
+          type: 'service',
+          createAllocations: false,
+          shallow: plugin.shallow,
+        });
+      const nodeJob = server.create('job', {
+        type: 'service',
+        createAllocations: false,
+        shallow: plugin.shallow,
+      });
+      storageNodes = server.createList('storage-node', plugin.nodesExpected, {
+        job: nodeJob,
+        shallow: plugin.shallow,
+      });
+      storageControllers =
+        plugin.controllerRequired &&
+        server.createList('storage-controller', plugin.controllersExpected, {
+          job: controllerJob,
+          shallow: plugin.shallow,
+        });
     }
 
     plugin.update({
@@ -48,9 +90,11 @@ export default Factory.extend({
       nodes: storageNodes,
     });
 
-    server.createList('csi-volume', faker.random.number(5), {
-      plugin,
-      provider: plugin.provider,
-    });
+    if (plugin.createVolumes) {
+      server.createList('csi-volume', faker.random.number({ min: 1, max: 5 }), {
+        plugin,
+        provider: plugin.provider,
+      });
+    }
   },
 });

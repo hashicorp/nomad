@@ -67,7 +67,7 @@ Plan will return one of the following exit codes:
 
 Plan a new job that has not been previously submitted:
 
-```shell
+```shell-session
 $ nomad job plan job1.nomad
 nomad job plan example.nomad
 + Job: "example"
@@ -83,14 +83,14 @@ To submit the job with version verification run:
 nomad job run -check-index 0 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
-server side version matches the job modify index returned. If the index has
+job modify index given matches the server-side version. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
 Increase the count of an existing without sufficient cluster capacity:
 
-```shell
+```shell-session
 $ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (7 create, 1 in-place update)
@@ -109,14 +109,14 @@ To submit the job with version verification run:
 nomad job run -check-index 15 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
-server side version matches the job modify index returned. If the index has
+job modify index given matches the server-side version. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
 Update an existing job such that it would cause a rolling update:
 
-```shell
+```shell-session
 $ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
@@ -136,14 +136,14 @@ To submit the job with version verification run:
 nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
-server side version matches the job modify index returned. If the index has
+job modify index given matches the server-side version. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
 Add a task to the task group using verbose mode:
 
-```shell
+```shell-session
 $ nomad job plan -verbose example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
@@ -194,7 +194,7 @@ To submit the job with version verification run:
 nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
-server side version matches the job modify index returned. If the index has
+job modify index given matches the server-side version. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
@@ -202,5 +202,4 @@ potentially invalid.
 [job specification]: /docs/job-specification
 [hcl job specification]: /docs/job-specification
 [`go-getter`]: https://github.com/hashicorp/go-getter
-
-[`nomad job run -check-index`] :/docs/commands/job/run#check-index
+[`nomad job run -check-index`]: /docs/commands/job/run#check-index

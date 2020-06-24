@@ -10,10 +10,10 @@ description: >-
 # Consul Connect
 
 ~> **Note:** This guide requires Nomad 0.10.0 or later and Consul 1.6.0 or
-   later.
+later.
 
 ~> **Note:** Nomad's Connect integration requires Linux network namespaces.
-   Nomad Connect will not run on Windows or macOS.
+Nomad Connect will not run on Windows or macOS.
 
 [Consul Connect](https://www.consul.io/docs/connect) provides
 service-to-service connection authorization and encryption using mutual
@@ -38,6 +38,10 @@ manage TLS certificates. This is transparent to job specification authors as
 security features in Connect continue to work even as the application scales up
 or down or gets rescheduled by Nomad.
 
+For using the Consul Connect integration with Consul ACLs enabled, see the
+[Secure Nomad Jobs with Consul Connect](https://learn.hashicorp.com/nomad/consul-integration/nomad-connect-acl)
+guide.
+
 # Nomad Consul Connect Example
 
 The following section walks through an example to enable secure communication
@@ -57,7 +61,7 @@ run in dev mode with the following command:
 
 **Note**: Nomad's Connect integration requires Consul in your `$PATH`
 
-```shell
+```shell-session
 $ consul agent -dev
 ```
 
@@ -99,7 +103,7 @@ Nomad must schedule onto a routable interface in order for the proxies to
 connect to each other. The following steps show how to start a Nomad dev agent
 configured for Connect.
 
-```shell
+```shell-session
 $ sudo nomad agent -dev-connect
 ```
 
@@ -111,8 +115,8 @@ must have CNI plugins installed.
 
 The following commands install CNI plugins:
 
-```shell
-$ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.4/cni-plugins-linux-amd64-v0.8.4.tgz
+```shell-session
+$ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz
 $ sudo mkdir -p /opt/cni/bin
 $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
@@ -121,7 +125,7 @@ Ensure the your Linux operating system distribution has been configured to allow
 container traffic through the bridge network to be routed via iptables. These
 tunables can be set as follows:
 
-```shell
+```shell-session
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
 $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
@@ -325,8 +329,6 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
   proxy sidecar on client nodes.
 - Consul Connect Native is not yet supported ([#6083][gh6083]).
-- Consul Connect HTTP and gRPC checks are not yet supported ([#6120][gh6120]).
-- Consul ACLs are not yet supported ([#6701][gh6701]).
 - Only the Docker, `exec`, `raw_exec`, and `java` drivers support network namespaces
   and Connect.
 - Changes to the `connect` stanza may not properly trigger a job update

@@ -5,6 +5,11 @@
 job "plugin-aws-ebs-nodes" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   # you can run node plugins as service jobs as well, but this ensures
   # that all nodes in the DC have a copy.
   type = "system"
@@ -14,7 +19,7 @@ job "plugin-aws-ebs-nodes" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-ebs-csi-driver:latest"
+        image = "amazon/aws-ebs-csi-driver:v0.5.0"
 
         args = [
           "node",

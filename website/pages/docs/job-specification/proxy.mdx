@@ -21,6 +21,7 @@ within the context of a `sidecar_service` stanza.
 ```hcl
 job "countdash" {
   datacenters = ["dc1"]
+
   group "api" {
     network {
       mode = "bridge"
@@ -36,10 +37,12 @@ job "countdash" {
         }
       }
     }
+
     task "web" {
       driver = "docker"
+
       config {
-        image = "test/test:v1"
+        image = "hashicorpnomad/counter-api:v2"
       }
     }
   }
@@ -60,7 +63,7 @@ job "countdash" {
   for more information.
 - `config` `(map: nil)` - Proxy configuration that's opaque to Nomad and
   passed directly to Consul. See [Consul Connect's
-  documentation](https://www.consul.io/docs/connect/proxies/envoy#dynamic-configuration)
+  documentation](https://www.consul.io/docs/connect/proxies/envoy.html#dynamic-configuration)
   for details.
 
 ## `proxy` Examples

@@ -10,7 +10,7 @@ import (
 const (
 	// The following levels are the only valid values for the `policy = "read"` stanza.
 	// When policies are merged together, the most privilege is granted, except for deny
-	// which always takes precedence and supercedes.
+	// which always takes precedence and supersedes.
 	PolicyDeny  = "deny"
 	PolicyRead  = "read"
 	PolicyList  = "list"

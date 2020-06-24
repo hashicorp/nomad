@@ -2,10 +2,10 @@ import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'query-string';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class JobSerializer extends ApplicationSerializer {
+  attrs = {
     parameterized: 'ParameterizedJob',
-  },
+  };
 
   normalize(typeHash, hash) {
     hash.NamespaceID = hash.Namespace;
@@ -45,8 +45,8 @@ export default ApplicationSerializer.extend({
       });
     }
 
-    return this._super(typeHash, hash);
-  },
+    return super.normalize(typeHash, hash);
+  }
 
   extractRelationships(modelClass, hash) {
     const namespace =
@@ -58,7 +58,7 @@ export default ApplicationSerializer.extend({
       .buildURL(modelName, hash.ID, hash, 'findRecord')
       .split('?');
 
-    return assign(this._super(...arguments), {
+    return assign(super.extractRelationships(...arguments), {
       allocations: {
         links: {
           related: buildURL(`${jobURL}/allocations`, { namespace }),
@@ -85,8 +85,8 @@ export default ApplicationSerializer.extend({
         },
       },
     });
-  },
-});
+  }
+}
 
 function buildURL(path, queryParams) {
   const qpString = queryString.stringify(queryParams);

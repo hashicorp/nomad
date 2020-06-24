@@ -21,11 +21,14 @@ import { warn } from '@ember/debug';
 export default function sortableFactory(properties, fromSortableMixin) {
   const eachProperties = properties.map(property => `listToSort.@each.${property}`);
 
+  // eslint-disable-next-line ember/no-new-mixins
   return Mixin.create({
     // Override in mixin consumer
     sortProperty: null,
     sortDescending: true,
-    listToSort: computed(() => []),
+    listToSort: computed(function() {
+      return [];
+    }),
 
     _sortableFactoryWarningPrinted: false,
 
@@ -44,6 +47,7 @@ export default function sortableFactory(properties, fromSortableMixin) {
           }
 
           warn(message, properties.length > 0, { id: 'nomad.no-sortable-properties' });
+          // eslint-disable-next-line ember/no-side-effects
           this.set('_sortableFactoryWarningPrinted', true);
         }
 

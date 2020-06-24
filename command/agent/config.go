@@ -286,6 +286,8 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
+	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -355,6 +357,9 @@ type ServerConfig struct {
 	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
 	RaftProtocol int `hcl:"raft_protocol"`
 
+	// RaftMultiplier scales the Raft timing parameters
+	RaftMultiplier *int `hcl:"raft_multiplier"`
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -388,6 +393,16 @@ type ServerConfig struct {
 	// collected by GC.  Age is not the only requirement for a deployment to be
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
+
+	// CSIVolumeClaimGCThreshold controls how "old" a CSI volume must be to
+	// have its claims collected by GC.	Age is not the only requirement for
+	// a volume to be GCed but the threshold can be used to filter by age.
+	CSIVolumeClaimGCThreshold string `hcl:"csi_volume_claim_gc_threshold"`
+
+	// CSIPluginGCThreshold controls how "old" a CSI plugin must be to be
+	// collected by GC. Age is not the only requirement for a plugin to be
+	// GCed but the threshold can be used to filter by age.
+	CSIPluginGCThreshold string `hcl:"csi_plugin_gc_threshold"`
 
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
@@ -1305,6 +1320,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RaftProtocol != 0 {
 		result.RaftProtocol = b.RaftProtocol
 	}
+	if b.RaftMultiplier != nil {
+		c := *b.RaftMultiplier
+		result.RaftMultiplier = &c
+	}
 	if b.NumSchedulers != nil {
 		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)
 	}
@@ -1322,6 +1341,12 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
+	}
+	if b.CSIVolumeClaimGCThreshold != "" {
+		result.CSIVolumeClaimGCThreshold = b.CSIVolumeClaimGCThreshold
+	}
+	if b.CSIPluginGCThreshold != "" {
+		result.CSIPluginGCThreshold = b.CSIPluginGCThreshold
 	}
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
@@ -1506,6 +1531,12 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.BridgeNetworkSubnet != "" {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
+	}
+
+	if len(b.HostNetworks) != 0 {
+		result.HostNetworks = append(a.HostNetworks, b.HostNetworks...)
+	} else {
+		result.HostNetworks = a.HostNetworks
 	}
 
 	return &result

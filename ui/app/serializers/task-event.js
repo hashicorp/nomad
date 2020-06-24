@@ -1,9 +1,9 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class TaskEventSerializer extends ApplicationSerializer {
+  attrs = {
     message: 'DisplayMessage',
-  },
+  };
 
   normalize(typeHash, hash) {
     // Time is in the form of nanoseconds since epoch, but JS dates
@@ -13,6 +13,6 @@ export default ApplicationSerializer.extend({
     hash.TimeNanos = hash.Time % 1000000;
     hash.Time = Math.floor(hash.Time / 1000000);
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

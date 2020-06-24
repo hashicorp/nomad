@@ -29,16 +29,30 @@
   </div>
 </nav>
 
-<div class="tree-and-terminal">
-  <div class="task-group-tree">
-    <h4 class="title is-6">Tasks</h4>
-    <ul>
-      {{#each uniqueRunningTaskGroups as |taskGroup|}}
-        <li data-test-task-group>
-          {{exec/task-group-parent taskGroup=taskGroup openInNewWindow=socketOpen activeTaskState=taskState}}
-        </li>
-      {{/each}}
-    </ul>
+{{#if (eq model.status "dead")}}
+  <div class="exec-window" data-test-exec-job-dead>
+    <div class="task-group-tree">
+    </div>
+    <div class="terminal-container" data-test-exec-job-dead-message>
+      Job <code>{{model.name}}</code> is dead and cannot host an exec session.
+    </div>
   </div>
-  {{exec-terminal terminal=terminal}}
-</div>
+{{else}}
+  <div class="exec-window">
+    <div class="task-group-tree">
+      <h4 class="title is-6">Tasks</h4>
+      <ul>
+        {{#each sortedTaskGroups as |taskGroup|}}
+          <li data-test-task-group>
+            <Exec::TaskGroupParent
+              @taskGroup={{taskGroup}}
+              @shouldOpenInNewWindow={{socketOpen}}
+              @activeTaskName={{taskName}}
+              @activeTaskGroupName={{taskGroupName}} />
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+    <ExecTerminal @terminal={{terminal}} />
+  </div>
+{{/if}}

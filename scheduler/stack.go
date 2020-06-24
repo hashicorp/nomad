@@ -52,6 +52,7 @@ type GenericStack struct {
 	taskGroupDevices     *DeviceChecker
 	taskGroupHostVolumes *HostVolumeChecker
 	taskGroupCSIVolumes  *CSIVolumeChecker
+	taskGroupNetwork     *NetworkChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -135,6 +136,9 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	if len(tg.Networks) > 0 {
+		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
+	}
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
@@ -185,7 +189,7 @@ type SystemStack struct {
 	scoreNorm                  *ScoreNormalizationIterator
 }
 
-// NewSystemStack constructs a stack used for selecting service placements
+// NewSystemStack constructs a stack used for selecting system job placements.
 func NewSystemStack(ctx Context) *SystemStack {
 	// Create a new stack
 	s := &SystemStack{ctx: ctx}
@@ -237,11 +241,13 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// by a particular task group. Enable eviction as system jobs are high
 	// priority.
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+	schedulerAlgorithm := schedConfig.EffectiveSchedulerAlgorithm()
 	enablePreemption := true
 	if schedConfig != nil {
 		enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
 	}
-	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0)
+
+	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedulerAlgorithm)
 
 	// Apply score normalization
 	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack)
@@ -293,4 +299,97 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	// Store the compute time
 	s.ctx.Metrics().AllocationTime = time.Since(start)
 	return option
+}
+
+// NewGenericStack constructs a stack used for selecting service placements
+func NewGenericStack(batch bool, ctx Context) *GenericStack {
+	// Create a new stack
+	s := &GenericStack{
+		batch: batch,
+		ctx:   ctx,
+	}
+
+	// Create the source iterator. We randomize the order we visit nodes
+	// to reduce collisions between schedulers and to do a basic load
+	// balancing across eligible nodes.
+	s.source = NewRandomIterator(ctx, nil)
+
+	// Create the quota iterator to determine if placements would result in the
+	// quota attached to the namespace of the job to go over.
+	s.quota = NewQuotaIterator(ctx, s.source)
+
+	// Attach the job constraints. The job is filled in later.
+	s.jobConstraint = NewConstraintChecker(ctx, nil)
+
+	// Filter on task group drivers first as they are faster
+	s.taskGroupDrivers = NewDriverChecker(ctx, nil)
+
+	// Filter on task group constraints second
+	s.taskGroupConstraint = NewConstraintChecker(ctx, nil)
+
+	// Filter on task group devices
+	s.taskGroupDevices = NewDeviceChecker(ctx)
+
+	// Filter on task group host volumes
+	s.taskGroupHostVolumes = NewHostVolumeChecker(ctx)
+
+	// Filter on available, healthy CSI plugins
+	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)
+
+	// Filter on available client networks
+	s.taskGroupNetwork = NewNetworkChecker(ctx)
+
+	// Create the feasibility wrapper which wraps all feasibility checks in
+	// which feasibility checking can be skipped if the computed node class has
+	// previously been marked as eligible or ineligible. Generally this will be
+	// checks that only needs to examine the single node to determine feasibility.
+	jobs := []FeasibilityChecker{s.jobConstraint}
+	tgs := []FeasibilityChecker{s.taskGroupDrivers,
+		s.taskGroupConstraint,
+		s.taskGroupHostVolumes,
+		s.taskGroupDevices,
+		s.taskGroupNetwork}
+	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
+
+	// Filter on distinct host constraints.
+	s.distinctHostsConstraint = NewDistinctHostsIterator(ctx, s.wrappedChecks)
+
+	// Filter on distinct property constraints.
+	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.distinctHostsConstraint)
+
+	// Upgrade from feasible to rank iterator
+	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
+
+	// Apply the bin packing, this depends on the resources needed
+	// by a particular task group.
+	_, schedConfig, _ := ctx.State().SchedulerConfig()
+	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig.EffectiveSchedulerAlgorithm())
+
+	// Apply the job anti-affinity iterator. This is to avoid placing
+	// multiple allocations on the same node for this job.
+	s.jobAntiAff = NewJobAntiAffinityIterator(ctx, s.binPack, "")
+
+	// Apply node rescheduling penalty. This tries to avoid placing on a
+	// node where the allocation failed previously
+	s.nodeReschedulingPenalty = NewNodeReschedulingPenaltyIterator(ctx, s.jobAntiAff)
+
+	// Apply scores based on affinity stanza
+	s.nodeAffinity = NewNodeAffinityIterator(ctx, s.nodeReschedulingPenalty)
+
+	// Apply scores based on spread stanza
+	s.spread = NewSpreadIterator(ctx, s.nodeAffinity)
+
+	// Add the preemption options scoring iterator
+	preemptionScorer := NewPreemptionScoringIterator(ctx, s.spread)
+
+	// Normalizes scores by averaging them across various scorers
+	s.scoreNorm = NewScoreNormalizationIterator(ctx, preemptionScorer)
+
+	// Apply a limit function. This is to avoid scanning *every* possible node.
+	s.limit = NewLimitIterator(ctx, s.scoreNorm, 2, skipScoreThreshold, maxSkip)
+
+	// Select the node with the maximum score for placement
+	s.maxScore = NewMaxScoreIterator(ctx, s.limit)
+	return s
 }

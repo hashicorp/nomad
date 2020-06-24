@@ -1,12 +1,18 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
 
 	"github.com/hashicorp/consul/agent/consul/autopilot"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -16,6 +22,11 @@ import (
 type Operator struct {
 	srv    *Server
 	logger log.Logger
+}
+
+func (op *Operator) register() {
+	op.srv.streamingRpcs.Register("Operator.SnapshotSave", op.snapshotSave)
+	op.srv.streamingRpcs.Register("Operator.SnapshotRestore", op.snapshotRestore)
 }
 
 // RaftGetConfiguration is used to retrieve the current Raft configuration.
@@ -354,4 +365,264 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	op.srv.setQueryMeta(&reply.QueryMeta)
 
 	return nil
+}
+
+func (op *Operator) forwardStreamingRPC(region string, method string, args interface{}, in io.ReadWriteCloser) error {
+	server, err := op.srv.findRegionServer(region)
+	if err != nil {
+		return err
+	}
+
+	return op.forwardStreamingRPCToServer(server, method, args, in)
+}
+
+func (op *Operator) forwardStreamingRPCToServer(server *serverParts, method string, args interface{}, in io.ReadWriteCloser) error {
+	srvConn, err := op.srv.streamingRpc(server, method)
+	if err != nil {
+		return err
+	}
+	defer srvConn.Close()
+
+	outEncoder := codec.NewEncoder(srvConn, structs.MsgpackHandle)
+	if err := outEncoder.Encode(args); err != nil {
+		return err
+	}
+
+	structs.Bridge(in, srvConn)
+	return nil
+}
+
+func (op *Operator) snapshotSave(conn io.ReadWriteCloser) {
+	defer conn.Close()
+
+	var args structs.SnapshotSaveRequest
+	var reply structs.SnapshotSaveResponse
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	handleFailure := func(code int, err error) {
+		encoder.Encode(&structs.SnapshotSaveResponse{
+			ErrorCode: code,
+			ErrorMsg:  err.Error(),
+		})
+	}
+
+	if err := decoder.Decode(&args); err != nil {
+		handleFailure(500, err)
+		return
+	}
+
+	// Forward to appropriate region
+	if args.Region != op.srv.Region() {
+		err := op.forwardStreamingRPC(args.Region, "Operator.SnapshotSave", args, conn)
+		if err != nil {
+			handleFailure(500, err)
+		}
+		return
+	}
+
+	// forward to leader
+	if !args.AllowStale {
+		remoteServer, err := op.srv.getLeaderForRPC()
+		if err != nil {
+			handleFailure(500, err)
+			return
+		}
+		if remoteServer != nil {
+			err := op.forwardStreamingRPCToServer(remoteServer, "Operator.SnapshotSave", args, conn)
+			if err != nil {
+				handleFailure(500, err)
+			}
+			return
+
+		}
+	}
+
+	// Check agent permissions
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
+		code := 500
+		if err == structs.ErrTokenNotFound {
+			code = 400
+		}
+		handleFailure(code, err)
+		return
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		handleFailure(403, structs.ErrPermissionDenied)
+		return
+	}
+
+	op.srv.setQueryMeta(&reply.QueryMeta)
+
+	// Take the snapshot and capture the index.
+	snap, err := snapshot.New(op.logger.Named("snapshot"), op.srv.raft)
+	reply.SnapshotChecksum = snap.Checksum()
+	reply.Index = snap.Index()
+	if err != nil {
+		handleFailure(500, err)
+		return
+	}
+	defer snap.Close()
+
+	if err := encoder.Encode(&reply); err != nil {
+		handleFailure(500, fmt.Errorf("failed to encode response: %v", err))
+		return
+	}
+	if snap != nil {
+		if _, err := io.Copy(conn, snap); err != nil {
+			handleFailure(500, fmt.Errorf("failed to stream snapshot: %v", err))
+		}
+	}
+}
+
+func (op *Operator) snapshotRestore(conn io.ReadWriteCloser) {
+	defer conn.Close()
+
+	var args structs.SnapshotRestoreRequest
+	var reply structs.SnapshotRestoreResponse
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	handleFailure := func(code int, err error) {
+		encoder.Encode(&structs.SnapshotRestoreResponse{
+			ErrorCode: code,
+			ErrorMsg:  err.Error(),
+		})
+	}
+
+	if err := decoder.Decode(&args); err != nil {
+		handleFailure(500, err)
+		return
+	}
+
+	// Forward to appropriate region
+	if args.Region != op.srv.Region() {
+		err := op.forwardStreamingRPC(args.Region, "Operator.SnapshotRestore", args, conn)
+		if err != nil {
+			handleFailure(500, err)
+		}
+		return
+	}
+
+	// forward to leader
+	remoteServer, err := op.srv.getLeaderForRPC()
+	if err != nil {
+		handleFailure(500, err)
+		return
+	}
+	if remoteServer != nil {
+		err := op.forwardStreamingRPCToServer(remoteServer, "Operator.SnapshotRestore", args, conn)
+		if err != nil {
+			handleFailure(500, err)
+		}
+		return
+
+	}
+
+	// Check agent permissions
+	if aclObj, err := op.srv.ResolveToken(args.AuthToken); err != nil {
+		code := 500
+		if err == structs.ErrTokenNotFound {
+			code = 400
+		}
+		handleFailure(code, err)
+		return
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		handleFailure(403, structs.ErrPermissionDenied)
+		return
+	}
+
+	op.srv.setQueryMeta(&reply.QueryMeta)
+
+	reader, errCh := decodeStreamOutput(decoder)
+
+	err = snapshot.Restore(op.logger.Named("snapshot"), reader, op.srv.raft)
+	if err != nil {
+		handleFailure(500, fmt.Errorf("failed to restore from snapshot: %v", err))
+		return
+	}
+
+	err = <-errCh
+	if err != nil {
+		handleFailure(400, fmt.Errorf("failed to read stream: %v", err))
+		return
+	}
+
+	// This'll be used for feedback from the leader loop.
+	timeoutCh := time.After(time.Minute)
+
+	lerrCh := make(chan error, 1)
+
+	select {
+	// Reassert leader actions and update all leader related state
+	// with new state store content.
+	case op.srv.reassertLeaderCh <- lerrCh:
+
+	// We might have lost leadership while waiting to kick the loop.
+	case <-timeoutCh:
+		handleFailure(500, fmt.Errorf("timed out waiting to re-run leader actions"))
+
+	// Make sure we don't get stuck during shutdown
+	case <-op.srv.shutdownCh:
+	}
+
+	select {
+	// Wait for the leader loop to finish up.
+	case err := <-lerrCh:
+		if err != nil {
+			handleFailure(500, err)
+			return
+		}
+
+	// We might have lost leadership while the loop was doing its
+	// thing.
+	case <-timeoutCh:
+		handleFailure(500, fmt.Errorf("timed out waiting for re-run of leader actions"))
+
+	// Make sure we don't get stuck during shutdown
+	case <-op.srv.shutdownCh:
+	}
+
+	reply.Index, _ = op.srv.State().LatestIndex()
+	op.srv.setQueryMeta(&reply.QueryMeta)
+	encoder.Encode(reply)
+}
+
+func decodeStreamOutput(decoder *codec.Decoder) (io.Reader, <-chan error) {
+	pr, pw := io.Pipe()
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+
+		for {
+			var wrapper cstructs.StreamErrWrapper
+
+			err := decoder.Decode(&wrapper)
+			if err != nil {
+				pw.CloseWithError(fmt.Errorf("failed to decode input: %v", err))
+				errCh <- err
+				return
+			}
+
+			if len(wrapper.Payload) != 0 {
+				_, err = pw.Write(wrapper.Payload)
+				if err != nil {
+					pw.CloseWithError(err)
+					errCh <- err
+					return
+				}
+			}
+
+			if errW := wrapper.Error; errW != nil {
+				if errW.Message == io.EOF.Error() {
+					pw.CloseWithError(io.EOF)
+				} else {
+					pw.CloseWithError(errors.New(errW.Message))
+				}
+				return
+			}
+		}
+	}()
+
+	return pr, errCh
 }

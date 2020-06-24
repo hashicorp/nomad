@@ -1,4 +1,4 @@
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -11,7 +11,8 @@ module('Acceptance | exec', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
-    window.localStorage.removeItem('nomadExecCommand');
+    window.localStorage.clear();
+    window.sessionStorage.clear();
 
     server.create('agent');
     server.create('node');
@@ -20,6 +21,7 @@ module('Acceptance | exec', function(hooks) {
       groupsCount: 2,
       groupTaskCount: 5,
       createAllocations: false,
+      status: 'running',
     });
 
     this.job.task_group_ids.forEach(taskGroupId => {
@@ -38,7 +40,11 @@ module('Acceptance | exec', function(hooks) {
     server.create('region', { id: 'global' });
     server.create('region', { id: 'region-2' });
 
-    this.job = server.create('job', { createAllocations: false, namespaceId: namespace.id });
+    this.job = server.create('job', {
+      createAllocations: false,
+      namespaceId: namespace.id,
+      status: 'running',
+    });
 
     await Exec.visitJob({ job: this.job.id, namespace: namespace.id, region: 'region-2' });
 
@@ -47,6 +53,8 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.header.region.text, this.job.region);
     assert.equal(Exec.header.namespace.text, this.job.namespace);
     assert.equal(Exec.header.job, this.job.name);
+
+    assert.notOk(Exec.jobDead.isPresent);
   });
 
   test('/exec/:job should not show region and namespace when there are none', async function(assert) {
@@ -57,16 +65,18 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('/exec/:job should show the task groups collapsed by default and allow the tasks to be shown', async function(assert) {
+    const firstTaskGroup = this.job.task_groups.models.sortBy('name')[0];
     await Exec.visitJob({ job: this.job.id });
 
     assert.equal(Exec.taskGroups.length, this.job.task_groups.length);
 
-    assert.equal(Exec.taskGroups[0].name, this.job.task_groups.models[0].name);
+    assert.equal(Exec.taskGroups[0].name, firstTaskGroup.name);
     assert.equal(Exec.taskGroups[0].tasks.length, 0);
     assert.ok(Exec.taskGroups[0].chevron.isRight);
+    assert.notOk(Exec.taskGroups[0].isLoading);
 
     await Exec.taskGroups[0].click();
-    assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+    assert.equal(Exec.taskGroups[0].tasks.length, firstTaskGroup.tasks.length);
     assert.notOk(Exec.taskGroups[0].tasks[0].isActive);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
@@ -78,7 +88,7 @@ module('Acceptance | exec', function(hooks) {
     await Exec.visitJob({ job: this.job.id });
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(0)
         .translateToString()
         .trim(),
@@ -86,22 +96,30 @@ module('Acceptance | exec', function(hooks) {
     );
   });
 
-  test('a task group with no running task states should not be shown', async function(assert) {
-    let taskGroup = this.job.task_groups.models[0];
+  test('a task group with a pending allocation shows a loading spinner', async function(assert) {
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
     this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'pending' });
+
+    await Exec.visitJob({ job: this.job.id });
+    assert.ok(Exec.taskGroups[0].isLoading);
+  });
+
+  test('a task group with no running task states or pending allocations should not be shown', async function(assert) {
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'failed' });
 
     await Exec.visitJob({ job: this.job.id });
     assert.notEqual(Exec.taskGroups[0].name, taskGroup.name);
   });
 
   test('an inactive task should not be shown', async function(assert) {
-    let notRunningTaskGroup = this.job.task_groups.models[0];
+    let notRunningTaskGroup = this.job.task_groups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
-      { clientStatus: 'pending' }
+      { clientStatus: 'failed' }
     );
 
-    let runningTaskGroup = this.job.task_groups.models[1];
+    let runningTaskGroup = this.job.task_groups.models.sortBy('name')[1];
     runningTaskGroup.tasks.models.forEach((task, index) => {
       if (index > 0) {
         this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
@@ -114,17 +132,95 @@ module('Acceptance | exec', function(hooks) {
     assert.equal(Exec.taskGroups[0].tasks.length, 1);
   });
 
+  test('a task that becomes active should appear', async function(assert) {
+    let notRunningTaskGroup = this.job.task_groups.models.sortBy('name')[0];
+    this.server.db.allocations.update(
+      { taskGroup: notRunningTaskGroup.name },
+      { clientStatus: 'failed' }
+    );
+
+    let runningTaskGroup = this.job.task_groups.models.sortBy('name')[1];
+    let changingTaskStateName;
+    runningTaskGroup.tasks.models.sortBy('name').forEach((task, index) => {
+      if (index > 0) {
+        this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
+      }
+
+      if (index === 1) {
+        changingTaskStateName = task.name;
+      }
+    });
+
+    await Exec.visitJob({ job: this.job.id });
+    await Exec.taskGroups[0].click();
+
+    assert.equal(Exec.taskGroups[0].tasks.length, 1);
+
+    // Approximate new task arrival via polling by changing a finished task state to be not finished
+    this.owner
+      .lookup('service:store')
+      .peekAll('allocation')
+      .forEach(allocation => {
+        const changingTaskState = allocation.states.findBy('name', changingTaskStateName);
+
+        if (changingTaskState) {
+          changingTaskState.set('finishedAt', undefined);
+        }
+      });
+
+    await settled();
+
+    assert.equal(Exec.taskGroups[0].tasks.length, 2);
+    assert.equal(Exec.taskGroups[0].tasks[1].name, changingTaskStateName);
+  });
+
+  test('a dead job has an inert window', async function(assert) {
+    this.job.status = 'dead';
+    this.job.save();
+
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
+
+    this.server.db.taskStates.update({ finishedAt: new Date() });
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+    });
+
+    assert.ok(Exec.jobDead.isPresent);
+    assert.equal(
+      Exec.jobDead.message,
+      `Job ${this.job.name} is dead and cannot host an exec session.`
+    );
+  });
+
+  test('when a job dies the exec window becomes inert', async function(assert) {
+    await Exec.visitJob({ job: this.job.id });
+
+    // Approximate live-polling job death
+    this.owner
+      .lookup('service:store')
+      .peekAll('job')
+      .forEach(job => job.set('status', 'dead'));
+
+    await settled();
+
+    assert.ok(Exec.jobDead.isPresent);
+  });
+
   test('visiting a path with a task group should open the group by default', async function(assert) {
-    let taskGroup = this.job.task_groups.models[0];
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
     await Exec.visitTaskGroup({ job: this.job.id, task_group: taskGroup.name });
 
-    assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+    assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
-    let task = taskGroup.tasks.models[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     await Exec.visitTask({ job: this.job.id, task_group: taskGroup.name, task_name: task.name });
 
-    assert.equal(Exec.taskGroups[0].tasks.length, this.job.task_groups.models[0].tasks.length);
+    assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
 
@@ -133,8 +229,8 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
-    let taskGroup = this.job.task_groups.models[0];
-    let task = taskGroup.tasks.models[0];
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
 
     let taskStates = this.server.db.taskStates.where({
       name: task.name,
@@ -147,7 +243,7 @@ module('Acceptance | exec', function(hooks) {
     assert.ok(Exec.taskGroups[0].tasks[0].isActive);
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(2)
         .translateToString()
         .trim(),
@@ -155,7 +251,7 @@ module('Acceptance | exec', function(hooks) {
     );
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(4)
         .translateToString()
         .trim(),
@@ -163,7 +259,7 @@ module('Acceptance | exec', function(hooks) {
     );
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(6)
         .translateToString()
         .trim(),
@@ -172,8 +268,8 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('an allocation can be specified', async function(assert) {
-    let taskGroup = this.job.task_groups.models[0];
-    let task = taskGroup.tasks.models[0];
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
@@ -195,7 +291,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(4)
         .translateToString()
         .trim(),
@@ -220,8 +316,8 @@ module('Acceptance | exec', function(hooks) {
 
     this.owner.register('service:sockets', mockSockets);
 
-    let taskGroup = this.job.task_groups.models[0];
-    let task = taskGroup.tasks.models[0];
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
@@ -250,7 +346,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(5)
         .translateToString()
         .trim(),
@@ -261,6 +357,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.deepEqual(mockSocket.sent, [
+      '{"version":1,"auth_token":""}',
       `{"tty_size":{"width":${window.execTerminal.cols},"height":${window.execTerminal.rows}}}`,
       '{"stdin":{"data":"DQ=="}}',
     ]);
@@ -269,12 +366,50 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(6)
         .translateToString()
         .trim(),
       'The connection has closed.'
     );
+  });
+
+  test('the opening message includes the token if it exists', async function(assert) {
+    const { secretId } = server.create('token');
+    window.localStorage.nomadTokenSecret = secretId;
+
+    let mockSocket = new MockSocket();
+    let mockSockets = Service.extend({
+      getTaskStateSocket() {
+        return mockSocket;
+      },
+    });
+
+    this.owner.register('service:sockets', mockSockets);
+
+    let taskGroup = this.job.task_groups.models[0];
+    let task = taskGroup.tasks.models[0];
+    let allocations = this.server.db.allocations.where({
+      jobId: this.job.id,
+      taskGroup: taskGroup.name,
+    });
+    let allocation = allocations[allocations.length - 1];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+      allocation: allocation.id.split('-')[0],
+    });
+
+    await Exec.terminal.pressEnter();
+    await settled();
+    mockSocket.onopen();
+
+    await Exec.terminal.pressEnter();
+    await settled();
+
+    assert.equal(mockSocket.sent[0], `{"version":1,"auth_token":"${secretId}"}`);
   });
 
   test('only one socket is opened after switching between tasks', async function(assert) {
@@ -308,7 +443,7 @@ module('Acceptance | exec', function(hooks) {
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
         assert.equal(command, '/sh');
-        localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
+        window.localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
 
         assert.step('Socket built');
 
@@ -322,8 +457,8 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
-    let taskGroup = this.job.task_groups.models[0];
-    let task = taskGroup.tasks.models[0];
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocation = this.server.db.allocations.findBy({
       jobId: this.job.id,
       taskGroup: taskGroup.name,
@@ -350,7 +485,7 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(6)
         .translateToString()
         .trim(),
@@ -366,7 +501,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('a persisted customised command is recalled', async function(assert) {
-    localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
+    window.localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
 
     let taskGroup = this.job.task_groups.models[0];
     let task = taskGroup.tasks.models[0];
@@ -386,11 +521,39 @@ module('Acceptance | exec', function(hooks) {
     await settled();
 
     assert.equal(
-      window.execTerminal.buffer
+      window.execTerminal.buffer.active
         .getLine(4)
         .translateToString()
         .trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${allocation.id.split('-')[0]} /bin/sh`
+    );
+  });
+
+  skip('when a task state finishes submitting a command displays an error', async function(assert) {
+    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
+
+    await Exec.visitTask({
+      job: this.job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+    });
+
+    // Approximate allocation failure via polling
+    this.owner
+      .lookup('service:store')
+      .peekAll('allocation')
+      .forEach(allocation => allocation.set('clientStatus', 'failed'));
+
+    await Exec.terminal.pressEnter();
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer.active
+        .getLine(7)
+        .translateToString()
+        .trim(),
+      `Failed to open a socket because task ${task.name} is not active.`
     );
   });
 });

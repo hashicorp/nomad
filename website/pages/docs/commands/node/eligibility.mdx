@@ -44,7 +44,7 @@ operation is desired.
 
 @include 'general_options.mdx'
 
-## Drain Options
+## Eligibility Options
 
 - `-enable`: Enable scheduling eligibility.
 - `-disable`: Disable scheduling eligibility.
@@ -55,14 +55,14 @@ operation is desired.
 
 Enable scheduling eligibility on node with ID prefix "574545c5":
 
-```shell
+```shell-session
 $ nomad node eligibility -enable 574545c5
 Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: eligible for scheduling
 ```
 
 Disable scheduling eligibility on the local node:
 
-```shell
+```shell-session
 $ nomad node eligibility -disable -self
 Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: ineligible for scheduling
 ```

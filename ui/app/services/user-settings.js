@@ -1,6 +1,6 @@
 import Service from '@ember/service';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
-export default Service.extend({
-  pageSize: localStorageProperty('nomadPageSize', 25),
-});
+export default class UserSettingsService extends Service {
+  @localStorageProperty('nomadPageSize', 25) pageSize;
+}

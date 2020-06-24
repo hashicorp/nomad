@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1172,6 +1173,118 @@ func TestJobDiff(t *testing.T) {
 										Name: "MetaRequired",
 										Old:  "bar",
 										New:  "bar",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			// Multiregion: region added
+			Old: &Job{
+				Multiregion: &Multiregion{
+					Strategy: &MultiregionStrategy{
+						MaxParallel: 1,
+						OnFailure:   "fail_all",
+					},
+					Regions: []*MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       1,
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+					},
+				},
+			},
+
+			New: &Job{
+				Multiregion: &Multiregion{
+					Strategy: &MultiregionStrategy{
+						MaxParallel: 2,
+						OnFailure:   "fail_all",
+					},
+					Regions: []*MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       1,
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+						{
+							Name:        "east",
+							Count:       2,
+							Datacenters: []string{"east-1", "east-2"},
+							Meta:        map[string]string{"region_code": "E"},
+						},
+					},
+				},
+			},
+
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Multiregion",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Region",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Count",
+										Old:  "",
+										New:  "2",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Meta[region_code]",
+										Old:  "",
+										New:  "E",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Name",
+										Old:  "",
+										New:  "east",
+									},
+								},
+
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Datacenters",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Datacenters",
+												Old:  "",
+												New:  "east-1",
+											},
+											{
+												Type: DiffTypeAdded,
+												Name: "Datacenters",
+												Old:  "",
+												New:  "east-2",
+											},
+										},
+									},
+								},
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Strategy",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "MaxParallel",
+										Old:  "1",
+										New:  "2",
 									},
 								},
 							},
@@ -2818,9 +2931,13 @@ func TestTaskGroupDiff(t *testing.T) {
 						MBits:  200,
 						DynamicPorts: []Port{
 							{
-								Label: "bar",
-								To:    8081,
+								Label:       "bar",
+								To:          8081,
+								HostNetwork: "public",
 							},
+						},
+						DNS: &DNSConfig{
+							Servers: []string{"1.1.1.1"},
 						},
 					},
 				},
@@ -2852,6 +2969,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Fields: []*FieldDiff{
 									{
 										Type: DiffTypeAdded,
+										Name: "HostNetwork",
+										Old:  "",
+										New:  "public",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "Label",
 										Old:  "",
 										New:  "bar",
@@ -2861,6 +2984,18 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "To",
 										Old:  "",
 										New:  "8081",
+									},
+								},
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "DNS",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Servers",
+										Old:  "",
+										New:  "1.1.1.1",
 									},
 								},
 							},
@@ -2888,6 +3023,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Static Port",
 								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeNone,
+										Name: "HostNetwork",
+										Old:  "",
+										New:  "",
+									},
 									{
 										Type: DiffTypeDeleted,
 										Name: "Label",
@@ -3025,6 +3166,62 @@ func TestTaskGroupDiff(t *testing.T) {
 								New:  "",
 							},
 						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "TaskGroup shutdown_delay edited",
+			Old: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+			},
+			New: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "ShutdownDelay",
+						Old:  "30000000000",
+						New:  "5000000000",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "TaskGroup shutdown_delay removed",
+			Old: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "ShutdownDelay",
+						Old:  "30000000000",
+						New:  "",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "TaskGroup shutdown_delay added",
+			Old:      &TaskGroup{},
+			New: &TaskGroup{
+				ShutdownDelay: helper.TimeToPtr(30 * time.Second),
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "ShutdownDelay",
+						Old:  "",
+						New:  "30000000000",
 					},
 				},
 			},
@@ -4376,6 +4573,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "baz[b]",
 								Old:  "2",
 								New:  "2",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "boom.HostNetwork",
+								Old:  "",
+								New:  "",
 							},
 							{
 								Type: DiffTypeNone,

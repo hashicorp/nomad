@@ -19,10 +19,10 @@
 </div>
 {{#if isOpen}}
   <div data-test-deployment-details class="boxed-section-body">
-    {{#job-deployment-details deployment=deployment as |d|}}
+    <JobDeploymentDetails @deployment={{deployment}} as |d|>
       {{d.metrics}}
       {{d.taskGroups}}
       {{d.allocations}}
-    {{/job-deployment-details}}
+    </JobDeploymentDetails>
   </div>
 {{/if}}

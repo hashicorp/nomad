@@ -5,6 +5,11 @@
 job "plugin-aws-efs-nodes" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   # you can run node plugins as service jobs as well, but this ensures
   # that all nodes in the DC have a copy.
   type = "system"
@@ -14,7 +19,7 @@ job "plugin-aws-efs-nodes" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-efs-csi-driver:latest"
+        image = "amazon/aws-efs-csi-driver:v0.3.0"
 
         # note: the EFS driver doesn't seem to respect the --endpoint
         # flag and always sets up the listener at '/tmp/csi.sock'

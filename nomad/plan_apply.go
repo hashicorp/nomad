@@ -339,6 +339,7 @@ func normalizeStoppedAlloc(stoppedAlloc *structs.Allocation, now int64) *structs
 		DesiredDescription: stoppedAlloc.DesiredDescription,
 		ClientStatus:       stoppedAlloc.ClientStatus,
 		ModifyTime:         now,
+		FollowupEvalID:     stoppedAlloc.FollowupEvalID,
 	}
 }
 
@@ -474,7 +475,7 @@ func evaluatePlanPlacements(pool *EvaluatePool, snap *state.StateSnapshot, plan 
 		if !fit {
 			// Log the reason why the node's allocations could not be made
 			if reason != "" {
-				logger.Debug("plan for node rejected", "node_id", nodeID, "reason", reason)
+				logger.Debug("plan for node rejected", "node_id", nodeID, "reason", reason, "eval_id", plan.EvalID)
 			}
 			// Set that this is a partial commit
 			partialCommit = true

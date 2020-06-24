@@ -184,6 +184,7 @@ func TestParse(t *testing.T) {
 								},
 							},
 						},
+						StopAfterClientDisconnect: helper.TimeToPtr(120 * time.Second),
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: helper.TimeToPtr(12 * time.Hour),
 							Attempts: helper.IntToPtr(5),
@@ -1012,10 +1013,15 @@ func TestParse(t *testing.T) {
 								Mode: "bridge",
 								ReservedPorts: []api.Port{
 									{
-										Label: "http",
-										Value: 80,
-										To:    8080,
+										Label:       "http",
+										Value:       80,
+										To:          8080,
+										HostNetwork: "public",
 									},
+								},
+								DNS: &api.DNSConfig{
+									Servers: []string{"8.8.8.8"},
+									Options: []string{"ndots:2", "edns0"},
 								},
 							},
 						},
@@ -1029,6 +1035,7 @@ func TestParse(t *testing.T) {
 									SidecarService: &api.ConsulSidecarService{
 										Tags: []string{"side1", "side2"},
 										Proxy: &api.ConsulProxy{
+											LocalServicePort: 8080,
 											Upstreams: []*api.ConsulUpstream{
 												{
 													DestinationName: "other-service",
@@ -1151,6 +1158,99 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-sidecar_task-name.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("sidecar_task_name"),
+				Name: helper.StringToPtr("sidecar_task_name"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native:         false,
+							SidecarService: &api.ConsulSidecarService{},
+							SidecarTask: &api.SidecarTask{
+								Name: "my-sidecar",
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-proxy.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service-connect-proxy"),
+				Name: helper.StringToPtr("service-connect-proxy"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{
+									LocalServiceAddress: "10.0.1.2",
+									LocalServicePort:    8080,
+									ExposeConfig: &api.ConsulExposeConfig{
+										Path: []*api.ConsulExposePath{{
+											Path:          "/metrics",
+											Protocol:      "http",
+											LocalPathPort: 9001,
+											ListenerPort:  "metrics",
+										}, {
+											Path:          "/health",
+											Protocol:      "http",
+											LocalPathPort: 9002,
+											ListenerPort:  "health",
+										}},
+									},
+									Upstreams: []*api.ConsulUpstream{{
+										DestinationName: "upstream1",
+										LocalBindPort:   2001,
+									}, {
+										DestinationName: "upstream2",
+										LocalBindPort:   2002,
+									}},
+									Config: map[string]interface{}{
+										"foo": "bar",
+									},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-local-service.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("connect-proxy-local-service"),
+				Name: helper.StringToPtr("connect-proxy-local-service"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{
+									LocalServiceAddress: "10.0.1.2",
+									LocalServicePort:    9876,
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-check-expose.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("group_service_proxy_expose"),
@@ -1210,6 +1310,61 @@ func TestParse(t *testing.T) {
 								"f":   .1,
 							},
 							Enabled: helper.BoolToPtr(false),
+						},
+					},
+				},
+			},
+			false,
+		},
+
+		{
+			"tg-scaling-policy-minimal.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("elastic"),
+				Name: helper.StringToPtr("elastic"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Scaling: &api.ScalingPolicy{
+							Min:     nil,
+							Max:     0,
+							Policy:  nil,
+							Enabled: nil,
+						},
+					},
+				},
+			},
+			false,
+		},
+
+		{
+			"tg-scaling-policy-multi-policy.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"multiregion.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("multiregion_job"),
+				Name: helper.StringToPtr("multiregion_job"),
+				Multiregion: &api.Multiregion{
+					Strategy: &api.MultiregionStrategy{
+						MaxParallel: helper.IntToPtr(1),
+						OnFailure:   helper.StringToPtr("fail_all"),
+					},
+					Regions: []*api.MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       helper.IntToPtr(2),
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+						{
+							Name:        "east",
+							Count:       helper.IntToPtr(1),
+							Datacenters: []string{"east-1", "east-2"},
+							Meta:        map[string]string{"region_code": "E"},
 						},
 					},
 				},

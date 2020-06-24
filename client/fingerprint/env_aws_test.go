@@ -202,6 +202,74 @@ func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
 	require.Nil(t, response.NodeResources)
 }
 
+func TestCPUFingerprint_AWS_InstanceFound(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+	require.True(t, response.Detected)
+	require.Equal(t, "2.5 GHz AMD EPYC 7000 series", response.Attributes["cpu.modelname"])
+	require.Equal(t, "2500", response.Attributes["cpu.frequency"])
+	require.Equal(t, "8", response.Attributes["cpu.numcores"])
+	require.Equal(t, "20000", response.Attributes["cpu.totalcompute"])
+	require.Equal(t, 20000, response.Resources.CPU)
+	require.Equal(t, int64(20000), response.NodeResources.Cpu.CpuShares)
+}
+
+func TestCPUFingerprint_AWS_OverrideCompute(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	request := &FingerprintRequest{Config: &config.Config{
+		CpuCompute: 99999,
+	}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+	require.True(t, response.Detected)
+	require.Equal(t, "2.5 GHz AMD EPYC 7000 series", response.Attributes["cpu.modelname"])
+	require.Equal(t, "2500", response.Attributes["cpu.frequency"])
+	require.Equal(t, "8", response.Attributes["cpu.numcores"])
+	require.NotContains(t, response.Attributes, "cpu.totalcompute")
+	require.Nil(t, response.Resources)          // defaults in cpu fingerprinter
+	require.Zero(t, response.NodeResources.Cpu) // defaults in cpu fingerprinter
+}
+
+func TestCPUFingerprint_AWS_InstanceNotFound(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, unknownInstanceType)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+	require.True(t, response.Detected)
+	require.NotContains(t, response.Attributes, "cpu.modelname")
+	require.NotContains(t, response.Attributes, "cpu.frequency")
+	require.NotContains(t, response.Attributes, "cpu.numcores")
+	require.NotContains(t, response.Attributes, "cpu.totalcompute")
+	require.Nil(t, response.Resources)
+	require.Nil(t, response.NodeResources)
+}
+
 /// Utility functions for tests
 
 func startFakeEC2Metadata(t *testing.T, endpoints []endpoint) (endpoint string, cleanup func()) {
@@ -252,7 +320,7 @@ var awsStubs = []endpoint{
 	{
 		Uri:         "/latest/meta-data/instance-type",
 		ContentType: "text/plain",
-		Body:        "m3.2xlarge",
+		Body:        "t3a.2xlarge",
 	},
 	{
 		Uri:         "/latest/meta-data/local-hostname",
@@ -273,6 +341,34 @@ var awsStubs = []endpoint{
 		Uri:         "/latest/meta-data/public-ipv4",
 		ContentType: "text/plain",
 		Body:        "54.191.117.175",
+	},
+}
+
+var unknownInstanceType = []endpoint{
+	{
+		Uri:         "/latest/meta-data/ami-id",
+		ContentType: "text/plain",
+		Body:        "ami-1234",
+	},
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/placement/availability-zone",
+		ContentType: "text/plain",
+		Body:        "us-west-2a",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-type",
+		ContentType: "text/plain",
+		Body:        "xyz123.uber",
 	},
 }
 

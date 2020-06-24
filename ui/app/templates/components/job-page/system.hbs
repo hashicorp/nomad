@@ -1,7 +1,7 @@
-{{#job-page/parts/body job=job}}
-  {{job-page/parts/error errorMessage=errorMessage onDismiss=(action "clearErrorMessage")}}
+<JobPage::Parts::Body @job={{job}}>
+  <JobPage::Parts::Error @errorMessage={{errorMessage}} @onDismiss={{action "clearErrorMessage"}} />
 
-  {{job-page/parts/title job=job handleError=(action "handleError")}}
+  <JobPage::Parts::Title @job={{job}} @handleError={{action "handleError"}} />
 
   <div class="boxed-section job-stats">
     <div class="boxed-section-body">
@@ -13,15 +13,15 @@
     </div>
   </div>
 
-  {{job-page/parts/summary job=job}}
+  <JobPage::Parts::Summary @job={{job}} />
 
-  {{job-page/parts/placement-failures job=job}}
+  <JobPage::Parts::PlacementFailures @job={{job}} />
 
-  {{job-page/parts/task-groups
-    job=job
-    sortProperty=sortProperty
-    sortDescending=sortDescending
-    gotoTaskGroup=gotoTaskGroup}}
+  <JobPage::Parts::TaskGroups
+    @job={{job}}
+    @sortProperty={{sortProperty}}
+    @sortDescending={{sortDescending}}
+    @gotoTaskGroup={{gotoTaskGroup}} />
 
-  {{job-page/parts/recent-allocations job=job}}
-{{/job-page/parts/body}}
+  <JobPage::Parts::RecentAllocations @job={{job}} />
+</JobPage::Parts::Body>

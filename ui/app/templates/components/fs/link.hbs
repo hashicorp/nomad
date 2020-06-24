@@ -1,0 +1,21 @@
+{{#if taskState}}
+  {{#if path}}
+    <LinkTo @route="allocations.allocation.task.fs" @models={{array allocation taskState path}} @activeClass="is-active">
+      {{yield}}
+    </LinkTo>
+  {{else}}
+    <LinkTo @route="allocations.allocation.task.fs-root" @models={{array allocation taskState}} @activeClass="is-active">
+      {{yield}}
+    </LinkTo>
+  {{/if}}
+{{else}}
+  {{#if path}}
+    <LinkTo @route="allocations.allocation.fs" @models={{array allocation path}} @activeClass="is-active">
+      {{yield}}
+    </LinkTo>
+  {{else}}
+    <LinkTo @route="allocations.allocation.fs-root" @model={{allocation}} @activeClass="is-active">
+      {{yield}}
+    </LinkTo>
+  {{/if}}
+{{/if}}

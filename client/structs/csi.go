@@ -31,19 +31,47 @@ type CSIControllerQuery struct {
 }
 
 type ClientCSIControllerValidateVolumeRequest struct {
-	VolumeID string
+	VolumeID string // note: this is the external ID
 
 	AttachmentMode structs.CSIVolumeAttachmentMode
 	AccessMode     structs.CSIVolumeAccessMode
+	Secrets        structs.CSISecrets
+
+	// Parameters as returned by storage provider in CreateVolumeResponse.
+	// This field is optional.
+	Parameters map[string]string
+
+	// Volume context as returned by storage provider in CreateVolumeResponse.
+	// This field is optional.
+	Context map[string]string
 
 	CSIControllerQuery
+}
+
+func (c *ClientCSIControllerValidateVolumeRequest) ToCSIRequest() (*csi.ControllerValidateVolumeRequest, error) {
+	if c == nil {
+		return &csi.ControllerValidateVolumeRequest{}, nil
+	}
+
+	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode)
+	if err != nil {
+		return nil, err
+	}
+
+	return &csi.ControllerValidateVolumeRequest{
+		ExternalID:   c.VolumeID,
+		Secrets:      c.Secrets,
+		Capabilities: caps,
+		Parameters:   c.Parameters,
+		Context:      c.Context,
+	}, nil
 }
 
 type ClientCSIControllerValidateVolumeResponse struct {
 }
 
 type ClientCSIControllerAttachVolumeRequest struct {
-	// The ID of the volume to be used on a node.
+	// The external ID of the volume to be used on a node.
 	// This field is REQUIRED.
 	VolumeID string
 
@@ -66,6 +94,14 @@ type ClientCSIControllerAttachVolumeRequest struct {
 	// only works when the Controller has the PublishReadonly capability.
 	ReadOnly bool
 
+	// Secrets required by plugin to complete the controller publish
+	// volume request. This field is OPTIONAL.
+	Secrets structs.CSISecrets
+
+	// Volume context as returned by storage provider in CreateVolumeResponse.
+	// This field is optional.
+	VolumeContext map[string]string
+
 	CSIControllerQuery
 }
 
@@ -80,10 +116,12 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.Controller
 	}
 
 	return &csi.ControllerPublishVolumeRequest{
-		VolumeID:         c.VolumeID,
+		ExternalID:       c.VolumeID,
 		NodeID:           c.ClientCSINodeID,
-		ReadOnly:         c.ReadOnly,
 		VolumeCapability: caps,
+		ReadOnly:         c.ReadOnly,
+		Secrets:          c.Secrets,
+		VolumeContext:    c.VolumeContext,
 	}, nil
 }
 
@@ -108,7 +146,7 @@ type ClientCSIControllerAttachVolumeResponse struct {
 }
 
 type ClientCSIControllerDetachVolumeRequest struct {
-	// The ID of the volume to be unpublished for the node
+	// The external ID of the volume to be unpublished for the node
 	// This field is REQUIRED.
 	VolumeID string
 
@@ -116,6 +154,10 @@ type ClientCSIControllerDetachVolumeRequest struct {
 	// This field is REQUIRED. This must match the NodeID that is fingerprinted
 	// by the target node for this plugin name.
 	ClientCSINodeID string
+
+	// Secrets required by plugin to complete the controller unpublish
+	// volume request. This field is OPTIONAL.
+	Secrets structs.CSISecrets
 
 	CSIControllerQuery
 }
@@ -126,8 +168,8 @@ func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerU
 	}
 
 	return &csi.ControllerUnpublishVolumeRequest{
-		VolumeID: c.VolumeID,
-		NodeID:   c.ClientCSINodeID,
+		ExternalID: c.VolumeID,
+		NodeID:     c.ClientCSINodeID,
 	}
 }
 
@@ -137,10 +179,11 @@ type ClientCSIControllerDetachVolumeResponse struct{}
 // a Nomad client to tell a CSI node plugin on that client to perform
 // NodeUnpublish and NodeUnstage.
 type ClientCSINodeDetachVolumeRequest struct {
-	PluginID string // ID of the plugin that manages the volume (required)
-	VolumeID string // ID of the volume to be unpublished (required)
-	AllocID  string // ID of the allocation we're unpublishing for (required)
-	NodeID   string // ID of the Nomad client targeted
+	PluginID   string // ID of the plugin that manages the volume (required)
+	VolumeID   string // ID of the volume to be unpublished (required)
+	AllocID    string // ID of the allocation we're unpublishing for (required)
+	NodeID     string // ID of the Nomad client targeted
+	ExternalID string // External ID of the volume to be unpublished (required)
 
 	// These fields should match the original volume request so that
 	// we can find the mount points on the client

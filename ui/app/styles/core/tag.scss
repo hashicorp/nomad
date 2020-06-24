@@ -57,4 +57,9 @@
     padding: 0;
     margin-bottom: 1em;
   }
+
+  &.is-small {
+    font-size: 0.7rem;
+    vertical-align: 2px;
+  }
 }

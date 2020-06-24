@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"math"
 	"net"
 	"os"
@@ -23,9 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorhill/cronexpr"
+	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
-	hcodec "github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/copystructure"
@@ -51,6 +51,8 @@ var (
 
 type MessageType uint8
 
+// note: new raft message types need to be added to the end of this
+// list of contents
 const (
 	NodeRegisterRequestType MessageType = iota
 	NodeDeregisterRequestType
@@ -91,6 +93,8 @@ const (
 	CSIVolumeDeregisterRequestType
 	CSIVolumeClaimRequestType
 	ScalingEventRegisterRequestType
+	CSIVolumeClaimBatchRequestType
+	CSIPluginDeleteRequestType
 )
 
 const (
@@ -133,6 +137,10 @@ const (
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace            = "default"
 	DefaultNamespaceDescription = "Default shared namespace"
+
+	// AllNamespacesSentinel is the value used as a namespace RPC value
+	// to indicate that endpoints must search in all namespaces
+	AllNamespacesSentinel = "*"
 
 	// JitterFraction is a the limit to the amount of jitter we apply
 	// to a user specified MaxQueryTime. We divide the specified time by
@@ -545,6 +553,11 @@ type JobRegisterRequest struct {
 	// register only occurs if the job is new.
 	EnforceIndex   bool
 	JobModifyIndex uint64
+
+	// PreserveCounts indicates that during job update, existing task group
+	// counts should be preserved, over those specified in the new job spec
+	// PreserveCounts is ignored for newly created jobs.
+	PreserveCounts bool
 
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
@@ -1055,6 +1068,30 @@ type DeploymentPauseRequest struct {
 	WriteRequest
 }
 
+// DeploymentRunRequest is used to remotely start a pending deployment.
+// Used only for multiregion deployments.
+type DeploymentRunRequest struct {
+	DeploymentID string
+
+	WriteRequest
+}
+
+// DeploymentUnblockRequest is used to remotely unblock a deployment.
+// Used only for multiregion deployments.
+type DeploymentUnblockRequest struct {
+	DeploymentID string
+
+	WriteRequest
+}
+
+// DeploymentCancelRequest is used to remotely cancel a deployment.
+// Used only for multiregion deployments.
+type DeploymentCancelRequest struct {
+	DeploymentID string
+
+	WriteRequest
+}
+
 // DeploymentSpecificRequest is used to make a request specific to a particular
 // deployment
 type DeploymentSpecificRequest struct {
@@ -1163,6 +1200,9 @@ type NodeUpdateResponse struct {
 	EvalIDs         []string
 	EvalCreateIndex uint64
 	NodeModifyIndex uint64
+
+	// Features informs clients what enterprise features are allowed
+	Features uint64
 
 	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
 	// empty, the current Nomad Server is in the minority of a partition.
@@ -1708,7 +1748,7 @@ type Node struct {
 	// COMPAT: Remove in Nomad 0.9
 	// Drain is controlled by the servers, and not the client.
 	// If true, no jobs will be scheduled to this node, and existing
-	// allocations will be drained. Superceded by DrainStrategy in Nomad
+	// allocations will be drained. Superseded by DrainStrategy in Nomad
 	// 0.8 but kept for backward compat.
 	Drain bool
 
@@ -1769,6 +1809,30 @@ func (n *Node) Canonicalize() {
 			n.SchedulingEligibility = NodeSchedulingIneligible
 		} else {
 			n.SchedulingEligibility = NodeSchedulingEligible
+		}
+	}
+
+	// COMPAT remove in 1.0
+	// In v0.12.0 we introduced a separate node specific network resource struct
+	// so we need to covert any pre 0.12 clients to the correct struct
+	if n.NodeResources != nil && n.NodeResources.NodeNetworks == nil {
+		if n.NodeResources.Networks != nil {
+			for _, nr := range n.NodeResources.Networks {
+				nnr := &NodeNetworkResource{
+					Mode:   nr.Mode,
+					Speed:  nr.MBits,
+					Device: nr.Device,
+				}
+				if nr.IP != "" {
+					nnr.Addresses = []NodeNetworkAddress{
+						{
+							Alias:   "default",
+							Address: nr.IP,
+						},
+					}
+				}
+				n.NodeResources.NodeNetworks = append(n.NodeResources.NodeNetworks, nnr)
+			}
 		}
 	}
 }
@@ -2204,71 +2268,120 @@ func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
 }
 
+// NodeNetworkResource is used to describe a fingerprinted network of a node
+type NodeNetworkResource struct {
+	Mode string // host for physical networks, cni/<name> for cni networks
+
+	// The following apply only to host networks
+	Device     string // interface name
+	MacAddress string
+	Speed      int
+
+	Addresses []NodeNetworkAddress // not valid for cni, for bridge there will only be 1 ip
+}
+
+func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
+	return reflect.DeepEqual(n, o)
+}
+
+func (n *NodeNetworkResource) HasAlias(alias string) bool {
+	for _, addr := range n.Addresses {
+		if addr.Alias == alias {
+			return true
+		}
+	}
+	return false
+}
+
+type NodeNetworkAF string
+
+const (
+	NodeNetworkAF_IPv4 NodeNetworkAF = "ipv4"
+	NodeNetworkAF_IPv6 NodeNetworkAF = "ipv6"
+)
+
+type NodeNetworkAddress struct {
+	Family        NodeNetworkAF
+	Alias         string
+	Address       string
+	ReservedPorts string
+	Gateway       string // default route for this address
+}
+
+type AllocatedPortMapping struct {
+	Label  string
+	Value  int
+	To     int
+	HostIP string
+}
+
+type AllocatedPorts []AllocatedPortMapping
+
+func (p AllocatedPorts) Get(label string) (AllocatedPortMapping, bool) {
+	for _, port := range p {
+		if port.Label == label {
+			return port, true
+		}
+	}
+
+	return AllocatedPortMapping{}, false
+}
+
 type Port struct {
+	// Label is the key for HCL port stanzas: port "foo" {}
 	Label string
+
+	// Value is the static or dynamic port value. For dynamic ports this
+	// will be 0 in the jobspec and set by the scheduler.
 	Value int
-	To    int
+
+	// To is the port inside a network namespace where this port is
+	// forwarded. -1 is an internal sentinel value used by Consul Connect
+	// to mean "same as the host port."
+	To int
+
+	// HostNetwork is the name of the network this port should be assigned
+	// to. Jobs with a HostNetwork set can only be placed on nodes with
+	// that host network available.
+	HostNetwork string
+}
+
+type DNSConfig struct {
+	Servers  []string
+	Searches []string
+	Options  []string
 }
 
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
-	Mode          string // Mode of the network
-	Device        string // Name of the device
-	CIDR          string // CIDR block of addresses
-	IP            string // Host IP address
-	MBits         int    // Throughput
-	ReservedPorts []Port // Host Reserved ports
-	DynamicPorts  []Port // Host Dynamically assigned ports
+	Mode          string     // Mode of the network
+	Device        string     // Name of the device
+	CIDR          string     // CIDR block of addresses
+	IP            string     // Host IP address
+	MBits         int        // Throughput
+	DNS           *DNSConfig // DNS Configuration
+	ReservedPorts []Port     // Host Reserved ports
+	DynamicPorts  []Port     // Host Dynamically assigned ports
+}
+
+func (nr *NetworkResource) Hash() uint32 {
+	var data []byte
+	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.MBits))...)
+
+	for i, port := range nr.ReservedPorts {
+		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
+	}
+
+	for i, port := range nr.DynamicPorts {
+		data = append(data, []byte(fmt.Sprintf("d%d%s%d%d", i, port.Label, port.Value, port.To))...)
+	}
+
+	return crc32.ChecksumIEEE(data)
 }
 
 func (nr *NetworkResource) Equals(other *NetworkResource) bool {
-	if nr.Mode != other.Mode {
-		return false
-	}
-
-	if nr.Device != other.Device {
-		return false
-	}
-
-	if nr.CIDR != other.CIDR {
-		return false
-	}
-
-	if nr.IP != other.IP {
-		return false
-	}
-
-	if nr.MBits != other.MBits {
-		return false
-	}
-
-	if len(nr.ReservedPorts) != len(other.ReservedPorts) {
-		return false
-	}
-
-	for i, port := range nr.ReservedPorts {
-		if len(other.ReservedPorts) <= i {
-			return false
-		}
-		if port != other.ReservedPorts[i] {
-			return false
-		}
-	}
-
-	if len(nr.DynamicPorts) != len(other.DynamicPorts) {
-		return false
-	}
-	for i, port := range nr.DynamicPorts {
-		if len(other.DynamicPorts) <= i {
-			return false
-		}
-		if port != other.DynamicPorts[i] {
-			return false
-		}
-	}
-
-	return true
+	return nr.Hash() == other.Hash()
 }
 
 func (n *NetworkResource) Canonicalize() {
@@ -2279,6 +2392,17 @@ func (n *NetworkResource) Canonicalize() {
 	}
 	if len(n.DynamicPorts) == 0 {
 		n.DynamicPorts = nil
+	}
+
+	for i, p := range n.DynamicPorts {
+		if p.HostNetwork == "" {
+			n.DynamicPorts[i].HostNetwork = "default"
+		}
+	}
+	for i, p := range n.ReservedPorts {
+		if p.HostNetwork == "" {
+			n.ReservedPorts[i].HostNetwork = "default"
+		}
 	}
 }
 
@@ -2506,11 +2630,12 @@ func (r *RequestedDevice) Validate() error {
 
 // NodeResources is used to define the resources available on a client node.
 type NodeResources struct {
-	Cpu      NodeCpuResources
-	Memory   NodeMemoryResources
-	Disk     NodeDiskResources
-	Networks Networks
-	Devices  []*NodeDeviceResource
+	Cpu          NodeCpuResources
+	Memory       NodeMemoryResources
+	Disk         NodeDiskResources
+	Networks     Networks
+	NodeNetworks []*NodeNetworkResource
+	Devices      []*NodeDeviceResource
 }
 
 func (n *NodeResources) Copy() *NodeResources {
@@ -2570,11 +2695,30 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	n.Disk.Merge(&o.Disk)
 
 	if len(o.Networks) != 0 {
-		n.Networks = o.Networks
+		n.Networks = append(n.Networks, o.Networks...)
 	}
 
 	if len(o.Devices) != 0 {
 		n.Devices = o.Devices
+	}
+
+	if len(o.NodeNetworks) != 0 {
+		lookupNetwork := func(nets []*NodeNetworkResource, name string) (int, *NodeNetworkResource) {
+			for i, nw := range nets {
+				if nw.Device == name {
+					return i, nw
+				}
+			}
+			return 0, nil
+		}
+
+		for _, nw := range o.NodeNetworks {
+			if i, nnw := lookupNetwork(n.NodeNetworks, nw.Device); nnw != nil {
+				n.NodeNetworks[i] = nw
+			} else {
+				n.NodeNetworks = append(n.NodeNetworks, nw)
+			}
+		}
 	}
 }
 
@@ -2602,6 +2746,10 @@ func (n *NodeResources) Equals(o *NodeResources) bool {
 
 	// Check the devices
 	if !DevicesEquals(n.Devices, o.Devices) {
+		return false
+	}
+
+	if !NodeNetworksEquals(n.NodeNetworks, o.NodeNetworks) {
 		return false
 	}
 
@@ -2647,6 +2795,25 @@ func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 	}
 
 	return true
+}
+
+func NodeNetworksEquals(n1, n2 []*NodeNetworkResource) bool {
+	if len(n1) != len(n2) {
+		return false
+	}
+
+	netMap := make(map[string]*NodeNetworkResource, len(n1))
+	for _, n := range n1 {
+		netMap[n.Device] = n
+	}
+	for _, otherN := range n2 {
+		if n, ok := netMap[otherN.Device]; !ok || !n.Equals(otherN) {
+			return false
+		}
+	}
+
+	return true
+
 }
 
 // NodeCpuResources captures the CPU resources of the node.
@@ -3258,6 +3425,7 @@ func (a *AllocatedTaskResources) Subtract(delta *AllocatedTaskResources) {
 type AllocatedSharedResources struct {
 	Networks Networks
 	DiskMB   int64
+	Ports    AllocatedPorts
 }
 
 func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
@@ -3583,6 +3751,8 @@ type Job struct {
 	// Update provides defaults for the TaskGroup Update stanzas
 	Update UpdateStrategy
 
+	Multiregion *Multiregion
+
 	// Periodic is used to define the interval the job is run at.
 	Periodic *PeriodicConfig
 
@@ -3611,6 +3781,10 @@ type Job struct {
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
 	VaultToken string
+
+	// NomadTokenID is the Accessor ID of the ACL token (if any)
+	// used to register this version of the job. Used by deploymentwatcher.
+	NomadTokenID string
 
 	// Job status
 	Status string
@@ -3676,6 +3850,10 @@ func (j *Job) Canonicalize() (warnings error) {
 		j.ParameterizedJob.Canonicalize()
 	}
 
+	if j.Multiregion != nil {
+		j.Multiregion.Canonicalize()
+	}
+
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
@@ -3694,6 +3872,7 @@ func (j *Job) Copy() *Job {
 	nj.Datacenters = helper.CopySliceString(nj.Datacenters)
 	nj.Constraints = CopySliceConstraints(nj.Constraints)
 	nj.Affinities = CopySliceAffinities(nj.Affinities)
+	nj.Multiregion = nj.Multiregion.Copy()
 
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(nj.TaskGroups))
@@ -3713,7 +3892,7 @@ func (j *Job) Copy() *Job {
 func (j *Job) Validate() error {
 	var mErr multierror.Error
 
-	if j.Region == "" {
+	if j.Region == "" && j.Multiregion == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job region"))
 	}
 	if j.ID == "" {
@@ -3737,7 +3916,7 @@ func (j *Job) Validate() error {
 	if j.Priority < JobMinPriority || j.Priority > JobMaxPriority {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
 	}
-	if len(j.Datacenters) == 0 {
+	if len(j.Datacenters) == 0 && !j.IsMultiregion() {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
 	} else {
 		for _, v := range j.Datacenters {
@@ -3796,6 +3975,10 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 		}
 
+		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect < 0 {
+			mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect must be a positive value"))
+		}
+
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
@@ -3830,6 +4013,12 @@ func (j *Job) Validate() error {
 		}
 
 		if err := j.ParameterizedJob.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	if j.IsMultiregion() {
+		if err := j.Multiregion.Validate(j.Type); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -3933,6 +4122,7 @@ func (j *Job) Stub(summary *JobSummary) *JobListStub {
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
+		Multiregion:       j.Multiregion,
 		Type:              j.Type,
 		Priority:          j.Priority,
 		Periodic:          j.IsPeriodic(),
@@ -3962,6 +4152,35 @@ func (j *Job) IsPeriodicActive() bool {
 // IsParameterized returns whether a job is parameterized job.
 func (j *Job) IsParameterized() bool {
 	return j.ParameterizedJob != nil && !j.Dispatched
+}
+
+// IsMultiregion returns whether a job is multiregion
+func (j *Job) IsMultiregion() bool {
+	return j.Multiregion != nil && j.Multiregion.Regions != nil && len(j.Multiregion.Regions) > 0
+}
+
+// IsMultiregionStarter returns whether a regional job should begin
+// in the running state
+func (j *Job) IsMultiregionStarter() bool {
+	if !j.IsMultiregion() {
+		return true
+	}
+	if j.Type == "system" || j.Type == "batch" {
+		return true
+	}
+	if j.Multiregion.Strategy == nil || j.Multiregion.Strategy.MaxParallel == 0 {
+		return true
+	}
+	for i, region := range j.Multiregion.Regions {
+		if j.Region == region.Name {
+			if i < j.Multiregion.Strategy.MaxParallel {
+				return true
+			} else {
+				break
+			}
+		}
+	}
+	return false
 }
 
 // VaultPolicies returns the set of Vault policies per task group, per task
@@ -4098,7 +4317,9 @@ type JobListStub struct {
 	ID                string
 	ParentID          string
 	Name              string
+	Namespace         string `json:",omitempty"`
 	Datacenters       []string
+	Multiregion       *Multiregion
 	Type              string
 	Priority          int
 	Periodic          bool
@@ -4315,6 +4536,101 @@ func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
 }
 
+type Multiregion struct {
+	Strategy *MultiregionStrategy
+	Regions  []*MultiregionRegion
+}
+
+func (m *Multiregion) Canonicalize() {
+	if m.Strategy == nil {
+		m.Strategy = &MultiregionStrategy{}
+	}
+	if m.Regions == nil {
+		m.Regions = []*MultiregionRegion{}
+	}
+}
+
+// Diff indicates whether the multiregion config has changed
+func (m *Multiregion) Diff(m2 *Multiregion) bool {
+	return !reflect.DeepEqual(m, m2)
+}
+
+func (m *Multiregion) Copy() *Multiregion {
+	if m == nil {
+		return nil
+	}
+	copy := new(Multiregion)
+	if m.Strategy != nil {
+		copy.Strategy = &MultiregionStrategy{
+			MaxParallel: m.Strategy.MaxParallel,
+			OnFailure:   m.Strategy.OnFailure,
+		}
+	}
+	for _, region := range m.Regions {
+		copyRegion := &MultiregionRegion{
+			Name:        region.Name,
+			Count:       region.Count,
+			Datacenters: []string{},
+			Meta:        map[string]string{},
+		}
+		for _, dc := range region.Datacenters {
+			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
+		}
+		for k, v := range region.Meta {
+			copyRegion.Meta[k] = v
+		}
+		copy.Regions = append(copy.Regions, copyRegion)
+	}
+	return copy
+}
+
+func (m *Multiregion) Validate(jobType string) error {
+	var mErr multierror.Error
+	seen := map[string]struct{}{}
+	for _, region := range m.Regions {
+		if _, ok := seen[region.Name]; ok {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Multiregion region %q can't be listed twice",
+					region.Name))
+		}
+		seen[region.Name] = struct{}{}
+		if len(region.Datacenters) == 0 {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Multiregion region %q must have at least 1 datacenter",
+					region.Name),
+			)
+		}
+	}
+	if m.Strategy != nil {
+		switch jobType {
+		case JobTypeBatch:
+			if m.Strategy.OnFailure != "" || m.Strategy.MaxParallel != 0 {
+				mErr.Errors = append(mErr.Errors,
+					errors.New("Multiregion batch jobs can't have an update strategy"))
+			}
+		case JobTypeSystem:
+			if m.Strategy.OnFailure != "" {
+				mErr.Errors = append(mErr.Errors,
+					errors.New("Multiregion system jobs can't have an on_failure setting"))
+			}
+		default: // service
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+type MultiregionStrategy struct {
+	MaxParallel int
+	OnFailure   string
+}
+
+type MultiregionRegion struct {
+	Name        string
+	Count       int
+	Datacenters []string
+	Meta        map[string]string
+}
+
 const (
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
@@ -4421,9 +4737,11 @@ func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t t
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
-		if e, err := cronexpr.Parse(p.Spec); err == nil {
-			return CronParseNext(e, fromTime, p.Spec)
+		e, err := cronexpr.Parse(p.Spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", p.Spec, err)
 		}
+		return CronParseNext(e, fromTime, p.Spec)
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")
 		if len(split) == 1 && split[0] == "" {
@@ -4686,6 +5004,9 @@ type ScalingEvent struct {
 
 	// Count is the new scaling count, if provided
 	Count *int64
+
+	// PreviousCount is the count at the time of the scaling event
+	PreviousCount int64
 
 	// Message is the message describing a scaling event
 	Message string
@@ -5205,6 +5526,10 @@ type TaskGroup struct {
 	// ShutdownDelay is the amount of time to wait between deregistering
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
+
+	// StopAfterClientDisconnect, if set, configures the client to stop the task group
+	// after this duration since the last known good heartbeat
+	StopAfterClientDisconnect *time.Duration
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -5254,6 +5579,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	if tg.ShutdownDelay != nil {
 		ntg.ShutdownDelay = tg.ShutdownDelay
+	}
+
+	if tg.StopAfterClientDisconnect != nil {
+		ntg.StopAfterClientDisconnect = tg.StopAfterClientDisconnect
 	}
 
 	return ntg
@@ -5478,7 +5807,6 @@ func (tg *TaskGroup) validateNetworks() error {
 	var mErr multierror.Error
 	portLabels := make(map[string]string)
 	staticPorts := make(map[int]string)
-	mappedPorts := make(map[int]string)
 
 	for _, net := range tg.Networks {
 		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
@@ -5498,20 +5826,13 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 			}
 
-			if port.To > 0 {
-				if other, ok := mappedPorts[port.To]; ok {
-					err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
-					mErr.Errors = append(mErr.Errors, err)
-				} else {
-					mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
-				}
-			} else if port.To < -1 {
+			if port.To < -1 {
 				err := fmt.Errorf("Port %q cannot be mapped to negative value %d", port.Label, port.To)
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
 	}
-	// Check for duplicate tasks or port labels, and no duplicated static or mapped ports
+	// Check for duplicate tasks or port labels, and no duplicated static ports
 	for _, task := range tg.Tasks {
 		if task.Resources == nil {
 			continue
@@ -5529,15 +5850,6 @@ func (tg *TaskGroup) validateNetworks() error {
 						mErr.Errors = append(mErr.Errors, err)
 					} else {
 						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
-					}
-				}
-
-				if port.To != 0 {
-					if other, ok := mappedPorts[port.To]; ok {
-						err := fmt.Errorf("Port mapped to %d already in use by %s", port.To, other)
-						mErr.Errors = append(mErr.Errors, err)
-					} else {
-						mappedPorts[port.To] = fmt.Sprintf("taskgroup network:%s", port.Label)
 					}
 				}
 			}
@@ -6296,6 +6608,10 @@ func (t *Task) Warnings() error {
 // task to the service name of which it is a connect proxy for.
 type TaskKind string
 
+func NewTaskKind(name, identifier string) TaskKind {
+	return TaskKind(fmt.Sprintf("%s:%s", name, identifier))
+}
+
 // Name returns the kind name portion of the TaskKind
 func (k TaskKind) Name() string {
 	return strings.Split(string(k), ":")[0]
@@ -6315,9 +6631,19 @@ func (k TaskKind) IsConnectProxy() bool {
 	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
 }
 
-// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
-// Proxy
-const ConnectProxyPrefix = "connect-proxy"
+func (k TaskKind) IsConnectNative() bool {
+	return strings.HasPrefix(string(k), ConnectNativePrefix+":") && len(k) > len(ConnectNativePrefix)+1
+}
+
+const (
+	// ConnectProxyPrefix is the prefix used for fields referencing a Consul Connect
+	// Proxy
+	ConnectProxyPrefix = "connect-proxy"
+
+	// ConnectNativePrefix is the prefix used for fields referencing a Connect
+	// Native Task
+	ConnectNativePrefix = "connect-native"
+)
 
 // ValidateConnectProxyService checks that the service that is being
 // proxied by this task exists in the task group and contains
@@ -6505,6 +6831,19 @@ func (t *Template) Warnings() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// AllocState records a single event that changes the state of the whole allocation
+type AllocStateField uint8
+
+const (
+	AllocStateFieldClientStatus AllocStateField = iota
+)
+
+type AllocState struct {
+	Field AllocStateField
+	Value string
+	Time  time.Time
 }
 
 // Set of possible states for a task.
@@ -7694,6 +8033,9 @@ const (
 	DeploymentStatusFailed     = "failed"
 	DeploymentStatusSuccessful = "successful"
 	DeploymentStatusCancelled  = "cancelled"
+	DeploymentStatusPending    = "pending"
+	DeploymentStatusBlocked    = "blocked"
+	DeploymentStatusUnblocking = "unblocking"
 
 	// TODO Statuses and Descriptions do not match 1:1 and we sometimes use the Description as a status flag
 
@@ -7709,6 +8051,12 @@ const (
 	DeploymentStatusDescriptionFailedAllocations     = "Failed due to unhealthy allocations"
 	DeploymentStatusDescriptionProgressDeadline      = "Failed due to progress deadline"
 	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
+
+	// used only in multiregion deployments
+	DeploymentStatusDescriptionFailedByPeer   = "Failed because of an error in peer region"
+	DeploymentStatusDescriptionBlocked        = "Deployment is complete but waiting for peer region"
+	DeploymentStatusDescriptionUnblocking     = "Deployment is unblocking remaining regions"
+	DeploymentStatusDescriptionPendingForPeer = "Deployment is pending, waiting for peer region"
 )
 
 // DeploymentStatusDescriptionRollback is used to get the status description of
@@ -7757,6 +8105,9 @@ type Deployment struct {
 	// present the correct list of deployments for the job and not old ones.
 	JobCreateIndex uint64
 
+	// Multiregion specifies if deployment is part of multiregion deployment
+	IsMultiregion bool
+
 	// TaskGroups is the set of task groups effected by the deployment and their
 	// current deployment status.
 	TaskGroups map[string]*DeploymentState
@@ -7782,6 +8133,7 @@ func NewDeployment(job *Job) *Deployment {
 		JobModifyIndex:     job.ModifyIndex,
 		JobSpecModifyIndex: job.JobModifyIndex,
 		JobCreateIndex:     job.CreateIndex,
+		IsMultiregion:      job.IsMultiregion(),
 		Status:             DeploymentStatusRunning,
 		StatusDescription:  DeploymentStatusDescriptionRunning,
 		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
@@ -7810,7 +8162,7 @@ func (d *Deployment) Copy() *Deployment {
 // Active returns whether the deployment is active or terminal.
 func (d *Deployment) Active() bool {
 	switch d.Status {
-	case DeploymentStatusRunning, DeploymentStatusPaused:
+	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked, DeploymentStatusUnblocking, DeploymentStatusPending:
 		return true
 	default:
 		return false
@@ -8143,6 +8495,9 @@ type Allocation struct {
 	// TaskStates stores the state of each task,
 	TaskStates map[string]*TaskState
 
+	// AllocStates track meta data associated with changes to the state of the whole allocation, like becoming lost
+	AllocStates []*AllocState
+
 	// PreviousAllocation is the allocation that this allocation is replacing
 	PreviousAllocation string
 
@@ -8411,6 +8766,49 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	return nextRescheduleTime, rescheduleEligible
 }
 
+// ShouldClientStop tests an alloc for StopAfterClientDisconnect configuration
+func (a *Allocation) ShouldClientStop() bool {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil ||
+		tg.StopAfterClientDisconnect == nil ||
+		*tg.StopAfterClientDisconnect == 0*time.Nanosecond {
+		return false
+	}
+	return true
+}
+
+// WaitClientStop uses the reschedule delay mechanism to block rescheduling until
+// StopAfterClientDisconnect's block interval passes
+func (a *Allocation) WaitClientStop() time.Time {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	// An alloc can only be marked lost once, so use the first lost transition
+	var t time.Time
+	for _, s := range a.AllocStates {
+		if s.Field == AllocStateFieldClientStatus &&
+			s.Value == AllocClientStatusLost {
+			t = s.Time
+			break
+		}
+	}
+
+	// On the first pass, the alloc hasn't been marked lost yet, and so we start
+	// counting from now
+	if t.IsZero() {
+		t = time.Now().UTC()
+	}
+
+	// Find the max kill timeout
+	kill := DefaultKillTimeout
+	for _, t := range tg.Tasks {
+		if t.KillTimeout > kill {
+			kill = t.KillTimeout
+		}
+	}
+
+	return t.Add(*tg.StopAfterClientDisconnect + kill)
+}
+
 // NextDelay returns a duration after which the allocation can be rescheduled.
 // It is calculated according to the delay function and previous reschedule attempts.
 func (a *Allocation) NextDelay() time.Duration {
@@ -8465,6 +8863,24 @@ func (a *Allocation) Terminated() bool {
 		return true
 	}
 	return false
+}
+
+// SetStopped updates the allocation in place to a DesiredStatus stop, with the ClientStatus
+func (a *Allocation) SetStop(clientStatus, clientDesc string) {
+	a.DesiredStatus = AllocDesiredStatusStop
+	a.ClientStatus = clientStatus
+	a.ClientDescription = clientDesc
+	a.AppendState(AllocStateFieldClientStatus, clientStatus)
+}
+
+// AppendState creates and appends an AllocState entry recording the time of the state
+// transition. Used to mark the transition to lost
+func (a *Allocation) AppendState(field AllocStateField, value string) {
+	a.AllocStates = append(a.AllocStates, &AllocState{
+		Field: field,
+		Value: value,
+		Time:  time.Now().UTC(),
+	})
 }
 
 // RanSuccessfully returns whether the client has ran the allocation and all
@@ -8983,6 +9399,11 @@ const (
 	// claiming them. If so, we unclaim the volume.
 	CoreJobCSIVolumeClaimGC = "csi-volume-claim-gc"
 
+	// CoreJobCSIPluginGC is use for the garbage collection of CSI plugins.
+	// We periodically scan plugins to see if they have no associated volumes
+	// or allocs running them. If so, we delete the plugin.
+	CoreJobCSIPluginGC = "csi-plugin-gc"
+
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 )
@@ -9347,7 +9768,7 @@ type Plan struct {
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
 // allocation may be optionally set by passing in a non-empty value.
-func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus string) {
+func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, followupEvalID string) {
 	newAlloc := new(Allocation)
 	*newAlloc = *alloc
 
@@ -9368,6 +9789,12 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus s
 
 	if clientStatus != "" {
 		newAlloc.ClientStatus = clientStatus
+	}
+
+	newAlloc.AppendState(AllocStateFieldClientStatus, clientStatus)
+
+	if followupEvalID != "" {
+		newAlloc.FollowupEvalID = followupEvalID
 	}
 
 	node := alloc.NodeID
@@ -9444,6 +9871,7 @@ func (p *Plan) NormalizeAllocations() {
 				ID:                 alloc.ID,
 				DesiredDescription: alloc.DesiredDescription,
 				ClientStatus:       alloc.ClientStatus,
+				FollowupEvalID:     alloc.FollowupEvalID,
 			}
 		}
 	}
@@ -9549,6 +9977,9 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	// nil interface{}.
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
 
+	// only review struct codec tags
+	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
+
 	return h
 }()
 
@@ -9563,23 +9994,6 @@ var (
 		Indent:        4,
 	}
 )
-
-// TODO Figure out if we can remove this. This is our fork that is just way
-// behind. I feel like its original purpose was to pin at a stable version but
-// now we can accomplish this with vendoring.
-var HashiMsgpackHandle = func() *hcodec.MsgpackHandle {
-	h := &hcodec.MsgpackHandle{}
-	h.RawToString = true
-
-	// maintain binary format from time prior to upgrading latest ugorji
-	h.BasicHandle.TimeNotBuiltin = true
-
-	// Sets the default type for decoding a map into a nil interface{}.
-	// This is necessary in particular because we store the driver configs as a
-	// nil interface{}.
-	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
-	return h
-}()
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {

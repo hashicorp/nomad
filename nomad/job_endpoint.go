@@ -96,6 +96,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 	args.Job = job
 
+	// Attach the Nomad token's accessor ID so that deploymentwatcher
+	// can reference the token later
+	tokenID, err := j.srv.ResolveSecretToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if tokenID != nil {
+		args.Job.NomadTokenID = tokenID.AccessorID
+	}
+
 	// Set the warning message
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
@@ -277,6 +287,26 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Clear the Consul token
 	args.Job.ConsulToken = ""
+
+	// Preserve the existing task group counts, if so requested
+	if existingJob != nil && args.PreserveCounts {
+		prevCounts := make(map[string]int)
+		for _, tg := range existingJob.TaskGroups {
+			prevCounts[tg.Name] = tg.Count
+		}
+		for _, tg := range args.Job.TaskGroups {
+			if count, ok := prevCounts[tg.Name]; ok {
+				tg.Count = count
+			}
+		}
+	}
+
+	// Submit a multiregion job to other regions (enterprise only).
+	// The job will have its region interpolated.
+	err = j.multiregionRegister(args, reply)
+	if err != nil {
+		return err
+	}
 
 	// Check if the job has changed at all
 	if existingJob == nil || existingJob.SpecChanged(args.Job) {
@@ -707,12 +737,20 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 
-	// For a job with volumes, run volume claim GC before deleting the job
+	// For a job with volumes, find its volumes before deleting the job.
+	// Later we'll apply this raft.
+	volumesToGC := newCSIBatchRelease(j.srv, j.logger, 100)
 	if job != nil {
-		volumeClaimReap(j.srv, j.logger, []*structs.Job{job}, j.srv.getLeaderAcl(), true)
+		for _, tg := range job.TaskGroups {
+			for _, vol := range tg.Volumes {
+				if vol.Type == structs.VolumeTypeCSI {
+					volumesToGC.add(vol.Source, job.Namespace)
+				}
+			}
+		}
 	}
 
-	// Commit this update via Raft
+	// Commit the job update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
 	if err != nil {
 		j.logger.Error("deregister failed", "error", err)
@@ -721,6 +759,13 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
+
+	// Make a raft apply to release the CSI volume claims of terminal allocs.
+	var result *multierror.Error
+	err = volumesToGC.apply()
+	if err != nil {
+		result = multierror.Append(result, err)
+	}
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
@@ -751,15 +796,16 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// Commit this evaluation via Raft
 	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 	if err != nil {
+		result = multierror.Append(result, err)
 		j.logger.Error("eval create failed", "error", err, "method", "deregister")
-		return err
+		return result.ErrorOrNil()
 	}
 
 	// Populate the reply with eval information
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
-	return nil
+	return result.ErrorOrNil()
 }
 
 // BatchDeregister is used to remove a set of jobs from the cluster.
@@ -872,6 +918,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if args.Error && args.Count != nil {
 		return structs.NewErrRPCCoded(400, "scaling action should not contain count if error is true")
 	}
+	if args.Count != nil && *args.Count < 0 {
+		return structs.NewErrRPCCoded(400, "scaling action count can't be negative")
+	}
 
 	// Check for submit-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
@@ -892,6 +941,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	ws := memdb.NewWatchSet()
 	job, err := snap.JobByID(ws, namespace, args.JobID)
 	if err != nil {
+		j.logger.Error("unable to lookup job", "error", err)
 		return err
 	}
 	if job == nil {
@@ -914,12 +964,48 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 
 	// If the count is present, commit the job update via Raft
 	// for now, we'll do this even if count didn't change
+	prevCount := found.Count
 	if args.Count != nil {
+
+		// Lookup the latest deployment, to see whether this scaling event should be blocked
+		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
+		if err != nil {
+			j.logger.Error("unable to lookup latest deployment", "error", err)
+			return err
+		}
+		// explicitly filter deployment by JobCreateIndex to be safe, because LatestDeploymentByJobID doesn't
+		if d != nil && d.JobCreateIndex == job.CreateIndex && d.Active() {
+			// attempt to register the scaling event
+			JobScalingBlockedByActiveDeployment := "job scaling blocked due to active deployment"
+			event := &structs.ScalingEventRequest{
+				Namespace: job.Namespace,
+				JobID:     job.ID,
+				TaskGroup: groupName,
+				ScalingEvent: &structs.ScalingEvent{
+					Time:          now,
+					PreviousCount: int64(prevCount),
+					Message:       JobScalingBlockedByActiveDeployment,
+					Error:         true,
+					Meta: map[string]interface{}{
+						"OriginalMessage": args.Message,
+						"OriginalCount":   *args.Count,
+						"OriginalMeta":    args.Meta,
+					},
+				},
+			}
+			if _, _, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event); err != nil {
+				// just log the error, this was a best-effort attempt
+				j.logger.Error("scaling event create failed during block scaling action", "error", err)
+			}
+			return structs.NewErrRPCCoded(400, JobScalingBlockedByActiveDeployment)
+		}
+
 		truncCount := int(*args.Count)
 		if int64(truncCount) != *args.Count {
 			return structs.NewErrRPCCoded(400,
 				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", args.Count))
 		}
+		// update the task group count
 		found.Count = truncCount
 
 		registerReq := structs.JobRegisterRequest{
@@ -978,11 +1064,12 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		JobID:     job.ID,
 		TaskGroup: groupName,
 		ScalingEvent: &structs.ScalingEvent{
-			Time:    now,
-			Count:   args.Count,
-			Message: args.Message,
-			Error:   args.Error,
-			Meta:    args.Meta,
+			Time:          now,
+			PreviousCount: int64(prevCount),
+			Count:         args.Count,
+			Message:       args.Message,
+			Error:         args.Error,
+			Meta:          args.Meta,
 		},
 	}
 	if reply.EvalID != "" {
@@ -1103,13 +1190,45 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
+// allowedNSes returns a set (as map of ns->true) of the namespaces a token has access to.
+// Returns `nil` set if the token has access to all namespaces
+// and ErrPermissionDenied if the token has no capabilities on any namespace.
+func allowedNSes(aclObj *acl.ACL, state *state.StateStore) (map[string]bool, error) {
+	if aclObj == nil || aclObj.IsManagement() {
+		return nil, nil
+	}
+
+	// namespaces
+	nses, err := state.NamespaceNames()
+	if err != nil {
+		return nil, err
+	}
+
+	r := make(map[string]bool, len(nses))
+
+	for _, ns := range nses {
+		if aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs) {
+			r[ns] = true
+		}
+	}
+
+	if len(r) == 0 {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	return r, nil
+}
+
 // List is used to list the jobs registered in the system
-func (j *Job) List(args *structs.JobListRequest,
-	reply *structs.JobListResponse) error {
+func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse) error {
 	if done, err := j.srv.forward("Job.List", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
+
+	if args.RequestNamespace() == structs.AllNamespacesSentinel {
+		return j.listAllNamespaces(args, reply)
+	}
 
 	// Check for list-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
@@ -1166,6 +1285,82 @@ func (j *Job) List(args *structs.JobListRequest,
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
+}
+
+// listAllNamespaces lists all jobs across all namespaces
+func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.JobListResponse) error {
+	// Check for list-job permissions
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	prefix := args.QueryOptions.Prefix
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// check if user has permission to all namespaces
+			allowedNSes, err := allowedNSes(aclObj, state)
+			if err == structs.ErrPermissionDenied {
+				// return empty jobs if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Jobs = []*structs.JobListStub{}
+				return nil
+			} else if err != nil {
+				return err
+			}
+
+			// Capture all the jobs
+			iter, err := state.Jobs(ws)
+
+			if err != nil {
+				return err
+			}
+
+			var jobs []*structs.JobListStub
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+				job := raw.(*structs.Job)
+				if allowedNSes != nil && !allowedNSes[job.Namespace] {
+					// not permitted to this name namespace
+					continue
+				}
+				if prefix != "" && !strings.HasPrefix(job.ID, prefix) {
+					continue
+				}
+				summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+				if err != nil {
+					return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+				}
+
+				stub := job.Stub(summary)
+				stub.Namespace = job.Namespace
+				jobs = append(jobs, stub)
+			}
+			reply.Jobs = jobs
+
+			// Use the last index that affected the jobs table or summary
+			jindex, err := state.Index("jobs")
+			if err != nil {
+				return err
+			}
+			sindex, err := state.Index("job_summary")
+			if err != nil {
+				return err
+			}
+			reply.Index = helper.Uint64Max(jindex, sindex)
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
+
 }
 
 // Allocations is used to list the allocations for a job
@@ -1767,10 +1962,6 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				reply.JobScaleStatus = nil
 				return nil
 			}
-			deployment, err := state.LatestDeploymentByJobID(ws, args.RequestNamespace(), args.JobID)
-			if err != nil {
-				return err
-			}
 
 			events, eventsIndex, err := state.ScalingEventsByJob(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
@@ -1778,6 +1969,13 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 			}
 			if events == nil {
 				events = make(map[string][]*structs.ScalingEvent)
+			}
+
+			var allocs []*structs.Allocation
+			var allocsIndex uint64
+			allocs, err = state.AllocsByJob(ws, job.Namespace, job.ID, false)
+			if err != nil {
+				return err
 			}
 
 			// Setup the output
@@ -1793,23 +1991,44 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				tgScale := &structs.TaskGroupScaleStatus{
 					Desired: tg.Count,
 				}
-				if deployment != nil {
-					if ds, ok := deployment.TaskGroups[tg.Name]; ok {
-						tgScale.Placed = ds.PlacedAllocs
-						tgScale.Healthy = ds.HealthyAllocs
-						tgScale.Unhealthy = ds.UnhealthyAllocs
-					}
-				}
 				tgScale.Events = events[tg.Name]
 				reply.JobScaleStatus.TaskGroups[tg.Name] = tgScale
 			}
 
-			maxIndex := job.ModifyIndex
-			if deployment != nil && deployment.ModifyIndex > maxIndex {
-				maxIndex = deployment.ModifyIndex
+			for _, alloc := range allocs {
+				// TODO: ignore canaries until we figure out what we should do with canaries
+				if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
+					continue
+				}
+				if alloc.TerminalStatus() {
+					continue
+				}
+				tgScale, ok := reply.JobScaleStatus.TaskGroups[alloc.TaskGroup]
+				if !ok || tgScale == nil {
+					continue
+				}
+				tgScale.Placed++
+				if alloc.ClientStatus == structs.AllocClientStatusRunning {
+					tgScale.Running++
+				}
+				if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.HasHealth() {
+					if alloc.DeploymentStatus.IsHealthy() {
+						tgScale.Healthy++
+					} else if alloc.DeploymentStatus.IsUnhealthy() {
+						tgScale.Unhealthy++
+					}
+				}
+				if alloc.ModifyIndex > allocsIndex {
+					allocsIndex = alloc.ModifyIndex
+				}
 			}
+
+			maxIndex := job.ModifyIndex
 			if eventsIndex > maxIndex {
 				maxIndex = eventsIndex
+			}
+			if allocsIndex > maxIndex {
+				maxIndex = allocsIndex
 			}
 			reply.Index = maxIndex
 

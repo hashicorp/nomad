@@ -14,10 +14,8 @@ import (
 	"strings"
 )
 
-var execCommand = exec.Command
-
 func getSessionBusPlatformAddress() (string, error) {
-	cmd := execCommand("dbus-launch")
+	cmd := exec.Command("dbus-launch")
 	b, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -27,7 +25,7 @@ func getSessionBusPlatformAddress() (string, error) {
 	i := bytes.IndexByte(b, '=')
 	j := bytes.IndexByte(b, '\n')
 
-	if i == -1 || j == -1 || i > j {
+	if i == -1 || j == -1 {
 		return "", errors.New("dbus: couldn't determine address of session bus")
 	}
 

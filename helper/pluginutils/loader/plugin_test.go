@@ -93,8 +93,8 @@ func pluginMain(name, pluginType, version string, apiVersions []string, config b
 
 // mockFactory returns a PluginFactory method which creates the mock plugin with
 // the passed parameters
-func mockFactory(name, ptype, version string, apiVersions []string, configSchema bool) func(log log.Logger) interface{} {
-	return func(log log.Logger) interface{} {
+func mockFactory(name, ptype, version string, apiVersions []string, configSchema bool) func(context.Context, log.Logger) interface{} {
+	return func(ctx context.Context, log log.Logger) interface{} {
 		return &mockPlugin{
 			name:         name,
 			ptype:        ptype,

@@ -10,4 +10,17 @@
       flex-grow: 0;
     }
   }
+
+  &.is-bottom-aligned {
+    align-items: flex-end;
+  }
+
+  &.is-max-half {
+    max-width: 50%;
+  }
+
+  &.is-centered {
+    margin-left: auto;
+    margin-right: auto;
+  }
 }

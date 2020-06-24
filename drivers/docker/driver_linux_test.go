@@ -59,7 +59,7 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	cfg.Args = []string{"-c", "sleep 5 & sleep 5 & sleep 5"}
 	require.NoError(task.EncodeConcreteDriverConfig(cfg))
 
-	_, driver, _, cleanup := dockerSetup(t, task)
+	_, driver, _, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 
 	driver.WaitUntilStarted(task.ID, time.Duration(tu.TestMultiplier()*5)*time.Second)

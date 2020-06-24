@@ -6,12 +6,12 @@
   {{/if}}
 </td>
 <td data-test-name class="nowrap">
-  {{#link-to "allocations.allocation.task" task.allocation task class="is-primary"}}
+  <LinkTo @route="allocations.allocation.task" @models={{array task.allocation task}} class="is-primary">
     {{task.name}}
     {{#if task.isConnectProxy}}
-      {{proxy-tag class="bumper-left"}}
+      <ProxyTag @class="bumper-left" />
     {{/if}}
-  {{/link-to}}
+  </LinkTo>
 </td>
 <td data-test-state>{{task.state}}</td>
 <td data-test-message>
@@ -28,9 +28,9 @@
       <li data-test-volume>
         <strong>{{volume.volume}}:</strong>
         {{#if volume.isCSI}}
-          {{#link-to "csi.volumes.volume" volume.volume (query-params volumeNamespace=volume.namespace.id)}}
+          <LinkTo @route="csi.volumes.volume" @model={{volume.volume}} @query={{hash volumeNamespace=volume.namespace.id}}>
             {{volume.source}}
-          {{/link-to}}
+          </LinkTo>
         {{else}}
           {{volume.source}}
         {{/if}}

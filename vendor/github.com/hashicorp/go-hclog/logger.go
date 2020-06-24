@@ -241,3 +241,22 @@ type InterceptLogger interface {
 type SinkAdapter interface {
 	Accept(name string, level Level, msg string, args ...interface{})
 }
+
+// Flushable represents a method for flushing an output buffer. It can be used
+// if Resetting the log to use a new output, in order to flush the writes to
+// the existing output beforehand.
+type Flushable interface {
+	Flush() error
+}
+
+// OutputResettable provides ways to swap the output in use at runtime
+type OutputResettable interface {
+	// ResetOutput swaps the current output writer with the one given in the
+	// opts. Color options given in opts will be used for the new output.
+	ResetOutput(opts *LoggerOptions) error
+
+	// ResetOutputWithFlush swaps the current output writer with the one given
+	// in the opts, first calling Flush on the given Flushable. Color options
+	// given in opts will be used for the new output.
+	ResetOutputWithFlush(opts *LoggerOptions, flushable Flushable) error
+}

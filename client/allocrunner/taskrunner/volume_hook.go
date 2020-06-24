@@ -121,6 +121,18 @@ func (h *volumeHook) prepareHostVolumes(req *interfaces.TaskPrestartRequest, vol
 		return nil, err
 	}
 
+	if len(hostVolumeMounts) > 0 {
+		caps, err := h.runner.DriverCapabilities()
+		if err != nil {
+			return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
+		}
+		if caps.MountConfigs == drivers.MountConfigSupportNone {
+			return nil, fmt.Errorf(
+				"task driver %q for %q does not support host volumes",
+				h.runner.task.Driver, h.runner.task.Name)
+		}
+	}
+
 	return hostVolumeMounts, nil
 }
 
@@ -164,6 +176,18 @@ func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volu
 				Readonly: request.ReadOnly || m.ReadOnly,
 			}
 			mounts = append(mounts, mcfg)
+		}
+	}
+
+	if len(mounts) > 0 {
+		caps, err := h.runner.DriverCapabilities()
+		if err != nil {
+			return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
+		}
+		if caps.MountConfigs == drivers.MountConfigSupportNone {
+			return nil, fmt.Errorf(
+				"task driver %q for %q does not support CSI",
+				h.runner.task.Driver, h.runner.task.Name)
 		}
 	}
 

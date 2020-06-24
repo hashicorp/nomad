@@ -121,7 +121,7 @@ type CSIControllerInfo struct {
 	// the controller attachment flow.
 	SupportsAttachDetach bool
 
-	// SupportsListVolums is true when the controller implements the ListVolumes
+	// SupportsListVolumes is true when the controller implements the ListVolumes
 	// RPC. NOTE: This does not guaruntee that attached nodes will be returned
 	// unless SupportsListVolumesAttachedNodes is also true.
 	SupportsListVolumes bool

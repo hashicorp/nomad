@@ -11,13 +11,13 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
   });
 
   test('it generates an exec job URL', function(assert) {
-    generateExecUrl(this.router, { job: 'job-name' });
+    generateExecUrl(this.router, { job: { plainId: 'job-name' } });
 
     assert.ok(this.urlForSpy.calledWith('exec', 'job-name', emptyOptions));
   });
 
   test('it generates an exec job URL with an allocation', function(assert) {
-    generateExecUrl(this.router, { job: 'job-name', allocation: 'allocation-short-id' });
+    generateExecUrl(this.router, { job: { plainId: 'job-name' }, allocation: { shortId: 'allocation-short-id' } });
 
     assert.ok(
       this.urlForSpy.calledWith('exec', 'job-name', {
@@ -27,7 +27,7 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
   });
 
   test('it generates an exec task group URL', function(assert) {
-    generateExecUrl(this.router, { job: 'job-name', taskGroup: 'task-group-name' });
+    generateExecUrl(this.router, { job: { plainId: 'job-name' }, taskGroup: { name: 'task-group-name' } });
 
     assert.ok(
       this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', emptyOptions)
@@ -36,10 +36,10 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
 
   test('it generates an exec task URL', function(assert) {
     generateExecUrl(this.router, {
-      allocation: 'allocation-short-id',
-      job: 'job-name',
-      taskGroup: 'task-group-name',
-      task: 'task-name',
+      allocation: { shortId: 'allocation-short-id' },
+      job: { plainId: 'job-name' },
+      taskGroup: { name: 'task-group-name' },
+      task: { name: 'task-name' },
     });
 
     assert.ok(
@@ -59,7 +59,7 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
       region: 'a-region',
     };
 
-    generateExecUrl(this.router, { job: 'job-name', allocation: 'id' });
+    generateExecUrl(this.router, { job: { plainId: 'job-name' }, allocation: { shortId: 'id' } });
 
     assert.ok(
       this.urlForSpy.calledWith('exec', 'job-name', {

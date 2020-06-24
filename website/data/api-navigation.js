@@ -6,6 +6,8 @@
 //   the landing page for the category
 
 export default [
+  'index',
+  '-----------',
   'libraries-and-sdks',
   'json-jobs',
   '-----------',

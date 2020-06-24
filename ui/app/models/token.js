@@ -3,14 +3,14 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { hasMany } from 'ember-data/relationships';
 
-export default Model.extend({
-  secret: attr('string'),
-  name: attr('string'),
-  global: attr('boolean'),
-  createTime: attr('date'),
-  type: attr('string'),
-  policies: hasMany('policy'),
-  policyNames: attr(),
+export default class Token extends Model {
+  @attr('string') secret;
+  @attr('string') name;
+  @attr('boolean') global;
+  @attr('date') createTime;
+  @attr('string') type;
+  @hasMany('policy') policies;
+  @attr() policyNames;
 
-  accessor: alias('id'),
-});
+  @alias('id') accessor;
+}

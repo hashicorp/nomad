@@ -12,6 +12,28 @@ export default create({
         label: text(),
       }),
     },
+
+    search: {
+      scope: '[data-test-search]',
+
+      click: clickable('.ember-power-select-trigger'),
+
+      groups: collection('.ember-power-select-group', {
+        testContainer: '.ember-power-select-options',
+        resetScope: true,
+        name: text('.ember-power-select-group-name'),
+
+        options: collection('.ember-power-select-option', {
+          label: text(),
+        }),
+      }),
+
+      field: {
+        scope: '.ember-power-select-search input',
+        testContainer: 'html',
+        resetScope: true,
+      },
+    },
   },
 
   gutter: {
@@ -27,5 +49,6 @@ export default create({
     visitJobs: clickable('[data-test-gutter-link="jobs"]'),
     visitClients: clickable('[data-test-gutter-link="clients"]'),
     visitServers: clickable('[data-test-gutter-link="servers"]'),
+    visitStorage: clickable('[data-test-gutter-link="storage"]'),
   },
 });

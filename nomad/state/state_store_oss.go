@@ -17,3 +17,7 @@ func (s *StateStore) namespaceExists(txn *memdb.Txn, namespace string) (bool, er
 func (s *StateStore) updateEntWithAlloc(index uint64, new, existing *structs.Allocation, txn *memdb.Txn) error {
 	return nil
 }
+
+func (s *StateStore) NamespaceNames() ([]string, error) {
+	return []string{structs.DefaultNamespace}, nil
+}

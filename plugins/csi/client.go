@@ -9,11 +9,14 @@ import (
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/grpc-middleware/logging"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // PluginTypeCSI implements the CSI plugin interface
@@ -82,6 +85,7 @@ type client struct {
 	identityClient   csipbv1.IdentityClient
 	controllerClient CSIControllerClient
 	nodeClient       CSINodeClient
+	logger           hclog.Logger
 }
 
 func (c *client) Close() error {
@@ -106,12 +110,17 @@ func NewClient(addr string, logger hclog.Logger) (CSIPlugin, error) {
 		identityClient:   csipbv1.NewIdentityClient(conn),
 		controllerClient: csipbv1.NewControllerClient(conn),
 		nodeClient:       csipbv1.NewNodeClient(conn),
+		logger:           logger,
 	}, nil
 }
 
 func newGrpcConn(addr string, logger hclog.Logger) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	defer cancel()
+	conn, err := grpc.DialContext(
+		ctx,
 		addr,
+		grpc.WithBlock(),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(logging.UnaryClientInterceptor(logger)),
 		grpc.WithStreamInterceptor(logging.StreamClientInterceptor(logger)),
@@ -261,6 +270,24 @@ func (c *client) ControllerPublishVolume(ctx context.Context, req *ControllerPub
 	pbrequest := req.ToCSIRepresentation()
 	resp, err := c.controllerClient.ControllerPublishVolume(ctx, pbrequest, opts...)
 	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q or node %q could not be found: %v",
+				req.ExternalID, req.NodeID, err)
+		case codes.AlreadyExists:
+			err = fmt.Errorf(
+				"volume %q is already published at node %q but with capabilities or a read_only setting incompatible with this request: %v",
+				req.ExternalID, req.NodeID, err)
+		case codes.ResourceExhausted:
+			err = fmt.Errorf("node %q has reached the maximum allowable number of attached volumes: %v",
+				req.NodeID, err)
+		case codes.FailedPrecondition:
+			err = fmt.Errorf("volume %q is already published on another node and does not have MULTI_NODE volume capability: %v",
+				req.ExternalID, err)
+		case codes.Internal:
+			err = fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
 		return nil, err
 	}
 
@@ -284,13 +311,21 @@ func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerU
 	upbrequest := req.ToCSIRepresentation()
 	_, err = c.controllerClient.ControllerUnpublishVolume(ctx, upbrequest, opts...)
 	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q or node %q could not be found: %v",
+				req.ExternalID, req.NodeID, err)
+		case codes.Internal:
+			err = fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
 		return nil, err
 	}
 
 	return &ControllerUnpublishVolumeResponse{}, nil
 }
 
-func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID string, capabilities *VolumeCapability, opts ...grpc.CallOption) error {
+func (c *client) ControllerValidateCapabilities(ctx context.Context, req *ControllerValidateVolumeRequest, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
@@ -298,35 +333,113 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, volumeID st
 		return fmt.Errorf("controllerClient not initialized")
 	}
 
-	if volumeID == "" {
-		return fmt.Errorf("missing VolumeID")
+	if req.ExternalID == "" {
+		return fmt.Errorf("missing volume ID")
 	}
 
-	if capabilities == nil {
+	if req.Capabilities == nil {
 		return fmt.Errorf("missing Capabilities")
 	}
 
-	req := &csipbv1.ValidateVolumeCapabilitiesRequest{
-		VolumeId: volumeID,
-		VolumeCapabilities: []*csipbv1.VolumeCapability{
-			capabilities.ToCSIRepresentation(),
-		},
-	}
-
-	resp, err := c.controllerClient.ValidateVolumeCapabilities(ctx, req, opts...)
+	creq := req.ToCSIRepresentation()
+	resp, err := c.controllerClient.ValidateVolumeCapabilities(ctx, creq, opts...)
 	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q could not be found: %v", req.ExternalID, err)
+		case codes.Internal:
+			err = fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
 		return err
 	}
 
-	if resp.Confirmed == nil {
-		if resp.Message != "" {
-			return fmt.Errorf("Volume validation failed, message: %s", resp.Message)
-		}
+	if resp.Message != "" {
+		// this should only ever be set if Confirmed isn't set, but
+		// it's not a validation failure.
+		c.logger.Debug(resp.Message)
+	}
 
-		return fmt.Errorf("Volume validation failed")
+	// The protobuf accessors below safely handle nil pointers.
+	// The CSI spec says we can only assert the plugin has
+	// confirmed the volume capabilities, not that it hasn't
+	// confirmed them, so if the field is nil we have to assume
+	// the volume is ok.
+	confirmedCaps := resp.GetConfirmed().GetVolumeCapabilities()
+	if confirmedCaps != nil {
+		for _, requestedCap := range creq.VolumeCapabilities {
+			err := compareCapabilities(requestedCap, confirmedCaps)
+			if err != nil {
+				return fmt.Errorf("volume capability validation failed: %v", err)
+			}
+		}
 	}
 
 	return nil
+}
+
+// compareCapabilities returns an error if the 'got' capabilities does not
+// contain the 'expected' capability
+func compareCapabilities(expected *csipbv1.VolumeCapability, got []*csipbv1.VolumeCapability) error {
+	var err multierror.Error
+NEXT_CAP:
+	for _, cap := range got {
+
+		expectedMode := expected.GetAccessMode().GetMode()
+		capMode := cap.GetAccessMode().GetMode()
+
+		if expectedMode != capMode {
+			multierror.Append(&err,
+				fmt.Errorf("requested AccessMode %v, got %v", expectedMode, capMode))
+			continue NEXT_CAP
+		}
+
+		// AccessType Block is an empty struct even if set, so the
+		// only way to test for it is to check that the AccessType
+		// isn't Mount.
+		expectedMount := expected.GetMount()
+		capMount := cap.GetMount()
+
+		if expectedMount == nil {
+			if capMount == nil {
+				return nil
+			}
+			multierror.Append(&err, fmt.Errorf(
+				"requested AccessType Block but got AccessType Mount"))
+			continue NEXT_CAP
+		}
+
+		if capMount == nil {
+			multierror.Append(&err, fmt.Errorf(
+				"requested AccessType Mount but got AccessType Block"))
+			continue NEXT_CAP
+		}
+
+		if expectedMount.FsType != capMount.FsType {
+			multierror.Append(&err, fmt.Errorf(
+				"requested AccessType mount filesystem type %v, got %v",
+				expectedMount.FsType, capMount.FsType))
+			continue NEXT_CAP
+		}
+
+		for _, expectedFlag := range expectedMount.MountFlags {
+			var ok bool
+			for _, flag := range capMount.MountFlags {
+				if expectedFlag == flag {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				// mount flags can contain sensitive data, so we can't log details
+				multierror.Append(&err, fmt.Errorf(
+					"requested mount flags did not match available capabilities"))
+				continue NEXT_CAP
+			}
+		}
+		return nil
+	}
+	return err.ErrorOrNil()
 }
 
 //
@@ -382,33 +495,38 @@ func (c *client) NodeGetInfo(ctx context.Context) (*NodeGetInfoResponse, error) 
 	return result, nil
 }
 
-func (c *client) NodeStageVolume(ctx context.Context, volumeID string, publishContext map[string]string, stagingTargetPath string, capabilities *VolumeCapability, opts ...grpc.CallOption) error {
+func (c *client) NodeStageVolume(ctx context.Context, req *NodeStageVolumeRequest, opts ...grpc.CallOption) error {
 	if c == nil {
 		return fmt.Errorf("Client not initialized")
 	}
 	if c.nodeClient == nil {
 		return fmt.Errorf("Client not initialized")
 	}
-
-	// These errors should not be returned during production use but exist as aids
-	// during Nomad Development
-	if volumeID == "" {
-		return fmt.Errorf("missing volumeID")
-	}
-	if stagingTargetPath == "" {
-		return fmt.Errorf("missing stagingTargetPath")
-	}
-
-	req := &csipbv1.NodeStageVolumeRequest{
-		VolumeId:          volumeID,
-		PublishContext:    publishContext,
-		StagingTargetPath: stagingTargetPath,
-		VolumeCapability:  capabilities.ToCSIRepresentation(),
+	err := req.Validate()
+	if err != nil {
+		return err
 	}
 
 	// NodeStageVolume's response contains no extra data. If err == nil, we were
 	// successful.
-	_, err := c.nodeClient.NodeStageVolume(ctx, req, opts...)
+	_, err = c.nodeClient.NodeStageVolume(ctx, req.ToCSIRepresentation(), opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q could not be found: %v", req.ExternalID, err)
+		case codes.AlreadyExists:
+			err = fmt.Errorf(
+				"volume %q is already staged to %q but with incompatible capabilities for this request: %v",
+				req.ExternalID, req.StagingTargetPath, err)
+		case codes.FailedPrecondition:
+			err = fmt.Errorf("volume %q is already published on another node and does not have MULTI_NODE volume capability: %v",
+				req.ExternalID, err)
+		case codes.Internal:
+			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+	}
+
 	return err
 }
 
@@ -420,7 +538,7 @@ func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, staging
 		return fmt.Errorf("Client not initialized")
 	}
 	// These errors should not be returned during production use but exist as aids
-	// during Nomad Development
+	// during Nomad development
 	if volumeID == "" {
 		return fmt.Errorf("missing volumeID")
 	}
@@ -436,6 +554,16 @@ func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, staging
 	// NodeUnstageVolume's response contains no extra data. If err == nil, we were
 	// successful.
 	_, err := c.nodeClient.NodeUnstageVolume(ctx, req, opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q could not be found: %v", volumeID, err)
+		case codes.Internal:
+			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+	}
+
 	return err
 }
 
@@ -454,6 +582,22 @@ func (c *client) NodePublishVolume(ctx context.Context, req *NodePublishVolumeRe
 	// NodePublishVolume's response contains no extra data. If err == nil, we were
 	// successful.
 	_, err := c.nodeClient.NodePublishVolume(ctx, req.ToCSIRepresentation(), opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q could not be found: %v", req.ExternalID, err)
+		case codes.AlreadyExists:
+			err = fmt.Errorf(
+				"volume %q is already published at target path %q but with capabilities or a read_only setting incompatible with this request: %v",
+				req.ExternalID, req.TargetPath, err)
+		case codes.FailedPrecondition:
+			err = fmt.Errorf("volume %q is already published on another node and does not have MULTI_NODE volume capability: %v",
+				req.ExternalID, err)
+		case codes.Internal:
+			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+	}
 	return err
 }
 
@@ -465,12 +609,13 @@ func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 		return fmt.Errorf("Client not initialized")
 	}
 
+	// These errors should not be returned during production use but exist as aids
+	// during Nomad development
 	if volumeID == "" {
-		return fmt.Errorf("missing VolumeID")
+		return fmt.Errorf("missing volumeID")
 	}
-
 	if targetPath == "" {
-		return fmt.Errorf("missing TargetPath")
+		return fmt.Errorf("missing targetPath")
 	}
 
 	req := &csipbv1.NodeUnpublishVolumeRequest{
@@ -481,5 +626,15 @@ func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 	// NodeUnpublishVolume's response contains no extra data. If err == nil, we were
 	// successful.
 	_, err := c.nodeClient.NodeUnpublishVolume(ctx, req, opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q could not be found: %v", volumeID, err)
+		case codes.Internal:
+			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+	}
+
 	return err
 }

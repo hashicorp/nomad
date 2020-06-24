@@ -1,7 +1,7 @@
 import Route from '@ember/routing/route';
 
-export default Route.extend({
+export default class IndexRoute extends Route {
   redirect() {
     this.transitionTo('csi.volumes');
-  },
-});
+  }
+}

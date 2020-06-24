@@ -2,43 +2,46 @@ import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-export default Route.extend({
+export default class FsRoute extends Route {
   model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
-    const task = this.modelFor('allocations.allocation.task');
+    const taskState = this.modelFor('allocations.allocation.task');
+    const allocation = taskState.allocation;
 
-    const pathWithTaskName = `${task.name}${decodedPath.startsWith('/') ? '' : '/'}${decodedPath}`;
+    const pathWithTaskName = `${taskState.name}${
+      decodedPath.startsWith('/') ? '' : '/'
+    }${decodedPath}`;
 
-    if (!task.isRunning) {
+    if (!taskState.isRunning) {
       return {
         path: decodedPath,
-        task,
+        taskState,
       };
     }
 
-    return RSVP.all([task.stat(pathWithTaskName), task.get('allocation.node')])
+    return RSVP.all([allocation.stat(pathWithTaskName), taskState.get('allocation.node')])
       .then(([statJson]) => {
         if (statJson.IsDir) {
           return RSVP.hash({
             path: decodedPath,
-            task,
-            directoryEntries: task.ls(pathWithTaskName).catch(notifyError(this)),
+            taskState,
+            directoryEntries: allocation.ls(pathWithTaskName).catch(notifyError(this)),
             isFile: false,
           });
         } else {
           return {
             path: decodedPath,
-            task,
+            taskState,
             isFile: true,
             stat: statJson,
           };
         }
       })
       .catch(notifyError(this));
-  },
+  }
 
-  setupController(controller, { path, task, directoryEntries, isFile, stat } = {}) {
-    this._super(...arguments);
-    controller.setProperties({ path, task, directoryEntries, isFile, stat });
-  },
-});
+  setupController(controller, { path, taskState, directoryEntries, isFile, stat } = {}) {
+    super.setupController(...arguments);
+    controller.setProperties({ path, taskState, directoryEntries, isFile, stat });
+  }
+}

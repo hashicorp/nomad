@@ -28,7 +28,7 @@ job "helloworld" {
 
         network {
           mbits = 10
-          port  "web" {}
+          port "web" {}
         }
       }
 

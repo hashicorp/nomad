@@ -304,7 +304,7 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 			// Check the blocking allocations to see if they belong to this job
 			for id := range vol.WriteAllocs {
 				a, err := c.ctx.State().AllocByID(ws, id)
-				if err != nil || a.Namespace != c.namespace || a.JobID != c.jobID {
+				if err != nil || a == nil || a.Namespace != c.namespace || a.JobID != c.jobID {
 					return false, fmt.Sprintf(FilterConstraintCSIVolumeInUseTemplate, vol.ID)
 				}
 			}
@@ -312,6 +312,81 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 	}
 
 	return true, ""
+}
+
+// NetworkChecker is a FeasibilityChecker which returns whether a node has the
+// network resources necessary to schedule the task group
+type NetworkChecker struct {
+	ctx         Context
+	networkMode string
+	ports       []structs.Port
+}
+
+func NewNetworkChecker(ctx Context) *NetworkChecker {
+	return &NetworkChecker{ctx: ctx, networkMode: "host"}
+}
+
+func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
+	c.networkMode = network.Mode
+	if c.networkMode == "" {
+		c.networkMode = "host"
+	}
+
+	c.ports = make([]structs.Port, len(network.DynamicPorts)+len(network.ReservedPorts))
+	for _, port := range network.DynamicPorts {
+		c.ports = append(c.ports, port)
+	}
+	for _, port := range network.ReservedPorts {
+		c.ports = append(c.ports, port)
+	}
+}
+
+func (c *NetworkChecker) Feasible(option *structs.Node) bool {
+	if !c.hasNetwork(option) {
+		c.ctx.Metrics().FilterNode(option, "missing network")
+		return false
+	}
+
+	if c.ports != nil {
+		if !c.hasHostNetworks(option) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *NetworkChecker) hasHostNetworks(option *structs.Node) bool {
+	for _, port := range c.ports {
+		if port.HostNetwork != "" {
+			found := false
+			for _, net := range option.NodeResources.NodeNetworks {
+				if net.HasAlias(port.HostNetwork) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", port.HostNetwork, port.Label))
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (c *NetworkChecker) hasNetwork(option *structs.Node) bool {
+	if option.NodeResources == nil {
+		return false
+	}
+
+	for _, nw := range option.NodeResources.Networks {
+		if nw.Mode == c.networkMode {
+			return true
+		}
+	}
+
+	return false
 }
 
 // DriverChecker is a FeasibilityChecker which returns whether a node has the

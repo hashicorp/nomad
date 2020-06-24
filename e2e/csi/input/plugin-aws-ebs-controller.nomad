@@ -5,12 +5,17 @@
 job "plugin-aws-ebs-controller" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "controller" {
     task "plugin" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-ebs-csi-driver:latest"
+        image = "amazon/aws-ebs-csi-driver:v0.5.0"
 
         args = [
           "controller",

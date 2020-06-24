@@ -46,7 +46,7 @@ var (
 	// PluginConfig is the nvidia factory function registered in the
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Factory: func(l log.Logger) interface{} { return NewNvidiaDevice(l) },
+		Factory: func(ctx context.Context, l log.Logger) interface{} { return NewNvidiaDevice(ctx, l) },
 	}
 
 	// pluginInfo describes the plugin
@@ -99,7 +99,7 @@ type NvidiaDevice struct {
 }
 
 // NewNvidiaDevice returns a new nvidia device plugin.
-func NewNvidiaDevice(log log.Logger) *NvidiaDevice {
+func NewNvidiaDevice(_ context.Context, log log.Logger) *NvidiaDevice {
 	nvmlClient, err := nvml.NewNvmlClient()
 	logger := log.Named(pluginName)
 	if err != nil && err.Error() != nvml.UnavailableLib.Error() {

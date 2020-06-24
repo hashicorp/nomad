@@ -30,7 +30,8 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
 	// Check namespace read-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -44,7 +45,18 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			// Capture all the allocations
 			var err error
 			var iter memdb.ResultIterator
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
+
+			prefix := args.QueryOptions.Prefix
+			if args.RequestNamespace() == structs.AllNamespacesSentinel {
+				allowedNSes, err := allowedNSes(aclObj, state)
+				if err != nil {
+					return err
+				}
+				iter, err = state.AllocsByIDPrefixInNSes(ws, allowedNSes, prefix)
+				if err != nil {
+					return err
+				}
+			} else if prefix != "" {
 				iter, err = state.AllocsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
 				iter, err = state.AllocsByNamespace(ws, args.RequestNamespace())

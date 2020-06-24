@@ -43,6 +43,14 @@ const (
 	// roles used in identifying Consul entries for Nomad agents
 	consulRoleServer = "server"
 	consulRoleClient = "client"
+
+	// DefaultRaftMultiplier is used as a baseline Raft configuration that
+	// will be reliable on a very basic server.
+	DefaultRaftMultiplier = 1
+
+	// MaxRaftMultiplier is a fairly arbitrary upper bound that limits the
+	// amount of performance detuning that's possible.
+	MaxRaftMultiplier = 10
 )
 
 // Agent is a long running daemon that is used to run both
@@ -58,6 +66,9 @@ type Agent struct {
 	auditor    event.Auditor
 	httpLogger log.Logger
 	logOutput  io.Writer
+
+	// EnterpriseAgent holds information and methods for enterprise functionality
+	EnterpriseAgent *EnterpriseAgent
 
 	// consulService is Nomad's custom Consul client for managing services
 	// and checks.
@@ -121,6 +132,7 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	if err := a.setupClient(); err != nil {
 		return nil, err
 	}
+
 	if err := a.setupEnterpriseAgent(logger); err != nil {
 		return nil, err
 	}
@@ -176,6 +188,18 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.RaftProtocol != 0 {
 		conf.RaftConfig.ProtocolVersion = raft.ProtocolVersion(agentConfig.Server.RaftProtocol)
 	}
+	raftMultiplier := int(DefaultRaftMultiplier)
+	if agentConfig.Server.RaftMultiplier != nil && *agentConfig.Server.RaftMultiplier != 0 {
+		raftMultiplier = *agentConfig.Server.RaftMultiplier
+		if raftMultiplier < 1 || raftMultiplier > MaxRaftMultiplier {
+			return nil, fmt.Errorf("raft_multiplier cannot be %d. Must be between 1 and %d", *agentConfig.Server.RaftMultiplier, MaxRaftMultiplier)
+		}
+	}
+	conf.RaftConfig.ElectionTimeout *= time.Duration(raftMultiplier)
+	conf.RaftConfig.HeartbeatTimeout *= time.Duration(raftMultiplier)
+	conf.RaftConfig.LeaderLeaseTimeout *= time.Duration(raftMultiplier)
+	conf.RaftConfig.CommitTimeout *= time.Duration(raftMultiplier)
+
 	if agentConfig.Server.NumSchedulers != nil {
 		conf.NumSchedulers = *agentConfig.Server.NumSchedulers
 	}
@@ -314,6 +338,20 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.DeploymentGCThreshold = dur
 	}
+	if gcThreshold := agentConfig.Server.CSIVolumeClaimGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.CSIVolumeClaimGCThreshold = dur
+	}
+	if gcThreshold := agentConfig.Server.CSIPluginGCThreshold; gcThreshold != "" {
+		dur, err := time.ParseDuration(gcThreshold)
+		if err != nil {
+			return nil, err
+		}
+		conf.CSIPluginGCThreshold = dur
+	}
 
 	if heartbeatGrace := agentConfig.Server.HeartbeatGrace; heartbeatGrace != 0 {
 		conf.HeartbeatGrace = heartbeatGrace
@@ -421,15 +459,20 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	// configured explicitly. This handles both running server and client on one
 	// host and -dev mode.
 	if a.server != nil {
-		if a.config.AdvertiseAddrs == nil || a.config.AdvertiseAddrs.RPC == "" {
+		advertised := a.config.AdvertiseAddrs
+		normalized := a.config.normalizedAddrs
+
+		if advertised == nil || advertised.RPC == "" {
 			return fmt.Errorf("AdvertiseAddrs is nil or empty")
-		} else if a.config.normalizedAddrs == nil || a.config.normalizedAddrs.RPC == "" {
+		} else if normalized == nil || normalized.RPC == "" {
 			return fmt.Errorf("normalizedAddrs is nil or empty")
 		}
 
-		c.Servers = append(c.Servers,
-			a.config.normalizedAddrs.RPC,
-			a.config.AdvertiseAddrs.RPC)
+		if normalized.RPC == advertised.RPC {
+			c.Servers = append(c.Servers, normalized.RPC)
+		} else {
+			c.Servers = append(c.Servers, normalized.RPC, advertised.RPC)
+		}
 	}
 
 	// Setup the plugin loaders
@@ -591,6 +634,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.CNIPath = agentConfig.Client.CNIPath
 	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
 	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
+
+	for _, hn := range agentConfig.Client.HostNetworks {
+		conf.HostNetworks[hn.Name] = hn
+	}
 
 	return conf, nil
 }

@@ -166,7 +166,8 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 0
 	}
 	// Prefix lookup matched a single allocation
-	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: allocs[0].Namespace}
+	alloc, _, err := client.Allocations().Info(allocs[0].ID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
@@ -580,7 +581,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		humanize.IBytes(uint64(*alloc.Resources.DiskMB*bytesPerMegabyte)),
 		firstAddr))
 	for i := 1; i < len(addr); i++ {
-		resourcesOutput = append(resourcesOutput, fmt.Sprintf("||||%v", addr[i]))
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("|||%v", addr[i]))
 	}
 	c.Ui.Output(formatListWithSpaces(resourcesOutput))
 

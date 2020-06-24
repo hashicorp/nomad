@@ -65,6 +65,10 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	h.BasicHandle.TimeNotBuiltin = true
 
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+
+	// only review struct codec tags - ignore `json` flags
+	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
+
 	return h
 }()
 

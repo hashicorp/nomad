@@ -92,6 +92,8 @@ export let LiveData = () => {
     context: {
       controller: EmberObject.extend({
         startTimer: on('init', function() {
+          this.lineChartLive = [];
+
           this.set(
             'timer',
             setInterval(() => {
@@ -109,8 +111,6 @@ export let LiveData = () => {
         willDestroy() {
           clearInterval(this.timer);
         },
-
-        lineChartLive: [],
 
         secondsFormat() {
           return date => moment(date).format('HH:mm:ss');

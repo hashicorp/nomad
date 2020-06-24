@@ -163,13 +163,18 @@ func (v *volumeManager) stageVolume(ctx context.Context, vol *structs.CSIVolume,
 		return err
 	}
 
+	req := &csi.NodeStageVolumeRequest{
+		ExternalID:        vol.RemoteID(),
+		PublishContext:    publishContext,
+		StagingTargetPath: pluginStagingPath,
+		VolumeCapability:  capability,
+		Secrets:           vol.Secrets,
+		VolumeContext:     vol.Context,
+	}
+
 	// CSI NodeStageVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
-	return v.plugin.NodeStageVolume(ctx,
-		vol.ID,
-		publishContext,
-		pluginStagingPath,
-		capability,
+	return v.plugin.NodeStageVolume(ctx, req,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
@@ -202,12 +207,14 @@ func (v *volumeManager) publishVolume(ctx context.Context, vol *structs.CSIVolum
 	// CSI NodePublishVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
 	err = v.plugin.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
-		VolumeID:          vol.RemoteID(),
+		ExternalID:        vol.RemoteID(),
 		PublishContext:    publishContext,
 		StagingTargetPath: pluginStagingPath,
 		TargetPath:        pluginTargetPath,
 		VolumeCapability:  capabilities,
 		Readonly:          usage.ReadOnly,
+		Secrets:           vol.Secrets,
+		VolumeContext:     vol.Context,
 	},
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
@@ -259,7 +266,7 @@ func (v *volumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume,
 // once for each staging path that a volume has been staged under.
 // It is safe to call multiple times and a plugin is required to return OK if
 // the volume has been unstaged or was never staged on the node.
-func (v *volumeManager) unstageVolume(ctx context.Context, volID string, usage *UsageOptions) error {
+func (v *volumeManager) unstageVolume(ctx context.Context, volID, remoteID string, usage *UsageOptions) error {
 	logger := hclog.FromContext(ctx)
 	logger.Trace("Unstaging volume")
 	stagingPath := v.stagingDirForVolume(v.containerMountPoint, volID, usage)
@@ -267,7 +274,7 @@ func (v *volumeManager) unstageVolume(ctx context.Context, volID string, usage *
 	// CSI NodeUnstageVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
 	return v.plugin.NodeUnstageVolume(ctx,
-		volID,
+		remoteID,
 		stagingPath,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
@@ -288,12 +295,12 @@ func combineErrors(maybeErrs ...error) error {
 	return result.ErrorOrNil()
 }
 
-func (v *volumeManager) unpublishVolume(ctx context.Context, volID, allocID string, usage *UsageOptions) error {
+func (v *volumeManager) unpublishVolume(ctx context.Context, volID, remoteID, allocID string, usage *UsageOptions) error {
 	pluginTargetPath := v.allocDirForVolume(v.containerMountPoint, volID, allocID, usage)
 
 	// CSI NodeUnpublishVolume errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
-	rpcErr := v.plugin.NodeUnpublishVolume(ctx, volID, pluginTargetPath,
+	rpcErr := v.plugin.NodeUnpublishVolume(ctx, remoteID, pluginTargetPath,
 		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
@@ -325,16 +332,16 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, volID, allocID stri
 	return rpcErr
 }
 
-func (v *volumeManager) UnmountVolume(ctx context.Context, volID, allocID string, usage *UsageOptions) (err error) {
+func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usage *UsageOptions) (err error) {
 	logger := v.logger.With("volume_id", volID, "alloc_id", allocID)
 	ctx = hclog.WithContext(ctx, logger)
 
-	err = v.unpublishVolume(ctx, volID, allocID, usage)
+	err = v.unpublishVolume(ctx, volID, remoteID, allocID, usage)
 
 	if err == nil {
 		canRelease := v.usageTracker.Free(allocID, volID, usage)
 		if v.requiresStaging && canRelease {
-			err = v.unstageVolume(ctx, volID, usage)
+			err = v.unstageVolume(ctx, volID, remoteID, usage)
 		}
 	}
 

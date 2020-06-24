@@ -7,11 +7,16 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/hashicorp/go-immutable-radix"
 )
 
 const (
 	id = "id"
+)
+
+var (
+	// ErrNotFound is returned when the requested item is not found
+	ErrNotFound = fmt.Errorf("not found")
 )
 
 // tableIndex is a tuple of (Table, Index) used for lookups
@@ -28,7 +33,23 @@ type Txn struct {
 	rootTxn *iradix.Txn
 	after   []func()
 
+	// changes is used to track the changes performed during the transaction. If
+	// it is nil at transaction start then changes are not tracked.
+	changes Changes
+
 	modified map[tableIndex]*iradix.Txn
+}
+
+// TrackChanges enables change tracking for the transaction. If called at any
+// point before commit, subsequent mutations will be recorded and can be
+// retrieved using ChangeSet. Once this has been called on a transaction it
+// can't be unset. As with other Txn methods it's not safe to call this from a
+// different goroutine than the one making mutations or committing the
+// transaction.
+func (txn *Txn) TrackChanges() {
+	if txn.changes == nil {
+		txn.changes = make(Changes, 0, 1)
+	}
 }
 
 // readableIndex returns a transaction usable for reading the given
@@ -96,6 +117,7 @@ func (txn *Txn) Abort() {
 	// Clear the txn
 	txn.rootTxn = nil
 	txn.modified = nil
+	txn.changes = nil
 
 	// Release the writer lock since this is invalid
 	txn.db.writer.Unlock()
@@ -260,6 +282,14 @@ func (txn *Txn) Insert(table string, obj interface{}) error {
 			indexTxn.Insert(val, obj)
 		}
 	}
+	if txn.changes != nil {
+		txn.changes = append(txn.changes, Change{
+			Table:      table,
+			Before:     existing, // might be nil on a create
+			After:      obj,
+			primaryKey: idVal,
+		})
+	}
 	return nil
 }
 
@@ -291,7 +321,7 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 	idTxn := txn.writableIndex(table, id)
 	existing, ok := idTxn.Get(idVal)
 	if !ok {
-		return fmt.Errorf("not found")
+		return ErrNotFound
 	}
 
 	// Remove the object from all the indexes
@@ -326,6 +356,14 @@ func (txn *Txn) Delete(table string, obj interface{}) error {
 				indexTxn.Delete(val)
 			}
 		}
+	}
+	if txn.changes != nil {
+		txn.changes = append(txn.changes, Change{
+			Table:      table,
+			Before:     existing,
+			After:      nil, // Now nil indicates deletion
+			primaryKey: idVal,
+		})
 	}
 	return nil
 }
@@ -371,6 +409,19 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 		if !ok {
 			return false, fmt.Errorf("object missing primary index")
 		}
+		if txn.changes != nil {
+			// Record the deletion
+			idTxn := txn.writableIndex(table, id)
+			existing, ok := idTxn.Get(idVal)
+			if ok {
+				txn.changes = append(txn.changes, Change{
+					Table:      table,
+					Before:     existing,
+					After:      nil, // Now nil indicates deletion
+					primaryKey: idVal,
+				})
+			}
+		}
 		// Remove the object from all the indexes except the given prefix index
 		for name, indexSchema := range tableSchema.Indexes {
 			if name == deletePrefixIndex {
@@ -408,6 +459,7 @@ func (txn *Txn) DeletePrefix(table string, prefix_index string, prefix string) (
 				}
 			}
 		}
+
 	}
 	if foundAny {
 		indexTxn := txn.writableIndex(table, deletePrefixIndex)
@@ -586,18 +638,10 @@ type ResultIterator interface {
 // Get is used to construct a ResultIterator over all the
 // rows that match the given constraints of an index.
 func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, error) {
-	// Get the index value to scan
-	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	indexIter, val, err := txn.getIndexIterator(table, index, args...)
 	if err != nil {
 		return nil, err
 	}
-
-	// Get the index itself
-	indexTxn := txn.readableIndex(table, indexSchema.Name)
-	indexRoot := indexTxn.Root()
-
-	// Get an interator over the index
-	indexIter := indexRoot.Iterator()
 
 	// Seek the iterator to the appropriate sub-set
 	watchCh := indexIter.SeekPrefixWatch(val)
@@ -608,6 +652,129 @@ func (txn *Txn) Get(table, index string, args ...interface{}) (ResultIterator, e
 		watchCh: watchCh,
 	}
 	return iter, nil
+}
+
+// LowerBound is used to construct a ResultIterator over all the the range of
+// rows that have an index value greater than or equal to the provide args.
+// Calling this then iterating until the rows are larger than required allows
+// range scans within an index. It is not possible to watch the resulting
+// iterator since the radix tree doesn't efficiently allow watching on lower
+// bound changes. The WatchCh returned will be nill and so will block forever.
+func (txn *Txn) LowerBound(table, index string, args ...interface{}) (ResultIterator, error) {
+	indexIter, val, err := txn.getIndexIterator(table, index, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Seek the iterator to the appropriate sub-set
+	indexIter.SeekLowerBound(val)
+
+	// Create an iterator
+	iter := &radixIterator{
+		iter: indexIter,
+	}
+	return iter, nil
+}
+
+// objectID is a tuple of table name and the raw internal id byte slice
+// converted to a string. It's only converted to a string to make it comparable
+// so this struct can be used as a map index.
+type objectID struct {
+	Table    string
+	IndexVal string
+}
+
+// mutInfo stores metadata about mutations to allow collapsing multiple
+// mutations to the same object into one.
+type mutInfo struct {
+	firstBefore interface{}
+	lastIdx     int
+}
+
+// Changes returns the set of object changes that have been made in the
+// transaction so far. If change tracking is not enabled it wil always return
+// nil. It can be called before or after Commit. If it is before Commit it will
+// return all changes made so far which may not be the same as the final
+// Changes. After abort it will always return nil. As with other Txn methods
+// it's not safe to call this from a different goroutine than the one making
+// mutations or committing the transaction. Mutations will appear in the order
+// they were performed in the transaction but multiple operations to the same
+// object will be collapsed so only the effective overall change to that object
+// is present. If transaction operations are dependent (e.g. copy object X to Y
+// then delete X) this might mean the set of mutations is incomplete to verify
+// history, but it is complete in that the net effect is preserved (Y got a new
+// value, X got removed).
+func (txn *Txn) Changes() Changes {
+	if txn.changes == nil {
+		return nil
+	}
+
+	// De-duplicate mutations by key so all take effect at the point of the last
+	// write but we keep the mutations in order.
+	dups := make(map[objectID]mutInfo)
+	for i, m := range txn.changes {
+		oid := objectID{
+			Table:    m.Table,
+			IndexVal: string(m.primaryKey),
+		}
+		// Store the latest mutation index for each key value
+		mi, ok := dups[oid]
+		if !ok {
+			// First entry for key, store the before value
+			mi.firstBefore = m.Before
+		}
+		mi.lastIdx = i
+		dups[oid] = mi
+	}
+	if len(dups) == len(txn.changes) {
+		// No duplicates found, fast path return it as is
+		return txn.changes
+	}
+
+	// Need to remove the duplicates
+	cs := make(Changes, 0, len(dups))
+	for i, m := range txn.changes {
+		oid := objectID{
+			Table:    m.Table,
+			IndexVal: string(m.primaryKey),
+		}
+		mi := dups[oid]
+		if mi.lastIdx == i {
+			// This was the latest value for this key copy it with the before value in
+			// case it's different. Note that m is not a pointer so we are not
+			// modifying the txn.changeSet here - it's already a copy.
+			m.Before = mi.firstBefore
+
+			// Edge case - if the object was inserted and then eventually deleted in
+			// the same transaction, then the net affect on that key is a no-op. Don't
+			// emit a mutation with nil for before and after as it's meaningless and
+			// might violate expectations and cause a panic in code that assumes at
+			// least one must be set.
+			if m.Before == nil && m.After == nil {
+				continue
+			}
+			cs = append(cs, m)
+		}
+	}
+	// Store the de-duped version in case this is called again
+	txn.changes = cs
+	return cs
+}
+
+func (txn *Txn) getIndexIterator(table, index string, args ...interface{}) (*iradix.Iterator, []byte, error) {
+	// Get the index value to scan
+	indexSchema, val, err := txn.getIndexValue(table, index, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get the index itself
+	indexTxn := txn.readableIndex(table, indexSchema.Name)
+	indexRoot := indexTxn.Root()
+
+	// Get an interator over the index
+	indexIter := indexRoot.Iterator()
+	return indexIter, val, nil
 }
 
 // Defer is used to push a new arbitrary function onto a stack which
@@ -636,4 +803,27 @@ func (r *radixIterator) Next() interface{} {
 		return nil
 	}
 	return value
+}
+
+// Snapshot creates a snapshot of the current state of the transaction.
+// Returns a new read-only transaction or nil if the transaction is already
+// aborted or committed.
+func (txn *Txn) Snapshot() *Txn {
+	if txn.rootTxn == nil {
+		return nil
+	}
+
+	snapshot := &Txn{
+		db:      txn.db,
+		rootTxn: txn.rootTxn.Clone(),
+	}
+
+	// Commit sub-transactions into the snapshot
+	for key, subTxn := range txn.modified {
+		path := indexPath(key.Table, key.Index)
+		final := subTxn.CommitOnly()
+		snapshot.rootTxn.Insert(path, final)
+	}
+
+	return snapshot
 }

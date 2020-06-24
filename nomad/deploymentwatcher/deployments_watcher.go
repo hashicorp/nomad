@@ -75,6 +75,12 @@ type Watcher struct {
 	// state is the state that is watched for state changes.
 	state *state.StateStore
 
+	// server interface for Deployment RPCs
+	deploymentRPC DeploymentRPC
+
+	// server interface for Job RPCs
+	jobRPC JobRPC
+
 	// watchers is the set of active watchers, one per deployment
 	watchers map[string]*deploymentWatcher
 
@@ -92,11 +98,16 @@ type Watcher struct {
 // NewDeploymentsWatcher returns a deployments watcher that is used to watch
 // deployments and trigger the scheduler as needed.
 func NewDeploymentsWatcher(logger log.Logger,
-	raft DeploymentRaftEndpoints, stateQueriesPerSecond float64,
-	updateBatchDuration time.Duration) *Watcher {
+	raft DeploymentRaftEndpoints,
+	deploymentRPC DeploymentRPC, jobRPC JobRPC,
+	stateQueriesPerSecond float64,
+	updateBatchDuration time.Duration,
+) *Watcher {
 
 	return &Watcher{
 		raft:                raft,
+		deploymentRPC:       deploymentRPC,
+		jobRPC:              jobRPC,
 		queryLimiter:        rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
 		updateBatchDuration: updateBatchDuration,
 		logger:              logger.Named("deployments_watcher"),
@@ -118,7 +129,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 	}
 
 	// Flush the state to create the necessary objects
-	w.flush()
+	w.flush(enabled)
 
 	// If we are starting now, launch the watch daemon
 	if enabled && !wasEnabled {
@@ -127,7 +138,7 @@ func (w *Watcher) SetEnabled(enabled bool, state *state.StateStore) {
 }
 
 // flush is used to clear the state of the watcher
-func (w *Watcher) flush() {
+func (w *Watcher) flush(enabled bool) {
 	// Stop all the watchers and clear it
 	for _, watcher := range w.watchers {
 		watcher.StopWatch()
@@ -140,7 +151,12 @@ func (w *Watcher) flush() {
 
 	w.watchers = make(map[string]*deploymentWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
-	w.allocUpdateBatcher = NewAllocUpdateBatcher(w.updateBatchDuration, w.raft, w.ctx)
+
+	if enabled {
+		w.allocUpdateBatcher = NewAllocUpdateBatcher(w.ctx, w.updateBatchDuration, w.raft)
+	} else {
+		w.allocUpdateBatcher = nil
+	}
 }
 
 // watchDeployments is the long lived go-routine that watches for deployments to
@@ -252,7 +268,8 @@ func (w *Watcher) addLocked(d *structs.Deployment) (*deploymentWatcher, error) {
 		return nil, fmt.Errorf("deployment %q references unknown job %q", d.ID, d.JobID)
 	}
 
-	watcher := newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.state, d, job, w)
+	watcher := newDeploymentWatcher(w.ctx, w.queryLimiter, w.logger, w.state, d, job,
+		w, w.deploymentRPC, w.jobRPC)
 	w.watchers[d.ID] = watcher
 	return watcher, nil
 }
@@ -358,10 +375,48 @@ func (w *Watcher) FailDeployment(req *structs.DeploymentFailRequest, resp *struc
 	return watcher.FailDeployment(req, resp)
 }
 
+// RunDeployment is used to run a pending multiregion deployment.  In
+// single-region deployments, the pending state is unused.
+func (w *Watcher) RunDeployment(req *structs.DeploymentRunRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
+	if err != nil {
+		return err
+	}
+
+	return watcher.RunDeployment(req, resp)
+}
+
+// UnblockDeployment is used to unblock a multiregion deployment.  In
+// single-region deployments, the blocked state is unused.
+func (w *Watcher) UnblockDeployment(req *structs.DeploymentUnblockRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
+	if err != nil {
+		return err
+	}
+
+	return watcher.UnblockDeployment(req, resp)
+}
+
+// CancelDeployment is used to cancel a multiregion deployment.  In
+// single-region deployments, the deploymentwatcher has sole responsibility to
+// cancel deployments so this RPC is never used.
+func (w *Watcher) CancelDeployment(req *structs.DeploymentCancelRequest, resp *structs.DeploymentUpdateResponse) error {
+	watcher, err := w.getOrCreateWatcher(req.DeploymentID)
+	if err != nil {
+		return err
+	}
+
+	return watcher.CancelDeployment(req, resp)
+}
+
 // createUpdate commits the given allocation desired transition and evaluation
 // to Raft but batches the commit with other calls.
 func (w *Watcher) createUpdate(allocs map[string]*structs.DesiredTransition, eval *structs.Evaluation) (uint64, error) {
-	return w.allocUpdateBatcher.CreateUpdate(allocs, eval).Results()
+	b := w.allocUpdateBatcher
+	if b == nil {
+		return 0, notEnabled
+	}
+	return b.CreateUpdate(allocs, eval).Results()
 }
 
 // upsertJob commits the given job to Raft

@@ -244,6 +244,8 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 		}
 	}
 
+	reply.Features = n.srv.EnterpriseState.Features()
+
 	return nil
 }
 
@@ -1081,9 +1083,9 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	// A set of de-duplicated IDs for jobs that need volume claim GC.
-	// Later we'll create a gc eval for each job.
-	jobsWithVolumeGCs := make(map[string]*structs.Job)
+	// A set of de-duplicated volumes that need their volume claims released.
+	// Later we'll apply this raft.
+	volumesToGC := newCSIBatchRelease(n.srv, n.logger, 100)
 
 	for _, allocToUpdate := range args.Alloc {
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
@@ -1097,9 +1099,10 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
+		// if the job has been purged, this will always return error
 		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
 		if err != nil {
-			n.logger.Error("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
+			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
 			continue
 		}
 		if job == nil {
@@ -1112,11 +1115,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
-		// If the terminal alloc has CSI volumes, add its job to the list
-		// of jobs we're going to call volume claim GC on.
+		// If the terminal alloc has CSI volumes, add the volumes to the batch
+		// of volumes we'll release the claims of.
 		for _, vol := range taskGroup.Volumes {
 			if vol.Type == structs.VolumeTypeCSI {
-				jobsWithVolumeGCs[job.ID] = job
+				volumesToGC.add(vol.Source, alloc.Namespace)
 			}
 		}
 
@@ -1137,24 +1140,11 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 		}
 	}
 
-	// Add an evaluation for garbage collecting the the CSI volume claims
-	// of jobs with terminal allocs
-	for _, job := range jobsWithVolumeGCs {
-		// we have to build this eval by hand rather than calling srv.CoreJob
-		// here because we need to use the alloc's namespace
-		eval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			Namespace:   job.Namespace,
-			Priority:    structs.CoreJobPriority,
-			Type:        structs.JobTypeCore,
-			TriggeredBy: structs.EvalTriggerAllocStop,
-			JobID:       structs.CoreJobCSIVolumeClaimGC + ":" + job.ID,
-			LeaderACL:   n.srv.getLeaderAcl(),
-			Status:      structs.EvalStatusPending,
-			CreateTime:  now.UTC().UnixNano(),
-			ModifyTime:  now.UTC().UnixNano(),
-		}
-		evals = append(evals, eval)
+	// Make a raft apply to release the CSI volume claims of terminal allocs.
+	var result *multierror.Error
+	err := volumesToGC.apply()
+	if err != nil {
+		result = multierror.Append(result, err)
 	}
 
 	// Add this to the batch
@@ -1187,12 +1177,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Wait for the future
 	if err := future.Wait(); err != nil {
-		return err
+		result = multierror.Append(result, err)
+		return result.ErrorOrNil()
 	}
 
 	// Setup the response
 	reply.Index = future.Index()
-	return nil
+	return result.ErrorOrNil()
 }
 
 // batchUpdate is used to update all the allocations
@@ -1665,6 +1656,11 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 	return nil
 }
 
+type connectTask struct {
+	TaskKind structs.TaskKind
+	TaskName string
+}
+
 func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.DeriveSITokenResponse) error {
 	setError := func(e error, recoverable bool) {
 		if e != nil {
@@ -1751,13 +1747,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	}
 
 	// make sure each task in args.Tasks is a connect-enabled task
-	// note: the tasks at this point should be the "connect-sidecar-<id>" name
-	//
-	unneeded := tasksNotUsingConnect(tg, args.Tasks)
-	if len(unneeded) > 0 {
+	notConnect, tasks := connectTasks(tg, args.Tasks)
+	if len(notConnect) > 0 {
 		setError(fmt.Errorf(
 			"Requested Consul Service Identity tokens for tasks that are not Connect enabled: %v",
-			strings.Join(unneeded, ", "),
+			strings.Join(notConnect, ", "),
 		), false)
 	}
 
@@ -1779,8 +1773,8 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 
 	// would like to pull some of this out...
 
-	// Create the SI tokens
-	input := make(chan string, numWorkers)
+	// Create the SI tokens from a slice of task name + connect service
+	input := make(chan connectTask, numWorkers)
 	results := make(map[string]*structs.SIToken, numWorkers)
 	for i := 0; i < numWorkers; i++ {
 		g.Go(func() error {
@@ -1790,17 +1784,16 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 					if !ok {
 						return nil
 					}
-
-					sii := ServiceIdentityIndex{
+					secret, err := n.srv.consulACLs.CreateToken(ctx, ServiceIdentityRequest{
+						TaskKind:  task.TaskKind,
+						TaskName:  task.TaskName,
 						ClusterID: clusterID,
 						AllocID:   alloc.ID,
-						TaskName:  task,
-					}
-					secret, err := n.srv.consulACLs.CreateToken(ctx, sii)
+					})
 					if err != nil {
 						return err
 					}
-					results[task] = secret
+					results[task.TaskName] = secret
 				case <-ctx.Done():
 					return nil
 				}
@@ -1811,11 +1804,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	// Send the input
 	go func() {
 		defer close(input)
-		for _, task := range args.Tasks {
+		for _, connectTask := range tasks {
 			select {
 			case <-ctx.Done():
 				return
-			case input <- task:
+			case input <- connectTask:
 			}
 		}
 	}()
@@ -1874,15 +1867,21 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	return nil
 }
 
-func tasksNotUsingConnect(tg *structs.TaskGroup, tasks []string) []string {
-	var unneeded []string
+func connectTasks(tg *structs.TaskGroup, tasks []string) ([]string, []connectTask) {
+	var notConnect []string
+	var usesConnect []connectTask
 	for _, task := range tasks {
 		tgTask := tg.LookupTask(task)
 		if !taskUsesConnect(tgTask) {
-			unneeded = append(unneeded, task)
+			notConnect = append(notConnect, task)
+		} else {
+			usesConnect = append(usesConnect, connectTask{
+				TaskName: task,
+				TaskKind: tgTask.Kind,
+			})
 		}
 	}
-	return unneeded
+	return notConnect, usesConnect
 }
 
 func taskUsesConnect(task *structs.Task) bool {
@@ -1890,8 +1889,8 @@ func taskUsesConnect(task *structs.Task) bool {
 		// not even in the task group
 		return false
 	}
-	// todo(shoenig): TBD what Kind does a native task have?
-	return task.Kind.IsConnectProxy()
+
+	return task.Kind.IsConnectProxy() || task.Kind.IsConnectNative()
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {

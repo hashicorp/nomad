@@ -7,6 +7,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
+// EnterpriseAgent holds information and methods for enterprise functionality
+// in OSS it is an empty struct.
+type EnterpriseAgent struct{}
+
 func (a *Agent) setupEnterpriseAgent(log hclog.Logger) error {
 	// configure eventer
 	a.auditor = &noOpAuditor{}

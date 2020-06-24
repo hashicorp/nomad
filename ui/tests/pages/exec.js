@@ -24,6 +24,8 @@ export default create({
     click: clickable('[data-test-task-group-name]'),
     name: text('[data-test-task-group-name]'),
 
+    isLoading: hasClass('is-loading', '[data-test-task-group-name]'),
+
     chevron: {
       scope: '.toggle-button .icon',
       isDown: hasClass('icon-is-chevron-down'),
@@ -39,5 +41,10 @@ export default create({
   terminal: {
     scope: '.xterm-helper-textarea',
     pressEnter: triggerable('keydown', '', { eventProperties: { keyCode: 13 } }),
+  },
+
+  jobDead: {
+    scope: '[data-test-exec-job-dead]',
+    message: text('[data-test-exec-job-dead-message]'),
   },
 });

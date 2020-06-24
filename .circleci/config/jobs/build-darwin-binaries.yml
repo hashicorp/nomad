@@ -10,7 +10,7 @@ steps:
       target_directory: ~/goinstall
   - run: source ${BASH_ENV} && make deps
   - run: brew install protobuf
-  - run: sudo -E PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
+  - run: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
   - run: source ${BASH_ENV} && make pkg/darwin_amd64.zip
   - store_artifacts:
       path: pkg/darwin_amd64.zip

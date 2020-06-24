@@ -7,9 +7,6 @@ const isTest = environment === 'test';
 
 module.exports = function(defaults) {
   var app = new EmberApp(defaults, {
-    addons: {
-      blacklist: isProd ? ['ember-freestyle'] : [],
-    },
     svg: {
       paths: ['node_modules/@hashicorp/structure-icons/dist', 'public/images/icons'],
       optimize: {
@@ -19,15 +16,11 @@ module.exports = function(defaults) {
     codemirror: {
       modes: ['javascript'],
     },
-    funnel: {
-      enabled: isProd,
-      exclude: [
-        `${defaults.project.pkg.name}/components/freestyle/**/*`,
-        `${defaults.project.pkg.name}/templates/components/freestyle/**/*`,
-      ],
-    },
     babel: {
-      plugins: ['@babel/plugin-proposal-object-rest-spread'],
+      plugins: [
+        '@babel/plugin-proposal-object-rest-spread',
+        require.resolve('ember-auto-import/babel-plugin'),
+      ],
     },
     'ember-cli-babel': {
       includePolyfill: isProd,
@@ -53,12 +46,6 @@ module.exports = function(defaults) {
   // along with the exports of each module as its value.
 
   app.import('node_modules/xterm/css/xterm.css');
-  // Issue to move to typical package.json import when released: https://github.com/hashicorp/nomad/issues/7461
-  app.import('vendor/xterm.js', {
-    using: [
-      { transformation: 'amd', as: 'xterm-vendor' },
-    ],
-  });
 
   return app.toTree();
 };

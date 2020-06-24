@@ -25,13 +25,13 @@
       </div>
     </div>
     <div class="boxed-section-body with-foot">
-      {{#job-deployment-details deployment=job.latestDeployment as |d|}}
+      <JobDeploymentDetails @deployment={{job.latestDeployment}} as |d|>
         {{d.metrics}}
         {{#if isShowingDeploymentDetails}}
           {{d.taskGroups}}
           {{d.allocations}}
         {{/if}}
-      {{/job-deployment-details}}
+      </JobDeploymentDetails>
     </div>
     <div class="boxed-section-foot">
       <a class="pull-right" {{action (toggle "isShowingDeploymentDetails" this)}} data-test-deployment-toggle-details>

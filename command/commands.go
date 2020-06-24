@@ -236,6 +236,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"deployment unblock": func() (cli.Command, error) {
+			return &DeploymentUnblockCommand{
+				Meta: meta,
+			}, nil
+		},
 		"eval": func() (cli.Command, error) {
 			return &EvalCommand{
 				Meta: meta,
@@ -361,6 +366,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"license": func() (cli.Command, error) {
+			return &LicenseCommand{
+				Meta: meta,
+			}, nil
+		},
+		"license get": func() (cli.Command, error) {
+			return &LicenseGetCommand{
+				Meta: meta,
+			}, nil
+		},
+		"license put": func() (cli.Command, error) {
+			return &LicensePutCommand{
+				Meta: meta,
+			}, nil
+		},
 		"logs": func() (cli.Command, error) {
 			return &AllocLogsCommand{
 				Meta: meta,
@@ -483,6 +503,27 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 
 		"operator raft remove-peer": func() (cli.Command, error) {
 			return &OperatorRaftRemoveCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"operator snapshot": func() (cli.Command, error) {
+			return &OperatorSnapshotCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator snapshot save": func() (cli.Command, error) {
+			return &OperatorSnapshotSaveCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator snapshot inspect": func() (cli.Command, error) {
+			return &OperatorSnapshotInspectCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator snapshot restore": func() (cli.Command, error) {
+			return &OperatorSnapshotRestoreCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -750,5 +791,10 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 	for k, v := range deprecated {
 		all[k] = v
 	}
+
+	for k, v := range EntCommands(metaPtr, agentUi) {
+		all[k] = v
+	}
+
 	return all
 }

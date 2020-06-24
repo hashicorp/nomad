@@ -17,7 +17,7 @@ const (
 nomad job run -check-index %d %s
 
 When running the job with the check-index flag, the job will only be run if the
-server side version matches the job modify index returned. If the index has
+job modify index given matches the server-side version. If the index has
 changed, another user has modified the job and the plan's results are
 potentially invalid.`
 

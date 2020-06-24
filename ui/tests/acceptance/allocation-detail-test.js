@@ -54,6 +54,7 @@ module('Acceptance | allocation detail', function(hooks) {
       node.id.split('-')[0],
       'Node short id is in the subheading'
     );
+    assert.ok(Allocation.execButton.isPresent);
 
     assert.equal(document.title, `Allocation ${allocation.name} - Nomad`);
 
@@ -70,6 +71,111 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.equal(Allocation.resourceCharts.length, 2, 'Two resource utilization graphs');
     assert.equal(Allocation.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
     assert.equal(Allocation.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
+  });
+
+  test('/allocation/:id should present task lifecycles', async function(assert) {
+    const job = server.create('job', {
+      groupsCount: 1,
+      groupTaskCount: 3,
+      withGroupServices: true,
+      createAllocations: false,
+    });
+
+    const allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+      clientStatus: 'running',
+      jobId: job.id,
+    });
+
+    const taskStatePhases = server.db.taskStates.where({ allocationId: allocation.id }).reduce(
+      (phases, state) => {
+        const lifecycle = server.db.tasks.findBy({ name: state.name }).Lifecycle;
+
+        if (lifecycle) {
+          if (lifecycle.Sidecar) {
+            phases.sidecars.push(state);
+            state.lifecycleString = 'Sidecar';
+          } else {
+            phases.prestarts.push(state);
+            state.lifecycleString = 'Prestart';
+          }
+        } else {
+          phases.mains.push(state);
+          state.lifecycleString = 'Main';
+        }
+
+        return phases;
+      },
+      {
+        prestarts: [],
+        sidecars: [],
+        mains: [],
+      }
+    );
+
+    taskStatePhases.prestarts = taskStatePhases.prestarts.sortBy('name');
+    taskStatePhases.sidecars = taskStatePhases.sidecars.sortBy('name');
+    taskStatePhases.mains = taskStatePhases.mains.sortBy('name');
+
+    const sortedServerStates = taskStatePhases.prestarts.concat(
+      taskStatePhases.sidecars,
+      taskStatePhases.mains
+    );
+
+    await Allocation.visit({ id: allocation.id });
+
+    assert.ok(Allocation.lifecycleChart.isPresent);
+    assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
+    assert.equal(Allocation.lifecycleChart.phases.length, 2);
+    assert.equal(Allocation.lifecycleChart.tasks.length, sortedServerStates.length);
+
+    const stateActiveIterator = state => state.state === 'running';
+    const anyPrestartsActive = taskStatePhases.prestarts.some(stateActiveIterator);
+
+    if (anyPrestartsActive) {
+      assert.ok(Allocation.lifecycleChart.phases[0].isActive);
+    } else {
+      assert.notOk(Allocation.lifecycleChart.phases[0].isActive);
+    }
+
+    const anyMainsActive = taskStatePhases.mains.some(stateActiveIterator);
+
+    if (anyMainsActive) {
+      assert.ok(Allocation.lifecycleChart.phases[1].isActive);
+    } else {
+      assert.notOk(Allocation.lifecycleChart.phases[1].isActive);
+    }
+
+    Allocation.lifecycleChart.tasks.forEach((Task, index) => {
+      const serverState = sortedServerStates[index];
+
+      assert.equal(Task.name, serverState.name);
+
+      if (serverState.lifecycleString === 'Sidecar') {
+        assert.ok(Task.isSidecar);
+      } else if (serverState.lifecycleString === 'Prestart') {
+        assert.ok(Task.isPrestart);
+      } else {
+        assert.ok(Task.isMain);
+      }
+
+      assert.equal(Task.lifecycle, `${serverState.lifecycleString} Task`);
+
+      if (serverState.state === 'running') {
+        assert.ok(Task.isActive);
+      } else {
+        assert.notOk(Task.isActive);
+      }
+
+      // Task state factory uses invalid dates for tasks that aren’t finished
+      if (isNaN(serverState.finishedAt)) {
+        assert.notOk(Task.isFinished);
+      } else {
+        assert.ok(Task.isFinished);
+      }
+    });
+
+    await Allocation.lifecycleChart.tasks[0].visit();
+    assert.equal(currentURL(), `/allocations/${allocation.id}/${sortedServerStates[0].name}`);
   });
 
   test('/allocation/:id should list all tasks for the allocation', async function(assert) {
@@ -346,6 +452,12 @@ module('Acceptance | allocation detail (not running)', function(hooks) {
       "Allocation isn't running",
       'Empty message is appropriate'
     );
+  });
+
+  test('the exec and stop/restart buttons are absent', async function(assert) {
+    assert.notOk(Allocation.execButton.isPresent);
+    assert.notOk(Allocation.stop.isPresent);
+    assert.notOk(Allocation.restart.isPresent);
   });
 });
 

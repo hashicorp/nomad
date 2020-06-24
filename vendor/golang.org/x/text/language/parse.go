@@ -28,7 +28,7 @@ type ValueError interface {
 // ValueError. The Tag returned in this case is just stripped of the unknown
 // value. All other values are preserved. It accepts tags in the BCP 47 format
 // and extensions to this standard defined in
-// http://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
+// https://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
 // The resulting tag is canonicalized using the default canonicalization type.
 func Parse(s string) (t Tag, err error) {
 	return Default.Parse(s)
@@ -40,8 +40,8 @@ func Parse(s string) (t Tag, err error) {
 // ValueError. The Tag returned in this case is just stripped of the unknown
 // value. All other values are preserved. It accepts tags in the BCP 47 format
 // and extensions to this standard defined in
-// http://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
-// The resulting tag is canonicalized using the the canonicalization type c.
+// https://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
+// The resulting tag is canonicalized using the canonicalization type c.
 func (c CanonType) Parse(s string) (t Tag, err error) {
 	tt, err := language.Parse(s)
 	if err != nil {
@@ -199,7 +199,7 @@ func split(s string, c byte) (head, tail string) {
 	return strings.TrimSpace(s), ""
 }
 
-// Add hack mapping to deal with a small number of cases that that occur
+// Add hack mapping to deal with a small number of cases that occur
 // in Accept-Language (with reasonable frequency).
 var acceptFallback = map[string]language.Language{
 	"english": _en,

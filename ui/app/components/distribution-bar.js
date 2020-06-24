@@ -1,29 +1,35 @@
+/* eslint-disable ember/no-observers */
 import Component from '@ember/component';
-import { computed, observer, set } from '@ember/object';
+import { computed, set } from '@ember/object';
+import { observes } from '@ember-decorators/object';
 import { run } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { guidFor } from '@ember/object/internals';
 import { copy } from 'ember-copy';
+import { computed as overridable } from 'ember-overridable-computed';
 import d3 from 'd3-selection';
 import 'd3-transition';
 import WindowResizable from '../mixins/window-resizable';
 import styleStringProperty from '../utils/properties/style-string';
+import { classNames, classNameBindings } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
 const sumAggregate = (total, val) => total + val;
 
-export default Component.extend(WindowResizable, {
-  classNames: ['chart', 'distribution-bar'],
-  classNameBindings: ['isNarrow:is-narrow'],
+@classic
+@classNames('chart', 'distribution-bar')
+@classNameBindings('isNarrow:is-narrow')
+export default class DistributionBar extends Component.extend(WindowResizable) {
+  chart = null;
+  @overridable(() => null) data;
+  activeDatum = null;
+  isNarrow = false;
 
-  chart: null,
-  data: null,
-  activeDatum: null,
-  isNarrow: false,
+  @styleStringProperty('tooltipPosition') tooltipStyle;
+  maskId = null;
 
-  tooltipStyle: styleStringProperty('tooltipPosition'),
-  maskId: null,
-
-  _data: computed('data', function() {
+  @computed('data')
+  get _data() {
     const data = copy(this.data, true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
@@ -40,14 +46,15 @@ export default Component.extend(WindowResizable, {
           .mapBy('value')
           .reduce(sumAggregate, 0) / sum,
     }));
-  }),
+  }
 
   didInsertElement() {
-    const chart = d3.select(this.$('svg')[0]);
+    const svg = this.element.querySelector('svg');
+    const chart = d3.select(svg);
     const maskId = `dist-mask-${guidFor(this)}`;
     this.setProperties({ chart, maskId });
 
-    this.$('svg clipPath').attr('id', maskId);
+    svg.querySelector('clipPath').setAttribute('id', maskId);
 
     chart.on('mouseleave', () => {
       run(() => {
@@ -61,21 +68,22 @@ export default Component.extend(WindowResizable, {
     });
 
     this.renderChart();
-  },
+  }
 
   didUpdateAttrs() {
     this.renderChart();
-  },
+  }
 
-  updateChart: observer('_data.@each.{value,label,className}', function() {
+  @observes('_data.@each.{value,label,className}')
+  updateChart() {
     this.renderChart();
-  }),
+  }
 
   // prettier-ignore
   /* eslint-disable */
   renderChart() {
     const { chart, _data, isNarrow } = this;
-    const width = this.$('svg').width();
+    const width = this.element.querySelector('svg').clientWidth;
     const filteredData = _data.filter(d => d.value > 0);
     filteredData.forEach((d, index) => {
       set(d, 'index', index);
@@ -164,10 +172,10 @@ export default Component.extend(WindowResizable, {
           .attr('height', '6px')
           .attr('y', '50%');
       }
-  },
+  }
   /* eslint-enable */
 
   windowResizeHandler() {
     run.once(this, this.renderChart);
-  },
-});
+  }
+}

@@ -32,9 +32,4 @@ module.exports = {
     'block-indentation': false,
     quotes: false,
   },
-
-  ignore: [
-    'app/templates/components/freestyle/**',
-    'nomad-ui/templates/components/freestyle/**'
-  ]
 };

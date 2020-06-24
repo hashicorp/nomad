@@ -16,6 +16,6 @@
 </div>
 {{#if isOpen}}
   <div class="boxed-section-body is-dark">
-    {{job-diff diff=version.diff verbose=verbose}}
+    <JobDiff @diff={{version.diff}} @verbose={{verbose}} />
   </div>
 {{/if}}

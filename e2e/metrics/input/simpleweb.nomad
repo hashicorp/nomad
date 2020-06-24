@@ -25,7 +25,7 @@ job "simpleweb" {
 
         network {
           mbits = 1
-          port  "http"{}
+          port "http" {}
         }
       }
 

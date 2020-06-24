@@ -86,7 +86,7 @@ export default [
 
       {
         category: 'deployment',
-        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status']
+        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
       },
       'eval-status',
       {
@@ -108,6 +108,10 @@ export default [
           'validate'
         ]
       },
+      {
+        category: 'license',
+        content: ['get', 'put']
+      },
       'monitor',
       {
         category: 'namespace',
@@ -125,7 +129,11 @@ export default [
           'keygen',
           'keyring',
           'raft-list-peers',
-          'raft-remove-peer'
+          'raft-remove-peer',
+          'snapshot-agent',
+          'snapshot-inspect',
+          'snapshot-restore',
+          'snapshot-save'
         ]
       },
       { category: 'plugin', content: ['status'] },
@@ -163,6 +171,7 @@ export default [
       'logs',
       'meta',
       'migrate',
+      'multiregion',
       'network',
       'parameterized',
       'periodic',
@@ -192,17 +201,18 @@ export default [
       'java',
       'qemu',
       'raw_exec',
-      'rkt',
       {
         category: 'external',
         content: [
           'lxc',
+          'rkt',
           'podman',
           'singularity',
           'jail-task-driver',
           'pot',
           'firecracker-task-driver',
-          'nspawn'
+          'nspawn',
+          'iis'
         ]
       }
     ]

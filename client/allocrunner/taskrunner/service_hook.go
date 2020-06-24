@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -40,13 +39,16 @@ type serviceHook struct {
 	logger    log.Logger
 
 	// The following fields may be updated
-	delay      time.Duration
 	driverExec tinterfaces.ScriptExecutor
 	driverNet  *drivers.DriverNetwork
 	canary     bool
 	services   []*structs.Service
 	networks   structs.Networks
 	taskEnv    *taskenv.TaskEnv
+
+	// initialRegistrations tracks if Poststart has completed, initializing
+	// fields required in other lifecycle funcs
+	initialRegistration bool
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -60,7 +62,6 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		taskName:  c.task.Name,
 		services:  c.task.Services,
 		restarter: c.restarter,
-		delay:     c.task.ShutdownDelay,
 	}
 
 	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
@@ -87,6 +88,7 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 	h.driverExec = req.DriverExec
 	h.driverNet = req.DriverNetwork
 	h.taskEnv = req.TaskEnv
+	h.initialRegistration = true
 
 	// Create task services struct with request's driver metadata
 	workloadServices := h.getWorkloadServices()
@@ -97,11 +99,27 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if !h.initialRegistration {
+		// no op Consul since initial registration has not finished
+		// only update hook fields
+		return h.updateHookFields(req)
+	}
 
 	// Create old task services struct with request's driver metadata as it
 	// can't change due to Updates
 	oldWorkloadServices := h.getWorkloadServices()
 
+	if err := h.updateHookFields(req); err != nil {
+		return err
+	}
+
+	// Create new task services struct with those new values
+	newWorkloadServices := h.getWorkloadServices()
+
+	return h.consul.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+}
+
+func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error {
 	// Store new updated values out of request
 	canary := false
 	if req.Alloc.DeploymentStatus != nil {
@@ -119,16 +137,12 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	}
 
 	// Update service hook fields
-	h.delay = task.ShutdownDelay
 	h.taskEnv = req.TaskEnv
 	h.services = task.Services
 	h.networks = networks
 	h.canary = canary
 
-	// Create new task services struct with those new values
-	newWorkloadServices := h.getWorkloadServices()
-
-	return h.consul.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+	return nil
 }
 
 func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKillRequest, resp *interfaces.TaskPreKillResponse) error {
@@ -138,16 +152,6 @@ func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKil
 	// Deregister before killing task
 	h.deregister()
 
-	// If there's no shutdown delay, exit early
-	if h.delay == 0 {
-		return nil
-	}
-
-	h.logger.Debug("waiting before killing task", "shutdown_delay", h.delay)
-	select {
-	case <-ctx.Done():
-	case <-time.After(h.delay):
-	}
 	return nil
 }
 
@@ -167,7 +171,7 @@ func (h *serviceHook) deregister() {
 	// destroyed, so remove both variations of the service
 	workloadServices.Canary = !workloadServices.Canary
 	h.consul.RemoveWorkload(workloadServices)
-
+	h.initialRegistration = false
 }
 
 func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {

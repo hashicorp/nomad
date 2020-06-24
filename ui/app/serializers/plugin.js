@@ -1,8 +1,20 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+// Convert a map[string]interface{} into an array of objects
+// where the key becomes a property at propKey.
+// This is destructive. The original object is mutated to avoid
+// excessive copies of the originals which would otherwise just
+// be garbage collected.
+const unmap = (hash, propKey) =>
+  Object.keys(hash).map(key => {
+    const record = hash[key];
+    record[propKey] = key;
+    return record;
+  });
+
+export default class Plugin extends ApplicationSerializer {
   normalize(typeHash, hash) {
-    hash.PlainID = hash.ID;
+    hash.PlainId = hash.ID;
 
     // TODO This shouldn't hardcode `csi/` as part of the ID,
     // but it is necessary to make the correct find request and the
@@ -10,9 +22,12 @@ export default ApplicationSerializer.extend({
     // this identifier.
     hash.ID = `csi/${hash.ID}`;
 
-    hash.Nodes = hash.Nodes || [];
-    hash.Controllers = hash.Controllers || [];
+    const nodes = hash.Nodes || {};
+    const controllers = hash.Controllers || {};
 
-    return this._super(typeHash, hash);
-  },
-});
+    hash.Nodes = unmap(nodes, 'NodeID');
+    hash.Controllers = unmap(controllers, 'NodeID');
+
+    return super.normalize(typeHash, hash);
+  }
+}

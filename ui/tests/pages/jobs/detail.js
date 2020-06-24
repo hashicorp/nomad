@@ -3,12 +3,15 @@ import {
   create,
   collection,
   clickable,
+  hasClass,
   isPresent,
+  property,
   text,
   visitable,
 } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
+import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 
 export default create({
   visit: visitable('/jobs/:id'),
@@ -20,6 +23,16 @@ export default create({
 
   tabFor(id) {
     return this.tabs.toArray().findBy('id', id);
+  },
+
+  stop: twoStepButton('[data-test-stop]'),
+  start: twoStepButton('[data-test-start]'),
+
+  execButton: {
+    scope: '[data-test-exec-button]',
+    isDisabled: property('disabled'),
+    hasTooltip: hasClass('tooltip'),
+    tooltipText: attribute('aria-label'),
   },
 
   stats: collection('[data-test-job-stat]', {

@@ -3,7 +3,7 @@ import { collect } from '@ember/object/computed';
 import { watchRecord, watchRelationship, watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend(WithWatchers, {
+export default class IndexRoute extends Route.extend(WithWatchers) {
   startWatchers(controller, model) {
     if (!model) {
       return;
@@ -17,21 +17,22 @@ export default Route.extend(WithWatchers, {
         model.get('supportsDeployments') && this.watchLatestDeployment.perform(model),
       list: model.get('hasChildren') && this.watchAll.perform(),
     });
-  },
+  }
 
-  watch: watchRecord('job'),
-  watchAll: watchAll('job'),
-  watchSummary: watchRecord('job-summary'),
-  watchAllocations: watchRelationship('allocations'),
-  watchEvaluations: watchRelationship('evaluations'),
-  watchLatestDeployment: watchRelationship('latestDeployment'),
+  @watchRecord('job') watch;
+  @watchAll('job') watchAll;
+  @watchRecord('job-summary') watchSummary;
+  @watchRelationship('allocations') watchAllocations;
+  @watchRelationship('evaluations') watchEvaluations;
+  @watchRelationship('latestDeployment') watchLatestDeployment;
 
-  watchers: collect(
+  @collect(
     'watch',
     'watchAll',
     'watchSummary',
     'watchAllocations',
     'watchEvaluations',
     'watchLatestDeployment'
-  ),
-});
+  )
+  watchers;
+}

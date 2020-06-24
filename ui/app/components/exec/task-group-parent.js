@@ -1,16 +1,19 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
-import { filterBy, mapBy, or } from '@ember/object/computed';
+import { action, computed } from '@ember/object';
+import { filterBy, mapBy, or, sort } from '@ember/object/computed';
 import generateExecUrl from 'nomad-ui/utils/generate-exec-url';
 import openExecUrl from 'nomad-ui/utils/open-exec-url';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  router: service(),
+@classic
+export default class TaskGroupParent extends Component {
+  @service router;
 
-  isOpen: or('clickedOpen', 'currentRouteIsThisTaskGroup'),
+  @or('clickedOpen', 'currentRouteIsThisTaskGroup') isOpen;
 
-  currentRouteIsThisTaskGroup: computed('router.currentRoute', function() {
+  @computed('router.currentRoute')
+  get currentRouteIsThisTaskGroup() {
     const route = this.router.currentRoute;
 
     if (route.name.includes('task-group')) {
@@ -24,51 +27,60 @@ export default Component.extend({
     } else {
       return false;
     }
-  }),
+  }
 
-  allocationTaskStatesRecordArrays: mapBy('taskGroup.allocations', 'states'),
-  allocationTaskStates: computed('allocationTaskStatesRecordArrays.[]', function() {
+  @computed('taskGroup.allocations.@each.clientStatus')
+  get hasPendingAllocations() {
+    return this.taskGroup.allocations.any(allocation => allocation.clientStatus === 'pending');
+  }
+
+  @mapBy('taskGroup.allocations', 'states') allocationTaskStatesRecordArrays;
+  @computed('allocationTaskStatesRecordArrays.[]')
+  get allocationTaskStates() {
     const flattenRecordArrays = (accumulator, recordArray) =>
       accumulator.concat(recordArray.toArray());
     return this.allocationTaskStatesRecordArrays.reduce(flattenRecordArrays, []);
-  }),
+  }
 
-  activeTaskStates: filterBy('allocationTaskStates', 'isActive'),
+  @filterBy('allocationTaskStates', 'isActive') activeTaskStates;
 
-  activeTasks: mapBy('activeTaskStates', 'task'),
-  activeTaskGroups: mapBy('activeTasks', 'taskGroup'),
+  @mapBy('activeTaskStates', 'task') activeTasks;
+  @mapBy('activeTasks', 'taskGroup') activeTaskGroups;
 
-  tasksWithRunningStates: computed(
+  @computed(
     'taskGroup.name',
     'activeTaskStates.@each.name',
     'activeTasks.@each.name',
-    'activeTaskGroups.@each.name',
-    function() {
-      const activeTaskStateNames = this.activeTaskStates
-        .filter(taskState => {
-          return taskState.task && taskState.task.taskGroup.name === this.taskGroup.name;
-        })
-        .mapBy('name');
+    'activeTaskGroups.@each.name'
+  )
+  get tasksWithRunningStates() {
+    const activeTaskStateNames = this.activeTaskStates
+      .filter(taskState => {
+        return taskState.task && taskState.task.taskGroup.name === this.taskGroup.name;
+      })
+      .mapBy('name');
 
-      return this.taskGroup.tasks.filter(task => activeTaskStateNames.includes(task.name));
-    }
-  ),
+    return this.taskGroup.tasks.filter(task => activeTaskStateNames.includes(task.name));
+  }
 
-  clickedOpen: false,
+  taskSorting = ['name'];
+  @sort('tasksWithRunningStates', 'taskSorting') sortedTasks;
 
-  actions: {
-    toggleOpen() {
-      this.toggleProperty('clickedOpen');
-    },
+  clickedOpen = false;
 
-    openInNewWindow(job, taskGroup, task) {
-      let url = generateExecUrl(this.router, {
-        job: job.name,
-        taskGroup: taskGroup.name,
-        task: task.name,
-      });
+  @action
+  toggleOpen() {
+    this.toggleProperty('clickedOpen');
+  }
 
-      openExecUrl(url);
-    },
-  },
-});
+  @action
+  openInNewWindow(job, taskGroup, task) {
+    let url = generateExecUrl(this.router, {
+      job,
+      taskGroup,
+      task,
+    });
+
+    openExecUrl(url);
+  }
+}

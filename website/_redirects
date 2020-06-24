@@ -151,6 +151,8 @@
 /guides/security/index.html                  https://learn.hashicorp.com/nomad?track=acls#acls 301!
 /guides/security/securing-nomad              https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
 /guides/security/securing-nomad.html         https://learn.hashicorp.com/nomad/transport-security/enable-tls 301!
+/guides/security/vault-pki-integration       https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad 301!
+/guides/security/vault-pki-integration.html  https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad 301!
 
 # Multi-part UI guides
 /guides/ui.html  https://learn.hashicorp.com/nomad?track=web-ui#web-ui 301!
@@ -164,6 +166,7 @@
 # Docs
 /docs/index                                   /docs 301!
 /api/index                                    /api-docs 301!
+/api-docs/index                               /api-docs 301!
 /resources                                    /resources 301!
 /docs/agent/config.html                       /docs/configuration 301!
 /docs/agent/config                            /docs/configuration 301!
@@ -319,6 +322,8 @@
 # Redirect old LXC driver doc to new one in /docs/external
 /docs/drivers/lxc.html                        /docs/drivers/external/lxc 301!
 /docs/drivers/lxc                             /docs/drivers/external/lxc 301!
+/docs/drivers/rkt.html                        /docs/drivers/external/rkt 301!
+/docs/drivers/rkt                             /docs/drivers/external/rkt 301!
 
 # API
 /docs/http/agent-force-leave            /api-docs/agent 301!
@@ -435,6 +440,12 @@
 /guides/operations/upgrade/index.html             /docs/upgrade 301!
 /guides/operations/upgrade/upgrade-specific.html  /docs/upgrade/upgrade-specific 301!
 /guides/operations/upgrade/upgrade-specific       /docs/upgrade/upgrade-specific 301!
+/guides/upgrade                                   /docs/upgrade 301!
+/guides/upgrade/index.html                        /docs/upgrade 301!
+/guides/upgrade/upgrade-specific.html             /docs/upgrade/upgrade-specific 301!
+/guides/upgrade/upgrade-specific                  /docs/upgrade/upgrade-specific 301!
+
+
 
 # Enterprise
 

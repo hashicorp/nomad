@@ -1325,6 +1325,37 @@ func TestLeader_TransitionsUpdateConsistencyRead(t *testing.T) {
 	require.True(t, s1.isReadyForConsistentReads())
 }
 
+// TestLeader_PausingWorkers asserts that scheduling workers are paused
+// (and unpaused) upon leader elections (and step downs).
+func TestLeader_PausingWorkers(t *testing.T) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 12
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+	require.Len(t, s1.workers, 12)
+
+	pausedWorkers := func() int {
+		c := 0
+		for _, w := range s1.workers {
+			w.pauseLock.Lock()
+			if w.paused {
+				c++
+			}
+			w.pauseLock.Unlock()
+		}
+		return c
+	}
+
+	// pause 3/4 of the workers
+	require.Equal(t, 9, pausedWorkers())
+
+	err := s1.revokeLeadership()
+	require.NoError(t, err)
+
+	require.Zero(t, pausedWorkers())
+}
+
 // Test doing an inplace upgrade on a server from raft protocol 2 to 3
 // This verifies that removing the server and adding it back with a uuid works
 // even if the server's address stays the same.

@@ -18,6 +18,8 @@ export default Factory.extend({
     return this.id;
   },
 
+  version: 1,
+
   groupsCount: () => faker.random.number({ min: 1, max: 2 }),
 
   region: () => 'global',

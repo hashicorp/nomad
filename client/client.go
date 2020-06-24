@@ -180,10 +180,10 @@ type Client struct {
 	servers *servers.Manager
 
 	// heartbeat related times for tracking how often to heartbeat
-	lastHeartbeat   time.Time
 	heartbeatTTL    time.Duration
 	haveHeartbeated bool
 	heartbeatLock   sync.Mutex
+	heartbeatStop   *heartbeatStop
 
 	// triggerDiscoveryCh triggers Consul discovery; see triggerDiscovery
 	triggerDiscoveryCh chan struct{}
@@ -289,6 +289,9 @@ type Client struct {
 	// dynamicRegistry provides access to plugins that are dynamically registered
 	// with a nomad client. Currently only used for CSI.
 	dynamicRegistry dynamicplugins.Registry
+
+	// EnterpriseClient is used to set and check enterprise features for clients
+	EnterpriseClient *EnterpriseClient
 }
 
 var (
@@ -341,6 +344,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
+		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
@@ -445,8 +449,16 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.pluginManagers.RegisterAndRun(devManager)
 
 	// Batching of initial fingerprints is done to reduce the number of node
-	// updates sent to the server on startup.
+	// updates sent to the server on startup. This is the first RPC to the servers
 	go c.batchFirstFingerprints()
+
+	// create heartbeatStop. We go after the first attempt to connect to the server, so
+	// that our grace period for connection goes for the full time
+	c.heartbeatStop = newHeartbeatStop(c.getAllocRunner, batchFirstFingerprintsTimeout, logger, c.shutdownCh)
+
+	// Watch for disconnection, and heartbeatStopAllocs configured to have a maximum
+	// lifetime when out of touch with the server
+	go c.heartbeatStop.watch()
 
 	// Add the stats collector
 	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
@@ -765,7 +777,7 @@ func (c *Client) Stats() map[string]map[string]string {
 			"node_id":         c.NodeID(),
 			"known_servers":   strings.Join(c.GetServers(), ","),
 			"num_allocations": strconv.Itoa(c.NumAllocs()),
-			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
+			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat())),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
 		"runtime": hstats.RuntimeStats(),
@@ -1113,10 +1125,21 @@ func (c *Client) restoreState() error {
 			continue
 		}
 
+		// Maybe mark the alloc for halt on missing server heartbeats
+		if c.heartbeatStop.shouldStop(alloc) {
+			err = c.heartbeatStop.stopAlloc(alloc.ID)
+			if err != nil {
+				c.logger.Error("error stopping alloc", "error", err, "alloc_id", alloc.ID)
+			}
+			continue
+		}
+
 		//XXX is this locking necessary?
 		c.allocLock.Lock()
 		c.allocs[alloc.ID] = ar
 		c.allocLock.Unlock()
+
+		c.heartbeatStop.allocHook(alloc)
 	}
 
 	// All allocs restored successfully, run them!
@@ -1413,7 +1436,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// if we still have node changes, merge them
 	if response.Resources != nil {
 		response.Resources.Networks = updateNetworks(
-			c.config.Node.Resources.Networks,
 			response.Resources.Networks,
 			c.config)
 		if !c.config.Node.Resources.Equals(response.Resources) {
@@ -1426,7 +1448,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {
 		response.NodeResources.Networks = updateNetworks(
-			c.config.Node.NodeResources.Networks,
 			response.NodeResources.Networks,
 			c.config)
 		if !c.config.Node.NodeResources.Equals(response.NodeResources) {
@@ -1442,33 +1463,40 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	return c.configCopy.Node
 }
 
-// updateNetworks preserves manually configured network options, but
-// applies fingerprint updates
-func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) structs.Networks {
-	if c.NetworkInterface == "" {
-		ns = up
-	} else {
-		// If a network device is configured, filter up to contain details for only
+// updateNetworks filters and overrides network speed of host networks based
+// on configured settings
+func updateNetworks(up structs.Networks, c *config.Config) structs.Networks {
+	if up == nil {
+		return nil
+	}
+
+	if c.NetworkInterface != "" {
+		// For host networks, if a network device is configured filter up to contain details for only
 		// that device
 		upd := []*structs.NetworkResource{}
 		for _, n := range up {
-			if c.NetworkInterface == n.Device {
+			switch n.Mode {
+			case "host":
+				if c.NetworkInterface == n.Device {
+					upd = append(upd, n)
+				}
+			default:
 				upd = append(upd, n)
+
 			}
 		}
-		// If updates, use them. Otherwise, ns contains the configured interfaces
-		if len(upd) > 0 {
-			ns = upd
-		}
+		up = upd
 	}
 
-	// ns is set, apply the config NetworkSpeed to all
+	// if set, apply the config NetworkSpeed to networks in host mode
 	if c.NetworkSpeed != 0 {
-		for _, n := range ns {
-			n.MBits = c.NetworkSpeed
+		for _, n := range up {
+			if n.Mode == "host" {
+				n.MBits = c.NetworkSpeed
+			}
 		}
 	}
-	return ns
+	return up
 }
 
 // retryIntv calculates a retry interval value given the base
@@ -1532,6 +1560,10 @@ func (c *Client) registerAndHeartbeat() {
 	}
 }
 
+func (c *Client) lastHeartbeat() time.Time {
+	return c.heartbeatStop.getLastOk()
+}
+
 // getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
 // another heartbeat.
 func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
@@ -1542,7 +1574,7 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 	// Collect the useful heartbeat info
 	c.heartbeatLock.Lock()
 	haveHeartbeated := c.haveHeartbeated
-	last := c.lastHeartbeat
+	last := c.lastHeartbeat()
 	ttl := c.heartbeatTTL
 	c.heartbeatLock.Unlock()
 
@@ -1742,7 +1774,7 @@ func (c *Client) registerNode() error {
 
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
-	c.lastHeartbeat = time.Now()
+	c.heartbeatStop.setLastOk(time.Now())
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
 }
@@ -1768,10 +1800,10 @@ func (c *Client) updateNodeStatus() error {
 
 	// Update the last heartbeat and the new TTL, capturing the old values
 	c.heartbeatLock.Lock()
-	last := c.lastHeartbeat
+	last := c.lastHeartbeat()
 	oldTTL := c.heartbeatTTL
 	haveHeartbeated := c.haveHeartbeated
-	c.lastHeartbeat = time.Now()
+	c.heartbeatStop.setLastOk(time.Now())
 	c.heartbeatTTL = resp.HeartbeatTTL
 	c.haveHeartbeated = true
 	c.heartbeatLock.Unlock()
@@ -1816,6 +1848,7 @@ func (c *Client) updateNodeStatus() error {
 		c.triggerDiscovery()
 	}
 
+	c.EnterpriseClient.SetFeatures(resp.Features)
 	return nil
 }
 
@@ -1905,9 +1938,6 @@ func (c *Client) allocSync() {
 // allocUpdates holds the results of receiving updated allocations from the
 // servers.
 type allocUpdates struct {
-	// index is index of server store snapshot used for fetching alloc status
-	index uint64
-
 	// pulled is the set of allocations that were downloaded from the servers.
 	pulled map[string]*structs.Allocation
 
@@ -2090,7 +2120,6 @@ OUTER:
 			filtered:      filtered,
 			pulled:        pulledAllocs,
 			migrateTokens: resp.MigrateTokens,
-			index:         resp.Index,
 		}
 
 		select {
@@ -2367,6 +2396,9 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
+
+	// Maybe mark the alloc for halt on missing server heartbeats
+	c.heartbeatStop.allocHook(alloc)
 
 	go ar.Run()
 	return nil

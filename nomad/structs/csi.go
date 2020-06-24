@@ -185,6 +185,43 @@ func (v *CSIMountOptions) GoString() string {
 	return v.String()
 }
 
+// CSISecrets contain optional additional configuration that can be used
+// when specifying that a Volume should be used with VolumeAccessTypeMount.
+type CSISecrets map[string]string
+
+// CSISecrets implements the Stringer and GoStringer interfaces to prevent
+// accidental leakage of secrets via logs.
+var _ fmt.Stringer = &CSISecrets{}
+var _ fmt.GoStringer = &CSISecrets{}
+
+func (s *CSISecrets) String() string {
+	redacted := map[string]string{}
+	for k := range *s {
+		redacted[k] = "[REDACTED]"
+	}
+	return fmt.Sprintf("csi.CSISecrets(%v)", redacted)
+}
+
+func (s *CSISecrets) GoString() string {
+	return s.String()
+}
+
+type CSIVolumeClaim struct {
+	AllocationID string
+	NodeID       string
+	Mode         CSIVolumeClaimMode
+	State        CSIVolumeClaimState
+}
+
+type CSIVolumeClaimState int
+
+const (
+	CSIVolumeClaimStateTaken CSIVolumeClaimState = iota
+	CSIVolumeClaimStateNodeDetached
+	CSIVolumeClaimStateControllerDetached
+	CSIVolumeClaimStateReadyToFree
+)
+
 // CSIVolume is the full representation of a CSI Volume
 type CSIVolume struct {
 	// ID is a namespace unique URL safe identifier for the volume
@@ -198,10 +235,17 @@ type CSIVolume struct {
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
 	MountOptions   *CSIMountOptions
+	Secrets        CSISecrets
+	Parameters     map[string]string
+	Context        map[string]string
 
 	// Allocations, tracking claim status
-	ReadAllocs  map[string]*Allocation
-	WriteAllocs map[string]*Allocation
+	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
+	WriteAllocs map[string]*Allocation // AllocID -> Allocation
+
+	ReadClaims  map[string]*CSIVolumeClaim // AllocID -> claim
+	WriteClaims map[string]*CSIVolumeClaim // AllocID -> claim
+	PastClaims  map[string]*CSIVolumeClaim // AllocID -> claim
 
 	// Schedulable is true if all the denormalized plugin health fields are true, and the
 	// volume has not been marked for garbage collection
@@ -229,7 +273,6 @@ type CSIVolListStub struct {
 	Topologies          []*CSITopology
 	AccessMode          CSIVolumeAccessMode
 	AttachmentMode      CSIVolumeAttachmentMode
-	MountOptions        *CSIMountOptions
 	CurrentReaders      int
 	CurrentWriters      int
 	Schedulable         bool
@@ -259,9 +302,22 @@ func (v *CSIVolume) newStructs() {
 	if v.Topologies == nil {
 		v.Topologies = []*CSITopology{}
 	}
+	if v.Context == nil {
+		v.Context = map[string]string{}
+	}
+	if v.Parameters == nil {
+		v.Parameters = map[string]string{}
+	}
+	if v.Secrets == nil {
+		v.Secrets = CSISecrets{}
+	}
 
 	v.ReadAllocs = map[string]*Allocation{}
 	v.WriteAllocs = map[string]*Allocation{}
+
+	v.ReadClaims = map[string]*CSIVolumeClaim{}
+	v.WriteClaims = map[string]*CSIVolumeClaim{}
+	v.PastClaims = map[string]*CSIVolumeClaim{}
 }
 
 func (v *CSIVolume) RemoteID() string {
@@ -280,7 +336,6 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		Topologies:          v.Topologies,
 		AccessMode:          v.AccessMode,
 		AttachmentMode:      v.AttachmentMode,
-		MountOptions:        v.MountOptions,
 		CurrentReaders:      len(v.ReadAllocs),
 		CurrentWriters:      len(v.WriteAllocs),
 		Schedulable:         v.Schedulable,
@@ -341,6 +396,15 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	copy := *v
 	out := &copy
 	out.newStructs()
+	for k, v := range v.Parameters {
+		out.Parameters[k] = v
+	}
+	for k, v := range v.Context {
+		out.Context[k] = v
+	}
+	for k, v := range v.Secrets {
+		out.Secrets[k] = v
+	}
 
 	for k, v := range v.ReadAllocs {
 		out.ReadAllocs[k] = v
@@ -350,26 +414,42 @@ func (v *CSIVolume) Copy() *CSIVolume {
 		out.WriteAllocs[k] = v
 	}
 
+	for k, v := range v.ReadClaims {
+		claim := *v
+		out.ReadClaims[k] = &claim
+	}
+	for k, v := range v.WriteClaims {
+		claim := *v
+		out.WriteClaims[k] = &claim
+	}
+	for k, v := range v.PastClaims {
+		claim := *v
+		out.PastClaims[k] = &claim
+	}
+
 	return out
 }
 
 // Claim updates the allocations and changes the volume state
-func (v *CSIVolume) Claim(claim CSIVolumeClaimMode, alloc *Allocation) error {
-	switch claim {
+func (v *CSIVolume) Claim(claim *CSIVolumeClaim, alloc *Allocation) error {
+	switch claim.Mode {
 	case CSIVolumeClaimRead:
-		return v.ClaimRead(alloc)
+		return v.ClaimRead(claim, alloc)
 	case CSIVolumeClaimWrite:
-		return v.ClaimWrite(alloc)
+		return v.ClaimWrite(claim, alloc)
 	case CSIVolumeClaimRelease:
-		return v.ClaimRelease(alloc)
+		return v.ClaimRelease(claim)
 	}
 	return nil
 }
 
 // ClaimRead marks an allocation as using a volume read-only
-func (v *CSIVolume) ClaimRead(alloc *Allocation) error {
-	if _, ok := v.ReadAllocs[alloc.ID]; ok {
+func (v *CSIVolume) ClaimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
+	if _, ok := v.ReadAllocs[claim.AllocationID]; ok {
 		return nil
+	}
+	if alloc == nil {
+		return fmt.Errorf("allocation missing: %s", claim.AllocationID)
 	}
 
 	if !v.ReadSchedulable() {
@@ -378,15 +458,23 @@ func (v *CSIVolume) ClaimRead(alloc *Allocation) error {
 
 	// Allocations are copy on write, so we want to keep the id but don't need the
 	// pointer. We'll get it from the db in denormalize.
-	v.ReadAllocs[alloc.ID] = nil
-	delete(v.WriteAllocs, alloc.ID)
+	v.ReadAllocs[claim.AllocationID] = nil
+	delete(v.WriteAllocs, claim.AllocationID)
+
+	v.ReadClaims[claim.AllocationID] = claim
+	delete(v.WriteClaims, claim.AllocationID)
+	delete(v.PastClaims, claim.AllocationID)
+
 	return nil
 }
 
 // ClaimWrite marks an allocation as using a volume as a writer
-func (v *CSIVolume) ClaimWrite(alloc *Allocation) error {
-	if _, ok := v.WriteAllocs[alloc.ID]; ok {
+func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
+	if _, ok := v.WriteAllocs[claim.AllocationID]; ok {
 		return nil
+	}
+	if alloc == nil {
+		return fmt.Errorf("allocation missing: %s", claim.AllocationID)
 	}
 
 	if !v.WriteSchedulable() {
@@ -406,13 +494,26 @@ func (v *CSIVolume) ClaimWrite(alloc *Allocation) error {
 	// pointer. We'll get it from the db in denormalize.
 	v.WriteAllocs[alloc.ID] = nil
 	delete(v.ReadAllocs, alloc.ID)
+
+	v.WriteClaims[alloc.ID] = claim
+	delete(v.ReadClaims, alloc.ID)
+	delete(v.PastClaims, alloc.ID)
+
 	return nil
 }
 
-// ClaimRelease is called when the allocation has terminated and already stopped using the volume
-func (v *CSIVolume) ClaimRelease(alloc *Allocation) error {
-	delete(v.ReadAllocs, alloc.ID)
-	delete(v.WriteAllocs, alloc.ID)
+// ClaimRelease is called when the allocation has terminated and
+// already stopped using the volume
+func (v *CSIVolume) ClaimRelease(claim *CSIVolumeClaim) error {
+	if claim.State == CSIVolumeClaimStateReadyToFree {
+		delete(v.ReadAllocs, claim.AllocationID)
+		delete(v.WriteAllocs, claim.AllocationID)
+		delete(v.ReadClaims, claim.AllocationID)
+		delete(v.WriteClaims, claim.AllocationID)
+		delete(v.PastClaims, claim.AllocationID)
+	} else {
+		v.PastClaims[claim.AllocationID] = claim
+	}
 	return nil
 }
 
@@ -513,11 +614,26 @@ const (
 	CSIVolumeClaimRelease
 )
 
+type CSIVolumeClaimBatchRequest struct {
+	Claims []CSIVolumeClaimRequest
+}
+
 type CSIVolumeClaimRequest struct {
 	VolumeID     string
 	AllocationID string
+	NodeID       string
 	Claim        CSIVolumeClaimMode
+	State        CSIVolumeClaimState
 	WriteRequest
+}
+
+func (req *CSIVolumeClaimRequest) ToClaim() *CSIVolumeClaim {
+	return &CSIVolumeClaim{
+		AllocationID: req.AllocationID,
+		NodeID:       req.NodeID,
+		Mode:         req.Claim,
+		State:        req.State,
+	}
 }
 
 type CSIVolumeClaimResponse struct {
@@ -625,7 +741,8 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 	if info.ControllerInfo != nil {
 		p.ControllerRequired = info.RequiresControllerPlugin &&
-			info.ControllerInfo.SupportsAttachDetach
+			(info.ControllerInfo.SupportsAttachDetach ||
+				info.ControllerInfo.SupportsReadOnlyAttach)
 
 		prev, ok := p.Controllers[nodeID]
 		if ok {
@@ -636,7 +753,14 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.ControllersHealthy -= 1
 			}
 		}
-		p.Controllers[nodeID] = info
+
+		// note: for this to work as expected, only a single
+		// controller for a given plugin can be on a given Nomad
+		// client, they also conflict on the client so this should be
+		// ok
+		if prev != nil || info.Healthy {
+			p.Controllers[nodeID] = info
+		}
 		if info.Healthy {
 			p.ControllersHealthy += 1
 		}
@@ -652,7 +776,9 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 				p.NodesHealthy -= 1
 			}
 		}
-		p.Nodes[nodeID] = info
+		if prev != nil || info.Healthy {
+			p.Nodes[nodeID] = info
+		}
 		if info.Healthy {
 			p.NodesHealthy += 1
 		}
@@ -780,5 +906,14 @@ type CSIPluginGetRequest struct {
 
 type CSIPluginGetResponse struct {
 	Plugin *CSIPlugin
+	QueryMeta
+}
+
+type CSIPluginDeleteRequest struct {
+	ID string
+	QueryOptions
+}
+
+type CSIPluginDeleteResponse struct {
 	QueryMeta
 }

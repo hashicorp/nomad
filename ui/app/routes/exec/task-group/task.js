@@ -1,39 +1,27 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 
-export default Route.extend({
-  store: service(),
+export default class TaskRoute extends Route {
+  @service store;
 
   model({ task_name }) {
     const allocationQueryParam = this.paramsFor('exec').allocation;
+    const taskGroupName = this.paramsFor('exec.task-group').task_group_name;
 
-    return this.modelFor('exec').allocations.then(allocations => {
-      let allocation;
+    return {
+      allocationShortId: allocationQueryParam,
+      taskName: task_name,
+      taskGroupName,
+    };
+  }
 
-      if (allocationQueryParam) {
-        allocation = allocations.findBy('shortId', allocationQueryParam);
-      } else {
-        allocation = allocations.find(allocation =>
-          allocation.states
-            .filterBy('isActive')
-            .mapBy('name')
-            .includes(task_name)
-        );
-      }
-
-      return {
-        allocation,
-        allocationSpecified: allocationQueryParam ? true : false,
-        taskState: allocation.states.find(state => state.name === task_name),
-      };
+  setupController(controller, { allocationShortId, taskGroupName, taskName }) {
+    this.controllerFor('exec').send('setTaskProperties', {
+      allocationShortId,
+      taskName,
+      taskGroupName,
     });
-  },
 
-  afterModel(model) {
-    this.controllerFor('exec').send('setTaskState', model);
-  },
-
-  setupController(controller, { allocation, taskState }) {
-    controller.setProperties({ allocation, taskState });
-  },
-});
+    super.setupController(...arguments);
+  }
+}

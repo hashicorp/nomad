@@ -39,7 +39,7 @@ of the most useful status fields for each.
   plugin][csi_plugin].
 
 - `-short`: Display short output. Used only when a single volume is
-  being queried.  Drops verbose volume allocation data from the
+  being queried. Drops verbose volume allocation data from the
   output.
 
 - `-verbose`: Show full information. Allocation create and modify
@@ -49,7 +49,7 @@ of the most useful status fields for each.
 
 List of all volumes:
 
-```shell
+```shell-session
 $ nomad volume [-type csi] status
 ID            Name      Plugin ID  Schedulable  Access Mode
 ebs_prod_db1  database  ebs-prod   true         single-node-writer
@@ -57,7 +57,7 @@ ebs_prod_db1  database  ebs-prod   true         single-node-writer
 
 Short view of a specific volume:
 
-```shell
+```shell-session
 $ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database
@@ -79,7 +79,7 @@ Namespace            = default
 
 Full status information of a volume:
 
-```shell
+```shell-session
 $ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database

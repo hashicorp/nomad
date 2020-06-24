@@ -145,16 +145,20 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
+	var region *string
+
 	// Region in http request query param takes precedence over region in job hcl config
 	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
+		region = helper.StringToPtr(args.WriteRequest.Region)
 	}
 	// If 'global' region is specified or if no region is given,
 	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
+	if region == nil || args.Job.Region == nil ||
+		*args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
+		region = &s.agent.config.Region
 	}
 
+	args.Job.Region = regionForJob(args.Job, region)
 	sJob := ApiJobToStructJob(args.Job)
 
 	planReq := structs.JobPlanRequest{
@@ -162,7 +166,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		Diff:           args.Diff,
 		PolicyOverride: args.PolicyOverride,
 		WriteRequest: structs.WriteRequest{
-			Region: sJob.Region,
+			Region: *region,
 		},
 	}
 	// parseWriteRequest overrides Namespace, Region and AuthToken
@@ -394,17 +398,27 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
+	if args.Job.Multiregion != nil && args.Job.Region != nil {
+		region := *args.Job.Region
+		if !(region == "global" || region == "") {
+			return nil, CodedError(400, "Job can't have both multiregion and region blocks")
+		}
+	}
+
+	var region *string
 
 	// Region in http request query param takes precedence over region in job hcl config
 	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
+		region = helper.StringToPtr(args.WriteRequest.Region)
 	}
 	// If 'global' region is specified or if no region is given,
 	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
+	if region == nil || args.Job.Region == nil ||
+		*args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
+		region = &s.agent.config.Region
 	}
 
+	args.Job.Region = regionForJob(args.Job, region)
 	sJob := ApiJobToStructJob(args.Job)
 
 	regReq := structs.JobRegisterRequest{
@@ -412,8 +426,9 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
+		PreserveCounts: args.PreserveCounts,
 		WriteRequest: structs.WriteRequest{
-			Region:    sJob.Region,
+			Region:    *region,
 			AuthToken: args.WriteRequest.SecretID,
 		},
 	}
@@ -761,6 +776,23 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	if job.Multiregion != nil {
+		j.Multiregion = &structs.Multiregion{}
+		j.Multiregion.Strategy = &structs.MultiregionStrategy{
+			MaxParallel: *job.Multiregion.Strategy.MaxParallel,
+			OnFailure:   *job.Multiregion.Strategy.OnFailure,
+		}
+		j.Multiregion.Regions = []*structs.MultiregionRegion{}
+		for _, region := range job.Multiregion.Regions {
+			r := &structs.MultiregionRegion{}
+			r.Name = region.Name
+			r.Count = *region.Count
+			r.Datacenters = region.Datacenters
+			r.Meta = region.Meta
+			j.Multiregion.Regions = append(j.Multiregion.Regions, r)
+		}
+	}
+
 	if l := len(job.TaskGroups); l != 0 {
 		j.TaskGroups = make([]*structs.TaskGroup, l)
 		for i, taskGroup := range job.TaskGroups {
@@ -791,6 +823,10 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 
 	if taskGroup.ShutdownDelay != nil {
 		tg.ShutdownDelay = taskGroup.ShutdownDelay
+	}
+
+	if taskGroup.StopAfterClientDisconnect != nil {
+		tg.StopAfterClientDisconnect = taskGroup.StopAfterClientDisconnect
 	}
 
 	if taskGroup.ReschedulePolicy != nil {
@@ -1095,30 +1131,39 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			MBits: *nw.MBits,
 		}
 
+		if nw.DNS != nil {
+			out[i].DNS = &structs.DNSConfig{
+				Servers:  nw.DNS.Servers,
+				Searches: nw.DNS.Searches,
+				Options:  nw.DNS.Options,
+			}
+		}
+
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
 			for j, dp := range nw.DynamicPorts {
-				out[i].DynamicPorts[j] = structs.Port{
-					Label: dp.Label,
-					Value: dp.Value,
-					To:    dp.To,
-				}
+				out[i].DynamicPorts[j] = ApiPortToStructs(dp)
 			}
 		}
 
 		if l := len(nw.ReservedPorts); l != 0 {
 			out[i].ReservedPorts = make([]structs.Port, l)
 			for j, rp := range nw.ReservedPorts {
-				out[i].ReservedPorts[j] = structs.Port{
-					Label: rp.Label,
-					Value: rp.Value,
-					To:    rp.To,
-				}
+				out[i].ReservedPorts[j] = ApiPortToStructs(rp)
 			}
 		}
 	}
 
 	return out
+}
+
+func ApiPortToStructs(in api.Port) structs.Port {
+	return structs.Port{
+		Label:       in.Label,
+		Value:       in.Value,
+		To:          in.To,
+		HostNetwork: in.HostNetwork,
+	}
 }
 
 //TODO(schmichael) refactor and reuse in service parsing above

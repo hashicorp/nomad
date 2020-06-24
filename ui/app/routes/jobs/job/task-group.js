@@ -7,7 +7,7 @@ import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import notifyError from 'nomad-ui/utils/notify-error';
 
-export default Route.extend(WithWatchers, {
+export default class TaskGroupRoute extends Route.extend(WithWatchers) {
   breadcrumbs(model) {
     if (!model) return [];
     return [
@@ -21,7 +21,7 @@ export default Route.extend(WithWatchers, {
         ],
       },
     ];
-  },
+  }
 
   model({ name }) {
     const job = this.modelFor('jobs.job');
@@ -49,7 +49,7 @@ export default Route.extend(WithWatchers, {
           .then(() => taskGroup);
       })
       .catch(notifyError(this));
-  },
+  }
 
   startWatchers(controller, model) {
     if (model) {
@@ -58,13 +58,15 @@ export default Route.extend(WithWatchers, {
         job: this.watchJob.perform(job),
         summary: this.watchSummary.perform(job.get('summary')),
         allocations: this.watchAllocations.perform(job),
+        latestDeployment: job.get('supportsDeployments') && this.watchLatestDeployment.perform(job),
       });
     }
-  },
+  }
 
-  watchJob: watchRecord('job'),
-  watchSummary: watchRecord('job-summary'),
-  watchAllocations: watchRelationship('allocations'),
+  @watchRecord('job') watchJob;
+  @watchRecord('job-summary') watchSummary;
+  @watchRelationship('allocations') watchAllocations;
+  @watchRelationship('latestDeployment') watchLatestDeployment;
 
-  watchers: collect('watchJob', 'watchSummary', 'watchAllocations'),
-});
+  @collect('watchJob', 'watchSummary', 'watchAllocations', 'watchLatestDeployment') watchers;
+}

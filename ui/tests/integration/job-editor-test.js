@@ -25,13 +25,10 @@ module('Integration | Component | job-editor', function(hooks) {
 
     // Required for placing allocations (a result of creating jobs)
     this.server.create('node');
-
-    await Editor.setContext(this);
   });
 
   hooks.afterEach(async function() {
     this.server.shutdown();
-    await Editor.removeContext();
   });
 
   const newJobName = 'new-job';

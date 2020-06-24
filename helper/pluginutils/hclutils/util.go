@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/hcl2/hcl"
-	hjson "github.com/hashicorp/hcl2/hcl/json"
-	"github.com/hashicorp/hcl2/hcldec"
+	hcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
+	hjson "github.com/hashicorp/hcl/v2/json"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"

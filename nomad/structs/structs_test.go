@@ -1019,7 +1019,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	tg = &TaskGroup{
 		Networks: []*NetworkResource{
 			{
-				DynamicPorts: []Port{{"http", 0, 80}},
+				DynamicPorts: []Port{{"http", 0, 80, ""}},
 			},
 		},
 		Tasks: []*Task{
@@ -1027,7 +1027,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 				Resources: &Resources{
 					Networks: []*NetworkResource{
 						{
-							DynamicPorts: []Port{{"http", 0, 80}},
+							DynamicPorts: []Port{{"http", 0, 80, ""}},
 						},
 					},
 				},
@@ -1036,7 +1036,6 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	err = tg.Validate(j)
 	require.Contains(t, err.Error(), "Port label http already in use")
-	require.Contains(t, err.Error(), "Port mapped to 80 already in use")
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
@@ -2325,7 +2324,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         100,
-				ReservedPorts: []Port{{"ssh", 22, 0}},
+				ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 			},
 		},
 	}
@@ -2337,7 +2336,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				IP:            "10.0.0.1",
 				MBits:         50,
-				ReservedPorts: []Port{{"web", 80, 0}},
+				ReservedPorts: []Port{{"web", 80, 0, ""}},
 			},
 		},
 	}
@@ -2355,7 +2354,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         150,
-				ReservedPorts: []Port{{"ssh", 22, 0}, {"web", 80, 0}},
+				ReservedPorts: []Port{{"ssh", 22, 0, ""}, {"web", 80, 0, ""}},
 			},
 		},
 	}
@@ -2371,7 +2370,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        50,
-				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}},
+				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}},
 			},
 		},
 	}
@@ -2379,7 +2378,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        25,
-				DynamicPorts: []Port{{"admin", 0, 8080}},
+				DynamicPorts: []Port{{"admin", 0, 8080, ""}},
 			},
 		},
 	}
@@ -2397,7 +2396,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        75,
-				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}, {"admin", 0, 8080}},
+				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 			},
 		},
 	}
@@ -2420,7 +2419,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22, 0}},
+					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 				},
 			},
 		},
@@ -2441,7 +2440,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         20,
-					ReservedPorts: []Port{{"ssh", 22, 0}},
+					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 				},
 			},
 		},
@@ -2463,7 +2462,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22, 0}},
+					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 				},
 			},
 		},
@@ -2903,45 +2902,42 @@ func TestPeriodicConfig_ValidCron(t *testing.T) {
 }
 
 func TestPeriodicConfig_NextCron(t *testing.T) {
-	require := require.New(t)
-
-	type testExpectation struct {
-		Time     time.Time
-		HasError bool
-		ErrorMsg string
-	}
-
 	from := time.Date(2009, time.November, 10, 23, 22, 30, 0, time.UTC)
-	specs := []string{"0 0 29 2 * 1980",
-		"*/5 * * * *",
-		"1 15-0 * * 1-5"}
-	expected := []*testExpectation{
+
+	cases := []struct {
+		spec     string
+		nextTime time.Time
+		errorMsg string
+	}{
 		{
-			Time:     time.Time{},
-			HasError: false,
+			spec:     "0 0 29 2 * 1980",
+			nextTime: time.Time{},
 		},
 		{
-			Time:     time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC),
-			HasError: false,
+			spec:     "*/5 * * * *",
+			nextTime: time.Date(2009, time.November, 10, 23, 25, 0, 0, time.UTC),
 		},
 		{
-			Time:     time.Time{},
-			HasError: true,
-			ErrorMsg: "failed parsing cron expression",
+			spec:     "1 15-0 *",
+			nextTime: time.Time{},
+			errorMsg: "failed parsing cron expression",
 		},
 	}
 
-	for i, spec := range specs {
-		p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: spec}
-		p.Canonicalize()
-		n, err := p.Next(from)
-		nextExpected := expected[i]
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("case: %d: %s", i, c.spec), func(t *testing.T) {
+			p := &PeriodicConfig{Enabled: true, SpecType: PeriodicSpecCron, Spec: c.spec}
+			p.Canonicalize()
+			n, err := p.Next(from)
 
-		require.Equal(nextExpected.Time, n)
-		require.Equal(err != nil, nextExpected.HasError)
-		if err != nil {
-			require.True(strings.Contains(err.Error(), nextExpected.ErrorMsg))
-		}
+			require.Equal(t, c.nextTime, n)
+			if c.errorMsg == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.errorMsg)
+			}
+		})
 	}
 }
 
@@ -2963,7 +2959,7 @@ func TestPeriodicConfig_DST(t *testing.T) {
 	p := &PeriodicConfig{
 		Enabled:  true,
 		SpecType: PeriodicSpecCron,
-		Spec:     "0 2 11-12 3 * 2017",
+		Spec:     "0 2 11-13 3 * 2017",
 		TimeZone: "America/Los_Angeles",
 	}
 	p.Canonicalize()
@@ -2973,7 +2969,7 @@ func TestPeriodicConfig_DST(t *testing.T) {
 
 	// E1 is an 8 hour adjustment, E2 is a 7 hour adjustment
 	e1 := time.Date(2017, time.March, 11, 10, 0, 0, 0, time.UTC)
-	e2 := time.Date(2017, time.March, 12, 9, 0, 0, 0, time.UTC)
+	e2 := time.Date(2017, time.March, 13, 9, 0, 0, 0, time.UTC)
 
 	n1, err := p.Next(t1)
 	require.Nil(err)
@@ -3566,7 +3562,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 	}
 	stoppedAlloc := MockAlloc()
 	desiredDesc := "Desired desc"
-	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost, "followup-eval-id")
 	preemptedAlloc := MockAlloc()
 	preemptingAllocID := uuid.Generate()
 	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
@@ -3578,6 +3574,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 		ID:                 stoppedAlloc.ID,
 		DesiredDescription: desiredDesc,
 		ClientStatus:       AllocClientStatusLost,
+		FollowupEvalID:     "followup-eval-id",
 	}
 	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
 	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
@@ -3596,15 +3593,23 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	alloc := MockAlloc()
 	desiredDesc := "Desired desc"
 
-	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost)
+	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost, "")
 
-	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
 	expectedAlloc := new(Allocation)
 	*expectedAlloc = *alloc
 	expectedAlloc.DesiredDescription = desiredDesc
 	expectedAlloc.DesiredStatus = AllocDesiredStatusStop
 	expectedAlloc.ClientStatus = AllocClientStatusLost
 	expectedAlloc.Job = nil
+	expectedAlloc.AllocStates = []*AllocState{{
+		Field: AllocStateFieldClientStatus,
+		Value: "lost",
+	}}
+
+	// This value is set to time.Now() in AppendStoppedAlloc, so clear it
+	appendedAlloc := plan.NodeUpdate[alloc.NodeID][0]
+	appendedAlloc.AllocStates[0].Time = time.Time{}
+
 	assert.Equal(t, expectedAlloc, appendedAlloc)
 	assert.Equal(t, alloc.Job, plan.Job)
 }
@@ -4375,6 +4380,65 @@ func TestAllocation_NextDelay(t *testing.T) {
 
 }
 
+func TestAllocation_WaitClientStop(t *testing.T) {
+	type testCase struct {
+		desc                   string
+		stop                   time.Duration
+		status                 string
+		expectedShould         bool
+		expectedRescheduleTime time.Time
+	}
+	now := time.Now().UTC()
+	testCases := []testCase{
+		{
+			desc:           "running",
+			stop:           2 * time.Second,
+			status:         AllocClientStatusRunning,
+			expectedShould: true,
+		},
+		{
+			desc:           "no stop_after_client_disconnect",
+			status:         AllocClientStatusLost,
+			expectedShould: false,
+		},
+		{
+			desc:                   "stop",
+			status:                 AllocClientStatusLost,
+			stop:                   2 * time.Second,
+			expectedShould:         true,
+			expectedRescheduleTime: now.Add((2 + 5) * time.Second),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			j := testJob()
+			a := &Allocation{
+				ClientStatus: tc.status,
+				Job:          j,
+				TaskStates:   map[string]*TaskState{},
+			}
+
+			if tc.status == AllocClientStatusLost {
+				a.AppendState(AllocStateFieldClientStatus, AllocClientStatusLost)
+			}
+
+			j.TaskGroups[0].StopAfterClientDisconnect = &tc.stop
+			a.TaskGroup = j.TaskGroups[0].Name
+
+			require.Equal(t, tc.expectedShould, a.ShouldClientStop())
+
+			if !tc.expectedShould || tc.status != AllocClientStatusLost {
+				return
+			}
+
+			// the reschedTime is close to the expectedRescheduleTime
+			reschedTime := a.WaitClientStop()
+			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
+			require.Less(t, e, int64(2))
+		})
+	}
+}
+
 func TestAllocation_Canonicalize_Old(t *testing.T) {
 	alloc := MockAlloc()
 	alloc.AllocatedResources = nil
@@ -4742,12 +4806,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 			},
 			true,
@@ -4758,12 +4822,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.0",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4774,12 +4838,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         40,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4790,12 +4854,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}, {"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4806,7 +4870,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
@@ -4822,12 +4886,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"notweb", 80, 0}},
+					ReservedPorts: []Port{{"notweb", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4838,12 +4902,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}, {"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4854,7 +4918,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:           "10.0.0.1",
@@ -4870,12 +4934,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"notweb", 80, 0}},
+					DynamicPorts: []Port{{"notweb", 80, 0, ""}},
 				},
 			},
 			false,
@@ -5172,5 +5236,232 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		}
 
 		require.Equal(out, tc.Parsed)
+	}
+}
+
+func TestMultiregion_CopyCanonicalize(t *testing.T) {
+	require := require.New(t)
+
+	emptyOld := &Multiregion{}
+	expected := &Multiregion{
+		Strategy: &MultiregionStrategy{},
+		Regions:  []*MultiregionRegion{},
+	}
+
+	old := emptyOld.Copy()
+	old.Canonicalize()
+	require.Equal(old, expected)
+	require.False(old.Diff(expected))
+
+	nonEmptyOld := &Multiregion{
+		Strategy: &MultiregionStrategy{
+			MaxParallel: 2,
+			OnFailure:   "fail_all",
+		},
+		Regions: []*MultiregionRegion{
+			{
+				Name:        "west",
+				Count:       2,
+				Datacenters: []string{"west-1", "west-2"},
+				Meta:        map[string]string{},
+			},
+			{
+				Name:        "east",
+				Count:       1,
+				Datacenters: []string{"east-1"},
+				Meta:        map[string]string{},
+			},
+		},
+	}
+
+	old = nonEmptyOld.Copy()
+	old.Canonicalize()
+	require.Equal(old, nonEmptyOld)
+	require.False(old.Diff(nonEmptyOld))
+}
+
+func TestMultiregion_Starter(t *testing.T) {
+	require := require.New(t)
+
+	j := &Job{}
+	j.Type = "service"
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+
+	tc := &Multiregion{
+		Strategy: &MultiregionStrategy{},
+		Regions: []*MultiregionRegion{
+			{Name: "north"},
+			{Name: "south"},
+			{Name: "east"},
+			{Name: "west"},
+		},
+	}
+
+	b := &Job{}
+	b.Type = "batch"
+	b.Multiregion = tc
+	b.Region = "west"
+	require.True(j.IsMultiregionStarter())
+
+	j.Multiregion = tc
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "south"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "east"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "west"
+	require.True(j.IsMultiregionStarter())
+
+	tc.Strategy = &MultiregionStrategy{MaxParallel: 1}
+	j.Multiregion = tc
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "south"
+	require.False(j.IsMultiregionStarter())
+	j.Region = "east"
+	require.False(j.IsMultiregionStarter())
+	j.Region = "west"
+	require.False(j.IsMultiregionStarter())
+
+	tc.Strategy = &MultiregionStrategy{MaxParallel: 2}
+	j.Multiregion = tc
+	j.Region = "north"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "south"
+	require.True(j.IsMultiregionStarter())
+	j.Region = "east"
+	require.False(j.IsMultiregionStarter())
+	j.Region = "west"
+	require.False(j.IsMultiregionStarter())
+
+}
+
+func TestNodeResources_Merge(t *testing.T) {
+	res := &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(64000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+		},
+	}
+
+	res.Merge(&NodeResources{
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Mode: "foo/bar",
+			},
+		},
+	})
+
+	require.Exactly(t, &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+			{
+				Mode: "foo/bar",
+			},
+		},
+	}, res)
+}
+
+func TestMultiregion_Validate(t *testing.T) {
+	require := require.New(t)
+	cases := []struct {
+		Name    string
+		JobType string
+		Case    *Multiregion
+		Errors  []string
+	}{
+		{
+			Name:    "empty valid multiregion spec",
+			JobType: JobTypeService,
+			Case:    &Multiregion{},
+			Errors:  []string{},
+		},
+
+		{
+			Name:    "non-empty valid multiregion spec",
+			JobType: JobTypeService,
+			Case: &Multiregion{
+				Strategy: &MultiregionStrategy{
+					MaxParallel: 2,
+					OnFailure:   "fail_all",
+				},
+				Regions: []*MultiregionRegion{
+					{
+
+						Count:       2,
+						Datacenters: []string{"west-1", "west-2"},
+						Meta:        map[string]string{},
+					},
+					{
+						Name:        "east",
+						Count:       1,
+						Datacenters: []string{"east-1"},
+						Meta:        map[string]string{},
+					},
+				},
+			},
+			Errors: []string{},
+		},
+
+		{
+			Name:    "repeated region, wrong strategy, missing DCs",
+			JobType: JobTypeBatch,
+			Case: &Multiregion{
+				Strategy: &MultiregionStrategy{
+					MaxParallel: 2,
+				},
+				Regions: []*MultiregionRegion{
+					{
+						Name:        "west",
+						Datacenters: []string{"west-1", "west-2"},
+					},
+
+					{
+						Name: "west",
+					},
+				},
+			},
+			Errors: []string{
+				"Multiregion region \"west\" can't be listed twice",
+				"Multiregion region \"west\" must have at least 1 datacenter",
+				"Multiregion batch jobs can't have an update strategy",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Case.Validate(tc.JobType)
+			if len(tc.Errors) == 0 {
+				require.NoError(err)
+			} else {
+				mErr := err.(*multierror.Error)
+				for i, expectedErr := range tc.Errors {
+					if !strings.Contains(mErr.Errors[i].Error(), expectedErr) {
+						t.Fatalf("err: %s, expected: %s", err, expectedErr)
+					}
+				}
+			}
+		})
 	}
 }

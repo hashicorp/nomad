@@ -33,7 +33,10 @@ func TestMain(m *testing.M) {
 }
 
 func newEnabledRawExecDriver(t *testing.T) *Driver {
-	d := NewRawExecDriver(testlog.HCLogger(t)).(*Driver)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(func() { cancel() })
+
+	d := NewRawExecDriver(ctx, testlog.HCLogger(t)).(*Driver)
 	d.config.Enabled = true
 	return d
 }
@@ -42,7 +45,10 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewRawExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewRawExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 

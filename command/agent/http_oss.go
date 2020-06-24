@@ -19,6 +19,8 @@ func (s *HTTPServer) registerEnterpriseHandlers() {
 	s.mux.HandleFunc("/v1/quota-usages", s.wrap(s.entOnly))
 	s.mux.HandleFunc("/v1/quota/", s.wrap(s.entOnly))
 	s.mux.HandleFunc("/v1/quota", s.wrap(s.entOnly))
+
+	s.mux.HandleFunc("/v1/operator/license", s.wrap(s.entOnly))
 }
 
 func (s *HTTPServer) entOnly(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

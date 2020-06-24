@@ -156,7 +156,7 @@ func newConnectTask(serviceName string) *structs.Task {
 	task := &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, serviceName),
-		Kind:          structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, serviceName)),
+		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, serviceName),
 		Driver:        "docker",
 		Config:        connectDriverConfig,
 		ShutdownDelay: 5 * time.Second,

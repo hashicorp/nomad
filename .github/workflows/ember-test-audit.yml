@@ -1,0 +1,71 @@
+name: Ember test audit comparison
+on:
+  pull_request:
+    paths:
+    - 'ui/**'
+
+defaults:
+  run:
+    working-directory: ui
+
+# There’s currently no way to share steps between jobs so there’s a lot of duplication
+# for running the audit for the base and PR.
+  
+jobs:
+  time-base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - uses: nanasess/setup-chromedriver@master
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '10.x'
+      - run: yarn --frozen-lockfile
+      - run: mkdir -p /tmp/test-reports
+      - run: npx ember-test-audit 3 --json --output ../base-audit.json
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: base-audit
+          path: base-audit.json
+  time-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: nanasess/setup-chromedriver@master
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '10.x'
+      - run: yarn --frozen-lockfile
+      - run: mkdir -p /tmp/test-reports
+      - run: npx ember-test-audit 3 --json --output ../pr-audit.json
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: pr-audit
+          path: pr-audit.json
+  compare:
+    needs: [time-base, time-pr]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: base-audit
+      - uses: actions/download-artifact@v2
+        with:
+          name: pr-audit
+      - uses: backspace/ember-test-audit-comparison-action@v1
+        with:
+          base-report-path: base-audit.json
+          comparison-report-path: pr-audit.json
+          base-identifier: ${{ github.event.pull_request.base.ref }}
+          comparison-identifier: ${{ github.event.pull_request.head.sha }}
+          output-path: audit-diff.md
+      - uses: marocchino/sticky-pull-request-comment@33a6cfb
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: audit-diff.md

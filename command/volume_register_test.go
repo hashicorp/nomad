@@ -57,6 +57,9 @@ namespace = "n"
 access_mode = "single-node-writer"
 attachment_mode = "file-system"
 plugin_id = "p"
+secrets {
+  mysecret = "secretvalue"
+}
 `,
 		q: &api.CSIVolume{
 			ID:             "foo",
@@ -64,6 +67,7 @@ plugin_id = "p"
 			AccessMode:     "single-node-writer",
 			AttachmentMode: "file-system",
 			PluginID:       "p",
+			Secrets:        api.CSISecrets{"mysecret": "secretvalue"},
 		},
 		err: "",
 	}, {

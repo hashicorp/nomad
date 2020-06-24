@@ -1,13 +1,27 @@
 {{title "Task group " model.name " - Job " model.job.name}}
 <div class="tabs is-subnav">
   <ul>
-    <li>{{#link-to "jobs.job.task-group" model.job model activeClass="is-active"}}Overview{{/link-to}}</li>
+    <li><LinkTo @route="jobs.job.task-group" @models={{array model.job model}} @activeClass="is-active">Overview</LinkTo></li>
   </ul>
 </div>
 <section class="section">
   <h1 class="title with-flex">
     <span>{{model.name}}</span>
-    {{exec/open-button job=model.job taskGroup=model}}
+    <div>
+      <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
+      {{#if model.scaling}}
+      <StepperInput
+        data-test-task-group-count-stepper
+        @min={{model.scaling.min}}
+        @max={{model.scaling.max}}
+        @value={{model.count}}
+        @class="is-primary is-small"
+        @disabled={{or model.job.runningDeployment (cannot "scale job")}}
+        @onChange={{action "scaleTaskGroup"}}>
+        Count
+      </StepperInput>
+      {{/if}}
+    </div>
   </h1>
 
   <div class="boxed-section is-small">
@@ -18,6 +32,14 @@
       <span class="pair" data-test-task-group-cpu><span class="term">Reserved CPU</span> {{model.reservedCPU}} MHz</span>
       <span class="pair" data-test-task-group-mem><span class="term">Reserved Memory</span> {{model.reservedMemory}} MiB</span>
       <span class="pair" data-test-task-group-disk><span class="term">Reserved Disk</span> {{model.reservedEphemeralDisk}} MiB</span>
+      {{#if model.scaling}}
+        <span class="pair" data-test-task-group-min><span class="term">Count Range</span>
+          {{model.scaling.min}} to {{model.scaling.max}}
+        </span>
+        <span class="pair" data-test-task-group-max><span class="term">Scaling Policy?</span>
+          {{if model.scaling.policy "Yes" "No"}}
+        </span>
+      {{/if}}
     </div>
   </div>
 
@@ -26,7 +48,7 @@
       <div>Allocation Status <span class="badge is-white">{{allocations.length}}</span></div>
     </div>
     <div class="boxed-section-body">
-      {{#allocation-status-bar allocationContainer=model.summary class="split-view" as |chart|}}
+      <AllocationStatusBar @allocationContainer={{model.summary}} @class="split-view" as |chart|>
         <ol class="legend">
           {{#each chart.data as |datum index|}}
             <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
@@ -38,60 +60,60 @@
             </li>
           {{/each}}
         </ol>
-      {{/allocation-status-bar}}
+      </AllocationStatusBar>
     </div>
   </div>
 
   <div class="boxed-section">
     <div class="boxed-section-head">
       Allocations
-      {{search-box
-        searchTerm=(mut searchTerm)
-        placeholder="Search allocations..."
-        onChange=(action resetPagination)
-        class="is-inline pull-right"
-        inputClass="is-compact"}}
+      <SearchBox
+        @searchTerm={{mut searchTerm}}
+        @placeholder="Search allocations..."
+        @onChange={{action resetPagination}}
+        @class="is-inline pull-right"
+        @inputClass="is-compact" />
     </div>
     <div class="boxed-section-body is-full-bleed">
       {{#if sortedAllocations}}
-        {{#list-pagination
-          source=sortedAllocations
-          size=pageSize
-          page=currentPage
-          class="allocations" as |p|}}
-          {{#list-table
-            source=p.list
-            sortProperty=sortProperty
-            sortDescending=sortDescending
-            class="with-foot" as |t|}}
-            {{#t.head}}
+        <ListPagination
+          @source={{sortedAllocations}}
+          @size={{pageSize}}
+          @page={{currentPage}}
+          @class="allocations" as |p|>
+          <ListTable
+            @source={{p.list}}
+            @sortProperty={{sortProperty}}
+            @sortDescending={{sortDescending}}
+            @class="with-foot" as |t|>
+            <t.head>
               <th class="is-narrow"></th>
-              {{#t.sort-by prop="shortId"}}ID{{/t.sort-by}}
-              {{#t.sort-by prop="createIndex" title="Create Index"}}Created{{/t.sort-by}}
-              {{#t.sort-by prop="modifyIndex" title="Modify Index"}}Modified{{/t.sort-by}}
-              {{#t.sort-by prop="statusIndex"}}Status{{/t.sort-by}}
-              {{#t.sort-by prop="jobVersion"}}Version{{/t.sort-by}}
-              {{#t.sort-by prop="node.shortId"}}Client{{/t.sort-by}}
+              <t.sort-by @prop="shortId">ID</t.sort-by>
+              <t.sort-by @prop="createIndex" @title="Create Index">Created</t.sort-by>
+              <t.sort-by @prop="modifyIndex" @title="Modify Index">Modified</t.sort-by>
+              <t.sort-by @prop="statusIndex">Status</t.sort-by>
+              <t.sort-by @prop="jobVersion">Version</t.sort-by>
+              <t.sort-by @prop="node.shortId">Client</t.sort-by>
               <th>Volume</th>
               <th>CPU</th>
               <th>Memory</th>
-            {{/t.head}}
-            {{#t.body as |row|}}
-              {{allocation-row data-test-allocation=row.model.id allocation=row.model context="taskGroup" onClick=(action "gotoAllocation" row.model)}}
-            {{/t.body}}
-          {{/list-table}}
+            </t.head>
+            <t.body @key="model.id" as |row|>
+              <AllocationRow @data-test-allocation={{row.model.id}} @allocation={{row.model}} @context="taskGroup" @onClick={{action "gotoAllocation" row.model}} />
+            </t.body>
+          </ListTable>
           <div class="table-foot">
-            {{page-size-select onChange=(action resetPagination)}}
+            <PageSizeSelect @onChange={{action resetPagination}} />
             <nav class="pagination">
               <div class="pagination-numbers">
                 {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
               </div>
-              {{#p.prev class="pagination-previous"}}{{x-icon "chevron-left"}}{{/p.prev}}
-              {{#p.next class="pagination-next"}}{{x-icon "chevron-right"}}{{/p.next}}
+              <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
+              <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
               <ul class="pagination-list"></ul>
             </nav>
           </div>
-        {{/list-pagination}}
+        </ListPagination>
       {{else}}
         {{#if allocations.length}}
           <div class="boxed-section-body">
@@ -112,26 +134,28 @@
     </div>
   </div>
 
+  <LifecycleChart @tasks={{model.tasks}} />
+
   {{#if model.volumes.length}}
     <div data-test-volumes class="boxed-section">
       <div class="boxed-section-head">
         Volume Requirements
       </div>
       <div class="boxed-section-body is-full-bleed">
-        {{#list-table source=model.volumes as |t|}}
-          {{#t.head}}
+        <ListTable @source={{model.volumes}} as |t|>
+          <t.head>
             <th>Name</th>
             <th>Type</th>
             <th>Source</th>
             <th>Permissions</th>
-          {{/t.head}}
-          {{#t.body as |row|}}
+          </t.head>
+          <t.body as |row|>
             <tr data-test-volume>
               <td data-test-volume-name>
                 {{#if row.model.isCSI}}
-                  {{#link-to "csi.volumes.volume" row.model.name (query-params volumeNamespace=row.model.namespace.id)}}
+                  <LinkTo @route="csi.volumes.volume" @model={{row.model.name}} @query={{hash volumeNamespace=row.model.namespace.id}}>
                     {{row.model.name}}
-                  {{/link-to}}
+                  </LinkTo>
                 {{else}}
                   {{row.model.name}}
                 {{/if}}
@@ -140,8 +164,8 @@
               <td data-test-volume-source>{{row.model.source}}</td>
               <td data-test-volume-permissions>{{if row.model.readOnly "Read" "Read/Write"}}</td>
             </tr>
-          {{/t.body}}
-        {{/list-table}}
+          </t.body>
+        </ListTable>
       </div>
     </div>
   {{/if}}

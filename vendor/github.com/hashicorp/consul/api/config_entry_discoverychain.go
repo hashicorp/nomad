@@ -69,7 +69,6 @@ type ServiceRouteDestination struct {
 }
 
 func (e *ServiceRouteDestination) MarshalJSON() ([]byte, error) {
-	panic("WHAT")
 	type Alias ServiceRouteDestination
 	exported := &struct {
 		RequestTimeout string `json:",omitempty"`
@@ -144,7 +143,6 @@ type ServiceResolverConfigEntry struct {
 }
 
 func (e *ServiceResolverConfigEntry) MarshalJSON() ([]byte, error) {
-	panic("WHAT")
 	type Alias ServiceResolverConfigEntry
 	exported := &struct {
 		ConnectTimeout string `json:",omitempty"`

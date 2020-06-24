@@ -183,6 +183,14 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `mac_address` - (Optional) The MAC address for the container to use (e.g.
   "02:68:b3:29:da:98").
 
+- `memory_hard_limit` - (Optional) The maximum allowable amount of memory used
+  (megabytes) by the container. If set, the [`memory`](/docs/job-specification/resources#memory)
+  parameter of the task resource configuration becomes a soft limit passed to the
+  docker driver as [`--memory_reservation`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory),
+  and `memory_hard_limit` is passed as the [`--memory`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory)
+  hard limit. When the host is under memory pressure, the behavior of soft limit
+  activation is governed by the [Kernel](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt).
+
 - `network_aliases` - (Optional) A list of network-scoped aliases, provide a way for a
   container to be discovered by an alternate name by any other container within
   the scope of a particular network. Network-scoped alias is supported only for
@@ -406,6 +414,17 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
 
+- `runtime` - (Optional) A string representing a configured runtime to pass to docker.
+  This is equivalent to the `--runtime` argument in the docker CLI
+  For example, to use gVisor:
+
+  ```hcl
+  config {
+    # gVisor runtime is runsc
+    runtime = "runsc"
+  }
+  ```
+
 - `pids_limit` - (Optional) An integer value that specifies the pid limit for
   the container. Defaults to unlimited.
 
@@ -490,7 +509,9 @@ client {
 plugin "docker" {
   config {
     auth {
-      helper = "docker-credential-ecr"
+      # Nomad will prepend "docker-credential-" to the helper value and call
+      # that script name.
+      helper = "ecr"
     }
   }
 }
@@ -616,11 +637,11 @@ socket. Nomad will need to be able to read/write to this socket. If you do not
 run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
 
-For example, on Ubuntu you can use the `usermod` command to add the `vagrant`
+For example, on Ubuntu you can use the `usermod` command to add the `nomad`
 user to the `docker` group so you can run Nomad without root:
 
-```sh
-sudo usermod -G docker -a vagrant
+```shell-session
+$ sudo usermod -G docker -a nomad
 ```
 
 For the best performance and security features you should use recent versions
@@ -698,6 +719,9 @@ plugin "docker" {
   operator to control which capabilities can be obtained by tasks using cap_add
   and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting
   all capabilities.
+
+- `allow_runtimes` - defaults to `["runc", "nvidia"]` - A list of the allowed
+  docker runtimes a task may use.
 
 - `auth` stanza:
 

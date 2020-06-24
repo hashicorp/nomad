@@ -21,7 +21,7 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{reschedule-event-timeline allocation=allocation}}
+    <RescheduleEventTimeline @allocation={{allocation}} />
   `;
 
   test('when the allocation is running, the timeline shows past allocations', async function(assert) {

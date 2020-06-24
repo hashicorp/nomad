@@ -1,5 +1,7 @@
 import Component from '@ember/component';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: '',
-});
+@classic
+@tagName('')
+export default class ListPager extends Component {}

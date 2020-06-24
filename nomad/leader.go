@@ -108,6 +108,9 @@ func (s *Server) monitorLeadership() {
 				s.logger.Warn("cluster leadership gained and lost leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
 			}
 		case <-s.shutdownCh:
+			if weAreLeaderCh != nil {
+				leaderStep(false)
+			}
 			return
 		}
 	}
@@ -186,6 +189,26 @@ WAIT:
 			goto RECONCILE
 		case member := <-reconcileCh:
 			s.reconcileMember(member)
+		case errCh := <-s.reassertLeaderCh:
+			// Recompute leader state, by asserting leadership and
+			// repopulating leader states.
+
+			// Check first if we are indeed the leaders first. We
+			// can get into this state when the initial
+			// establishLeadership has failed.
+			// Afterwards we will be waiting for the interval to
+			// trigger a reconciliation and can potentially end up
+			// here. There is no point to reassert because this
+			// agent was never leader in the first place.
+			if !establishedLeader {
+				errCh <- fmt.Errorf("leadership has not been established")
+				continue
+			}
+
+			// refresh leadership state
+			s.revokeLeadership()
+			err := s.establishLeadership(stopCh)
+			errCh <- err
 		}
 	}
 }
@@ -203,12 +226,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
-	if numWorkers := len(s.workers); numWorkers > 1 {
-		// Disabling 3/4 of the workers frees CPU for raft and the
-		// plan applier which uses 1/2 the cores.
-		for i := 0; i < (3 * numWorkers / 4); i++ {
-			s.workers[i].SetPause(true)
-		}
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(true)
 	}
 
 	// Initialize and start the autopilot routine
@@ -241,6 +260,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the NodeDrainer
 	s.nodeDrainer.SetEnabled(true, s.State())
 
+	// Enable the volume watcher, since we are now the leader
+	s.volumeWatcher.SetEnabled(true, s.State())
+
 	// Restore the eval broker state
 	if err := s.restoreEvals(); err != nil {
 		return err
@@ -248,18 +270,16 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Activate the vault client
 	s.vault.SetActive(true)
-	// Cleanup orphaned Vault token accessors
-	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
-		return err
-	}
-
-	// Cleanup orphaned Service Identity token accessors
-	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
-		return err
-	}
 
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
+
+	// Activate RPC now that local FSM caught up with Raft (as evident by Barrier call success)
+	// and all leader related components (e.g. broker queue) are enabled.
+	// Auxiliary processes (e.g. background, bookkeeping, and cleanup tasks can start after)
+	s.setConsistentReadReady()
+
+	// Further clean ups and follow up that don't block RPC consistency
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
@@ -310,7 +330,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	s.setConsistentReadReady()
+	// Cleanup orphaned Vault token accessors
+	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
+		return err
+	}
+
+	// Cleanup orphaned Service Identity token accessors
+	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -387,7 +415,9 @@ func (s *Server) revokeVaultAccessorsOnRestore() error {
 	}
 
 	if len(revoke) != 0 {
-		if err := s.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
+		s.logger.Info("revoking vault accessors after becoming leader", "accessors", len(revoke))
+
+		if err := s.vault.MarkForRevocation(revoke); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
 		}
 	}
@@ -433,8 +463,8 @@ func (s *Server) revokeSITokenAccessorsOnRestore() error {
 	}
 
 	if len(toRevoke) > 0 {
-		ctx := context.Background()
-		s.consulACLs.RevokeTokens(ctx, toRevoke, true)
+		s.logger.Info("revoking consul accessors after becoming leader", "accessors", len(toRevoke))
+		s.consulACLs.MarkForRevocation(toRevoke)
 	}
 
 	return nil
@@ -519,6 +549,10 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer jobGC.Stop()
 	deploymentGC := time.NewTicker(s.config.DeploymentGCInterval)
 	defer deploymentGC.Stop()
+	csiPluginGC := time.NewTicker(s.config.CSIPluginGCInterval)
+	defer csiPluginGC.Stop()
+	csiVolumeClaimGC := time.NewTicker(s.config.CSIVolumeClaimGCInterval)
+	defer csiVolumeClaimGC.Stop()
 
 	// getLatest grabs the latest index from the state store. It returns true if
 	// the index was retrieved successfully.
@@ -551,6 +585,15 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			if index, ok := getLatest(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobDeploymentGC, index))
 			}
+		case <-csiPluginGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIPluginGC, index))
+			}
+		case <-csiVolumeClaimGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
+			}
+
 		case <-stopCh:
 			return
 		}
@@ -870,6 +913,9 @@ func (s *Server) revokeLeadership() error {
 	// Disable the node drainer
 	s.nodeDrainer.SetEnabled(false, nil)
 
+	// Disable the volume watcher
+	s.volumeWatcher.SetEnabled(false, nil)
+
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {
 		return err
@@ -883,12 +929,27 @@ func (s *Server) revokeLeadership() error {
 	}
 
 	// Unpause our worker if we paused previously
-	if len(s.workers) > 1 {
-		for i := 0; i < len(s.workers)/2; i++ {
-			s.workers[i].SetPause(false)
-		}
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(false)
 	}
+
 	return nil
+}
+
+// pausableWorkers returns a slice of the workers
+// to pause on leader transitions.
+//
+// Upon leadership establishment, pause workers to free half
+// the cores for use in the plan queue and evaluation broker
+func (s *Server) pausableWorkers() []*Worker {
+	n := len(s.workers)
+	if n <= 1 {
+		return []*Worker{}
+	}
+
+	// Disabling 3/4 of the workers frees CPU for raft and the
+	// plan applier which uses 1/2 the cores.
+	return s.workers[:3*n/4]
 }
 
 // reconcile is used to reconcile the differences between Serf
