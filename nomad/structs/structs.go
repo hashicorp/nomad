@@ -5775,7 +5775,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	// Validate the scaling policy
-	if err := tg.validateScalingPolicy(); err != nil {
+	if err := tg.validateScalingPolicy(j); err != nil {
 		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
 		mErr.Errors = append(mErr.Errors, outer)
 	}
@@ -5916,7 +5916,7 @@ func (tg *TaskGroup) validateServices() error {
 
 // validateScalingPolicy ensures that the scaling policy has consistent
 // min and max, not in conflict with the task group count
-func (tg *TaskGroup) validateScalingPolicy() error {
+func (tg *TaskGroup) validateScalingPolicy(j *Job) error {
 	if tg.Scaling == nil {
 		return nil
 	}
@@ -5928,7 +5928,7 @@ func (tg *TaskGroup) validateScalingPolicy() error {
 			fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
 	}
 
-	if int64(tg.Count) < tg.Scaling.Min {
+	if int64(tg.Count) < tg.Scaling.Min && !(j.IsMultiregion() && tg.Count == 0) {
 		mErr.Errors = append(mErr.Errors,
 			fmt.Errorf("Scaling policy invalid: task group count must not be less than minimum count in scaling policy"))
 	}
@@ -5949,7 +5949,7 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 	// Validate the update strategy
 	if u := tg.Update; u != nil {
 		// Check the counts are appropriate
-		if u.MaxParallel > tg.Count {
+		if u.MaxParallel > tg.Count && !(j.IsMultiregion() && tg.Count == 0) {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Update max parallel count is greater than task group count (%d > %d). "+
 					"A destructive change would result in the simultaneous replacement of all allocations.", u.MaxParallel, tg.Count))
