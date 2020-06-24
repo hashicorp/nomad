@@ -25,9 +25,11 @@ type DebugCommand struct {
 	interval    time.Duration
 	logLevel    string
 	nodeIDs     []string
+	serverIDs   []string
 	consulToken string
 	vaultToken  string
 	manifest    []string
+	stopCh      chan struct{}
 }
 
 const (
@@ -117,7 +119,7 @@ func (c *DebugCommand) Run(args []string) int {
 
 	flags.StringVar(&duration, "duration", "2m", "")
 	flags.StringVar(&interval, "interval", "2m", "")
-	flags.StringVar(&c.logLevel, "log-level", "", "")
+	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "", "")
 	flags.StringVar(&output, "output", "", "")
@@ -152,6 +154,7 @@ func (c *DebugCommand) Run(args []string) int {
 	}
 
 	c.manifest = make([]string, 0)
+	c.stopCh = make(chan struct{})
 
 	// Setup the output path
 	format := "2006-01-02-150405Z"
@@ -200,7 +203,7 @@ func (c *DebugCommand) collect() error {
 
 	// Version contains cluster meta information
 	dir := "version"
-	err = c.Mkdir(dir)
+	err = c.mkdir(dir)
 	if err != nil {
 		return err
 	}
@@ -239,7 +242,7 @@ func (c *DebugCommand) collect() error {
 
 	// For each server, collect the agent host state
 	dir = "server"
-	err = c.Mkdir(dir)
+	err = c.mkdir(dir)
 	if err != nil {
 		return err
 	}
@@ -249,25 +252,69 @@ func (c *DebugCommand) collect() error {
 	hostdata, _, err := client.Operator().ServerHosts(qo)
 	c.writeJSON(dir, "operator-server-hosts.json", hostdata)
 
-	c.startMonitors()
+	c.startMonitors(client)
 	c.awaitMonitors(client)
-	c.collectPProfs()
+	c.collectPProfs(client)
 
 	return nil
 }
 
-func (c *DebugCommand) Mkdir(dir string) error {
-	dir = filepath.Join(c.collectDir, dir)
-	return os.MkdirAll(dir, 0755)
+// path returns platform specific paths in the tmp root directory
+func (c *DebugCommand) path(paths ...string) string {
+	ps := []string{c.collectDir}
+	ps = append(ps, paths...)
+	return filepath.Join(ps...)
 }
 
-func (c *DebugCommand) startMonitors() {
+// mkdir creates directories in the tmp root directory
+func (c *DebugCommand) mkdir(paths ...string) error {
+	return os.MkdirAll(c.path(paths...), 0755)
 }
 
-func (c *DebugCommand) startServerMonitor(nodeID string) {
+// startMonitors starts go routines for each node and client
+func (c *DebugCommand) startMonitors(client *api.Client) {
+	for _, id := range c.nodeIDs {
+		go c.startMonitor("client", "node_id", id, client)
+	}
+
+	for _, id := range c.serverIDs {
+		go c.startMonitor("server", "server_id", id, client)
+	}
 }
 
-func (c *DebugCommand) collectPProfs() {
+// startMonitor starts one monitor api request, writing to a file. It blocks and should be
+// called in a go routine. Errors are ignored, we want to build the archive even if a node
+// is unavailable
+func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Client) {
+	c.mkdir("server", nodeID)
+	fh, err := os.Open(c.path(path, nodeID, "monitor.log"))
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+
+	qo := api.QueryOptions{
+		Params: map[string]string{
+			idKey:       nodeID,
+			"log_level": c.logLevel,
+			"plain":     "true",
+		},
+	}
+	outCh, errCh := client.Agent().Monitor(c.stopCh, &qo)
+	for {
+		select {
+		case out := <-outCh:
+			fh.Write(out.Data)
+			fh.WriteString("\n")
+
+		case <-errCh:
+			break
+		}
+	}
+}
+
+// collectPProfs captures the /agent/pprof for each listed node
+func (c *DebugCommand) collectPProfs(client *api.Client) {
 }
 
 // await runs for duration, capturing the cluster state every interval. It flushes and stops
@@ -278,20 +325,24 @@ func (c *DebugCommand) awaitMonitors(client *api.Client) {
 	var intervalCount int
 	var dir string
 
-	select {
-	case <-duration:
+	for {
+		select {
+		case <-duration:
+			close(c.stopCh)
+			break
 
-	case <-interval:
-		dir = filepath.Join("nomad", fmt.Sprintf("%02d", intervalCount))
-		c.collectNomad(dir, client)
-		interval = time.After(c.interval)
-		intervalCount += 1
+		case <-interval:
+			dir = filepath.Join("nomad", fmt.Sprintf("%02d", intervalCount))
+			c.collectNomad(dir, client)
+			interval = time.After(c.interval)
+			intervalCount += 1
+		}
 	}
 }
 
 // collectNomad captures the nomad cluster state
 func (c *DebugCommand) collectNomad(dir string, client *api.Client) error {
-	err := c.Mkdir(dir)
+	err := c.mkdir(dir)
 	if err != nil {
 		return err
 	}
