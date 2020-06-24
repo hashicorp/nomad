@@ -111,9 +111,7 @@ export default class GlobalSearchControl extends Component {
   openOnClickOrTab(select, { target }) {
     // Bypass having to press enter to access search after clicking/tabbing
     const targetClassList = target.classList;
-    const targetIsTrigger =
-      targetClassList.contains('ember-power-select-trigger') ||
-      targetClassList.contains('ember-power-select-search-input');
+    const targetIsTrigger = targetClassList.contains('ember-power-select-trigger');
 
     // Allow tabbing out of search
     const triggerIsNotActive = !targetClassList.contains('ember-power-select-trigger--active');
