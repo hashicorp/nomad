@@ -11,6 +11,11 @@ FEATURES:
  * **Monitor UI**: Stream client and agent logs from the UI just like you would with the nomad monitor CLI command. [[GH-8177](https://github.com/hashicorp/nomad/issues/8177)]
  * **Scaling UI**: Quickly adjust the count of a task group from the UI for task groups with a scaling declaration. [[GH-8207](https://github.com/hashicorp/nomad/issues/8207)]
 
+__BACKWARDS INCOMPATIBILITIES:__
+ * driver/docker: The Docker driver no longer allows binding host volumes by default.
+   Operators can set `volume` `enabled` plugin configuration to restore previous permissive behavior.
+ * driver/qemu: The Qemu driver requires images to reside in a operator-defined paths allowed for task access.
+
 IMPROVEMENTS:
 
 * core: Support for persisting previous task group counts when updating a job [[GH-8168](https://github.com/hashicorp/nomad/issues/8168)]

@@ -15,6 +15,50 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.12.0
+
+### Docker access host filesystem
+
+Nomad 0.12.0 disables Docker tasks access to the host filesystem, by default.
+Prior to Nomad 0.12, Docker tasks may mount and then manipulate any host file
+and may pose a security risk.
+
+Operators now must explicitly allow tasks to access host filesystem. [Host
+Volumes](/docs/configuration/client#host_volume-stanza) provide a fine tune
+access to individual paths.
+
+To restore pre-0.12.0 behavior, you can enable [Docker
+`volume`](/docs/drivers/docker#enabled-1) to allow binding host paths, by adding
+the following to the nomad client config file:
+
+```hcl
+plugin "docker" {
+  config {
+    volume {
+      enabled = true
+    }
+  }
+}
+```
+
+### Qemu images
+
+Nomad 0.12.0 restricts the paths the Qemu tasks can load an image from. A Qemu
+task may download an image to the allocation directory to load. But images
+outside the allocation directories must be explicitly allowed by operators in
+the client agent configuration file.
+
+For example, you may allow loading Qemu images from `/mnt/qemu-images` by
+adding the following to the agent configuration file:
+
+```hcl
+plugin "qemu" {
+  config {
+    image_paths = ["/mnt/qemu-images"]
+  }
+}
+```
+
 ## Nomad 0.11.3
 
 Nomad 0.11.3 fixes a critical bug causing the nomad agent to become

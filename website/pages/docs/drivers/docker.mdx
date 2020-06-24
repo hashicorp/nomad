@@ -780,7 +780,7 @@ plugin "docker" {
 
 - `volumes` stanza:
 
-  - `enabled` - Defaults to `true`. Allows tasks to bind host paths
+  - `enabled` - Defaults to `false`. Allows tasks to bind host paths
     (`volumes`) inside their container and use volume drivers
     (`volume_driver`). Binding relative paths is always allowed and will be
     resolved relative to the allocation's directory.
@@ -844,7 +844,7 @@ options](/docs/configuration/client#options):
   deleting it. If a tasks is received that uses the same image within the delay,
   the image will be reused.
 
-- `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
+- `docker.volumes.enabled`: Defaults to `false`. Allows tasks to bind host paths
   (`volumes`) inside their container and use volume drivers (`volume_driver`).
   Binding relative paths is always allowed and will be resolved relative to the
   allocation's directory.
