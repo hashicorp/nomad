@@ -9,8 +9,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -205,6 +207,9 @@ func (c *DebugCommand) Run(args []string) int {
 	}
 
 	c.collectDir = tmp
+
+	// Capture signals so we can shutdown the monitor API calls on Int
+	c.trap()
 
 	err = c.collect(client)
 	if err != nil {
@@ -403,6 +408,9 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 			c.collectNomad(dir, client)
 			interval = time.After(c.interval)
 			intervalCount += 1
+
+		case <-c.stopCh:
+			return
 		}
 	}
 }
@@ -608,6 +616,21 @@ func (c *DebugCommand) writeManifest() error {
 	html.WriteString("</ul>\n</body>\n</html>\n")
 
 	return nil
+}
+
+// trap captures signals, and closes stopCh
+func (c *DebugCommand) trap() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
+	go func() {
+		<-sigCh
+		close(c.stopCh)
+	}()
 }
 
 // TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
