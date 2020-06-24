@@ -62,17 +62,16 @@ Debug Options:
    The log level to monitor. Defaults to DEBUG.
 
   -node-id=n1,n2
-   Comma seperated list of Nomad client node ids, for which we capture logs and pprof data.
+   Comma separated list of Nomad client node ids, to monitor for logs and include pprof data.
    Accepts id prefixes.
 
   -server-id=s1,s2
-   Comma seperated list of Nomad server names, or "leader"
+   Comma seperated list of Nomad server names, or "leader" to monitor for logs and include pprof
+   data.
 
   -output=path
    Path to the parent directory of the output directory. Defaults to the current directory.
-
-  -archive
-   Build an archive and delete the output directory. Defaults to true.
+   If specified, no archive is built.
 
   -consul-token
    Token use to query Consul. Defaults to CONSUL_TOKEN
@@ -96,7 +95,6 @@ func (c *DebugCommand) AutocompleteFlags() complete.Flags {
 			"-node-id":      complete.PredictAnything,
 			"-server-id":    complete.PredictAnything,
 			"-output":       complete.PredictAnything,
-			"-archive":      complete.PredictAnything,
 			"-consul-token": complete.PredictAnything,
 			"-vault-token":  complete.PredictAnything,
 		})
@@ -115,7 +113,6 @@ func (c *DebugCommand) Run(args []string) int {
 
 	var duration, interval, output string
 	var nodeIDs, serverIDs string
-	var archive bool
 
 	flags.StringVar(&duration, "duration", "2m", "")
 	flags.StringVar(&interval, "interval", "2m", "")
@@ -123,7 +120,6 @@ func (c *DebugCommand) Run(args []string) int {
 	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "", "")
 	flags.StringVar(&output, "output", "", "")
-	flags.BoolVar(&archive, "archive", true, "")
 	flags.StringVar(&c.consulToken, "consul-token", "", "")
 	flags.StringVar(&c.vaultToken, "vault-token", "", "")
 
@@ -210,8 +206,7 @@ func (c *DebugCommand) Run(args []string) int {
 		return 2
 	}
 
-	// FIXME does output imply no archive?
-	if !archive || output != "" {
+	if output != "" {
 		return 0
 	}
 
@@ -435,7 +430,7 @@ func (c *DebugCommand) collectConsul(dir, consul string) error {
 		Timeout: 2 * time.Second,
 	}
 
-	req, err := http.NewRequest("GET", consul+"/v1/agent/self", nil)
+	req, _ := http.NewRequest("GET", consul+"/v1/agent/self", nil)
 	req.Header.Add("X-Consul-Token", token)
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
