@@ -47,7 +47,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"address_mode",
 		"check_restart",
 		"connect",
-		"task", // todo
+		"task",
 		"meta",
 		"canary_meta",
 	}

@@ -483,7 +483,7 @@ func (s *Service) Validate() error {
 
 		// if service is connect native, service task must be set
 		if s.Connect.IsNative() && len(s.TaskName) == 0 {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is connect native and requires setting the task", s.Name))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is Connect Native and requires setting the task", s.Name))
 		}
 	}
 

@@ -83,7 +83,6 @@ func (h *connectNativeHook) Prestart(
 		return nil
 	}
 
-	h.logger.Debug("share consul TLS configuration for connect native", "enabled", h.consulShareTLS, "task", request.Task.Name)
 	if h.consulShareTLS {
 		// copy TLS certificates
 		if err := h.copyCertificates(h.consulConfig, request.TaskDir.SecretsDir); err != nil {

@@ -106,9 +106,9 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
 - `share_ssl` `(bool: true)` - Specifies whether the Nomad client should share
   its Consul SSL configuration with Connect Native applications. Includes values
-  of `ca_file`, `cert_file`, `key_file`, `auth`, `ssl`, and `verify_ssl`. Does
-  not include the value for the ACL `token`. This option should be disabled in
-  an untrusted environment.
+  of `ca_file`, `cert_file`, `key_file`, `ssl`, and `verify_ssl`. Does not include
+  the values for the ACL `token` or `auth`. This option should be disabled in
+  environments where Consul ACLs are not enabled.
 
 - `ssl` `(bool: false)` - Specifies if the transport scheme should use HTTPS to
   communicate with the Consul agent. Will default to the `CONSUL_HTTP_SSL`
