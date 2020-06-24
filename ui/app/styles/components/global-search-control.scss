@@ -3,6 +3,7 @@
 
   .ember-power-select-trigger {
     background: $nomad-green-darker;
+    border: 1px solid darken($nomad-green-darker, 5%);
 
     .icon {
       margin-top: 1px;
@@ -21,6 +22,7 @@
 
     &.ember-power-select-trigger--active {
       background: white;
+      border-color: white;
 
       .icon {
         fill: black;
