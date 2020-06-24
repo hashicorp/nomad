@@ -1603,6 +1603,12 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
+	// Interpolate the job for this region
+	err = j.interpolateMultiregionFields(args)
+	if err != nil {
+		return err
+	}
+
 	// Get the original job
 	ws := memdb.NewWatchSet()
 	oldJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
