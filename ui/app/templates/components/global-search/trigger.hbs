@@ -2,3 +2,6 @@
 {{#unless select.isOpen}}
   <span class='placeholder'>Search</span>
 {{/unless}}
+{{#if (not (or select.isActive select.isOpen))}}
+  <span class='shortcut' title="Type '/' to search">/</span>
+{{/if}}
