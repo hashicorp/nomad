@@ -20,6 +20,7 @@ import (
 type DebugCommand struct {
 	Meta
 
+	timestamp   string
 	collectDir  string
 	duration    time.Duration
 	interval    time.Duration
@@ -184,7 +185,8 @@ func (c *DebugCommand) Run(args []string) int {
 
 	// Setup the output path
 	format := "2006-01-02-150405Z"
-	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
+	c.timestamp = time.Now().UTC().Format(format)
+	stamped := "nomad-debug-" + c.timestamp
 
 	var tmp string
 	if output != "" {
@@ -210,6 +212,8 @@ func (c *DebugCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
 	}
+
+	c.writeManifest()
 
 	if output != "" {
 		return 0
@@ -550,6 +554,57 @@ func (c *DebugCommand) writeBody(dir, file string, resp *http.Response, err erro
 	}
 
 	c.writeBytes(dir, file, body)
+}
+
+// writeManifest creates the index files
+func (c *DebugCommand) writeManifest() error {
+	// Write the JSON
+	path := filepath.Join(c.collectDir, "index.json")
+	json, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer json.Close()
+
+	json.WriteString("[\n")
+
+	first := true
+	for _, f := range c.manifest {
+		if first {
+			first = false
+			json.WriteString("  \"")
+		} else {
+			json.WriteString(",\n  \"")
+		}
+		json.WriteString(f)
+		json.WriteString("\"")
+
+	}
+
+	json.WriteString("\n]\n")
+
+	// Write the HTML
+	path = filepath.Join(c.collectDir, "index.html")
+	html, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer html.Close()
+
+	html.WriteString("<html><head><title>")
+	html.WriteString(c.timestamp)
+	html.WriteString("</title></head>\n<body>\n<ul>\n")
+
+	for _, f := range c.manifest {
+		html.WriteString("<li><a href=\"")
+		html.WriteString(f)
+		html.WriteString("\">")
+		html.WriteString(f)
+		html.WriteString("</a></li>\n")
+	}
+	html.WriteString("</ul>\n</body>\n</html>\n")
+
+	return nil
 }
 
 // TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
