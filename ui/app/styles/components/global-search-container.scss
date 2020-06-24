@@ -9,7 +9,11 @@
   align-items: center;
 
   .global-search {
-    width: 25em;
+    width: 30em;
+
+    @media #{$mq-hidden-gutter} {
+      width: 20em;
+    }
 
     .ember-power-select-trigger {
       background: $nomad-green-darker;
