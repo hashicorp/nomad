@@ -7,7 +7,7 @@
     @onChange={{action 'selectOption'}}
     @onFocus={{action 'openOnClickOrTab'}}
     @onClose={{action 'onCloseEvent'}}
-    @dropdownClass="global-search-dropdown"
+    @dropdownClass="global-search-dropdown {{if isSafari 'is-safari'}}"
     @calculatePosition={{this.calculatePosition}}
     @searchMessageComponent="global-search/message"
     @triggerComponent="global-search/trigger"

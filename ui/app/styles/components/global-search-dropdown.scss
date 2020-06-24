@@ -16,13 +16,15 @@
   }
 
   // Prevent Safari from disrupting styling, adapted from http://geek.michaelgrace.org/2011/06/webkit-search-input-styling/
-  input[type='search'] {
-    -webkit-appearance: textfield;
-  }
+  &.is-safari {
+    input[type='search'] {
+      -webkit-appearance: textfield;
+    }
 
-  input::-webkit-search-decoration,
-  input::-webkit-search-cancel-button {
-    display: none;
+    input::-webkit-search-decoration,
+    input::-webkit-search-cancel-button {
+      display: none;
+    }
   }
 
   .ember-power-select-options {

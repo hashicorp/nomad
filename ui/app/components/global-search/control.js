@@ -6,6 +6,7 @@ import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
 import { run } from '@ember/runloop';
 import Searchable from 'nomad-ui/mixins/searchable';
+import isSafari from 'nomad-ui/utils/is-safari';
 import classic from 'ember-classic-decorator';
 
 const SLASH_KEY = 191;
@@ -28,6 +29,12 @@ export default class GlobalSearchControl extends Component {
     this.nodeSearch = NodeSearch.create({
       dataSource: this,
     });
+  }
+
+  // Let us apply CSS for Safari only
+  @computed
+  get isSafari() {
+    return isSafari();
   }
 
   keyDownHandler(e) {

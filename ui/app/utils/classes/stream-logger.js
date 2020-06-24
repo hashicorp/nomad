@@ -2,6 +2,7 @@ import EmberObject, { computed } from '@ember/object';
 import { task } from 'ember-concurrency';
 import TextDecoder from 'nomad-ui/utils/classes/text-decoder';
 import { decode } from 'nomad-ui/utils/stream-frames';
+import isSafari from 'nomad-ui/utils/is-safari';
 import AbstractLogger from './abstract-logger';
 import { fetchFailure } from './log';
 import classic from 'ember-classic-decorator';
@@ -88,17 +89,9 @@ export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
   poll;
 }
 
-StreamLogger.reopenClass({
-  isSupported: !!window.ReadableStream && !isSafari(),
-});
-
 // Fetch streaming doesn't work in Safari yet despite all the primitives being in place.
 // Bug: https://bugs.webkit.org/show_bug.cgi?id=185924
 // Until this is fixed, Safari needs to be explicitly targeted for poll-based logging.
-function isSafari() {
-  const oldSafariTest = /constructor/i.test(window.HTMLElement);
-  const newSafariTest = (function(p) {
-    return p.toString() === '[object SafariRemoteNotification]';
-  })(!window['safari'] || (typeof window.safari !== 'undefined' && window.safari.pushNotification));
-  return oldSafariTest || newSafariTest;
-}
+StreamLogger.reopenClass({
+  isSupported: !!window.ReadableStream && !isSafari(),
+});
