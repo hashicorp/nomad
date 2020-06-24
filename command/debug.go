@@ -52,22 +52,21 @@ General Options:
 Debug Options:
 
   -duration=2m
-   The duration of the log capture command. Defaults to 2m.
+   The duration of the log monitor command. Defaults to 2m.
 
   -interval=2m
    The interval between snapshots of the Nomad state. If unspecified, only one snapshot is
    captured.
 
   -log-level=DEBUG
-   The log level of logs to capture. Defaults to DEBUG.
+   The log level to monitor. Defaults to DEBUG.
 
   -node-id=n1,n2
    Comma seperated list of Nomad client node ids, for which we capture logs and pprof data.
    Accepts id prefixes.
 
   -server-id=s1,s2
-   Comma seperated list of Nomad server node ids, for which we capture logs and pprof data.
-   Accepts id prefixes.
+   Comma seperated list of Nomad server names, or "leader"
 
   -output=path
    Path to the parent directory of the output directory. Defaults to the current directory.
@@ -109,6 +108,7 @@ func (c *DebugCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *DebugCommand) Name() string { return "debug" }
 
+// parse implements just the parsing phase of the
 func (c *DebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -153,6 +153,36 @@ func (c *DebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	client, err := c.Meta.Client()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err.Error()))
+		return 1
+	}
+
+	// Resolve node prefixes
+	for _, id := range argNodes(nodeIDs) {
+		id = sanitizeUUIDPrefix(id)
+		nodes, _, err := client.Nodes().PrefixList(id)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
+			return 1
+		}
+		// Return error if no nodes are found
+		if len(nodes) == 0 {
+			c.Ui.Error(fmt.Sprintf("No node(s) with prefix %q found", id))
+			return 1
+		}
+
+		for _, n := range nodes {
+			c.nodeIDs = append(c.nodeIDs, n.ID)
+		}
+	}
+
+	// Resolve server prefixes
+	for _, id := range argNodes(serverIDs) {
+		c.serverIDs = append(c.serverIDs, id)
+	}
+
 	c.manifest = make([]string, 0)
 	c.stopCh = make(chan struct{})
 
@@ -174,7 +204,7 @@ func (c *DebugCommand) Run(args []string) int {
 
 	c.collectDir = tmp
 
-	err = c.collect()
+	err = c.collect(client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
@@ -195,15 +225,10 @@ func (c *DebugCommand) Run(args []string) int {
 }
 
 // collect collects data from our endpoints and writes the archive bundle
-func (c *DebugCommand) collect() error {
-	client, err := c.Meta.Client()
-	if err != nil {
-		return fmt.Errorf("Error initializing client: %s", err.Error())
-	}
-
+func (c *DebugCommand) collect(client *api.Client) error {
 	// Version contains cluster meta information
 	dir := "version"
-	err = c.mkdir(dir)
+	err := c.mkdir(dir)
 	if err != nil {
 		return err
 	}
@@ -215,7 +240,6 @@ func (c *DebugCommand) collect() error {
 	c.writeJSON(dir, "agent-self.json", self)
 
 	// Fetch data directly from consul and vault. Ignore errors
-
 	var consul, vault string
 
 	m, ok := self.Config["Consul"].(map[string]interface{})
@@ -240,20 +264,8 @@ func (c *DebugCommand) collect() error {
 	c.collectConsul(dir, consul)
 	c.collectVault(dir, vault)
 
-	// For each server, collect the agent host state
-	dir = "server"
-	err = c.mkdir(dir)
-	if err != nil {
-		return err
-	}
-
-	var qo *api.QueryOptions
-
-	hostdata, _, err := client.Operator().ServerHosts(qo)
-	c.writeJSON(dir, "operator-server-hosts.json", hostdata)
-
 	c.startMonitors(client)
-	c.awaitMonitors(client)
+	c.collectPeriodic(client)
 	c.collectPProfs(client)
 
 	return nil
@@ -286,8 +298,8 @@ func (c *DebugCommand) startMonitors(client *api.Client) {
 // called in a go routine. Errors are ignored, we want to build the archive even if a node
 // is unavailable
 func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Client) {
-	c.mkdir("server", nodeID)
-	fh, err := os.Open(c.path(path, nodeID, "monitor.log"))
+	c.mkdir(path, nodeID)
+	fh, err := os.Create(c.path(path, nodeID, "monitor.log"))
 	if err != nil {
 		return
 	}
@@ -297,29 +309,43 @@ func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Clie
 		Params: map[string]string{
 			idKey:       nodeID,
 			"log_level": c.logLevel,
-			"plain":     "true",
 		},
 	}
 	outCh, errCh := client.Agent().Monitor(c.stopCh, &qo)
 	for {
 		select {
 		case out := <-outCh:
+			if out == nil {
+				continue
+			}
 			fh.Write(out.Data)
 			fh.WriteString("\n")
 
-		case <-errCh:
-			break
+		case err := <-errCh:
+			fh.WriteString(fmt.Sprintf("Error monitoring: %s\n", err.Error()))
+			return
+
+		case <-c.stopCh:
+			return
 		}
 	}
 }
 
 // collectPProfs captures the /agent/pprof for each listed node
 func (c *DebugCommand) collectPProfs(client *api.Client) {
+
 }
 
 // await runs for duration, capturing the cluster state every interval. It flushes and stops
 // the monitor requests
-func (c *DebugCommand) awaitMonitors(client *api.Client) {
+func (c *DebugCommand) collectPeriodic(client *api.Client) {
+	// Not monitoring any logs, just capture the nomad context before exit
+	if len(c.nodeIDs) == 0 && len(c.serverIDs) == 0 {
+		dir := filepath.Join("nomad", "00")
+		c.collectNomad(dir, client)
+		return
+	}
+
 	duration := time.After(c.duration)
 	interval := time.After(0 * time.Second)
 	var intervalCount int
@@ -329,7 +355,7 @@ func (c *DebugCommand) awaitMonitors(client *api.Client) {
 		select {
 		case <-duration:
 			close(c.stopCh)
-			break
+			return
 
 		case <-interval:
 			dir = filepath.Join("nomad", fmt.Sprintf("%02d", intervalCount))
@@ -394,11 +420,7 @@ func (c *DebugCommand) collectNomad(dir string, client *api.Client) error {
 	return nil
 }
 
-func (c *DebugCommand) collectLogs(root string) error {
-	return nil
-}
-
-// collectConsul calls the consul api directly to collect data
+// collectConsul calls the Consul API directly to collect data
 func (c *DebugCommand) collectConsul(dir, consul string) error {
 	if consul == "" {
 		return nil
@@ -428,6 +450,7 @@ func (c *DebugCommand) collectConsul(dir, consul string) error {
 	return nil
 }
 
+// collectVault calls the Vault API directly to collect data
 func (c *DebugCommand) collectVault(dir, vault string) error {
 	if vault == "" {
 		return nil
@@ -451,6 +474,7 @@ func (c *DebugCommand) collectVault(dir, vault string) error {
 	return nil
 }
 
+// writeBytes writes a file to the archive, recording it in the manifest
 func (c *DebugCommand) writeBytes(dir, file string, data []byte) error {
 	path := filepath.Join(dir, file)
 	c.manifest = append(c.manifest, path)
@@ -466,6 +490,7 @@ func (c *DebugCommand) writeBytes(dir, file string, data []byte) error {
 	return err
 }
 
+// writeJSON writes JSON responses from the Nomad API calls to the archive
 func (c *DebugCommand) writeJSON(dir, file string, data interface{}) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
@@ -474,6 +499,7 @@ func (c *DebugCommand) writeJSON(dir, file string, data interface{}) error {
 	return c.writeBytes(dir, file, bytes)
 }
 
+// writeBody is a helper that writes the body of an http.Response to the archive
 func (c *DebugCommand) writeBody(dir, file string, resp *http.Response, err error) {
 	if err != nil {
 		return
@@ -551,4 +577,18 @@ func TarCZF(archive string, src string) error {
 
 		return nil
 	})
+}
+
+// argNodes splits node ids from the command line by ","
+func argNodes(input string) []string {
+	ns := strings.Split(input, ",")
+	var out []string
+	for _, n := range ns {
+		s := strings.TrimSpace(n)
+		if s == "" {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
 }
