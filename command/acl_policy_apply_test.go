@@ -42,13 +42,11 @@ func TestACLPolicyApplyCommand(t *testing.T) {
 	assert.Nil(err)
 
 	// Attempt to apply a policy without a valid management token
-	os.Setenv("NOMAD_TOKEN", "foo")
-	code := cmd.Run([]string{"-address=" + url, "test-policy", f.Name()})
+	code := cmd.Run([]string{"-address=" + url, "-token=foo", "test-policy", f.Name()})
 	assert.Equal(1, code)
 
 	// Apply a policy with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, "test-policy", f.Name()})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "test-policy", f.Name()})
 	assert.Equal(0, code)
 
 	// Check the output
