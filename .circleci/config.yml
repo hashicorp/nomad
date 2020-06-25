@@ -1050,7 +1050,7 @@ jobs:
     - PAGER: cat
   algolia_index:
     docker:
-    - image: node:10
+    - image: node:12
     steps:
     - checkout
     - run:
