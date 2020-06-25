@@ -284,7 +284,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 
 	// deregistering the volume doesn't cause an update that triggers
 	// a watcher; we'll clean up this watcher in a GC later
-	err = srv.State().CSIVolumeDeregister(index, vol.Namespace, []string{vol.ID})
+	err = srv.State().CSIVolumeDeregister(index, vol.Namespace, []string{vol.ID}, false)
 	require.NoError(err)
 	require.Equal(1, len(watcher.watchers))
 	require.False(watcher.watchers[vol.ID+vol.Namespace].isRunning())
