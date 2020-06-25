@@ -83,7 +83,7 @@ export default [
         category: 'alloc',
         content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop']
       },
-
+      'debug',
       {
         category: 'deployment',
         content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
