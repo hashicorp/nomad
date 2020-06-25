@@ -83,7 +83,9 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"image_paths": hclspec.NewAttr("image_paths", "list(string)", false),
+	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
@@ -126,11 +128,20 @@ type TaskState struct {
 	StartedAt      time.Time
 }
 
+// Config is the driver configuration set by SetConfig RPC call
+type Config struct {
+	// ImagePaths is an allow-list of paths qemu is allowed to load an image from
+	ImagePaths []string `codec:"image_paths"`
+}
+
 // Driver is a driver for running images via Qemu
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
 
 	// tasks is the in memory datastore mapping taskIDs to qemuTaskHandle
 	tasks *taskStore
@@ -165,6 +176,14 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
+	var config Config
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
+	}
+
+	d.config = config
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
@@ -290,6 +309,31 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool {
+	if !filepath.IsAbs(imagePath) {
+		imagePath = filepath.Join(allocDir, imagePath)
+	}
+
+	isParent := func(parent, path string) bool {
+		rel, err := filepath.Rel(parent, path)
+		return err == nil && !strings.HasPrefix(rel, "..")
+	}
+
+	// check if path is under alloc dir
+	if isParent(allocDir, imagePath) {
+		return true
+	}
+
+	// check allowed paths
+	for _, ap := range allowedPaths {
+		if isParent(ap, imagePath) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
@@ -313,6 +357,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("image_path must be set")
 	}
 	vmID := filepath.Base(vmPath)
+
+	if !isAllowedImagePath(d.config.ImagePaths, cfg.AllocDir, vmPath) {
+		return nil, nil, fmt.Errorf("image_path is not in the allowed paths")
+	}
 
 	// Parse configuration arguments
 	// Create the base arguments
