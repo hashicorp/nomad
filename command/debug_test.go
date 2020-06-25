@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
@@ -65,6 +66,16 @@ func TestDebugCapturedFiles(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &DebugCommand{Meta: Meta{Ui: ui}}
 
+	// Wait for the http server to start, run depends on it
+	client, err := cmd.Meta.Client()
+	require.NoError(t, err)
+	testutil.WaitForResult(func() (bool, error) {
+		_, err := client.Agent().Self()
+		return err == nil, nil
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
 	// Calculate the output name
 	format := "2006-01-02-150405Z"
 	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
@@ -86,7 +97,7 @@ func TestDebugCapturedFiles(t *testing.T) {
 	require.FileExists(t, filepath.Join(path, "version", "agent-self.json"))
 
 	// Consul and Vault are only captured if they exist
-	_, err := os.Stat(filepath.Join(path, "version", "consul-agent-self.json"))
+	_, err = os.Stat(filepath.Join(path, "version", "consul-agent-self.json"))
 	require.Error(t, err)
 	_, err = os.Stat(filepath.Join(path, "version", "vault-sys-health.json"))
 	require.Error(t, err)
