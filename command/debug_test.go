@@ -77,7 +77,10 @@ func TestDebugCapturedFiles(t *testing.T) {
 		"-duration", "1s",
 		"-interval", "500ms",
 	})
+
+	require.Empty(t, ui.ErrorWriter.String())
 	require.Equal(t, 0, code)
+	ui.ErrorWriter.Reset()
 
 	// Version is always captured
 	require.FileExists(t, filepath.Join(path, "version", "agent-self.json"))
