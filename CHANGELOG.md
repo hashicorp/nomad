@@ -5,6 +5,7 @@ FEATURES:
  * **Licensing (Enterprise)**: Nomad Enterprise now requires a license [[GH-8076](https://github.com/hashicorp/nomad/issues/8076)]
  * **Multiregion Deployments (Enterprise)**: Nomad Enterprise now enables orchestrating deployments across multiple regions. [[GH-8184](https://github.com/hashicorp/nomad/issues/8184)]
  * **Snapshot Backup and Restore**: Nomad eases disaster recovery with new endpoints and commands for point-in-time snapshots.
+ * **Debug Log Archive**: Nomad debug captures state and logs to facilitate support [[GH-8273](https://github.com/hashicorp/nomad/issues/8273)]
  * **Container Network Interface (CNI)**: Support for third-party vendors using the CNI plugin system. [[GH-7518](https://github.com/hashicorp/nomad/issues/7518)]
  * **Multi-interface Networking**: Support for scheduling on specific network interfaces. [[GH-8208](https://github.com/hashicorp/nomad/issues/8208)]
  * **Consul Connect Native**: Support for running Consul Connect Native tasks. [[GH-6083](https://github.com/hashicorp/nomad/issues/6083)]
