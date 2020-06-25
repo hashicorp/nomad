@@ -1,6 +1,6 @@
 {{title "Server " model.name}}
 <ServerSubnav @server={{model}} />
-<section class="section">
+<section class="section is-full-width">
   {{#if (can "read agent")}}
     <AgentMonitor
       @level={{level}}
