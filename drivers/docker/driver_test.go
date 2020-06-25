@@ -1400,11 +1400,11 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 		},
 		{
 			Name:       "Comma separated list of CPUs",
-			CPUSetCPUs: "0,1,2",
+			CPUSetCPUs: "0,1",
 		},
 		{
 			Name:       "Range of CPUs",
-			CPUSetCPUs: "0-3",
+			CPUSetCPUs: "0-1",
 		},
 	}
 
