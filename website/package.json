@@ -42,6 +42,7 @@
   "devDependencies": {
     "dart-linkcheck": "^2.0.15",
     "husky": "^4.2.5",
+    "dotenv": "^8.2.0",
     "prettier": "^2.0.5"
   },
   "husky": {
