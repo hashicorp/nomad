@@ -286,6 +286,7 @@ OUTER:
 			// Update the network ask to the offer
 			nwRes := structs.AllocatedPortsToNetworkResouce(ask, offer)
 			total.Shared.Networks = []*structs.NetworkResource{nwRes}
+			total.Shared.Ports = offer
 			option.AllocResources = &structs.AllocatedSharedResources{
 				Networks: []*structs.NetworkResource{nwRes},
 				DiskMB:   int64(iter.taskGroup.EphemeralDisk.SizeMB),

@@ -326,20 +326,25 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 
 func formatAllocNetworkInfo(alloc *api.Allocation) string {
 	nw := alloc.AllocatedResources.Shared.Networks[0]
-	addrs := make([]string, len(nw.DynamicPorts)+len(nw.ReservedPorts)+1)
-	addrs[0] = "Label|Dynamic|Address"
-	portFmt := func(port *api.Port, dyn string) string {
-		s := fmt.Sprintf("%s|%s|%s:%d", port.Label, dyn, nw.IP, port.Value)
-		if port.To > 0 {
-			s += fmt.Sprintf(" -> %d", port.To)
+	addrs := []string{"Label|Dynamic|Address"}
+	portFmt := func(label string, value, to int, hostIP, dyn string) string {
+		s := fmt.Sprintf("%s|%s|%s:%d", label, dyn, hostIP, value)
+		if to > 0 {
+			s += fmt.Sprintf(" -> %d", to)
 		}
 		return s
 	}
-	for idx, port := range nw.DynamicPorts {
-		addrs[idx+1] = portFmt(&port, "yes")
-	}
-	for idx, port := range nw.ReservedPorts {
-		addrs[idx+1+len(nw.DynamicPorts)] = portFmt(&port, "yes")
+	if len(alloc.AllocatedResources.Shared.Ports) > 0 {
+		for _, port := range alloc.AllocatedResources.Shared.Ports {
+			addrs = append(addrs, portFmt("*"+port.Label, port.Value, port.To, port.HostIP, "yes"))
+		}
+	} else {
+		for _, port := range nw.DynamicPorts {
+			addrs = append(addrs, portFmt(port.Label, port.Value, port.To, nw.IP, "yes"))
+		}
+		for _, port := range nw.ReservedPorts {
+			addrs = append(addrs, portFmt(port.Label, port.Value, port.To, nw.IP, "yes"))
+		}
 	}
 
 	var mode string
