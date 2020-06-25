@@ -17,7 +17,7 @@
 
     .ember-power-select-trigger {
       background: $nomad-green-darker;
-      border: 1px solid darken($nomad-green-darker, 5%);
+      border: 0;
 
       .icon {
         margin-top: 1px;
@@ -32,6 +32,7 @@
         display: inline-block;
         padding-left: 2px;
         transform: translateY(-1px);
+        font-weight: $weight-semibold;
       }
 
       .shortcut {
@@ -40,10 +41,11 @@
         top: 5px;
         bottom: 5px;
         width: 1.4rem;
-        padding-top: 0.5px;
+        padding-top: 3px;
         text-align: center;
         opacity: 0.7;
-        border: 1px solid darken($nomad-green-darker, 5%);
+        background: $nomad-green-dark;
+        font-weight: $weight-semibold;
       }
 
       &.ember-power-select-trigger--active {
