@@ -13,8 +13,8 @@ FEATURES:
 
 __BACKWARDS INCOMPATIBILITIES:__
  * driver/docker: The Docker driver no longer allows binding host volumes by default.
-   Operators can set `volume` `enabled` plugin configuration to restore previous permissive behavior.
- * driver/qemu: The Qemu driver requires images to reside in a operator-defined paths allowed for task access.
+   Operators can set `volume` `enabled` plugin configuration to restore previous permissive behavior. [[GH-8261](https://github.com/hashicorp/nomad/issues/8261)]
+ * driver/qemu: The Qemu driver requires images to reside in a operator-defined paths allowed for task access. [[GH-8261](https://github.com/hashicorp/nomad/issues/8261)]
 
 IMPROVEMENTS:
 
