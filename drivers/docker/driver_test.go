@@ -222,6 +222,10 @@ func newTestDockerClient(t *testing.T) *docker.Client {
 	return client
 }
 
+// Following tests have been removed from this file.
+// [TestDockerDriver_Fingerprint, TestDockerDriver_Fingerprint_Bridge, TestDockerDriver_Check_DockerHealthStatus]
+// If you want to checkout/revert those tests, please check commit: 41715b1860778aa80513391bd64abd721d768ab0
+
 func TestDockerDriver_Start_Wait(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
