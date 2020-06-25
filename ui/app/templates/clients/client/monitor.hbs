@@ -1,6 +1,6 @@
 {{title "Client " (or model.name model.shortId)}}
 <ClientSubnav @client={{model}} />
-<section class="section">
+<section class="section is-full-width">
   {{#if (can "read agent")}}
     <AgentMonitor
       @level={{level}}
