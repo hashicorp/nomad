@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -21,13 +20,13 @@ func TestPlanCommand_Implements(t *testing.T) {
 
 func TestPlanCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
-	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
 
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
-	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
+
+	ui := new(cli.MockUi)
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	// Fails on misuse
 	if code := cmd.Run([]string{"some", "bad", "args"}); code != 255 {
