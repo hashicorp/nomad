@@ -3,8 +3,10 @@ package command
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -32,7 +34,8 @@ type DebugCommand struct {
 	consulToken string
 	vaultToken  string
 	manifest    []string
-	stopCh      chan struct{}
+	ctx         context.Context
+	cancel      context.CancelFunc
 }
 
 const (
@@ -44,9 +47,7 @@ func (c *DebugCommand) Help() string {
 Usage: nomad debug [options]
 
   Build an archive containing Nomad cluster configuration and state information, Nomad
-  server and task logs, and logs from the host systems running Nomad servers and clients. If
-  no selection option is provided, the debug archive contains logs from all nodes in the
-  cluster. Multiple selector options may be provided.
+  server and node logs and pprof data for selected members, and Consul and Vault status.
 
 General Options:
 
@@ -182,7 +183,9 @@ func (c *DebugCommand) Run(args []string) int {
 	}
 
 	c.manifest = make([]string, 0)
-	c.stopCh = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	c.ctx = ctx
+	c.cancel = cancel
 
 	// Setup the output path
 	format := "2006-01-02-150405Z"
@@ -322,7 +325,8 @@ func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Clie
 			"log_level": c.logLevel,
 		},
 	}
-	outCh, errCh := client.Agent().Monitor(c.stopCh, &qo)
+
+	outCh, errCh := client.Agent().Monitor(c.ctx.Done(), &qo)
 	for {
 		select {
 		case out := <-outCh:
@@ -336,7 +340,7 @@ func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Clie
 			fh.WriteString(fmt.Sprintf("Error monitoring: %s\n", err.Error()))
 			return
 
-		case <-c.stopCh:
+		case <-c.ctx.Done():
 			return
 		}
 	}
@@ -400,7 +404,7 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 	for {
 		select {
 		case <-duration:
-			close(c.stopCh)
+			c.cancel()
 			return
 
 		case <-interval:
@@ -409,7 +413,7 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 			interval = time.After(c.interval)
 			intervalCount += 1
 
-		case <-c.stopCh:
+		case <-c.ctx.Done():
 			return
 		}
 	}
@@ -571,49 +575,34 @@ func (c *DebugCommand) writeBody(dir, file string, resp *http.Response, err erro
 func (c *DebugCommand) writeManifest() error {
 	// Write the JSON
 	path := filepath.Join(c.collectDir, "index.json")
-	json, err := os.Create(path)
+	jsonFh, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer json.Close()
+	defer jsonFh.Close()
 
-	json.WriteString("[\n")
-
-	first := true
-	for _, f := range c.manifest {
-		if first {
-			first = false
-			json.WriteString("  \"")
-		} else {
-			json.WriteString(",\n  \"")
-		}
-		json.WriteString(f)
-		json.WriteString("\"")
-
-	}
-
-	json.WriteString("\n]\n")
+	json.NewEncoder(jsonFh).Encode(c.manifest)
 
 	// Write the HTML
 	path = filepath.Join(c.collectDir, "index.html")
-	html, err := os.Create(path)
+	htmlFh, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer html.Close()
+	defer htmlFh.Close()
 
-	html.WriteString("<html><head><title>")
-	html.WriteString(c.timestamp)
-	html.WriteString("</title></head>\n<body>\n<ul>\n")
-
-	for _, f := range c.manifest {
-		html.WriteString("<li><a href=\"")
-		html.WriteString(f)
-		html.WriteString("\">")
-		html.WriteString(f)
-		html.WriteString("</a></li>\n")
+	head, _ := template.New("head").Parse("<html><head><title>{{.}}</title></head>\n<body><h1>{{.}}</h1>\n<ul>")
+	line, _ := template.New("line").Parse("<li><a href=\"{{.}}\">{{.}}</a></li>\n")
+	if err != nil {
+		return fmt.Errorf("%v", err)
 	}
-	html.WriteString("</ul>\n</body>\n</html>\n")
+	tail := "</ul></body></html>\n"
+
+	head.Execute(htmlFh, c.timestamp)
+	for _, f := range c.manifest {
+		line.Execute(htmlFh, f)
+	}
+	htmlFh.WriteString(tail)
 
 	return nil
 }
@@ -629,7 +618,7 @@ func (c *DebugCommand) trap() {
 
 	go func() {
 		<-sigCh
-		close(c.stopCh)
+		c.cancel()
 	}()
 }
 
