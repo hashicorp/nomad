@@ -46,8 +46,8 @@ func (c *DebugCommand) Help() string {
 	helpText := `
 Usage: nomad debug [options]
 
-  Build an archive containing Nomad cluster configuration and state information, Nomad
-  server and node logs and pprof data for selected members, and Consul and Vault status.
+  Build an archive containing Nomad cluster configuration and state, and Consul and Vault
+  status. Include logs and pprof profiles for selected servers and client nodes.
 
 General Options:
 
@@ -66,22 +66,22 @@ Debug Options:
    The log level to monitor. Defaults to DEBUG.
 
   -node-id=n1,n2
-   Comma separated list of Nomad client node ids, to monitor for logs and include pprof data.
-   Accepts id prefixes.
+   Comma separated list of Nomad client node ids, to monitor for logs and include pprof
+   profiles. Accepts id prefixes.
 
   -server-id=s1,s2
    Comma separated list of Nomad server names, or "leader" to monitor for logs and include pprof
-   data.
+   profiles.
 
   -output=path
-   Path to the parent directory of the output directory. Defaults to the current directory.
-   If specified, no archive is built.
+   Path to the parent directory of the output directory. If not specified, an archive is built
+   in the current directory.
 
   -consul-token
-   Token use to query Consul. Defaults to CONSUL_TOKEN
+   Token used to query Consul. Defaults to CONSUL_TOKEN
 
   -vault-token
-   Token use to query Vault. Defaults to VAULT_TOKEN
+   Token used to query Vault. Defaults to VAULT_TOKEN
 `
 	return strings.TrimSpace(helpText)
 }
@@ -249,7 +249,7 @@ func (c *DebugCommand) collect(client *api.Client) error {
 
 	self, err := client.Agent().Self()
 	if err != nil {
-		return fmt.Errorf("Error agent self: %s", err.Error())
+		return fmt.Errorf("agent self: %s", err.Error())
 	}
 	c.writeJSON(dir, "agent-self.json", self)
 
@@ -337,7 +337,7 @@ func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Clie
 			fh.WriteString("\n")
 
 		case err := <-errCh:
-			fh.WriteString(fmt.Sprintf("Error monitoring: %s\n", err.Error()))
+			fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
 			return
 
 		case <-c.ctx.Done():
@@ -430,43 +430,43 @@ func (c *DebugCommand) collectNomad(dir string, client *api.Client) error {
 
 	js, _, err := client.Jobs().List(qo)
 	if err != nil {
-		return fmt.Errorf("error listing jobs: %s", err.Error())
+		return fmt.Errorf("listing jobs: %s", err.Error())
 	}
 	c.writeJSON(dir, "jobs.json", js)
 
 	ds, _, err := client.Deployments().List(qo)
 	if err != nil {
-		return fmt.Errorf("error listing deployments: %s", err.Error())
+		return fmt.Errorf("listing deployments: %s", err.Error())
 	}
 	c.writeJSON(dir, "deployments.json", ds)
 
 	es, _, err := client.Evaluations().List(qo)
 	if err != nil {
-		return fmt.Errorf("error listing evaluations: %s", err.Error())
+		return fmt.Errorf("listing evaluations: %s", err.Error())
 	}
 	c.writeJSON(dir, "evaluations.json", es)
 
 	as, _, err := client.Allocations().List(qo)
 	if err != nil {
-		return fmt.Errorf("error listing allocations: %s", err.Error())
+		return fmt.Errorf("listing allocations: %s", err.Error())
 	}
 	c.writeJSON(dir, "allocations.json", as)
 
 	ns, _, err := client.Nodes().List(qo)
 	if err != nil {
-		return fmt.Errorf("error listing nodes: %s", err.Error())
+		return fmt.Errorf("listing nodes: %s", err.Error())
 	}
 	c.writeJSON(dir, "nodes.json", ns)
 
 	ps, _, err := client.CSIPlugins().List(qo)
 	if err != nil {
-		return fmt.Errorf("error listing plugins: %s", err.Error())
+		return fmt.Errorf("listing plugins: %s", err.Error())
 	}
 	c.writeJSON(dir, "plugins.json", ps)
 
 	vs, _, err := client.CSIVolumes().List(qo)
 	if err != nil {
-		return fmt.Errorf("error listing volumes: %s", err.Error())
+		return fmt.Errorf("listing volumes: %s", err.Error())
 	}
 	c.writeJSON(dir, "volumes.json", vs)
 
