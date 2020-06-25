@@ -1,16 +1,16 @@
 import Component from '@ember/component';
-import { tagName } from '@ember-decorators/component';
+import { classNames } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
 import EmberObject, { action, computed, set } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
-import { run } from '@ember/runloop';
+import { debounce, run } from '@ember/runloop';
 import Searchable from 'nomad-ui/mixins/searchable';
 import classic from 'ember-classic-decorator';
 
 const SLASH_KEY = 191;
 
-@tagName('')
+@classNames('global-search-container')
 export default class GlobalSearchControl extends Component {
   @service dataCaches;
   @service router;
@@ -117,8 +117,15 @@ export default class GlobalSearchControl extends Component {
     const triggerIsNotActive = !targetClassList.contains('ember-power-select-trigger--active');
 
     if (targetIsTrigger && triggerIsNotActive) {
+      debounce(this, this.open, 150);
+    }
+  }
+
+  @action
+  onCloseEvent(select, event) {
+    if (event.key === 'Escape') {
       run.next(() => {
-        select.actions.open();
+        this.select.actions.setIsActive(false);
       });
     }
   }
@@ -151,6 +158,7 @@ class JobSearch extends EmberObject.extend(Searchable) {
   @alias('dataSource.searchString') searchTerm;
 
   fuzzySearchEnabled = true;
+  includeFuzzySearchMatches = true;
 }
 
 @classic
@@ -169,4 +177,5 @@ class NodeSearch extends EmberObject.extend(Searchable) {
   @alias('dataSource.searchString') searchTerm;
 
   fuzzySearchEnabled = true;
+  includeFuzzySearchMatches = true;
 }
