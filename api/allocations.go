@@ -482,6 +482,14 @@ type AllocatedTaskResources struct {
 type AllocatedSharedResources struct {
 	DiskMB   int64
 	Networks []*NetworkResource
+	Ports    []PortMapping
+}
+
+type PortMapping struct {
+	Label  string
+	Value  int
+	To     int
+	HostIP string
 }
 
 type AllocatedCpuResources struct {

@@ -3432,6 +3432,7 @@ func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
 	return AllocatedSharedResources{
 		Networks: a.Networks.Copy(),
 		DiskMB:   a.DiskMB,
+		Ports:    a.Ports,
 	}
 }
 
