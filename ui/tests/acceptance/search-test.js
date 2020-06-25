@@ -107,6 +107,7 @@ module('Acceptance | search', function(hooks) {
 
     server.create('job', { id: 'traefik', namespaceId: 'default' });
     server.create('job', { id: 'tracking', namespace: 'default' });
+    server.create('job', { id: 'smtp-sensor', namespaceId: 'default' });
 
     await visit('/');
 
@@ -128,6 +129,14 @@ module('Acceptance | search', function(hooks) {
       search.groups[0].as(jobs => {
         assert.equal(jobs.options[0].formattedText, 't*ra*efik');
         assert.equal(jobs.options[1].formattedText, 't*ra*cking');
+      });
+    });
+
+    await selectSearch(PageLayout.navbar.search.scope, 'sensor');
+
+    PageLayout.navbar.search.as(search => {
+      search.groups[0].as(jobs => {
+        assert.equal(jobs.options[0].formattedText, '*s*mtp-*sensor*');
       });
     });
   });
