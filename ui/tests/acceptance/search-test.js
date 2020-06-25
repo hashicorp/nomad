@@ -107,6 +107,7 @@ module('Acceptance | search', function(hooks) {
 
     server.create('job', { id: 'traefik', namespaceId: 'default' });
     server.create('job', { id: 'tracking', namespace: 'default' });
+    server.create('job', { id: 'smtp-sensor', namespaceId: 'default' });
 
     await visit('/');
 
@@ -115,10 +116,10 @@ module('Acceptance | search', function(hooks) {
     PageLayout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
         assert.equal(jobs.options[0].text, 'traefik');
-        assert.equal(jobs.options[0].highlighted, 'trae');
+        assert.equal(jobs.options[0].formattedText, '*trae*fik');
 
         assert.equal(jobs.options[1].text, 'tracking');
-        assert.equal(jobs.options[1].highlighted, 'tra');
+        assert.equal(jobs.options[1].formattedText, '*tra*cking');
       });
     });
 
@@ -126,8 +127,16 @@ module('Acceptance | search', function(hooks) {
 
     PageLayout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
-        assert.equal(jobs.options[0].highlighted, 'ra');
-        assert.equal(jobs.options[1].highlighted, 'ra');
+        assert.equal(jobs.options[0].formattedText, 't*ra*efik');
+        assert.equal(jobs.options[1].formattedText, 't*ra*cking');
+      });
+    });
+
+    await selectSearch(PageLayout.navbar.search.scope, 'sensor');
+
+    PageLayout.navbar.search.as(search => {
+      search.groups[0].as(jobs => {
+        assert.equal(jobs.options[0].formattedText, '*s*mtp-*sensor*');
       });
     });
   });
