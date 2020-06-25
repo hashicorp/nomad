@@ -61,7 +61,7 @@ job "docs" {
 
 A single region deployment using one of the various [upgrade strategies]
 begins in the `running` state, and ends in the `successful` state, the
-`cancelled` state (if another deployment supercedes it before it it's
+`canceled` state (if another deployment supersedes it before it it's
 complete), or the `failed` state. A failed single region deployment may
 automatically revert to the previous version of the job if its `update`
 stanza has the [`auto_revert`][update-auto-revert] setting.
