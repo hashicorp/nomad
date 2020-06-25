@@ -1,5 +1,5 @@
 {{#if firstIndices}}
-  {{beforeHighlighted}}<span class='highlighted'>{{highlighted}}</span>{{afterHighlighted}}
+  <span data-test-match-substring>{{beforeHighlighted}}</span><span class='highlighted' data-test-match-substring>{{highlighted}}</span><span data-test-match-substring>{{afterHighlighted}}</span>
 {{else}}
   {{label}}
 {{/if}}
