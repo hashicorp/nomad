@@ -23,7 +23,6 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	log "github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -1651,7 +1650,7 @@ func (s *Server) ClusterID() (string, error) {
 
 	// try to load the cluster ID from state store
 	fsmState := s.fsm.State()
-	existingMeta, err := fsmState.ClusterMetadata(memdb.NewWatchSet())
+	existingMeta, err := fsmState.ClusterMetadata(nil)
 	if err != nil {
 		s.logger.Named("core").Error("failed to get cluster ID", "error", err)
 		return "", err
