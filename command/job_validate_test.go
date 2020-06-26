@@ -1,7 +1,6 @@
 package command
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -18,13 +17,12 @@ func TestValidateCommand_Implements(t *testing.T) {
 
 func TestValidateCommand(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
-	cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
-
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
-	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
+
+	ui := new(cli.MockUi)
+	cmd := &JobValidateCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	fh, err := ioutil.TempFile("", "nomad")
 	if err != nil {
@@ -122,15 +120,15 @@ func TestValidateCommand_From_STDIN(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	ui := new(cli.MockUi)
-	cmd := &JobValidateCommand{
-		Meta:      Meta{Ui: ui},
-		JobGetter: JobGetter{testStdin: stdinR},
-	}
 	// Create a server
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
-	os.Setenv("NOMAD_ADDR", fmt.Sprintf("http://%s", s.HTTPAddr))
+
+	ui := new(cli.MockUi)
+	cmd := &JobValidateCommand{
+		Meta:      Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr},
+		JobGetter: JobGetter{testStdin: stdinR},
+	}
 
 	go func() {
 		stdinW.WriteString(`

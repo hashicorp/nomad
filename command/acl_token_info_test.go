@@ -14,6 +14,8 @@ import (
 )
 
 func TestACLTokenInfoCommand_ViaEnvVar(t *testing.T) {
+	defer os.Setenv("NOMAD_TOKEN", os.Getenv("NOMAD_TOKEN"))
+
 	assert := assert.New(t)
 	t.Parallel()
 	config := func(c *agent.Config) {
