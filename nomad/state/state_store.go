@@ -5046,15 +5046,16 @@ func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerCon
 	return nil
 }
 
-func (s *StateStore) ClusterMetadata() (*structs.ClusterMetadata, error) {
+func (s *StateStore) ClusterMetadata(ws memdb.WatchSet) (*structs.ClusterMetadata, error) {
 	txn := s.db.Txn(false)
 	defer txn.Abort()
 
 	// Get the cluster metadata
-	m, err := txn.First("cluster_meta", "id")
+	watchCh, m, err := txn.FirstWatch("cluster_meta", "id")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed cluster metadata lookup")
 	}
+	ws.Add(watchCh)
 
 	if m != nil {
 		return m.(*structs.ClusterMetadata), nil

@@ -1650,7 +1650,7 @@ func (s *Server) ClusterID() (string, error) {
 
 	// try to load the cluster ID from state store
 	fsmState := s.fsm.State()
-	existingMeta, err := fsmState.ClusterMetadata()
+	existingMeta, err := fsmState.ClusterMetadata(nil)
 	if err != nil {
 		s.logger.Named("core").Error("failed to get cluster ID", "error", err)
 		return "", err

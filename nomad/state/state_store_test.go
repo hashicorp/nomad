@@ -8481,7 +8481,7 @@ func TestStateStore_ClusterMetadata(t *testing.T) {
 	err := state.ClusterSetMetadata(100, meta)
 	require.NoError(err)
 
-	result, err := state.ClusterMetadata()
+	result, err := state.ClusterMetadata(nil)
 	require.NoError(err)
 	require.Equal(clusterID, result.ClusterID)
 	require.Equal(now, result.CreateTime)
@@ -8503,7 +8503,7 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 
 	restore.Commit()
 
-	out, err := state.ClusterMetadata()
+	out, err := state.ClusterMetadata(nil)
 	require.NoError(err)
 	require.Equal(clusterID, out.ClusterID)
 	require.Equal(now, out.CreateTime)
