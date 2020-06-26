@@ -222,134 +222,9 @@ func newTestDockerClient(t *testing.T) *docker.Client {
 	return client
 }
 
-/*
-// This test should always pass, even if docker daemon is not available
-func TestDockerDriver_Fingerprint(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
-
-	ctx := testDockerDriverContexts(t, &structs.Task{Name: "foo", Driver: "docker", Resources: basicResources})
-	//ctx.DriverCtx.config.Options = map[string]string{"docker.cleanup.image": "false"}
-	defer ctx.Destroy()
-	d := NewDockerDriver(ctx.DriverCtx)
-	node := &structs.Node{
-		Attributes: make(map[string]string),
-	}
-
-	request := &fingerprint.FingerprintRequest{Config: &config.Config{}, Node: node}
-	var response fingerprint.FingerprintResponse
-	err := d.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	attributes := response.Attributes
-	if testutil.DockerIsConnected(t) && attributes["driver.docker"] == "" {
-		t.Fatalf("Fingerprinter should detect when docker is available")
-	}
-
-	if attributes["driver.docker"] != "1" {
-		t.Log("Docker daemon not available. The remainder of the docker tests will be skipped.")
-	} else {
-
-		// if docker is available, make sure that the response is tagged as
-		// applicable
-		if !response.Detected {
-			t.Fatalf("expected response to be applicable")
-		}
-	}
-
-	t.Logf("Found docker version %s", attributes["driver.docker.version"])
-}
-
-// TestDockerDriver_Fingerprint_Bridge asserts that if Docker is running we set
-// the bridge network's IP as a node attribute. See #2785
-func TestDockerDriver_Fingerprint_Bridge(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
-	testutil.DockerCompatible(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("expect only on linux")
-	}
-
-	// This seems fragile, so we might need to reconsider this test if it
-	// proves flaky
-	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
-	if err != nil {
-		t.Fatalf("unable to get ip for docker0: %v", err)
-	}
-	if expectedAddr == "" {
-		t.Fatalf("unable to get ip for docker bridge")
-	}
-
-	conf := testConfig(t)
-	conf.Node = mock.Node()
-	dd := NewDockerDriver(NewDriverContext("", "", "", "", conf, conf.Node, testlog.Logger(t), nil))
-
-	request := &fingerprint.FingerprintRequest{Config: conf, Node: conf.Node}
-	var response fingerprint.FingerprintResponse
-
-	err = dd.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("error fingerprinting docker: %v", err)
-	}
-
-	if !response.Detected {
-		t.Fatalf("expected response to be applicable")
-	}
-
-	attributes := response.Attributes
-	if attributes == nil {
-		t.Fatalf("expected attributes to be set")
-	}
-
-	if attributes["driver.docker"] == "" {
-		t.Fatalf("expected Docker to be enabled but false was returned")
-	}
-
-	if found := attributes["driver.docker.bridge_ip"]; found != expectedAddr {
-		t.Fatalf("expected bridge ip %q but found: %q", expectedAddr, found)
-	}
-	t.Logf("docker bridge ip: %q", attributes["driver.docker.bridge_ip"])
-}
-
-func TestDockerDriver_Check_DockerHealthStatus(t *testing.T) {
-	if !tu.IsCI() {
-		t.Parallel()
-	}
-	testutil.DockerCompatible(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("expect only on linux")
-	}
-
-	require := require.New(t)
-
-	expectedAddr, err := sockaddr.GetInterfaceIP("docker0")
-	if err != nil {
-		t.Fatalf("unable to get ip for docker0: %v", err)
-	}
-	if expectedAddr == "" {
-		t.Fatalf("unable to get ip for docker bridge")
-	}
-
-	conf := testConfig(t)
-	conf.Node = mock.Node()
-	dd := NewDockerDriver(NewDriverContext("", "", "", "", conf, conf.Node, testlog.Logger(t), nil))
-
-	request := &cstructs.HealthCheckRequest{}
-	var response cstructs.HealthCheckResponse
-
-	dc, ok := dd.(fingerprint.HealthCheck)
-	require.True(ok)
-	err = dc.HealthCheck(request, &response)
-	require.Nil(err)
-
-	driverInfo := response.Drivers["docker"]
-	require.NotNil(driverInfo)
-	require.True(driverInfo.Healthy)
-}*/
+// Following tests have been removed from this file.
+// [TestDockerDriver_Fingerprint, TestDockerDriver_Fingerprint_Bridge, TestDockerDriver_Check_DockerHealthStatus]
+// If you want to checkout/revert those tests, please check commit: 41715b1860778aa80513391bd64abd721d768ab0
 
 func TestDockerDriver_Start_Wait(t *testing.T) {
 	if !tu.IsCI() {
@@ -1111,8 +986,8 @@ func TestDockerDriver_CreateContainerConfig_ChecksAllowRuntimes(t *testing.T) {
 	driver := dh.Impl().(*Driver)
 	driver.gpuRuntime = true
 	driver.config.allowRuntimes = map[string]struct{}{
-		"runc":   struct{}{},
-		"custom": struct{}{},
+		"runc":   {},
+		"custom": {},
 	}
 
 	allowRuntime := []string{
