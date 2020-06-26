@@ -142,6 +142,8 @@ func checkFreedPortsOnce() {
 		return
 	}
 
+	logf("DEBUG", "freeing pending ports: %v", remove)
+	logf("DEBUG", "pending ports still retained: %v", pending)
 	for _, elem := range remove {
 		pendingPorts.Remove(elem)
 	}
@@ -244,7 +246,7 @@ func Take(n int) (ports []int, err error) {
 		ports = append(ports, port)
 	}
 
-	// logf("DEBUG", "free ports: %v", ports)
+	logf("DEBUG", "free ports: %v %v", n, ports)
 	return ports, nil
 }
 
@@ -258,6 +260,7 @@ func Return(ports []int) {
 	mu.Lock()
 	defer mu.Unlock()
 
+	logf("DEBUG", "returning ports: %v", ports)
 	for _, port := range ports {
 		if port > firstPort && port < firstPort+blockSize {
 			pendingPorts.PushBack(port)
