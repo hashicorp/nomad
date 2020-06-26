@@ -83,13 +83,13 @@ func initialize() {
 	var err error
 	effectiveMaxBlocks, err = adjustMaxBlocks()
 	if err != nil {
-		panic("freeport: ephemeral port range detection failed: " + err.Error())
+		panic("nomad.freeport:g ephemeral port range detection failed: " + err.Error())
 	}
 	if effectiveMaxBlocks < 0 {
-		panic("freeport: no blocks of ports available outside of ephemeral range")
+		panic("nomad.freeport:g no blocks of ports available outside of ephemeral range")
 	}
 	if lowPort+effectiveMaxBlocks*blockSize > 65535 {
-		panic("freeport: block size too big or too many blocks requested")
+		panic("nomad.freeport:g block size too big or too many blocks requested")
 	}
 
 	rand.Seed(time.Now().UnixNano())
@@ -190,7 +190,7 @@ func alloc() (int, net.Listener) {
 		// logf("DEBUG", "allocated port block %d (%d-%d)", block, firstPort, firstPort+blockSize-1)
 		return firstPort, ln
 	}
-	panic("freeport: cannot allocate port block")
+	panic("nomad.freeport:g cannot allocate port block")
 }
 
 // MustTake is the same as Take except it panics on error.
@@ -208,7 +208,7 @@ func MustTake(n int) (ports []int) {
 // future.
 func Take(n int) (ports []int, err error) {
 	if n <= 0 {
-		return nil, fmt.Errorf("freeport: cannot take %d ports", n)
+		return nil, fmt.Errorf("nomad.freeport:g cannot take %d ports", n)
 	}
 
 	mu.Lock()
@@ -218,13 +218,13 @@ func Take(n int) (ports []int, err error) {
 	once.Do(initialize)
 
 	if n > total {
-		return nil, fmt.Errorf("freeport: block size too small")
+		return nil, fmt.Errorf("nomad.freeport:g block size too small")
 	}
 
 	for len(ports) < n {
 		for freePorts.Len() == 0 {
 			if total == 0 {
-				return nil, fmt.Errorf("freeport: impossible to satisfy request; there are no actual free ports in the block anymore")
+				return nil, fmt.Errorf("nomad.freeport:g impossible to satisfy request; there are no actual free ports in the block anymore")
 			}
 			condNotEmpty.Wait()
 		}
@@ -293,5 +293,5 @@ func intervalOverlap(min1, max1, min2, max2 int) bool {
 }
 
 func logf(severity string, format string, a ...interface{}) {
-	_, _ = fmt.Fprintf(os.Stderr, "["+severity+"] freeport: "+format+"\n", a...)
+	_, _ = fmt.Fprintf(os.Stderr, "["+severity+"] nomad.freeport:g "+format+"\n", a...)
 }
