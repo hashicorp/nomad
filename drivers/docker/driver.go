@@ -826,7 +826,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// This translates to docker create/run --cpuset-cpus option.
 	// --cpuset-cpus limit the specific CPUs or cores a container can use.
 	if driverConfig.CPUSetCPUs != "" {
-		logger.Debug(fmt.Sprintf("Setting CPUSetCPUs to %s", driverConfig.CPUSetCPUs))
 		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}
 
