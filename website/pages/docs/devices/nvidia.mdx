@@ -109,8 +109,10 @@ the installation instructions for
 
 ```hcl
 plugin "nvidia-gpu" {
-  ignored_gpu_ids = ["GPU-fef8089b", "GPU-ac81e44d"]
-  fingerprint_period = "1m"
+  config {
+    ignored_gpu_ids = ["GPU-fef8089b", "GPU-ac81e44d"]
+    fingerprint_period = "1m"
+  }
 }
 ```
 

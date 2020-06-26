@@ -30,6 +30,7 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 ## Docs
 
 * [ ] Changelog
-* [ ] API docs https://www.nomadproject.io/api/index.html
-* [ ] CLI docs https://www.nomadproject.io/docs/commands/index.html
+* [ ] API docs https://www.nomadproject.io/api
+* [ ] CLI docs https://www.nomadproject.io/docs/commands
+* [ ] If adding new docs see [website README](../website/README.md#editing-navigation-sidebars)
 * [ ] Consider if it needs a guide https://www.nomadproject.io/guides/index.html

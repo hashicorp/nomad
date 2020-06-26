@@ -11,7 +11,7 @@ const MDXProvider = createMdxProvider({
   additionalComponents: { Placement },
 })
 
-function DocsLayoutWrapper(pageMeta) {
+export default function DocsLayoutWrapper(pageMeta) {
   function DocsLayout(props) {
     return (
       <MDXProvider>
@@ -41,5 +41,3 @@ function DocsLayoutWrapper(pageMeta) {
 
   return DocsLayout
 }
-
-export default DocsLayoutWrapper

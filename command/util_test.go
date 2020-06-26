@@ -17,6 +17,7 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 			cb(config)
 		}
 	})
+	t.Cleanup(func() { a.Shutdown() })
 
 	c := a.Client()
 	return a, c, a.HTTPAddr()

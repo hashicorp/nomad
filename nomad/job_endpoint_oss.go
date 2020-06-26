@@ -13,3 +13,8 @@ func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
 func (j *Job) multiregionRegister(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
 	return nil
 }
+
+// interpolateMultiregionFields interpolates a job for a specific region
+func (j *Job) interpolateMultiregionFields(args *structs.JobPlanRequest) error {
+	return nil
+}

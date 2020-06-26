@@ -7,7 +7,9 @@ import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import ipParts from '../utils/ip-parts';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class Node extends Model {
   // Available from list response
   @attr('string') name;

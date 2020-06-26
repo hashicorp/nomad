@@ -21,7 +21,7 @@ General Options:
 }
 
 func (c *LicenseGetCommand) Synopsis() string {
-	return "Install a new Nomad Enterprise License"
+	return "Retrieve the current Nomad Enterprise License"
 }
 
 func (c *LicenseGetCommand) Name() string { return "license get" }

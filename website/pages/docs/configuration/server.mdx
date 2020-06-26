@@ -156,8 +156,8 @@ server {
   unreliable networks to wait longer before electing a new leader. The tradeoff
   when raising this value is that during network partitions or other events
   (server crash) where a leader is lost, Nomad will not elect a new leader for
-  a longer period of time than the default. The ['nomad.nomad.leader.barrier' and
-  `nomad.raft.leader.lastContact` metrics](/docs/telemetry/metrics is a good
+  a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
+  `nomad.raft.leader.lastContact` metrics](/docs/telemetry/metrics) are a good
   indicator of how often leader elections occur and raft latency.
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy

@@ -244,6 +244,12 @@ Below is a table documenting common node properties:
     </tr>
     <tr>
       <td>
+        <code>{'${attr.platform.aws.placement.availability-zone}'}</code>
+      </td>
+      <td>Availability Zone of the client (if on AWS EC2)</td>
+    </tr>
+    <tr>
+      <td>
         <code>{'${attr.os.name}'}</code>
       </td>
       <td>
@@ -259,6 +265,8 @@ Below is a table documenting common node properties:
     </tr>
   </tbody>
 </table>
+
+The full list of node attributes can be obtained by running `nomad node status -verbose [node]`.
 
 Here are some examples of using node attributes and properties in a job file:
 

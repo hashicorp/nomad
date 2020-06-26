@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	consulapi "github.com/hashicorp/consul/api"
-	consultest "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -93,11 +92,11 @@ func TestEnvoyBootstrapHook_decodeTriState(t *testing.T) {
 }
 
 var (
-	consulPlainConfig = envoyBootstrapConsulConfig{
+	consulPlainConfig = consulTransportConfig{
 		HTTPAddr: "2.2.2.2",
 	}
 
-	consulTLSConfig = envoyBootstrapConsulConfig{
+	consulTLSConfig = consulTransportConfig{
 		HTTPAddr:  "2.2.2.2",            // arg
 		Auth:      "user:password",      // env
 		SSL:       "true",               // env
@@ -220,16 +219,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	t.Parallel()
 	testutil.RequireConsul(t)
 
-	testconsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {
-		// If -v wasn't specified squelch consul logging
-		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
-		}
-	})
-	if err != nil {
-		t.Fatalf("error starting test consul server: %v", err)
-	}
+	testconsul := getTestConsul(t)
 	defer testconsul.Stop()
 
 	alloc := mock.Alloc()
@@ -328,16 +318,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Ok(t *testing.T) {
 	t.Parallel()
 	testutil.RequireConsul(t)
 
-	testconsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {
-		// If -v wasn't specified squelch consul logging
-		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
-		}
-	})
-	if err != nil {
-		t.Fatalf("error starting test consul server: %v", err)
-	}
+	testconsul := getTestConsul(t)
 	defer testconsul.Stop()
 
 	alloc := mock.Alloc()
@@ -470,16 +451,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	t.Parallel()
 	testutil.RequireConsul(t)
 
-	testconsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {
-		// If -v wasn't specified squelch consul logging
-		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
-		}
-	})
-	if err != nil {
-		t.Fatalf("error starting test consul server: %v", err)
-	}
+	testconsul := getTestConsul(t)
 	defer testconsul.Stop()
 
 	alloc := mock.Alloc()
@@ -534,7 +506,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	resp := &interfaces.TaskPrestartResponse{}
 
 	// Run the hook
-	err = h.Prestart(context.Background(), req, resp)
+	err := h.Prestart(context.Background(), req, resp)
 	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
 	require.True(t, structs.IsRecoverable(err))
 

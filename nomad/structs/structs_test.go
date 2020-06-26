@@ -814,13 +814,20 @@ func TestTask_UsesConnect(t *testing.T) {
 	t.Run("sidecar proxy", func(t *testing.T) {
 		task := &Task{
 			Name: "connect-proxy-task1",
-			Kind: "connect-proxy:task1",
+			Kind: NewTaskKind(ConnectProxyPrefix, "task1"),
 		}
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
 
-	// todo(shoenig): add native case
+	t.Run("native task", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectNativePrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
@@ -1131,6 +1138,153 @@ func TestTaskGroup_Validate(t *testing.T) {
 	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
 	require.Contains(t, err.Error(), expected)
 
+}
+
+func TestTaskGroupNetwork_Validate(t *testing.T) {
+	cases := []struct {
+		TG          *TaskGroup
+		ErrContains string
+	}{
+		{
+			TG: &TaskGroup{
+				Name: "group-static-value-ok",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "ok",
+								Value: 65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-value-ok",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "ok",
+								Value: 65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-to-ok",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "ok",
+								To:    65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-to-ok",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "ok",
+								To:    65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-value-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "too-high",
+								Value: 65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-value-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "too-high",
+								Value: 65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-to-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "too-high",
+								To:    65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-to-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "too-high",
+								To:    65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.TG.Name, func(t *testing.T) {
+			err := tc.TG.validateNetworks()
+			t.Logf("%s -> %v", tc.TG.Name, err)
+			if tc.ErrContains == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.ErrContains)
+		})
+	}
 }
 
 func TestTask_Validate(t *testing.T) {
@@ -2707,10 +2861,14 @@ func TestService_Validate(t *testing.T) {
 	// Base service should be valid
 	require.NoError(t, s.Validate())
 
-	// Native Connect should be valid
+	// Native Connect requires task name on service
 	s.Connect = &ConsulConnect{
 		Native: true,
 	}
+	require.Error(t, s.Validate())
+
+	// Native Connect should work with task name on service set
+	s.TaskName = "testtask"
 	require.NoError(t, s.Validate())
 
 	// Native Connect + Sidecar should be invalid

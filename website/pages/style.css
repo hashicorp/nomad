@@ -34,6 +34,7 @@
 @import '~@hashicorp/react-text-split/dist/style.css';
 @import '~@hashicorp/react-toggle/dist/style.css';
 @import '~@hashicorp/react-use-cases/dist/style.css';
+@import '~@hashicorp/react-use-cases/dist/style.css';
 @import '~@hashicorp/react-vertical-text-block-list/dist/style.css';
 
 /* Local Components */
@@ -73,15 +74,15 @@
   padding-top: 96px;
   padding-bottom: 96px;
 
-& > .g-section-header + *,
-& > .g-container > .g-section-header + * {
-  margin-top: 72px;
-}
+  & > .g-section-header + *,
+  & > .g-container > .g-section-header + * {
+    margin-top: 72px;
+  }
 
-& > * + *,
-& > .g-container > * + * {
-  margin-top: 96px;
-}
+  & > * + *,
+  & > .g-container > * + * {
+    margin-top: 96px;
+  }
 }
 
 .g-section-block .button-container {

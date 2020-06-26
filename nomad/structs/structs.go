@@ -2328,9 +2328,21 @@ func (p AllocatedPorts) Get(label string) (AllocatedPortMapping, bool) {
 }
 
 type Port struct {
-	Label       string
-	Value       int
-	To          int
+	// Label is the key for HCL port stanzas: port "foo" {}
+	Label string
+
+	// Value is the static or dynamic port value. For dynamic ports this
+	// will be 0 in the jobspec and set by the scheduler.
+	Value int
+
+	// To is the port inside a network namespace where this port is
+	// forwarded. -1 is an internal sentinel value used by Consul Connect
+	// to mean "same as the host port."
+	To int
+
+	// HostNetwork is the name of the network this port should be assigned
+	// to. Jobs with a HostNetwork set can only be placed on nodes with
+	// that host network available.
 	HostNetwork string
 }
 
@@ -3420,6 +3432,7 @@ func (a AllocatedSharedResources) Copy() AllocatedSharedResources {
 	return AllocatedSharedResources{
 		Networks: a.Networks.Copy(),
 		DiskMB:   a.DiskMB,
+		Ports:    a.Ports,
 	}
 }
 
@@ -5763,7 +5776,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	// Validate the scaling policy
-	if err := tg.validateScalingPolicy(); err != nil {
+	if err := tg.validateScalingPolicy(j); err != nil {
 		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
 		mErr.Errors = append(mErr.Errors, outer)
 	}
@@ -5809,6 +5822,9 @@ func (tg *TaskGroup) validateNetworks() error {
 				if other, ok := staticPorts[port.Value]; ok {
 					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
 					mErr.Errors = append(mErr.Errors, err)
+				} else if port.Value > math.MaxUint16 {
+					err := fmt.Errorf("Port %s (%d) cannot be greater than %d", port.Label, port.Value, math.MaxUint16)
+					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					staticPorts[port.Value] = fmt.Sprintf("taskgroup network:%s", port.Label)
 				}
@@ -5816,6 +5832,9 @@ func (tg *TaskGroup) validateNetworks() error {
 
 			if port.To < -1 {
 				err := fmt.Errorf("Port %q cannot be mapped to negative value %d", port.Label, port.To)
+				mErr.Errors = append(mErr.Errors, err)
+			} else if port.To > math.MaxUint16 {
+				err := fmt.Errorf("Port %q cannot be mapped to a port (%d) greater than %d", port.Label, port.To, math.MaxUint16)
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
@@ -5835,6 +5854,9 @@ func (tg *TaskGroup) validateNetworks() error {
 				if port.Value != 0 {
 					if other, ok := staticPorts[port.Value]; ok {
 						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
+						mErr.Errors = append(mErr.Errors, err)
+					} else if port.Value > math.MaxUint16 {
+						err := fmt.Errorf("Port %s (%d) cannot be greater than %d", port.Label, port.Value, math.MaxUint16)
 						mErr.Errors = append(mErr.Errors, err)
 					} else {
 						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
@@ -5904,7 +5926,7 @@ func (tg *TaskGroup) validateServices() error {
 
 // validateScalingPolicy ensures that the scaling policy has consistent
 // min and max, not in conflict with the task group count
-func (tg *TaskGroup) validateScalingPolicy() error {
+func (tg *TaskGroup) validateScalingPolicy(j *Job) error {
 	if tg.Scaling == nil {
 		return nil
 	}
@@ -5916,7 +5938,7 @@ func (tg *TaskGroup) validateScalingPolicy() error {
 			fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
 	}
 
-	if int64(tg.Count) < tg.Scaling.Min {
+	if int64(tg.Count) < tg.Scaling.Min && !(j.IsMultiregion() && tg.Count == 0) {
 		mErr.Errors = append(mErr.Errors,
 			fmt.Errorf("Scaling policy invalid: task group count must not be less than minimum count in scaling policy"))
 	}
@@ -5937,7 +5959,7 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 	// Validate the update strategy
 	if u := tg.Update; u != nil {
 		// Check the counts are appropriate
-		if u.MaxParallel > tg.Count {
+		if u.MaxParallel > tg.Count && !(j.IsMultiregion() && tg.Count == 0) {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Update max parallel count is greater than task group count (%d > %d). "+
 					"A destructive change would result in the simultaneous replacement of all allocations.", u.MaxParallel, tg.Count))
@@ -5967,7 +5989,7 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 func (tg *TaskGroup) UsesConnect() bool {
 	for _, service := range tg.Services {
 		if service.Connect != nil {
-			if service.Connect.Native || service.Connect.SidecarService != nil {
+			if service.Connect.IsNative() || service.Connect.HasSidecar() {
 				return true
 			}
 		}
@@ -6167,18 +6189,10 @@ type Task struct {
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
 // of Consul Connect features. This will be indicated in the TaskKind of the
-// Task, which exports known types of Tasks.
-//
-// Currently only Consul Connect Proxy tasks are known.
-// (Consul Connect Native tasks will be supported soon).
+// Task, which exports known types of Tasks. UsesConnect will be true if the
+// task is a connect proxy, or if the task is connect native.
 func (t *Task) UsesConnect() bool {
-	// todo(shoenig): native tasks
-	switch {
-	case t.Kind.IsConnectProxy():
-		return true
-	default:
-		return false
-	}
+	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative()
 }
 
 func (t *Task) Copy() *Task {

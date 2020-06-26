@@ -145,6 +145,13 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
+	if args.Job.Multiregion != nil && args.Job.Region != nil {
+		region := *args.Job.Region
+		if !(region == "global" || region == "") {
+			return nil, CodedError(400, "Job can't have both multiregion and region blocks")
+		}
+	}
+
 	var region *string
 
 	// Region in http request query param takes precedence over region in job hcl config
@@ -1177,6 +1184,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 		out[i] = &structs.Service{
 			Name:              s.Name,
 			PortLabel:         s.PortLabel,
+			TaskName:          s.TaskName,
 			Tags:              s.Tags,
 			CanaryTags:        s.CanaryTags,
 			EnableTagOverride: s.EnableTagOverride,

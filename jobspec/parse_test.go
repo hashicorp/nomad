@@ -1277,6 +1277,24 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-native.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("connect_native_service"),
+				Name: helper.StringToPtr("connect_native_service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name:     "example",
+						TaskName: "task1",
+						Connect: &api.ConsulConnect{
+							Native: true,
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-enable-tag-override.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("group_service_eto"),

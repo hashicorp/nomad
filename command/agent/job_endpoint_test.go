@@ -2763,7 +2763,7 @@ func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
 	}))
 }
 
-func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
+func TestConversion_ApiConsulConnectToStructs_legacy(t *testing.T) {
 	t.Parallel()
 	require.Nil(t, ApiConsulConnectToStructs(nil))
 	require.Equal(t, &structs.ConsulConnect{
@@ -2774,5 +2774,15 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 		Native:         false,
 		SidecarService: &api.ConsulSidecarService{Port: "myPort"},
 		SidecarTask:    &api.SidecarTask{Name: "task"},
+	}))
+}
+
+func TestConversion_ApiConsulConnectToStructs_native(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, ApiConsulConnectToStructs(nil))
+	require.Equal(t, &structs.ConsulConnect{
+		Native: true,
+	}, ApiConsulConnectToStructs(&api.ConsulConnect{
+		Native: true,
 	}))
 }

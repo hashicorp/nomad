@@ -1,6 +1,6 @@
-import UseCasesLayout from '../../layouts/use-cases'
+import UseCasesLayout from 'layouts/use-cases'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from '../../components/featured-slider-section'
+import FeaturedSliderSection from 'components/featured-slider-section'
 
 export default function AutomatedServiceNetworkingWithConsulPage() {
   return (
@@ -19,13 +19,13 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
               text: 'Read More',
               url:
                 'https://learn.hashicorp.com/nomad/operating-nomad/clustering#use-consul-to-automatically-cluster-nodes',
-              type: 'outbound'
-            }
-          ]
+              type: 'outbound',
+            },
+          ],
         }}
         image={{
           url: require('./img/auto-clustering-with-consul.svg'),
-          alt: ''
+          alt: '',
         }}
       />
 
@@ -39,15 +39,14 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
             links: [
               {
                 text: 'Read More',
-                url:
-                  '/docs/integrations/consul-integration#service-discovery',
-                type: 'inbound'
-              }
-            ]
+                url: '/docs/integrations/consul-integration#service-discovery',
+                type: 'inbound',
+              },
+            ],
           }}
           image={{
             url: require('./img/automated-service-discovery-with-consul.png'),
-            alt: ''
+            alt: '',
           }}
         />
       </div>
@@ -62,13 +61,13 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
             {
               text: 'Learn More',
               url: '/docs/integrations/consul-connect',
-              type: 'inbound'
-            }
-          ]
+              type: 'inbound',
+            },
+          ],
         }}
         image={{
           url: require('./img/auto-service-to-service-communications.svg'),
-          alt: ''
+          alt: '',
         }}
       />
 
@@ -79,11 +78,11 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
             logo: {
               url:
                 'https://www.datocms-assets.com/2885/1582161366-deluxe-logo.svg',
-              alt: 'Deluxe'
+              alt: 'Deluxe',
             },
             image: {
               url: require('./img/deluxe.png'),
-              alt: 'Deluxe Case Study'
+              alt: 'Deluxe Case Study',
             },
             heading: 'Deluxe',
             content:
@@ -92,18 +91,18 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
               text: 'Learn More',
               url:
                 'https://www.hashicorp.com/resources/deluxe-hashistack-video-production',
-              type: 'outbound'
-            }
+              type: 'outbound',
+            },
           },
           {
             logo: {
               url:
                 'https://www.datocms-assets.com/2885/1582161581-seatgeek.svg',
-              alt: 'SeatGeek'
+              alt: 'SeatGeek',
             },
             image: {
               url: require('./img/seatgeek.png'),
-              alt: 'Seat Geek Case Study'
+              alt: 'Seat Geek Case Study',
             },
             heading: 'SeatGeek',
             content:
@@ -112,9 +111,9 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
               text: 'Learn More',
               url:
                 'https://www.hashicorp.com/resources/seatgeek-and-the-hashistack-a-tooling-and-automation-love-story',
-              type: 'outbound'
-            }
-          }
+              type: 'outbound',
+            },
+          },
         ]}
       />
     </UseCasesLayout>

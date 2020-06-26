@@ -381,7 +381,11 @@ func (c *NetworkChecker) hasNetwork(option *structs.Node) bool {
 	}
 
 	for _, nw := range option.NodeResources.Networks {
-		if nw.Mode == c.networkMode {
+		mode := nw.Mode
+		if mode == "" {
+			mode = "host"
+		}
+		if mode == c.networkMode {
 			return true
 		}
 	}

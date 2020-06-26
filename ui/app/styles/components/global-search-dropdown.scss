@@ -15,6 +15,16 @@
     outline: 0;
   }
 
+  // Prevent Safari from disrupting styling, adapted from http://geek.michaelgrace.org/2011/06/webkit-search-input-styling/
+  input[type='search'] {
+    -webkit-appearance: textfield;
+  }
+
+  input::-webkit-search-decoration,
+  input::-webkit-search-cancel-button {
+    display: none;
+  }
+
   .ember-power-select-options {
     background: white;
     padding: 0.35rem;
@@ -31,6 +41,10 @@
       &[aria-current='true'] {
         background: transparentize($blue, 0.8);
         color: $blue;
+      }
+
+      .highlighted {
+        font-weight: $weight-semibold;
       }
     }
   }
