@@ -2155,7 +2155,8 @@ func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	// Get the cluster metadata
-	clusterMetadata, err := s.snap.ClusterMetadata()
+	ws := memdb.NewWatchSet()
+	clusterMetadata, err := s.snap.ClusterMetadata(ws)
 	if err != nil {
 		return err
 	}
