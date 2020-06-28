@@ -45,7 +45,7 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1
 ## explicit
 github.com/Microsoft/hcsshim/osversion
-# github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5
+# github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5 => github.com/notnoop/gpu-monitoring-tools v0.0.0-20200628182817-dfd5677e7d74
 ## explicit
 github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml
 # github.com/NYTimes/gziphandler v1.0.1 => github.com/NYTimes/gziphandler v1.0.0
@@ -1074,6 +1074,7 @@ honnef.co/go/tools/version
 # github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 # github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
 # github.com/apparentlymart/go-textseg/v12 => github.com/apparentlymart/go-textseg/v12 v12.0.0
+# github.com/NVIDIA/gpu-monitoring-tools => github.com/notnoop/gpu-monitoring-tools v0.0.0-20200628182817-dfd5677e7d74
 # github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
 # github.com/hashicorp/nomad/api => ./api
 # github.com/kr/pty => github.com/kr/pty v1.1.5

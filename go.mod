@@ -4,6 +4,7 @@ go 1.14
 
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
+	github.com/NVIDIA/gpu-monitoring-tools => github.com/notnoop/gpu-monitoring-tools v0.0.0-20200628182817-dfd5677e7d74
 	github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
 	github.com/apparentlymart/go-textseg/v12 => github.com/apparentlymart/go-textseg/v12 v12.0.0
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible

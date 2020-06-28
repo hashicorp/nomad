@@ -47,8 +47,6 @@ github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5/go.mod h1:nxQPcN
 github.com/Microsoft/hcsshim v0.8.7/go.mod h1:OHd7sQqRFrYd3RmSgbgji+ctCwkbq2wbEYNSzOYtcBQ=
 github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1 h1:2T9t72RkTRjAcuFc+4vaGWnRx/anVngE1/VGN/HFEVk=
 github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1/go.mod h1:LVvUcNYEzt59fFVTuiPEgM6dgF70yMGdy/Qc/UmCbuU=
-github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5 h1:WLyvLAM0QfjAarRzRTG9EgT5McqGWNZMvqqSUSoyUUY=
-github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5/go.mod h1:nMOvShGpWaf0bXwXmeu4k+O4uziuaEI8pWzIj3BUrOA=
 github.com/NYTimes/gziphandler v1.0.0 h1:OswZCvpiFsNRCbeapdJxDuikAqVXTgV7XAht8S9olZo=
 github.com/NYTimes/gziphandler v1.0.0/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d/go.mod h1:HI8ITrYtUY+O+ZhtlqUnD8+KwNPOyugEhfP9fdUIaEQ=
@@ -556,6 +554,8 @@ github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2 h1:BQ1HW
 github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2/go.mod h1:TLb2Sg7HQcgGdloNxkrmtgDNR9uVYF3lfdFIN4Ro6Sk=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
+github.com/notnoop/gpu-monitoring-tools v0.0.0-20200628182817-dfd5677e7d74 h1:F6GNs1OtpHPp1LN/whZ66iIjy5We1uu4hVbjxxS5eRE=
+github.com/notnoop/gpu-monitoring-tools v0.0.0-20200628182817-dfd5677e7d74/go.mod h1:UPS6R4TVGd/uSzcDATzg1x8/5Ywj/ZYtkPERR9xs7Ag=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
 github.com/oklog/run v1.0.1-0.20180308005104-6934b124db28 h1:R9vmquWCeGmxTHUVnTQJrU4oPlgEn9+x48nwXSqkIKg=
 github.com/oklog/run v1.0.1-0.20180308005104-6934b124db28/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
