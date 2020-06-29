@@ -200,6 +200,7 @@
 /docs/jobspec/servicediscovery                /docs/job-specification/service 301!
 /docs/jobspec/networking.html                 /docs/job-specification/network 301!
 /docs/jobspec/networking                      /docs/job-specification/network 301!
+/docs/job-specification/index.html            /docs/job-specification 301!
 /docs/cluster/automatic.html                  https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
 /docs/cluster/automatic                       https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
 /docs/cluster/manual.html                     https://learn.hashicorp.com/nomad/operating-nomad/clustering 301!
