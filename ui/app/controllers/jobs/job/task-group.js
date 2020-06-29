@@ -14,6 +14,7 @@ export default class TaskGroupController extends Controller.extend(
     WithNamespaceResetting
   ) {
   @service userSettings;
+  @service can;
 
   queryParams = [
     {
@@ -49,6 +50,13 @@ export default class TaskGroupController extends Controller.extend(
   @alias('allocations') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedAllocations;
+
+  @computed('model.job.runningDeployment')
+  get tooltipText() {
+    if (this.can.cannot('scale job')) return "You aren't allowed to scale task groups";
+    if (this.model.job.runningDeployment) return 'You cannot scale task groups during a deployment';
+    return undefined;
+  }
 
   @action
   gotoAllocation(allocation) {

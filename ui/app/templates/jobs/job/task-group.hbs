@@ -12,6 +12,7 @@
       {{#if model.scaling}}
       <StepperInput
         data-test-task-group-count-stepper
+        aria-label={{tooltipText}}
         @min={{model.scaling.min}}
         @max={{model.scaling.max}}
         @value={{model.count}}

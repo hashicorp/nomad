@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { inject as service } from '@ember/service';
 import { computed, action } from '@ember/object';
 import { alias, oneWay } from '@ember/object/computed';
 import { debounce } from '@ember/runloop';
@@ -10,11 +11,20 @@ import { lazyClick } from '../helpers/lazy-click';
 @tagName('tr')
 @classNames('task-group-row', 'is-interactive')
 export default class TaskGroupRow extends Component {
+  @service can;
+
   taskGroup = null;
   debounce = 500;
 
   @oneWay('taskGroup.count') count;
   @alias('taskGroup.job.runningDeployment') runningDeployment;
+
+  @computed('runningDeployment')
+  get tooltipText() {
+    if (this.can.cannot('scale job')) return "You aren't allowed to scale task groups";
+    if (this.runningDeployment) return 'You cannot scale task groups during a deployment';
+    return undefined;
+  }
 
   onClick() {}
 
