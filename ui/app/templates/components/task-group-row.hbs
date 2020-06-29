@@ -13,6 +13,7 @@
       <button
         data-test-scale="decrement"
         role="button"
+        aria-label="decrement"
         class="button is-xsmall is-light"
         disabled={{or isMinimum runningDeployment (cannot "scale job")}}
         onclick={{action "countDown"}}>
@@ -21,6 +22,7 @@
       <button
         data-test-scale="increment"
         role="button"
+        aria-label="increment"
         class="button is-xsmall is-light"
         disabled={{or isMaximum runningDeployment (cannot "scale job")}}
         onclick={{action "countUp"}}>
