@@ -166,7 +166,9 @@
 # Docs
 /docs/index.html                              /docs 301!
 /docs/index                                   /docs 301!
+/api/index.html                               /api-docs 301!
 /api/index                                    /api-docs 301!
+/api-docs/index.html                          /api-docs 301!
 /api-docs/index                               /api-docs 301!
 /resources                                    /resources 301!
 /docs/agent/config.html                       /docs/configuration 301!
@@ -352,7 +354,7 @@
 /docs/http/eval.html                    /api-docs/evaluations 301!
 /docs/http/evals                        /api-docs/evaluations 301!
 /docs/http/evals.html                   /api-docs/evaluations 301!
-/docs/http/index.html                   /api-docs/index 301!
+/docs/http/index.html                   /api-docs 301!
 /docs/http/job                          /api-docs/jobs 301!
 /docs/http/job.html                     /api-docs/jobs 301!
 /docs/http/jobs                         /api-docs/jobs 301!
@@ -422,8 +424,8 @@
 /guides/security/sentinel/job                     https://learn.hashicorp.com/nomad/governance-and-policy/quotas 301!
 /guides/security/sentinel-policy.html             https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
 /guides/security/sentinel-policy                  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
-/guides/operations/install/index.html             /docs/install/index 301!
-/guides/operations/install/index                  /docs/install/index 301!
+/guides/operations/install/index.html             /docs/install 301!
+/guides/operations/install/index                  /docs/install 301!
 /guides/operations/deployment-guide.html          /docs/install/production/deployment-guide 301!
 /guides/operations/deployment-guide               /docs/install/production/deployment-guide 301!
 /guides/operations/agent/index.html               /docs/install/production/nomad-agent 301!
