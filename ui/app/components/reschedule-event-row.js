@@ -14,7 +14,11 @@ export default class RescheduleEventRow extends Component {
 
   // An allocation can also be provided directly
   @overridable('allocationId', function() {
-    return this.store.findRecord('allocation', this.allocationId);
+    if (this.allocationId) {
+      return this.store.findRecord('allocation', this.allocationId);
+    }
+
+    return null;
   })
   allocation;
 
