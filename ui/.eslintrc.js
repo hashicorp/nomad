@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = {
   root: true,
   globals: {
@@ -35,6 +37,7 @@ module.exports = {
     ],
     'ember/classic-decorator-hooks': 'error',
     'ember/classic-decorator-no-classic-methods': 'error',
+    'ember/no-jquery': 'error',
   },
   overrides: [
     // node files
