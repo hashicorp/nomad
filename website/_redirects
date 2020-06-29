@@ -164,6 +164,7 @@
 /community                                    /resources 301!
 
 # Docs
+/docs/index.html                              /docs 301!
 /docs/index                                   /docs 301!
 /api/index                                    /api-docs 301!
 /api-docs/index                               /api-docs 301!
