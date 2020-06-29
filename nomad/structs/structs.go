@@ -6996,6 +6996,9 @@ const (
 	// TaskLeaderDead indicates that the leader task within the has finished.
 	TaskLeaderDead = "Leader Task Dead"
 
+	// TaskMainDead indicates that the main tasks have dead
+	TaskMainDead = "Main Tasks Dead"
+
 	// TaskHookFailed indicates that one of the hooks for a task failed.
 	TaskHookFailed = "Task hook failed"
 
@@ -7217,6 +7220,8 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 		desc = event.DriverMessage
 	case TaskLeaderDead:
 		desc = "Leader Task in Group dead"
+	case TaskMainDead:
+		desc = "Main tasks in the group died"
 	default:
 		desc = event.Message
 	}

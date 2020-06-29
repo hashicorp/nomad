@@ -1,11 +1,13 @@
 package allocrunner
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -229,4 +231,91 @@ func isChannelClosed(ch <-chan struct{}) bool {
 	default:
 		return false
 	}
+}
+
+func TestHasSidecarTasks(t *testing.T) {
+
+	falseV, trueV := false, true
+
+	cases := []struct {
+		name string
+		// nil if main task, false if non-sidecar hook, true if sidecar hook
+		indicators []*bool
+
+		hasSidecars    bool
+		hasNonsidecars bool
+	}{
+		{
+			name:           "all sidecar - one",
+			indicators:     []*bool{&trueV},
+			hasSidecars:    true,
+			hasNonsidecars: false,
+		},
+		{
+			name:           "all sidecar - multiple",
+			indicators:     []*bool{&trueV, &trueV, &trueV},
+			hasSidecars:    true,
+			hasNonsidecars: false,
+		},
+		{
+			name:           "some sidecars, some others",
+			indicators:     []*bool{nil, &falseV, &trueV},
+			hasSidecars:    true,
+			hasNonsidecars: true,
+		},
+		{
+			name:           "no sidecars",
+			indicators:     []*bool{nil, &falseV, nil},
+			hasSidecars:    false,
+			hasNonsidecars: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			alloc := allocWithSidecarIndicators(c.indicators)
+			arConf, cleanup := testAllocRunnerConfig(t, alloc)
+			defer cleanup()
+
+			ar, err := NewAllocRunner(arConf)
+			require.NoError(t, err)
+
+			require.Equal(t, c.hasSidecars, hasSidecarTasks(ar.tasks), "sidecars")
+
+			runners := []*taskrunner.TaskRunner{}
+			for _, r := range ar.tasks {
+				runners = append(runners, r)
+			}
+			require.Equal(t, c.hasNonsidecars, hasNonSidecarTasks(runners), "non-sidecars")
+
+		})
+	}
+}
+
+func allocWithSidecarIndicators(indicators []*bool) *structs.Allocation {
+	alloc := mock.BatchAlloc()
+
+	tasks := []*structs.Task{}
+	resources := map[string]*structs.AllocatedTaskResources{}
+
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+	for i, indicator := range indicators {
+		task := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+		task.Name = fmt.Sprintf("task%d", i)
+		if indicator != nil {
+			task.Lifecycle = &structs.TaskLifecycleConfig{
+				Hook:    structs.TaskLifecycleHookPrestart,
+				Sidecar: *indicator,
+			}
+		}
+		tasks = append(tasks, task)
+		resources[task.Name] = tr
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = tasks
+
+	alloc.AllocatedResources.Tasks = resources
+	return alloc
+
 }

@@ -110,7 +110,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 		found := false
 		killingMsg := ""
 		for _, e := range state1.Events {
-			if e.Type != structs.TaskLeaderDead {
+			if e.Type == structs.TaskLeaderDead {
 				found = true
 			}
 			if e.Type == structs.TaskKilling {
@@ -134,6 +134,127 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 		}
 		if state2.FinishedAt.IsZero() || state2.StartedAt.IsZero() {
 			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
+// TestAllocRunner_TaskMain_KillTG asserts that when main tasks die the
+// entire task group is killed.
+func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
+
+	// Create three tasks in the task group
+	sidecar := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	sidecar.Name = "sidecar"
+	sidecar.Driver = "mock_driver"
+	sidecar.KillTimeout = 10 * time.Millisecond
+	sidecar.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPrestart,
+		Sidecar: true,
+	}
+
+	sidecar.Config = map[string]interface{}{
+		"run_for": "100s",
+	}
+
+	main1 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	main1.Name = "task2"
+	main1.Driver = "mock_driver"
+	main1.Config = map[string]interface{}{
+		"run_for": "1s",
+	}
+
+	main2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	main2.Name = "task2"
+	main2.Driver = "mock_driver"
+	main2.Config = map[string]interface{}{
+		"run_for": "2s",
+	}
+
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{sidecar, main1, main2}
+	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
+		sidecar.Name: tr,
+		main1.Name:   tr,
+		main2.Name:   tr,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	hasTaskMainEvent := func(state *structs.TaskState) bool {
+		for _, e := range state.Events {
+			if e.Type == structs.TaskMainDead {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// Wait for all tasks to be killed
+	upd := conf.StateUpdater.(*MockStateUpdater)
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+
+		var state *structs.TaskState
+
+		// Task1 should be killed because Task2 exited
+		state = last.TaskStates[sidecar.Name]
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if len(state.Events) < 2 {
+			// At least have a received and destroyed
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+
+		if !hasTaskMainEvent(state) {
+			return false, fmt.Errorf("Did not find event %v: %#+v", structs.TaskMainDead, state.Events)
+		}
+
+		// main tasks should die naturely
+		state = last.TaskStates[main1.Name]
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if hasTaskMainEvent(state) {
+			return false, fmt.Errorf("unexpected event %#+v in %v", structs.TaskMainDead, state.Events)
+		}
+
+		state = last.TaskStates[main2.Name]
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if hasTaskMainEvent(state) {
+			return false, fmt.Errorf("unexpected event %v in %#+v", structs.TaskMainDead, state.Events)
 		}
 
 		return true, nil

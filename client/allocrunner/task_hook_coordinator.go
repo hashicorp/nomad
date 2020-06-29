@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -107,4 +108,28 @@ func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskSt
 	if !c.hasPrestartTasks() {
 		c.mainTaskCtxCancel()
 	}
+}
+
+// hasNonSidecarTasks returns false if all the passed tasks are sidecar tasks
+func hasNonSidecarTasks(tasks []*taskrunner.TaskRunner) bool {
+	for _, tr := range tasks {
+		lc := tr.Task().Lifecycle
+		if lc == nil || !lc.Sidecar {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasSidecarTasks returns true if all the passed tasks are sidecar tasks
+func hasSidecarTasks(tasks map[string]*taskrunner.TaskRunner) bool {
+	for _, tr := range tasks {
+		lc := tr.Task().Lifecycle
+		if lc != nil && lc.Sidecar {
+			return true
+		}
+	}
+
+	return false
 }
