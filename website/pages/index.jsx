@@ -1,2 +1,5 @@
 import Homepage from './home'
-export default Homepage
+
+const StillTheHomePage = Homepage
+
+export default StillTheHomePage
