@@ -125,7 +125,7 @@ export default class GlobalSearchControl extends Component {
   onCloseEvent(select, event) {
     if (event.key === 'Escape') {
       run.next(() => {
-        this.select.actions.setIsActive(false);
+        this.element.querySelector('.ember-power-select-trigger').blur();
       });
     }
   }
