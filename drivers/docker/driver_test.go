@@ -17,7 +17,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/devices/gpu/nvidia"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -959,7 +958,7 @@ func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
-	task.DeviceEnv[nvidia.NvidiaVisibleDevices] = "GPU_UUID_1"
+	task.DeviceEnv["NVIDIA_VISIBLE_DEVICES"] = "GPU_UUID_1"
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -1202,7 +1201,7 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 			driver.gpuRuntime = testCase.gpuRuntimeSet
 			driver.config.GPURuntimeName = testCase.expectedRuntime
 			if testCase.nvidiaDevicesProvided {
-				task.DeviceEnv[nvidia.NvidiaVisibleDevices] = "GPU_UUID_1"
+				task.DeviceEnv["NVIDIA_VISIBLE_DEVICES"] = "GPU_UUID_1"
 			}
 
 			c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
