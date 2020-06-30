@@ -136,9 +136,6 @@
   "engines": {
     "node": "10.* || >= 12"
   },
-  "ember": {
-    "edition": "octane"
-  },
   "private": true,
   "ember-addon": {
     "paths": [
