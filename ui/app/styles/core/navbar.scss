@@ -41,6 +41,10 @@
       }
     }
 
+    .navbar-brand {
+      z-index: $z-gutter;
+    }
+
     .navbar-end {
       display: flex;
       align-items: stretch;
