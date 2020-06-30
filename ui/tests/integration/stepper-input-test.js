@@ -164,4 +164,55 @@ module('Integration | Component | stepper input', function(hooks) {
     await StepperInput.input.esc();
     assert.equal(StepperInput.input.value, this.value);
   });
+
+  test('clicking the label focuses in the input', async function(assert) {
+    this.setProperties(commonProperties());
+
+    await render(commonTemplate);
+    await StepperInput.clickLabel();
+
+    const input = find('[data-test-stepper-input]');
+    assert.equal(document.activeElement, input);
+  });
+
+  test('focusing the input selects the input value', async function(assert) {
+    this.setProperties(commonProperties());
+
+    await render(commonTemplate);
+    await StepperInput.input.focus();
+
+    assert.equal(
+      window
+        .getSelection()
+        .toString()
+        .trim(),
+      this.value.toString()
+    );
+  });
+
+  test('entering a fractional value floors the value', async function(assert) {
+    this.setProperties(commonProperties());
+    const newValue = 3.14159;
+
+    await render(commonTemplate);
+
+    await StepperInput.input.fill(newValue);
+
+    await settled();
+    assert.equal(StepperInput.input.value, Math.floor(newValue));
+    assert.ok(this.onChange.calledWith(Math.floor(newValue)));
+  });
+
+  test('entering an invalid value reverts the value', async function(assert) {
+    this.setProperties(commonProperties());
+    const newValue = 'NaN';
+
+    await render(commonTemplate);
+
+    await StepperInput.input.fill(newValue);
+
+    await settled();
+    assert.equal(StepperInput.input.value, this.value);
+    assert.notOk(this.onChange.called);
+  });
 });

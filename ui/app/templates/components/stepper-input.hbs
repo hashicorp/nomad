@@ -1,4 +1,7 @@
-<label data-test-stepper-label class="stepper-input-label">{{yield}}</label>
+<label
+  data-test-stepper-label
+  class="stepper-input-label"
+  onClick={{action "focusInput"}}>{{yield}}</label>
 <input
   data-test-stepper-input
   type="number"
@@ -7,6 +10,7 @@
   value={{internalValue}}
   disabled={{disabled}}
   class="stepper-input-input"
+  onFocus={{action "selectValue"}}
   onKeyDown={{action "resetTextInput"}}
   onChange={{action "setValue"}}>
 <button
