@@ -314,46 +314,18 @@ func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 }
 
 func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
-	nodeID := args.NodeID
+	// Get the Connection to the client either by fowarding to another server
+	// or creating direct stream
 
-	snap, err := a.srv.State().Snapshot()
-	if err != nil {
-		handleStreamResultError(err, nil, encoder)
-		return
-	}
-
-	node, err := snap.NodeByID(nil, nodeID)
+	state, srv, err := a.findClientConn(args.NodeID)
 	if err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
 	}
 
-	if node == nil {
-		err := fmt.Errorf("Unknown node %q", nodeID)
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
-		return
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
-		return
-	}
-
-	// Get the Connection to the client either by fowarding to another server
-	// or creating direct stream
 	var clientConn net.Conn
-	state, ok := a.srv.getNodeConn(nodeID)
-	if !ok {
-		// Determine the server that has a connection to the node
-		srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
-		if err != nil {
-			var code *int64
-			if structs.IsErrNoNodeConn(err) {
-				code = helper.Int64ToPtr(404)
-			}
-			handleStreamResultError(err, code, encoder)
-			return
-		}
+
+	if state == nil {
 		conn, err := a.srv.streamingRpc(srv, "Agent.Monitor")
 		if err != nil {
 			handleStreamResultError(err, nil, encoder)
@@ -403,53 +375,21 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverPart
 	structs.Bridge(conn, serverConn)
 	return
 }
-
 func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
-	nodeID := args.NodeID
+	state, srv, err := a.findClientConn(args.NodeID)
 
-	snap, err := a.srv.State().Snapshot()
 	if err != nil {
-		return structs.NewErrRPCCoded(500, err.Error())
+		return err
 	}
 
-	node, err := snap.NodeByID(nil, nodeID)
-	if err != nil {
-		return structs.NewErrRPCCoded(500, err.Error())
+	if srv != nil {
+		return a.srv.forwardServer(srv, "Agent.Profile", args, reply)
 	}
 
-	if node == nil {
-		err := fmt.Errorf("Unknown node %q", nodeID)
-		return structs.NewErrRPCCoded(404, err.Error())
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
-		return structs.NewErrRPCCoded(400, err.Error())
-	}
-
-	// Get the Connection to the client either by fowarding to another server
-	// or creating direct stream
-	state, ok := a.srv.getNodeConn(nodeID)
-	if !ok {
-		// Determine the server that has a connection to the node
-		srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
-		if err != nil {
-			code := 500
-			if structs.IsErrNoNodeConn(err) {
-				code = 404
-			}
-			return structs.NewErrRPCCoded(code, err.Error())
-		}
-
-		rpcErr := a.srv.forwardServer(srv, "Agent.Profile", args, reply)
-		if rpcErr != nil {
-			return rpcErr
-		}
-	} else {
-		// NodeRpc
-		rpcErr := NodeRpc(state.Session, "Agent.Profile", args, reply)
-		if rpcErr != nil {
-			return rpcErr
-		}
+	// NodeRpc
+	rpcErr := NodeRpc(state.Session, "Agent.Profile", args, reply)
+	if rpcErr != nil {
+		return rpcErr
 	}
 
 	return nil
