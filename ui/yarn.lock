@@ -2053,7 +2053,7 @@
     ember-cli-typescript "^2.0.2"
     heimdalljs "^0.3.0"
 
-"@ember-decorators/component@^6.0.0", "@ember-decorators/component@^6.1.0", "@ember-decorators/component@^6.1.1":
+"@ember-decorators/component@^6.1.0", "@ember-decorators/component@^6.1.1":
   version "6.1.1"
   resolved "https://registry.yarnpkg.com/@ember-decorators/component/-/component-6.1.1.tgz#b360dc4fa8e576ee1c840879399ef1745fd96e06"
   integrity sha512-Cj8tY/c0MC/rsipqsiWLh3YVN72DK92edPYamD/HzvftwzC6oDwawWk8RmStiBnG9PG/vntAt41l3S7HSSA+1Q==
@@ -7473,7 +7473,7 @@ ember-auto-import@^1.2.19, ember-auto-import@^1.2.21:
     walk-sync "^0.3.3"
     webpack "~4.28"
 
-ember-basic-dropdown@^2.0.0:
+ember-basic-dropdown@^2.0.13:
   version "2.0.15"
   resolved "https://registry.yarnpkg.com/ember-basic-dropdown/-/ember-basic-dropdown-2.0.15.tgz#f86600cfa22ff67de6599fcfb701ad851cc3c6a0"
   integrity sha512-gRUCoFLZJ+qu758xDZpfE20LtBRRZWOShtGrPPd18iuseK+6SLkM/uzsL+nANQp3F8hD9kW+aLjsK7E8Khd2Wg==
@@ -8331,13 +8331,14 @@ ember-page-title@^5.0.2:
     ember-cli-htmlbars "^3.0.1"
     ember-copy "^1.0.0"
 
-ember-power-select@backspace/ember-power-select#setIsActiveAPI:
-  version "3.0.3"
-  resolved "https://codeload.github.com/backspace/ember-power-select/tar.gz/6846232f09e9b42d435162134e9055028e0cff8b"
+ember-power-select@^3.0.4:
+  version "3.0.6"
+  resolved "https://registry.yarnpkg.com/ember-power-select/-/ember-power-select-3.0.6.tgz#97dcbaf04e6afd9bd4c75cbb150c3a8d5fe50fec"
+  integrity sha512-osS+fbwfaxPo5RCCKDOWzJfaNc+toMmg3MMGmLz3h73Uqd3burRSUBo3DAkEHyYVHCy+oMas4+eZtRcjUrLWjg==
   dependencies:
-    "@ember-decorators/component" "^6.0.0"
-    ember-basic-dropdown "^2.0.0"
-    ember-cli-babel "^7.8.0"
+    "@ember-decorators/component" "^6.1.0"
+    ember-basic-dropdown "^2.0.13"
+    ember-cli-babel "^7.11.0"
     ember-cli-htmlbars "^3.1.0"
     ember-concurrency "^1.0.0"
     ember-text-measurer "^0.5.0"
