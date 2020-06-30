@@ -443,6 +443,8 @@ func (ar *allocRunner) TaskStateUpdated() {
 func (ar *allocRunner) handleTaskStateUpdates() {
 	defer close(ar.taskStateUpdateHandlerCh)
 
+	hasSidecars := hasSidecarTasks(ar.tasks)
+
 	for done := false; !done; {
 		select {
 		case <-ar.taskStateUpdatedCh:
@@ -461,10 +463,6 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		// If task runners should be killed, this is set to the task
 		// name whose fault it is.
 		killTask := ""
-
-		// True if task runners should be killed because a leader
-		// failed (informational).
-		leaderFailed := false
 
 		// Task state has been updated; gather the state of the other tasks
 		trNum := len(ar.tasks)
@@ -492,18 +490,24 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			} else if tr.IsLeader() {
 				killEvent = structs.NewTaskEvent(structs.TaskLeaderDead)
-				leaderFailed = true
-				killTask = name
 			}
+		}
+
+		// if all live runners are sidecars - kill alloc
+		if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
+			killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 		}
 
 		// If there's a kill event set and live runners, kill them
 		if killEvent != nil && len(liveRunners) > 0 {
 
 			// Log kill reason
-			if leaderFailed {
+			switch killEvent.Type {
+			case structs.TaskLeaderDead:
 				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
-			} else {
+			case structs.TaskMainDead:
+				ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
+			default:
 				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
 			}
 
