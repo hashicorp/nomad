@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import { logger } from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
@@ -17,6 +18,7 @@ class MockAbortController {
 @classNames('boxed-section', 'task-log')
 export default class TaskLog extends Component {
   @service token;
+  @service userSettings;
 
   allocation = null;
   task = null;
@@ -33,7 +35,7 @@ export default class TaskLog extends Component {
   isStreaming = true;
   streamMode = 'streaming';
 
-  mode = 'stdout';
+  @alias('userSettings.logMode') mode;
 
   @computed('allocation.{id,node.httpAddr}', 'useServer')
   get logUrl() {
