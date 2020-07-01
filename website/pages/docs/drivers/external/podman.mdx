@@ -13,7 +13,7 @@ Name: `podman`
 
 Homepage: https://github.com/hashicorp/nomad-driver-podman
 
-The podman task driver plugin for Nomad uses the [Pod Manager (podman)][podman]
+The Podman task driver plugin for Nomad uses the [Pod Manager (podman)][podman]
 daemonless container runtime for executing Nomad tasks. Podman supports OCI
 containers and its command line tool is meant to be [a drop-in replacement for
 Docker's][podman-cli].
@@ -25,16 +25,16 @@ See the project's [homepage][homepage] for details.
 - Linux host with [`podman`][podman] installed.
 - [`nomad-driver-podman`][releases] binary in Nomad's [`plugin_dir`][plugin_dir].
 
-You need a varlink enabled podman binary and a system socket activation unit, see https://podman.io/blogs/2019/01/16/podman-varlink.html.
+You need a varlink enabled Podman binary and a system socket activation unit, see https://podman.io/blogs/2019/01/16/podman-varlink.html.
 
-Since the Nomad agent, nomad-driver-podman plugin binary, and podman will
-reside on the same host, skip the ssh aspects of the podman varlink
+Since the Nomad agent, nomad-driver-podman plugin binary, and Podman will
+reside on the same host, skip the ssh aspects of the Podman varlink
 documentation above.
 
 ## Known Limitations
 
 The Podman task driver is under active development. It currently does not support [stderr logging][stderr-logging] and [devices][devices].
-Podman recently released [Podman v2](https://podman.io/blogs/2020/06/29/podman-v2-announce.html). The taskd driver currently supports v1 
+Podman recently released [Podman v2](https://podman.io/blogs/2020/06/29/podman-v2-announce.html). The task driver currently supports v1 
 and will be working on supporting v2 in upcoming releases.
 
 ## Task Configuration
@@ -181,7 +181,9 @@ config {
 }
 ```
 
-- `network_mode` - Set the [network mode][network-mode] for the container.
+- `network_mode` - Set the [network mode][network-mode] for the container. This will be
+  overridden by nomad if a group network is created and passed in by Nomad.
+
   - `bridge` - (default for rootful) create a network stack on the default bridge
   - `none` - no networking
   - `container:id` - reuse another container's network stack
@@ -197,7 +199,7 @@ configuration][docker-ports] for details.
 
 ## Plugin Options
 
-The podman plugin has options which may be customized in the agent's
+The Podman plugin has options which may be customized in the agent's
 configuration file.
 
 - `volumes` stanza:
