@@ -1483,13 +1483,15 @@ type NodeConnQueryResponse struct {
 	QueryMeta
 }
 
-// HostDataRequest
+// HostDataRequest is used by /agent/host to retrieve data about the agent's host system. If
+// ServerID or NodeID is specified, the request is forwarded to the remote agent
 type HostDataRequest struct {
 	ServerID string
 	NodeID   string
 	QueryOptions
 }
 
+// HostDataResponse contains the HostData content
 type HostDataResponse struct {
 	AgentID  string
 	HostData *host.HostData
