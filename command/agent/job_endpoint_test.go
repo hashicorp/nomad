@@ -1510,6 +1510,90 @@ func TestHTTP_JobStable(t *testing.T) {
 	})
 }
 
+func TestJobs_RegionForJob(t *testing.T) {
+	t.Parallel()
+
+	// defaults
+	agentRegion := "agentRegion"
+
+	cases := []struct {
+		name                  string
+		jobRegion             string
+		multiregion           *api.Multiregion
+		queryRegion           string
+		agentRegion           string
+		expectedRequestRegion string
+		expectedJobRegion     string
+	}{
+		{
+			name:                  "no region provided",
+			jobRegion:             "",
+			multiregion:           nil,
+			queryRegion:           "",
+			expectedRequestRegion: agentRegion,
+			expectedJobRegion:     agentRegion,
+		},
+		{
+			name:                  "no region provided but multiregion safe",
+			jobRegion:             "",
+			multiregion:           &api.Multiregion{},
+			queryRegion:           "",
+			expectedRequestRegion: agentRegion,
+			expectedJobRegion:     api.GlobalRegion,
+		},
+		{
+			name:                  "job region provided",
+			jobRegion:             "west",
+			multiregion:           nil,
+			queryRegion:           "",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     "west",
+		},
+		{
+			name:                  "job region override",
+			jobRegion:             "west",
+			multiregion:           nil,
+			queryRegion:           "east",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     "east",
+		},
+		{
+			name:      "multiregion to valid region",
+			jobRegion: "",
+			multiregion: &api.Multiregion{Regions: []*api.MultiregionRegion{
+				{Name: "west"},
+				{Name: "east"},
+			}},
+			queryRegion:           "east",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     api.GlobalRegion,
+		},
+		{
+			name:      "multiregion sent to wrong region",
+			jobRegion: "",
+			multiregion: &api.Multiregion{Regions: []*api.MultiregionRegion{
+				{Name: "west"},
+				{Name: "east"},
+			}},
+			queryRegion:           "north",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     api.GlobalRegion,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			job := &api.Job{
+				Region:      helper.StringToPtr(tc.jobRegion),
+				Multiregion: tc.multiregion,
+			}
+			requestRegion, jobRegion := regionForJob(job, tc.queryRegion, agentRegion)
+			require.Equal(t, tc.expectedRequestRegion, requestRegion)
+			require.Equal(t, tc.expectedJobRegion, jobRegion)
+		})
+	}
+}
+
 func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	apiJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),
