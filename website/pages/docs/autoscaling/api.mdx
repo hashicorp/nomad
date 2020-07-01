@@ -1,0 +1,29 @@
+---
+layout: docs
+page_title: HTTP API
+sidebar_title: API
+description: Learn about the Nomad Autoscaler HTTP API.
+---
+
+# Nomad Autoscaler HTTP API
+
+The Nomad Autoscaler exposes a small, simple API to be used for health checking
+the agent.
+
+## Health API
+
+This endpoint can be used to query the Nomad Autoscaler agent aliveness. If the
+agent is alive, the request will return a 200 OK, otherwise it will return a
+503 ServiceUnavailable.
+
+| Method | Path         | Produces           |
+| ------ | ------------ | ------------------ |
+| `GET`  | `/v1/health` | `application/json` |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request PUT \
+    https://localhost:8080/v1/health
+```
