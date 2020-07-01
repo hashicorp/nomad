@@ -670,9 +670,13 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
-	if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
-		return nil, err
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	if srv := s.agent.Server(); srv != nil {
+		aclObj, err = srv.ResolveToken(secret)
+	} else {
+		// Not a Server; use the Client for token resolution
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+	}
+	if aclObj != nil && !aclObj.AllowAgentRead() {
 		return nil, structs.ErrPermissionDenied
 	}
 
