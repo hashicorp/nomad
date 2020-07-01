@@ -217,7 +217,9 @@ func (a *Agent) Host(args *structs.QueryOptions, reply *structs.HostDataResponse
 	aclObj, err := a.c.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	}
+	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
+		(aclObj == nil && !a.c.config.EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 
