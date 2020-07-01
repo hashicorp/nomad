@@ -1,6 +1,7 @@
 package host
 
 import (
+	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -60,36 +61,63 @@ func diskUsage(path string) (du DiskUsage, err error) {
 	return du, nil
 }
 
+var (
+	envRedactSet = makeEnvRedactSet()
+)
+
 // environment returns the process environment in a map
 func environment() map[string]string {
 	env := make(map[string]string)
 
 	for _, e := range os.Environ() {
 		s := strings.SplitN(e, "=", 2)
-		env[s[0]] = s[1]
+		k := s[0]
+		up := strings.ToUpper(k)
+		v := s[1]
+
+		_, redact := envRedactSet[k]
+		if redact ||
+			strings.Contains(up, "TOKEN") ||
+			strings.Contains(up, "SECRET") {
+			v = "<redacted>"
+		}
+
+		env[k] = v
 	}
 	return env
 }
 
-// slurp returns the file contents as a string, ignoring errors
+// makeEnvRedactSet creates a set of well known environment variables that should be
+// redacted in the output
+func makeEnvRedactSet() map[string]struct{} {
+	// Duplicated from config.DefaultEnvBlacklist in order to avoid an import cycle
+	configDefault := []string{
+		"CONSUL_TOKEN",
+		"CONSUL_HTTP_TOKEN",
+		"VAULT_TOKEN",
+		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+		"GOOGLE_APPLICATION_CREDENTIALS",
+	}
+
+	set := make(map[string]struct{})
+	for _, e := range configDefault {
+		set[e] = struct{}{}
+	}
+
+	return set
+}
+
+// slurp returns the file contents as a string, returning an error string
 func slurp(path string) string {
-	var sb strings.Builder
-	buf := make([]byte, 512)
 	fh, err := os.Open(path)
 	if err != nil {
 		return err.Error()
 	}
 
-	var l int
-	for {
-		l, err = fh.Read(buf)
-		if err != nil {
-			if l > 0 {
-				sb.Write(buf[0 : l-1])
-			}
-			break
-		}
-		sb.Write(buf[0 : l-1])
+	bs, err := ioutil.ReadAll(fh)
+	if err != nil {
+		return err.Error()
 	}
-	return sb.String()
+
+	return string(bs)
 }
