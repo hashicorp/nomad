@@ -14,16 +14,13 @@ func TestHostUtils(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, du.DiskMB)
 	require.NotZero(t, du.UsedMB)
-
-	out := call("echo", "1")
-	require.Equal(t, "1\n", out)
 }
 
 func TestMakeHostData(t *testing.T) {
 	host, err := MakeHostData()
 	require.NoError(t, err)
 	require.NotEmpty(t, host.OS)
-	require.NotEmpty(t, host.Network)
+	require.Empty(t, host.Network)
 	require.NotEmpty(t, host.ResolvConf)
 	require.NotEmpty(t, host.Hosts)
 	require.NotEmpty(t, host.Disk)

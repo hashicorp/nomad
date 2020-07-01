@@ -26,10 +26,10 @@ func etcHosts() string {
 
 func mountedPaths() (disks []string) {
 	for _, c := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		_, err := os.Stat(string(c) + ":\\")
+		d := string(c) + ":\\"
+		_, err := os.Stat(d)
 		if err == nil {
-
-			disks = append(disks, c)
+			disks = append(disks, d)
 		}
 	}
 }
@@ -39,7 +39,7 @@ type df struct {
 	avail int64
 }
 
-func makeDf(path string) *df {
+func makeDf(path string) (*df, error) {
 	h := syscall.MustLoadDLL("kernel32.dll")
 	c := h.MustFindProc("GetDiskFreeSpaceExW")
 
@@ -49,7 +49,7 @@ func makeDf(path string) *df {
 		uintptr(unsafe.Pointer(&df.total)),
 		uintptr(unsafe.Pointer(&df.avail)))
 
-	return df
+	return df, nil
 }
 
 func (d *df) total() uint64 {

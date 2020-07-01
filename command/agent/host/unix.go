@@ -3,7 +3,6 @@
 package host
 
 import (
-	"fmt"
 	"strings"
 	"syscall"
 
@@ -11,11 +10,11 @@ import (
 )
 
 // uname returns the syscall like `uname -a`
-func uname() (string, error) {
+func uname() string {
 	u := &unix.Utsname{}
 	err := unix.Uname(u)
 	if err != nil {
-		return "", fmt.Errorf("error uname: %s", err.Error())
+		return err.Error()
 	}
 
 	uname := strings.Join([]string{
@@ -26,7 +25,7 @@ func uname() (string, error) {
 		nullStr(u.Version[:]),
 	}, " ")
 
-	return uname, nil
+	return uname
 }
 
 func etcHosts() string {

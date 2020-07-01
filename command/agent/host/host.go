@@ -1,7 +1,6 @@
 package host
 
 import (
-	"fmt"
 	"os"
 	"strings"
 )
@@ -21,10 +20,6 @@ type DiskUsage struct {
 }
 
 func MakeHostData() (*HostData, error) {
-	uname, err := uname()
-	if err != nil {
-		return nil, fmt.Errorf("error uname: %s", err.Error())
-	}
 	du := make(map[string]DiskUsage)
 	for _, path := range mountedPaths() {
 		u, err := diskUsage(path)
@@ -35,7 +30,7 @@ func MakeHostData() (*HostData, error) {
 	}
 
 	return &HostData{
-		OS:          uname,
+		OS:          uname(),
 		Network:     network(),
 		ResolvConf:  resolvConf(),
 		Hosts:       etcHosts(),
