@@ -39,12 +39,12 @@ type df struct {
 func makeDf(path string) (*df, error) {
 	h, err := syscall.LoadDLL("kernel32.dll")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	c, err := h.FindProc("GetDiskFreeSpaceExW")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	df := &df{}
