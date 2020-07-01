@@ -3,7 +3,6 @@ package host
 import (
 	"testing"
 
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,5 +20,11 @@ func TestHostUtils(t *testing.T) {
 }
 
 func TestMakeHostData(t *testing.T) {
-	pretty.Log(MakeHostData())
+	host, err := MakeHostData()
+	require.NoError(t, err)
+	require.NotEmpty(t, host.OS)
+	require.NotEmpty(t, host.Network)
+	require.NotEmpty(t, host.ResolvConf)
+	require.NotEmpty(t, host.Hosts)
+	require.NotEmpty(t, host.Disk)
 }
