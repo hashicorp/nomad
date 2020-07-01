@@ -177,6 +177,8 @@ func generalOptionsUsage() string {
   -namespace=<namespace>
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
+    If set to '*', job and alloc subcommands query all namespacecs authorized
+    to user.
     Defaults to the "default" namespace.
 
   -no-color

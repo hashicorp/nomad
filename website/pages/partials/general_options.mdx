@@ -5,6 +5,11 @@
   Overrides the `NOMAD_REGION` environment variable if set. Defaults to the
   Agent's local region.
 
+- `-namespace=<namespace>`: The target namespace for queries and actions bound
+  to a namespace. Overrides the NOMAD_NAMESPACE environment variable if set.
+  If set to '*', job and alloc subcommands query all namespacecs authorized to
+  user. Defaults to the "default" namespace.
+
 - `-no-color`: Disables colored command output. Alternatively,
   `NOMAD_CLI_NO_COLOR` may be set.
 
