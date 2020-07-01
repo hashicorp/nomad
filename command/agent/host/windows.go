@@ -12,10 +12,6 @@ func uname() string {
 	return ""
 }
 
-func network() string {
-	return ""
-}
-
 func resolvConf() string {
 	return ""
 }

@@ -7,7 +7,7 @@ import (
 
 type HostData struct {
 	OS          string
-	Network     string
+	Network     []map[string]string
 	ResolvConf  string
 	Hosts       string
 	Environment map[string]string

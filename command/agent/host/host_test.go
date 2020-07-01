@@ -20,7 +20,7 @@ func TestMakeHostData(t *testing.T) {
 	host, err := MakeHostData()
 	require.NoError(t, err)
 	require.NotEmpty(t, host.OS)
-	require.Empty(t, host.Network)
+	require.NotEmpty(t, host.Network)
 	require.NotEmpty(t, host.ResolvConf)
 	require.NotEmpty(t, host.Hosts)
 	require.NotEmpty(t, host.Disk)

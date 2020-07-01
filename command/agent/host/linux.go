@@ -8,10 +8,6 @@ import (
 	"strings"
 )
 
-func network() string {
-	return ""
-}
-
 // mountedPaths produces a list of mounts
 func mountedPaths() []string {
 	fh, err := os.Open("/proc/mounts")
