@@ -101,6 +101,15 @@ target "aws-asg" {
 }
 ```
 
+When using a Nomad cluster with ACLs enabled, the plugin will require an ACL token which provides
+the following permissions:
+
+```hcl
+node {
+  policy = "write"
+}
+```
+
 - `aws_region` `(string: "us-east-1")` - The [AWS region][aws_region] identifier
   to connect to and where resources should be managed.
 
@@ -119,9 +128,9 @@ target "aws-asg" {
 check {
   ...
   target "aws-asg" {
-    asg_name       = "hashistack-client-asg"
-    class          = "hashistack"
-    drain_deadline = "5m"
+    aws_asg_name        = "hashistack-client-asg"
+    node_class          = "hashistack"
+    node_drain_deadline = "5m"
   }
   ...
 ```

@@ -59,6 +59,29 @@ target "nomad-apm" {
 }
 ```
 
+When using a Nomad cluster with ACLs enabled, following ACL policy will provide the appropriate
+permissions for obtaining task group metrics:
+
+```hcl
+namespace "default" {
+  policy       = "read"
+  capabilities = ["read-job"]
+}
+```
+
+In order to obtain cluster level metrics, the following ACL policy will be required:
+
+```hcl
+node {
+  policy = "read"
+}
+
+namespace "default" {
+  policy       = "read"
+  capabilities = ["read-job"]
+}
+```
+
 ### Policy Configuration Options - Task Groups
 
 The Nomad APM allows querying Nomad to understand the current resource usage of

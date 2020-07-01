@@ -30,7 +30,7 @@ the autoscaler for fetching scaling policies and scaling jobs:
 
 ```hcl
 namespace "default" {
-  policy       = "scale"
+  policy = "scale"
 }
 
 Other APM and target plugins may require additional ACLs; see the plugin documentation for more information.
@@ -55,6 +55,15 @@ processed, its contents are merged into the existing configuration. When merging
 any non-empty values from the latest config file will append or replace
 parameters in the current configuration. An empty value means `""` for strings,
 `0` for integer or float values, and `false` for booleans.
+
+## SIGHUP Reload
+
+The Nomad Autoscaler agent supports handling the `SIGHUP` signal for reloading without the need for
+restarting the agent. When sending a `SIGHUP` signal to the agent process, the agent will perform the
+following actions.
+
+- reload the contents of the scaling policy directory as defined by the [policy dir][autoscaler_cli_policy_dir]
+  parameter.
 
 ## General Parameters
 
@@ -238,3 +247,4 @@ strategy "example-strategy-plugin" {
 [nomad_namespaces]: https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
 [nomad_acls]: https://learn.hashicorp.com/nomad?track=acls#acls
 [autoscaler_cli_config]: /docs/autoscaling/cli#config
+[autoscaler_cli_policy_dir]: /docs/autoscaling/cli#policy-dir
