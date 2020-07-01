@@ -143,8 +143,8 @@ github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgf
 github.com/grpc-ecosystem/grpc-gateway v1.9.0/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
 github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible h1:EDTAuh27kAIhxuyK8ef3iHQARA+8NQaXyTeDEiG3Q6o=
 github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible/go.mod h1:+IrDq36jUYG0q6TsDY9uO2p77C8f8S5y+RbYHr2UI+U=
-github.com/hashicorp/go-hclog/hclogvet v0.1.4-0.20200601163814-4a9e55fb9e7d h1:J1hlEYAGIhvgB4qRFtaK+GyyvA4sJ52Th+rrXYY8pZ4=
-github.com/hashicorp/go-hclog/hclogvet v0.1.4-0.20200601163814-4a9e55fb9e7d/go.mod h1:f0uAs1kAopX4JXFgR4kMixWftM8qLha6edaFVawdNtg=
+github.com/hashicorp/go-hclog/hclogvet v0.1.3 h1:3m9Fxgh3Gct7cyAKPo3rIGR4n4anAZT7knHTZjYwKEo=
+github.com/hashicorp/go-hclog/hclogvet v0.1.3/go.mod h1:f0uAs1kAopX4JXFgR4kMixWftM8qLha6edaFVawdNtg=
 github.com/hashicorp/go-msgpack v1.1.5 h1:9byZdVjKTe5mce63pRVNP1L7UAmdHOTEMGehn6KvJWs=
 github.com/hashicorp/go-msgpack v1.1.5/go.mod h1:gWVc3sv/wbDmR3rQsj1CAktEZzoz1YNK9NfGLXJ69/4=
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
