@@ -470,7 +470,6 @@ type HostData struct {
 	Network     []map[string]string
 	ResolvConf  string
 	Hosts       string
-	Systemd     string
 	Environment map[string]string
 	Disk        map[string]DiskUsage
 }
