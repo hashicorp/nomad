@@ -32,6 +32,9 @@ The table below shows this endpoint's support for
   even number of hexadecimal characters (0-9a-f). This is specified as a query
   string parameter.
 
+- `namespace` `(string: "default")` - Specifies the namespace to search. Specifying
+  `*` would return all allocations across all the authorized namespaces.
+
 ### Sample Request
 
 ```shell-session
@@ -42,6 +45,11 @@ $ curl \
 ```shell-session
 $ curl \
     https://localhost:4646/v1/allocations?prefix=a8198d79
+```
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/allocations?namespace=*&prefix=a8198d79
 ```
 
 ### Sample Response
