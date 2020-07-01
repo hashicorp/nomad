@@ -76,6 +76,10 @@ func slurp(path string) string {
 	var sb strings.Builder
 	buf := make([]byte, 512)
 	fh, err := os.Open(path)
+	if err != nil {
+		return err.Error()
+	}
+
 	var l int
 	for {
 		l, err = fh.Read(buf)
