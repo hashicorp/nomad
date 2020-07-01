@@ -671,18 +671,22 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 
 	// Check agent read permissions
 	var aclObj *acl.ACL
+	var enableDebug bool
 	var err error
 	if srv := s.agent.Server(); srv != nil {
 		aclObj, err = srv.ResolveToken(secret)
+		enableDebug = srv.GetConfig().EnableDebug
 	} else {
 		// Not a Server; use the Client for token resolution
 		aclObj, err = s.agent.Client().ResolveToken(secret)
+		enableDebug = s.agent.Client().GetConfig().EnableDebug
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	if aclObj != nil && !aclObj.AllowAgentRead() {
+	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
+		(aclObj == nil && !enableDebug) {
 		return nil, structs.ErrPermissionDenied
 	}
 
