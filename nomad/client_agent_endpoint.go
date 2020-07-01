@@ -401,7 +401,9 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+	}
+	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
+		(aclObj == nil && !a.srv.config.EnableDebug) {
 		return structs.ErrPermissionDenied
 	}
 

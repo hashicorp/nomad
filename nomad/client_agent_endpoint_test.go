@@ -989,3 +989,26 @@ func TestAgentHost_ACL(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentHost_ACLDebugRequired(t *testing.T) {
+	t.Parallel()
+
+	// start server
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.EnableDebug = false
+	})
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	req := structs.HostDataRequest{
+		QueryOptions: structs.QueryOptions{
+			Namespace: structs.DefaultNamespace,
+			Region:    "global",
+		},
+	}
+
+	var resp structs.HostDataResponse
+
+	err := s.RPC("Agent.Host", &req, &resp)
+	require.Equal(t, "Permission denied", err.Error())
+}
