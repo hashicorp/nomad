@@ -467,7 +467,7 @@ type AgentHealth struct {
 
 type HostData struct {
 	OS          string
-	Network     string
+	Network     []map[string]string
 	ResolvConf  string
 	Hosts       string
 	Systemd     string
