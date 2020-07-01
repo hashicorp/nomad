@@ -8,11 +8,12 @@
   {{#if taskGroup.scaling}}
   <div
     data-test-scale-controls
-    class="button-bar is-shadowless is-text bumper-left {{if (cannot "scale job") "tooltip"}}"
-    aria-label={{if (cannot "scale job") "You aren't allowed to scale task groups"}}>
+    class="button-bar is-shadowless is-text bumper-left {{if (or runningDeployment (cannot "scale job")) "tooltip multiline"}}"
+    aria-label={{tooltipText}}>
       <button
         data-test-scale="decrement"
         role="button"
+        aria-label="decrement"
         class="button is-xsmall is-light"
         disabled={{or isMinimum runningDeployment (cannot "scale job")}}
         onclick={{action "countDown"}}>
@@ -21,6 +22,7 @@
       <button
         data-test-scale="increment"
         role="button"
+        aria-label="increment"
         class="button is-xsmall is-light"
         disabled={{or isMaximum runningDeployment (cannot "scale job")}}
         onclick={{action "countUp"}}>

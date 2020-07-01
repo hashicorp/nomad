@@ -14,6 +14,7 @@ export default scope => ({
   scope,
 
   label: text('[data-test-stepper-label]'),
+  clickLabel: clickable('[data-test-stepper-label]'),
 
   input: {
     scope: '[data-test-stepper-input]',

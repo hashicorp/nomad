@@ -9,7 +9,7 @@ const ESC = 27;
 
 @classic
 @classNames('stepper-input')
-@classNameBindings('class', 'disabled:is-disabled')
+@classNameBindings('class', 'disabled:is-disabled', 'disabled:tooltip', 'disabled:multiline')
 export default class StepperInput extends Component {
   min = 0;
   max = 10;
@@ -40,9 +40,13 @@ export default class StepperInput extends Component {
 
   @action
   setValue(e) {
-    const newValue = Math.min(this.max, Math.max(this.min, e.target.value));
-    this.set('internalValue', newValue);
-    this.update(this.internalValue);
+    if (e.target.value !== '') {
+      const newValue = Math.floor(Math.min(this.max, Math.max(this.min, e.target.value)));
+      this.set('internalValue', newValue);
+      this.update(this.internalValue);
+    } else {
+      e.target.value = this.internalValue;
+    }
   }
 
   @action
@@ -50,6 +54,15 @@ export default class StepperInput extends Component {
     if (e.keyCode === ESC) {
       e.target.value = this.internalValue;
     }
+  }
+
+  @action
+  selectValue(e) {
+    e.target.select();
+  }
+
+  @action focusInput() {
+    this.element.querySelector('.stepper-input-input').focus();
   }
 
   update(value) {

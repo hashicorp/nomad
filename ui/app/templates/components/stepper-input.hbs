@@ -1,4 +1,7 @@
-<label data-test-stepper-label class="stepper-input-label">{{yield}}</label>
+<label
+  data-test-stepper-label
+  class="stepper-input-label"
+  onClick={{action "focusInput"}}>{{yield}}</label>
 <input
   data-test-stepper-input
   type="number"
@@ -7,11 +10,13 @@
   value={{internalValue}}
   disabled={{disabled}}
   class="stepper-input-input"
+  onFocus={{action "selectValue"}}
   onKeyDown={{action "resetTextInput"}}
   onChange={{action "setValue"}}>
 <button
   data-test-stepper-decrement
   role="button"
+  aria-label="decrement"
   class="stepper-input-stepper button {{class}}"
   disabled={{or disabled (lte internalValue min)}}
   onclick={{action "decrement"}}>
@@ -20,6 +25,7 @@
 <button
   data-test-stepper-increment
   role="button"
+  aria-label="increment"
   class="stepper-input-stepper button {{class}}"
   disabled={{or disabled (gte internalValue max)}}
   onclick={{action "increment"}}>
