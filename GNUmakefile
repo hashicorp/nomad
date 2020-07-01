@@ -197,7 +197,7 @@ check: ## Lint the source code
 	@echo "==> Linting source code..."
 	@golangci-lint run -j 1
 	
-	@echo "==> Linting hclog statements"
+	@echo "==> Linting hclog statements..."
 	@hclogvet .
 
 	@echo "==> Spell checking website..."
