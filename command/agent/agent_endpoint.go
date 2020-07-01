@@ -670,12 +670,18 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
+	var aclObj *acl.ACL
+	var err error
 	if srv := s.agent.Server(); srv != nil {
 		aclObj, err = srv.ResolveToken(secret)
 	} else {
 		// Not a Server; use the Client for token resolution
 		aclObj, err = s.agent.Client().ResolveToken(secret)
 	}
+	if err != nil {
+		return nil, err
+	}
+
 	if aclObj != nil && !aclObj.AllowAgentRead() {
 		return nil, structs.ErrPermissionDenied
 	}
@@ -714,12 +720,14 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 
 	// Make the RPC. The RPC endpoint actually forwards the request to the correct
 	// agent, but we need to use the correct RPC interface.
-	localClient, remoteClient, _ := s.rpcHandlerForNode(nodeID)
+	localClient, remoteClient, localServer := s.rpcHandlerForNode(nodeID)
 
 	if localClient {
 		rpcErr = s.agent.Client().ClientRPC("Agent.Host", &args, &reply)
 	} else if remoteClient {
 		rpcErr = s.agent.Client().RPC("Agent.Host", &args, &reply)
+	} else if localServer {
+		rpcErr = s.agent.Server().RPC("Agent.Host", &args, &reply)
 	} else {
 		rpcErr = fmt.Errorf("node not found: %s", nodeID)
 	}
