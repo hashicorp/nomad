@@ -20,13 +20,23 @@ Usage: nomad volume deregister [options] <id>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage() + `
 
+Volume Deregister Options:
+
+  -force
+    Force deregistration of the volume and immediately drop claims for
+    terminal allocations. Returns an error if the volume has running
+    allocations. This does not detach the volume from client nodes.
+`
 	return strings.TrimSpace(helpText)
 }
 
 func (c *VolumeDeregisterCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-force": complete.PredictNothing,
+		})
 }
 
 func (c *VolumeDeregisterCommand) AutocompleteArgs() complete.Predictor {
@@ -52,8 +62,10 @@ func (c *VolumeDeregisterCommand) Synopsis() string {
 func (c *VolumeDeregisterCommand) Name() string { return "volume deregister" }
 
 func (c *VolumeDeregisterCommand) Run(args []string) int {
+	var force bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&force, "force", false, "Force deregister and drop claims")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -76,9 +88,32 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Confirm the -force flag
+	if force {
+		question := fmt.Sprintf("Are you sure you want to force deregister volume %q? [y/N]", volID)
+		answer, err := c.Ui.Ask(question)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Failed to parse answer: %v", err))
+			return 1
+		}
+
+		if answer == "" || strings.ToLower(answer)[0] == 'n' {
+			// No case
+			c.Ui.Output("Cancelling volume deregister")
+			return 0
+		} else if strings.ToLower(answer)[0] == 'y' && len(answer) > 1 {
+			// Non exact match yes
+			c.Ui.Output("For confirmation, an exact ‘y’ is required.")
+			return 0
+		} else if answer != "y" {
+			c.Ui.Output("No confirmation detected. For confirmation, an exact 'y' is required.")
+			return 1
+		}
+	}
+
 	// Deregister only works on CSI volumes, but could be extended to support other
 	// network interfaces or host volumes
-	err = client.CSIVolumes().Deregister(volID, nil)
+	err = client.CSIVolumes().Deregister(volID, force, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering volume: %s", err))
 		return 1

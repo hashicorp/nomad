@@ -2114,7 +2114,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 }
 
 // CSIVolumeDeregister removes the volume from the server
-func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []string) error {
+func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []string, force bool) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -2133,8 +2133,14 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 			return fmt.Errorf("volume row conversion error: %s", id)
 		}
 
+		// The common case for a volume deregister is when the volume is
+		// unused, but we can also let an operator intervene in the case where
+		// allocations have been stopped but claims can't be freed because
+		// ex. the plugins have all been removed.
 		if vol.InUse() {
-			return fmt.Errorf("volume in use: %s", id)
+			if !force || !s.volSafeToForce(vol) {
+				return fmt.Errorf("volume in use: %s", id)
+			}
 		}
 
 		if err = txn.Delete("csi_volumes", existing); err != nil {
@@ -2148,6 +2154,28 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 
 	txn.Commit()
 	return nil
+}
+
+// volSafeToForce checks if the any of the remaining allocations
+// are in a non-terminal state.
+func (s *StateStore) volSafeToForce(v *structs.CSIVolume) bool {
+	ws := memdb.NewWatchSet()
+	vol, err := s.CSIVolumeDenormalize(ws, v)
+	if err != nil {
+		return false
+	}
+
+	for _, alloc := range vol.ReadAllocs {
+		if alloc != nil && !alloc.TerminalStatus() {
+			return false
+		}
+	}
+	for _, alloc := range vol.WriteAllocs {
+		if alloc != nil && !alloc.TerminalStatus() {
+			return false
+		}
+	}
+	return true
 }
 
 // CSIVolumeDenormalizePlugins returns a CSIVolume with current health and plugins, but

@@ -599,6 +599,7 @@ type CSIVolumeRegisterResponse struct {
 
 type CSIVolumeDeregisterRequest struct {
 	VolumeIDs []string
+	Force     bool
 	WriteRequest
 }
 

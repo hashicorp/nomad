@@ -1154,7 +1154,7 @@ func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_deregister"}, time.Now())
 
-	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs); err != nil {
+	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs, req.Force); err != nil {
 		n.logger.Error("CSIVolumeDeregister failed", "error", err)
 		return err
 	}

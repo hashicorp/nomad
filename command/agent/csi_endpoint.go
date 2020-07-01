@@ -2,6 +2,7 @@ package agent
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -122,8 +123,19 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
+	raw := req.URL.Query().Get("force")
+	var force bool
+	if raw != "" {
+		var err error
+		force, err = strconv.ParseBool(raw)
+		if err != nil {
+			return nil, CodedError(400, "invalid force value")
+		}
+	}
+
 	args := structs.CSIVolumeDeregisterRequest{
 		VolumeIDs: []string{id},
+		Force:     force,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 

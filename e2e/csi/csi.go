@@ -221,7 +221,7 @@ func (tc *CSIVolumesTest) AfterEach(f *framework.F) {
 	}
 	// Deregister all volumes in test
 	for _, id := range tc.volumeIDs {
-		nomadClient.CSIVolumes().Deregister(id, nil)
+		nomadClient.CSIVolumes().Deregister(id, true, nil)
 	}
 	// Deregister all plugin jobs in test
 	for _, id := range tc.pluginJobIDs {
