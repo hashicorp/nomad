@@ -10,7 +10,7 @@ require (
 	github.com/golangci/golangci-lint v1.24.0
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible
-	github.com/hashicorp/go-hclog/hclogvet v0.1.4-0.20200601163814-4a9e55fb9e7d // indirect
+	github.com/hashicorp/go-hclog/hclogvet v0.1.4-0.20200601163814-4a9e55fb9e7d
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/hcl/v2 v2.5.1
 	github.com/kr/text v0.2.0 // indirect
