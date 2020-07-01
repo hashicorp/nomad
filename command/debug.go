@@ -368,11 +368,14 @@ func (c *DebugCommand) collectAgentHost(path, id string, client *api.Client) {
 	} else {
 		host, err = client.Agent().Host("", id, nil)
 	}
+
+	path = filepath.Join(path, id)
+
 	if err != nil {
+		c.writeBytes(path, "agent-host.log", []byte(err.Error()))
 		return
 	}
 
-	path = filepath.Join(path, id)
 	c.writeJSON(path, "agent-host.json", host)
 }
 
