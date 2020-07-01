@@ -32,10 +32,11 @@ func mountedPaths() (disks []string) {
 			disks = append(disks, d)
 		}
 	}
+	return disks
 }
 
 type df struct {
-	total int64
+	size  int64
 	avail int64
 }
 
@@ -46,14 +47,14 @@ func makeDf(path string) (*df, error) {
 	df := &df{}
 
 	c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(path))),
-		uintptr(unsafe.Pointer(&df.total)),
+		uintptr(unsafe.Pointer(&df.size)),
 		uintptr(unsafe.Pointer(&df.avail)))
 
 	return df, nil
 }
 
 func (d *df) total() uint64 {
-	return uint64(d.total)
+	return uint64(d.size)
 }
 
 func (d *df) available() uint64 {
