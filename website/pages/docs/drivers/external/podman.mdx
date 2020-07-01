@@ -11,7 +11,7 @@ description: >-
 
 Name: `podman`
 
-Homepage: https://github.com/pascomnet/nomad-driver-podman
+Homepage: https://github.com/hashicorp/nomad-driver-podman
 
 The podman task driver plugin for Nomad uses the [Pod Manager (podman)][podman]
 daemonless container runtime for executing Nomad tasks. Podman supports OCI
@@ -30,6 +30,12 @@ You need a varlink enabled podman binary and a system socket activation unit, se
 Since the Nomad agent, nomad-driver-podman plugin binary, and podman will
 reside on the same host, skip the ssh aspects of the podman varlink
 documentation above.
+
+## Known Limitations
+
+The Podman task driver is under active development. It currently does not support [stderr logging][stderr-logging] and [devices][devices].
+Podman recently released [Podman v2](https://podman.io/blogs/2020/06/29/podman-v2-announce.html). The taskd driver currently supports v1 
+and will be working on supporting v2 in upcoming releases.
 
 ## Task Configuration
 
@@ -175,6 +181,15 @@ config {
 }
 ```
 
+- `network_mode` - Set the [network mode][network-mode] for the container.
+  - `bridge` - (default for rootful) create a network stack on the default bridge
+  - `none` - no networking
+  - `container:id` - reuse another container's network stack
+  - `host` - use the Podman host network stack. Note: the host mode gives the container
+    full access to local system services such as D-bus and is therefore considered insecure.
+  - `slirp4netns` - use `slirp4netns` to create a user network stack. This is the default for
+    rootless containers. Podman currently does not support this option for rootful containers ([issue][slirp-issue])
+
 ## Networking
 
 Podman supports forwarding and exposing ports like Docker. See [Docker Driver
@@ -234,11 +249,16 @@ plugin "nomad-driver-podman" {
 ```
 
 [docker-ports]: /docs/drivers/docker#forwarding-and-exposing-ports
-[homepage]: https://github.com/pascomnet/nomad-driver-podman
+[homepage]: https://github.com/hashicorp/nomad-driver-podman
 [memory-value]: /docs/job-specification/resources#memory
 [nomad-init]: /docs/commands/job/init
 [plugin_dir]: /docs/configuration#plugin_dir
 [podman]: https://podman.io/
 [podman-cli]: https://podman.io/whatis.html
-[releases]: https://github.com/pascomnet/nomad-driver-podman/releases
+[releases]: https://releases.hashicorp.com/nomad-driver-podman
 [task]: /docs/job-specification/task#user
+[network-mode]: http://docs.podman.io/en/latest/markdown/podman-run.1.html#options
+[slirp-issue]: https://github.com/containers/libpod/issues/6097
+[stderr-logging]: https://github.com/hashicorp/nomad-driver-podman/issues/4
+[devices]: https://github.com/hashicorp/nomad-driver-podman/issues/41
+
