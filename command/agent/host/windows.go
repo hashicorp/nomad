@@ -2,9 +2,31 @@
 
 package host
 
+import (
+	"os"
+	"syscall"
+	"unsafe"
+)
+
+func uname() string {
+	return ""
+}
+
+func network() string {
+	return ""
+}
+
+func resolvConf() string {
+	return ""
+}
+
+func etcHosts() string {
+	return ""
+}
+
 func mountedPaths() (disks []string) {
 	for _, c := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		_, err := os.Stat(c + ":\\")
+		_, err := os.Stat(string(c) + ":\\")
 		if err == nil {
 
 			disks = append(disks, c)
