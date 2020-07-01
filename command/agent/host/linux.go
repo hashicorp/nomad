@@ -4,21 +4,21 @@ package host
 
 import (
 	"bufio"
+	"os"
 	"strings"
 )
 
 func network() string {
-	return call("ip", "address", "list")
-}
-
-func resolvConf() string {
-	return slurp("/etc/resolv.conf")
+	return ""
 }
 
 // mountedPaths produces a list of mounts
 func mountedPaths() []string {
-	out := call("findmnt", "-D", "-tnotmpfs,nodevtmpfs", "-o", "TARGET")
-	rd := bufio.NewReader(strings.NewReader(out))
+	fh, err := os.Open("/proc/mounts")
+	if err != nil {
+		return []string{err.Error()}
+	}
+	rd := bufio.NewReader(fh)
 
 	var paths []string
 	for {
@@ -26,7 +26,20 @@ func mountedPaths() []string {
 		if err != nil {
 			break
 		}
-		paths = append(paths, str)
+
+		ln := strings.Split(str, " ")
+		switch ln[2] {
+		case "autofs", "binfmt_misc", "cgroup", "debugfs",
+			"devpts", "devtmpfs",
+			"fusectl", "fuse.lxcfs",
+			"hugetlbfs", "mqueue",
+			"proc", "pstore", "rpc_pipefs", "securityfs",
+			"sysfs", "tmpfs", "vboxsf":
+			continue
+		default:
+		}
+
+		paths = append(paths, ln[1])
 	}
 
 	return paths

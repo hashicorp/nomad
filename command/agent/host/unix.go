@@ -33,6 +33,10 @@ func etcHosts() string {
 	return slurp("/etc/hosts")
 }
 
+func resolvConf() string {
+	return slurp("/etc/resolv.conf")
+}
+
 func nullStr(bs []byte) string {
 	// find the null byte
 	var i int

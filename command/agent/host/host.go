@@ -3,17 +3,16 @@ package host
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 )
 
 type HostData struct {
-	OS         string
-	Network    string
-	ResolvConf string
-	Hosts      string
-	Systemd    string
-	Disk       map[string]DiskUsage
+	OS          string
+	Network     string
+	ResolvConf  string
+	Hosts       string
+	Environment map[string]string
+	Disk        map[string]DiskUsage
 }
 
 type DiskUsage struct {
@@ -36,12 +35,12 @@ func MakeHostData() (*HostData, error) {
 	}
 
 	return &HostData{
-		OS:         uname,
-		Network:    network(),
-		ResolvConf: resolvConf(),
-		Hosts:      etcHosts(),
-		Systemd:    slurp("/etc/systemd/nomad.conf"),
-		Disk:       du,
+		OS:          uname,
+		Network:     network(),
+		ResolvConf:  resolvConf(),
+		Hosts:       etcHosts(),
+		Environment: environment(),
+		Disk:        du,
 	}, nil
 }
 
@@ -66,11 +65,15 @@ func diskUsage(path string) (du DiskUsage, err error) {
 	return du, nil
 }
 
-// call executes the command line and returns stdout, ignoring errors
-func call(cmd string, args ...string) string {
-	// cmd = which(cmd)
-	out, _ := exec.Command(cmd, args...).Output()
-	return string(out)
+// environment returns the process environment in a map
+func environment() map[string]string {
+	env := make(map[string]string)
+
+	for _, e := range os.Environ() {
+		s := strings.SplitN(e, "=", 2)
+		env[s[0]] = s[1]
+	}
+	return env
 }
 
 // slurp returns the file contents as a string, ignoring errors
