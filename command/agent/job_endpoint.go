@@ -153,7 +153,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	}
 
 	requestRegion, jobRegion := regionForJob(
-		args.Job, args.WriteRequest.Region, s.agent.config.Region)
+		args.Job, args.Region, args.WriteRequest.Region, s.agent.config.Region)
 
 	args.Job.Region = helper.StringToPtr(jobRegion)
 	sJob := ApiJobToStructJob(args.Job)
@@ -403,7 +403,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	}
 
 	requestRegion, jobRegion := regionForJob(
-		args.Job, args.WriteRequest.Region, s.agent.config.Region)
+		args.Job, args.Region, args.WriteRequest.Region, s.agent.config.Region)
 
 	args.Job.Region = helper.StringToPtr(jobRegion)
 	sJob := ApiJobToStructJob(args.Job)
@@ -699,25 +699,33 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	return jobStruct, nil
 }
 
-func regionForJob(job *api.Job, queryRegion, agentRegion string) (string, string) {
+func regionForJob(job *api.Job, queryRegion, writeRegion, agentRegion string) (string, string) {
 	var requestRegion string
 	var jobRegion string
 
-	if queryRegion != "" {
-		requestRegion = queryRegion
-		jobRegion = queryRegion
+	// Region in http request body takes precedence
+	if writeRegion != "" {
+		requestRegion = writeRegion
+		jobRegion = writeRegion
 	}
 
-	// If no -region flag was passed, we forward to the job's region
-	// if one is available, otherwise we default to the region of
-	// this node.
+	// If not request body was passed, we forward to the job's region
+	// if one is available
 	if requestRegion == "" && job.Region != nil {
 		requestRegion = *job.Region
 		jobRegion = *job.Region
 	}
+
+	// otherwise we default to the -region flag (query param), or if that's
+	// not set the region of this node
 	if requestRegion == "" || requestRegion == api.GlobalRegion {
-		requestRegion = agentRegion
-		jobRegion = agentRegion
+		if queryRegion != "" {
+			requestRegion = queryRegion
+			jobRegion = queryRegion
+		} else {
+			requestRegion = agentRegion
+			jobRegion = agentRegion
+		}
 	}
 
 	// Multiregion jobs have their job region set to the global region,
