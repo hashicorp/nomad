@@ -118,6 +118,15 @@ func checkFreedPorts() {
 	}
 }
 
+func toIntSlice(c *list.List) []int {
+	r := []int{}
+
+	for elem := c.Front(); elem != nil; elem = elem.Next() {
+		r = append(r, elem.Value.(int))
+	}
+
+	return r
+}
 func checkFreedPortsOnce() {
 	mu.Lock()
 	defer mu.Unlock()
@@ -142,8 +151,13 @@ func checkFreedPortsOnce() {
 		return
 	}
 
-	logf("DEBUG", "freeing pending ports: %v", remove)
-	logf("DEBUG", "pending ports still retained: %v", pending)
+	removeElems := make([]interface{}, len(remove))
+	for i, e := range remove {
+		removeElems[i] = e.Value
+	}
+
+	logf("DEBUG", "freeing pending ports: %v", removeElems)
+	logf("DEBUG", "pending ports still retained: %v", toIntSlice(pendingPorts))
 	for _, elem := range remove {
 		pendingPorts.Remove(elem)
 	}
@@ -219,6 +233,7 @@ func Take(n int) (ports []int, err error) {
 	// Reserve a port block
 	once.Do(initialize)
 
+	logf("DEBUG", "all free ports are: ", toIntSlice(freePorts))
 	if n > total {
 		return nil, fmt.Errorf("nomad.freeport: block size too small")
 	}
