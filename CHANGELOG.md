@@ -30,7 +30,8 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * cli: Fixed malformed alloc status address list when listing more than 1 address [[GH-8161](https://github.com/hashicorp/nomad/issues/8161)]
- * client: Fixed a bug where stdout/stderr were not properly reopened for community task drivers. [[GH-8155](https://github.com/hashicorp/nomad/issues/8155)]
+ * client: Fixed a bug where stdout/stderr were not properly reopened for community task drivers [[GH-8155](https://github.com/hashicorp/nomad/issues/8155)]
+ * client: Fixed a bug where batch job sidecars may be left running after the main task completes [[GH-8311](https://github.com/hashicorp/nomad/issues/8311)]
  * csi: Fixed a bug where `NodeStageVolume` and `NodePublishVolume` requests were not receiving volume context [[GH-8239](https://github.com/hashicorp/nomad/issues/8239)]
  * driver/docker: Fixed a bug to set correct value for `memory-swap` when using `memory_hard_limit` [[GH-8153](https://github.com/hashicorp/nomad/issues/8153)]
  * ui: The log streamer will now always follow logs when the current scroll position is the end of the buffer. [[GH-8177](https://github.com/hashicorp/nomad/issues/8177)]
