@@ -218,23 +218,24 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Mark the deployment as complete if possible
 	if a.deployment != nil && complete {
-
-		var status string
-		var desc string
-
 		if a.job.IsMultiregion() {
-			status = structs.DeploymentStatusBlocked
-			desc = structs.DeploymentStatusDescriptionBlocked
+			// the unblocking/successful states come after blocked, so we
+			// need to make sure we don't revert those states
+			if a.deployment.Status != structs.DeploymentStatusUnblocking &&
+				a.deployment.Status != structs.DeploymentStatusSuccessful {
+				a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+					DeploymentID:      a.deployment.ID,
+					Status:            structs.DeploymentStatusBlocked,
+					StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+				})
+			}
 		} else {
-			status = structs.DeploymentStatusSuccessful
-			desc = structs.DeploymentStatusDescriptionSuccessful
+			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      a.deployment.ID,
+				Status:            structs.DeploymentStatusSuccessful,
+				StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+			})
 		}
-
-		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
-			DeploymentID:      a.deployment.ID,
-			Status:            status,
-			StatusDescription: desc,
-		})
 	}
 
 	// Set the description of a created deployment
