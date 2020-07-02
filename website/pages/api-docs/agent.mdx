@@ -497,6 +497,90 @@ $ curl \
 }
 ```
 
+## Host
+
+This endpoint returns data about the agent's host environment from the
+perspective of the agent. It is included in the archive produced by
+nomad debug. Known sensitive environment variables are shown as
+`<redacted>`, but the response may still contain sensitive
+information.
+
+| Method | Path            | Produces           |
+| ------ | --------------- | ------------------ |
+| `GET`  | `/agent/host`   | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `agent:read` |
+
+### Parameters
+
+- `server_id` `(string: <optional>)` - Specify the server name for
+  targeting.
+
+- `node_id` `(string: <optional>)` - Specify the client node id for
+  targeting.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/agent/host?node_id=4bb9aca7-d43b-43fc-d604-3a271ef0a6c0
+```
+
+### Sample Response
+
+```json
+{
+  "AgentID": "4bb9aca7-d43b-43fc-d604-3a271ef0a6c0",
+  "HostData": {
+    "OS": "x86_64 ip-172-31-92-147 4.15.0-1007-aws Linux #7-Ubuntu SMP Tue Apr 24 10:56:17 UTC 2018",
+    "Network": [
+      {
+        "DialPacket": "\"udp4\" \"\"",
+        "DialStream": "\"tcp4\" \"\"",
+        "ListenPacket": "\"udp4\" \"\"",
+        "ListenStream": "\"tcp4\" \"\"",
+        "address": "127.0.0.1",
+        "binary": "01111111000000000000000000000001",
+        "broadcast": "127.255.255.255",
+        "first_usable": "127.0.0.1",
+        "hex": "7f000001",
+        "host": "127.0.0.1",
+        "last_usable": "127.255.255.254",
+        "mask_bits": "8",
+        "netmask": "255.0.0.0",
+        "network": "127.0.0.0",
+        "octets": "127 0 0 1",
+        "port": "0",
+        "size": "16777216",
+        "string": "127.0.0.1/8",
+        "type": "IPv4",
+        "uint32": "2130706433"
+      }
+    ],
+    "ResolvConf": "nameserver 172.17.0.1\nnameserver 8.8.8.8\n",
+    "Hosts": "127.0.0.1 localhost\n\n# The following lines are desirable for IPv6 capable hosts\n::1 ip6-localhost ip6-loopback\nfe00::0 ip6-localnet\nff00::0 ip6-mcastprefix\nff02::1 ip6-allnodes\nff02::2 ip6-allrouters\nff02::3 ip6-allhosts\n127.0.0.1 ip-172-31-71-163\n127.0.0.1 ip-172-31-92-147\n",
+    "Environment": {
+      "INVOCATION_ID": "b106b6ac67764c9b9f85c5cc5c3357e5",
+      "JOURNAL_STREAM": "9:109527",
+      "LANG": "C.UTF-8",
+      "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    },
+    "Disk": {
+      "/": {
+        "DiskMB": 7876,
+        "UsedMB": 4287
+      }
+    }
+  }
+}
+```
+
 ## Stream Logs
 
 This endpoint streams logs from the local agent until the connection is closed
