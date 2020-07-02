@@ -78,7 +78,8 @@ Debug Options:
    in the current directory.
 
   -consul-token
-   Token used to query Consul. Defaults to CONSUL_TOKEN
+   Token used to query Consul. Defaults to CONSUL_HTTP_TOKEN or the contents of
+   CONSUL_HTTP_TOKEN_FILE
 
   -vault-token
    Token used to query Vault. Defaults to VAULT_TOKEN
@@ -514,7 +515,19 @@ func (c *DebugCommand) collectConsul(dir, consul string) error {
 
 	token := c.consulToken
 	if token == "" {
-		os.Getenv("CONSUL_TOKEN")
+		token = os.Getenv("CONSUL_HTTP_TOKEN")
+	}
+	if token == "" {
+		file := os.Getenv("CONSUL_HTTP_TOKEN_FILE")
+		if file != "" {
+			fh, err := os.Open(file)
+			if err == nil {
+				bs, err := ioutil.ReadAll(fh)
+				if err == nil {
+					token = strings.TrimSpace(string(bs))
+				}
+			}
+		}
 	}
 
 	client := http.Client{
