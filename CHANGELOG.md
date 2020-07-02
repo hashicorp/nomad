@@ -24,6 +24,7 @@ IMPROVEMENTS:
 * core: Block Job.Scale actions when the job is under active deployment [[GH-8187](https://github.com/hashicorp/nomad/issues/8187)]
 * api: Persist previous count with scaling events [[GH-8167](https://github.com/hashicorp/nomad/issues/8167)]
 * api: Support querying for jobs and allocations across all namespaces [[GH-8192](https://github.com/hashicorp/nomad/issues/8192)]
+* api: New `/agent/host` endpoint returns diagnostic information about the host [[GH-8325](https://github.com/hashicorp/nomad/pull/8325)]
 * build: Updated to Go 1.14.4 [[GH-8172](https://github.com/hashicorp/nomad/issues/9172)]
 * server: Added `raft_multiplier` config to tweak Raft related timeouts [[GH-8082](https://github.com/hashicorp/nomad/issues/8082)]
 
