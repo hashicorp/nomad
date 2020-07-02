@@ -281,6 +281,7 @@ func (c *DebugCommand) collect(client *api.Client) error {
 	c.startMonitors(client)
 	c.collectPeriodic(client)
 	c.collectPprofs(client)
+	c.collectAgentHosts(client)
 
 	return nil
 }
@@ -344,6 +345,38 @@ func (c *DebugCommand) startMonitor(path, idKey, nodeID string, client *api.Clie
 			return
 		}
 	}
+}
+
+// collectAgentHosts calls collectAgentHost for each selected node
+func (c *DebugCommand) collectAgentHosts(client *api.Client) {
+	for _, n := range c.nodeIDs {
+		c.collectAgentHost("client", n, client)
+	}
+
+	for _, n := range c.serverIDs {
+		c.collectAgentHost("server", n, client)
+	}
+
+}
+
+// collectAgentHost gets the agent host data
+func (c *DebugCommand) collectAgentHost(path, id string, client *api.Client) {
+	var host *api.HostDataResponse
+	var err error
+	if path == "server" {
+		host, err = client.Agent().Host(id, "", nil)
+	} else {
+		host, err = client.Agent().Host("", id, nil)
+	}
+
+	path = filepath.Join(path, id)
+
+	if err != nil {
+		c.writeBytes(path, "agent-host.log", []byte(err.Error()))
+		return
+	}
+
+	c.writeJSON(path, "agent-host.json", host)
 }
 
 // collectPprofs captures the /agent/pprof for each listed node

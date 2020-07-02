@@ -32,6 +32,7 @@ import (
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
@@ -1480,6 +1481,20 @@ type NodeConnQueryResponse struct {
 	Established time.Time
 
 	QueryMeta
+}
+
+// HostDataRequest is used by /agent/host to retrieve data about the agent's host system. If
+// ServerID or NodeID is specified, the request is forwarded to the remote agent
+type HostDataRequest struct {
+	ServerID string
+	NodeID   string
+	QueryOptions
+}
+
+// HostDataResponse contains the HostData content
+type HostDataResponse struct {
+	AgentID  string
+	HostData *host.HostData
 }
 
 // EmitNodeEventsRequest is a request to update the node events source

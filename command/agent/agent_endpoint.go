@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
@@ -656,4 +657,84 @@ func (h healthResponse) ok() bool {
 type healthResponseAgent struct {
 	Ok      bool   `json:"ok"`
 	Message string `json:"message,omitempty"`
+}
+
+// AgentHostRequest runs on servers and clients, and captures information about the host system to add
+// to the nomad debug archive.
+func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent read permissions
+	var aclObj *acl.ACL
+	var enableDebug bool
+	var err error
+	if srv := s.agent.Server(); srv != nil {
+		aclObj, err = srv.ResolveToken(secret)
+		enableDebug = srv.GetConfig().EnableDebug
+	} else {
+		// Not a Server; use the Client for token resolution
+		aclObj, err = s.agent.Client().ResolveToken(secret)
+		enableDebug = s.agent.Client().GetConfig().EnableDebug
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
+		(aclObj == nil && !enableDebug) {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	serverID := req.URL.Query().Get("server_id")
+	nodeID := req.URL.Query().Get("node_id")
+
+	if serverID != "" && nodeID != "" {
+		return nil, CodedError(400, "Can only forward to either client node or server")
+	}
+
+	// If no other node is specified, return our local host's data
+	if serverID == "" && nodeID == "" {
+		data, err := host.MakeHostData()
+		if err != nil {
+			return nil, CodedError(500, err.Error())
+		}
+		return data, nil
+	}
+
+	args := &structs.HostDataRequest{
+		ServerID: serverID,
+		NodeID:   nodeID,
+	}
+
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	var reply structs.HostDataResponse
+	var rpcErr error
+
+	// serverID is set, so forward to that server
+	if serverID != "" {
+		rpcErr = s.agent.Server().RPC("Agent.Host", &args, &reply)
+		return reply, rpcErr
+	}
+
+	// Make the RPC. The RPC endpoint actually forwards the request to the correct
+	// agent, but we need to use the correct RPC interface.
+	localClient, remoteClient, localServer := s.rpcHandlerForNode(nodeID)
+
+	if localClient {
+		rpcErr = s.agent.Client().ClientRPC("Agent.Host", &args, &reply)
+	} else if remoteClient {
+		rpcErr = s.agent.Client().RPC("Agent.Host", &args, &reply)
+	} else if localServer {
+		rpcErr = s.agent.Server().RPC("Agent.Host", &args, &reply)
+	} else {
+		rpcErr = fmt.Errorf("node not found: %s", nodeID)
+	}
+
+	return reply, rpcErr
 }

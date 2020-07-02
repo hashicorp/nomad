@@ -21,6 +21,7 @@ import (
 var (
 	// DefaultEnvBlacklist is the default set of environment variables that are
 	// filtered when passing the environment variables of the host to a task.
+	// duplicated in command/agent/host, update that if this changes.
 	DefaultEnvBlacklist = strings.Join([]string{
 		"CONSUL_TOKEN",
 		"CONSUL_HTTP_TOKEN",
