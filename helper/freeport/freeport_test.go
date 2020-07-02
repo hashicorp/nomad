@@ -134,21 +134,21 @@ func TestTakeReturn(t *testing.T) {
 	func() {
 		ports, err := Take(numTotal + 1)
 		defer Return(ports)
-		expectError("freeport: block size too small", err)
+		expectError("nomad.freeport: block size too small", err)
 	}()
 
 	// --------------------
 	// ERROR: invalid ports request (negative)
 	func() {
 		_, err := Take(-1)
-		expectError("freeport: cannot take -1 ports", err)
+		expectError("nomad.freeport: cannot take -1 ports", err)
 	}()
 
 	// --------------------
 	// ERROR: invalid ports request (zero)
 	func() {
 		_, err := Take(0)
-		expectError("freeport: cannot take 0 ports", err)
+		expectError("nomad.freeport: cannot take 0 ports", err)
 	}()
 
 	// --------------------
@@ -245,7 +245,7 @@ func TestTakeReturn(t *testing.T) {
 
 		// 3. Request 1 port which will detect the leaked ports and fail.
 		_, err := Take(1)
-		expectError("freeport: impossible to satisfy request; there are no actual free ports in the block anymore", err)
+		expectError("nomad.freeport: impossible to satisfy request; there are no actual free ports in the block anymore", err)
 
 		// 4. Wait for the block to zero out.
 		newNumTotal := waitForStatsReset()
