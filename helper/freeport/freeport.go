@@ -233,7 +233,7 @@ func Take(n int) (ports []int, err error) {
 	// Reserve a port block
 	once.Do(initialize)
 
-	logf("DEBUG", "all free ports are: ", toIntSlice(freePorts))
+	logf("DEBUG", "all free ports are: %v", toIntSlice(freePorts))
 	if n > total {
 		return nil, fmt.Errorf("nomad.freeport: block size too small")
 	}
