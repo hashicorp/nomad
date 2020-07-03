@@ -638,6 +638,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	for _, hn := range agentConfig.Client.HostNetworks {
 		conf.HostNetworks[hn.Name] = hn
 	}
+	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
 
 	return conf, nil
 }

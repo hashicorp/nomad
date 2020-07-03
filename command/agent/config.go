@@ -290,7 +290,7 @@ type ClientConfig struct {
 	// if the host uses multiple interfaces
 	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
 
-	// BindWildcardDefaultHostNetwork toggles if whe there are no host networks,
+	// BindWildcardDefaultHostNetwork toggles if when there are no host networks,
 	// should the port mapping rules match the default network address (false) or
 	// matching any destination address (true). Defaults to true
 	BindWildcardDefaultHostNetwork bool `hcl:"bind_wildcard_default_host_network"`
