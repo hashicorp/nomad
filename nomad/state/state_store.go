@@ -1351,12 +1351,16 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
 
+		existingJob := existing.(*structs.Job)
+
 		// Bump the version unless asked to keep it. This should only be done
 		// when changing an internal field such as Stable. A spec change should
 		// always come with a version bump
 		if !keepVersion {
 			job.JobModifyIndex = index
-			job.Version = existing.(*structs.Job).Version + 1
+			if job.Version <= existingJob.Version {
+				job.Version = existingJob.Version + 1
+			}
 		}
 
 		// Compute the job status
