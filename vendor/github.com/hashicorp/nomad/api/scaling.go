@@ -56,7 +56,7 @@ type ScalingPolicy struct {
 	Namespace   string
 	Target      map[string]string
 	Min         *int64
-	Max         int64
+	Max         *int64
 	Policy      map[string]interface{}
 	Enabled     *bool
 	CreateIndex uint64

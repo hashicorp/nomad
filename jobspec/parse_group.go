@@ -364,6 +364,9 @@ func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
 	if err := dec.Decode(m); err != nil {
 		return err
 	}
+	if result.Max == nil {
+		return fmt.Errorf("missing 'max'")
+	}
 
 	// If we have policy, then parse that
 	if o := listVal.Filter("policy"); len(o.Items) > 0 {
