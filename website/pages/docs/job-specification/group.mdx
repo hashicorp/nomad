@@ -36,8 +36,10 @@ job "docs" {
   node attribute or metadata. See the
   [Nomad spread reference](/docs/job-specification/spread) for more details.
 
-- `count` `(int: 1)` - Specifies the number of the task groups that should
-  be running under this group. This value must be non-negative.
+- `count` `(int)` - Specifies the number of instances that should be running
+  under for this group. This value must be non-negative. This defaults to the
+  `min` value specified in the [`scaling`](/docs/job-specification/scaling)
+  block, if present; otherwise, this defaults to `1`.
 
 - `ephemeral_disk` <code>([EphemeralDisk][]: nil)</code> - Specifies the
   ephemeral disk requirements of the group. Ephemeral disks can be marked as
