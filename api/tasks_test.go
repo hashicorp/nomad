@@ -444,7 +444,7 @@ func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 		Count: nil,
 		Scaling: &ScalingPolicy{
 			Min:         nil,
-			Max:         10,
+			Max:         int64ToPtr(10),
 			Policy:      nil,
 			Enabled:     nil,
 			CreateIndex: 0,
