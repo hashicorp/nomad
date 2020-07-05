@@ -952,6 +952,17 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			CgroupPermissions: device.Permissions,
 		})
 	}
+        // Add Nvidia GPUs to request
+        for _, deviceResources := range task.Resources.NomadResources.Devices {
+                if deviceResources.Vendor == "nvidia" {
+                        hostConfig.DeviceRequests = append(hostConfig.DeviceRequests, docker.DeviceRequest{
+                                Driver:         "nvidia",
+                                DeviceIDs:      deviceResources.DeviceIDs,
+                                // TODO This should be able to be left empty
+                                Capabilities:   [][]string{{"gpu"}},
+                        })
+                }
+        }
 
 	// Setup mounts
 	for _, m := range driverConfig.Mounts {
