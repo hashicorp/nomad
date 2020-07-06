@@ -1,7 +1,7 @@
 ---
 layout: docs
 page_title: multiregion Stanza - Job Specification
-sidebar_title: multiregion
+sidebar_title: multiregion <sup>Beta</sup>
 description: |-
   The "multiregion" stanza specifies that a job will be deployed to multiple federated
   regions.
@@ -83,6 +83,10 @@ final region will unblock the regions to mark them as `successful`.
   define the set of regions for the multiregion deployment. Regions are
   ordered; depending on the rollout strategy Nomad may roll out to each region
   in order or to several at a time.
+
+~> **Note:** Regions can be added, but regions that are removed will not be
+stopped and will be ignored by the deployment. This behavior may change before
+multiregion deployments are considered GA.
 
 ### `strategy` Parameters
 
