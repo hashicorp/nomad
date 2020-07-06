@@ -38,7 +38,8 @@ export default [
         content: ['scheduling', 'preemption']
       },
       'consensus',
-      'gossip'
+      'gossip',
+      'security'
     ]
   },
   {
