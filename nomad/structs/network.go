@@ -149,28 +149,31 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
 		}
 
 		if alloc.AllocatedResources != nil {
-			// Add network resources that are at the task group level
-			if len(alloc.AllocatedResources.Shared.Networks) > 0 {
-				for _, network := range alloc.AllocatedResources.Shared.Networks {
-					if idx.AddReserved(network) {
+			// Only look at AllocatedPorts if populated, otherwise use pre 0.12 logic
+			// COMPAT(1.0): Remove when network resources struct is removed.
+			if len(alloc.AllocatedResources.Shared.Ports) > 0 {
+				if idx.AddReservedPorts(alloc.AllocatedResources.Shared.Ports) {
+					collide = true
+				}
+			} else {
+				// Add network resources that are at the task group level
+				if len(alloc.AllocatedResources.Shared.Networks) > 0 {
+					for _, network := range alloc.AllocatedResources.Shared.Networks {
+						if idx.AddReserved(network) {
+							collide = true
+						}
+					}
+				}
+
+				for _, task := range alloc.AllocatedResources.Tasks {
+					if len(task.Networks) == 0 {
+						continue
+					}
+					n := task.Networks[0]
+					if idx.AddReserved(n) {
 						collide = true
 					}
 				}
-			}
-
-			for _, task := range alloc.AllocatedResources.Tasks {
-				if len(task.Networks) == 0 {
-					continue
-				}
-				n := task.Networks[0]
-				if idx.AddReserved(n) {
-					collide = true
-				}
-			}
-
-			// Multi-interface TODO: handle upgrade path here?
-			if idx.AddReservedPorts(alloc.AllocatedResources.Shared.Ports) {
-				collide = true
 			}
 		} else {
 			// COMPAT(0.11): Remove in 0.11
@@ -332,8 +335,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 
 			// Check if in use
 			if used != nil && used.Check(uint(port.Value)) {
-				addrErr = fmt.Errorf("reserved port collision")
-				continue
+				return nil, fmt.Errorf("reserved port collision %s=%d", port.Label, port.Value)
 			}
 
 			allocPort = &AllocatedPortMapping{
@@ -427,7 +429,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 
 			// Check if in use
 			if used != nil && used.Check(uint(port.Value)) {
-				err = fmt.Errorf("reserved port collision")
+				err = fmt.Errorf("reserved port collision %s=%d", port.Label, port.Value)
 				return
 			}
 		}
