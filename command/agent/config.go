@@ -286,7 +286,14 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
+	// HostNetworks describes the different host networks available to the host
+	// if the host uses multiple interfaces
 	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
+
+	// BindWildcardDefaultHostNetwork toggles if when there are no host networks,
+	// should the port mapping rules match the default network address (false) or
+	// matching any destination address (true). Defaults to true
+	BindWildcardDefaultHostNetwork bool `hcl:"bind_wildcard_default_host_network"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -819,6 +826,7 @@ func DevConfig(mode *devModeConfig) *Config {
 		FunctionBlacklist: []string{"plugin"},
 		DisableSandbox:    false,
 	}
+	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -864,6 +872,7 @@ func DefaultConfig() *Config {
 				FunctionBlacklist: []string{"plugin"},
 				DisableSandbox:    false,
 			},
+			BindWildcardDefaultHostNetwork: true,
 		},
 		Server: &ServerConfig{
 			Enabled:   false,
@@ -1539,6 +1548,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.HostNetworks = a.HostNetworks
 	}
 
+	if b.BindWildcardDefaultHostNetwork {
+		result.BindWildcardDefaultHostNetwork = true
+	}
 	return &result
 }
 

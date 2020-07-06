@@ -33,27 +33,29 @@ const (
 )
 
 type cniNetworkConfigurator struct {
-	cni     cni.CNI
-	cniConf []byte
+	cni                     cni.CNI
+	cniConf                 []byte
+	ignorePortMappingHostIP bool
 
 	rand   *rand.Rand
 	logger log.Logger
 }
 
-func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string) (*cniNetworkConfigurator, error) {
+func newCNINetworkConfigurator(logger log.Logger, cniPath, cniInterfacePrefix, cniConfDir, networkName string, ignorePortMappingHostIP bool) (*cniNetworkConfigurator, error) {
 	cniConf, err := loadCNIConf(cniConfDir, networkName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load CNI config: %v", err)
 	}
 
-	return newCNINetworkConfiguratorWithConf(logger, cniPath, cniInterfacePrefix, cniConf)
+	return newCNINetworkConfiguratorWithConf(logger, cniPath, cniInterfacePrefix, ignorePortMappingHostIP, cniConf)
 }
 
-func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfacePrefix string, cniConf []byte) (*cniNetworkConfigurator, error) {
+func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfacePrefix string, ignorePortMappingHostIP bool, cniConf []byte) (*cniNetworkConfigurator, error) {
 	conf := &cniNetworkConfigurator{
-		cniConf: cniConf,
-		rand:    rand.New(rand.NewSource(time.Now().Unix())),
-		logger:  logger,
+		cniConf:                 cniConf,
+		rand:                    rand.New(rand.NewSource(time.Now().Unix())),
+		logger:                  logger,
+		ignorePortMappingHostIP: ignorePortMappingHostIP,
 	}
 	if cniPath == "" {
 		if cniPath = os.Getenv(envCNIPath); cniPath == "" {
@@ -88,7 +90,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	var firstError error
 	for attempt := 1; ; attempt++ {
 		//TODO eventually returning the IP from the result would be nice to have in the alloc
-		if _, err := c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc))); err != nil {
+		if _, err := c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
 			c.logger.Warn("failed to configure network", "err", err, "attempt", attempt)
 			switch attempt {
 			case 1:
@@ -149,7 +151,7 @@ func (c *cniNetworkConfigurator) Teardown(ctx context.Context, alloc *structs.Al
 		return err
 	}
 
-	return c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc)))
+	return c.cni.Remove(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP)))
 }
 
 func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
@@ -162,7 +164,7 @@ func (c *cniNetworkConfigurator) ensureCNIInitialized() error {
 
 // getPortMapping builds a list of portMapping structs that are used as the
 // portmapping capability arguments for the portmap CNI plugin
-func getPortMapping(alloc *structs.Allocation) []cni.PortMapping {
+func getPortMapping(alloc *structs.Allocation, ignoreHostIP bool) []cni.PortMapping {
 	ports := []cni.PortMapping{}
 
 	if len(alloc.AllocatedResources.Shared.Ports) == 0 && len(alloc.AllocatedResources.Shared.Networks) > 0 {
@@ -186,12 +188,15 @@ func getPortMapping(alloc *structs.Allocation) []cni.PortMapping {
 				port.To = port.Value
 			}
 			for _, proto := range []string{"tcp", "udp"} {
-				ports = append(ports, cni.PortMapping{
+				portMapping := cni.PortMapping{
 					HostPort:      int32(port.Value),
 					ContainerPort: int32(port.To),
 					Protocol:      proto,
-					HostIP:        port.HostIP,
-				})
+				}
+				if !ignoreHostIP {
+					portMapping.HostIP = port.HostIP
+				}
+				ports = append(ports, portMapping)
 			}
 		}
 	}

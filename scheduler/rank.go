@@ -284,7 +284,7 @@ OUTER:
 			netIdx.AddReservedPorts(offer)
 
 			// Update the network ask to the offer
-			nwRes := structs.AllocatedPortsToNetworkResouce(ask, offer)
+			nwRes := structs.AllocatedPortsToNetworkResouce(ask, offer, option.Node.NodeResources)
 			total.Shared.Networks = []*structs.NetworkResource{nwRes}
 			total.Shared.Ports = offer
 			option.AllocResources = &structs.AllocatedSharedResources{

@@ -258,6 +258,16 @@ type Config struct {
 
 	// HostNetworks is a map of the conigured host networks by name.
 	HostNetworks map[string]*structs.ClientHostNetworkConfig
+
+	// BindWildcardDefaultHostNetwork toggles if the default host network should accept all
+	// destinations (true) or only filter on the IP of the default host network (false) when
+	// port mapping. This allows Nomad clients with no defined host networks to accept and
+	// port forward traffic only matching on the destination port. An example use of this
+	// is when a network loadbalancer is utilizing direct server return and the destination
+	// address of incomming packets does not match the IP address of the host interface.
+	//
+	// This configuration is only considered if no host networks are defined.
+	BindWildcardDefaultHostNetwork bool
 }
 
 type ClientTemplateConfig struct {
