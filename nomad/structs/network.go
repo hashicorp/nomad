@@ -565,13 +565,27 @@ func isPortReserved(haystack []int, needle int) bool {
 }
 
 // COMPAT(1.0) remove when NetworkResource is no longer used for materialized client view of ports
-func AllocatedPortsToNetworkResouce(ask *NetworkResource, ports AllocatedPorts) *NetworkResource {
+func AllocatedPortsToNetworkResouce(ask *NetworkResource, ports AllocatedPorts, node *NodeResources) *NetworkResource {
 	out := ask.Copy()
 
 	for i, port := range ask.DynamicPorts {
 		if p, ok := ports.Get(port.Label); ok {
 			out.DynamicPorts[i].Value = p.Value
 			out.DynamicPorts[i].To = p.To
+		}
+	}
+	if len(node.NodeNetworks) > 0 {
+		for _, nw := range node.NodeNetworks {
+			if nw.Mode == "host" {
+				out.IP = nw.Addresses[0].Address
+				break
+			}
+		}
+	} else {
+		for _, nw := range node.Networks {
+			if nw.Mode == "host" {
+				out.IP = nw.IP
+			}
 		}
 	}
 	return out
