@@ -1521,7 +1521,6 @@ func TestJobs_RegionForJob(t *testing.T) {
 		jobRegion             string
 		multiregion           *api.Multiregion
 		queryRegion           string
-		writeRegion           string
 		agentRegion           string
 		expectedRequestRegion string
 		expectedJobRegion     string
@@ -1531,7 +1530,6 @@ func TestJobs_RegionForJob(t *testing.T) {
 			jobRegion:             "",
 			multiregion:           nil,
 			queryRegion:           "",
-			writeRegion:           "",
 			expectedRequestRegion: agentRegion,
 			expectedJobRegion:     agentRegion,
 		},
@@ -1540,7 +1538,6 @@ func TestJobs_RegionForJob(t *testing.T) {
 			jobRegion:             "",
 			multiregion:           &api.Multiregion{},
 			queryRegion:           "",
-			writeRegion:           "",
 			expectedRequestRegion: agentRegion,
 			expectedJobRegion:     api.GlobalRegion,
 		},
@@ -1549,7 +1546,6 @@ func TestJobs_RegionForJob(t *testing.T) {
 			jobRegion:             "",
 			multiregion:           nil,
 			queryRegion:           "west",
-			writeRegion:           "",
 			expectedRequestRegion: "west",
 			expectedJobRegion:     "west",
 		},
@@ -1558,27 +1554,16 @@ func TestJobs_RegionForJob(t *testing.T) {
 			jobRegion:             "west",
 			multiregion:           nil,
 			queryRegion:           "",
-			writeRegion:           "",
 			expectedRequestRegion: "west",
 			expectedJobRegion:     "west",
 		},
 		{
-			name:                  "job region override",
+			name:                  "job region overridden by region flag",
 			jobRegion:             "west",
 			multiregion:           nil,
 			queryRegion:           "east",
-			writeRegion:           "",
-			expectedRequestRegion: "west",
-			expectedJobRegion:     "west",
-		},
-		{
-			name:                  "API body override",
-			jobRegion:             "west",
-			multiregion:           nil,
-			queryRegion:           "east",
-			writeRegion:           "north",
-			expectedRequestRegion: "north",
-			expectedJobRegion:     "north",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     "east",
 		},
 		{
 			name:      "multiregion to valid region",
@@ -1588,7 +1573,6 @@ func TestJobs_RegionForJob(t *testing.T) {
 				{Name: "east"},
 			}},
 			queryRegion:           "east",
-			writeRegion:           "",
 			expectedRequestRegion: "east",
 			expectedJobRegion:     api.GlobalRegion,
 		},
@@ -1600,7 +1584,6 @@ func TestJobs_RegionForJob(t *testing.T) {
 				{Name: "east"},
 			}},
 			queryRegion:           "north",
-			writeRegion:           "",
 			expectedRequestRegion: "west",
 			expectedJobRegion:     api.GlobalRegion,
 		},
@@ -1613,7 +1596,7 @@ func TestJobs_RegionForJob(t *testing.T) {
 				Multiregion: tc.multiregion,
 			}
 			requestRegion, jobRegion := regionForJob(
-				job, tc.queryRegion, tc.writeRegion, agentRegion)
+				job, tc.queryRegion, agentRegion)
 			require.Equal(t, tc.expectedRequestRegion, requestRegion)
 			require.Equal(t, tc.expectedJobRegion, jobRegion)
 		})
