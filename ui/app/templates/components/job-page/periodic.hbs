@@ -3,7 +3,7 @@
 
   <JobPage::Parts::Title @job={{job}} @title={{job.trimmedName}} @handleError={{action "handleError"}}>
     <span class="tag is-hollow">periodic</span>
-    <button data-test-force-launch class="button is-warning is-small is-inline" onclick={{action "forceLaunch"}}>Force Launch</button>
+    <button data-test-force-launch class="button is-warning is-small is-inline" onclick={{action "forceLaunch"}} type="button">Force Launch</button>
   </JobPage::Parts::Title>
 
   <div class="boxed-section job-stats">

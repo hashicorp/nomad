@@ -4,6 +4,7 @@
 <button
   data-test-accordion-toggle
   class="button is-light is-compact pull-right accordion-toggle {{unless isExpandable "is-invisible"}}"
-  onclick={{action (if isOpen onClose onOpen) item}}>
+  onclick={{action (if isOpen onClose onOpen) item}}
+  type="button">
   {{buttonLabel}}
 </button>
