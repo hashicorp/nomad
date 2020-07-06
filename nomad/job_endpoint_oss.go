@@ -10,7 +10,9 @@ func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
 }
 
 // multiregionRegister is used to send a job across multiple regions
-func (j *Job) multiregionRegister(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
+func (j *Job) multiregionRegister(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse,
+	existingVersion uint64) error {
+
 	return nil
 }
 

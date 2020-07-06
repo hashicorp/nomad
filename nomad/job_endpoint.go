@@ -303,7 +303,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Submit a multiregion job to other regions (enterprise only).
 	// The job will have its region interpolated.
-	err = j.multiregionRegister(args, reply)
+	var existingVersion uint64
+	if existingJob != nil {
+		existingVersion = existingJob.Version
+	}
+	err = j.multiregionRegister(args, reply, existingVersion)
 	if err != nil {
 		return err
 	}
