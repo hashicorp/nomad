@@ -15,7 +15,7 @@
         {{/if}}
       </div>
 
-      {{#if (not a.isOpen)}}
+      {{#unless a.isOpen}}
         <div class="column">
           <div class="inline-chart bumper-left">
             {{#if a.item.hasChildren}}
@@ -29,7 +29,7 @@
             {{/if}}
           </div>
         </div>
-      {{/if}}
+      {{/unless}}
     </div>
   </a.head>
   <a.body>

@@ -204,12 +204,7 @@
     <div class="boxed-section is-warning" data-test-was-preempted>
       <div class="boxed-section-head">Preempted By</div>
       <div class="boxed-section-body">
-        {{#if (not preempter)}}
-          <div class="empty-message">
-            <h3 class="empty-message-headline">Allocation is gone</h3>
-            <p class="empty-message-body">This allocation has been stopped and garbage collected.</p>
-          </div>
-        {{else}}
+        {{#if preempter}}
           <div class="boxed-section is-small">
             <div class="boxed-section-body inline-definitions">
               <span class="pair">
@@ -237,6 +232,11 @@
                 <span data-test-allocation-memory>{{preempter.resources.memory}} MiB</span>
               </span>
             </div>
+          </div>
+        {{else}}
+          <div class="empty-message">
+            <h3 class="empty-message-headline">Allocation is gone</h3>
+            <p class="empty-message-body">This allocation has been stopped and garbage collected.</p>
           </div>
         {{/if}}
       </div>

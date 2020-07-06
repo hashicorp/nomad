@@ -164,7 +164,7 @@
         <div class="boxed-section-row">Drain Strategy</div>
         <div class="boxed-section-row">
           <div class="inline-definitions is-small">
-            {{#if (not model.drainStrategy.hasNoDeadline)}}
+            {{#unless model.drainStrategy.hasNoDeadline}}
               <span class="pair">
                 <span class="term">Duration</span>
                 {{#if model.drainStrategy.isForced}}
@@ -175,7 +175,7 @@
                   </span>
                 {{/if}}
               </span>
-            {{/if}}
+            {{/unless}}
             <span class="pair">
               <span class="term">{{if model.drainStrategy.hasNoDeadline "Deadline" "Remaining"}}</span>
               {{#if model.drainStrategy.hasNoDeadline}}
@@ -201,7 +201,7 @@
               {{if model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
             </span>
           </div>
-          {{#if (not model.drainStrategy.isForced)}}
+          {{#unless model.drainStrategy.isForced}}
             <div class="pull-right">
               <TwoStepButton
                 data-test-force
@@ -214,7 +214,7 @@
                 @awaitingConfirmation={{forceDrain.isRunning}}
                 @onConfirm={{perform forceDrain}} />
             </div>
-          {{/if}}
+          {{/unless}}
         </div>
       </div>
       <div class="boxed-section-body">

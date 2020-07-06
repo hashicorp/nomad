@@ -8,9 +8,9 @@
   {{yield}}
   <span class="pull-right">
 
-    {{#if (not fileTypeIsUnknown)}}
+    {{#unless fileTypeIsUnknown}}
       <a data-test-log-action="raw" class="button is-white is-compact" href="{{catUrl}}" target="_blank" rel="noopener noreferrer">View Raw File</a>
-    {{/if}}
+    {{/unless}}
     {{#if (and isLarge isStreamable)}}
       <button data-test-log-action="head" class="button is-white is-compact" onclick={{action "gotoHead"}} type="button">Head</button>
       <button data-test-log-action="tail" class="button is-white is-compact" onclick={{action "gotoTail"}} type="button">Tail</button>

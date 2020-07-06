@@ -17,7 +17,7 @@
         </div>
       </div>
 
-      {{#if (not tokenIsValid)}}
+      {{#unless tokenIsValid}}
         <div class="field">
           <label class="label">Secret ID</label>
           <div class="control">
@@ -33,7 +33,7 @@
         </div>
 
         <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button></p>
-      {{/if}}
+      {{/unless}}
 
       {{#if tokenIsValid}}
         <div data-test-token-success class="notification is-success">
