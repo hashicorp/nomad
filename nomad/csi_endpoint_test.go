@@ -380,6 +380,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 		Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 	err = state.CSIVolumeRegister(1003, vols)
+	require.NoError(t, err)
 
 	alloc := mock.BatchAlloc()
 	alloc.NodeID = node.ID
