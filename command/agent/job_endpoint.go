@@ -152,24 +152,13 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		}
 	}
 
-	requestRegion, jobRegion := regionForJob(
-		args.Job, args.WriteRequest.Region, s.agent.config.Region)
-
-	args.Job.Region = helper.StringToPtr(jobRegion)
-	sJob := ApiJobToStructJob(args.Job)
-
+	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	planReq := structs.JobPlanRequest{
 		Job:            sJob,
 		Diff:           args.Diff,
 		PolicyOverride: args.PolicyOverride,
-		WriteRequest: structs.WriteRequest{
-			Region: requestRegion,
-		},
+		WriteRequest:   *writeReq,
 	}
-	// parseWriteRequest overrides Namespace, Region and AuthToken
-	// based on values from the original http request
-	s.parseWriteRequest(req, &planReq.WriteRequest)
-	planReq.Namespace = sJob.Namespace
 
 	var out structs.JobPlanResponse
 	if err := s.agent.RPC("Job.Plan", &planReq, &out); err != nil {
@@ -402,27 +391,15 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		}
 	}
 
-	requestRegion, jobRegion := regionForJob(
-		args.Job, args.WriteRequest.Region, s.agent.config.Region)
-
-	args.Job.Region = helper.StringToPtr(jobRegion)
-	sJob := ApiJobToStructJob(args.Job)
-
+	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
 		PreserveCounts: args.PreserveCounts,
-		WriteRequest: structs.WriteRequest{
-			Region:    requestRegion,
-			AuthToken: args.WriteRequest.SecretID,
-		},
+		WriteRequest:   *writeReq,
 	}
-	// parseWriteRequest overrides Namespace, Region and AuthToken
-	// based on values from the original http request
-	s.parseWriteRequest(req, &regReq.WriteRequest)
-	regReq.Namespace = sJob.Namespace
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
@@ -697,6 +674,32 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		jobStruct.Canonicalize()
 	}
 	return jobStruct, nil
+}
+
+// apiJobAndRequestToStructs parses the query params from the incoming
+// request and converts to a structs.Job and WriteRequest with the
+func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, apiReq api.WriteRequest) (*structs.Job, *structs.WriteRequest) {
+
+	// parseWriteRequest gets the Namespace, Region, and AuthToken from
+	// the original HTTP request's query params and headers and overrides
+	// those values set in the request body
+	writeReq := &structs.WriteRequest{
+		Namespace: apiReq.Namespace,
+		Region:    apiReq.Region,
+		AuthToken: apiReq.SecretID,
+	}
+	s.parseWriteRequest(req, writeReq)
+
+	requestRegion, jobRegion := regionForJob(
+		job, writeReq.Region, s.agent.config.Region,
+	)
+
+	sJob := ApiJobToStructJob(job)
+	sJob.Region = jobRegion
+	writeReq.Region = requestRegion
+	writeReq.Namespace = sJob.Namespace
+
+	return sJob, writeReq
 }
 
 func regionForJob(job *api.Job, queryRegion, agentRegion string) (string, string) {
