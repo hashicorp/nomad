@@ -33,7 +33,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
 
     this.set('job', this.store.peekAll('job').get('firstObject'));
     await render(hbs`
-      {{job-page/parts/latest-deployment job=job}})
+      <JobPage::Parts::LatestDeployment @job={{job}} />)
     `);
 
     assert.notOk(find('[data-test-active-deployment]'), 'No active deployment');
@@ -50,7 +50,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
 
     this.set('job', this.store.peekAll('job').get('firstObject'));
     await render(hbs`
-      {{job-page/parts/latest-deployment job=job}}
+      <JobPage::Parts::LatestDeployment @job={{job}} />
     `);
 
     const deployment = await this.get('job.latestDeployment');
@@ -121,7 +121,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
 
     this.set('job', this.store.peekAll('job').get('firstObject'));
     await render(hbs`
-      {{job-page/parts/latest-deployment job=job}}
+      <JobPage::Parts::LatestDeployment @job={{job}} />
     `);
 
     assert.ok(find('[data-test-active-deployment]'), 'Active deployment');
@@ -139,7 +139,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
 
     this.set('job', this.store.peekAll('job').get('firstObject'));
     await render(hbs`
-      {{job-page/parts/latest-deployment job=job}}
+      <JobPage::Parts::LatestDeployment @job={{job}} />
     `);
 
     assert.notOk(find('[data-test-deployment-task-groups]'), 'Task groups not found');
@@ -161,7 +161,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
 
     this.set('job', job);
     await render(hbs`
-      {{job-page/parts/latest-deployment job=job}}
+      <JobPage::Parts::LatestDeployment @job={{job}} />
     `);
 
     await click('[data-test-deployment-toggle-details]');

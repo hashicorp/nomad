@@ -32,7 +32,7 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
   test('it renders stateless phases and lifecycle- and name-sorted tasks', async function(assert) {
     this.set('tasks', tasks);
 
-    await render(hbs`{{lifecycle-chart tasks=tasks}}`);
+    await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
     assert.ok(Chart.isPresent);
 
     assert.equal(Chart.phases[0].name, 'Prestart');
@@ -65,7 +65,7 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
       },
     ]);
 
-    await render(hbs`{{lifecycle-chart tasks=tasks}}`);
+    await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
     assert.notOk(Chart.isPresent);
   });
 
@@ -77,7 +77,7 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
       })
     );
 
-    await render(hbs`{{lifecycle-chart taskStates=taskStates}}`);
+    await render(hbs`<LifecycleChart @taskStates={{taskStates}} />`);
     assert.ok(Chart.isPresent);
 
     Chart.phases.forEach(phase => assert.notOk(phase.isActive));

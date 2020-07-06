@@ -42,7 +42,7 @@ export let Total = () => {
       <div class="multiples">
         {{#each variations as |v|}}
           <div class="chart-container">
-            {{gauge-chart value=v.value total=v.total label="Total" chartClass="is-info"}}
+            <GaugeChart @value={{v.value}} @total={{v.total}} @label="Total" @chartClass="is-info" />
           </div>
         {{/each}}
       </div>
@@ -59,7 +59,7 @@ export let Complement = () => {
       <div class="multiples">
         {{#each variations as |v|}}
           <div class="chart-container">
-            {{gauge-chart value=v.value complement=v.complement label="Complement" chartClass="is-info"}}
+            <GaugeChart @value={{v.value}} @complement={{v.complement}} @label="Complement" @chartClass="is-info" />
           </div>
         {{/each}}
       </div>
@@ -76,7 +76,7 @@ export let Colors = () => {
       <div class="multiples">
         {{#each variations as |color|}}
           <div class="chart-container">
-            {{gauge-chart value=7 total=10 label=color chartClass=color}}
+            <GaugeChart @value={{7}} @total={{10}} @label={{color}} @chartClass={{color}} />
           </div>
         {{/each}}
       </div>
@@ -93,16 +93,16 @@ export let Sizing = () => {
       {{#if delayedTruth.complete}}
         <div class="multiples">
           <div class="chart-container is-small">
-            {{gauge-chart value=7 total=10 label="Small"}}
+            <GaugeChart @value={{7}} @total={{10}} @label="Small" />
           </div>
           <div class="chart-container">
-            {{gauge-chart value=7 total=10 label="Regular"}}
+            <GaugeChart @value={{7}} @total={{10}} @label="Regular" />
           </div>
           <div class="chart-container is-large">
-            {{gauge-chart value=7 total=10 label="Large"}}
+            <GaugeChart @value={{7}} @total={{10}} @label="Large" />
           </div>
           <div class="chart-container is-xlarge">
-            {{gauge-chart value=7 total=10 label="X-Large"}}
+            <GaugeChart @value={{7}} @total={{10}} @label="X-Large" />
           </div>
         </div>
       {{/if}}

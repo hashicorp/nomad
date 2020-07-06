@@ -47,12 +47,12 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     this.setProperties(props(parent));
 
     await render(hbs`
-      {{job-page/parts/children
-        job=job
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        currentPage=currentPage
-        gotoJob=gotoJob}}
+      <JobPage::Parts::Children
+        @job={{job}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @currentPage={{currentPage}}
+        @gotoJob={{gotoJob}} />
     `);
 
     assert.equal(
@@ -76,12 +76,12 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     this.setProperties(props(parent));
 
     await render(hbs`
-      {{job-page/parts/children
-        job=job
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        currentPage=currentPage
-        gotoJob=gotoJob}}
+      <JobPage::Parts::Children
+        @job={{job}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @currentPage={{currentPage}}
+        @gotoJob={{gotoJob}} />
     `);
 
     const childrenCount = parent.get('children.length');
@@ -108,12 +108,12 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     this.setProperties(props(parent));
 
     await render(hbs`
-      {{job-page/parts/children
-        job=job
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        currentPage=currentPage
-        gotoJob=gotoJob}}
+      <JobPage::Parts::Children
+        @job={{job}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @currentPage={{currentPage}}
+        @gotoJob={{gotoJob}} />
     `);
 
     const sortedChildren = parent.get('children').sortBy('name');
@@ -158,12 +158,12 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     );
 
     await render(hbs`
-      {{job-page/parts/children
-        job=job
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        currentPage=currentPage
-        gotoJob=gotoJob}}
+      <JobPage::Parts::Children
+        @job={{job}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @currentPage={{currentPage}}
+        @gotoJob={{gotoJob}} />
     `);
 
     await click('tr.job-row');

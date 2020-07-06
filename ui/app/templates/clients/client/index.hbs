@@ -93,13 +93,13 @@
       </h1>
       <p>
         <label class="is-interactive">
-          {{#toggle
+          <Toggle
             data-test-eligibility-toggle
-            isActive=model.isEligible
-            isDisabled=(or setEligibility.isRunning model.isDraining (cannot "write client"))
-            onToggle=(perform setEligibility (not model.isEligible))}}
+            @isActive={{model.isEligible}}
+            @isDisabled={{or setEligibility.isRunning model.isDraining (cannot "write client")}}
+            @onToggle={{perform setEligibility (not model.isEligible)}}>
             Eligible
-          {{/toggle}}
+          </Toggle>
           <span class="tooltip" aria-label="Only eligible clients can receive allocations">
             {{x-icon "info-circle-outline" class="is-faded"}}
           </span>

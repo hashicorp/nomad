@@ -26,10 +26,10 @@
     </div>
     <div class="boxed-section-body with-foot">
       <JobDeploymentDetails @deployment={{job.latestDeployment}} as |d|>
-        {{d.metrics}}
+        <d.metrics />
         {{#if isShowingDeploymentDetails}}
-          {{d.taskGroups}}
-          {{d.allocations}}
+          <d.taskGroups />
+          <d.allocations />
         {{/if}}
       </JobDeploymentDetails>
     </div>

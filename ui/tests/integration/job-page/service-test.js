@@ -26,12 +26,12 @@ module('Integration | Component | job-page/service', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{job-page/service
-      job=job
-      sortProperty=sortProperty
-      sortDescending=sortDescending
-      currentPage=currentPage
-      gotoJob=gotoJob}}
+    <JobPage::Service
+      @job={{job}}
+      @sortProperty={{sortProperty}}
+      @sortDescending={{sortDescending}}
+      @currentPage={{currentPage}}
+      @gotoJob={{gotoJob}} />
   `;
 
   const commonProperties = job => ({

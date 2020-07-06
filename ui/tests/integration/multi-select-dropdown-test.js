@@ -28,11 +28,11 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{multi-select-dropdown
-      label=label
-      options=options
-      selection=selection
-      onSelect=onSelect}}
+    <MultiSelectDropdown
+      @label={{label}}
+      @options={{options}}
+      @selection={{selection}}
+      @onSelect={{onSelect}} />
   `;
 
   test('component is initially closed', async function(assert) {

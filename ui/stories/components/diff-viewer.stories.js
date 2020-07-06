@@ -10,7 +10,7 @@ export let DiffViewerWithInsertions = () => {
       <h5 class="title is-5">Diff Viewer with insertions</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=insertionsOnly}}
+          <JobDiff @diff={{insertionsOnly}} />
         </div>
       </div>
       `,
@@ -31,7 +31,7 @@ export let DiffViewerWithDeletions = () => {
       <h5 class="title is-5">Diff Viewer with deletions</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=deletionsOnly}}
+          <JobDiff @diff={{deletionsOnly}} />
         </div>
       </div>
       `,
@@ -64,7 +64,7 @@ export let DiffViewerWithEdits = () => {
       <h5 class="title is-5">Diff Viewer with edits</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=editsOnly}}
+          <JobDiff @diff={{editsOnly}} />
         </div>
         <p class="annotation">Often times a diff will only have a couple lines. Minor tweaks to a job spec result in small diffs.</p>
       </div>
@@ -98,7 +98,7 @@ export let DiffViewerWithManyChanges = () => {
       <h5 class="title is-5">Diff Viewer with many changes</h5>
       <div class="boxed-section">
         <div class="boxed-section-body is-dark">
-          {{job-diff diff=largeDiff}}
+          <JobDiff @diff={{largeDiff}} />
         </div>
       </div>
       `,

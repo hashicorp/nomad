@@ -15,7 +15,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      {{exec-terminal terminal=terminal}}
+      <ExecTerminal @terminal={{terminal}} />
     `);
 
     await settled();
@@ -45,7 +45,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      {{exec-terminal terminal=terminal}}
+      <ExecTerminal @terminal={{terminal}} />
     `);
 
     await settled();
@@ -75,7 +75,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      {{exec-terminal terminal=terminal}}
+      <ExecTerminal @terminal={{terminal}} />
     `);
 
     await settled();
@@ -104,7 +104,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      {{exec-terminal terminal=terminal}}
+      <ExecTerminal @terminal={{terminal}} />
     `);
 
     await settled();
@@ -127,7 +127,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     this.set('terminal', terminal);
 
     await render(hbs`
-      {{exec-terminal terminal=terminal}}
+      <ExecTerminal @terminal={{terminal}} />
     `);
 
     await settled();
