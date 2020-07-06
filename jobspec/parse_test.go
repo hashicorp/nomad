@@ -1320,7 +1320,7 @@ func TestParse(t *testing.T) {
 						Name: helper.StringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
 							Min: helper.Int64ToPtr(5),
-							Max: 100,
+							Max: helper.Int64ToPtr(100),
 							Policy: map[string]interface{}{
 								"foo": "bar",
 								"b":   true,
@@ -1345,7 +1345,7 @@ func TestParse(t *testing.T) {
 						Name: helper.StringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
 							Min:     nil,
-							Max:     0,
+							Max:     helper.Int64ToPtr(10),
 							Policy:  nil,
 							Enabled: nil,
 						},
@@ -1353,6 +1353,12 @@ func TestParse(t *testing.T) {
 				},
 			},
 			false,
+		},
+
+		{
+			"tg-scaling-policy-missing-max.hcl",
+			nil,
+			true,
 		},
 
 		{

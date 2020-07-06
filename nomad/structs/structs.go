@@ -5948,19 +5948,24 @@ func (tg *TaskGroup) validateScalingPolicy(j *Job) error {
 
 	var mErr multierror.Error
 
-	if tg.Scaling.Min > tg.Scaling.Max {
+	// was invalid or not specified; don't bother testing anything else involving max
+	if tg.Scaling.Max < 0 {
 		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
+			fmt.Errorf("Scaling policy invalid: maximum count must be specified and non-negative"))
+	} else {
+		if tg.Scaling.Max < tg.Scaling.Min {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
+		}
+		if tg.Scaling.Max < int64(tg.Count) {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
+		}
 	}
 
-	if int64(tg.Count) < tg.Scaling.Min && !(j.IsMultiregion() && tg.Count == 0) {
+	if int64(tg.Count) < tg.Scaling.Min && !(j.IsMultiregion() && tg.Count == 0 && j.Region == "global") {
 		mErr.Errors = append(mErr.Errors,
 			fmt.Errorf("Scaling policy invalid: task group count must not be less than minimum count in scaling policy"))
-	}
-
-	if tg.Scaling.Max < int64(tg.Count) {
-		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
 	}
 
 	return mErr.ErrorOrNil()
