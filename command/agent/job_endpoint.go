@@ -688,10 +688,13 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 		Region:    apiReq.Region,
 		AuthToken: apiReq.SecretID,
 	}
-	s.parseWriteRequest(req, writeReq)
+
+	queryRegion := req.URL.Query().Get("region")
+	s.parseToken(req, &writeReq.AuthToken)
+	parseNamespace(req, &writeReq.Namespace)
 
 	requestRegion, jobRegion := regionForJob(
-		job, writeReq.Region, s.agent.config.Region,
+		job, queryRegion, writeReq.Region, s.agent.config.Region,
 	)
 
 	sJob := ApiJobToStructJob(job)
@@ -702,14 +705,20 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	return sJob, writeReq
 }
 
-func regionForJob(job *api.Job, queryRegion, agentRegion string) (string, string) {
+func regionForJob(job *api.Job, queryRegion, apiRegion, agentRegion string) (string, string) {
 	var requestRegion string
 	var jobRegion string
 
-	// Region in query param (-region flag) takes precedence
+	// Region in query param (-region flag) takes precedence.
 	if queryRegion != "" {
 		requestRegion = queryRegion
 		jobRegion = queryRegion
+	}
+
+	// Next the request body...
+	if apiRegion != "" {
+		requestRegion = apiRegion
+		jobRegion = apiRegion
 	}
 
 	// If no query param was passed, we forward to the job's region
@@ -719,7 +728,7 @@ func regionForJob(job *api.Job, queryRegion, agentRegion string) (string, string
 		jobRegion = *job.Region
 	}
 
-	// otherwise we default to  the region of this node
+	// otherwise we default to the region of this node
 	if requestRegion == "" || requestRegion == api.GlobalRegion {
 		requestRegion = agentRegion
 		jobRegion = agentRegion
