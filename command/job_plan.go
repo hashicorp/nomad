@@ -195,7 +195,7 @@ func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts 
 
 	for regionName, resp := range plans {
 		c.Ui.Output(c.Colorize().Color(fmt.Sprintf("[bold]Region: %q[reset]", regionName)))
-		regionExitCode := c.outputPlannedJob(job, resp, verbose, diff)
+		regionExitCode := c.outputPlannedJob(job, resp, diff, verbose)
 		if regionExitCode > exitCode {
 			exitCode = regionExitCode
 		}
