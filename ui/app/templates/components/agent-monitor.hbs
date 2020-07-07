@@ -5,7 +5,7 @@
       @tagName="div"
       @triggerClass="is-compact pull-left"
       @options={{this.levels}}
-      @selected={{level}}
+      @selected={{this.level}}
       @searchEnabled={{false}}
       @onChange={{action this.setLevel}} as |level|>
       <span class="ember-power-select-prefix">Level: </span>{{capitalize level}}

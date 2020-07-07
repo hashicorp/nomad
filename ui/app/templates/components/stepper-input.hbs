@@ -17,7 +17,7 @@
   data-test-stepper-decrement
   role="button"
   aria-label="decrement"
-  class="stepper-input-stepper button {{class}}"
+  class="stepper-input-stepper button {{this.class}}"
   disabled={{or this.disabled (lte this.internalValue this.min)}}
   onclick={{action "decrement"}}
   type="button">
@@ -27,7 +27,7 @@
   data-test-stepper-increment
   role="button"
   aria-label="increment"
-  class="stepper-input-stepper button {{class}}"
+  class="stepper-input-stepper button {{this.class}}"
   disabled={{or this.disabled (gte this.internalValue this.max)}}
   onclick={{action "increment"}}
   type="button">
