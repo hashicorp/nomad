@@ -229,7 +229,7 @@ func (c *DebugCommand) Run(args []string) int {
 	}
 
 	archiveFile := stamped + ".tar.gz"
-	err = TarCZF(archiveFile, tmp)
+	err = TarCZF(archiveFile, tmp, stamped)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating archive: %s", err.Error()))
 		return 2
@@ -669,8 +669,8 @@ func (c *DebugCommand) trap() {
 }
 
 // TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
-// directory
-func TarCZF(archive string, src string) error {
+// directory. If not empty, all files in the bundle are prefixed with the target path
+func TarCZF(archive string, src, target string) error {
 	// ensure the src actually exists before trying to tar it
 	if _, err := os.Stat(src); err != nil {
 		return fmt.Errorf("Unable to tar files - %v", err.Error())
@@ -707,7 +707,13 @@ func TarCZF(archive string, src string) error {
 		}
 
 		// remove leading path to the src, so files are relative to the archive
-		header.Name = strings.TrimPrefix(strings.Replace(file, src, "", -1), string(filepath.Separator))
+		path := strings.Replace(file, src, "", -1)
+		if target != "" {
+			path = filepath.Join([]string{target, path}...)
+		}
+		path = strings.TrimPrefix(path, string(filepath.Separator))
+
+		header.Name = path
 
 		if err := tw.WriteHeader(header); err != nil {
 			return err
