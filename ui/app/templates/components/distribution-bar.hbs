@@ -8,14 +8,14 @@
 </svg>
 {{#if hasBlock}}
   {{yield (hash
-    data=_data
-    activeDatum=activeDatum
+    data=this._data
+    activeDatum=this.activeDatum
   )}}
 {{else}}
-  <div class="chart-tooltip {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
+  <div class="chart-tooltip {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
     <ol>
-      {{#each _data as |datum index|}}
-        <li class="{{if (eq datum.label activeDatum.label) "active"}}">
+      {{#each this._data as |datum index|}}
+        <li class="{{if (eq datum.label this.activeDatum.label) "active"}}">
           <span class="label {{if (eq datum.value 0) "is-empty"}}">
             <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
             {{datum.label}}

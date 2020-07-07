@@ -1,28 +1,28 @@
-<h4 data-test-primary-metric-title class="title is-5">{{metricLabel}}</h4>
+<h4 data-test-primary-metric-title class="title is-5">{{this.metricLabel}}</h4>
 <div class="primary-graphic">
-  <StatsTimeSeries @data={{data}} @chartClass={{chartClass}} />
+  <StatsTimeSeries @data={{this.data}} @chartClass={{this.chartClass}} />
 </div>
 <div class="columns secondary-graphic">
   <div class="column">
     <div class="inline-chart" data-test-percentage-bar>
       <progress
-        class="progress {{chartClass}} is-small"
-        value="{{data.lastObject.percent}}"
+        class="progress {{this.chartClass}} is-small"
+        value="{{this.data.lastObject.percent}}"
         max="1">
-        {{data.lastObject.percent}}
+        {{this.data.lastObject.percent}}
       </progress>
     </div>
   </div>
   <div class="column is-minimum">
-    <span class="nowrap" data-test-percentage>{{format-percentage data.lastObject.percent total=1}}</span>
+    <span class="nowrap" data-test-percentage>{{format-percentage this.data.lastObject.percent total=1}}</span>
   </div>
 </div>
 <div class="annotation" data-test-absolute-value>
-  {{#if (eq metric "cpu")}}
-    <strong>{{data.lastObject.used}} Mhz</strong> / {{reservedAmount}} Mhz reserved
-  {{else if (eq metric "memory")}}
-    <strong>{{format-bytes data.lastObject.used}}</strong> / {{reservedAmount}} MiB reserved
+  {{#if (eq this.metric "cpu")}}
+    <strong>{{this.data.lastObject.used}} Mhz</strong> / {{this.reservedAmount}} Mhz reserved
+  {{else if (eq this.metric "memory")}}
+    <strong>{{format-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB reserved
   {{else}}
-    <strong>{{data.lastObject.used}}</strong> / {{reservedAmount}} reserved
+    <strong>{{this.data.lastObject.used}}</strong> / {{this.reservedAmount}} reserved
   {{/if}}
 </div>

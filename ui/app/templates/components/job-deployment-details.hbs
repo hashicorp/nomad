@@ -1,5 +1,5 @@
 {{yield (hash
-  metrics=(component "job-deployment/deployment-metrics" deployment=deployment)
-  taskGroups=(component "job-deployment/task-groups" deployment=deployment)
-  allocations=(component "job-deployment/deployment-allocations" deployment=deployment)
+  metrics=(component "job-deployment/deployment-metrics" deployment=this.deployment)
+  taskGroups=(component "job-deployment/task-groups" deployment=this.deployment)
+  allocations=(component "job-deployment/deployment-allocations" deployment=this.deployment)
 )}}

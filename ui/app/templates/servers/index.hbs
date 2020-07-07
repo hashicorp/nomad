@@ -1,16 +1,16 @@
 {{title "Servers"}}
 <section class="section">
-  {{#if isForbidden}}
+  {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
     <ListPagination
-      @source={{sortedAgents}}
-      @size={{pageSize}}
-      @page={{currentPage}} as |p|>
+      @source={{this.sortedAgents}}
+      @size={{this.pageSize}}
+      @page={{this.currentPage}} as |p|>
       <ListTable
         @source={{p.list}}
-        @sortProperty={{sortProperty}}
-        @sortDescending={{sortDescending}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
         @class="with-foot" as |t|>
         <t.head>
           <t.sort-by @prop="name">Name</t.sort-by>
@@ -27,7 +27,7 @@
       <div class="table-foot">
         <nav class="pagination">
           <div class="pagination-numbers">
-            {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAgents.length}}
+            {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAgents.length}}
           </div>
           <p.prev @class="pagination-previous"> &lt; </p.prev>
           <p.next @class="pagination-next"> &gt; </p.next>

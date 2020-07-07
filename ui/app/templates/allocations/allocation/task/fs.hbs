@@ -1,10 +1,10 @@
-{{title pathWithLeadingSlash " -  Task " taskState.name " filesystem"}}
-<TaskSubnav @task={{taskState}} />
+{{title this.pathWithLeadingSlash " -  Task " this.taskState.name " filesystem"}}
+<TaskSubnav @task={{this.taskState}} />
 <Fs::Browser
-  @model={{taskState}}
-  @path={{path}}
-  @stat={{stat}}
-  @isFile={{isFile}}
-  @directoryEntries={{directoryEntries}}
-  @sortProperty={{sortProperty}}
-  @sortDescending={{sortDescending}} />
+  @model={{this.taskState}}
+  @path={{this.path}}
+  @stat={{this.stat}}
+  @isFile={{this.isFile}}
+  @directoryEntries={{this.directoryEntries}}
+  @sortProperty={{this.sortProperty}}
+  @sortDescending={{this.sortDescending}} />

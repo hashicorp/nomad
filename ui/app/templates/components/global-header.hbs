@@ -1,6 +1,6 @@
 <nav class="navbar is-primary">
   <div class="navbar-brand">
-    <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action onHamburgerClick}}>
+    <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action this.onHamburgerClick}}>
       <HamburgerMenu />
     </span>
     <LinkTo @route="jobs" class="navbar-item is-logo">

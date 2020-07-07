@@ -1,26 +1,26 @@
-{{title "CSI Volume " model.name}}
+{{title "CSI Volume " this.model.name}}
 <section class="section with-headspace">
-  <h1 class="title" data-test-title>{{model.name}}</h1>
+  <h1 class="title" data-test-title>{{this.model.name}}</h1>
 
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Volume Details</span>
       <span class="pair" data-test-volume-health>
         <span class="term">Health</span>
-        {{if model.schedulable "Schedulable" "Unschedulable"}}
+        {{if this.model.schedulable "Schedulable" "Unschedulable"}}
       </span>
       <span class="pair" data-test-volume-provider>
         <span class="term">Provider</span>
-        {{model.provider}}
+        {{this.model.provider}}
       </span>
       <span class="pair" data-test-volume-external-id>
         <span class="term">External ID</span>
-        {{model.externalId}}
+        {{this.model.externalId}}
       </span>
-      {{#if system.shouldShowNamespaces}}
+      {{#if this.system.shouldShowNamespaces}}
         <span class="pair" data-test-volume-namespace>
           <span class="term">Namespace</span>
-          {{model.namespace.name}}
+          {{this.model.namespace.name}}
         </span>
       {{/if}}
     </div>
@@ -30,10 +30,10 @@
     <div class="boxed-section-head">
       Write Allocations
     </div>
-    <div class="boxed-section-body {{if model.writeAllocations.length "is-full-bleed"}}">
-      {{#if model.writeAllocations.length}}
+    <div class="boxed-section-body {{if this.model.writeAllocations.length "is-full-bleed"}}">
+      {{#if this.model.writeAllocations.length}}
         <ListTable
-          @source={{sortedWriteAllocations}}
+          @source={{this.sortedWriteAllocations}}
           @class="with-foot" as |t|>
           <t.head>
             <th class="is-narrow"></th>
@@ -68,10 +68,10 @@
     <div class="boxed-section-head">
       Read Allocations
     </div>
-    <div class="boxed-section-body {{if model.readAllocations.length "is-full-bleed"}}">
-      {{#if model.readAllocations.length}}
+    <div class="boxed-section-body {{if this.model.readAllocations.length "is-full-bleed"}}">
+      {{#if this.model.readAllocations.length}}
         <ListTable
-          @source={{sortedReadAllocations}}
+          @source={{this.sortedReadAllocations}}
           @class="with-foot" as |t|>
           <t.head>
             <th class="is-narrow"></th>
@@ -115,11 +115,11 @@
         <tbody>
           <tr>
             <td>Access Mode</td>
-            <td data-test-access-mode>{{model.accessMode}}</td>
+            <td data-test-access-mode>{{this.model.accessMode}}</td>
           </tr>
           <tr>
             <td>Attachment Mode</td>
-            <td data-test-attachment-mode>{{model.attachmentMode}}</td>
+            <td data-test-attachment-mode>{{this.model.attachmentMode}}</td>
           </tr>
         </tbody>
       </table>

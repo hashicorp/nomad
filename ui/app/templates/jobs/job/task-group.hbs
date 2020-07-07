@@ -1,23 +1,23 @@
-{{title "Task group " model.name " - Job " model.job.name}}
+{{title "Task group " this.model.name " - Job " this.model.job.name}}
 <div class="tabs is-subnav">
   <ul>
-    <li><LinkTo @route="jobs.job.task-group" @models={{array model.job model}} @activeClass="is-active">Overview</LinkTo></li>
+    <li><LinkTo @route="jobs.job.task-group" @models={{array this.model.job this.model}} @activeClass="is-active">Overview</LinkTo></li>
   </ul>
 </div>
 <section class="section">
   <h1 class="title with-flex">
-    <span>{{model.name}}</span>
+    <span>{{this.model.name}}</span>
     <div>
-      <Exec::OpenButton @job={{model.job}} @taskGroup={{model}} />
-      {{#if model.scaling}}
+      <Exec::OpenButton @job={{this.model.job}} @taskGroup={{this.model}} />
+      {{#if this.model.scaling}}
       <StepperInput
         data-test-task-group-count-stepper
-        aria-label={{tooltipText}}
-        @min={{model.scaling.min}}
-        @max={{model.scaling.max}}
-        @value={{model.count}}
+        aria-label={{this.tooltipText}}
+        @min={{this.model.scaling.min}}
+        @max={{this.model.scaling.max}}
+        @value={{this.model.count}}
         @class="is-primary is-small"
-        @disabled={{or model.job.runningDeployment (cannot "scale job")}}
+        @disabled={{or this.model.job.runningDeployment (cannot "scale job")}}
         @onChange={{action "scaleTaskGroup"}}>
         Count
       </StepperInput>
@@ -29,16 +29,16 @@
     <div class="boxed-section-body inline-definitions">
       <span class="label">Task Group Details</span>
 
-      <span class="pair" data-test-task-group-tasks><span class="term"># Tasks</span> {{model.tasks.length}}</span>
-      <span class="pair" data-test-task-group-cpu><span class="term">Reserved CPU</span> {{model.reservedCPU}} MHz</span>
-      <span class="pair" data-test-task-group-mem><span class="term">Reserved Memory</span> {{model.reservedMemory}} MiB</span>
-      <span class="pair" data-test-task-group-disk><span class="term">Reserved Disk</span> {{model.reservedEphemeralDisk}} MiB</span>
-      {{#if model.scaling}}
+      <span class="pair" data-test-task-group-tasks><span class="term"># Tasks</span> {{this.model.tasks.length}}</span>
+      <span class="pair" data-test-task-group-cpu><span class="term">Reserved CPU</span> {{this.model.reservedCPU}} MHz</span>
+      <span class="pair" data-test-task-group-mem><span class="term">Reserved Memory</span> {{this.model.reservedMemory}} MiB</span>
+      <span class="pair" data-test-task-group-disk><span class="term">Reserved Disk</span> {{this.model.reservedEphemeralDisk}} MiB</span>
+      {{#if this.model.scaling}}
         <span class="pair" data-test-task-group-min><span class="term">Count Range</span>
-          {{model.scaling.min}} to {{model.scaling.max}}
+          {{this.model.scaling.min}} to {{this.model.scaling.max}}
         </span>
         <span class="pair" data-test-task-group-max><span class="term">Scaling Policy?</span>
-          {{if model.scaling.policy "Yes" "No"}}
+          {{if this.model.scaling.policy "Yes" "No"}}
         </span>
       {{/if}}
     </div>
@@ -46,10 +46,10 @@
 
   <div class="boxed-section">
     <div class="boxed-section-head">
-      <div>Allocation Status <span class="badge is-white">{{allocations.length}}</span></div>
+      <div>Allocation Status <span class="badge is-white">{{this.allocations.length}}</span></div>
     </div>
     <div class="boxed-section-body">
-      <AllocationStatusBar @allocationContainer={{model.summary}} @class="split-view" as |chart|>
+      <AllocationStatusBar @allocationContainer={{this.model.summary}} @class="split-view" as |chart|>
         <ol class="legend">
           {{#each chart.data as |datum index|}}
             <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
@@ -69,23 +69,23 @@
     <div class="boxed-section-head">
       Allocations
       <SearchBox
-        @searchTerm={{mut searchTerm}}
+        @searchTerm={{mut this.searchTerm}}
         @placeholder="Search allocations..."
-        @onChange={{action resetPagination}}
+        @onChange={{action this.resetPagination}}
         @class="is-inline pull-right"
         @inputClass="is-compact" />
     </div>
     <div class="boxed-section-body is-full-bleed">
-      {{#if sortedAllocations}}
+      {{#if this.sortedAllocations}}
         <ListPagination
-          @source={{sortedAllocations}}
-          @size={{pageSize}}
-          @page={{currentPage}}
+          @source={{this.sortedAllocations}}
+          @size={{this.pageSize}}
+          @page={{this.currentPage}}
           @class="allocations" as |p|>
           <ListTable
             @source={{p.list}}
-            @sortProperty={{sortProperty}}
-            @sortDescending={{sortDescending}}
+            @sortProperty={{this.sortProperty}}
+            @sortDescending={{this.sortDescending}}
             @class="with-foot" as |t|>
             <t.head>
               <th class="is-narrow"></th>
@@ -104,10 +104,10 @@
             </t.body>
           </ListTable>
           <div class="table-foot">
-            <PageSizeSelect @onChange={{action resetPagination}} />
+            <PageSizeSelect @onChange={{action this.resetPagination}} />
             <nav class="pagination">
               <div class="pagination-numbers">
-                {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedAllocations.length}}
+                {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAllocations.length}}
               </div>
               <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
               <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
@@ -116,11 +116,11 @@
           </div>
         </ListPagination>
       {{else}}
-        {{#if allocations.length}}
+        {{#if this.allocations.length}}
           <div class="boxed-section-body">
             <div class="empty-message" data-test-empty-allocations-list>
               <h3 class="empty-message-headline" data-test-empty-allocations-list-headline>No Matches</h3>
-              <p class="empty-message-body">No allocations match the term <strong>{{searchTerm}}</strong></p>
+              <p class="empty-message-body">No allocations match the term <strong>{{this.searchTerm}}</strong></p>
             </div>
           </div>
         {{else}}
@@ -135,15 +135,15 @@
     </div>
   </div>
 
-  <LifecycleChart @tasks={{model.tasks}} />
+  <LifecycleChart @tasks={{this.model.tasks}} />
 
-  {{#if model.volumes.length}}
+  {{#if this.model.volumes.length}}
     <div data-test-volumes class="boxed-section">
       <div class="boxed-section-head">
         Volume Requirements
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <ListTable @source={{model.volumes}} as |t|>
+        <ListTable @source={{this.model.volumes}} as |t|>
           <t.head>
             <th>Name</th>
             <th>Type</th>

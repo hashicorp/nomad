@@ -1,11 +1,11 @@
-{{title "Server " model.name}}
-<ServerSubnav @server={{model}} />
+{{title "Server " this.model.name}}
+<ServerSubnav @server={{this.model}} />
 <section class="section is-full-width">
   {{#if (can "read agent")}}
     <AgentMonitor
-      @level={{level}}
-      @server={{model}}
-      @onLevelChange={{action (mut level)}} />
+      @level={{this.level}}
+      @server={{this.model}}
+      @onLevelChange={{action (mut this.level)}} />
   {{else}}
     <ForbiddenMessage @permission="agent:read" />
   {{/if}}

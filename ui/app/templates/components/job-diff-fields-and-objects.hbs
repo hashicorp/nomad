@@ -1,5 +1,5 @@
 <div class="diff-section-table">
-  {{#each fields as |field|}}
+  {{#each this.fields as |field|}}
     <div
       data-test-diff-section-label="field"
       data-test-diff-field="{{lowercase field.Type}}"
@@ -32,7 +32,7 @@
   {{/each}}
 </div>
 
-{{#each objects as |object|}}
+{{#each this.objects as |object|}}
   <div
     data-test-diff-section-label="object"
     data-test-diff-field="{{lowercase object.Type}}"
