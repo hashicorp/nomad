@@ -224,6 +224,29 @@ export default [
   },
   'schedulers',
   { category: 'runtime', content: ['environment', 'interpolation'] },
+  {
+    category: 'autoscaling',
+    content: [
+      'agent',
+      'api',
+      'cli',
+      'policy',
+      {
+        category: 'plugins',
+        content: [
+          'apm',
+          'strategy',
+          'target'
+        ]
+      },
+      {
+        category: 'internals',
+        content: [
+          'checks'
+        ]
+      }
+    ]
+  },
   { category: 'telemetry', content: ['metrics'] },
   { category: 'vault-integration' },
   '------------',
