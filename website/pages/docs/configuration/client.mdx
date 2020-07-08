@@ -137,6 +137,9 @@ driver) but will be removed in a future release.
   CNI plugin discovery. Multiple paths can be searched using colon delimited
   paths
 
+- `cni_config_dir` `(string: "/opt/cni/config")` - Sets the directory where CNI
+  network configuration is located. The client will use this path when fingerprinting CNI networks.
+	 
 - `bridge_network name` `(string: "nomad")` - Sets the name of the bridge to be
   created by nomad for allocations running with bridge networking mode on the
   client.
@@ -150,6 +153,9 @@ driver) but will be removed in a future release.
 
 - `host_volume` <code>([host_volume](#host_volume-stanza): nil)</code> - Exposes
   paths from the host as volumes that can be mounted into jobs.
+
+- `host_network` <code>([host_network](#host_network-stanza): nil)</code> - Registers
+  additional host networks with the node that can be selected when port mapping.
 
 ### `chroot_env` Parameters
 
@@ -371,6 +377,35 @@ client {
 
 - `read_only` `(bool: false)` - Specifies whether the volume should only ever be
   allowed to be mounted `read_only`, or if it should be writeable.
+
+### `host_network` Stanza
+
+The `host_network` stanza is used to register additional host networks with
+the node that can be used when port mapping.
+
+The key of the stanza corresponds to the name of the network used in the
+[`host_network`](/docs/job-specification/network#host-network).
+
+```hcl
+client {
+  host_network "public" {
+    cidr = "203.0.113.0/24"
+    reserved_ports = "22,80"
+  }
+}
+```
+
+#### `host_network` Parameters
+
+- `cidr` `(string: "")` - Specifies a cidr block of addresses to match against.
+    If an address is found on the node that is contained by this cidr block, the
+    host network will be registered with it.
+
+- `interface` `(string: "")` - Filters searching of addresses to a specific interface.
+
+- `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports to
+  reserve on all fingerprinted network devices. Ranges can be specified by using
+  a hyphen separating the two inclusive ends.
 
 ## `client` Examples
 
