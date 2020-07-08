@@ -20,13 +20,15 @@ var (
 
 	// connectDriverConfig is the driver configuration used by the injected
 	// connect proxy sidecar task
-	connectDriverConfig = map[string]interface{}{
-		"image": "${meta.connect.sidecar_image}",
-		"args": []interface{}{
-			"-c", structs.EnvoyBootstrapPath,
-			"-l", "${meta.connect.log_level}",
-			"--disable-hot-restart",
-		},
+	connectDriverConfig = func() map[string]interface{} {
+		return map[string]interface{}{
+			"image": "${meta.connect.sidecar_image}",
+			"args": []interface{}{
+				"-c", structs.EnvoyBootstrapPath,
+				"-l", "${meta.connect.log_level}",
+				"--disable-hot-restart",
+			},
+		}
 	}
 
 	// connectVersionConstraint is used when building the sidecar task to ensure
@@ -172,7 +174,7 @@ func newConnectTask(serviceName string) *structs.Task {
 		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, serviceName),
 		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, serviceName),
 		Driver:        "docker",
-		Config:        connectDriverConfig,
+		Config:        connectDriverConfig(),
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      2,

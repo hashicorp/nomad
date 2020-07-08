@@ -420,7 +420,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	require.Equal("test", sidecarTask.Meta["source"])
 	require.Equal(500, sidecarTask.Resources.CPU)
 	require.Equal(connectSidecarResources().MemoryMB, sidecarTask.Resources.MemoryMB)
-	cfg := connectDriverConfig
+	cfg := connectDriverConfig()
 	cfg["labels"] = map[string]interface{}{
 		"foo": "bar",
 	}
@@ -5597,9 +5597,9 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 
 		// attempt to scale
 		originalCount := job.TaskGroups[0].Count
-		newCount := int64(originalCount+1)
+		newCount := int64(originalCount + 1)
 		groupName := job.TaskGroups[0].Name
-		scalingMetadata :=	map[string]interface{}{
+		scalingMetadata := map[string]interface{}{
 			"meta": "data",
 		}
 		scalingMessage := "original reason for scaling"
@@ -5692,7 +5692,7 @@ func TestJobEndpoint_Scale_InformationalEventsShouldNotBeBlocked(t *testing.T) {
 
 		// register informational scaling event
 		groupName := job.TaskGroups[0].Name
-		scalingMetadata :=	map[string]interface{}{
+		scalingMetadata := map[string]interface{}{
 			"meta": "data",
 		}
 		scalingMessage := "original reason for scaling"
