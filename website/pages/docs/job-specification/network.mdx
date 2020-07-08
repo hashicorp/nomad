@@ -284,15 +284,16 @@ If not set the "default" host network is used which is commonly the address with
 ```hcl
 network {
   mode = "bridge"
+  
   # define a port to use for public https traffic
   port "https" {
-    static = 443
-    to = 8080
+    static       = 443
+    to           = 8080
     host_network = "public"
   }
   # define a port that is only exposed to private traffic
   port "admin" {
-    to = 9000
+    to           = 9000
     host_network = "private"
   }
 }
