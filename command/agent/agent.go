@@ -632,6 +632,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	// Setup networking configuration
 	conf.CNIPath = agentConfig.Client.CNIPath
+	conf.CNIConfigDir = agentConfig.Client.CNIConfigDir
 	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
 	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
 
