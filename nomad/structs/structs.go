@@ -4906,6 +4906,7 @@ func (d *DispatchPayloadConfig) Validate() error {
 
 const (
 	TaskLifecycleHookPrestart = "prestart"
+	TaskLifecycleHookPoststart = "poststart"
 )
 
 type TaskLifecycleConfig struct {
@@ -4929,6 +4930,7 @@ func (d *TaskLifecycleConfig) Validate() error {
 
 	switch d.Hook {
 	case TaskLifecycleHookPrestart:
+	case TaskLifecycleHookPoststart:
 	case "":
 		return fmt.Errorf("no lifecycle hook provided")
 	default:
