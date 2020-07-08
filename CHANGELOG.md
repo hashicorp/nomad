@@ -27,6 +27,7 @@ IMPROVEMENTS:
 * api: Support querying for jobs and allocations across all namespaces [[GH-8192](https://github.com/hashicorp/nomad/issues/8192)]
 * api: New `/agent/host` endpoint returns diagnostic information about the host [[GH-8325](https://github.com/hashicorp/nomad/pull/8325)]
 * build: Updated to Go 1.14.4 [[GH-8172](https://github.com/hashicorp/nomad/issues/9172)]
+* build: Switched to Go modules for dependency management [[GH-8041](https://github.com/hashicorp/nomad/pull/8041)]
 * connect: Infer service task parameter where possible [[GH-8274](https://github.com/hashicorp/nomad/issues/8274)]
 * server: Added `raft_multiplier` config to tweak Raft related timeouts [[GH-8082](https://github.com/hashicorp/nomad/issues/8082)]
 
