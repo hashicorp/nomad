@@ -25,19 +25,19 @@ to have sufficient work throughput to meet service-level agreements (SLA). In
 Nomad, horizontal application autoscaling can be achieved by modifying the number
 of allocations in a task group based on the value of a relevant metric, such as
 CPU and memory utilization or number of open connections. This is enabled by configuring
-[autoscaling policies][autoscaling_policy] on individual Nomad jobs using the [scaling block][scaling_block].
+[autoscaling policies][autoscaling_policy] on individual Nomad jobs using the [`scaling` block][scaling_block].
 ## Horizontal Cluster Autoscaling
 
 Horizontal cluster autoscaling is the process of adding or removing Nomad clients from a cluster to ensure there
 is an appropriate amount of cluster resource for the scheduled applications.
 This is achieved by interacting with remote providers to start or terminate new
 Nomad clients based on metrics such as the remaining free schedulable CPU or memory.
-Cluster scaling is enabled by configuring the [autoscaler agent][/docs/autoscaling/agent#dir]
+Cluster scaling is enabled by configuring the [autoscaler agent](/docs/autoscaling/agent#dir)
 with policies targeting the Nomad cluster.
 
 [scaling_block]: /docs/job-specification/scaling
 [autoscaling_policy]: /docs/autoscaling/policy
 [autoscaler_github]: https://github.com/hashicorp/nomad-autoscaler
 [autoscaler_releases]: https://releases.hashicorp.com/nomad-autoscaler/
-[autoscaler_dockerhub]: https://hub.docker.com/repository/docker/hashicorp/nomad-autoscaler
+[autoscaler_dockerhub]: https://hub.docker.com/r/hashicorp/nomad-autoscaler
 [autoscaler_demo]: https://github.com/hashicorp/nomad-autoscaler/tree/master/demo
