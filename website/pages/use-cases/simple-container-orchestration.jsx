@@ -41,7 +41,7 @@ export default function SimpleContainerOrchestrationPage() {
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Run on-premise with ease',
+          heading: 'Run On-Premise with Ease',
           textSide: 'left',
           content:
             'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.',
@@ -184,7 +184,7 @@ SERVICE_NAME: Nomad
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Run stateful workloads',
+          heading: 'Run Stateful Workloads',
           content:
             'Natively connect and run stateful services with storage volumes from third-party providers via the Container Storage Interface plugin system.',
           textSide: 'right',
@@ -192,6 +192,18 @@ SERVICE_NAME: Nomad
         image={{
           url: require('./img/csi.svg'),
           alt: 'Stateful Workloads',
+        }}
+      />
+
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Flexible Networking Capabilities',
+          content:
+            'Deploy containerized applications with customized network configurations from third-party vendors via Container Network Interface plugin system',
+        }}
+        image={{
+          url: require('./img/cni.svg'),
+          alt: 'Flexible Networking Capabilities',
         }}
       />
 
@@ -242,20 +254,21 @@ SERVICE_NAME: Nomad
           {
             logo: {
               url:
-                'https://www.datocms-assets.com/2885/1522341147-jet-white.svg',
-              alt: 'Jet',
+                'https://www.datocms-assets.com/2885/1594247944-better-help-white.png',
+              alt: 'BetterHelp',
             },
             image: {
               url:
-                'https://www.datocms-assets.com/2885/1523635589-mohitarora.jpg',
-              alt: 'Jet Presentation',
+                'https://www.datocms-assets.com/2885/1594247996-betterhelp-case-study-screen.png',
+              alt: 'BetterHelp Presentation',
             },
-            heading: 'Jet.com',
-            content: 'Running Windows Microservices on Nomad',
+            heading: 'BetterHelp',
+            content:
+              'From 6 dedicated servers in a colocation facility to a cloud-based deployment workflow with Nomad',
             link: {
               text: 'Learn More',
               url:
-                'https://www.hashicorp.com/resources/running-windows-microservices-on-nomad-at-jet-com',
+                'https://www.hashicorp.com/resources/betterhelp-s-hashicorp-nomad-use-case/',
               type: 'outbound',
             },
           },
