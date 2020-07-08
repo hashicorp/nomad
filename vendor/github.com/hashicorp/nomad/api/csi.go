@@ -56,7 +56,7 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 }
 
 func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?purge=%t", url.PathEscape(id), force), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
 	return err
 }
 
