@@ -27,6 +27,8 @@ IMPROVEMENTS:
 * api: Support querying for jobs and allocations across all namespaces [[GH-8192](https://github.com/hashicorp/nomad/issues/8192)]
 * api: New `/agent/host` endpoint returns diagnostic information about the host [[GH-8325](https://github.com/hashicorp/nomad/pull/8325)]
 * build: Updated to Go 1.14.4 [[GH-8172](https://github.com/hashicorp/nomad/issues/9172)]
+* build: Switched to Go modules for dependency management [[GH-8041](https://github.com/hashicorp/nomad/pull/8041)]
+* connect: Infer service task parameter where possible [[GH-8274](https://github.com/hashicorp/nomad/issues/8274)]
 * server: Added `raft_multiplier` config to tweak Raft related timeouts [[GH-8082](https://github.com/hashicorp/nomad/issues/8082)]
 
 BUG FIXES:
@@ -34,6 +36,7 @@ BUG FIXES:
  * cli: Fixed malformed alloc status address list when listing more than 1 address [[GH-8161](https://github.com/hashicorp/nomad/issues/8161)]
  * client: Fixed a bug where stdout/stderr were not properly reopened for community task drivers [[GH-8155](https://github.com/hashicorp/nomad/issues/8155)]
  * client: Fixed a bug where batch job sidecars may be left running after the main task completes [[GH-8311](https://github.com/hashicorp/nomad/issues/8311)]
+ * connect: Fixed a bug where custom `sidecar_task` definitions were being shared [[GH-8337](https://github.com/hashicorp/nomad/issues/8337)]
  * csi: Fixed a bug where `NodeStageVolume` and `NodePublishVolume` requests were not receiving volume context [[GH-8239](https://github.com/hashicorp/nomad/issues/8239)]
  * driver/docker: Fixed a bug to set correct value for `memory-swap` when using `memory_hard_limit` [[GH-8153](https://github.com/hashicorp/nomad/issues/8153)]
  * ui: The log streamer will now always follow logs when the current scroll position is the end of the buffer. [[GH-8177](https://github.com/hashicorp/nomad/issues/8177)]

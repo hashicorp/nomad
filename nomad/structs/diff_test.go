@@ -1210,8 +1210,8 @@ func TestJobDiff(t *testing.T) {
 					Regions: []*MultiregionRegion{
 						{
 							Name:        "west",
-							Count:       1,
-							Datacenters: []string{"west-1"},
+							Count:       3,
+							Datacenters: []string{"west-2"},
 							Meta:        map[string]string{"region_code": "W"},
 						},
 						{
@@ -1223,7 +1223,6 @@ func TestJobDiff(t *testing.T) {
 					},
 				},
 			},
-
 			Expected: &JobDiff{
 				Type: DiffTypeEdited,
 				Objects: []*ObjectDiff{
@@ -1231,6 +1230,38 @@ func TestJobDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "Multiregion",
 						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Region",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Count",
+										Old:  "1",
+										New:  "3",
+									},
+								},
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "Datacenters",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "Datacenters",
+												Old:  "",
+												New:  "west-2",
+											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "Datacenters",
+												Old:  "west-1",
+												New:  "",
+											},
+										},
+									},
+								},
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "Region",

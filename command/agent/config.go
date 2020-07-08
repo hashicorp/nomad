@@ -277,6 +277,10 @@ type ClientConfig struct {
 	// specified colon delimited
 	CNIPath string `hcl:"cni_path"`
 
+	// CNIConfigDir is the directory where CNI network configuration is located. The
+	// client will use this path when fingerprinting CNI networks.
+	CNIConfigDir string `hcl:"cni_config_dir"`
+
 	// BridgeNetworkName is the name of the bridge to create when using the
 	// bridge network mode
 	BridgeNetworkName string `hcl:"bridge_network_name"`
@@ -1534,6 +1538,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	if b.CNIPath != "" {
 		result.CNIPath = b.CNIPath
+	}
+	if b.CNIConfigDir != "" {
+		result.CNIConfigDir = b.CNIConfigDir
 	}
 	if b.BridgeNetworkName != "" {
 		result.BridgeNetworkName = b.BridgeNetworkName

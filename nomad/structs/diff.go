@@ -1054,7 +1054,7 @@ func multiregionDiff(old, new *Multiregion, contextual bool) *ObjectDiff {
 	for name, oldRegion := range oldMap {
 		// Diff the same, deleted and edited
 		newRegion := newMap[name]
-		rdiff := multiregionRegionDiff(newRegion, oldRegion, contextual)
+		rdiff := multiregionRegionDiff(oldRegion, newRegion, contextual)
 		if rdiff != nil {
 			diff.Objects = append(diff.Objects, rdiff)
 		}

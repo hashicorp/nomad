@@ -157,32 +157,40 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 }
 
-func TestJobEndpointConnect_groupConnectNativeValidate(t *testing.T) {
-	t.Run("no task in service", func(t *testing.T) {
-		require.EqualError(t, groupConnectNativeValidate(&structs.TaskGroup{
-			Name: "g1",
-		}, &structs.Service{
-			Name:     "s1",
-			TaskName: "",
-		}), `Consul Connect Native service "s1" requires task name`)
+func TestJobEndpointConnect_getNamedTaskForNativeService(t *testing.T) {
+	t.Run("named exists", func(t *testing.T) {
+		task, err := getNamedTaskForNativeService(&structs.TaskGroup{
+			Name:  "g1",
+			Tasks: []*structs.Task{{Name: "t1"}, {Name: "t2"}},
+		}, "s1", "t2")
+		require.NoError(t, err)
+		require.Equal(t, "t2", task.Name)
 	})
 
-	t.Run("no task for service", func(t *testing.T) {
-		require.EqualError(t, groupConnectNativeValidate(&structs.TaskGroup{
-			Name: "g2",
-		}, &structs.Service{
-			Name:     "s2",
-			TaskName: "t1",
-		}), `Consul Connect Native service "s2" requires undefined task "t1" in group "g2"`)
+	t.Run("infer exists", func(t *testing.T) {
+		task, err := getNamedTaskForNativeService(&structs.TaskGroup{
+			Name:  "g1",
+			Tasks: []*structs.Task{{Name: "t2"}},
+		}, "s1", "")
+		require.NoError(t, err)
+		require.Equal(t, "t2", task.Name)
 	})
 
-	t.Run("native okay", func(t *testing.T) {
-		require.NoError(t, groupConnectNativeValidate(&structs.TaskGroup{
-			Name:  "g2",
-			Tasks: []*structs.Task{{Name: "t0"}, {Name: "t1"}, {Name: "t3"}},
-		}, &structs.Service{
-			Name:     "s2",
-			TaskName: "t1",
-		}))
+	t.Run("infer ambiguous", func(t *testing.T) {
+		task, err := getNamedTaskForNativeService(&structs.TaskGroup{
+			Name:  "g1",
+			Tasks: []*structs.Task{{Name: "t1"}, {Name: "t2"}},
+		}, "s1", "")
+		require.EqualError(t, err, "task for Consul Connect Native service g1->s1 is ambiguous and must be set")
+		require.Nil(t, task)
+	})
+
+	t.Run("named absent", func(t *testing.T) {
+		task, err := getNamedTaskForNativeService(&structs.TaskGroup{
+			Name:  "g1",
+			Tasks: []*structs.Task{{Name: "t1"}, {Name: "t2"}},
+		}, "s1", "t3")
+		require.EqualError(t, err, "task t3 named by Consul Connect Native service g1->s1 does not exist")
+		require.Nil(t, task)
 	})
 }

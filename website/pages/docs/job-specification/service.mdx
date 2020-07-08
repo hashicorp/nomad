@@ -149,8 +149,8 @@ Connect][connect] integration.
 
 - `task` `(string: "")` - Specifies the name of the Nomad Task associated with
   this service definition. Only available on group services. Must be set if this
-  service definition represents a Consul Connect Native service. The Nomad Task
-  must exist in the same Task Group.
+  service definition represents a Consul Connect Native service and there is more
+  than one task in the task group.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   the Consul service with user-defined metadata.
