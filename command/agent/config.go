@@ -279,7 +279,7 @@ type ClientConfig struct {
 
 	// CNIConfigDir is the directory where CNI network configuration is located. The
 	// client will use this path when fingerprinting CNI networks.
-	CNIConfigDir string `hcl:"cni_config_dir`
+	CNIConfigDir string `hcl:"cni_config_dir"`
 
 	// BridgeNetworkName is the name of the bridge to create when using the
 	// bridge network mode
