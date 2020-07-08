@@ -10,7 +10,7 @@ description: >
 # Nomad Autoscaler Scaling Policies
 
 Nomad Autoscaler scaling policies can be configured via the
-[task group scaling stanza][jobspec_scaling_stanza] or by configuration
+[task group `scaling` stanza][jobspec_scaling_stanza] or by configuration
 files stored on disk.
 
 ## Top Level Options
@@ -28,17 +28,17 @@ files stored on disk.
 
 - `cooldown` - A time interval after a scaling action during which no additional
   scaling will be performed on the resource. It should be provided as a duration
-  (e.g.: "5s", "1m"). If omitted the configuration value
+  (e.g.: `"5s"`, `"1m"`). If omitted the configuration value
   [policy_default_cooldown][policy_default_cooldown_agent] from the agent will
   be used.
 
 - `evaluation_interval` - Defines how often the policy is evaluated by the
-  Autoscaler. It should be provided as a duration (e.g.: "5s", "1m"). If
+  Autoscaler. It should be provided as a duration (e.g.: `"5s"`, `"1m"`). If
   omitted the configuration value [default_evaluation_interval][eval_interval_agent]
   from the agent will be used.
 
 - `target` - Defines where the autoscaling target is running. Detailed information
-  on the configuration options can be found on the [target plugin][target_plugin_docs]
+  on the configuration options can be found on the [Target Plugins][target_plugin_docs]
   page.
 
 - `check` - Specifies one or more checks to be executed when determining if a
@@ -51,17 +51,17 @@ files stored on disk.
 
 - `query` - The query to run against the specified APM. Currently this query
   should return a single value. Detailed information on the configuration options
-  can be found on the [apm plugin][apm_plugin_docs] page.
+  can be found on the [APM Plugins][apm_plugin_docs] page.
 
 - `strategy` - The strategy to use, and it's configuration when calculating the
   desired state based on the current count and the metric returned by the APM.
   Detailed information on the configuration options can be found on the
-  [strategy plugin][strategy_plugin_docs] page.
+  [Strategy Plugins][strategy_plugin_docs] page.
 
 ### Example
 
 A full example of a policy document that can be written into the Nomad task group
-scaling stanza or via a file within the policy dir can be seen below.
+`scaling` stanza or via a file within the `policy_dir` can be seen below.
 
 ```hcl
 min     = 2
