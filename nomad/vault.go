@@ -1061,15 +1061,7 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 
 // PoliciesFrom parses the set of policies returned by a token lookup.
 func PoliciesFrom(s *vapi.Secret) ([]string, error) {
-	if s == nil {
-		return nil, fmt.Errorf("cannot parse nil Vault secret")
-	}
-	var data tokenData
-	if err := mapstructure.WeakDecode(s.Data, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse Vault token's data block: %v", err)
-	}
-
-	return data.Policies, nil
+	return s.TokenPolicies()
 }
 
 // RevokeTokens revokes the passed set of accessors. If committed is set, the
