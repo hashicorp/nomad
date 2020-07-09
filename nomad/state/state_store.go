@@ -1054,6 +1054,7 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			plug.Version = info.ProviderVersion
 		}
 
+		plug.SafeToModify()
 		err = plug.AddPlugin(node.ID, info)
 		if err != nil {
 			return err
@@ -1189,6 +1190,9 @@ func updateOrGCPlugin(index uint64, txn *memdb.Txn, plug *structs.CSIPlugin) err
 			return fmt.Errorf("csi_plugins delete error: %v", err)
 		}
 	} else {
+		if !plug.SafeToModify() {
+			return fmt.Errorf("csi_plugins update error %s: shared object", plug.ID)
+		}
 		err := txn.Insert("csi_plugins", plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins update error %s: %v", plug.ID, err)
@@ -2316,12 +2320,15 @@ func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPl
 		return nil, nil
 	}
 
-	plug := raw.(*structs.CSIPlugin)
+	plug, ok := raw.(*structs.CSIPlugin)
+	if !ok {
+		return nil, fmt.Errorf("csi_plugin row conversion failed: %s %v", id, err)
+	}
 
 	return plug, nil
 }
 
-// CSIPluginDenormalize returns a CSIPlugin with allocation details
+// CSIPluginDenormalize returns a CSIPlugin with allocation details. It should operate on a copy of the stored plugin
 func (s *StateStore) CSIPluginDenormalize(ws memdb.WatchSet, plug *structs.CSIPlugin) (*structs.CSIPlugin, error) {
 	if plug == nil {
 		return nil, nil
@@ -2367,6 +2374,7 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 		plug.CreateIndex = existing.(*structs.CSIPlugin).CreateIndex
 	}
 
+	plug.SafeToModify()
 	err = txn.Insert("csi_plugins", plug)
 	if err != nil {
 		return fmt.Errorf("csi_plugins insert error: %v", err)
@@ -5616,6 +5624,9 @@ func (r *StateRestore) ScalingPolicyRestore(scalingPolicy *structs.ScalingPolicy
 
 // CSIPluginRestore is used to restore a CSI plugin
 func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
+	if !plugin.SafeToModify() {
+		return fmt.Errorf("csi_plugins insert failed: %s: shared object", plugin.ID)
+	}
 	if err := r.txn.Insert("csi_plugins", plugin); err != nil {
 		return fmt.Errorf("csi plugin insert failed: %v", err)
 	}
