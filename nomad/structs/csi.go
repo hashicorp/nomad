@@ -697,11 +697,16 @@ type CSIPlugin struct {
 	Allocations []*AllocListStub
 
 	// Cache the count of healthy plugins
-	ControllersHealthy int
-	NodesHealthy       int
+	ControllersExpected int
+	ControllersHealthy  int
+	NodesExpected       int
+	NodesHealthy        int
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// safeCopy is handled automatically to ensure the object is safe to modify
+	safeCopy bool
 }
 
 // NewCSIPlugin creates the plugin struct. No side-effects
@@ -710,6 +715,7 @@ func NewCSIPlugin(id string, index uint64) *CSIPlugin {
 		ID:          id,
 		CreateIndex: index,
 		ModifyIndex: index,
+		safeCopy:    true,
 	}
 
 	out.newStructs()
@@ -719,6 +725,7 @@ func NewCSIPlugin(id string, index uint64) *CSIPlugin {
 func (p *CSIPlugin) newStructs() {
 	p.Controllers = map[string]*CSIInfo{}
 	p.Nodes = map[string]*CSIInfo{}
+	p.safeCopy = true
 }
 
 func (p *CSIPlugin) Copy() *CSIPlugin {
@@ -734,7 +741,27 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 		out.Nodes[k] = v
 	}
 
+	// introduced in 0.12.1, these fields may be empty
+	p.ControllersExpected = len(p.Controllers)
+	p.NodesExpected = len(p.Nodes)
+
+	out.safeCopy = true
+
 	return out
+}
+
+func (p *CSIPlugin) SafeToModify() bool {
+	if !p.safeCopy {
+		return false
+	}
+	p.safeCopy = false
+	return true
+}
+
+// Normalize populates derived fields needed in the API
+func (p *CSIPlugin) Normalize() {
+	p.ControllersExpected = len(p.Controllers)
+	p.NodesExpected = len(p.Nodes)
 }
 
 // AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
@@ -761,6 +788,7 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 		// ok
 		if prev != nil || info.Healthy {
 			p.Controllers[nodeID] = info
+			p.ControllersExpected += 1
 		}
 		if info.Healthy {
 			p.ControllersHealthy += 1
@@ -779,6 +807,7 @@ func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 		}
 		if prev != nil || info.Healthy {
 			p.Nodes[nodeID] = info
+			p.NodesExpected += 1
 		}
 		if info.Healthy {
 			p.NodesHealthy += 1
@@ -809,6 +838,7 @@ func (p *CSIPlugin) DeleteNodeForType(nodeID string, pluginType CSIPluginType) e
 			}
 		}
 		delete(p.Controllers, nodeID)
+		p.ControllersExpected -= 1
 
 	case CSIPluginTypeNode:
 		prev, ok := p.Nodes[nodeID]
@@ -821,6 +851,7 @@ func (p *CSIPlugin) DeleteNodeForType(nodeID string, pluginType CSIPluginType) e
 			}
 		}
 		delete(p.Nodes, nodeID)
+		p.NodesExpected -= 1
 
 	case CSIPluginTypeMonolith:
 		p.DeleteNodeForType(nodeID, CSIPluginTypeController)
