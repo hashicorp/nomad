@@ -28,11 +28,11 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{multi-select-dropdown
-      label=label
-      options=options
-      selection=selection
-      onSelect=onSelect}}
+    <MultiSelectDropdown
+      @label={{label}}
+      @options={{options}}
+      @selection={{selection}}
+      @onSelect={{onSelect}} />
   `;
 
   test('component is initially closed', async function(assert) {
@@ -246,7 +246,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     );
   });
 
-  test('list options have a positive tabindex and are therefore sequentially navigable', async function(assert) {
+  test('list options have a zero tabindex and are therefore sequentially navigable', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);
     await render(commonTemplate);
@@ -254,7 +254,7 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
     await click('[data-test-dropdown-trigger]');
 
     findAll('[data-test-dropdown-option]').forEach(option => {
-      assert.ok(parseInt(option.getAttribute('tabindex'), 10) > 0, 'tabindex is a positive value');
+      assert.equal(parseInt(option.getAttribute('tabindex'), 10), 0, 'tabindex is zero');
     });
   });
 

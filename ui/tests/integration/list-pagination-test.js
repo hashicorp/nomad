@@ -20,20 +20,20 @@ module('Integration | Component | list pagination', function(hooks) {
   test('the source property', async function(assert) {
     this.set('source', list100);
     await render(hbs`
-      {{#list-pagination source=source as |p|}}
+      <ListPagination @source={{source}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-        {{#p.first}}<span class="first">first</span>{{/p.first}}
-        {{#p.prev}}<span class="prev">prev</span>{{/p.prev}}
+        <p.first><span class="first">first</span></p.first>
+        <p.prev><span class="prev">prev</span></p.prev>
         {{#each p.pageLinks as |link|}}
           <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
         {{/each}}
-        {{#p.next}}<span class="next">next</span>{{/p.next}}
-        {{#p.last}}<span class="last">last</span>{{/p.last}}
+        <p.next><span class="next">next</span></p.next>
+        <p.last><span class="last">last</span></p.last>
 
         {{#each p.list as |item|}}
           <div class="item">{{item}}</div>
         {{/each}}
-      {{/list-pagination}}
+      </ListPagination>
     `);
 
     assert.ok(!findAll('.first').length, 'On the first page, there is no first link');
@@ -73,9 +73,9 @@ module('Integration | Component | list pagination', function(hooks) {
       source: list100,
     });
     await render(hbs`
-      {{#list-pagination source=source size=size as |p|}}
+      <ListPagination @source={{source}} @size={{size}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-      {{/list-pagination}}
+      </ListPagination>
     `);
 
     const totalPages = Math.ceil(this.get('source').length / this.get('size'));
@@ -91,11 +91,11 @@ module('Integration | Component | list pagination', function(hooks) {
     });
 
     await render(hbs`
-      {{#list-pagination source=source spread=spread size=size page=currentPage as |p|}}
+      <ListPagination @source={{source}} @spread={{spread}} @size={{size}} @page={{currentPage}} as |p|>
         {{#each p.pageLinks as |link|}}
           <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
         {{/each}}
-      {{/list-pagination}}
+      </ListPagination>
     `);
 
     testSpread.call(this, assert);
@@ -111,11 +111,11 @@ module('Integration | Component | list pagination', function(hooks) {
     });
 
     await render(hbs`
-      {{#list-pagination source=source size=size page=currentPage as |p|}}
+      <ListPagination @source={{source}} @size={{size}} @page={{currentPage}} as |p|>
         {{#each p.list as |item|}}
           <div class="item">{{item}}</div>
         {{/each}}
-      {{/list-pagination}}
+      </ListPagination>
     `);
 
     testItems.call(this, assert);
@@ -131,20 +131,20 @@ module('Integration | Component | list pagination', function(hooks) {
   test('there are no pagination links when source is less than page size', async function(assert) {
     this.set('source', list100.slice(0, 10));
     await render(hbs`
-      {{#list-pagination source=source as |p|}}
+      <ListPagination @source={{source}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-        {{#p.first}}<span class="first">first</span>{{/p.first}}
-        {{#p.prev}}<span class="prev">prev</span>{{/p.prev}}
+        <p.first><span class="first">first</span></p.first>
+        <p.prev><span class="prev">prev</span></p.prev>
         {{#each p.pageLinks as |link|}}
           <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
         {{/each}}
-        {{#p.next}}<span class="next">next</span>{{/p.next}}
-        {{#p.last}}<span class="last">last</span>{{/p.last}}
+        <p.next><span class="next">next</span></p.next>
+        <p.last><span class="last">last</span></p.last>
 
         {{#each p.list as |item|}}
           <div class="item">{{item}}</div>
         {{/each}}
-      {{/list-pagination}}
+      </ListPagination>
     `);
 
     assert.ok(!findAll('.first').length, 'No first link');
@@ -172,16 +172,16 @@ module('Integration | Component | list pagination', function(hooks) {
     const totalPages = Math.ceil(this.get('source.length') / this.get('size'));
 
     await render(hbs`
-      {{#list-pagination source=source page=page spread=spread size=size as |p|}}
+      <ListPagination @source={{source}} @page={{page}} @spread={{spread}} @size={{size}} as |p|>
         <span class="page-info">{{p.currentPage}} of {{p.totalPages}}</span>
-        {{#p.first}}<span class="first">first</span>{{/p.first}}
-        {{#p.prev}}<span class="prev">prev</span>{{/p.prev}}
+        <p.first><span class="first">first</span></p.first>
+        <p.prev><span class="prev">prev</span></p.prev>
         {{#each p.pageLinks as |link|}}
           <span class="link page-{{link.pageNumber}}">{{link.pageNumber}}</span>
         {{/each}}
-        {{#p.next}}<span class="next">next</span>{{/p.next}}
-        {{#p.last}}<span class="last">last</span>{{/p.last}}
-      {{/list-pagination}}
+        <p.next><span class="next">next</span></p.next>
+        <p.last><span class="last">last</span></p.last>
+      </ListPagination>
     `);
 
     assert.ok(findAll('.first').length, 'First page still exists');

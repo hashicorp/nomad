@@ -31,7 +31,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     assert.ok(find('[data-test-children-status-bar]'), 'Children status bar found');
@@ -48,7 +48,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation status bar found');
@@ -65,7 +65,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     assert.equal(
@@ -115,7 +115,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     assert.equal(
@@ -147,7 +147,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     await click('[data-test-accordion-toggle]');
@@ -166,7 +166,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     await this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     await click('[data-test-accordion-toggle]');
@@ -188,7 +188,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     assert.notOk(window.localStorage.nomadExpandJobSummary, 'No value in localStorage yet');
@@ -213,7 +213,7 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
     this.set('job', this.store.peekAll('job').get('firstObject'));
 
     await render(hbs`
-      {{job-page/parts/summary job=job}}
+      <JobPage::Parts::Summary @job={{job}} />
     `);
 
     assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation bar still existed');

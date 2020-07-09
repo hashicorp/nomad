@@ -73,19 +73,19 @@ module('Integration | Component | job-editor', function(hooks) {
   `;
 
   const commonTemplate = hbs`
-    {{job-editor
-      job=job
-      context=context
-      onSubmit=onSubmit}}
+    <JobEditor
+      @job={{job}}
+      @context={{context}}
+      @onSubmit={{onSubmit}} />
   `;
 
   const cancelableTemplate = hbs`
-    {{job-editor
-      job=job
-      context=context
-      cancelable=true
-      onSubmit=onSubmit
-      onCancel=onCancel}}
+    <JobEditor
+      @job={{job}}
+      @context={{context}}
+      @cancelable={{true}}
+      @onSubmit={{onSubmit}}
+      @onCancel={{onCancel}} />
   `;
 
   const renderNewJob = async (component, job) => {

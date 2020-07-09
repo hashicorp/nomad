@@ -12,12 +12,12 @@
             <p>Tokens are stored client-side in <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">local storage</a>. This will persist your token across sessions. You can manually clear your token here.</p>
           </div>
           <div class="column is-centered is-minimum">
-            <button class="button is-info" {{action "clearTokenProperties"}}>Clear Token</button>
+            <button class="button is-info" {{action "clearTokenProperties"}} type="button">Clear Token</button>
           </div>
         </div>
       </div>
 
-      {{#if (not tokenIsValid)}}
+      {{#unless tokenIsValid}}
         <div class="field">
           <label class="label">Secret ID</label>
           <div class="control">
@@ -32,8 +32,8 @@
           <p class="help">Sent with every request to determine authorization</p>
         </div>
 
-        <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}}>Set Token</button></p>
-      {{/if}}
+        <p class="content"><button data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button></p>
+      {{/unless}}
 
       {{#if tokenIsValid}}
         <div data-test-token-success class="notification is-success">

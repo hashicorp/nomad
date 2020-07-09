@@ -19,7 +19,8 @@
   aria-label="decrement"
   class="stepper-input-stepper button {{class}}"
   disabled={{or disabled (lte internalValue min)}}
-  onclick={{action "decrement"}}>
+  onclick={{action "decrement"}}
+  type="button">
   {{x-icon "minus-plain"}}
 </button>
 <button
@@ -28,6 +29,7 @@
   aria-label="increment"
   class="stepper-input-stepper button {{class}}"
   disabled={{or disabled (gte internalValue max)}}
-  onclick={{action "increment"}}>
+  onclick={{action "increment"}}
+  type="button">
   {{x-icon "plus-plain"}}
 </button>

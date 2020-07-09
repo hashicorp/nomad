@@ -10,7 +10,7 @@
       @onChange={{action setLevel}} as |level|>
       <span class="ember-power-select-prefix">Level: </span>{{capitalize level}}
     </PowerSelect>
-    <button data-test-toggle class="button is-white is-compact pull-right" {{action toggleStream}}>
+    <button data-test-toggle class="button is-white is-compact pull-right" {{action toggleStream}} type="button">
       {{x-icon (if logger.isStreaming "media-pause" "media-play") class="is-text"}}
     </button>
   </div>

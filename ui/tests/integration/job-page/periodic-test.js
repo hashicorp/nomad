@@ -28,12 +28,12 @@ module('Integration | Component | job-page/periodic', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{job-page/periodic
-      job=job
-      sortProperty=sortProperty
-      sortDescending=sortDescending
-      currentPage=currentPage
-      gotoJob=gotoJob}}
+    <JobPage::Periodic
+      @job={{job}}
+      @sortProperty={{sortProperty}}
+      @sortDescending={{sortDescending}}
+      @currentPage={{currentPage}}
+      @gotoJob={{gotoJob}} />
   `;
 
   const commonProperties = job => ({

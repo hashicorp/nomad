@@ -1,4 +1,4 @@
-<button {{action "toggleOpen"}} class="toggle-button {{if hasPendingAllocations "is-loading"}}" data-test-task-group-name>
+<button {{action "toggleOpen"}} class="toggle-button {{if hasPendingAllocations "is-loading"}}" data-test-task-group-name type="button">
   {{x-icon (if isOpen "chevron-down" "chevron-right")}}
   {{taskGroup.name}}
 </button>
@@ -6,7 +6,7 @@
   <ul class="task-list">
     {{#each sortedTasks as |task|}}
       {{#if shouldOpenInNewWindow}}
-        <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} class="task-item" data-test-task>
+        <a {{on "click" (action "openInNewWindow" taskGroup.job taskGroup task)}} href="#" class="task-item" data-test-task>
           <Exec::TaskContents
             @task={{task}}
             @active={{and currentRouteIsThisTaskGroup (eq task.name activeTaskName)}}

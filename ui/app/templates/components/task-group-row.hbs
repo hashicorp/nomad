@@ -16,7 +16,8 @@
         aria-label="decrement"
         class="button is-xsmall is-light"
         disabled={{or isMinimum runningDeployment (cannot "scale job")}}
-        onclick={{action "countDown"}}>
+        onclick={{action "countDown"}}
+        type="button">
         {{x-icon "minus-plain" class="is-text"}}
       </button>
       <button
@@ -25,7 +26,8 @@
         aria-label="increment"
         class="button is-xsmall is-light"
         disabled={{or isMaximum runningDeployment (cannot "scale job")}}
-        onclick={{action "countUp"}}>
+        onclick={{action "countUp"}}
+        type="button">
         {{x-icon "plus-plain" class="is-text"}}
       </button>
     </div>

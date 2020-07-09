@@ -22,9 +22,9 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
     this.set('job', {});
 
     await render(hbs`
-      {{#job-page/parts/body job=job}}
+      <JobPage::Parts::Body @job={{job}}>
         <div class="inner-content">Inner content</div>
-      {{/job-page/parts/body}}
+      </JobPage::Parts::Body>
     `);
 
     assert.ok(find('[data-test-subnav="job"]'), 'Job subnav is rendered');
@@ -40,9 +40,9 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
     this.set('job', job);
 
     await render(hbs`
-      {{#job-page/parts/body job=job}}
+      <JobPage::Parts::Body @job={{job}}>
         <div class="inner-content">Inner content</div>
-      {{/job-page/parts/body}}
+      </JobPage::Parts::Body>
     `);
 
     const subnavLabels = findAll('[data-test-tab]').map(anchor => anchor.textContent);
@@ -61,9 +61,9 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
     this.set('job', job);
 
     await render(hbs`
-      {{#job-page/parts/body job=job}}
+      <JobPage::Parts::Body @job={{job}}>
         <div class="inner-content">Inner content</div>
-      {{/job-page/parts/body}}
+      </JobPage::Parts::Body>
     `);
 
     const subnavLabels = findAll('[data-test-tab]').map(anchor => anchor.textContent);
@@ -76,9 +76,9 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
     this.set('job', {});
 
     await render(hbs`
-      {{#job-page/parts/body job=job}}
+      <JobPage::Parts::Body @job={{job}}>
         <div class="inner-content">Inner content</div>
-      {{/job-page/parts/body}}
+      </JobPage::Parts::Body>
     `);
 
     assert.ok(

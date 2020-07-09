@@ -19,12 +19,12 @@ module('Integration | Component | toggle', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{#toggle
-      isActive=isActive
-      isDisabled=isDisabled
-      onToggle=onToggle}}
+    <Toggle
+      @isActive={{isActive}}
+      @isDisabled={{isDisabled}}
+      @onToggle={{onToggle}}>
       {{label}}
-    {{/toggle}}
+    </Toggle>
   `;
 
   test('presents as a label with an inner checkbox and display span, and text', async function(assert) {

@@ -26,15 +26,15 @@
     </div>
     <div class="boxed-section-body with-foot">
       <JobDeploymentDetails @deployment={{job.latestDeployment}} as |d|>
-        {{d.metrics}}
+        <d.metrics />
         {{#if isShowingDeploymentDetails}}
-          {{d.taskGroups}}
-          {{d.allocations}}
+          <d.taskGroups />
+          <d.allocations />
         {{/if}}
       </JobDeploymentDetails>
     </div>
     <div class="boxed-section-foot">
-      <a class="pull-right" {{action (toggle "isShowingDeploymentDetails" this)}} data-test-deployment-toggle-details>
+      <a class="pull-right" {{action (toggle "isShowingDeploymentDetails" this)}} href="#" data-test-deployment-toggle-details>
         {{if isShowingDeploymentDetails "Hide" "Show"}} deployment task groups and allocations
       </a>
     </div>

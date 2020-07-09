@@ -12,12 +12,12 @@
     <h4 class="group-heading">Drain Options</h4>
     <div class="field">
       <label class="label is-interactive">
-        {{#toggle
+        <Toggle
           data-test-drain-deadline-toggle
-          isActive=deadlineEnabled
-          onToggle=(action (mut deadlineEnabled) value="target.checked")}}
+          @isActive={{deadlineEnabled}}
+          @onToggle={{action (mut deadlineEnabled) value="target.checked"}}>
           Deadline
-        {{/toggle}}
+       </Toggle>
         <span class="tooltip multiline" aria-label="The amount of time a drain must complete within.">
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
@@ -53,12 +53,12 @@
     {{/if}}
     <div class="field">
       <label class="label is-interactive">
-        {{#toggle
+        <Toggle
           data-test-force-drain-toggle
-          isActive=forceDrain
-          onToggle=(action (mut forceDrain) value="target.checked")}}
+          @isActive={{forceDrain}}
+          @onToggle={{action (mut forceDrain) value="target.checked"}}>
           Force Drain
-        {{/toggle}}
+       </Toggle>
         <span class="tooltip multiline" aria-label="Immediately remove allocations from the client.">
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>
@@ -66,12 +66,12 @@
     </div>
     <div class="field">
       <label class="label is-interactive">
-        {{#toggle
+        <Toggle
           data-test-system-jobs-toggle
-          isActive=drainSystemJobs
-          onToggle=(action (mut drainSystemJobs) value="target.checked")}}
+          @isActive={{drainSystemJobs}}
+          @onToggle={{action (mut drainSystemJobs) value="target.checked"}}>
           Drain System Jobs
-        {{/toggle}}
+       </Toggle>
         <span class="tooltip multiline" aria-label="Stop allocations for system jobs.">
           {{x-icon "info-circle-outline" class="is-faded"}}
         </span>

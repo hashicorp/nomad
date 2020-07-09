@@ -10,7 +10,7 @@
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}}>Okay</button>
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut eligibilityError) ""}} type="button">Okay</button>
       </div>
     </div>
   {{/if}}
@@ -23,7 +23,7 @@
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-dismiss class="button is-danger" onclick={{action (mut stopDrainError) ""}}>Okay</button>
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut stopDrainError) ""}} type="button">Okay</button>
       </div>
     </div>
   {{/if}}
@@ -36,7 +36,7 @@
         </div>
       </div>
       <div class="column is-centered is-minimum">
-        <button data-test-dismiss class="button is-danger" onclick={{action (mut drainError) ""}}>Okay</button>
+        <button data-test-dismiss class="button is-danger" onclick={{action (mut drainError) ""}} type="button">Okay</button>
       </div>
     </div>
   {{/if}}
@@ -48,7 +48,7 @@
           <p data-test-message>The drain has been stopped and the node has been set to ineligible.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainStoppedNotification) false}}>Okay</button>
+          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainStoppedNotification) false}} type="button">Okay</button>
         </div>
       </div>
     </div>
@@ -61,7 +61,7 @@
           <p data-test-message>The new drain specification has been applied.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainUpdateNotification) false}}>Okay</button>
+          <button data-test-dismiss class="button is-info" onclick={{action (mut showDrainUpdateNotification) false}} type="button">Okay</button>
         </div>
       </div>
     </div>
@@ -74,7 +74,7 @@
           <p data-test-message>Allocations have been drained and the node has been set to ineligible.</p>
         </div>
         <div class="column is-centered is-minimum">
-          <button data-test-dimiss class="button is-info" onclick={{action (mut showDrainNotification) false}}>Okay</button>
+          <button data-test-dimiss class="button is-info" onclick={{action (mut showDrainNotification) false}} type="button">Okay</button>
         </div>
       </div>
     </div>
@@ -93,13 +93,13 @@
       </h1>
       <p>
         <label class="is-interactive">
-          {{#toggle
+          <Toggle
             data-test-eligibility-toggle
-            isActive=model.isEligible
-            isDisabled=(or setEligibility.isRunning model.isDraining (cannot "write client"))
-            onToggle=(perform setEligibility (not model.isEligible))}}
+            @isActive={{model.isEligible}}
+            @isDisabled={{or setEligibility.isRunning model.isDraining (cannot "write client")}}
+            @onToggle={{perform setEligibility (not model.isEligible)}}>
             Eligible
-          {{/toggle}}
+          </Toggle>
           <span class="tooltip" aria-label="Only eligible clients can receive allocations">
             {{x-icon "info-circle-outline" class="is-faded"}}
           </span>
@@ -164,7 +164,7 @@
         <div class="boxed-section-row">Drain Strategy</div>
         <div class="boxed-section-row">
           <div class="inline-definitions is-small">
-            {{#if (not model.drainStrategy.hasNoDeadline)}}
+            {{#unless model.drainStrategy.hasNoDeadline}}
               <span class="pair">
                 <span class="term">Duration</span>
                 {{#if model.drainStrategy.isForced}}
@@ -175,7 +175,7 @@
                   </span>
                 {{/if}}
               </span>
-            {{/if}}
+            {{/unless}}
             <span class="pair">
               <span class="term">{{if model.drainStrategy.hasNoDeadline "Deadline" "Remaining"}}</span>
               {{#if model.drainStrategy.hasNoDeadline}}
@@ -201,7 +201,7 @@
               {{if model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
             </span>
           </div>
-          {{#if (not model.drainStrategy.isForced)}}
+          {{#unless model.drainStrategy.isForced}}
             <div class="pull-right">
               <TwoStepButton
                 data-test-force
@@ -214,7 +214,7 @@
                 @awaitingConfirmation={{forceDrain.isRunning}}
                 @onConfirm={{perform forceDrain}} />
             </div>
-          {{/if}}
+          {{/unless}}
         </div>
       </div>
       <div class="boxed-section-body">
@@ -272,11 +272,11 @@
     <div class="boxed-section-head">
       <div>
         Allocations
-        <button role="button" class="badge is-white" onclick={{action "setPreemptionFilter" false}} data-test-filter-all>
+        <button role="button" class="badge is-white" onclick={{action "setPreemptionFilter" false}} data-test-filter-all type="button">
           {{model.allocations.length}}
         </button>
         {{#if preemptions.length}}
-          <button role="button" class="badge is-warning" onclick={{action "setPreemptionFilter" true}} data-test-filter-preemptions>
+          <button role="button" class="badge is-warning" onclick={{action "setPreemptionFilter" true}} data-test-filter-preemptions type="button">
             {{preemptions.length}} {{pluralize "preemption" preemptions.length}}
           </button>
         {{/if}}
