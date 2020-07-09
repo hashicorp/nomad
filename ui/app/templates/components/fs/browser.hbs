@@ -1,19 +1,19 @@
-<section class="section is-closer {{if isFile "is-full-width"}}">
-  {{#if model.isRunning}}
-    {{#if isFile}}
-      <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{path}} @stat={{stat}} @class="fs-explorer">
-        <Fs::Breadcrumbs @allocation={{allocation}} @taskState={{taskState}} @path={{path}} />
+<section class="section is-closer {{if this.isFile "is-full-width"}}">
+  {{#if this.model.isRunning}}
+    {{#if this.isFile}}
+      <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.path}} @stat={{this.stat}} @class="fs-explorer">
+        <Fs::Breadcrumbs @allocation={{this.allocation}} @taskState={{this.taskState}} @path={{this.path}} />
       </Fs::File>
     {{else}}
       <div class="fs-explorer boxed-section">
         <div class="boxed-section-head">
-          <Fs::Breadcrumbs @allocation={{allocation}} @taskState={{taskState}} @path={{path}} />
+          <Fs::Breadcrumbs @allocation={{this.allocation}} @taskState={{this.taskState}} @path={{this.path}} />
         </div>
-        {{#if directoryEntries}}
+        {{#if this.directoryEntries}}
           <ListTable
-            @source={{sortedDirectoryEntries}}
-            @sortProperty={{sortProperty}}
-            @sortDescending={{sortDescending}}
+            @source={{this.sortedDirectoryEntries}}
+            @sortProperty={{this.sortProperty}}
+            @sortDescending={{this.sortDescending}}
             @class="boxed-section-body is-full-bleed is-compact" as |t|>
             <t.head>
               <t.sort-by @prop="Name" @class="is-two-thirds">Name</t.sort-by>
@@ -21,7 +21,7 @@
               <t.sort-by @prop="ModTime" @class="has-text-right">Last Modified</t.sort-by>
             </t.head>
             <t.body as |row|>
-              <Fs::DirectoryEntry @path={{path}} @allocation={{allocation}} @taskState={{taskState}} @entry={{row.model}} />
+              <Fs::DirectoryEntry @path={{this.path}} @allocation={{this.allocation}} @taskState={{this.taskState}} @entry={{row.model}} />
             </t.body>
           </ListTable>
         {{else}}
@@ -38,9 +38,9 @@
     {{/if}}
   {{else}}
     <div data-test-not-running class="empty-message">
-      <h3 data-test-not-running-headline class="empty-message-headline">{{capitalize type}} is not Running</h3>
+      <h3 data-test-not-running-headline class="empty-message-headline">{{capitalize this.type}} is not Running</h3>
       <p data-test-not-running-body class="empty-message-body">
-        Cannot access files of a{{if allocation 'n'}} {{type}} that is not running.
+        Cannot access files of a{{if this.allocation 'n'}} {{this.type}} that is not running.
       </p>
     </div>
   {{/if}}

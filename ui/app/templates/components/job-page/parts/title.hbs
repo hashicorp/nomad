@@ -1,13 +1,13 @@
 <h1 class="title with-flex">
   <div>
-    {{or title job.name}}
-    <span class="bumper-left tag {{job.statusClass}}" data-test-job-status>{{job.status}}</span>
+    {{or this.title this.job.name}}
+    <span class="bumper-left tag {{this.job.statusClass}}" data-test-job-status>{{this.job.status}}</span>
   </div>
   {{yield}}
   <div>
-    {{#if (not (eq job.status "dead"))}}
+    {{#if (not (eq this.job.status "dead"))}}
       <div class="two-step-button">
-        <Exec::OpenButton @job={{job}} />
+        <Exec::OpenButton @job={{this.job}} />
       </div>
       <TwoStepButton
         data-test-stop
@@ -16,8 +16,8 @@
         @cancelText="Cancel"
         @confirmText="Yes, Stop"
         @confirmationMessage="Are you sure you want to stop this job?"
-        @awaitingConfirmation={{stopJob.isRunning}}
-        @onConfirm={{perform stopJob}} />
+        @awaitingConfirmation={{this.stopJob.isRunning}}
+        @onConfirm={{perform this.stopJob}} />
     {{else}}
       <TwoStepButton
         data-test-start
@@ -26,8 +26,8 @@
         @cancelText="Cancel"
         @confirmText="Yes, Start"
         @confirmationMessage="Are you sure you want to start this job?"
-        @awaitingConfirmation={{startJob.isRunning}}
-        @onConfirm={{perform startJob}} />
+        @awaitingConfirmation={{this.startJob.isRunning}}
+        @onConfirm={{perform this.startJob}} />
     {{/if}}
   </div>
 </h1>

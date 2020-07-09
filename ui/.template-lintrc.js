@@ -34,5 +34,6 @@ module.exports = {
 
     // remove when moving from extending `recommended` to `octane`
     'no-curly-component-invocation': true,
+    'no-implicit-this': true,
   },
 };

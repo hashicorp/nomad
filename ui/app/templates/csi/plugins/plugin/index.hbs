@@ -1,37 +1,37 @@
-{{title "CSI Plugin " model.plainId}}
+{{title "CSI Plugin " this.model.plainId}}
 <div data-test-subnav="plugins" class="tabs is-subnav">
   <ul>
-    <li data-test-tab="overview"><LinkTo @route="csi.plugins.plugin.index" @model={{model}} @activeClass="is-active">Overview</LinkTo></li>
-    <li data-test-tab="allocations"><LinkTo @route="csi.plugins.plugin.allocations" @model={{model}} @activeClass="is-active">Allocations</LinkTo></li>
+    <li data-test-tab="overview"><LinkTo @route="csi.plugins.plugin.index" @model={{this.model}} @activeClass="is-active">Overview</LinkTo></li>
+    <li data-test-tab="allocations"><LinkTo @route="csi.plugins.plugin.allocations" @model={{this.model}} @activeClass="is-active">Allocations</LinkTo></li>
   </ul>
 </div>
 <section class="section">
-  <h1 class="title" data-test-title>{{model.plainId}}</h1>
+  <h1 class="title" data-test-title>{{this.model.plainId}}</h1>
 
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Plugin Details</span>
-      {{#if model.controllerRequired}}
+      {{#if this.model.controllerRequired}}
         <span class="pair" data-test-plugin-controller-health>
           <span class="term">Controller Health</span>
-          {{format-percentage model.controllersHealthy total=model.controllersExpected}}
-          ({{model.controllersHealthy}}/{{model.controllersExpected}})
+          {{format-percentage this.model.controllersHealthy total=this.model.controllersExpected}}
+          ({{this.model.controllersHealthy}}/{{this.model.controllersExpected}})
         </span>
       {{/if}}
       <span class="pair" data-test-plugin-node-health>
         <span class="term">Node Health</span>
-        {{format-percentage model.nodesHealthy total=model.nodesExpected}}
-        ({{model.nodesHealthy}}/{{model.nodesExpected}})
+        {{format-percentage this.model.nodesHealthy total=this.model.nodesExpected}}
+        ({{this.model.nodesHealthy}}/{{this.model.nodesExpected}})
       </span>
       <span class="pair" data-test-plugin-provider>
         <span class="term">Provider</span>
-        {{model.provider}}
+        {{this.model.provider}}
       </span>
     </div>
   </div>
 
   <div class="columns">
-    {{#if model.controllerRequired}}
+    {{#if this.model.controllerRequired}}
       <div class="column" data-test-plugin-controller-availability>
         <div class="boxed-section">
           <div class="boxed-section-head is-hollow">Controller Health</div>
@@ -40,19 +40,19 @@
               <div class="column is-half">
                 <GaugeChart
                   @label="Availability"
-                  @value={{model.controllersHealthy}}
-                  @total={{model.controllersExpected}} />
+                  @value={{this.model.controllersHealthy}}
+                  @total={{this.model.controllersExpected}} />
               </div>
               <div class="column">
                 <div class="metric">
                   <h3 class="label">Available</h3>
-                  <p class="value">{{model.controllersHealthy}}</p>
+                  <p class="value">{{this.model.controllersHealthy}}</p>
                 </div>
               </div>
               <div class="column">
                 <div class="metric">
                   <h3 class="label">Expected</h3>
-                  <p class="value">{{model.controllersExpected}}</p>
+                  <p class="value">{{this.model.controllersExpected}}</p>
                 </div>
               </div>
             </div>
@@ -64,23 +64,23 @@
       <div class="boxed-section" data-test-plugin-node-availability>
         <div class="boxed-section-head is-hollow">Node Health</div>
         <div class="boxed-section-body">
-          <div class="columns is-centered is-bottom-aligned {{unless model.controllerRequired "is-max-half"}}">
+          <div class="columns is-centered is-bottom-aligned {{unless this.model.controllerRequired "is-max-half"}}">
             <div class="column is-half">
               <GaugeChart
                 @label="Availability"
-                @value={{model.nodesHealthy}}
-                @total={{model.nodesExpected}} />
+                @value={{this.model.nodesHealthy}}
+                @total={{this.model.nodesExpected}} />
             </div>
             <div class="column">
               <div class="metric">
                 <h3 class="label">Available</h3>
-                <p class="value">{{model.nodesHealthy}}</p>
+                <p class="value">{{this.model.nodesHealthy}}</p>
               </div>
             </div>
             <div class="column">
               <div class="metric">
                 <h3 class="label">Expected</h3>
-                <p class="value">{{model.nodesExpected}}</p>
+                <p class="value">{{this.model.nodesExpected}}</p>
               </div>
             </div>
           </div>
@@ -89,15 +89,15 @@
     </div>
   </div>
 
-  {{#if model.controllerRequired}}
+  {{#if this.model.controllerRequired}}
     <div class="boxed-section" data-test-controller-allocations>
       <div class="boxed-section-head">
         Controller Allocations
       </div>
-      <div class="boxed-section-body {{if model.controllers "is-full-bleed"}}">
-        {{#if model.controllers}}
+      <div class="boxed-section-body {{if this.model.controllers "is-full-bleed"}}">
+        {{#if this.model.controllers}}
           <ListTable
-            @source={{take 10 sortedControllers}}
+            @source={{take 10 this.sortedControllers}}
             @class="with-foot" as |t|>
             <t.head>
               <th class="is-narrow"></th>
@@ -125,15 +125,15 @@
           </div>
         {{/if}}
       </div>
-      {{#if model.controllers}}
+      {{#if this.model.controllers}}
         <div class="boxed-section-foot">
           <p class="pull-right">
           <LinkTo
             @route="csi.plugins.plugin.allocations"
-            @model={{model}}
+            @model={{this.model}}
             @query={{hash qpType=(qp-serialize (array "controller"))}}
             data-test-go-to-controller-allocations>
-            View all {{model.controllers.length}} Controller {{pluralize "allocation" model.controllers.length}}
+            View all {{this.model.controllers.length}} Controller {{pluralize "allocation" this.model.controllers.length}}
           </LinkTo>
           </p>
         </div>
@@ -145,10 +145,10 @@
     <div class="boxed-section-head">
       Node Allocations
     </div>
-    <div class="boxed-section-body {{if model.nodes "is-full-bleed"}}">
-      {{#if model.nodes}}
+    <div class="boxed-section-body {{if this.model.nodes "is-full-bleed"}}">
+      {{#if this.model.nodes}}
         <ListTable
-          @source={{take 10 sortedNodes}}
+          @source={{take 10 this.sortedNodes}}
           @class="with-foot" as |t|>
           <t.head>
             <th class="is-narrow"></th>
@@ -176,15 +176,15 @@
         </div>
       {{/if}}
     </div>
-    {{#if model.nodes}}
+    {{#if this.model.nodes}}
       <div class="boxed-section-foot">
         <p class="pull-right">
         <LinkTo
           @route="csi.plugins.plugin.allocations"
-          @model={{model}}
+          @model={{this.model}}
           @query={{hash qpType=(qp-serialize (array "node"))}}
           data-test-go-to-node-allocations>
-          View all {{model.nodes.length}} Node {{pluralize "allocation" model.nodes.length}}
+          View all {{this.model.nodes.length}} Node {{pluralize "allocation" this.model.nodes.length}}
         </LinkTo>
         </p>
       </div>

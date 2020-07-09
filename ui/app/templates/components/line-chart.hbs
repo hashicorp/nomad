@@ -1,37 +1,37 @@
-<svg data-test-line-chart role="img" aria-labelledby="{{concat "title-" elementId}} {{concat "desc-" elementId}}">
-  <title id="{{concat "title-" elementId}}">{{title}}</title>
-  <description id="{{concat "desc-" elementId}}">
-    {{#if description}}
-      {{description}}
+<svg data-test-line-chart role="img" aria-labelledby="{{concat "title-" this.elementId}} {{concat "desc-" this.elementId}}">
+  <title id="{{concat "title-" this.elementId}}">{{this.title}}</title>
+  <description id="{{concat "desc-" this.elementId}}">
+    {{#if this.description}}
+      {{this.description}}
     {{else}}
-      X-axis values range from {{xRange.firstObject}} to {{xRange.lastObject}},
-      and Y-axis values range from {{yRange.firstObject}} to {{yRange.lastObject}}.
+      X-axis values range from {{this.xRange.firstObject}} to {{this.xRange.lastObject}},
+      and Y-axis values range from {{this.yRange.firstObject}} to {{this.yRange.lastObject}}.
     {{/if}}
   </description>
   <defs>
-    <linearGradient x1="0" x2="0" y1="0" y2="1" class="{{chartClass}}" id="{{fillId}}">
+    <linearGradient x1="0" x2="0" y1="0" y2="1" class="{{this.chartClass}}" id="{{this.fillId}}">
       <stop class="start" offset="0%" />
       <stop class="end" offset="100%" />
     </linearGradient>
-    <clipPath id="{{maskId}}">
-      <path class="fill" d="{{area}}" />
+    <clipPath id="{{this.maskId}}">
+      <path class="fill" d="{{this.area}}" />
     </clipPath>
   </defs>
-  <g class="y-gridlines gridlines" transform="translate({{yAxisOffset}}, 0)"></g>
-  <g class="canvas {{chartClass}}">
-    <path class="line" d="{{line}}" />
-    <rect class="area" x="0" y="0" width="{{yAxisOffset}}" height="{{xAxisOffset}}" fill="url(#{{fillId}})" clip-path="url(#{{maskId}})" />
-    <rect class="hover-target" x="0" y="0" width="{{yAxisOffset}}" height="{{xAxisOffset}}" />
+  <g class="y-gridlines gridlines" transform="translate({{this.yAxisOffset}}, 0)"></g>
+  <g class="canvas {{this.chartClass}}">
+    <path class="line" d="{{this.line}}" />
+    <rect class="area" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" fill="url(#{{this.fillId}})" clip-path="url(#{{this.maskId}})" />
+    <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
   </g>
-  <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{xAxisOffset}})"></g>
-  <g aria-hidden="true" class="y-axis axis" transform="translate({{yAxisOffset}}, 0)"></g>
+  <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
+  <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
 </svg>
-<div class="chart-tooltip is-snappy {{if isActive "active" "inactive"}}" style={{tooltipStyle}}>
+<div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
   <p>
     <span class="label">
-      <span class="color-swatch {{chartClass}}" />
-      {{activeDatumLabel}}
+      <span class="color-swatch {{this.chartClass}}" />
+      {{this.activeDatumLabel}}
     </span>
-    <span class="value">{{activeDatumValue}}</span>
+    <span class="value">{{this.activeDatumValue}}</span>
   </p>
 </div>

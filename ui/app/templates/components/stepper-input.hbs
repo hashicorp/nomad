@@ -5,10 +5,10 @@
 <input
   data-test-stepper-input
   type="number"
-  min={{min}}
-  max={{max}}
-  value={{internalValue}}
-  disabled={{disabled}}
+  min={{this.min}}
+  max={{this.max}}
+  value={{this.internalValue}}
+  disabled={{this.disabled}}
   class="stepper-input-input"
   onFocus={{action "selectValue"}}
   onKeyDown={{action "resetTextInput"}}
@@ -17,8 +17,8 @@
   data-test-stepper-decrement
   role="button"
   aria-label="decrement"
-  class="stepper-input-stepper button {{class}}"
-  disabled={{or disabled (lte internalValue min)}}
+  class="stepper-input-stepper button {{this.class}}"
+  disabled={{or this.disabled (lte this.internalValue this.min)}}
   onclick={{action "decrement"}}
   type="button">
   {{x-icon "minus-plain"}}
@@ -27,8 +27,8 @@
   data-test-stepper-increment
   role="button"
   aria-label="increment"
-  class="stepper-input-stepper button {{class}}"
-  disabled={{or disabled (gte internalValue max)}}
+  class="stepper-input-stepper button {{this.class}}"
+  disabled={{or this.disabled (gte this.internalValue this.max)}}
   onclick={{action "increment"}}
   type="button">
   {{x-icon "plus-plain"}}

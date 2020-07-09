@@ -1,29 +1,29 @@
 <ol class="timeline">
-  {{#if allocation.nextAllocation}}
+  {{#if this.allocation.nextAllocation}}
     <RescheduleEventRow
       @label="Next Allocation"
-      @allocation={{allocation.nextAllocation}}
-      @time={{allocation.nextAllocation.modifyTime}} />
+      @allocation={{this.allocation.nextAllocation}}
+      @time={{this.allocation.nextAllocation.modifyTime}} />
   {{/if}}
-  {{#if allocation.hasStoppedRescheduling}}
+  {{#if this.allocation.hasStoppedRescheduling}}
     <li class="timeline-note" data-test-stop-warning>
       {{x-icon "warning" class="is-warning is-text"}} Nomad has stopped attempting to reschedule this allocation.
     </li>
   {{/if}}
-  {{#if (and allocation.followUpEvaluation.waitUntil (not allocation.nextAllocation))}}
+  {{#if (and this.allocation.followUpEvaluation.waitUntil (not this.allocation.nextAllocation))}}
     <li class="timeline-note" data-test-attempt-notice>
       {{x-icon "clock" class="is-info is-text"}} Nomad will attempt to reschedule
-      <span class="tooltip" aria-label="{{format-ts allocation.followUpEvaluation.waitUntil}}">
-        {{moment-from-now allocation.followUpEvaluation.waitUntil interval=1000}}
+      <span class="tooltip" aria-label="{{format-ts this.allocation.followUpEvaluation.waitUntil}}">
+        {{moment-from-now this.allocation.followUpEvaluation.waitUntil interval=1000}}
       </span>
     </li>
   {{/if}}
   <RescheduleEventRow
-    @allocation={{allocation}}
+    @allocation={{this.allocation}}
     @linkToAllocation={{false}}
-    @time={{allocation.modifyTime}} />
+    @time={{this.allocation.modifyTime}} />
 
-  {{#each (reverse allocation.rescheduleEvents) as |event|}}
+  {{#each (reverse this.allocation.rescheduleEvents) as |event|}}
     <RescheduleEventRow
       @allocationId={{event.previousAllocationId}}
       @time={{event.time}} />

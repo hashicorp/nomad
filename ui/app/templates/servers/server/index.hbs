@@ -1,9 +1,9 @@
-{{title "Server " model.name}}
-<ServerSubnav @server={{model}} />
+{{title "Server " this.model.name}}
+<ServerSubnav @server={{this.model}} />
 <section class="section">
   <h1 data-test-title class="title">
-    Server {{model.name}}
-    {{#if model.isLeader}}
+    Server {{this.model.name}}
+    {{#if this.model.isLeader}}
       <span data-test-leader-badge class="bumper-left tag is-primary">Leader</span>
     {{/if}}
   </h1>
@@ -11,13 +11,13 @@
     <div data-test-server-details class="boxed-section-body inline-definitions">
       <span class="label">Server Details</span>
       <span data-test-status class="pair"><span class="term">Status</span>
-        {{model.status}}
+        {{this.model.status}}
       </span>
       <span data-test-address class="pair"><span class="term">Address</span>
-        {{model.rpcAddr}}
+        {{this.model.rpcAddr}}
       </span>
       <span data-test-datacenter class="pair"><span class="term">Datacenter</span>
-        {{model.datacenter}}
+        {{this.model.datacenter}}
       </span>
     </div>
   </div>
@@ -26,7 +26,7 @@
       Server Tags
     </div>
     <div class="boxed-section-body is-full-bleed">
-      <ListTable @source={{sortedTags}} @class="is-striped" as |t|>
+      <ListTable @source={{this.sortedTags}} @class="is-striped" as |t|>
         <t.head>
           <td class="is-one-quarter">Name</td>
           <td>Value</td>

@@ -1,5 +1,5 @@
-{{title "Task " model.name " logs"}}
-<TaskSubnav @task={{model}} />
+{{title "Task " this.model.name " logs"}}
+<TaskSubnav @task={{this.model}} />
 <section class="section is-full-width">
-  <TaskLog data-test-task-log @allocation={{model.allocation}} @task={{model.name}} />
+  <TaskLog data-test-task-log @allocation={{this.model.allocation}} @task={{this.model.name}} />
 </section>
