@@ -253,7 +253,7 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 		return nil, CodedError(404, "plugin not found")
 	}
 
-	return out.Plugin, nil
+	return structsCSIPluginToApi(out.Plugin), nil
 }
 
 // structsCSIPluginToApi converts CSIPlugin, setting Expected the count of known plugin
