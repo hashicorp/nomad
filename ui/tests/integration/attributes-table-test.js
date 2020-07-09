@@ -28,7 +28,7 @@ module('Integration | Component | attributes table', function(hooks) {
 
   test('should render a row for each key/value pair in a deep object', async function(assert) {
     this.set('attributes', commonAttributes);
-    await render(hbs`<AttributesTable @attributes={{attributes}} />`);
+    await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
 
     const rowsCount = Object.keys(flatten(commonAttributes)).length;
     assert.equal(
@@ -40,7 +40,7 @@ module('Integration | Component | attributes table', function(hooks) {
 
   test('should render the full path of key/value pair from the root of the object', async function(assert) {
     this.set('attributes', commonAttributes);
-    await render(hbs`<AttributesTable @attributes={{attributes}} />`);
+    await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
 
     assert.equal(find('[data-test-key]').textContent.trim(), 'key', 'Row renders the key');
     assert.equal(find('[data-test-value]').textContent.trim(), 'value', 'Row renders the value');
@@ -61,7 +61,7 @@ module('Integration | Component | attributes table', function(hooks) {
 
   test('should render a row for key/value pairs even when the value is another object', async function(assert) {
     this.set('attributes', commonAttributes);
-    await render(hbs`<AttributesTable @attributes={{attributes}} />`);
+    await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
 
     const countOfParentRows = countOfParentKeys(commonAttributes);
     assert.equal(
