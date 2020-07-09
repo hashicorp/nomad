@@ -12,12 +12,6 @@ export default function DownloadsPage({ releaseData }) {
         version={VERSION}
         releaseData={releaseData}
         community="/resources"
-        prerelease={{
-          type: 'Beta 2',
-          name: 'v0.12.0',
-          version: '0.12.0-beta2'
-        }}
-
       />
     </div>
   )
