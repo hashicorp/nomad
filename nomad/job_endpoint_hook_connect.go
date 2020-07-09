@@ -178,6 +178,9 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			}
 		}
 	}
+
+	// re-canonicalize group network since this hook runs after canonicalizaton
+	g.Networks[0].Canonicalize()
 	return nil
 }
 
