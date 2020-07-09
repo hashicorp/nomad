@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -253,4 +254,188 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 	}
 
 	return out.Plugin, nil
+}
+
+// structsCSIPluginToApi converts CSIPlugin, setting Expected the count of known plugin
+// instances
+func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
+	out := &api.CSIPlugin{
+		ID:                  plug.ID,
+		Provider:            plug.Provider,
+		Version:             plug.Version,
+		ControllerRequired:  plug.ControllerRequired,
+		ControllersHealthy:  plug.ControllersHealthy,
+		ControllersExpected: len(plug.Controllers),
+		NodesHealthy:        plug.NodesHealthy,
+		NodesExpected:       len(plug.Nodes),
+		CreateIndex:         plug.CreateIndex,
+		ModifyIndex:         plug.ModifyIndex,
+	}
+
+	for k, v := range plug.Controllers {
+		out.Controllers[k] = structsCSIInfoToApi(v)
+	}
+
+	for k, v := range plug.Nodes {
+		out.Nodes[k] = structsCSIInfoToApi(v)
+	}
+
+	for _, a := range plug.Allocations {
+		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a))
+	}
+
+	return out
+}
+
+// structsCSIInfoToApi converts CSIInfo, part of CSIPlugin
+func structsCSIInfoToApi(info *structs.CSIInfo) *api.CSIInfo {
+	out := &api.CSIInfo{
+		PluginID:                 info.PluginID,
+		Healthy:                  info.Healthy,
+		HealthDescription:        info.HealthDescription,
+		UpdateTime:               info.UpdateTime,
+		RequiresControllerPlugin: info.RequiresControllerPlugin,
+		RequiresTopologies:       info.RequiresTopologies,
+	}
+
+	if info.ControllerInfo != nil {
+		out.ControllerInfo = &api.CSIControllerInfo{
+			SupportsReadOnlyAttach:           info.ControllerInfo.SupportsReadOnlyAttach,
+			SupportsAttachDetach:             info.ControllerInfo.SupportsAttachDetach,
+			SupportsListVolumes:              info.ControllerInfo.SupportsListVolumes,
+			SupportsListVolumesAttachedNodes: info.ControllerInfo.SupportsListVolumesAttachedNodes,
+		}
+	}
+
+	if info.NodeInfo != nil {
+		out.NodeInfo = &api.CSINodeInfo{
+			ID:                      info.NodeInfo.ID,
+			MaxVolumes:              info.NodeInfo.MaxVolumes,
+			RequiresNodeStageVolume: info.NodeInfo.RequiresNodeStageVolume,
+		}
+
+		if info.NodeInfo.AccessibleTopology != nil {
+			out.NodeInfo.AccessibleTopology = &api.CSITopology{}
+			out.NodeInfo.AccessibleTopology.Segments = info.NodeInfo.AccessibleTopology.Segments
+		}
+	}
+
+	return out
+}
+
+// structsAllocListStubToApi converts AllocListStub, for CSIPlugin
+func structsAllocListStubToApi(alloc *structs.AllocListStub) *api.AllocationListStub {
+	out := &api.AllocationListStub{
+		ID:                    alloc.ID,
+		EvalID:                alloc.EvalID,
+		Name:                  alloc.Name,
+		Namespace:             alloc.Namespace,
+		NodeID:                alloc.NodeID,
+		NodeName:              alloc.NodeName,
+		JobID:                 alloc.JobID,
+		JobType:               alloc.JobType,
+		JobVersion:            alloc.JobVersion,
+		TaskGroup:             alloc.TaskGroup,
+		DesiredStatus:         alloc.DesiredStatus,
+		DesiredDescription:    alloc.DesiredDescription,
+		ClientStatus:          alloc.ClientStatus,
+		ClientDescription:     alloc.ClientDescription,
+		FollowupEvalID:        alloc.FollowupEvalID,
+		PreemptedAllocations:  alloc.PreemptedAllocations,
+		PreemptedByAllocation: alloc.PreemptedByAllocation,
+		CreateIndex:           alloc.CreateIndex,
+		ModifyIndex:           alloc.ModifyIndex,
+		CreateTime:            alloc.CreateTime,
+		ModifyTime:            alloc.ModifyTime,
+	}
+
+	out.DeploymentStatus = structsAllocDeploymentStatusToApi(alloc.DeploymentStatus)
+	out.RescheduleTracker = structsRescheduleTrackerToApi(alloc.RescheduleTracker)
+
+	for k, v := range alloc.TaskStates {
+		out.TaskStates[k] = structsTaskStateToApi(v)
+	}
+
+	return out
+}
+
+// structsAllocDeploymentStatusToApi converts RescheduleTracker, part of AllocListStub
+func structsAllocDeploymentStatusToApi(ads *structs.AllocDeploymentStatus) *api.AllocDeploymentStatus {
+	out := &api.AllocDeploymentStatus{
+		Healthy:     ads.Healthy,
+		Timestamp:   ads.Timestamp,
+		Canary:      ads.Canary,
+		ModifyIndex: ads.ModifyIndex,
+	}
+	return out
+}
+
+// structsRescheduleTrackerToApi converts RescheduleTracker, part of AllocListStub
+func structsRescheduleTrackerToApi(rt *structs.RescheduleTracker) *api.RescheduleTracker {
+	out := &api.RescheduleTracker{}
+
+	for _, e := range rt.Events {
+		out.Events = append(out.Events, &api.RescheduleEvent{
+			RescheduleTime: e.RescheduleTime,
+			PrevAllocID:    e.PrevAllocID,
+			PrevNodeID:     e.PrevNodeID,
+		})
+	}
+
+	return out
+}
+
+// structsTaskStateToApi converts TaskState, part of AllocListStub
+func structsTaskStateToApi(ts *structs.TaskState) *api.TaskState {
+	out := &api.TaskState{
+		State:       ts.State,
+		Failed:      ts.Failed,
+		Restarts:    ts.Restarts,
+		LastRestart: ts.LastRestart,
+		StartedAt:   ts.StartedAt,
+		FinishedAt:  ts.FinishedAt,
+	}
+
+	for _, te := range ts.Events {
+		out.Events = append(out.Events, structsTaskEventToApi(te))
+	}
+
+	return out
+}
+
+// structsTaskEventToApi converts TaskEvents, part of AllocListStub
+func structsTaskEventToApi(te *structs.TaskEvent) *api.TaskEvent {
+	out := &api.TaskEvent{
+		Type:           te.Type,
+		Time:           te.Time,
+		DisplayMessage: te.DisplayMessage,
+		Details:        te.Details,
+
+		// DEPRECATION NOTICE: The following fields are all deprecated. see TaskEvent struct in structs.go for details.
+		FailsTask:        te.FailsTask,
+		RestartReason:    te.RestartReason,
+		SetupError:       te.SetupError,
+		DriverError:      te.DriverError,
+		DriverMessage:    te.DriverMessage,
+		ExitCode:         te.ExitCode,
+		Signal:           te.Signal,
+		Message:          te.Message,
+		KillReason:       te.KillReason,
+		KillTimeout:      te.KillTimeout,
+		KillError:        te.KillError,
+		StartDelay:       te.StartDelay,
+		DownloadError:    te.DownloadError,
+		ValidationError:  te.ValidationError,
+		DiskLimit:        te.DiskLimit,
+		FailedSibling:    te.FailedSibling,
+		VaultError:       te.VaultError,
+		TaskSignalReason: te.TaskSignalReason,
+		TaskSignal:       te.TaskSignal,
+		GenericSource:    te.GenericSource,
+
+		// DiskSize is in the deprecated section of the api struct but is not in structs
+		// DiskSize:         te.DiskSize,
+	}
+
+	return out
 }
