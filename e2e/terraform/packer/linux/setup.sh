@@ -124,11 +124,12 @@ mkdir -p /usr/libexec/podman
 sudo mv catatonit* /usr/libexec/podman/catatonit
 sudo chmod +x /usr/libexec/podman/catatonit
 
-echo "Install podman task driver"
+echo "Install latest podman task driver"
 # install nomad-podman-driver and move to plugin dir
-wget -P /tmp https://github.com/pascomnet/nomad-driver-podman/releases/download/v0.0.3/nomad-driver-podman_linux_amd64.tar.gz 
-sudo tar -xf /tmp/nomad-driver-podman_linux_amd64.tar.gz -C /tmp
-sudo mv /tmp/nomad-driver-podman/nomad-driver-podman $NOMADPLUGINDIR
+latest_podman=$(curl -s https://releases.hashicorp.com/nomad-driver-podman/index.json | jq --raw-output '.versions |= with_entries(select(.key|match("^\\d+\\.\\d+\\.\\d+$"))) | .versions | keys[]' | sort -rV | head -n1)
+
+wget -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip
+sudo unzip /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
 sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
 
 # disable systemd-resolved and configure dnsmasq
