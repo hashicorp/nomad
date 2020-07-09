@@ -8,8 +8,8 @@
   {{#if this.taskGroup.scaling}}
   <div
     data-test-scale-controls
-    class="button-bar is-shadowless is-text bumper-left {{if (or runningDeployment (cannot "scale job")) "tooltip multiline"}}"
-    aria-label={{tooltipText}}>
+    class="button-bar is-shadowless is-text bumper-left {{if (or this.runningDeployment (cannot "scale job")) "tooltip multiline"}}"
+    aria-label={{this.tooltipText}}>
       <button
         data-test-scale="decrement"
         role="button"
