@@ -34,6 +34,14 @@ Automated Upgrades allows operators to deploy a complete cluster of new servers 
 
 See the [Autopilot - Upgrade Migrations](https://learn.hashicorp.com/nomad/operating-nomad/autopilot#upgrade-migrations) documentation for a thorough overview.
 
+### Automated Backups
+
+Automated Backups allows operators to run the snapshot agent as a long-running daemon process or in a one-shot mode from a batch job. The agent takes snapshots of the state of the Nomad servers and saves them locally, or pushes them to an optional remote storage service, such as Amazon S3.
+
+This capability provides an enterprise solution for backup and restoring the state of Nomad servers within an environment in an automated manner. These snapshots are atomic and point-in-time.
+
+See the [Operator Snapshot agent](https://www.nomadproject.io/docs/commands/operator/snapshot-agent) documentation for a thorough overview.
+
 ### Enhanced Read Scalability
 
 This feature enables an operator to introduce non-voting server nodes to a Nomad cluster. Non-voting servers will receive the replication stream but will not take part in quorum (required by the leader before log entries can be committed). Adding explicit non-voters will scale reads and scheduling without impacting write latency.
@@ -80,11 +88,10 @@ In Nomad Enterprise, operators can create Sentinel policies for fine-grained pol
 
 See the [Sentinel Policies Guide](https://learn.hashicorp.com/nomad/governance-and-policy/sentinel) for a thorough overview.
 
-### Preemption
+### Cross-Namespace Queries
+Cross-Namespace Queries allows operators to query jobs and allocations across all namespaces for faster operator debugging and visibility in multi-tenant clusters. This enterprise feature accelerates and simplifies the debugging process by allowing operators to easily locate faulty jobs and allocations from developers.
 
-When a Nomad cluster is at capacity for a given set of placement constraints, any allocations that result from a newly scheduled service or batch job will remain in the pending state until sufficient resources become available - regardless of the defined priority.
-
-Preemption enables Nomad's scheduler to automatically evict lower priority allocations of service and batch jobs so that allocations from higher priority jobs can be placed. This behavior ensures that critical workloads can run when resources are limited or when partial outages require workloads to be rescheduled across a smaller set of client nodes.
+See the [Nomad CLI commands](https://www.nomadproject.io/docs/commands/alloc/exec) documentation for a thorough overview.
 
 ## Multi-Cluster & Efficiency
 
