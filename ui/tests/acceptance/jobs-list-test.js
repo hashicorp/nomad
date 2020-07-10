@@ -452,5 +452,19 @@ module('Acceptance | jobs list', function(hooks) {
         'URL has the correct query param key and value'
       );
     });
+
+    test('the run job button works when filters are set', async function(assert) {
+      ['pre-one', 'pre-two', 'pre-three'].forEach(name => {
+        server.create('job', { name, createAllocations: false, childrenCount: 0 });
+      });
+
+      await JobsList.visit();
+
+      await JobsList.facets.prefix.toggle();
+      await JobsList.facets.prefix.options[0].toggle();
+
+      await JobsList.runJobButton.click();
+      assert.equal(currentURL(), '/jobs/run');
+    });
   }
 });

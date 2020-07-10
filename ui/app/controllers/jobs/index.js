@@ -163,6 +163,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
     return this.model
       .compact()
+      .filter(job => !job.isNew)
       .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
       .filter(job => !job.get('parent.content'));
   }
