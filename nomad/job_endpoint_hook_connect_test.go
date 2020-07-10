@@ -100,6 +100,7 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 			To:    -1,
 		},
 	}
+	tgOut.Networks[0].Canonicalize()
 
 	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
 	require.Exactly(t, tgOut, job.TaskGroups[0])
