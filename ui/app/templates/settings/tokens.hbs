@@ -12,7 +12,7 @@
             <p>Tokens are stored client-side in <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage">local storage</a>. This will persist your token across sessions. You can manually clear your token here.</p>
           </div>
           <div class="column is-centered is-minimum">
-            <button class="button is-info" {{action "clearTokenProperties"}} type="button">Clear Token</button>
+            <button data-test-token-clear class="button is-info" {{action "clearTokenProperties"}} type="button">Clear Token</button>
           </div>
         </div>
       </div>

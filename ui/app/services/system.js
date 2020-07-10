@@ -128,5 +128,6 @@ export default class SystemService extends Service {
 
   reset() {
     this.set('activeNamespace', null);
+    this.notifyPropertyChange('namespaces');
   }
 }
