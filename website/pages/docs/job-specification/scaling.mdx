@@ -10,7 +10,8 @@ description: The "scaling" stanza allows specifying scaling policy for a task gr
 <Placement groups={['job', 'group']} />
 
 The `scaling` stanza allows configuring scaling options for a task group, for the purpose
-of supporting external autoscalers like the [Nomad Autoscaler](https://github.com/hashicorp/nomad-autoscaler).
+of supporting external autoscalers like the [Nomad Autoscaler](https://github.com/hashicorp/nomad-autoscaler)
+and scaling via the Nomad UI.
 
 ```hcl
 job "example" {
