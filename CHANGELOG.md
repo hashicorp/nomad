@@ -1,5 +1,8 @@
 ## 0.12.1 (Unreleased)
 
+BUG FIXES:
+
+ * ui: Fixed order of column headers in client allocations table. [[GH-8409](https://github.com/hashicorp/nomad/pull/8409)]
 
 ## 0.12.0 (July 9, 2020)
 
