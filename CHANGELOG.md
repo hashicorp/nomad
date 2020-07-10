@@ -5,6 +5,7 @@ BUG FIXES:
  * ui: Fixed order of column headers in client allocations table. [[GH-8409](https://github.com/hashicorp/nomad/pull/8409)]
  * ui: Fixed stale namespaces after changing acl tokens. [[GH-8413](https://github.com/hashicorp/nomad/issues/8413)]
  * ui: Fixed missing namespace query param after changing acl tokens [[GH-8413](https://github.com/hashicorp/nomad/issues/8413)]
+ * ui: Fixed runtime error when clicking "Run Job" while a prefix filter is set [[GH-8412](https://github.com/hashicorp/nomad/issues/8412)]
  * vault: Fixed a bug where vault identity policies not considered in permissions check [[GH-7732](https://github.com/hashicorp/nomad/issues/7732)]
 
 ## 0.12.0 (July 9, 2020)
