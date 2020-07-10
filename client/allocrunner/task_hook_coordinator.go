@@ -23,7 +23,6 @@ type taskHookCoordinator struct {
 
 	prestartSidecar   map[string]struct{}
 	prestartEphemeral map[string]struct{}
-
 	mainTasksPending map[string]struct{}
 }
 
@@ -41,6 +40,7 @@ func newTaskHookCoordinator(logger hclog.Logger, tasks []*structs.Task) *taskHoo
 		mainTaskCtxCancel: mainCancelFn,
 		prestartSidecar:   map[string]struct{}{},
 		prestartEphemeral: map[string]struct{}{},
+		mainTasksPending: map[string]struct{}{},
 		poststartTaskCtx: poststartTaskCtx,
 		poststartTaskCtxCancel: poststartCancelFn,
 	}
@@ -52,7 +52,7 @@ func (c *taskHookCoordinator) setTasks(tasks []*structs.Task) {
 	for _, task := range tasks {
 
 		if task.Lifecycle == nil {
-			// move nothing
+			c.mainTasksPending[task.Name] = struct{}{}
 			continue
 		}
 
@@ -82,8 +82,8 @@ func (c *taskHookCoordinator) hasPendingMainTasks() bool {
 }
 
 func (c *taskHookCoordinator) startConditionForTask(task *structs.Task) <-chan struct{} {
-	if task.Lifecycle != nil && task.Lifecycle.Hook == structs.TaskLifecycleHookPrestart {
-		return c.closedCh
+	if task.Lifecycle == nil {
+		return c.mainTaskCtx.Done()
 	}
 
 	switch task.Lifecycle.Hook {
@@ -95,9 +95,6 @@ func (c *taskHookCoordinator) startConditionForTask(task *structs.Task) <-chan s
 	default:
 		return c.mainTaskCtx.Done()
 	}
-
-	return c.mainTaskCtx.Done()
-
 }
 
 // This is not thread safe! This must only be called from one thread per alloc runner.
