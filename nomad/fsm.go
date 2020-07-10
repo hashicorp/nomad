@@ -555,6 +555,13 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		}
 	}
 
+	if req.Eval != nil {
+		req.Eval.JobModifyIndex = index
+		if err := n.upsertEvals(index, []*structs.Evaluation{req.Eval}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -565,14 +572,30 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	return n.state.WithWriteTransaction(func(tx state.Txn) error {
-		if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx); err != nil {
+	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx)
+
+		if err != nil {
 			n.logger.Error("deregistering job failed", "error", err)
 			return err
 		}
 
 		return nil
 	})
+
+	// always attempt upsert eval even if job deregister fail
+	if req.Eval != nil {
+		req.Eval.JobModifyIndex = index
+		if err := n.upsertEvals(index, []*structs.Evaluation{req.Eval}); err != nil {
+			return err
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
@@ -663,7 +686,10 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 }
 
 func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error {
-	if err := n.state.UpsertEvals(index, evals); err != nil {
+	if err := n.state.UpsertEvals(index, evals); len(evals) == 1 && err == state.ErrDuplicateEval {
+		// the request is a duplicate, ignore processing it
+		return nil
+	} else if err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
