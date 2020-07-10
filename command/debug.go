@@ -187,12 +187,17 @@ func (c *DebugCommand) Run(args []string) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.ctx = ctx
 	c.cancel = cancel
+	c.trap()
 
-	// Setup the output path
 	format := "2006-01-02-150405Z"
 	c.timestamp = time.Now().UTC().Format(format)
 	stamped := "nomad-debug-" + c.timestamp
 
+	c.Ui.Output("==> Starting debugger and capturing cluster data...")
+	c.Ui.Output(fmt.Sprintf("          Interval: '%s'", interval))
+	c.Ui.Output(fmt.Sprintf("          Duration: '%s'", duration))
+
+	// Create the output path
 	var tmp string
 	if output != "" {
 		tmp = filepath.Join(output, stamped)
@@ -212,12 +217,13 @@ func (c *DebugCommand) Run(args []string) int {
 
 	c.collectDir = tmp
 
-	// Capture signals so we can shutdown the monitor API calls on Int
-	c.trap()
-
 	err = c.collect(client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
+		return 2
+	}
+
+	if c.ctx.Err() != nil {
 		return 2
 	}
 
@@ -278,11 +284,11 @@ func (c *DebugCommand) collect(client *api.Client) error {
 
 	c.collectConsul(dir, consul)
 	c.collectVault(dir, vault)
+	c.collectAgentHosts(client)
+	c.collectPprofs(client)
 
 	c.startMonitors(client)
 	c.collectPeriodic(client)
-	c.collectPprofs(client)
-	c.collectAgentHosts(client)
 
 	return nil
 }
@@ -424,16 +430,17 @@ func (c *DebugCommand) collectPprof(path, id string, client *api.Client) {
 func (c *DebugCommand) collectPeriodic(client *api.Client) {
 	// Not monitoring any logs, just capture the nomad context before exit
 	if len(c.nodeIDs) == 0 && len(c.serverIDs) == 0 {
-		dir := filepath.Join("nomad", "00")
+		dir := filepath.Join("nomad", "0000")
 		c.collectNomad(dir, client)
 		return
 	}
 
+	start := time.Now().Unix()
 	duration := time.After(c.duration)
 	// Set interval to 0 so that we immediately execute, wait the interval next time
 	interval := time.After(0 * time.Second)
 	var intervalCount int
-	var dir string
+	var name, dir string
 
 	for {
 		select {
@@ -442,7 +449,9 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 			return
 
 		case <-interval:
-			dir = filepath.Join("nomad", fmt.Sprintf("%02d", intervalCount))
+			name = fmt.Sprintf("%04d", time.Now().Unix()-start)
+			dir = filepath.Join("nomad", name)
+			c.Ui.Output(fmt.Sprintf("==> Capture interval %s", name))
 			c.collectNomad(dir, client)
 			interval = time.After(c.interval)
 			intervalCount += 1
