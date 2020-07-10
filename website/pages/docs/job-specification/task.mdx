@@ -53,15 +53,15 @@ job "docs" {
   be passed to the running process.
 
 - `kill_timeout` `(string: "5s")` - Specifies the duration to wait for an
-  application to gracefully quit before force-killing. Nomad sends an `SIGINT`.
-  If the task does not exit before the configured timeout, `SIGKILL` is sent to
-  the task. Note that the value set here is capped at the value set for
-  [`max_kill_timeout`][max_kill] on the agent running the task, which has a
-  default value of 30 seconds.
+  application to gracefully quit before force-killing. Nomad first sends a
+  [`kill_signal`][kill_signal]. If the task does not exit before the configured
+  timeout, `SIGKILL` is sent to the task. Note that the value set here is capped
+  at the value set for [`max_kill_timeout`][max_kill] on the agent running the
+  task, which has a default value of 30 seconds.
 
 - `kill_signal` `(string)` - Specifies a configurable kill signal for a task,
-  where the default is SIGINT. Note that this is only supported for drivers
-  sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
+  where the default is SIGINT (or SIGTERM for `docker`). Note that this is only
+  supported for drivers sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
 
 - `leader` `(bool: false)` - Specifies whether the task is the leader task of
   the task group. If set to true, when the leader task completes, all other
@@ -213,3 +213,4 @@ task "server" {
 [user_drivers]: /docs/configuration/client#user-checked_drivers
 [user_blacklist]: /docs/configuration/client#user-blacklist
 [max_kill]: /docs/configuration/client#max_kill_timeout
+[kill_signal]: /docs/job-specification/task#kill_signal
