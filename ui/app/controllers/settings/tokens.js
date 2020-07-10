@@ -31,6 +31,8 @@ export default class Tokens extends Controller {
       tokenIsValid: false,
       tokenIsInvalid: false,
     });
+    // Clear out all data to ensure only data the anonymous token is privileged to see is shown
+    this.system.reset();
     this.resetStore();
     this.token.reset();
   }
@@ -44,8 +46,7 @@ export default class Tokens extends Controller {
 
     TokenAdapter.findSelf().then(
       () => {
-        // Clear out all data to ensure only data the new token is privileged to
-        // see is shown
+        // Clear out all data to ensure only data the new token is privileged to see is shown
         this.system.reset();
         this.resetStore();
 

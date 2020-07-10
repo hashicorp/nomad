@@ -13,6 +13,7 @@ export default create({
 
   secret: fillable('[data-test-token-secret]'),
   submit: clickable('[data-test-token-submit]'),
+  clear: clickable('[data-test-token-clear]'),
 
   errorMessage: isVisible('[data-test-token-error]'),
   successMessage: isVisible('[data-test-token-success]'),
