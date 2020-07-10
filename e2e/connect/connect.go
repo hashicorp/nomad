@@ -55,9 +55,7 @@ func (tc *ConnectE2ETest) AfterEach(f *framework.F) {
 }
 
 func connectJobID() string {
-	id := uuid.Generate()
-	jobID := "connect" + id[0:8]
-	return jobID
+	return "connect" + uuid.Generate()[0:8]
 }
 
 // TestConnectDemo tests the demo job file used in Connect Integration examples.
