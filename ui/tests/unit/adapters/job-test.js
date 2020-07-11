@@ -18,7 +18,10 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.server = startMirage();
 
-    this.initializeUI = async () => {
+    this.initializeUI = async ({ region, namespace } = {}) => {
+      if (namespace) window.localStorage.nomadActiveNamespace = namespace;
+      if (region) window.localStorage.nomadActiveRegion = region;
+
       this.server.create('namespace');
       this.server.create('namespace', { id: 'some-namespace' });
       this.server.create('node');
@@ -66,9 +69,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', async function(assert) {
-    window.localStorage.nomadActiveNamespace = 'some-namespace';
-
-    await this.initializeUI();
+    await this.initializeUI({ namespace: 'some-namespace' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -86,9 +87,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', async function(assert) {
-    window.localStorage.nomadActiveNamespace = 'red-herring';
-
-    await this.initializeUI();
+    await this.initializeUI({ namespace: 'red-herring' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -399,9 +398,8 @@ module('Unit | Adapter | Job', function(hooks) {
 
   test('when there is a region set, requests are made with the region query param', async function(assert) {
     const region = 'region-2';
-    window.localStorage.nomadActiveRegion = region;
 
-    await this.initializeUI();
+    await this.initializeUI({ region });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -421,9 +419,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('when the region is set to the default region, requests are made without the region query param', async function(assert) {
-    window.localStorage.nomadActiveRegion = 'region-1';
-
-    await this.initializeUI();
+    await this.initializeUI({ region: 'region-1' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
