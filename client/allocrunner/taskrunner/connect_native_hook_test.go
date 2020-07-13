@@ -162,6 +162,46 @@ func TestConnectNativeHook_tlsEnv(t *testing.T) {
 	})
 }
 
+func TestConnectNativeHook_bridgeEnv_bridge(t *testing.T) {
+	t.Parallel()
+
+	hook := new(connectNativeHook)
+	hook.alloc = mock.ConnectNativeAlloc("bridge")
+
+	t.Run("consul address env not preconfigured", func(t *testing.T) {
+		result := hook.bridgeEnv(nil)
+		require.Equal(t, map[string]string{
+			"CONSUL_HTTP_ADDR": "unix:///alloc/tmp/consul_http.sock",
+		}, result)
+	})
+
+	t.Run("consul address env is preconfigured", func(t *testing.T) {
+		result := hook.bridgeEnv(map[string]string{
+			"CONSUL_HTTP_ADDR": "10.1.1.1",
+		})
+		require.Empty(t, result)
+	})
+}
+
+func TestConnectNativeHook_bridgeEnv_host(t *testing.T) {
+	t.Parallel()
+
+	hook := new(connectNativeHook)
+	hook.alloc = mock.ConnectNativeAlloc("host")
+
+	t.Run("consul address env not preconfigured", func(t *testing.T) {
+		result := hook.bridgeEnv(nil)
+		require.Empty(t, result)
+	})
+
+	t.Run("consul address env is preconfigured", func(t *testing.T) {
+		result := hook.bridgeEnv(map[string]string{
+			"CONSUL_HTTP_ADDR": "10.1.1.1",
+		})
+		require.Empty(t, result)
+	})
+}
+
 func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 	t.Parallel()
 	logger := testlog.HCLogger(t)
