@@ -75,8 +75,10 @@ a future release.
 
 - `healthy_deadline` `(string: "5m")` - Specifies the deadline in which the
   allocation must be marked as healthy after which the allocation is
-  automatically transitioned to unhealthy. This is specified using a label
-  suffix like "2m" or "1h".
+  automatically transitioned to unhealthy. This is specified using a label suffix
+  like "2m" or "1h". If [`progress_deadline`](#progress_deadline) is non-zero, it
+  must be greater than `healthy_deadline`. Otherwise the `progress_deadline` may
+  fail a deployment before an allocation reaches its `healthy_deadline`.
 
 - `progress_deadline` `(string: "10m")` - Specifies the deadline in which an
   allocation must be marked as healthy. The deadline begins when the first
