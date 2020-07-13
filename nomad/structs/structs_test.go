@@ -5609,7 +5609,7 @@ func TestMultiregion_Validate(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.Case.Validate(tc.JobType)
+			err := tc.Case.Validate(tc.JobType, []string{})
 			if len(tc.Errors) == 0 {
 				require.NoError(err)
 			} else {
