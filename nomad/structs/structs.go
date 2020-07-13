@@ -4034,7 +4034,7 @@ func (j *Job) Validate() error {
 	}
 
 	if j.IsMultiregion() {
-		if err := j.Multiregion.Validate(j.Type); err != nil {
+		if err := j.Multiregion.Validate(j.Type, j.Datacenters); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -4600,7 +4600,7 @@ func (m *Multiregion) Copy() *Multiregion {
 	return copy
 }
 
-func (m *Multiregion) Validate(jobType string) error {
+func (m *Multiregion) Validate(jobType string, jobDatacenters []string) error {
 	var mErr multierror.Error
 	seen := map[string]struct{}{}
 	for _, region := range m.Regions {
@@ -4610,7 +4610,7 @@ func (m *Multiregion) Validate(jobType string) error {
 					region.Name))
 		}
 		seen[region.Name] = struct{}{}
-		if len(region.Datacenters) == 0 {
+		if len(region.Datacenters) == 0 && len(jobDatacenters) == 0 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Multiregion region %q must have at least 1 datacenter",
 					region.Name),
