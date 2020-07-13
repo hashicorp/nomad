@@ -1,4 +1,4 @@
-<table class="table is-striped is-fixed is-compact is-darkened">
+<table class="table is-striped is-fixed is-compact is-darkened" ...attributes>
   <thead>
     <tr>
       <th class="is-one-third">Name</th>
@@ -6,6 +6,6 @@
     </tr>
   </thead>
   <tbody>
-    <AttributesSection @attributes={{this.attributes}} />
+    <AttributesSection @attributes={{@attributePairs}} />
   </tbody>
 </table>
