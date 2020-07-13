@@ -2,6 +2,7 @@
 
 BUG FIXES:
 
+ * jobspec: Fixed validation of multi-region datacenters to allow empty region `datacenters` to default to job-level `datacenters`. [[GH-8426](https://github.com/hashicorp/nomad/issues/8426)]
  * ui: Fixed order of column headers in client allocations table. [[GH-8409](https://github.com/hashicorp/nomad/pull/8409)]
  * ui: Fixed stale namespaces after changing acl tokens. [[GH-8413](https://github.com/hashicorp/nomad/issues/8413)]
  * ui: Fixed missing namespace query param after changing acl tokens [[GH-8413](https://github.com/hashicorp/nomad/issues/8413)]
