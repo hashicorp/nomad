@@ -307,7 +307,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if existingJob != nil {
 		existingVersion = existingJob.Version
 	}
-	err = j.multiregionRegister(args, reply, existingVersion)
+	isRunner, err := j.multiregionRegister(args, reply, existingVersion)
 	if err != nil {
 		return err
 	}
@@ -333,6 +333,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	} else {
 		reply.JobModifyIndex = existingJob.JobModifyIndex
 	}
+
+	// used for multiregion start
+	args.Job.JobModifyIndex = reply.JobModifyIndex
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if args.Job.IsPeriodic() || args.Job.IsParameterized() {
@@ -371,6 +374,15 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.EvalID = eval.ID
 	reply.EvalCreateIndex = evalIndex
 	reply.Index = evalIndex
+
+	// Kick off a multiregion deployment (enterprise only).
+	if isRunner {
+		err = j.multiregionStart(args, reply)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

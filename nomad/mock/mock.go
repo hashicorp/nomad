@@ -1297,6 +1297,9 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 
 func MultiregionJob() *structs.Job {
 	job := Job()
+	update := *structs.DefaultUpdateStrategy
+	job.Update = update
+	job.TaskGroups[0].Update = &update
 	job.Multiregion = &structs.Multiregion{
 		Strategy: &structs.MultiregionStrategy{
 			MaxParallel: 1,
