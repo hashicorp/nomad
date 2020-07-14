@@ -393,7 +393,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 				return nil, addrErr
 			}
 
-			return nil, fmt.Errorf("no addresses availale for %q network", port.HostNetwork)
+			return nil, fmt.Errorf("no addresses available for %q network", port.HostNetwork)
 		}
 		offer = append(offer, *allocPort)
 	}
