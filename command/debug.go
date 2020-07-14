@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -29,6 +30,7 @@ type DebugCommand struct {
 	duration   time.Duration
 	interval   time.Duration
 	logLevel   string
+	stale      bool
 	nodeIDs    []string
 	serverIDs  []string
 	consul     *external
@@ -45,7 +47,7 @@ type external struct {
 	api.TLSConfig
 	addrVal   string
 	auth      string
-	ssl       string
+	ssl       bool
 	tokenVal  string
 	tokenFile string
 }
@@ -84,6 +86,11 @@ Debug Options:
   -server-id=<server>,<server>
     Comma separated list of Nomad server names, or "leader" to monitor for logs and include pprof
     profiles.
+
+  -stale=<true|false>
+    If "false", the default, get membership data from the cluster leader. If the cluster is in
+    an outage unable to establish leadership, it may be necessary to get the configuration from
+    a non-leader server.
 
   -output=<path>
     Path to the parent directory of the output directory. If not specified, an archive is built
@@ -179,11 +186,13 @@ func (c *DebugCommand) Run(args []string) int {
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "", "")
+	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 
 	c.consul = &external{}
 	flags.StringVar(&c.consul.addrVal, "consul-http-addr", "", os.Getenv("CONSUL_HTTP_ADDR"))
-	c.consul.ssl = os.Getenv("CONSUL_HTTP_SSL")
+	ssl := os.Getenv("CONSUL_HTTP_SSL")
+	c.consul.ssl, _ = strconv.ParseBool(ssl)
 	flags.StringVar(&c.consul.auth, "consul-auth", "", os.Getenv("CONSUL_HTTP_AUTH"))
 	flags.StringVar(&c.consul.tokenVal, "consul-token", "", os.Getenv("CONSUL_HTTP_TOKEN"))
 	flags.StringVar(&c.consul.tokenFile, "consul-token-file", "", os.Getenv("CONSUL_HTTP_TOKEN_FILE"))
@@ -586,6 +595,24 @@ func (c *DebugCommand) collectNomad(dir string, client *api.Client) error {
 	}
 	c.writeJSON(dir, "volumes.json", vs)
 
+	rc, err := client.Operator().RaftGetConfiguration(nil)
+	if err != nil {
+		return fmt.Errorf("listing raft configuration: %s", err.Error())
+	}
+	c.writeJSON(dir, "operator-raft.json", rc)
+
+	sc, _, err := client.Operator().SchedulerGetConfiguration(nil)
+	if err != nil {
+		return fmt.Errorf("listing scheduler configuration: %s", err.Error())
+	}
+	c.writeJSON(dir, "operator-scheduler.json", sc)
+
+	ah, _, err := client.Operator().AutopilotServerHealth(nil)
+	if err != nil {
+		return fmt.Errorf("listing autopilot health: %s", err.Error())
+	}
+	c.writeJSON(dir, "operator-autopilot-health.json", ah)
+
 	return nil
 }
 
@@ -640,11 +667,11 @@ func (c *DebugCommand) collectVault(dir, vault string) error {
 }
 
 func (c *external) addr(addr string) string {
-	if addr != "" {
+	if c.addrVal == "" {
 		return addr
 	}
-	if c.ssl != "" && c.addrVal[0:5] != "https" {
-		return "https" + c.addrVal[5]
+	if c.ssl && c.addrVal[0:5] != "https" {
+		return "https" + string(c.addrVal[4:])
 	}
 	return c.addrVal
 }
