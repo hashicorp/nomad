@@ -24,18 +24,30 @@ import (
 type DebugCommand struct {
 	Meta
 
-	timestamp   string
-	collectDir  string
-	duration    time.Duration
-	interval    time.Duration
-	logLevel    string
-	nodeIDs     []string
-	serverIDs   []string
+	timestamp  string
+	collectDir string
+	duration   time.Duration
+	interval   time.Duration
+	logLevel   string
+	nodeIDs    []string
+	serverIDs  []string
+	consul     *external
+	vault      *external
+
 	consulToken string
 	vaultToken  string
 	manifest    []string
 	ctx         context.Context
 	cancel      context.CancelFunc
+}
+
+type external struct {
+	api.TLSConfig
+	addrVal   string
+	auth      string
+	ssl       string
+	tokenVal  string
+	tokenFile string
 }
 
 const (
@@ -55,34 +67,78 @@ General Options:
 
 Debug Options:
 
-  -duration=2m
-   The duration of the log monitor command. Defaults to 2m.
+  -duration=<interval>
+    The duration of the log monitor command. Defaults to 2m.
 
-  -interval=2m
-   The interval between snapshots of the Nomad state. If unspecified, only one snapshot is
-   captured.
+  -interval=<interval>
+    The interval between snapshots of the Nomad state. If unspecified, only one snapshot is
+    captured.
 
-  -log-level=DEBUG
-   The log level to monitor. Defaults to DEBUG.
+  -log-level=<level>
+    The log level to monitor. Defaults to DEBUG.
 
-  -node-id=n1,n2
-   Comma separated list of Nomad client node ids, to monitor for logs and include pprof
-   profiles. Accepts id prefixes.
+  -node-id=<node>,<node>
+    Comma separated list of Nomad client node ids, to monitor for logs and include pprof
+    profiles. Accepts id prefixes.
 
-  -server-id=s1,s2
-   Comma separated list of Nomad server names, or "leader" to monitor for logs and include pprof
-   profiles.
+  -server-id=<server>,<server>
+    Comma separated list of Nomad server names, or "leader" to monitor for logs and include pprof
+    profiles.
 
-  -output=path
-   Path to the parent directory of the output directory. If not specified, an archive is built
-   in the current directory.
+  -output=<path>
+    Path to the parent directory of the output directory. If not specified, an archive is built
+    in the current directory.
 
-  -consul-token
-   Token used to query Consul. Defaults to CONSUL_HTTP_TOKEN or the contents of
-   CONSUL_HTTP_TOKEN_FILE
+  -consul-http-addr=<addr>
+    The address and port of the Consul HTTP agent. Can be specified by CONSUL_HTTP_ADDR
 
-  -vault-token
-   Token used to query Vault. Defaults to VAULT_TOKEN
+  -consul-token=<token>
+    Token used to query Consul. Overrides the CONSUL_HTTP_TOKEN environment
+    variable and the Consul token file.
+
+  -consul-token-file=<path>
+    Path to the Consul token file. Overrides the CONSUL_HTTP_TOKEN_FILE
+    environment variable.
+
+  -consul-client-cert=<path>
+    Path to the Consul client cert file. Overrides the CONSUL_CLIENT_CERT
+    environment variable.
+
+  -consul-client-key=<path>
+    Path to the Consul client key file. Overrides the CONSUL_CLIENT_KEY
+    environment variable.
+
+  -consul-ca-cert=<path>
+    Path to a CA file to use with Consul. Overrides the CONSUL_CACERT
+    environment variable and the Consul CA path.
+
+  -consul-ca-path=<path>
+    Path to a directory of PEM encoded CA cert files to verify the Consul
+    certificate. Overrides the CONSUL_CAPATH environment variable.
+
+  -vault-address=<addr>
+    The address and port of the Vault HTTP agent. Overrides the VAULT_ADDR
+    environment variable.
+
+  -vault-token=<token>
+    Token used to query Vault. Overrides the VAULT_TOKEN environment
+    variable.
+
+  -vault-client-cert=<path>
+    Path to the Vault client cert file. Overrides the VAULT_CLIENT_CERT
+    environment variable.
+
+  -vault-client-key=<path>
+    Path to the Vault client key file. Overrides the VAULT_CLIENT_KEY
+    environment variable.
+
+  -vault-ca-cert=<path>
+    Path to a CA file to use with Vault. Overrides the VAULT_CACERT
+    environment variable and the Vault CA path.
+
+  -vault-ca-path=<path>
+    Path to a directory of PEM encoded CA cert files to verify the Vault
+    certificate. Overrides the VAULT_CAPATH environment variable.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -124,8 +180,25 @@ func (c *DebugCommand) Run(args []string) int {
 	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "", "")
 	flags.StringVar(&output, "output", "", "")
-	flags.StringVar(&c.consulToken, "consul-token", "", "")
-	flags.StringVar(&c.vaultToken, "vault-token", "", "")
+
+	c.consul = &external{}
+	flags.StringVar(&c.consul.addrVal, "consul-http-addr", "", os.Getenv("CONSUL_HTTP_ADDR"))
+	c.consul.ssl = os.Getenv("CONSUL_HTTP_SSL")
+	flags.StringVar(&c.consul.auth, "consul-auth", "", os.Getenv("CONSUL_HTTP_AUTH"))
+	flags.StringVar(&c.consul.tokenVal, "consul-token", "", os.Getenv("CONSUL_HTTP_TOKEN"))
+	flags.StringVar(&c.consul.tokenFile, "consul-token-file", "", os.Getenv("CONSUL_HTTP_TOKEN_FILE"))
+	flags.StringVar(&c.consul.ClientCert, "consul-client-cert", "", os.Getenv("CONSUL_CLIENT_CERT"))
+	flags.StringVar(&c.consul.ClientKey, "consul-client-key", "", os.Getenv("CONSUL_CLIENT_KEY"))
+	flags.StringVar(&c.consul.CACert, "consul-ca-cert", "", os.Getenv("CONSUL_CACERT"))
+	flags.StringVar(&c.consul.CAPath, "consul-ca-path", "", os.Getenv("CONSUL_CAPATH"))
+
+	c.vault = &external{}
+	flags.StringVar(&c.vault.addrVal, "vault-address", "", os.Getenv("VAULT_ADDR"))
+	flags.StringVar(&c.vault.tokenVal, "vault-token", "", os.Getenv("VAULT_TOKEN"))
+	flags.StringVar(&c.vault.CACert, "vault-ca-cert", "", os.Getenv("VAULT_CACERT"))
+	flags.StringVar(&c.vault.CAPath, "vault-ca-path", "", os.Getenv("VAULT_CAPATH"))
+	flags.StringVar(&c.vault.ClientCert, "vault-client-cert", "", os.Getenv("VAULT_CLIENT_CERT"))
+	flags.StringVar(&c.vault.ClientKey, "vault-client-key", "", os.Getenv("VAULT_CLIENT_KEY"))
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -522,35 +595,21 @@ func (c *DebugCommand) collectConsul(dir, consul string) error {
 		return nil
 	}
 
-	token := c.consulToken
-	if token == "" {
-		token = os.Getenv("CONSUL_HTTP_TOKEN")
-	}
-	if token == "" {
-		file := os.Getenv("CONSUL_HTTP_TOKEN_FILE")
-		if file != "" {
-			fh, err := os.Open(file)
-			if err == nil {
-				bs, err := ioutil.ReadAll(fh)
-				if err == nil {
-					token = strings.TrimSpace(string(bs))
-				}
-			}
-		}
-	}
-
 	client := http.Client{
 		Timeout: 2 * time.Second,
 	}
+	api.ConfigureTLS(&client, &c.consul.TLSConfig)
 
-	req, _ := http.NewRequest("GET", consul+"/v1/agent/self", nil)
-	req.Header.Add("X-Consul-Token", token)
+	addr := c.consul.addr(consul)
+
+	req, _ := http.NewRequest("GET", addr+"/v1/agent/self", nil)
+	req.Header.Add("X-Consul-Token", c.consul.token())
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
 	c.writeBody(dir, "consul-agent-self.json", resp, err)
 
-	req, _ = http.NewRequest("GET", consul+"/v1/agent/members", nil)
-	req.Header.Add("X-Consul-Token", token)
+	req, _ = http.NewRequest("GET", addr+"/v1/agent/members", nil)
+	req.Header.Add("X-Consul-Token", c.consul.token())
 	req.Header.Add("User-Agent", userAgent)
 	resp, err = client.Do(req)
 	c.writeBody(dir, "consul-agent-members.json", resp, err)
@@ -564,22 +623,48 @@ func (c *DebugCommand) collectVault(dir, vault string) error {
 		return nil
 	}
 
-	token := c.vaultToken
-	if token == "" {
-		os.Getenv("VAULT_TOKEN")
-	}
-
 	client := http.Client{
 		Timeout: 2 * time.Second,
 	}
+	api.ConfigureTLS(&client, &c.vault.TLSConfig)
 
-	req, _ := http.NewRequest("GET", vault+"/sys/health", nil)
-	req.Header.Add("X-Vault-Token", token)
+	addr := c.vault.addr(vault)
+
+	req, _ := http.NewRequest("GET", addr+"/sys/health", nil)
+	req.Header.Add("X-Vault-Token", c.vault.token())
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
 	c.writeBody(dir, "vault-sys-health.json", resp, err)
 
 	return nil
+}
+
+func (c *external) addr(addr string) string {
+	if addr != "" {
+		return addr
+	}
+	if c.ssl != "" && c.addrVal[0:5] != "https" {
+		return "https" + c.addrVal[5]
+	}
+	return c.addrVal
+}
+
+func (c *external) token() string {
+	if c.tokenVal != "" {
+		return c.tokenVal
+	}
+
+	if c.tokenFile != "" {
+		fh, err := os.Open(c.tokenFile)
+		if err == nil {
+			bs, err := ioutil.ReadAll(fh)
+			if err == nil {
+				return strings.TrimSpace(string(bs))
+			}
+		}
+	}
+
+	return ""
 }
 
 // writeBytes writes a file to the archive, recording it in the manifest
