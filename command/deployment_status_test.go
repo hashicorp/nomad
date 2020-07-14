@@ -163,7 +163,10 @@ func TestDeploymentStatusCommand_Multiregion(t *testing.T) {
 	require.Contains(t, out, eastDeploys[0].ID[0:7])
 	require.Contains(t, out, "west")
 	require.Contains(t, out, westDeploys[0].ID[0:7])
-	require.Contains(t, out, "running")
+
+	// this will always be pending because we're not really doing a multiregion
+	// register here in OSS
+	require.Contains(t, out, "pending")
 
 	require.NotContains(t, out, "<none>")
 
