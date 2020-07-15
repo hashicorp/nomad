@@ -51,13 +51,13 @@ but the general mechanisms for a secure Nomad deployment revolve around:
 
 When thinking about Nomad, it helps to consider the following types of base
 personas when managing the security requirements for the cluster deployment. The
-granularity may change depending on your team’s use case where rigorous roles
+granularity may change depending on your team's use case where rigorous roles
 can be accurately defined and managed using the [Nomad backend secret engine for
 Vault](https://www.vaultproject.io/docs/secrets/nomad/index.html). This is
 described further with getting started steps using a development server
 [here](/guides/security/acl.html#vault-integration).
 
-It’s super important to note that there's no traditional concept of a user
+It's important to note that there's no traditional concept of a user
 within Nomad itself.
 
 * **System Administrator** - This is someone who has access to the underlying
@@ -70,11 +70,11 @@ within Nomad itself.
     resource. Users like these are essentially totally trusted by Nomad as they
     have administrative rights to the system and can start or stop the agent.
 
-* **Nomad Administrator** - This is someone ( probably the same **System
-    Administrator** ) who has access to define the Nomad agent configurations
-    for servers and clients. They also have total rights to all of the parts in
-    the Nomad system including the ability to start and stop all jobs within a
-    cluster.
+* **Nomad Administrator** - This is someone (probably the same **System
+    Administrator**) who has access to define the Nomad agent configurations
+    for servers and clients, and/or have a Nomad management ACL token. They also
+    have total rights to all of the parts in the Nomad system including the
+    ability to start and stop all jobs within a cluster.
 
 * **Nomad Operator** - This is someone who likely has selective access with
     restricted capabilities to manage jobs applicable to their namespace within
@@ -82,14 +82,14 @@ within Nomad itself.
 
 * **User** - This is someone who is a user of an application being run on the
     system. In some cases applications may be public facing and exposed to the
-    internet such as a web server. This is someone who shouldn’t have any
+    internet such as a web server. This is someone who shouldn't have any
     network access to the Nomad server API.
 
 ### Secure Configuration
 
-Nomad’s security model is applicable only if all parts of the system are running
-with a secure configuration; it is not secure-by-default. Without the following
-mechanisms enabled in Nomad’s configuration, it may be possible to abuse access
+Nomad's security model is applicable only if all parts of the system are running
+with a secure configuration; **Nomad is not secure-by-default.** Without the following
+mechanisms enabled in Nomad's configuration, it may be possible to abuse access
 to a cluster. Like all security considerations, one must appropriately determine
 what concerns they have for their environment and adapt to these security
 recommendations accordingly.
@@ -97,7 +97,7 @@ recommendations accordingly.
 #### Requirements
 
 * **[mTLS enabled](/guides/security/securing-nomad.html)**
-    - Mutual TLS ( mTLS ) enables [mutual
+    - Mutual TLS (mTLS) enables [mutual
     authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
     security properties to prevent the following problems:
 
@@ -121,8 +121,8 @@ recommendations accordingly.
   * Agent role misconfiguration is prevented using the X.509
     [SAN](https://en.wikipedia.org/wiki/Subject_Alternative_Name) extension.
     This is essentially a domain name that is used to identify and verify a
-    node’s region and role name are configured as expected ( e.g.
-    `client.us-east.nomad` ).
+    node's region and role name are configured as expected (e.g.
+    `client.us-east.nomad`).
 
   * Using the previously mentioned role name prevents maliciously masquerading
     as a server or client node, and allows other services to be signed easily by
@@ -131,8 +131,8 @@ recommendations accordingly.
 
 * **[ACLs enabled](/guides/security/acl.html)** - The
     access control list (ACL) system provides a capability-based control
-    mechanism for Nomad administrators allowing for custom roles ( typically
-    within Vault ) to be tied to an individual human or machine operator
+    mechanism for Nomad administrators allowing for custom roles (typically
+    within Vault) to be tied to an individual human or machine operator
     identity. This allows for access to capabilities within the cluster to be
     restricted to specific users.
 
@@ -151,10 +151,10 @@ recommendations accordingly.
     to be enforced.
 
 * **[Resource Quotas](/guides/governance-and-policy/quotas.html)**
-    (**Enterprise Only**) - Can limit a namespace’s access to the underlying
+    (**Enterprise Only**) - Can limit a namespace's access to the underlying
     compute resources in the cluster by setting upper-limits for operators.
     Access to these resource quotas can be managed via ACLs to ensure read-only
-    access for operators so they can’t just change their quotas.
+    access for operators so they can't just change their quotas.
 
 #### Recommendations
 
@@ -163,33 +163,32 @@ the security of your cluster depending on your use case. We recommend always
 practicing defense in depth when architecting the security mechanisms for your
 environment.
 
-* **[Rotate Credentials](/docs/job-specification/vault.html)** -
-    Using something like [Vault](/docs/vault-integration/index.html) to
-    create and manage dynamic, rotated credentials is highly recommended to
-    prevent secrets from being easily exposed within the [job
-    specification](/docs/job-specification/index.html)
-    itself which may be leaked into version control or otherwise be accidentally
-    stored on disk on an operator’s local machine. It is also possible to
-    [integrate with Vault’s PKI secret engine](/guides/security/vault-pki-integration.html)
-    to automatically generate and renew dynamic, unique X.509 certificates for
-    each Nomad node with a short
-    [TTL](https://en.wikipedia.org/wiki/Time_to_live).
+* **Rotate credentials** - Using short-lived credentials or rotating them
+    frequently is highly recommended to reduce damage of accidentally leaked
+    credentials.
+
+    * Use [Vault](/docs/vault-integration/index.html) to create and manage
+      dynamic, rotated credentials prevent secrets from being easily exposed
+      within the [job specification](/docs/job-specification/index.html) itself
+      which may be leaked into version control or otherwise be accidentally stored
+      on disk on an operator's local machine.
+
+    * Rotate credentials used by the Nomad agent; e.g. [integrate with Vault's
+      PKI secret engine](/guides/security/vault-pki-integration.html) to
+      automatically generate and renew dynamic, unique X.509 certificates for each
+      Nomad node with a short [TTL](https://en.wikipedia.org/wiki/Time_to_live).
 
 * **[Running without Root](https://groups.google.com/forum/#!topic/nomad-tool/pSyMwC_FSFA)** -
-    Certain features of Nomad can be used without needing to run the Nomad agent
-    server or client as the `root` user. Instead you can granularly assign the
-    appropriate capabilities in various ways for your Nomad agents. For example:
-    Nomad servers only require access to the data directory; it is possible to
-    use Nomad to orchestrate Docker containers by adding a non-root `nomad` user
-    to the `docker` group to access the [default unix
-    socket](https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-socket-option).
+    Nomad servers can be run as unprivileged users that only require access to
+    the data directory.
 
 * **Containers with Sandbox Runtimes** - In some situations, such as running
     untrusted code as a service, it may be worth considering using different
     container runtimes such as [gVisor](https://gvisor.dev/) or [Kata
     Containers](https://katacontainers.io/). These types of runtimes provide
     sandboxing features which help prevent raw access to the underlying shared
-    kernel for other containers and the Nomad client agent itself.
+    kernel for other containers and the Nomad client agent itself. Docker driver
+    allows [customizing runtimes](/docs/drivers/docker#runtime).
 
 * **[Disable Unused Drivers](/docs/configuration/client#driver-blacklist)** -
     Each driver provides different degrees of isolation, and bugs may allow
@@ -241,27 +240,27 @@ The following are parts of the Nomad threat model:
 The following are not part of the threat model for server agents:
 
 * **Access (read or write) to the Nomad data directory** - Information about the
-    jobs managed by Nomad is persisted to a server’s data directory.
+    jobs managed by Nomad is persisted to a server's data directory.
 
 * **Access (read or write) to the Nomad configuration directory** - Access to
-    Nomad’s configuration file(s) directory can enable and disable features for
+    Nomad's configuration file(s) directory can enable and disable features for
     a cluster.
 
 * **Memory access to a running Nomad server agent** - Direct access to the
-    memory of the Nomad server agent process ( usually requiring a shell on the
-    system through various means ) results in almost all aspects of the agent
+    memory of the Nomad server agent process (usually requiring a shell on the
+    system through various means) results in almost all aspects of the agent
     being compromised including access to certificates and other secrets.
 
 The following are not part of the threat model for client agents:
 
 * **Access (read or write) to the Nomad data directory** - Information about the
     allocations scheduled to a Nomad client is persisted to its data directory.
-    This would include any secrets in any of the allocation’s file systems.
+    This would include any secrets in any of the allocation's file systems.
 
 * **Access (read or write) to the Nomad configuration directory** - Access to a
-    client’s configuration file can enable and disable features for a client
+    client's configuration file can enable and disable features for a client
     including insecure drivers such as
-    [raw_exec](/docs/drivers/raw_exec.html).
+    [`raw_exec`](/docs/drivers/raw_exec.html).
 
 * **Memory access to a running Nomad client agent** - Direct access to the
     memory of the Nomad client agent process allows an attack to extract secrets
@@ -274,11 +273,11 @@ The following are not part of the threat model for client agents:
 
 #### Internal Threats
 
-* **Operator** - Someone with a valid mTLS cert and ACL token may still be a
+* **Job Operator** - Someone with a valid mTLS certificate and ACL token may still be a
     threat to your cluster in certain situations, especially in multi-team
     cluster deployments. They may accidentally or intentionally use a malicious
-    jobspec to harm a cluster which can help be protected against using
-    Namespaces and Sentinel policies.
+    job to harm a cluster which can help be protected against using
+    Quotas, Namespace, and Sentinel policies.
 
 * **Workload** - Workloads may have host network access within a cluster which
     can lead to SSRF due to application security issues outside of the scope of
@@ -293,7 +292,7 @@ The following are not part of the threat model for client agents:
     and the backend configuration of these drivers should be considered to
     implement defense in depth. For example, a custom Docker driver that limits
     the ability to mount the host file system may be subverted by network access
-    to an exposed Docker daemon API through other means such as the raw_exec
+    to an exposed Docker daemon API through other means such as the `raw_exec`
     driver.
 
 
@@ -303,20 +302,19 @@ There are two main components to consider to for external threats in a Nomad clu
 
 * **Server agent** - Internal cluster leader elections and replication is
     managed via Raft between server agents encrypted in transit. However,
-    information about the server is stored unencrypted at rest in the agent’s
+    information about the server is stored unencrypted at rest in the agent's
     data directory. This information may contain information such as ACL tokens
     and TLS certificates.
 
 * **Client agent** - Client-to-server communication within a cluster is
     encrypted and authenticated using mTLS. Information about the allocations on
-    a client node is unencrypted in the agent’s data and configuration
+    a client node is unencrypted in the agent's data and configuration
     directory.
 
 ### Network Ports
 
-
 | **Port / Protocol**  | Agents  | Description |
 |----------------------|---------|-------------|
-| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](/guides/web-ui/access.html) and [API](/api/index.html) access to agents. |
+| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](/guides/web-ui/access.html) and [API](/api-docs) access to agents. |
 | **4647** / TCP       | Servers | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents. |
 | **4648** / TCP + UDP | Servers | [gossip](/docs/internals/gossip.html) protocol to manage server membership using [Serf](https://www.serf.io/). |
