@@ -1,5 +1,9 @@
 ## 0.12.1 (Unreleased)
 
+SECURITY:
+
+ * build: Updated to Go 1.14.5. Go 1.14.4 contained 2 CVEs which are low severity for Nomad. [[GH-8441](https://github.com/hashicorp/nomad/issues/8441)]
+
 BUG FIXES:
 
  * jobspec: Fixed validation of multi-region datacenters to allow empty region `datacenters` to default to job-level `datacenters`. [[GH-8426](https://github.com/hashicorp/nomad/issues/8426)]
