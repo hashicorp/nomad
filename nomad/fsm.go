@@ -686,10 +686,7 @@ func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
 }
 
 func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error {
-	if err := n.state.UpsertEvals(index, evals); len(evals) == 1 && err == state.ErrDuplicateEval {
-		// the request is a duplicate, ignore processing it
-		return nil
-	} else if err != nil {
+	if err := n.state.UpsertEvals(index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
