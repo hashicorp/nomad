@@ -313,11 +313,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	submittedEval := false
 
 	// Set the submit time
-	args.Job.SubmitTime = time.Now().UTC().UnixNano()
+	args.Job.SubmitTime = now
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if !(args.Job.IsPeriodic() || args.Job.IsParameterized()) {
@@ -709,7 +709,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -788,7 +788,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// The job priority / type is strange for this, since it's not a high
 	// priority even if the job was.
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	// If the job is periodic or parameterized, we don't create an eval.
 	if job == nil || !(job.IsPeriodic() || job.IsParameterized()) {
 		args.Eval = &structs.Evaluation{
@@ -905,7 +905,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		}
 
 		// Create a new evaluation
-		now := time.Now().UTC().UnixNano()
+		now := time.Now().UnixNano()
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   jobNS.Namespace,
@@ -998,7 +998,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
 
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 
 	// If the count is present, commit the job update via Raft
 	// for now, we'll do this even if count didn't change
@@ -1673,7 +1673,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -1871,7 +1871,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// If the job is periodic, we don't create an eval.
 	if !dispatchJob.IsPeriodic() {
 		// Create a new evaluation
-		now := time.Now().UTC().UnixNano()
+		now := time.Now().UnixNano()
 		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
