@@ -1640,9 +1640,7 @@ func TestJobEndpoint_Register_EvalCreation_Modern(t *testing.T) {
 		require.Equal(t, resp2.EvalCreateIndex, eval.CreateIndex)
 
 		raftEval := evalUpdateFromRaft(t, s1, eval.ID)
-		require.NotNil(t, raftEval)
-		require.Equal(t, eval.CreateIndex, raftEval.CreateIndex)
-		require.Equal(t, eval, raftEval)
+		require.Equal(t, raftEval, eval)
 
 		//// an update should update the job and create a new eval
 		req.Job.TaskGroups[0].Name += "a"
@@ -1759,10 +1757,7 @@ func TestJobEndpoint_Register_EvalCreation_Legacy(t *testing.T) {
 		require.Equal(t, resp.EvalCreateIndex, eval.CreateIndex)
 
 		raftEval := evalUpdateFromRaft(t, s1, eval.ID)
-		require.NotNil(t, raftEval)
-		require.Equal(t, eval.ID, raftEval.ID)
-		require.Equal(t, eval.JobModifyIndex, raftEval.JobModifyIndex)
-		require.Greater(t, raftEval.CreateIndex, eval.CreateIndex)
+		require.Equal(t, eval, raftEval)
 
 		//// re-registration should create a new eval, but leave the job untouched
 		var resp2 structs.JobRegisterResponse
@@ -1788,7 +1783,6 @@ func TestJobEndpoint_Register_EvalCreation_Legacy(t *testing.T) {
 
 		// this raft eval is the one found above
 		raftEval = evalUpdateFromRaft(t, s1, eval.ID)
-		require.Equal(t, raftEval.CreateIndex, eval.CreateIndex)
 		require.Equal(t, eval, raftEval)
 
 		//// an update should update the job and create a new eval
@@ -1814,10 +1808,7 @@ func TestJobEndpoint_Register_EvalCreation_Legacy(t *testing.T) {
 		require.Equal(t, resp3.EvalCreateIndex, eval.CreateIndex)
 
 		raftEval = evalUpdateFromRaft(t, s1, eval.ID)
-		require.NotNil(t, raftEval)
-		require.Equal(t, eval.ID, raftEval.ID)
-		require.Equal(t, eval.JobModifyIndex, raftEval.JobModifyIndex)
-		require.Greater(t, raftEval.CreateIndex, eval.CreateIndex)
+		require.Equal(t, eval, raftEval)
 	})
 
 	// Registering a parameterized job shouldn't create an eval
@@ -3297,10 +3288,7 @@ func TestJobEndpoint_Deregister_EvalCreation_Legacy(t *testing.T) {
 		require.EqualValues(t, resp2.EvalCreateIndex, eval.CreateIndex)
 
 		raftEval := evalUpdateFromRaft(t, s1, eval.ID)
-		require.NotNil(t, raftEval)
-		require.Equal(t, eval.ID, raftEval.ID)
-		require.Equal(t, eval.JobModifyIndex, raftEval.JobModifyIndex)
-		require.Greater(t, raftEval.CreateIndex, eval.CreateIndex)
+		require.Equal(t, eval, raftEval)
 	})
 
 	// Registering a parameterized job shouldn't create an eval
