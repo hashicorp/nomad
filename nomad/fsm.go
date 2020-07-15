@@ -555,6 +555,8 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		}
 	}
 
+	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
+	// so this may be nil during server upgrades.
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
 		if err := n.upsertEvals(index, []*structs.Evaluation{req.Eval}); err != nil {
@@ -583,6 +585,8 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		return nil
 	})
 
+	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
+	// so this may be nil during server upgrades.
 	// always attempt upsert eval even if job deregister fail
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
