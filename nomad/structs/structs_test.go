@@ -4742,6 +4742,29 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 	}
 }
 
+func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
+	job := testJob()
+	job.Type = JobTypeSystem
+	stop := 1 * time.Minute
+	job.TaskGroups[0].StopAfterClientDisconnect = &stop
+
+	err := job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "StopAfterClientDisconnect can only be used")
+
+	job.Type = JobTypeBatch
+	fail := -1 * time.Minute
+	job.TaskGroups[0].StopAfterClientDisconnect = &fail
+
+	err = job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "StopAfterClientDisconnect must be")
+
+	job.TaskGroups[0].StopAfterClientDisconnect = &stop
+	err = job.Validate()
+	require.NoError(t, err)
+}
+
 func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
 	d := &ParameterizedJobConfig{}
 	d.Canonicalize()
