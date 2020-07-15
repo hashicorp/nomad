@@ -46,6 +46,8 @@ var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 
 var minClusterIDVersion = version.Must(version.NewVersion("0.10.4"))
 
+var minJobRegisterAtomicEvalVersion = version.Must(version.NewVersion("0.12.1"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes

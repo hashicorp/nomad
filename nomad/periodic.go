@@ -46,10 +46,24 @@ type JobEvalDispatcher interface {
 // DispatchJob creates an evaluation for the passed job and commits both the
 // evaluation and the job to the raft log. It returns the eval.
 func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
+	now := time.Now().UTC().UnixNano()
+	eval := &structs.Evaluation{
+		ID:          uuid.Generate(),
+		Namespace:   job.Namespace,
+		Priority:    job.Priority,
+		Type:        job.Type,
+		TriggeredBy: structs.EvalTriggerPeriodicJob,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+		CreateTime:  now,
+		ModifyTime:  now,
+	}
+
 	// Commit this update via Raft
 	job.SetSubmitTime()
 	req := structs.JobRegisterRequest{
-		Job: job,
+		Job:  job,
+		Eval: eval,
 		WriteRequest: structs.WriteRequest{
 			Namespace: job.Namespace,
 		},
@@ -62,35 +76,30 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 		return nil, err
 	}
 
-	// Create a new evaluation
-	now := time.Now().UTC().UnixNano()
-	eval := &structs.Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      job.Namespace,
-		Priority:       job.Priority,
-		Type:           job.Type,
-		TriggeredBy:    structs.EvalTriggerPeriodicJob,
-		JobID:          job.ID,
-		JobModifyIndex: index,
-		Status:         structs.EvalStatusPending,
-		CreateTime:     now,
-		ModifyTime:     now,
-	}
-	update := &structs.EvalUpdateRequest{
-		Evals: []*structs.Evaluation{eval},
+	eval.CreateIndex = index
+	eval.ModifyIndex = index
+
+	// COMPAT(1.1): Remove in 1.1.0 - 0.12.1 introduced atomic eval job registration
+	if !ServersMeetMinimumVersion(s.Members(), minJobRegisterAtomicEvalVersion, false) {
+		// Create a new evaluation
+		eval.JobModifyIndex = index
+		update := &structs.EvalUpdateRequest{
+			Evals: []*structs.Evaluation{eval},
+		}
+
+		// Commit this evaluation via Raft
+		// There is a risk of partial failure where the JobRegister succeeds
+		// but that the EvalUpdate does not, before Nomad 0.12.1
+		_, evalIndex, err := s.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			return nil, err
+		}
+
+		// Update its indexes.
+		eval.CreateIndex = evalIndex
+		eval.ModifyIndex = evalIndex
 	}
 
-	// Commit this evaluation via Raft
-	// XXX: There is a risk of partial failure where the JobRegister succeeds
-	// but that the EvalUpdate does not.
-	_, evalIndex, err := s.raftApply(structs.EvalUpdateRequestType, update)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update its indexes.
-	eval.CreateIndex = evalIndex
-	eval.ModifyIndex = evalIndex
 	return eval, nil
 }
 

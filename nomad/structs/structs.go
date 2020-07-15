@@ -563,6 +563,9 @@ type JobRegisterRequest struct {
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 
+	// Eval is the evaluation that is associated with the job registration
+	Eval *Evaluation
+
 	WriteRequest
 }
 
@@ -575,6 +578,9 @@ type JobDeregisterRequest struct {
 	// whether the job is just marked as stopped and will be removed by the
 	// garbage collector
 	Purge bool
+
+	// Eval is the evaluation to create that's associated with job deregister
+	Eval *Evaluation
 
 	WriteRequest
 }

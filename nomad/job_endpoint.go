@@ -312,10 +312,39 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
+	// Create a new evaluation
+	now := time.Now().UnixNano()
+	submittedEval := false
+	var eval *structs.Evaluation
+
+	// Set the submit time
+	args.Job.SubmitTime = now
+
+	// If the job is periodic or parameterized, we don't create an eval.
+	if !(args.Job.IsPeriodic() || args.Job.IsParameterized()) {
+		eval = &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   args.RequestNamespace(),
+			Priority:    args.Job.Priority,
+			Type:        args.Job.Type,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       args.Job.ID,
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now,
+			ModifyTime:  now,
+		}
+		reply.EvalID = eval.ID
+	}
+
 	// Check if the job has changed at all
 	if existingJob == nil || existingJob.SpecChanged(args.Job) {
-		// Set the submit time
-		args.Job.SetSubmitTime()
+
+		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
+		// 0.12.1 introduced atomic eval job registration
+		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+			args.Eval = eval
+			submittedEval = true
+		}
 
 		// Commit this update via Raft
 		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
@@ -330,6 +359,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 		// Populate the reply with job information
 		reply.JobModifyIndex = index
+		reply.Index = index
+
+		if submittedEval {
+			reply.EvalCreateIndex = index
+		}
+
 	} else {
 		reply.JobModifyIndex = existingJob.JobModifyIndex
 	}
@@ -337,43 +372,29 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// used for multiregion start
 	args.Job.JobModifyIndex = reply.JobModifyIndex
 
-	// If the job is periodic or parameterized, we don't create an eval.
-	if args.Job.IsPeriodic() || args.Job.IsParameterized() {
+	if eval == nil {
 		return nil
 	}
 
-	// Create a new evaluation
-	now := time.Now().UTC().UnixNano()
-	eval := &structs.Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      args.RequestNamespace(),
-		Priority:       args.Job.Priority,
-		Type:           args.Job.Type,
-		TriggeredBy:    structs.EvalTriggerJobRegister,
-		JobID:          args.Job.ID,
-		JobModifyIndex: reply.JobModifyIndex,
-		Status:         structs.EvalStatusPending,
-		CreateTime:     now,
-		ModifyTime:     now,
-	}
-	update := &structs.EvalUpdateRequest{
-		Evals:        []*structs.Evaluation{eval},
-		WriteRequest: structs.WriteRequest{Region: args.Region},
-	}
+	if eval != nil && !submittedEval {
+		eval.JobModifyIndex = reply.JobModifyIndex
+		update := &structs.EvalUpdateRequest{
+			Evals:        []*structs.Evaluation{eval},
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
 
-	// Commit this evaluation via Raft
-	// XXX: There is a risk of partial failure where the JobRegister succeeds
-	// but that the EvalUpdate does not.
-	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-	if err != nil {
-		j.logger.Error("eval create failed", "error", err, "method", "register")
-		return err
-	}
+		// Commit this evaluation via Raft
+		// There is a risk of partial failure where the JobRegister succeeds
+		// but that the EvalUpdate does not, before 0.12.1
+		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			j.logger.Error("eval create failed", "error", err, "method", "register")
+			return err
+		}
 
-	// Populate the reply with eval information
-	reply.EvalID = eval.ID
-	reply.EvalCreateIndex = evalIndex
-	reply.Index = evalIndex
+		reply.EvalCreateIndex = evalIndex
+		reply.Index = evalIndex
+	}
 
 	// Kick off a multiregion deployment (enterprise only).
 	if isRunner {
@@ -689,7 +710,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -766,6 +787,33 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		}
 	}
 
+	var eval *structs.Evaluation
+
+	// The job priority / type is strange for this, since it's not a high
+	// priority even if the job was.
+	now := time.Now().UnixNano()
+
+	// If the job is periodic or parameterized, we don't create an eval.
+	if job == nil || !(job.IsPeriodic() || job.IsParameterized()) {
+		eval = &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   args.RequestNamespace(),
+			Priority:    structs.JobDefaultPriority,
+			Type:        structs.JobTypeService,
+			TriggeredBy: structs.EvalTriggerJobDeregister,
+			JobID:       args.JobID,
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now,
+			ModifyTime:  now,
+		}
+		reply.EvalID = eval.ID
+	}
+
+	// COMPAT(1.1.0): remove conditional and always set args.Eval
+	if ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+		args.Eval = eval
+	}
+
 	// Commit the job update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
 	if err != nil {
@@ -775,6 +823,8 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
+	reply.EvalCreateIndex = index
+	reply.Index = index
 
 	// Make a raft apply to release the CSI volume claims of terminal allocs.
 	var result *multierror.Error
@@ -783,44 +833,28 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		result = multierror.Append(result, err)
 	}
 
-	// If the job is periodic or parameterized, we don't create an eval.
-	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
-		return nil
+	// COMPAT(1.1.0) - Remove entire conditional block
+	// 0.12.1 introduced atomic job deregistration eval
+	if eval != nil && args.Eval == nil {
+		// Create a new evaluation
+		eval.JobModifyIndex = index
+		update := &structs.EvalUpdateRequest{
+			Evals:        []*structs.Evaluation{eval},
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
+
+		// Commit this evaluation via Raft
+		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			result = multierror.Append(result, err)
+			j.logger.Error("eval create failed", "error", err, "method", "deregister")
+			return result.ErrorOrNil()
+		}
+
+		reply.EvalCreateIndex = evalIndex
+		reply.Index = evalIndex
 	}
 
-	// Create a new evaluation
-	// XXX: The job priority / type is strange for this, since it's not a high
-	// priority even if the job was.
-	now := time.Now().UTC().UnixNano()
-	eval := &structs.Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      args.RequestNamespace(),
-		Priority:       structs.JobDefaultPriority,
-		Type:           structs.JobTypeService,
-		TriggeredBy:    structs.EvalTriggerJobDeregister,
-		JobID:          args.JobID,
-		JobModifyIndex: index,
-		Status:         structs.EvalStatusPending,
-		CreateTime:     now,
-		ModifyTime:     now,
-	}
-	update := &structs.EvalUpdateRequest{
-		Evals:        []*structs.Evaluation{eval},
-		WriteRequest: structs.WriteRequest{Region: args.Region},
-	}
-
-	// Commit this evaluation via Raft
-	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-	if err != nil {
-		result = multierror.Append(result, err)
-		j.logger.Error("eval create failed", "error", err, "method", "deregister")
-		return result.ErrorOrNil()
-	}
-
-	// Populate the reply with eval information
-	reply.EvalID = eval.ID
-	reply.EvalCreateIndex = evalIndex
-	reply.Index = evalIndex
 	return result.ErrorOrNil()
 }
 
@@ -883,7 +917,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		}
 
 		// Create a new evaluation
-		now := time.Now().UTC().UnixNano()
+		now := time.Now().UnixNano()
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   jobNS.Namespace,
@@ -976,7 +1010,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
 
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 
 	// If the count is present, commit the job update via Raft
 	// for now, we'll do this even if count didn't change
@@ -1651,7 +1685,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -1849,7 +1883,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// If the job is periodic, we don't create an eval.
 	if !dispatchJob.IsPeriodic() {
 		// Create a new evaluation
-		now := time.Now().UTC().UnixNano()
+		now := time.Now().UnixNano()
 		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
