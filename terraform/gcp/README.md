@@ -90,7 +90,6 @@ To perform common setup tasks like authorizing with GCP using `gcloud`, if you h
 
 ```console
 gcloud init
-...
 ```
 
 ## Create a New Project
