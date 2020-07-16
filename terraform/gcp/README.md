@@ -15,6 +15,7 @@ Includes:
 * Installing the GCP SDK CLI Tools, if you're not using Cloud Shell.
 * Creating a new GCP project, along with a Terraform Service Account.
 * Building a golden image using Packer.
+* Deploying a cluster with Terraform.
 
 ## Install HashiCorp Tools
 
@@ -178,7 +179,7 @@ Before moving onto the next steps, ensure the following environment variables ar
 * `GOOGLE_PROJECT` with your selected GCP project name.
 * `GOOGLE_APPLICATION_CREDENTIALS` with the *full path* to the Terraform Service Account `account.json` credentials file created with the last step.
 
-## Build Images with Packer
+## Build HashiStack Golden Image with Packer
 
 [Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool  for creating identical machine images for multiple platforms from a single  source configuration. The machine image created here can be customized through modifications to the [build configuration file](packer.json) and the [shell script](../shared/scripts/setup.sh).
 
