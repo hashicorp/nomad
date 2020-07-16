@@ -205,13 +205,13 @@ terraform init
 Plan infrastructure changes with Terraform:
 
 ```console
-terraform plan
+terraform plan -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}" 
 ```
 
 Apply infrastructure changes with Terraform:
 
 ```console
-terraform apply
+terraform apply -auto-approve -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}" 
 ```
 
 ## Access the Cluster
