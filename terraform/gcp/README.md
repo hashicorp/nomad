@@ -245,4 +245,4 @@ gcloud compute ssh hashistack-server-0 --zone=us-east1-c
 
 ## Next Steps
 
-Click [here](../README.md#test) for next steps.
+Click [here](https://github.com/hashicorp/nomad/blob/master/terraform/README.md#test) for next steps.
