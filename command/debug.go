@@ -44,7 +44,7 @@ type DebugCommand struct {
 }
 
 type external struct {
-	api.TLSConfig
+	tls       *api.TLSConfig
 	addrVal   string
 	auth      string
 	ssl       bool
@@ -189,25 +189,25 @@ func (c *DebugCommand) Run(args []string) int {
 	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 
-	c.consul = &external{}
+	c.consul = &external{tls: &api.TLSConfig{}}
 	flags.StringVar(&c.consul.addrVal, "consul-http-addr", "", os.Getenv("CONSUL_HTTP_ADDR"))
 	ssl := os.Getenv("CONSUL_HTTP_SSL")
 	c.consul.ssl, _ = strconv.ParseBool(ssl)
 	flags.StringVar(&c.consul.auth, "consul-auth", "", os.Getenv("CONSUL_HTTP_AUTH"))
 	flags.StringVar(&c.consul.tokenVal, "consul-token", "", os.Getenv("CONSUL_HTTP_TOKEN"))
 	flags.StringVar(&c.consul.tokenFile, "consul-token-file", "", os.Getenv("CONSUL_HTTP_TOKEN_FILE"))
-	flags.StringVar(&c.consul.ClientCert, "consul-client-cert", "", os.Getenv("CONSUL_CLIENT_CERT"))
-	flags.StringVar(&c.consul.ClientKey, "consul-client-key", "", os.Getenv("CONSUL_CLIENT_KEY"))
-	flags.StringVar(&c.consul.CACert, "consul-ca-cert", "", os.Getenv("CONSUL_CACERT"))
-	flags.StringVar(&c.consul.CAPath, "consul-ca-path", "", os.Getenv("CONSUL_CAPATH"))
+	flags.StringVar(&c.consul.tls.ClientCert, "consul-client-cert", "", os.Getenv("CONSUL_CLIENT_CERT"))
+	flags.StringVar(&c.consul.tls.ClientKey, "consul-client-key", "", os.Getenv("CONSUL_CLIENT_KEY"))
+	flags.StringVar(&c.consul.tls.CACert, "consul-ca-cert", "", os.Getenv("CONSUL_CACERT"))
+	flags.StringVar(&c.consul.tls.CAPath, "consul-ca-path", "", os.Getenv("CONSUL_CAPATH"))
 
-	c.vault = &external{}
+	c.vault = &external{tls: &api.TLSConfig{}}
 	flags.StringVar(&c.vault.addrVal, "vault-address", "", os.Getenv("VAULT_ADDR"))
 	flags.StringVar(&c.vault.tokenVal, "vault-token", "", os.Getenv("VAULT_TOKEN"))
-	flags.StringVar(&c.vault.CACert, "vault-ca-cert", "", os.Getenv("VAULT_CACERT"))
-	flags.StringVar(&c.vault.CAPath, "vault-ca-path", "", os.Getenv("VAULT_CAPATH"))
-	flags.StringVar(&c.vault.ClientCert, "vault-client-cert", "", os.Getenv("VAULT_CLIENT_CERT"))
-	flags.StringVar(&c.vault.ClientKey, "vault-client-key", "", os.Getenv("VAULT_CLIENT_KEY"))
+	flags.StringVar(&c.vault.tls.CACert, "vault-ca-cert", "", os.Getenv("VAULT_CACERT"))
+	flags.StringVar(&c.vault.tls.CAPath, "vault-ca-path", "", os.Getenv("VAULT_CAPATH"))
+	flags.StringVar(&c.vault.tls.ClientCert, "vault-client-cert", "", os.Getenv("VAULT_CLIENT_CERT"))
+	flags.StringVar(&c.vault.tls.ClientKey, "vault-client-key", "", os.Getenv("VAULT_CLIENT_KEY"))
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -305,10 +305,6 @@ func (c *DebugCommand) Run(args []string) int {
 		return 2
 	}
 
-	if c.ctx.Err() != nil {
-		return 2
-	}
-
 	c.writeManifest()
 
 	if output != "" {
@@ -337,10 +333,7 @@ func (c *DebugCommand) collect(client *api.Client) error {
 	}
 
 	self, err := client.Agent().Self()
-	if err != nil {
-		return fmt.Errorf("agent self: %s", err.Error())
-	}
-	c.writeJSON(dir, "agent-self.json", self)
+	c.writeJSON(dir, "agent-self.json", self, err)
 
 	// Fetch data directly from consul and vault. Ignore errors
 	var consul, vault string
@@ -460,12 +453,7 @@ func (c *DebugCommand) collectAgentHost(path, id string, client *api.Client) {
 
 	path = filepath.Join(path, id)
 
-	if err != nil {
-		c.writeBytes(path, "agent-host.log", []byte(err.Error()))
-		return
-	}
-
-	c.writeJSON(path, "agent-host.json", host)
+	c.writeJSON(path, "agent-host.json", host, err)
 }
 
 // collectPprofs captures the /agent/pprof for each listed node
@@ -535,6 +523,7 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 			dir = filepath.Join("nomad", name)
 			c.Ui.Output(fmt.Sprintf("==> Capture interval %s", name))
 			c.collectNomad(dir, client)
+			c.collectOperator(dir, client)
 			interval = time.After(c.interval)
 			intervalCount += 1
 
@@ -542,6 +531,18 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 			return
 		}
 	}
+}
+
+// collectOperator captures some cluster meta information
+func (c *DebugCommand) collectOperator(dir string, client *api.Client) {
+	rc, err := client.Operator().RaftGetConfiguration(nil)
+	c.writeJSON(dir, "operator-raft.json", rc, err)
+
+	sc, _, err := client.Operator().SchedulerGetConfiguration(nil)
+	c.writeJSON(dir, "operator-scheduler.json", sc, err)
+
+	ah, _, err := client.Operator().AutopilotServerHealth(nil)
+	c.writeJSON(dir, "operator-autopilot-health.json", ah, err)
 }
 
 // collectNomad captures the nomad cluster state
@@ -554,80 +555,38 @@ func (c *DebugCommand) collectNomad(dir string, client *api.Client) error {
 	var qo *api.QueryOptions
 
 	js, _, err := client.Jobs().List(qo)
-	if err != nil {
-		return fmt.Errorf("listing jobs: %s", err.Error())
-	}
-	c.writeJSON(dir, "jobs.json", js)
+	c.writeJSON(dir, "jobs.json", js, err)
 
 	ds, _, err := client.Deployments().List(qo)
-	if err != nil {
-		return fmt.Errorf("listing deployments: %s", err.Error())
-	}
-	c.writeJSON(dir, "deployments.json", ds)
+	c.writeJSON(dir, "deployments.json", ds, err)
 
 	es, _, err := client.Evaluations().List(qo)
-	if err != nil {
-		return fmt.Errorf("listing evaluations: %s", err.Error())
-	}
-	c.writeJSON(dir, "evaluations.json", es)
+	c.writeJSON(dir, "evaluations.json", es, err)
 
 	as, _, err := client.Allocations().List(qo)
-	if err != nil {
-		return fmt.Errorf("listing allocations: %s", err.Error())
-	}
-	c.writeJSON(dir, "allocations.json", as)
+	c.writeJSON(dir, "allocations.json", as, err)
 
 	ns, _, err := client.Nodes().List(qo)
-	if err != nil {
-		return fmt.Errorf("listing nodes: %s", err.Error())
-	}
-	c.writeJSON(dir, "nodes.json", ns)
+	c.writeJSON(dir, "nodes.json", ns, err)
 
 	ps, _, err := client.CSIPlugins().List(qo)
-	if err != nil {
-		return fmt.Errorf("listing plugins: %s", err.Error())
-	}
-	c.writeJSON(dir, "plugins.json", ps)
+	c.writeJSON(dir, "plugins.json", ps, err)
 
 	vs, _, err := client.CSIVolumes().List(qo)
-	if err != nil {
-		return fmt.Errorf("listing volumes: %s", err.Error())
-	}
-	c.writeJSON(dir, "volumes.json", vs)
-
-	rc, err := client.Operator().RaftGetConfiguration(nil)
-	if err != nil {
-		return fmt.Errorf("listing raft configuration: %s", err.Error())
-	}
-	c.writeJSON(dir, "operator-raft.json", rc)
-
-	sc, _, err := client.Operator().SchedulerGetConfiguration(nil)
-	if err != nil {
-		return fmt.Errorf("listing scheduler configuration: %s", err.Error())
-	}
-	c.writeJSON(dir, "operator-scheduler.json", sc)
-
-	ah, _, err := client.Operator().AutopilotServerHealth(nil)
-	if err != nil {
-		return fmt.Errorf("listing autopilot health: %s", err.Error())
-	}
-	c.writeJSON(dir, "operator-autopilot-health.json", ah)
+	c.writeJSON(dir, "volumes.json", vs, err)
 
 	return nil
 }
 
 // collectConsul calls the Consul API directly to collect data
 func (c *DebugCommand) collectConsul(dir, consul string) error {
-	if consul == "" {
+	addr := c.consul.addr(consul)
+	if addr == "" {
 		return nil
 	}
 
-	client := http.Client{
-		Timeout: 2 * time.Second,
-	}
-	api.ConfigureTLS(&client, &c.consul.TLSConfig)
-
-	addr := c.consul.addr(consul)
+	client := api.DefaultHttpClient()
+	api.ConfigureTLS(client, c.consul.tls)
 
 	req, _ := http.NewRequest("GET", addr+"/v1/agent/self", nil)
 	req.Header.Add("X-Consul-Token", c.consul.token())
@@ -646,16 +605,13 @@ func (c *DebugCommand) collectConsul(dir, consul string) error {
 
 // collectVault calls the Vault API directly to collect data
 func (c *DebugCommand) collectVault(dir, vault string) error {
-	if vault == "" {
+	addr := c.vault.addr(vault)
+	if addr == "" {
 		return nil
 	}
 
-	client := http.Client{
-		Timeout: 2 * time.Second,
-	}
-	api.ConfigureTLS(&client, &c.vault.TLSConfig)
-
-	addr := c.vault.addr(vault)
+	client := api.DefaultHttpClient()
+	api.ConfigureTLS(client, c.vault.tls)
 
 	req, _ := http.NewRequest("GET", addr+"/sys/health", nil)
 	req.Header.Add("X-Vault-Token", c.vault.token())
@@ -711,28 +667,47 @@ func (c *DebugCommand) writeBytes(dir, file string, data []byte) error {
 }
 
 // writeJSON writes JSON responses from the Nomad API calls to the archive
-func (c *DebugCommand) writeJSON(dir, file string, data interface{}) error {
+func (c *DebugCommand) writeJSON(dir, file string, data interface{}, err error) error {
+	if err != nil {
+		return c.writeError(dir, file, err)
+	}
 	bytes, err := json.Marshal(data)
+	if err != nil {
+		return c.writeError(dir, file, err)
+	}
+	return c.writeBytes(dir, file, bytes)
+}
+
+// writeError writes a JSON error object to capture errors in the debug bundle without
+// reporting
+func (c *DebugCommand) writeError(dir, file string, err error) error {
+	bytes, err := json.Marshal(errorWrapper{Error: err.Error()})
 	if err != nil {
 		return err
 	}
 	return c.writeBytes(dir, file, bytes)
 }
 
+type errorWrapper struct {
+	Error string
+}
+
 // writeBody is a helper that writes the body of an http.Response to the archive
 func (c *DebugCommand) writeBody(dir, file string, resp *http.Response, err error) {
 	if err != nil {
+		c.writeError(dir, file, err)
 		return
 	}
-	defer resp.Body.Close()
 
 	if resp.ContentLength == 0 {
 		return
 	}
 
+	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return
+		c.writeError(dir, file, err)
 	}
 
 	c.writeBytes(dir, file, body)
