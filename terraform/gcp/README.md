@@ -1,7 +1,7 @@
 # Provision a Nomad cluster on GCP
 
 <!-- TODO: change to use default branch before merging -->
-[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://ssh.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fhashicorp%2Fnomad&cloudshell_git_branch=getting-started-on-gcp&cloudshell_working_dir=terraform%2Fgcp&cloudshell_tutorial=terraform%2Fgcp%2FREADME.md)
+[![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://ssh.cloud.google.com/cloudshell/editor?shellonly=true&cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fhashicorp%2Fnomad&cloudshell_git_branch=getting-started-on-gcp&cloudshell_working_dir=terraform%2Fgcp&cloudshell_tutorial=README.md)
 
 To get started, you will need a GCP [account](https://cloud.google.com/free).
 
