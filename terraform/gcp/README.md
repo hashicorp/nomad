@@ -246,3 +246,15 @@ gcloud compute ssh hashistack-server-0 --zone=us-east1-c
 ## Next Steps
 
 Click [here](https://github.com/hashicorp/nomad/blob/master/terraform/README.md#test) for next steps.
+
+## Conclusion
+
+You have deployed a cluster to GCP!
+
+### Destroy Infrastrucure
+
+To destroy all the demo infrastrucure: 
+
+```console
+terraform destroy -force -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}" 
+```
