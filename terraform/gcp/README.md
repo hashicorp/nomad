@@ -224,7 +224,7 @@ Put the `hashistack_load_balancer_external_ip` Terraform Output in your web brow
 
 ### CLI
 
-Export the `hashistack_load_balancer_external_ip` Terraform Output as an environment variable:
+Export following environment variables:
 
 ```console
 export HASHISTACK_LB_EXTERNAL_IP=$(terraform output -json | jq -r '.hashistack_load_balancer_external_ip.value')
@@ -233,13 +233,7 @@ export CONSUL_HTTP_ADDR="http://$HASHISTACK_LB_EXTERNAL_IP:8500"
 export VAULT_ADDR="http://$HASHISTACK_LB_EXTERNAL_IP:8200"
 ```
 
-```console
-nomad server members
-```
-
-```console
-consul members
-```
+The next steps will show you example commands.
 
 ### SSH
 
