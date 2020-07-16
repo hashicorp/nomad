@@ -41,6 +41,8 @@ Get started with Nomad quickly in a sandbox environment on the public cloud or o
   * [Via Terraform](https://github.com/hashicorp/nomad/tree/master/terraform/aws)
 * Azure
   * [Via Terraform](https://github.com/hashicorp/nomad/tree/master/terraform/azure)
+* GCP
+  * [Via Terraform](https://github.com/hashicorp/nomad/tree/master/terraform/gcp)
 
 These methods are not meant for production.
 
