@@ -202,11 +202,13 @@ Initialize Terraform:
 terraform init
 ```
 
-Run a Terraform Plan:
+Plan infrastructure changes with Terraform:
 
 ```console
 terraform plan
 ```
+
+Apply infrastructure changes with Terraform:
 
 ```console
 terraform apply
