@@ -197,7 +197,8 @@ func (a *allocReconciler) Compute() *reconcileResults {
 
 	// Detect if the deployment is paused
 	if a.deployment != nil {
-		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused
+		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
+			a.deployment.Status == structs.DeploymentStatusPending
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
 	if a.deployment == nil {
