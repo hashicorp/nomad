@@ -186,7 +186,7 @@ Before moving onto the next steps, ensure the following environment variables ar
 Use the following command to build the machine image:
 
 ```console
-$ packer build packer.json
+packer build packer.json
 ```
 
 ## Provision a cluster with Terraform
@@ -194,29 +194,23 @@ $ packer build packer.json
 Change into the `env/us-east` environment directory:
 
 ```console
-$ cd env/us-east
+cd env/us-east
 ```
 
 Initialize Terraform:
 
 ```console
-$ terraform init
-...
+terraform init
 ```
 
 Run a Terraform Plan:
 
 ```console
-$ terraform plan
-...
+terraform plan
 ```
 
 ```console
-$ terraform apply
-...
-Outputs:
-
-hashistack_load_balancer_external_ip = X.X.X.X
+terraform apply
 ```
 
 ## Access the Cluster
@@ -239,23 +233,11 @@ export VAULT_ADDR="http://$HASHISTACK_LB_EXTERNAL_IP:8200"
 ```
 
 ```console
-$ nomad server members
-Name                        Address      Port  Status  Leader  Protocol  Build  Datacenter  Region
-hashistack-server-0.global  192.168.1.5  4648  alive   false   2         0.9.0  dc1         global
-hashistack-server-1.global  192.168.1.4  4648  alive   false   2         0.9.0  dc1         global
-hashistack-server-2.global  192.168.1.8  4648  alive   true    2         0.9.0  dc1         global
+nomad server members
 ```
 
 ```console
-$ consul members
-Node                 Address           Status  Type    Build  Protocol  DC   Segment
-hashistack-server-0  192.168.1.5:8301  alive   server  1.6.0  2         dc1  <all>
-hashistack-server-1  192.168.1.4:8301  alive   server  1.6.0  2         dc1  <all>
-hashistack-server-2  192.168.1.8:8301  alive   server  1.6.0  2         dc1  <all>
-hashistack-client-0  192.168.1.3:8301  alive   client  1.6.0  2         dc1  <default>
-hashistack-client-1  192.168.1.6:8301  alive   client  1.6.0  2         dc1  <default>
-hashistack-client-2  192.168.1.2:8301  alive   client  1.6.0  2         dc1  <default>
-hashistack-client-3  192.168.1.7:8301  alive   client  1.6.0  2         dc1  <default>
+consul members
 ```
 
 ### SSH
@@ -263,7 +245,7 @@ hashistack-client-3  192.168.1.7:8301  alive   client  1.6.0  2         dc1  <de
 Use `gcloud` to SSH into one of the servers:
 
 ```bash
-$ gcloud compute ssh hashistack-server-0 --zone=us-east1-c
+gcloud compute ssh hashistack-server-0 --zone=us-east1-c
 ```
 
 ## Next Steps
