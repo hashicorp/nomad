@@ -428,12 +428,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	strategy := tg.Update
 	canariesPromoted := dstate != nil && dstate.Promoted
 	requireCanary := numDestructive != 0 && strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
+	if requireCanary {
+		dstate.DesiredCanaries = strategy.Canary
+	}
 	if requireCanary && !a.deploymentPaused && !a.deploymentFailed {
 		number := strategy.Canary - len(canaries)
 		desiredChanges.Canary += uint64(number)
-		if !existingDeployment {
-			dstate.DesiredCanaries = strategy.Canary
-		}
 
 		for _, name := range nameIndex.NextCanaries(uint(number), canaries, destructive) {
 			a.result.place = append(a.result.place, allocPlaceResult{
