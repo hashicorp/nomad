@@ -17,6 +17,24 @@ standard upgrade flow.
 
 ## Nomad 0.12.0
 
+### Enterprise Licensing
+
+Enterprise binaries for Nomad are now publicly available via
+[releases.hashicorp.com](https://releases.hashicorp.com/nomad/). By default all
+enterprise features are enabled for 6 hours. During that time enterprise users
+should apply their license with the [`nomad license put
+...`](https://www.nomadproject.io/docs/commands/license/put) command.
+
+Once the 6 hour demonstration period expires, Nomad will shutdown. If restarted
+Nomad will shutdown in a very short amount of time unless a valid license is
+applied.
+
+~> **Warning:** Due to a [bug][gh-8457] in Nomad v0.12.0, existing clusters
+   that are upgraded will **not** have 6 hours to apply a license. The minimal
+   grace period should be sufficient to apply a valid license, but enterprise
+   users are encouraged to delay upgrading until Nomad v0.12.1 is released and
+   fixes the issue.
+
 ### Docker access host filesystem
 
 Nomad 0.12.0 disables Docker tasks access to the host filesystem, by default.
@@ -567,6 +585,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [drain-cli]: /docs/commands/node/drain
 [dst]: /docs/job-specification/periodic#daylight-saving-time
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
+[gh-8457]: https://github.com/hashicorp/nomad/issues/8457
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits
 [lxc]: /docs/drivers/external/lxc
