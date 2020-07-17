@@ -232,6 +232,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 				return err
 			}
 
+			// Check Namespaces
+			namespaceErr := j.multiVaultNamespaceValidation(policies, s)
+			if namespaceErr != nil {
+				return namespaceErr
+			}
+
 			// If we are given a root token it can access all policies
 			if !lib.StrContains(allowedPolicies, "root") {
 				flatPolicies := structs.VaultPoliciesSet(policies)

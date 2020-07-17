@@ -2121,6 +2121,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Vault: &api.Vault{
+							Namespace:    helper.StringToPtr("ns1"),
 							Policies:     []string{"a", "b", "c"},
 							Env:          helper.BoolToPtr(true),
 							ChangeMode:   helper.StringToPtr("c"),
@@ -2149,6 +2150,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		},
 		ConsulToken:       helper.StringToPtr("abc123"),
 		VaultToken:        helper.StringToPtr("def456"),
+		VaultNamespace:    helper.StringToPtr("ghi789"),
 		Status:            helper.StringToPtr("status"),
 		StatusDescription: helper.StringToPtr("status_desc"),
 		Version:           helper.Uint64ToPtr(10),
@@ -2158,16 +2160,17 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	}
 
 	expected := &structs.Job{
-		Stop:        true,
-		Region:      "global",
-		Namespace:   "foo",
-		ID:          "foo",
-		ParentID:    "lol",
-		Name:        "name",
-		Type:        "service",
-		Priority:    50,
-		AllAtOnce:   true,
-		Datacenters: []string{"dc1", "dc2"},
+		Stop:           true,
+		Region:         "global",
+		Namespace:      "foo",
+		VaultNamespace: "ghi789",
+		ID:             "foo",
+		ParentID:       "lol",
+		Name:           "name",
+		Type:           "service",
+		Priority:       50,
+		AllAtOnce:      true,
+		Datacenters:    []string{"dc1", "dc2"},
 		Constraints: []*structs.Constraint{
 			{
 				LTarget: "a",
@@ -2488,6 +2491,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Vault: &structs.Vault{
+							Namespace:    "ns1",
 							Policies:     []string{"a", "b", "c"},
 							Env:          true,
 							ChangeMode:   "c",

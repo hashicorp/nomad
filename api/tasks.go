@@ -812,6 +812,7 @@ func (tmpl *Template) Canonicalize() {
 
 type Vault struct {
 	Policies     []string
+	Namespace    *string `mapstructure:"namespace"`
 	Env          *bool
 	ChangeMode   *string `mapstructure:"change_mode"`
 	ChangeSignal *string `mapstructure:"change_signal"`
@@ -820,6 +821,9 @@ type Vault struct {
 func (v *Vault) Canonicalize() {
 	if v.Env == nil {
 		v.Env = boolToPtr(true)
+	}
+	if v.Namespace == nil {
+		v.Namespace = stringToPtr("")
 	}
 	if v.ChangeMode == nil {
 		v.ChangeMode = stringToPtr("restart")

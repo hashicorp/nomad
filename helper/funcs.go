@@ -3,6 +3,7 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -460,4 +461,24 @@ func RemoveEqualFold(xs *[]string, search string) {
 			return
 		}
 	}
+}
+
+// CheckNamespaceScope ensures that the provided namespace is equal to
+// or a parent of the requested namespaces. Returns requested namespaces
+// which are not equal to or a child of the provided namespace.
+func CheckNamespaceScope(provided string, requested []string) []string {
+	var offending []string
+	for _, ns := range requested {
+		rel, err := filepath.Rel(provided, ns)
+		if err != nil {
+			offending = append(offending, ns)
+			// If relative path requires ".." it's not a child
+		} else if strings.Contains(rel, "..") {
+			offending = append(offending, ns)
+		}
+	}
+	if len(offending) > 0 {
+		return offending
+	}
+	return nil
 }

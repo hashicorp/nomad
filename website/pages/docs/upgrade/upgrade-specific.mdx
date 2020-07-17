@@ -15,6 +15,16 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.12.2
+
+### Vault Namespace Environment Variable
+
+Nomad 0.12.2 allows Enterprise users to specify a Vault Namespace for a
+particular Job, Group, or Task. Before Nomad 0.12.2 the `VAULT_NAMESPACE`
+environment variable was ignored when submitting jobs. Nomad 0.12.2 changes the
+functionality and uses the `VAULT_NAMESPACE` environment variable when
+submitting jobs.
+
 ## Nomad 0.12.0
 
 ### Enterprise Licensing

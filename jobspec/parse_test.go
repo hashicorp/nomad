@@ -332,6 +332,7 @@ func TestParse(t *testing.T) {
 									},
 								},
 								Vault: &api.Vault{
+									Namespace:  helper.StringToPtr("ns1"),
 									Policies:   []string{"foo", "bar"},
 									Env:        helper.BoolToPtr(true),
 									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
