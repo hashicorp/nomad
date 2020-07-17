@@ -190,24 +190,24 @@ func (c *DebugCommand) Run(args []string) int {
 	flags.StringVar(&output, "output", "", "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
-	flags.StringVar(&c.consul.addrVal, "consul-http-addr", "", os.Getenv("CONSUL_HTTP_ADDR"))
+	flags.StringVar(&c.consul.addrVal, "consul-http-addr", os.Getenv("CONSUL_HTTP_ADDR"), "")
 	ssl := os.Getenv("CONSUL_HTTP_SSL")
 	c.consul.ssl, _ = strconv.ParseBool(ssl)
-	flags.StringVar(&c.consul.auth, "consul-auth", "", os.Getenv("CONSUL_HTTP_AUTH"))
-	flags.StringVar(&c.consul.tokenVal, "consul-token", "", os.Getenv("CONSUL_HTTP_TOKEN"))
-	flags.StringVar(&c.consul.tokenFile, "consul-token-file", "", os.Getenv("CONSUL_HTTP_TOKEN_FILE"))
-	flags.StringVar(&c.consul.tls.ClientCert, "consul-client-cert", "", os.Getenv("CONSUL_CLIENT_CERT"))
-	flags.StringVar(&c.consul.tls.ClientKey, "consul-client-key", "", os.Getenv("CONSUL_CLIENT_KEY"))
-	flags.StringVar(&c.consul.tls.CACert, "consul-ca-cert", "", os.Getenv("CONSUL_CACERT"))
-	flags.StringVar(&c.consul.tls.CAPath, "consul-ca-path", "", os.Getenv("CONSUL_CAPATH"))
+	flags.StringVar(&c.consul.auth, "consul-auth", os.Getenv("CONSUL_HTTP_AUTH"), "")
+	flags.StringVar(&c.consul.tokenVal, "consul-token", os.Getenv("CONSUL_HTTP_TOKEN"), "")
+	flags.StringVar(&c.consul.tokenFile, "consul-token-file", os.Getenv("CONSUL_HTTP_TOKEN_FILE"), "")
+	flags.StringVar(&c.consul.tls.ClientCert, "consul-client-cert", os.Getenv("CONSUL_CLIENT_CERT"), "")
+	flags.StringVar(&c.consul.tls.ClientKey, "consul-client-key", os.Getenv("CONSUL_CLIENT_KEY"), "")
+	flags.StringVar(&c.consul.tls.CACert, "consul-ca-cert", os.Getenv("CONSUL_CACERT"), "")
+	flags.StringVar(&c.consul.tls.CAPath, "consul-ca-path", os.Getenv("CONSUL_CAPATH"), "")
 
 	c.vault = &external{tls: &api.TLSConfig{}}
-	flags.StringVar(&c.vault.addrVal, "vault-address", "", os.Getenv("VAULT_ADDR"))
-	flags.StringVar(&c.vault.tokenVal, "vault-token", "", os.Getenv("VAULT_TOKEN"))
-	flags.StringVar(&c.vault.tls.CACert, "vault-ca-cert", "", os.Getenv("VAULT_CACERT"))
-	flags.StringVar(&c.vault.tls.CAPath, "vault-ca-path", "", os.Getenv("VAULT_CAPATH"))
-	flags.StringVar(&c.vault.tls.ClientCert, "vault-client-cert", "", os.Getenv("VAULT_CLIENT_CERT"))
-	flags.StringVar(&c.vault.tls.ClientKey, "vault-client-key", "", os.Getenv("VAULT_CLIENT_KEY"))
+	flags.StringVar(&c.vault.addrVal, "vault-address", os.Getenv("VAULT_ADDR"), "")
+	flags.StringVar(&c.vault.tokenVal, "vault-token", os.Getenv("VAULT_TOKEN"), "")
+	flags.StringVar(&c.vault.tls.CACert, "vault-ca-cert", os.Getenv("VAULT_CACERT"), "")
+	flags.StringVar(&c.vault.tls.CAPath, "vault-ca-path", os.Getenv("VAULT_CAPATH"), "")
+	flags.StringVar(&c.vault.tls.ClientCert, "vault-client-cert", os.Getenv("VAULT_CLIENT_CERT"), "")
+	flags.StringVar(&c.vault.tls.ClientKey, "vault-client-key", os.Getenv("VAULT_CLIENT_KEY"), "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
