@@ -162,7 +162,7 @@ gcloud iam service-accounts keys create account.json \
 
 > ⚠️ **Warning**
 >
-> The `account.json` credentials gives privileged access to this GCP project. Be careful to avoid leaking these credentials by accidentally committing them to version control systems such as `git`, or storing them where they are visible to others. In general, storing these credentials on an individually operated, private computer (like your laptop) or in your own GCP cloud shell is acceptable for testing purposes. For production use, or for teams, use a secrets management system like HashiCorp [Vault](https://www.vaultproject.io/) For this tutorial's purposes, we'll be storing the `account.json` credentials on disk in the cloud shell.
+> The `account.json` credentials gives privileged access to this GCP project. Be careful to avoid leaking these credentials by accidentally committing them to version control systems such as `git`, or storing them where they are visible to others. In general, storing these credentials on an individually operated, private computer (like your laptop) or in your own GCP cloud shell is acceptable for testing purposes. For production use, or for teams, use a secrets management system like HashiCorp [Vault](https://www.vaultproject.io/). For this tutorial's purposes, we'll be storing the `account.json` credentials on disk in the cloud shell.
 
 Now set the *full path* of the newly created `account.json` file as `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
 
