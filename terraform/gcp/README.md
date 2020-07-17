@@ -119,7 +119,7 @@ Next, let's link a billing account to that project. To determine what billing ac
 gcloud alpha billing accounts list
 ```
 
-Then set the billing account ID `GOOGLE_BILLING_ACCOUNT` environment variable:
+Locate the `ACCOUNT_ID` for the billing account you want to use, and set the `GOOGLE_BILLING_ACCOUNT` environment variable. Replace the `XXXXXXX` with the `ACCOUNT_ID` you located with the previous command output:
 
 ```console
 export GOOGLE_BILLING_ACCOUNT="XXXXXXX"
