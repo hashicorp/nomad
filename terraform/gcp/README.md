@@ -75,7 +75,7 @@ terraform --version
 
 ### Install the GCP SDK Command Line Tools
 
-> **Note**: if you are using the free [Google Cloud Shell](https://cloud.google.com/shell) VM, you will already have `gcloud` installed. So, you can safley skip this step.
+> **Note**: if you are using the free [Google Cloud Shell](https://cloud.google.com/shell) VM, you will already have `gcloud` installed. So, you can safely skip this step.
 
 To install the GCP SDK Command Line Tools, follow the installation instructions for your specific operating system: 
 
@@ -175,11 +175,11 @@ export GOOGLE_APPLICATION_CREDENTIALS=$(realpath account.json)
 Before moving onto the next steps, ensure the following environment variables are set:
 
 * `GOOGLE_PROJECT` with your selected GCP project name.
-* `GOOGLE_APPLICATION_CREDENTIALS` with the *full path* to the Terraform Service Account `account.json` credentials file created with the last step.
+* `GOOGLE_APPLICATION_CREDENTIALS` with the *full path* to the Terraform Service Account `account.json` credentials file created in the last step.
 
 ## Build HashiStack Golden Image with Packer
 
-[Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool  for creating identical machine images for multiple platforms from a single  source configuration. The machine image created here can be customized through modifications to the [build configuration file](packer.json) and the [shell script](../shared/scripts/setup.sh).
+[Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool for creating identical machine images for multiple platforms from a single source configuration. The machine image created here can be customized through modifications to the [build configuration file](packer.json) and the [shell script](../shared/scripts/setup.sh).
 
 Use the following command to build the machine image:
 
@@ -215,7 +215,7 @@ terraform apply -auto-approve -var="project=${GOOGLE_PROJECT}" -var="credentials
 
 ## Access the Cluster
 
-You can now access the cluster in serveral ways.
+You can now access the cluster in several ways.
 
 ### UI
 
@@ -248,7 +248,7 @@ Click [here](https://github.com/hashicorp/nomad/blob/master/terraform/README.md#
 
 ## Conclusion
 
-You have deployed a cluster to GCP!
+You have deployed a Nomad cluster to GCP!
 
 ### Destroy Infrastrucure
 
