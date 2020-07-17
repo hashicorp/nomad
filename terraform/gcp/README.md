@@ -215,32 +215,37 @@ terraform apply -auto-approve -var="project=${GOOGLE_PROJECT}" -var="credentials
 
 ## Access the Cluster
 
-You can now access the cluster in several ways.
+You can now access the cluster using [SSH](https://en.wikipedia.org/wiki/Secure_Shell) in several ways.
 
-### UI
+### SSH 
 
-Put the `hashistack_load_balancer_external_ip` Terraform Output in your web browser to access the UI.
-
-### CLI
-
-Export following environment variables:
+Use `gcloud` to SSH into one of the servers to run `nomad`, `consul`, or `vault` commands:
 
 ```console
-export HASHISTACK_LB_EXTERNAL_IP=$(terraform output -json | jq -r '.hashistack_load_balancer_external_ip.value')
-export NOMAD_ADDR="http://$HASHISTACK_LB_EXTERNAL_IP:4646"
-export CONSUL_HTTP_ADDR="http://$HASHISTACK_LB_EXTERNAL_IP:8500"
-export VAULT_ADDR="http://$HASHISTACK_LB_EXTERNAL_IP:8200"
+gcloud compute ssh hashistack-server-0 --zone=us-east1-c --tunnel-through-iap
 ```
 
-The next steps will show you example commands.
+### SSH Tunnel with Cloud Shell Web Preview
 
-### SSH
+To access the Nomad, Consul, or Vault web UI inside the cluster, create an [SSH tunnel](https://cloud.google.com/community/tutorials/ssh-tunnel-on-gce) using `gcloud`. To open up tunnels to *all* of the UIs available in the cluster, run these commands which will start each SSH tunnel as a background process in your current shell:
 
-Use `gcloud` to SSH into one of the servers:
-
-```bash
-gcloud compute ssh hashistack-server-0 --zone=us-east1-c
+```console
+gcloud compute ssh hashistack-server-0 --zone=us-east1-c --tunnel-through-iap -- -f -N -L 127.0.0.1:4646:127.0.0.1:4646
+gcloud compute ssh hashistack-server-0 --zone=us-east1-c --tunnel-through-iap -- -f -N -L 127.0.0.1:8200:127.0.0.1:8200
+gcloud compute ssh hashistack-server-0 --zone=us-east1-c --tunnel-through-iap -- -f -N -L 127.0.0.1:8500:127.0.0.1:8500
 ```
+
+After running those commands, you can now click any of the following links to open up a Web Preview using Cloud Shell:
+
+* [Nomad](https://ssh.cloud.google.com/devshell/proxy?authuser=0&port=4646&environment_id=default)
+* [Vault](https://ssh.cloud.google.com/devshell/proxy?authuser=0&port=8200&environment_id=default)
+* [Consul](https://ssh.cloud.google.com/devshell/proxy?authuser=0&port=8500&environment_id=default)
+
+If you're **not** using Cloud Shell, you can use any of these links:
+
+* [Nomad](http://127.0.0.1:4646)
+* [Vault](http://127.0.0.1:8200)
+* [Consul](http://127.0.0.1:8500)
 
 ## Next Steps
 
