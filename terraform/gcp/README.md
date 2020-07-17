@@ -179,7 +179,7 @@ Before moving onto the next steps, ensure the following environment variables ar
 
 ## Build HashiStack Golden Image with Packer
 
-[Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool for creating identical machine images for multiple platforms from a single source configuration. The machine image created here can be customized through modifications to the [build configuration file](packer.json) and the [shell script](../shared/scripts/setup.sh).
+[Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool for creating identical machine images for multiple platforms from a single source configuration. The machine image created here can be customized through modifications to the [build configuration file](https://github.com/hashicorp/nomad/blob/master/terraform/gcp/packer.json) and the [shell script](https://github.com/hashicorp/nomad/blob/master/terraform/shared/scripts/setup.sh).
 
 Use the following command to build the machine image:
 
