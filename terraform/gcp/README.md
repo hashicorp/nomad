@@ -174,7 +174,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=$(realpath account.json)
 
 Before moving onto the next steps, ensure the following environment variables are set:
 
-* `GOOGLE_PROJECT` with your selected GCP project name.
+* `GOOGLE_PROJECT` with your selected GCP project ID.
 * `GOOGLE_APPLICATION_CREDENTIALS` with the *full path* to the Terraform Service Account `account.json` credentials file created in the last step.
 
 ## Build HashiStack Golden Image with Packer
