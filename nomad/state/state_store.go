@@ -3774,8 +3774,8 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 	// canaryIndex is the set of placed canaries in the deployment
 	canaryIndex := make(map[string]struct{}, len(deployment.TaskGroups))
-	for _, state := range deployment.TaskGroups {
-		for _, c := range state.PlacedCanaries {
+	for _, dstate := range deployment.TaskGroups {
+		for _, c := range dstate.PlacedCanaries {
 			canaryIndex[c] = struct{}{}
 		}
 	}
@@ -3816,12 +3816,12 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 	// Determine if we have enough healthy allocations
 	var unhealthyErr multierror.Error
-	for tg, state := range deployment.TaskGroups {
+	for tg, dstate := range deployment.TaskGroups {
 		if _, ok := groupIndex[tg]; !req.All && !ok {
 			continue
 		}
 
-		need := state.DesiredCanaries
+		need := dstate.DesiredCanaries
 		if need == 0 {
 			continue
 		}
@@ -4558,35 +4558,35 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
 
-	state := deploymentCopy.TaskGroups[alloc.TaskGroup]
-	state.PlacedAllocs += placed
-	state.HealthyAllocs += healthy
-	state.UnhealthyAllocs += unhealthy
+	dstate := deploymentCopy.TaskGroups[alloc.TaskGroup]
+	dstate.PlacedAllocs += placed
+	dstate.HealthyAllocs += healthy
+	dstate.UnhealthyAllocs += unhealthy
 
 	// Ensure PlacedCanaries accurately reflects the alloc canary status
 	if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
 		found := false
-		for _, canary := range state.PlacedCanaries {
+		for _, canary := range dstate.PlacedCanaries {
 			if alloc.ID == canary {
 				found = true
 				break
 			}
 		}
 		if !found {
-			state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
+			dstate.PlacedCanaries = append(dstate.PlacedCanaries, alloc.ID)
 		}
 	}
 
 	// Update the progress deadline
-	if pd := state.ProgressDeadline; pd != 0 {
+	if pd := dstate.ProgressDeadline; pd != 0 {
 		// If we are the first placed allocation for the deployment start the progress deadline.
-		if placed != 0 && state.RequireProgressBy.IsZero() {
+		if placed != 0 && dstate.RequireProgressBy.IsZero() {
 			// Use modify time instead of create time because we may in-place
 			// update the allocation to be part of a new deployment.
-			state.RequireProgressBy = time.Unix(0, alloc.ModifyTime).Add(pd)
+			dstate.RequireProgressBy = time.Unix(0, alloc.ModifyTime).Add(pd)
 		} else if healthy != 0 {
-			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(state.RequireProgressBy) {
-				state.RequireProgressBy = d
+			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(dstate.RequireProgressBy) {
+				dstate.RequireProgressBy = d
 			}
 		}
 	}
