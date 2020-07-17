@@ -93,16 +93,16 @@ gcloud init
 
 ## Create a New Project
 
-Create a new GCP project with the following command:
+Generate a project ID with the following command:
 
 ```console
-gcloud projects create your-new-project-name
+export GOOGLE_PROJECT="nomad-gcp-$(cat /dev/random | head -c 5 | xxd -p)"
 ```
 
-Now export the project name as the `GOOGLE_PROJECT` environment variable:
+Using that project ID, create a new GCP [project](https://cloud.google.com/docs/overview#projects):
 
 ```console
-export GOOGLE_PROJECT="your-new-project-name"
+gcloud projects create $GOOGLE_PROJECT
 ```
 
 And then set your `gcloud` config to use that project:
