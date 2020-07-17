@@ -215,18 +215,6 @@ terraform apply -auto-approve -var="project=${GOOGLE_PROJECT}" -var="credentials
 
 ## Access the Cluster
 
-You can now access the cluster using [SSH](https://en.wikipedia.org/wiki/Secure_Shell) in several ways.
-
-### SSH 
-
-Use `gcloud` to SSH into one of the servers to run `nomad`, `consul`, or `vault` commands:
-
-```console
-gcloud compute ssh hashistack-server-0 --zone=us-east1-c --tunnel-through-iap
-```
-
-### SSH Tunnel with Cloud Shell Web Preview
-
 To access the Nomad, Consul, or Vault web UI inside the cluster, create an [SSH tunnel](https://cloud.google.com/community/tutorials/ssh-tunnel-on-gce) using `gcloud`. To open up tunnels to *all* of the UIs available in the cluster, run these commands which will start each SSH tunnel as a background process in your current shell:
 
 ```console
@@ -246,6 +234,7 @@ If you're **not** using Cloud Shell, you can use any of these links:
 * [Nomad](http://127.0.0.1:4646)
 * [Vault](http://127.0.0.1:8200)
 * [Consul](http://127.0.0.1:8500)
+
 
 ## Next Steps
 
