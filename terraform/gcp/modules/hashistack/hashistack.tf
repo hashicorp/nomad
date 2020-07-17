@@ -32,12 +32,6 @@ variable "cidr_range" {
   description = "The IP CIDR range to use for the cluster's VPC subnetwork."
 }
 
-variable "allowlist_cidr_range" {
-    type        = string
-    default     = "0.0.0.0/0" // $IP/$SUBNET_MASK
-    description = "The IP CIDR range to allow HTTP access to Nomad, Consl, and Vault."
-}
-
 variable "router_asn" {
   type    = string
   default = "64514"
@@ -91,24 +85,6 @@ variable "client_disk_size_gb" {
   description = "The compute engine disk size in GB to use for client instances."
 }
 
-variable "only_allow_your_host_external_ip" {
-    type        = bool 
-    default     = true
-    description = "Only allow your host's external IP address to the load balancer."
-} 
-
-data "http" "ip_info" {
-  url = "https://ipinfo.io"
-  request_headers = {
-    Accept = "application/json"
-  }
-}
-
-locals {
-  ip_info_json     = jsondecode(data.http.ip_info.body)
-  host_external_ip = "${local.ip_info_json["ip"]}/32"
-}
-
 resource "google_compute_network" "hashistack" {
   name                    = var.name 
   auto_create_subnetworks = false
@@ -157,7 +133,6 @@ resource "google_compute_firewall" "allow-http-external" {
   name          = "${var.name}-allow-http-external"
   network       = google_compute_network.hashistack.name
   target_tags   = ["server"]
-  source_ranges = var.only_allow_your_host_external_ip ? [local.host_external_ip] : [var.allowlist_cidr_range]
 
   allow {
     protocol = "tcp"
@@ -285,25 +260,4 @@ resource "google_compute_instance" "client" {
   }
 
   metadata_startup_script = local.client_metadata_startup_script
-}
-
-resource "google_compute_forwarding_rule" "load-balancer" {
-  target                = google_compute_target_pool.load-balancer.self_link
-  name                  = "${var.name}-load-balancer"
-  load_balancing_scheme = "EXTERNAL"
-  network_tier          = "STANDARD"
-  region                = var.region
-  port_range            = "4646-8500" 
-}
-
-resource "google_compute_target_pool" "load-balancer" {
-  name             = "${var.name}-lb"
-  region           = var.region
-  session_affinity = "CLIENT_IP"
-  instances        = formatlist("${format("%s-%s/${var.name}-server", var.region, var.zone)}-%d", range(var.server_count))
-}
-
-output "load_balancer_external_ip" {
-  description = "The external ip address of the HashiStack load balacner"
-  value       = google_compute_forwarding_rule.load-balancer.ip_address
 }
