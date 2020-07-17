@@ -3994,7 +3994,7 @@ func (j *Job) Validate() error {
 		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect != 0 {
 			if *tg.StopAfterClientDisconnect > 0 &&
 				!(j.Type == JobTypeBatch || j.Type == JobTypeService) {
-				mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect can only be used with batch and service jobs"))
+				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect can only be set in batch and service jobs"))
 			} else if *tg.StopAfterClientDisconnect < 0 {
 				mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect must be a positive value"))
 			}
