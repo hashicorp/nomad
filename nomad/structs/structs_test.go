@@ -4751,7 +4751,7 @@ func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 
 	err := job.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "stop_after_client_disconnect can only be set for batch and service jobs")
+	require.Contains(t, err.Error(), "stop_after_client_disconnect can only be set in batch and service jobs")
 
 	// Modify the job to a batch job with an invalid stop_after_client_disconnect value
 	job.Type = JobTypeBatch
