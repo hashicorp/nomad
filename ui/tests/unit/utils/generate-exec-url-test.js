@@ -16,18 +16,49 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     assert.ok(this.urlForSpy.calledWith('exec', 'job-name', emptyOptions));
   });
 
-  test('it generates an exec job URL with an allocation', function(assert) {
-    generateExecUrl(this.router, { job: { plainId: 'job-name' }, allocation: { shortId: 'allocation-short-id' } });
+  test('it generates an exec job URL with an allocation and task group when there are multiple tasks', function(assert) {
+    generateExecUrl(this.router, {
+      job: { plainId: 'job-name' },
+      allocation: {
+        shortId: 'allocation-short-id',
+        taskGroup: { name: 'task-group-name', tasks: [0, 1, 2] },
+      },
+    });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec', 'job-name', {
+      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', {
         queryParams: { allocation: 'allocation-short-id' },
       })
     );
   });
 
+  test('it generates an exec job URL with an allocation, task group, and task when there is only one task', function(assert) {
+    generateExecUrl(this.router, {
+      job: { plainId: 'job-name' },
+      allocation: {
+        shortId: 'allocation-short-id',
+        taskGroup: { name: 'task-group-name', tasks: [{ name: 'task-name' }] },
+      },
+    });
+
+    assert.ok(
+      this.urlForSpy.calledWith(
+        'exec.task-group.task',
+        'job-name',
+        'task-group-name',
+        'task-name',
+        {
+          queryParams: { allocation: 'allocation-short-id' },
+        }
+      )
+    );
+  });
+
   test('it generates an exec task group URL', function(assert) {
-    generateExecUrl(this.router, { job: { plainId: 'job-name' }, taskGroup: { name: 'task-group-name' } });
+    generateExecUrl(this.router, {
+      job: { plainId: 'job-name' },
+      taskGroup: { name: 'task-group-name' },
+    });
 
     assert.ok(
       this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', emptyOptions)
@@ -59,10 +90,13 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
       region: 'a-region',
     };
 
-    generateExecUrl(this.router, { job: { plainId: 'job-name' }, allocation: { shortId: 'id' } });
+    generateExecUrl(this.router, {
+      job: { plainId: 'job-name' },
+      allocation: { shortId: 'id', taskGroup: { name: 'task-group-name', tasks: [0, 1] } },
+    });
 
     assert.ok(
-      this.urlForSpy.calledWith('exec', 'job-name', {
+      this.urlForSpy.calledWith('exec.task-group', 'job-name', 'task-group-name', {
         queryParams: { allocation: 'id', namespace: 'a-namespace', region: 'a-region' },
       })
     );
