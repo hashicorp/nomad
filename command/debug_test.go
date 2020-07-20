@@ -93,11 +93,11 @@ func TestDebugCapturedFiles(t *testing.T) {
 	// Version is always captured
 	require.FileExists(t, filepath.Join(path, "version", "agent-self.json"))
 
-	// Consul and Vault are only captured if they exist
+	// Consul and Vault contain results or errors
 	_, err := os.Stat(filepath.Join(path, "version", "consul-agent-self.json"))
-	require.Error(t, err)
+	require.NoError(t, err)
 	_, err = os.Stat(filepath.Join(path, "version", "vault-sys-health.json"))
-	require.Error(t, err)
+	require.NoError(t, err)
 
 	// Monitor files are only created when selected
 	require.FileExists(t, filepath.Join(path, "server", "leader", "monitor.log"))
