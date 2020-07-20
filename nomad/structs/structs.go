@@ -3997,8 +3997,13 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 		}
 
-		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect < 0 {
-			mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect must be a positive value"))
+		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect != 0 {
+			if *tg.StopAfterClientDisconnect > 0 &&
+				!(j.Type == JobTypeBatch || j.Type == JobTypeService) {
+				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect can only be set in batch and service jobs"))
+			} else if *tg.StopAfterClientDisconnect < 0 {
+				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect must be a positive value"))
+			}
 		}
 
 		if j.Type == "system" && tg.Count > 1 {
