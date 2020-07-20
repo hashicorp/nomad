@@ -11,7 +11,9 @@ BUG FIXES:
  * scheduler: Fixed a bug in Nomad Enterprise where canaries were not being created during multi-region deployments. [[GH-8456](https://github.com/hashicorp/nomad/pull/8456)]
  * ui: Fixed order of column headers in client allocations table. [[GH-8409](https://github.com/hashicorp/nomad/pull/8409)]
  * ui: Fixed stale namespaces after changing acl tokens. [[GH-8413](https://github.com/hashicorp/nomad/issues/8413)]
+ * ui: Fixed inclusion of allocation when opening exec window. [[GH-8460](https://github.com/hashicorp/nomad/pull/8460)]
  * ui: Fixed missing namespace query param after changing acl tokens [[GH-8413](https://github.com/hashicorp/nomad/issues/8413)]
+ * ui: Fixed exec to derive group and task when possible from allocation. [[GH-8463](https://github.com/hashicorp/nomad/pull/8463)]
  * ui: Fixed runtime error when clicking "Run Job" while a prefix filter is set [[GH-8412](https://github.com/hashicorp/nomad/issues/8412)]
  * vault: Fixed a bug where vault identity policies not considered in permissions check [[GH-7732](https://github.com/hashicorp/nomad/issues/7732)]
 
