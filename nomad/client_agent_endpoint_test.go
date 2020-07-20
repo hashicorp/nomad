@@ -573,7 +573,6 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 // Test that we prevent a forwarding loop if the requested
 // serverID does not exist in the requested region
 func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// start server and client
@@ -611,7 +610,6 @@ func TestAgentProfile_RemoteRegionMisMatch(t *testing.T) {
 
 // Test that Agent.Profile can forward to a different region
 func TestAgentProfile_RemoteRegion(t *testing.T) {
-	t.Parallel()
 	require := require.New(t)
 
 	// start server and client
@@ -649,7 +647,6 @@ func TestAgentProfile_RemoteRegion(t *testing.T) {
 }
 
 func TestAgentProfile_Server(t *testing.T) {
-	t.Parallel()
 
 	// start servers
 	s1, cleanup := TestServer(t, func(c *Config) {

@@ -319,6 +319,7 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	if !ServersMeetMinimumVersion(op.srv.Members(), minSchedulerConfigVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update scheduler config", minSchedulerConfigVersion)
 	}
+
 	// Apply the update
 	resp, index, err := op.srv.raftApply(structs.SchedulerConfigRequestType, args)
 	if err != nil {
