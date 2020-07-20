@@ -72,19 +72,16 @@ func TestDebugCapturedFiles(t *testing.T) {
 	ui := new(cli.MockUi)
 	cmd := &DebugCommand{Meta: Meta{Ui: ui}}
 
-	// Calculate the output name
-	format := "2006-01-02-150405Z"
-	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
-	path := filepath.Join(os.TempDir(), stamped)
-	defer os.Remove(path)
-
 	code := cmd.Run([]string{
 		"-address", url,
 		"-output", os.TempDir(),
 		"-server-id", "leader",
 		"-duration", "1s",
-		"-interval", "500ms",
+		"-interval", "600ms",
 	})
+
+	path := cmd.collectDir
+	defer os.Remove(path)
 
 	require.Empty(t, ui.ErrorWriter.String())
 	require.Equal(t, 0, code)
@@ -106,10 +103,10 @@ func TestDebugCapturedFiles(t *testing.T) {
 	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine.prof"))
 
 	// Multiple snapshots are collected, 00 is always created
-	require.FileExists(t, filepath.Join(path, "nomad", "00", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "00", "nodes.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0000", "jobs.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0000", "nodes.json"))
 
 	// Multiple snapshots are collected, 01 requires two intervals
-	require.FileExists(t, filepath.Join(path, "nomad", "01", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "01", "nodes.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0001", "jobs.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0001", "nodes.json"))
 }

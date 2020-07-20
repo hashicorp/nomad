@@ -478,6 +478,10 @@ func (c *DebugCommand) collectPprof(path, id string, client *api.Client) {
 	}
 
 	path = filepath.Join(path, id)
+	err := c.mkdir(path)
+	if err != nil {
+		return
+	}
 
 	bs, err := client.Agent().CPUProfile(opts, nil)
 	if err == nil {
