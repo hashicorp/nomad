@@ -202,7 +202,7 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 		"debug": func() (cli.Command, error) {
-			return &DebugCommand{
+			return &OperatorDebugCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -481,6 +481,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 
 		"operator autopilot set-config": func() (cli.Command, error) {
 			return &OperatorAutopilotSetCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator debug": func() (cli.Command, error) {
+			return &OperatorDebugCommand{
 				Meta: meta,
 			}, nil
 		},
