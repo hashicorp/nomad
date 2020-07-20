@@ -4,16 +4,39 @@ export default function generateExecUrl(router, { job, taskGroup, task, allocati
   const queryParams = router.currentRoute.queryParams;
 
   if (task) {
-    return router.urlFor('exec.task-group.task', get(job, 'plainId'), get(taskGroup, 'name'), get(task, 'name'), {
-      queryParams: {
-        allocation: get(allocation, 'shortId'),
-        ...queryParams,
-      },
-    });
+    return router.urlFor(
+      'exec.task-group.task',
+      get(job, 'plainId'),
+      get(taskGroup, 'name'),
+      get(task, 'name'),
+      {
+        queryParams: {
+          allocation: get(allocation, 'shortId'),
+          ...queryParams,
+        },
+      }
+    );
   } else if (taskGroup) {
-    return router.urlFor('exec.task-group', get(job, 'plainId'), get(taskGroup, 'name'), { queryParams });
+    return router.urlFor('exec.task-group', get(job, 'plainId'), get(taskGroup, 'name'), {
+      queryParams,
+    });
   } else if (allocation) {
-    return router.urlFor('exec', get(job, 'plainId'), { queryParams: { allocation: get(allocation, 'shortId'), ...queryParams } });
+    if (get(allocation, 'taskGroup.tasks.length') === 1) {
+      return router.urlFor(
+        'exec.task-group.task',
+        get(job, 'plainId'),
+        get(allocation, 'taskGroup.name'),
+        get(allocation, 'taskGroup.tasks.firstObject.name'),
+        { queryParams: { allocation: get(allocation, 'shortId'), ...queryParams } }
+      );
+    } else {
+      return router.urlFor(
+        'exec.task-group',
+        get(job, 'plainId'),
+        get(allocation, 'taskGroup.name'),
+        { queryParams: { allocation: get(allocation, 'shortId'), ...queryParams } }
+      );
+    }
   } else {
     return router.urlFor('exec', get(job, 'plainId'), { queryParams });
   }
