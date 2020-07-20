@@ -2,7 +2,7 @@
 
 SECURITY:
 
- * build: Updated to Go 1.14.5. Go 1.14.4 contained 2 CVEs which are low severity for Nomad. [[GH-8441](https://github.com/hashicorp/nomad/issues/8441)]
+ * build: Updated to Go 1.14.6. Go 1.14.4 contained 2 CVEs which are low severity for Nomad. [[GH-8467](https://github.com/hashicorp/nomad/issues/8467)]
 
 BUG FIXES:
 
