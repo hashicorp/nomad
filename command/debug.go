@@ -35,12 +35,9 @@ type DebugCommand struct {
 	serverIDs  []string
 	consul     *external
 	vault      *external
-
-	consulToken string
-	vaultToken  string
-	manifest    []string
-	ctx         context.Context
-	cancel      context.CancelFunc
+	manifest   []string
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 type external struct {
@@ -275,9 +272,12 @@ func (c *DebugCommand) Run(args []string) int {
 	c.timestamp = time.Now().UTC().Format(format)
 	stamped := "nomad-debug-" + c.timestamp
 
-	c.Ui.Output("==> Starting debugger and capturing cluster data...")
-	c.Ui.Output(fmt.Sprintf("          Interval: '%s'", interval))
-	c.Ui.Output(fmt.Sprintf("          Duration: '%s'", duration))
+	c.Ui.Output("Starting debugger and capturing cluster data...")
+
+	if len(c.nodeIDs) > 0 || len(c.serverIDs) > 0 {
+		c.Ui.Output(fmt.Sprintf("    Interval: '%s'", interval))
+		c.Ui.Output(fmt.Sprintf("    Duration: '%s'", duration))
+	}
 
 	// Create the output path
 	var tmp string
@@ -521,7 +521,7 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 		case <-interval:
 			name = fmt.Sprintf("%04d", time.Now().Unix()-start)
 			dir = filepath.Join("nomad", name)
-			c.Ui.Output(fmt.Sprintf("==> Capture interval %s", name))
+			c.Ui.Output(fmt.Sprintf("    Capture interval %s", name))
 			c.collectNomad(dir, client)
 			c.collectOperator(dir, client)
 			interval = time.After(c.interval)
@@ -627,7 +627,7 @@ func (c *external) addr(addr string) string {
 		return addr
 	}
 	if c.ssl && c.addrVal[0:5] != "https" {
-		return "https" + string(c.addrVal[4:])
+		return "https" + c.addrVal[4:]
 	}
 	return c.addrVal
 }
