@@ -63,7 +63,6 @@ func testFSM(t *testing.T) *nomadFSM {
 	if fsm == nil {
 		t.Fatalf("missing fsm")
 	}
-	state.TestInitState(t, fsm.state)
 	return fsm
 }
 

@@ -21,7 +21,6 @@ func TestStateStore(t testing.T) *StateStore {
 	if state == nil {
 		t.Fatalf("missing state")
 	}
-	TestInitState(t, state)
 	return state
 }
 
