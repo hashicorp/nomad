@@ -77,6 +77,16 @@ task "example" {
 }
 ```
 
+## Capabilities
+
+| Feature | Implementation |
+| --- | --- |
+| SendSignals | true  |
+| Exec | true |
+| FSIsolation | FSIsolationImage |
+| NetIsolationModes | NetIsolationModeHost, NetIsolationmodeGroup |
+| MountConfigs | MountConfigSupportAll |
+
 ## Client Requirements
 
 The `exec` driver can only be run when on Linux and running Nomad as root.

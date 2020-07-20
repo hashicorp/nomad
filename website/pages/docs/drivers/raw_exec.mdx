@@ -73,6 +73,16 @@ task "example" {
 }
 ```
 
+## Capabilities
+
+| Feature | Implementation |
+| --- | --- |
+| SendSignals | true  |
+| Exec | true |
+| FSIsolation | FSIsolationNone  |
+| NetIsolationModes | NetIsolationModeHost, NetIsolationmodeGroup |
+| MountConfigs | MountConfigSupportNone |
+
 ## Client Requirements
 
 The `raw_exec` driver can run on all supported operating systems. For security
