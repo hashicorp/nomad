@@ -75,8 +75,12 @@ client {
     reserved_ports = "1,100,10-12"
   }
 
-  client_min_port  = 1000
-  client_max_port  = 2000
+  client_min_port = 1000
+  client_max_port = 2000
+
+  dynamic_port_range_min = 3000
+  dynamic_port_range_max = 4000
+
   max_kill_timeout = "10s"
 
   stats {

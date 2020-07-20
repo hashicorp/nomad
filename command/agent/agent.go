@@ -642,6 +642,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
 
+	conf.DynamicPortRangeMin = agentConfig.Client.DynamicPortRangeMin
+	conf.DynamicPortRangeMax = agentConfig.Client.DynamicPortRangeMax
+
 	return conf, nil
 }
 

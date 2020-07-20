@@ -30,6 +30,7 @@ import (
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/helper/winsvc"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -381,6 +382,13 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
+	if config.Client.DynamicPortRangeMin > 0 &&
+		config.Client.DynamicPortRangeMax > 0 &&
+		config.Client.DynamicPortRangeMin >= config.Client.DynamicPortRangeMax {
+		c.Ui.Error("dynamic_port_range_min must be less than dynamic_port_range_max.")
+		return false
+	}
+
 	return true
 }
 
@@ -604,6 +612,16 @@ func (c *Command) Run(args []string) int {
 	config := c.readConfig()
 	if config == nil {
 		return 1
+	}
+
+	// Configure dynamic port range
+	if config.Client.DynamicPortRangeMin > 0 && config.Client.DynamicPortRangeMax > 0 {
+		structs.SetDynamicPortRange(
+			structs.PortRange{
+				Min: config.Client.DynamicPortRangeMin,
+				Max: config.Client.DynamicPortRangeMax,
+			},
+		)
 	}
 
 	// Setup the log outputs

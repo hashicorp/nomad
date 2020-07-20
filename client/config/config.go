@@ -268,6 +268,12 @@ type Config struct {
 	//
 	// This configuration is only considered if no host networks are defined.
 	BindWildcardDefaultHostNetwork bool
+
+	// DynamicPortRangeMin is the lowest port for dynamic ports
+	DynamicPortRangeMin int
+
+	// DynamicPortRangeMin is the highest port for dynamic ports
+	DynamicPortRangeMax int
 }
 
 type ClientTemplateConfig struct {

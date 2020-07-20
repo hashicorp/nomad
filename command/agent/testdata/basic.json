@@ -77,6 +77,8 @@
       "cni_path": "/tmp/cni_path",
       "cpu_total_compute": 4444,
       "disable_remote_exec": true,
+      "dynamic_port_range_min": 3000,
+      "dynamic_port_range_max": 4000,
       "enabled": true,
       "gc_disk_usage_threshold": 82,
       "gc_inode_usage_threshold": 91,

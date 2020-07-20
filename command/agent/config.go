@@ -301,6 +301,12 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// DynamicPortRangeMin is the lowest port for dynamic ports
+	DynamicPortRangeMin int `hcl:"dynamic_port_range_min"`
+
+	// DynamicPortRangeMax is the highest port for dynamic ports
+	DynamicPortRangeMax int `hcl:"dynamic_port_range_max"`
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
@@ -1558,6 +1564,15 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.BindWildcardDefaultHostNetwork {
 		result.BindWildcardDefaultHostNetwork = true
 	}
+
+	if b.DynamicPortRangeMin != 0 {
+		result.DynamicPortRangeMin = b.DynamicPortRangeMin
+	}
+
+	if b.DynamicPortRangeMax != 0 {
+		result.DynamicPortRangeMax = b.DynamicPortRangeMax
+	}
+
 	return &result
 }
 

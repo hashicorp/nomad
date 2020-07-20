@@ -307,7 +307,7 @@ func TestNetworkIndex_AssignNetwork(t *testing.T) {
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
 func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
-
+	dynamicPortRange := GetDynamicPortRange()
 	// Create a node that only has one free port
 	idx := NewNetworkIndex()
 	n := &Node{
@@ -323,7 +323,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Networks: NodeReservedNetworkResources{
-				ReservedHostPorts: fmt.Sprintf("%d-%d", MinDynamicPort, MaxDynamicPort-1),
+				ReservedHostPorts: fmt.Sprintf("%d-%d", dynamicPortRange.Min, dynamicPortRange.Max-1),
 			},
 		},
 	}
@@ -346,8 +346,8 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 	if len(offer.DynamicPorts) != 1 {
 		t.Fatalf("There should be one dynamic ports")
 	}
-	if p := offer.DynamicPorts[0].Value; p != MaxDynamicPort {
-		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, MaxDynamicPort)
+	if p := offer.DynamicPorts[0].Value; p != dynamicPortRange.Max {
+		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, dynamicPortRange.Max)
 	}
 }
 
@@ -623,6 +623,7 @@ func TestNetworkIndex_AssignNetwork_Old(t *testing.T) {
 // This test ensures that even with a small domain of available ports we are
 // able to make a dynamic port allocation.
 func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
+	dynamicPortRange := GetDynamicPortRange()
 
 	// Create a node that only has one free port
 	idx := NewNetworkIndex()
@@ -646,7 +647,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 			},
 		},
 	}
-	for i := MinDynamicPort; i < MaxDynamicPort; i++ {
+	for i := dynamicPortRange.Min; i < dynamicPortRange.Max; i++ {
 		n.Reserved.Networks[0].ReservedPorts = append(n.Reserved.Networks[0].ReservedPorts, Port{Value: i})
 	}
 
@@ -669,8 +670,8 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 	if len(offer.DynamicPorts) != 1 {
 		t.Fatalf("There should be three dynamic ports")
 	}
-	if p := offer.DynamicPorts[0].Value; p != MaxDynamicPort {
-		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, MaxDynamicPort)
+	if p := offer.DynamicPorts[0].Value; p != dynamicPortRange.Max {
+		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, dynamicPortRange.Max)
 	}
 }
 
@@ -685,4 +686,25 @@ func TestIntContains(t *testing.T) {
 	if !isPortReserved(l, 1) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestDynamicPortRange(t *testing.T) {
+	dynamicPortRange := GetDynamicPortRange()
+	require.Equal(t, dynamicPortRangeMin, dynamicPortRange.Min, "min dynamic port range does not match default value")
+	require.Equal(t, dynamicPortRangeMax, dynamicPortRange.Max, "max dynamic port range does not match default value")
+
+	SetDynamicPortRange(PortRange{
+		Min: 1000,
+		Max: 2000,
+	})
+
+	dynamicPortRange = GetDynamicPortRange()
+	require.Equal(t, 1000, dynamicPortRange.Min, "should reconfigure min dynamic port range")
+	require.Equal(t, 2000, dynamicPortRange.Max, "should reconfigure max dynamic port range")
+
+	// restore to defaults
+	defer SetDynamicPortRange(PortRange{
+		Min: dynamicPortRangeMin,
+		Max: dynamicPortRangeMax,
+	})
 }

@@ -89,6 +89,8 @@ var basicConfig = &Config{
 		CNIPath:             "/tmp/cni_path",
 		BridgeNetworkName:   "custom_bridge_name",
 		BridgeNetworkSubnet: "custom_bridge_subnet",
+		DynamicPortRangeMin: 3000,
+		DynamicPortRangeMax: 4000,
 	},
 	Server: &ServerConfig{
 		Enabled:                   true,
@@ -604,7 +606,9 @@ var sample0 = &Config{
 		RPC:  "host.example.com",
 		Serf: "host.example.com",
 	},
-	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	Client: &ClientConfig{
+		ServerJoin: &ServerJoin{},
+	},
 	Server: &ServerConfig{
 		Enabled:         true,
 		BootstrapExpect: 3,

@@ -7,13 +7,38 @@ import (
 	"sync"
 )
 
+// PortRange describes the boundaries of a contiguous port range
+type PortRange struct {
+	Min int
+	Max int
+}
+
+var (
+	// default values
+	dynamicPortRangeMin = 20000
+	dynamicPortRangeMax = 32000
+
+	// globally configurable dynamic port range
+	dynamicPortRangeLock sync.Mutex
+	dynamicPortRange     = PortRange{
+		Min: dynamicPortRangeMin,
+		Max: dynamicPortRangeMax,
+	}
+)
+
+// GetDynamicPortRange returns the globally defined dynamic port range (default: 20000-32000).
+func GetDynamicPortRange() PortRange {
+	return dynamicPortRange
+}
+
+// SetDynamicPortRange reconfigures the dynamic port range.
+func SetDynamicPortRange(p PortRange) {
+	dynamicPortRangeLock.Lock()
+	defer dynamicPortRangeLock.Unlock()
+	dynamicPortRange = p
+}
+
 const (
-	// MinDynamicPort is the smallest dynamic port generated
-	MinDynamicPort = 20000
-
-	// MaxDynamicPort is the largest dynamic port generated
-	MaxDynamicPort = 32000
-
 	// maxRandPortAttempts is the maximum number of attempt
 	// to assign a random port
 	maxRandPortAttempts = 20
@@ -505,7 +530,8 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, reserved []Port, numDyn int) ([]int
 	}
 
 	// Get the indexes of the unset
-	availablePorts := usedSet.IndexesInRange(false, MinDynamicPort, MaxDynamicPort)
+	dynamicPortRange := GetDynamicPortRange()
+	availablePorts := usedSet.IndexesInRange(false, uint(dynamicPortRange.Min), uint(dynamicPortRange.Max))
 
 	// Randomize the amount we need
 	if len(availablePorts) < numDyn {
@@ -540,7 +566,8 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, reservedPorts []Port, count int)
 			return nil, fmt.Errorf("stochastic dynamic port selection failed")
 		}
 
-		randPort := MinDynamicPort + rand.Intn(MaxDynamicPort-MinDynamicPort)
+		dynamicPortRange := GetDynamicPortRange()
+		randPort := dynamicPortRange.Min + rand.Intn(dynamicPortRange.Max-dynamicPortRange.Min)
 		if nodeUsed != nil && nodeUsed.Check(uint(randPort)) {
 			goto PICK
 		}
