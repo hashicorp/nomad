@@ -3,7 +3,7 @@ layout: docs
 page_title: 'Commands: debug'
 sidebar_title: debug
 description: |
-  Build a debug archive.
+  Build an archive of debug data.
 ---
 
 # Command: debug
@@ -18,7 +18,7 @@ cluster meta information.
 ## Usage
 
 ```plaintext
-nomad debug [options]
+nomad operator debug [options]
 ```
 
 This command accepts comma separated `server-id` and `node-id` IDs for
@@ -72,6 +72,13 @@ This command prints the name of the timestamped archive file produced.
 ## Examples
 
 ```shell-session
-$ nomad debug -duration 20s -interval 5s -server-id leader -node-id 6e,dd
-Created debug archive: nomad-debug-2020-06-10-145821Z.tar.gz
+$ nomad operator debug -duration 20s -interval 5s -server-id leader -node-id 6e,dd
+Starting debugger and capturing cluster data...
+    Interval: '5s'
+    Duration: '20s'
+    Capture interval 0000
+    Capture interval 0005
+    Capture interval 0010
+    Capture interval 0015
+Created debug archive: nomad-debug-2020-07-20-205223Z.tar.gz
 ```
