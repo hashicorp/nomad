@@ -18,7 +18,10 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.server = startMirage();
 
-    this.initializeUI = async () => {
+    this.initializeUI = async ({ region, namespace } = {}) => {
+      if (namespace) window.localStorage.nomadActiveNamespace = namespace;
+      if (region) window.localStorage.nomadActiveRegion = region;
+
       this.server.create('namespace');
       this.server.create('namespace', { id: 'some-namespace' });
       this.server.create('node');
@@ -40,6 +43,17 @@ module('Unit | Adapter | Job', function(hooks) {
       // Reset the handledRequests array to avoid accounting for this
       // namespaces request everywhere.
       this.server.pretender.handledRequests.length = 0;
+    };
+
+    this.initializeWithJob = async (props = {}) => {
+      await this.initializeUI(props);
+
+      const job = await this.store.findRecord(
+        'job',
+        JSON.stringify(['job-1', props.namespace || 'default'])
+      );
+      this.server.pretender.handledRequests.length = 0;
+      return job;
     };
   });
 
@@ -66,9 +80,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', async function(assert) {
-    window.localStorage.nomadActiveNamespace = 'some-namespace';
-
-    await this.initializeUI();
+    await this.initializeUI({ namespace: 'some-namespace' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -86,9 +98,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', async function(assert) {
-    window.localStorage.nomadActiveNamespace = 'red-herring';
-
-    await this.initializeUI();
+    await this.initializeUI({ namespace: 'red-herring' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -399,9 +409,8 @@ module('Unit | Adapter | Job', function(hooks) {
 
   test('when there is a region set, requests are made with the region query param', async function(assert) {
     const region = 'region-2';
-    window.localStorage.nomadActiveRegion = region;
 
-    await this.initializeUI();
+    await this.initializeUI({ region });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -421,9 +430,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('when the region is set to the default region, requests are made without the region query param', async function(assert) {
-    window.localStorage.nomadActiveRegion = 'region-1';
-
-    await this.initializeUI();
+    await this.initializeUI({ region: 'region-1' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -440,6 +447,102 @@ module('Unit | Adapter | Job', function(hooks) {
       [`/v1/job/${jobName}`, '/v1/jobs'],
       'No requests include the region query param'
     );
+  });
+
+  test('fetchRawDefinition requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().fetchRawDefinition(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'GET');
+  });
+
+  test('forcePeriodic requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('periodic', true);
+
+    await this.subject().forcePeriodic(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/periodic/force?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('stop requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().stop(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'DELETE');
+  });
+
+  test('parse requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    await this.initializeUI({ region });
+
+    await this.subject().parse('job "name-goes-here" {');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/jobs/parse?region=${region}`);
+    assert.equal(request.method, 'POST');
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      JobHCL: 'job "name-goes-here" {',
+      Canonicalize: true,
+    });
+  });
+
+  test('plan requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().plan(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/plan?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('run requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().run(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/jobs?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('update requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().update(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('scale requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().scale(job, 'group-1', 5, 'Reason: a test');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/scale?region=${region}`);
+    assert.equal(request.method, 'POST');
   });
 });
 
