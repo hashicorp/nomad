@@ -110,7 +110,8 @@ the installation instructions for
 ```hcl
 plugin "nvidia-gpu" {
   config {
-    ignored_gpu_ids = ["GPU-fef8089b", "GPU-ac81e44d"]
+    enabled            = true
+    ignored_gpu_ids    = ["GPU-fef8089b", "GPU-ac81e44d"]
     fingerprint_period = "1m"
   }
 }
@@ -118,6 +119,8 @@ plugin "nvidia-gpu" {
 
 The `nvidia-gpu` device plugin supports the following configuration in the agent
 config:
+
+- `enabled` `(bool: true)` - Control whether the plugin should be enabled and running.
 
 - `ignored_gpu_ids` `(array<string>: [])` - Specifies the set of GPU UUIDs that
   should be ignored when fingerprinting.

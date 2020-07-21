@@ -4,6 +4,10 @@ SECURITY:
 
  * build: Updated to Go 1.14.6. Go 1.14.5 contained 2 CVEs which are low severity for Nomad [[GH-8467](https://github.com/hashicorp/nomad/issues/8467)]
 
+IMPROVEMENTS:
+
+ * device/nvidia: Added a plugin config option to disable the plugin [[GH-8353](https://github.com/hashicorp/nomad/issues/8353)]
+
 BUG FIXES:
 
  * core: Fixed an atomicity bug where a job may fail to start if leadership transition occured while processing the job [[GH-8435](https://github.com/hashicorp/nomad/issues/8435)]
