@@ -235,13 +235,17 @@ func deriveAddressAlias(iface net.Interface, addr net.IP, config *config.Config)
 		}
 	}
 
-	ri, err := sockaddr.NewRouteInfo()
-	if err == nil {
+	if config.NetworkInterface != "" {
+		if config.NetworkInterface == iface.Name {
+			return "default"
+		}
+	} else if ri, err := sockaddr.NewRouteInfo(); err == nil {
 		defaultIface, err := ri.GetDefaultInterfaceName()
 		if err == nil && iface.Name == defaultIface {
 			return "default"
 		}
 	}
+
 	return ""
 }
 
