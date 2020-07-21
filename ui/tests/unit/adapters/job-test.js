@@ -44,6 +44,17 @@ module('Unit | Adapter | Job', function(hooks) {
       // namespaces request everywhere.
       this.server.pretender.handledRequests.length = 0;
     };
+
+    this.initializeWithJob = async (props = {}) => {
+      await this.initializeUI(props);
+
+      const job = await this.store.findRecord(
+        'job',
+        JSON.stringify(['job-1', props.namespace || 'default'])
+      );
+      this.server.pretender.handledRequests.length = 0;
+      return job;
+    };
   });
 
   hooks.afterEach(function() {
@@ -436,6 +447,102 @@ module('Unit | Adapter | Job', function(hooks) {
       [`/v1/job/${jobName}`, '/v1/jobs'],
       'No requests include the region query param'
     );
+  });
+
+  test('fetchRawDefinition requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().fetchRawDefinition(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'GET');
+  });
+
+  test('forcePeriodic requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('periodic', true);
+
+    await this.subject().forcePeriodic(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/periodic/force?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('stop requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().stop(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'DELETE');
+  });
+
+  test('parse requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    await this.initializeUI({ region });
+
+    await this.subject().parse('job "name-goes-here" {');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/jobs/parse?region=${region}`);
+    assert.equal(request.method, 'POST');
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      JobHCL: 'job "name-goes-here" {',
+      Canonicalize: true,
+    });
+  });
+
+  test('plan requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().plan(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/plan?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('run requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().run(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/jobs?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('update requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().update(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('scale requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().scale(job, 'group-1', 5, 'Reason: a test');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/scale?region=${region}`);
+    assert.equal(request.method, 'POST');
   });
 });
 
