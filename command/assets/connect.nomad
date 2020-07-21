@@ -201,19 +201,17 @@ job "countdash" {
     #     https://www.nomadproject.io/docs/job-specification/affinity.html
     #
     # affinity {
-    # attribute specifies the name of a node attribute or metadata
-    # attribute = "${node.datacenter}"
-
-
-    # value specifies the desired attribute value. In this example Nomad
-    # will prefer placement in the "us-west1" datacenter.
-    # value  = "us-west1"
-
-
-    # weight can be used to indicate relative preference
-    # when the job has more than one affinity. It defaults to 50 if not set.
-    # weight = 100
-    #  }
+    #   # attribute specifies the name of a node attribute or metadata
+    #   attribute = "${node.datacenter}"
+    #
+    #   # value specifies the desired attribute value. In this example Nomad
+    #   # will prefer placement in the "us-west1" datacenter.
+    #   value = "us-west1"
+    #
+    #   # weight can be used to indicate relative preference
+    #   # when the job has more than one affinity. It defaults to 50 if not set.
+    #   weight = 100
+    # }
 
 
     # The "spread" stanza allows operators to increase the failure tolerance of
@@ -226,9 +224,9 @@ job "countdash" {
     #     https://www.nomadproject.io/docs/job-specification/spread.html
     #
     # spread {
-    # attribute specifies the name of a node attribute or metadata
-    # attribute = "${node.datacenter}"
-
+    #   # attribute specifies the name of a node attribute or metadata
+    #   attribute = "${node.datacenter}"
+    # }
 
     # targets can be used to define desired percentages of allocations
     # for each targeted attribute value.
