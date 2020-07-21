@@ -70,8 +70,6 @@ var (
 			hclspec.NewLiteral("\"1m\""),
 		),
 	})
-
-	errDeviceNotEnabled = fmt.Errorf("Nvidia device is not enabled")
 )
 
 // Config contains configuration information for the plugin.
@@ -160,7 +158,7 @@ func (d *NvidiaDevice) SetConfig(cfg *base.Config) error {
 // devices health changes, messages will be emitted.
 func (d *NvidiaDevice) Fingerprint(ctx context.Context) (<-chan *device.FingerprintResponse, error) {
 	if !d.enabled {
-		return nil, errDeviceNotEnabled
+		return nil, device.ErrPluginDisabled
 	}
 
 	outCh := make(chan *device.FingerprintResponse)
@@ -184,7 +182,7 @@ func (d *NvidiaDevice) Reserve(deviceIDs []string) (*device.ContainerReservation
 		return &device.ContainerReservation{}, nil
 	}
 	if !d.enabled {
-		return nil, errDeviceNotEnabled
+		return nil, device.ErrPluginDisabled
 	}
 
 	// Due to the asynchronous nature of NvidiaPlugin, there is a possibility
@@ -221,7 +219,7 @@ func (d *NvidiaDevice) Reserve(deviceIDs []string) (*device.ContainerReservation
 // Stats streams statistics for the detected devices.
 func (d *NvidiaDevice) Stats(ctx context.Context, interval time.Duration) (<-chan *device.StatsResponse, error) {
 	if !d.enabled {
-		return nil, errDeviceNotEnabled
+		return nil, device.ErrPluginDisabled
 	}
 
 	outCh := make(chan *device.StatsResponse)

@@ -112,7 +112,7 @@ func TestReserve(t *testing.T) {
 		{
 			Name:                "Device is disabled",
 			ExpectedReservation: nil,
-			ExpectedError:       errDeviceNotEnabled,
+			ExpectedError:       device.ErrPluginDisabled,
 			RequestedIDs: []string{
 				"UUID1",
 				"UUID2",

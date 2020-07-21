@@ -336,7 +336,11 @@ START:
 
 	// Start fingerprinting
 	fingerprintCh, err := devicePlugin.Fingerprint(i.ctx)
-	if err != nil {
+	if err == device.ErrPluginDisabled {
+		i.logger.Info("fingerprinting failed: plugin is not enabled")
+		i.handleFingerprintError()
+		return
+	} else if err != nil {
 		i.logger.Error("fingerprinting failed", "error", err)
 		i.handleFingerprintError()
 		return
