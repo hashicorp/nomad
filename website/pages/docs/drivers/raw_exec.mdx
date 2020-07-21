@@ -75,13 +75,15 @@ task "example" {
 
 ## Capabilities
 
+The `raw_exec` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error)
+
 | Feature | Implementation |
 | --- | --- |
-| SendSignals | true  |
+| SendSignals | true |
 | Exec | true |
-| FSIsolation | FSIsolationNone  |
-| NetIsolationModes | NetIsolationModeHost, NetIsolationmodeGroup |
-| MountConfigs | MountConfigSupportNone |
+| FSIsolation | none  |
+| NetIsolationModes | host, group |
+| MountConfigs | none |
 
 ## Client Requirements
 

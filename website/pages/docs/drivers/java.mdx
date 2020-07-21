@@ -99,12 +99,15 @@ task "web" {
 
 ## Capabilities
 
+The `java` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error)
+
 | Feature | Implementation |
 | --- | --- |
+| SendSignals | false |
 | Exec | false |
-| FSIsolation | FSIsolationNone  |
-| NetIsolationModes | NetIsolationModeHost, NetIsolationmodeGroup |
-| MountConfigs | MountConfigSupportNone |
+| FSIsolation | none, chroot (only for linux)  |
+| NetIsolationModes | host, group |
+| MountConfigs | none, all (only for linux) |
 
 ## Client Requirements
 

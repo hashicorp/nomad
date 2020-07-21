@@ -79,13 +79,16 @@ task "example" {
 
 ## Capabilities
 
+The `exec` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error)
+
 | Feature | Implementation |
 | --- | --- |
-| SendSignals | true  |
+| SendSignals | true |
 | Exec | true |
-| FSIsolation | FSIsolationImage |
-| NetIsolationModes | NetIsolationModeHost, NetIsolationmodeGroup |
-| MountConfigs | MountConfigSupportAll |
+| FSIsolation | chroot |
+| NetIsolationModes | host, group |
+| MustInitiateNetwork | false |
+| MountConfigs | all |
 
 ## Client Requirements
 
