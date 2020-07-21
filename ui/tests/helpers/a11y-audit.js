@@ -18,9 +18,6 @@ export default async function defaultA11yAudit() {
       'landmark-unique': {
         enabled: false
       },
-      'link-name': {
-        enabled: false
-      },
       'scrollable-region-focusable': {
         enabled: false
       },
