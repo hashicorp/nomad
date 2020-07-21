@@ -11,7 +11,13 @@ module('Unit | Adapter | Node', function(hooks) {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('node');
 
+    window.localStorage.clear();
+
     this.server = startMirage();
+
+    this.server.create('region', { id: 'region-1' });
+    this.server.create('region', { id: 'region-2' });
+
     this.server.create('node', { id: 'node-1' });
     this.server.create('node', { id: 'node-2' });
     this.server.create('job', { id: 'job-1', createAllocations: false });
@@ -86,157 +92,146 @@ module('Unit | Adapter | Node', function(hooks) {
     );
   });
 
-  test('setEligible makes the correct POST request to /:node_id/eligibility', async function(assert) {
-    const { pretender } = this.server;
-    const node = await run(() => this.store.findRecord('node', 'node-1'));
+  const testCases = [
+    {
+      variation: '',
+      id: 'node-1',
+      region: null,
+      eligibility: 'POST /v1/node/node-1/eligibility',
+      drain: 'POST /v1/node/node-1/drain',
+    },
+    {
+      variation: 'with non-default region',
+      id: 'node-1',
+      region: 'region-2',
+      eligibility: 'POST /v1/node/node-1/eligibility?region=region-2',
+      drain: 'POST /v1/node/node-1/drain?region=region-2',
+    },
+  ];
 
-    await this.subject().setEligible(node);
+  testCases.forEach(testCase => {
+    test(`setEligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
 
-    const request = pretender.handledRequests.lastObject;
-    assert.equal(
-      request.url,
-      `/v1/node/${node.id}/eligibility`,
-      'Request was made to /:node_id/eligibility'
-    );
-    assert.equal(request.method, 'POST', 'Request was made with the POST method');
-    assert.deepEqual(
-      JSON.parse(request.requestBody),
-      {
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+      await this.subject().setEligible(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.eligibility);
+      assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         Eligibility: 'eligible',
-      },
-      'POST request is made with the correct body arguments'
-    );
-  });
+      });
+    });
 
-  test('setIneligible makes the correct POST request to /:node_id/eligibility', async function(assert) {
-    const { pretender } = this.server;
-    const node = await run(() => this.store.findRecord('node', 'node-1'));
+    test(`setIneligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
 
-    await this.subject().setIneligible(node);
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+      await this.subject().setIneligible(node);
 
-    const request = pretender.handledRequests.lastObject;
-    assert.equal(
-      request.url,
-      `/v1/node/${node.id}/eligibility`,
-      'Request was made to /:node_id/eligibility'
-    );
-    assert.equal(request.method, 'POST', 'Request was made with the POST method');
-    assert.deepEqual(
-      JSON.parse(request.requestBody),
-      {
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.eligibility);
+      assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         Eligibility: 'ineligible',
-      },
-      'POST request is made with the correct body arguments'
-    );
-  });
+      });
+    });
 
-  test('drain makes the correct POST request to /:node_id/drain with appropriate defaults', async function(assert) {
-    const { pretender } = this.server;
-    const node = await run(() => this.store.findRecord('node', 'node-1'));
+    test(`drain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
 
-    await this.subject().drain(node);
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+      await this.subject().drain(node);
 
-    const request = pretender.handledRequests.lastObject;
-    assert.equal(request.url, `/v1/node/${node.id}/drain`, 'Request was made to /:node_id/drain');
-    assert.equal(request.method, 'POST', 'Request was made with the POST method');
-    assert.deepEqual(
-      JSON.parse(request.requestBody),
-      {
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
           Deadline: 0,
           IgnoreSystemJobs: true,
         },
-      },
-      'POST request is made with the default body arguments'
-    );
-  });
+      });
+    });
 
-  test('drain makes the correct POST request to /:node_id/drain with the provided drain spec', async function(assert) {
-    const { pretender } = this.server;
-    const node = await run(() => this.store.findRecord('node', 'node-1'));
+    test(`drain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
 
-    const spec = { Deadline: 123456789, IgnoreSystemJobs: false };
-    await this.subject().drain(node, spec);
+      const node = await run(() => this.store.findRecord('node', testCase.id));
 
-    const request = pretender.handledRequests.lastObject;
-    assert.deepEqual(
-      JSON.parse(request.requestBody),
-      {
+      const spec = { Deadline: 123456789, IgnoreSystemJobs: false };
+      await this.subject().drain(node, spec);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
           Deadline: spec.Deadline,
           IgnoreSystemJobs: spec.IgnoreSystemJobs,
         },
-      },
-      'POST request is made with the drain spec as body arguments'
-    );
-  });
+      });
+    });
 
-  test('forceDrain makes the correct POST request to /:node_id/drain with appropriate defaults', async function(assert) {
-    const { pretender } = this.server;
-    const node = await run(() => this.store.findRecord('node', 'node-1'));
+    test(`forceDrain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
 
-    await this.subject().forceDrain(node);
+      const node = await run(() => this.store.findRecord('node', testCase.id));
 
-    const request = pretender.handledRequests.lastObject;
-    assert.equal(request.url, `/v1/node/${node.id}/drain`, 'Request was made to /:node_id/drain');
-    assert.equal(request.method, 'POST', 'Request was made with the POST method');
-    assert.deepEqual(
-      JSON.parse(request.requestBody),
-      {
+      await this.subject().forceDrain(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
           Deadline: -1,
           IgnoreSystemJobs: true,
         },
-      },
-      'POST request is made with the default body arguments'
-    );
-  });
+      });
+    });
 
-  test('forceDrain makes the correct POST request to /:node_id/drain with the provided drain spec', async function(assert) {
-    const { pretender } = this.server;
-    const node = await run(() => this.store.findRecord('node', 'node-1'));
+    test(`forceDrain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
 
-    const spec = { Deadline: 123456789, IgnoreSystemJobs: false };
-    await this.subject().forceDrain(node, spec);
+      const node = await run(() => this.store.findRecord('node', testCase.id));
 
-    const request = pretender.handledRequests.lastObject;
-    assert.equal(request.url, `/v1/node/${node.id}/drain`, 'Request was made to /:node_id/drain');
-    assert.equal(request.method, 'POST', 'Request was made with the POST method');
-    assert.deepEqual(
-      JSON.parse(request.requestBody),
-      {
+      const spec = { Deadline: 123456789, IgnoreSystemJobs: false };
+      await this.subject().forceDrain(node, spec);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: {
           Deadline: -1,
           IgnoreSystemJobs: spec.IgnoreSystemJobs,
         },
-      },
-      'POST request is made with the drain spec, except deadline is not overridden'
-    );
-  });
+      });
+    });
 
-  test('cancelDrain makes the correct POST request to /:node_id/drain', async function(assert) {
-    const { pretender } = this.server;
-    const node = await run(() => this.store.findRecord('node', 'node-1'));
+    test(`cancelDrain makes the correct POST request to /:node_id/drain ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
 
-    await this.subject().cancelDrain(node);
+      const node = await run(() => this.store.findRecord('node', testCase.id));
 
-    const request = pretender.handledRequests.lastObject;
-    assert.equal(request.url, `/v1/node/${node.id}/drain`, 'Request was made to /:node_id/drain');
-    assert.equal(request.method, 'POST', 'Request was made with the POST method');
-    assert.deepEqual(
-      JSON.parse(request.requestBody),
-      {
+      await this.subject().cancelDrain(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
         NodeID: node.id,
         DrainSpec: null,
-      },
-      'POST request is made with a null drain spec'
-    );
+      });
+    });
   });
 });
 
