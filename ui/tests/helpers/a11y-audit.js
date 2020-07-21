@@ -24,9 +24,6 @@ export default async function defaultA11yAudit() {
       'scrollable-region-focusable': {
         enabled: false
       },
-      'svg-img-alt': {
-        enabled: false
-      }
     }
   });
 }
