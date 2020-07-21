@@ -77,6 +77,19 @@ task "example" {
 }
 ```
 
+## Capabilities
+
+The `exec` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error)
+
+| Feature | Implementation |
+| --- | --- |
+| SendSignals | true |
+| Exec | true |
+| FSIsolation | chroot |
+| NetIsolationModes | host, group |
+| MustInitiateNetwork | false |
+| MountConfigs | all |
+
 ## Client Requirements
 
 The `exec` driver can only be run when on Linux and running Nomad as root.

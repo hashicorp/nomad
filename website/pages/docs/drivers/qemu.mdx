@@ -101,6 +101,18 @@ task "virtual" {
   }
 ```
 
+## Capabilities
+
+The `qemu` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error)
+
+| Feature | Implementation |
+| --- | --- |
+| SendSignals | false |
+| Exec | false |
+| FSIsolation | image |
+| NetIsolationModes | none |
+| MountConfigs | none |
+
 ## Client Requirements
 
 The `qemu` driver requires Qemu to be installed and in your system's `$PATH`.
