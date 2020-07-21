@@ -3,6 +3,7 @@ import { currentURL, visit } from '@ember/test-helpers';
 
 import { filesForPath } from 'nomad-ui/mirage/config';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
 import Response from 'ember-cli-mirage/response';
 import moment from 'moment';
@@ -24,6 +25,12 @@ const fileSort = (prop, files) => {
 };
 
 export default function browseFilesystem({ pageObjectVisitPathFunctionName, pageObjectVisitFunctionName, visitSegments, getExpectedPathBase, getTitleComponent, getBreadcrumbComponent, getFilesystemRoot }) {
+  test('it passes an accessibility audit', async function(assert) {
+    await FS[pageObjectVisitFunctionName](visitSegments({allocation: this.allocation, task: this.task }));
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
+  });
+
   test('visiting filesystem root', async function(assert) {
     await FS[pageObjectVisitFunctionName](visitSegments({allocation: this.allocation, task: this.task }));
 

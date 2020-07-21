@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ServerDetail from 'nomad-ui/tests/pages/servers/detail';
 
 let agent;
@@ -14,6 +15,11 @@ module('Acceptance | server detail', function(hooks) {
     server.createList('agent', 3);
     agent = server.db.agents[0];
     await ServerDetail.visit({ name: agent.name });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('visiting /servers/:server_name', async function(assert) {
