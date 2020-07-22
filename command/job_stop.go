@@ -195,7 +195,9 @@ func (c *JobStopCommand) Run(args []string) int {
 				c.Ui.Error(fmt.Sprintf("Error deregistering job in %q: %s", region.Name, err))
 				return 1
 			}
-			c.Ui.Output(evalID)
+			if evalID != "" {
+				c.Ui.Output(evalID)
+			}
 		}
 		return 0
 	}
