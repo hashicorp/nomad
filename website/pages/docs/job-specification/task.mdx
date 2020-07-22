@@ -77,7 +77,7 @@ job "docs" {
   with user-defined metadata.
 
 - `resources` <code>([Resources][]: &lt;required&gt;)</code> - Specifies the minimum
-  resource requirements such as RAM, CPU and network.
+  resource requirements such as RAM, CPU and devices.
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
   [Consul][] for service discovery. Nomad automatically registers when a task
@@ -130,9 +130,7 @@ task "server" {
   }
 
   resources {
-    network {
-      mbits = 250
-    }
+    cpu = 20
   }
 }
 ```

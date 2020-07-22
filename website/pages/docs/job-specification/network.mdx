@@ -3,10 +3,8 @@ layout: docs
 page_title: network Stanza - Job Specification
 sidebar_title: network
 description: |-
-  The "network" stanza specifies the networking requirements for the task,
-  including the minimum bandwidth and port allocations. The network stanza
-  can be specified at the task group level to enable all tasks in the task
-  group to share the same network namespace.
+  The "network" stanza specifies the networking requirements for the task group,
+  including networking mode and port allocations. 
 ---
 
 # `network` Stanza
@@ -17,15 +15,14 @@ description: |-
   ]}
 />
 
-The `network` stanza specifies the networking requirements for the task,
-including the minimum bandwidth and port allocations. When scheduling jobs in
+The `network` stanza specifies the networking requirements for the task group,
+including the network mode and port allocations. When scheduling jobs in
 Nomad they are provisioned across your fleet of machines along with other jobs
 and services. Because you don't know in advance what host your job will be
 provisioned on, Nomad will provide your tasks with network configuration when
 they start up.
 
-Nomad 0.10 enables support for the `network` stanza at the task group level. When
-the `network` stanza is defined at the group level with `bridge` as the networking mode,
+When the `network` stanza is defined with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
 [Consul Connect](/docs/integrations/consul-connect). Tasks running within a
 network namespace are not visible to applications outside the namespace on the same host.
@@ -40,16 +37,11 @@ connection.
 ```hcl
 job "docs" {
   group "example" {
-    task "server" {
-      resources {
-        network {
-          mbits = 200
-          port "http" {}
-          port "https" {}
-          port "lb" {
-            static = 8889
-          }
-        }
+    network {
+      port "http" {}
+      port "https" {}
+      port "lb" {
+        static = 8889
       }
     }
   }
@@ -57,8 +49,6 @@ job "docs" {
 ```
 
 ## `network` Parameters
-
-- `mbits` `(int: 10)` - Specifies the bandwidth required in MBits.
 
 - `port` <code>([Port](#port-parameters): nil)</code> - Specifies a TCP/UDP port
   allocation and can be used to specify both dynamic ports and reserved ports.
@@ -120,16 +110,6 @@ The label of the port is just text - it has no special meaning to Nomad.
 The following examples only show the `network` stanzas. Remember that the
 `network` stanza is only valid in the placements listed above.
 
-### Bandwidth
-
-This example specifies a resource requirement of 1 Gbit in bandwidth:
-
-```hcl
-network {
-  mbits = 1000
-}
-```
-
 ### Dynamic Ports
 
 This example specifies a dynamic port allocation for the port labeled "http".
@@ -140,12 +120,10 @@ port will be allocated dynamically by the scheduler, and your service will have
 to read an environment variable to know which port to bind to at startup.
 
 ```hcl
-task "example" {
-  resources {
-    network {
-      port "http" {}
-      port "https" {}
-    }
+group "example" {
+  network {
+    port "http" {}
+    port "https" {}
   }
 }
 ```
@@ -179,18 +157,18 @@ port (it does not need to read the environment variable) and the dynamic port
 will be mapped to the port in your container or virtual machine.
 
 ```hcl
-task "example" {
-  driver = "docker"
-
-  config {
-    port_map = {
-      http = 8080
-    }
+group "app" {
+  network {
+    port "http" {}
   }
 
-  resources {
-    network {
-      port "http" {}
+  task "example" {
+    driver = "docker"
+
+    config {
+      port_map = {
+        http = 8080
+      }
     }
   }
 }
@@ -205,6 +183,10 @@ When the task is started, it is passed an additional environment variable named
 bound to.
 
 ### Bridge Mode
+
+Bridge mode allows compatible tasks to share a networking stack and interfaces. Nomad
+can then do port mapping without relying on individual task drivers to implement port
+mapping configuration.
 
 The following example is a group level network stanza that uses bridge mode
 and port mapping.
@@ -277,8 +259,14 @@ The Nomad client will build the correct [capabilities arguments](https://github.
 
 ### Host Networks
 
+In some cases a port should only be allocated to a specific interface or address on the host.
+The `host_network` field of a port will constrain port allocation to a single named host network.
 If `host_network` is set for a port, Nomad will schedule the allocations on a node which has defined a `host_network` with the given name.
 If not set the "default" host network is used which is commonly the address with a default route associated with it.
+
+When Nomad does port mapping for ports with a defined `host_network`, the port mapping rule will use the host address as the destination address.
+
+*Host networks does not currently support task based mapped ports such as the Docker driver's `port_map` configuration.
 
 
 ```hcl
