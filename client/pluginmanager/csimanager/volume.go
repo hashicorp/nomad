@@ -122,7 +122,7 @@ func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Al
 		return "", false, fmt.Errorf("mount point detection failed for volume (%s): %v", vol.ID, err)
 	}
 
-	return allocPath, !isNotMount, nil
+	return targetPath, !isNotMount, nil
 }
 
 func volumeCapability(vol *structs.CSIVolume, usage *UsageOptions) (*csi.VolumeCapability, error) {
