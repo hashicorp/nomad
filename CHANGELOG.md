@@ -13,6 +13,7 @@ BUG FIXES:
  * core: Fixed an atomicity bug where a job may fail to start if leadership transition occured while processing the job [[GH-8435](https://github.com/hashicorp/nomad/issues/8435)]
  * core: Fixed a regression bug where jobs with group level networking stanza fail to be scheduled with "missing network" constraint error [[GH-8407](https://github.com/hashicorp/nomad/pull/8407)]
  * core (Enterprise): Fixed a bug where users were not given full 6 hours to apply initial license when upgrading from unlicensed versions of Nomad. [[GH-8457](https://github.com/hashicorp/nomad/issues/8457)]
+ * client: Fixed a bug where `network_interface` client configuration was ignored [[GH-8486](https://github.com/hashicorp/nomad/issues/8486)]
  * jobspec: Fixed validation of multi-region datacenters to allow empty region `datacenters` to default to job-level `datacenters` [[GH-8426](https://github.com/hashicorp/nomad/issues/8426)]
  * scheduler: Fixed a bug in Nomad Enterprise where canaries were not being created during multi-region deployments [[GH-8456](https://github.com/hashicorp/nomad/pull/8456)]
  * ui: Fixed stale namespaces after changing acl tokens [[GH-8413](https://github.com/hashicorp/nomad/issues/8413)]
