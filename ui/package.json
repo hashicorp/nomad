@@ -148,5 +148,8 @@
   },
   "dependencies": {
     "lru_map": "^0.3.3"
+  },
+  "resolutions": {
+    "ivy-codemirror/codemirror": "^5.56.0"
   }
 }

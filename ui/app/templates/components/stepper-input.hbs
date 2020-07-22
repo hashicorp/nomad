@@ -1,7 +1,7 @@
 <label
   data-test-stepper-label
-  class="stepper-input-label"
-  onClick={{action "focusInput"}}>{{yield}}</label>
+  for="stepper-input-{{this.elementId}}"
+  class="stepper-input-label">{{yield}}</label>
 <input
   data-test-stepper-input
   type="number"
@@ -9,6 +9,7 @@
   max={{this.max}}
   value={{this.internalValue}}
   disabled={{this.disabled}}
+  id="stepper-input-{{this.elementId}}"
   class="stepper-input-input"
   onFocus={{action "selectValue"}}
   onKeyDown={{action "resetTextInput"}}

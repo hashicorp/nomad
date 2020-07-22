@@ -12,9 +12,6 @@ export default async function defaultA11yAudit() {
       'heading-order': {
         enabled: false
       },
-      'label': {
-        enabled: false
-      },
       'scrollable-region-focusable': {
         enabled: false
       },

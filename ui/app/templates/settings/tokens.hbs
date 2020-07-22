@@ -19,12 +19,14 @@
 
       {{#unless this.tokenIsValid}}
         <div class="field">
-          <label class="label">Secret ID</label>
+          <label class="label" for="token-input">Secret ID</label>
           <div class="control">
             <input
+              id="token-input"
               class="input"
               type="text"
               placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+              {{!-- FIXME this placeholder gets read out by VoiceOver sans dashes 😵 --}}
               value={{this.token.secret}}
               oninput={{action (mut this.secret) value="target.value"}}
               data-test-token-secret>
