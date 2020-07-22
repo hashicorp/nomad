@@ -66,7 +66,7 @@ job "docs" {
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
   [Consul][] for service discovery. Nomad automatically registers when an allocation
-  is started and de-registers it when the allocation dies.
+  is started and de-registers them when the allocation is destroyed.
 
 - `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
   stopping a group's tasks. The delay occurs between Consul deregistration
