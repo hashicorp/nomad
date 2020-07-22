@@ -96,6 +96,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.NoError(t, conf.normalizeAddrs())
 
 	out, err = a.serverConfig()
+	require.NoError(t, err)
 	require.Equal(t, "127.0.0.2", out.RPCAddr.IP.String())
 	require.Equal(t, 4003, out.RPCAddr.Port)
 	require.Equal(t, "127.0.0.2", out.SerfConfig.MemberlistConfig.BindAddr)
