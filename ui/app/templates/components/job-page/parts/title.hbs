@@ -2,8 +2,8 @@
   <div>
     {{or this.title this.job.name}}
     <span class="bumper-left tag {{this.job.statusClass}}" data-test-job-status>{{this.job.status}}</span>
+    {{yield}}
   </div>
-  {{yield}}
   <div>
     {{#if (not (eq this.job.status "dead"))}}
       <div class="two-step-button">
