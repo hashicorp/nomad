@@ -24,6 +24,7 @@ BUG FIXES:
  * ui: Fixed runtime error when clicking "Run Job" while a prefix filter is set [[GH-8412](https://github.com/hashicorp/nomad/issues/8412)]
  * ui: Fixed the absence of the region query parameter on various actions, such as job stop, allocation restart, node drain. [[GH-8477](https://github.com/hashicorp/nomad/issues/8477)]
  * ui: Fixed issue where an orphaned child job would make it so navigating to a job detail page would hang the UI [[GH-8319](https://github.com/hashicorp/nomad/issues/8319)]
+ * ui: Fixed issue where clicking View Raw File in a non-default region would not provide the region param resulting in a 404 [[GH-8509](https://github.com/hashicorp/nomad/issues/8509)]
  * vault: Fixed a bug where vault identity policies not considered in permissions check [[GH-7732](https://github.com/hashicorp/nomad/issues/7732)]
 
 ## 0.12.0 (July 9, 2020)
