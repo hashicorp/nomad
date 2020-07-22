@@ -18,14 +18,14 @@ snapshot operations.
 To create a snapshot from the leader server and save it to "backup.snap":
 
 ```shell-session
-$ nomad snapshot save backup.snap
+$ nomad operator snapshot save backup.snap
 ```
 
 To create a potentially stale snapshot from any available server (useful if no
 leader is available):
 
 ```shell-session
-$ nomad snapshot save -stale backup.snap
+$ nomad operator snapshot save -stale backup.snap
 ```
 
 ## Usage
