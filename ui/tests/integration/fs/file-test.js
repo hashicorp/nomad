@@ -13,15 +13,22 @@ module('Integration | Component | fs/file', function(hooks) {
 
   hooks.beforeEach(function() {
     this.server = new Pretender(function() {
-      this.get('/v1/regions', () => [200, {}, JSON.stringify(['default'])]);
+      this.get('/v1/agent/members', () => [
+        200,
+        {},
+        JSON.stringify({ ServerRegion: 'default', Members: [] }),
+      ]);
+      this.get('/v1/regions', () => [200, {}, JSON.stringify(['default', 'region-2'])]);
       this.get('/v1/client/fs/stream/:alloc_id', () => [200, {}, logEncode(['Hello World'], 0)]);
       this.get('/v1/client/fs/cat/:alloc_id', () => [200, {}, 'Hello World']);
       this.get('/v1/client/fs/readat/:alloc_id', () => [200, {}, 'Hello World']);
     });
+    this.system = this.owner.lookup('service:system');
   });
 
   hooks.afterEach(function() {
     this.server.shutdown();
+    window.localStorage.clear();
   });
 
   const commonTemplate = hbs`
@@ -142,6 +149,26 @@ module('Integration | Component | fs/file', function(hooks) {
       rawLink.getAttribute('rel'),
       'noopener noreferrer',
       'Raw link rel correctly bars openers and referrers'
+    );
+  });
+
+  test('The view raw button respects the active region', async function(assert) {
+    const region = 'region-2';
+    window.localStorage.nomadActiveRegion = region;
+
+    const props = makeProps(fileStat('image/png', 1234));
+    this.setProperties(props);
+
+    await this.system.get('regions');
+    await render(commonTemplate);
+
+    const rawLink = find('[data-test-log-action="raw"]');
+    assert.equal(
+      rawLink.getAttribute('href'),
+      `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
+        `${props.taskState.name}/${props.file}`
+      )}&region=${region}`,
+      'Raw link href includes the active region from local storage'
     );
   });
 
