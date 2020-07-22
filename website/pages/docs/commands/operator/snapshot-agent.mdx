@@ -27,7 +27,7 @@ The Config file has the following format (shown populated with default values):
 
 ```hcl
 nomad {
-  http_addr       = "127.0.0.1:8500"
+  http_addr       = "http://127.0.0.1:8500"
   token           = ""
   region          = ""
   ca_file         = ""
@@ -46,7 +46,7 @@ snapshot {
   deregister_after = "72h"
   lock_key         = "nomad-snapshot/lock"
   max_failures     = 3
-  name_prefix      = "nomad"
+  prefix           = "nomad"
 }
 
 log {
