@@ -12,6 +12,7 @@ import classic from 'ember-classic-decorator';
 @classNames('boxed-section', 'task-log')
 export default class File extends Component {
   @service token;
+  @service system;
 
   'data-test-file-viewer' = true;
 
@@ -54,7 +55,11 @@ export default class File extends Component {
   get catUrl() {
     const taskUrlPrefix = this.taskState ? `${this.taskState.name}/` : '';
     const encodedPath = encodeURIComponent(`${taskUrlPrefix}${this.file}`);
-    return `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
+    let apiPath = `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
+    if (this.system.shouldIncludeRegion) {
+      apiPath += `&region=${this.system.activeRegion}`;
+    }
+    return apiPath;
   }
 
   @computed('isLarge', 'mode')
