@@ -75,15 +75,15 @@ task "example" {
 
 ## Capabilities
 
-The `raw_exec` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error)
+The `raw_exec` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature | Implementation |
 | --- | --- |
-| SendSignals | true |
-| Exec | true |
-| FSIsolation | none  |
-| NetIsolationModes | host, group |
-| MountConfigs | none |
+| `nomad alloc signal` | true |
+| `nomad alloc exec` | true |
+| filesystem isolation | none |
+| network isolation | host, group |
+| volume mounting | none |
 
 ## Client Requirements
 

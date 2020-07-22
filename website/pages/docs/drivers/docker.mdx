@@ -629,16 +629,15 @@ through Nomad plugins or dynamic job configuration.
 
 ## Capabilities
 
-The `docker` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error)
+The `docker` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature | Implementation |
 | --- | --- |
-| SendSignals | true |
-| Exec | true |
-| FSIsolation | image |
-| NetIsolationModes | host, group, task |
-| MustInitiateNetwork | true |
-| MountConfigs | all |
+| `nomad alloc signal` | true |
+| `nomad alloc exec` | true |
+| filesystem isolation | image |
+| network isolation | host, group, task |
+| volume mounting | all |
 
 ## Client Requirements
 
