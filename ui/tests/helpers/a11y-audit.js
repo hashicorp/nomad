@@ -15,9 +15,6 @@ export default async function defaultA11yAudit() {
       'label': {
         enabled: false
       },
-      'landmark-unique': {
-        enabled: false
-      },
       'scrollable-region-focusable': {
         enabled: false
       },
