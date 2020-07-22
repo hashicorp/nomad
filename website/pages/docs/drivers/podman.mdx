@@ -22,6 +22,9 @@ See the project's [homepage][homepage] for details.
 
 ## Client Requirements
 
+The Podman task driver is not builtin to Nomad. It must be [downloaded][downloaded] onto the client host
+in the configured plugin directory.
+
 - Linux host with [`podman`][podman] installed.
 - [`nomad-driver-podman`][releases] binary in Nomad's [`plugin_dir`][plugin_dir].
 
@@ -263,4 +266,5 @@ plugin "nomad-driver-podman" {
 [slirp-issue]: https://github.com/containers/libpod/issues/6097
 [stderr-logging]: https://github.com/hashicorp/nomad-driver-podman/issues/4
 [devices]: https://github.com/hashicorp/nomad-driver-podman/issues/41
+[downloaded]: https://releases.hashicorp.com/nomad-driver-podman 
 
