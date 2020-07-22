@@ -200,6 +200,7 @@ export default [
       'docker',
       'exec',
       'java',
+      'podman',
       'qemu',
       'raw_exec',
       {
@@ -207,7 +208,6 @@ export default [
         content: [
           'lxc',
           'rkt',
-          'podman',
           'singularity',
           'jail-task-driver',
           'pot',

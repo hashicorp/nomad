@@ -22,6 +22,9 @@ See the project's [homepage][homepage] for details.
 
 ## Client Requirements
 
+The Podman task driver is not builtin to Nomad. It must be [downloaded][downloaded] onto the client host
+in the configured plugin directory.
+
 - Linux host with [`podman`][podman] installed.
 - [`nomad-driver-podman`][releases] binary in Nomad's [`plugin_dir`][plugin_dir].
 
@@ -30,6 +33,18 @@ You need a varlink enabled Podman binary and a system socket activation unit, se
 Since the Nomad agent, nomad-driver-podman plugin binary, and Podman will
 reside on the same host, skip the ssh aspects of the Podman varlink
 documentation above.
+
+## Capabilities
+
+The `podman` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature | Implementation |
+| --- | --- |
+| `nomad alloc signal` | false |
+| `nomad alloc exec` | false |
+| filesystem isolation | none |
+| network isolation | host, group, task, none |
+| volume mounting | none |
 
 ## Known Limitations
 
@@ -263,4 +278,5 @@ plugin "nomad-driver-podman" {
 [slirp-issue]: https://github.com/containers/libpod/issues/6097
 [stderr-logging]: https://github.com/hashicorp/nomad-driver-podman/issues/4
 [devices]: https://github.com/hashicorp/nomad-driver-podman/issues/41
+[downloaded]: https://releases.hashicorp.com/nomad-driver-podman 
 

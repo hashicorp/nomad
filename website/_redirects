@@ -261,6 +261,9 @@
 # Sometimes code names are too good not to mention
 /heartyeet                                    /docs/job-specification/group#stop_after_client_disconnect 301!
 
+# Moved /docs/drivers/external/podman -> /docs/drivers/podman
+/docs/drivers/external/podman  /docs/drivers/podman 301!
+
 # Moved /docs/operating-a-job/ -> /guides/operating-a-job/
 /docs/operating-a-job                           https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
 /docs/operating-a-job/index.html                https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
