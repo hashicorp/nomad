@@ -74,8 +74,6 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool, validity strin
 		fmt.Sprintf("License ID|%s", lic.LicenseID),
 		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
 		expStr,
-		fmt.Sprintf("License ID|%s", lic.LicenseID),
-		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
 		fmt.Sprintf("Terminates At|%s", lic.TerminationTime.String()),
 		fmt.Sprintf("Datacenter|%s", lic.InstallationID),
 	}
