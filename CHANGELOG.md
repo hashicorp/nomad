@@ -22,6 +22,7 @@ BUG FIXES:
  * ui: Fixed exec to derive group and task when possible from allocation [[GH-8463](https://github.com/hashicorp/nomad/pull/8463)]
  * ui: Fixed runtime error when clicking "Run Job" while a prefix filter is set [[GH-8412](https://github.com/hashicorp/nomad/issues/8412)]
  * ui: Fixed the absence of the region query parameter on various actions, such as job stop, allocation restart, node drain. [[GH-8477](https://github.com/hashicorp/nomad/issues/8477)]
+ * ui: Fixed issue where an orphaned child job would make it so navigating to a job detail page would hang the UI [[GH-8319](https://github.com/hashicorp/nomad/issues/8319)]
  * vault: Fixed a bug where vault identity policies not considered in permissions check [[GH-7732](https://github.com/hashicorp/nomad/issues/7732)]
 
 ## 0.12.0 (July 9, 2020)
