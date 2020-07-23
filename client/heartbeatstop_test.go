@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHearbeatStop_allocHook(t *testing.T) {
+func TestHeartbeatStop_allocHook(t *testing.T) {
 	t.Parallel()
 
 	server, _, cleanupS1 := testServer(t, nil)

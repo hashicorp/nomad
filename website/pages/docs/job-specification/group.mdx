@@ -83,7 +83,7 @@ job "docs" {
   will stop allocations based on this task group. By default, a client
   will not stop an allocation until explicitly told to by a server. A
   client that fails to heartbeat to a server within the
-  `hearbeat_grace` window and any allocations running on it will be
+  [`heartbeat_grace`] window and any allocations running on it will be
   marked "lost" and Nomad will schedule replacement
   allocations. However, these replaced allocations will continue to
   run on the non-responsive client; an operator may desire that these
@@ -247,7 +247,7 @@ group "second" {
 [spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
 [affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
-[`heartbeat_grace`]: /docs/configuration/server/#heartbeat_grace
+[`heartbeat_grace`]: /docs/configuration/server#heartbeat_grace
 [meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
 [migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
