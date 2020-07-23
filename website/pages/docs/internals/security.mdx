@@ -309,7 +309,7 @@ There are two main components to consider to for external threats in a Nomad clu
 * **Server agent** - Internal cluster leader elections and replication is
     managed via Raft between server agents encrypted in transit. However,
     information about the server is stored unencrypted at rest in the agent's
-    data directory. This information may contain information such as ACL tokens
+    data directory. This may contain sensitive information such as ACL tokens
     and TLS certificates.
 
 * **Client agent** - Client-to-server communication within a cluster is
