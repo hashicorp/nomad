@@ -563,8 +563,10 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 	volumes := map[string]*api.CSIVolumeListStub{}
 	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
 	for _, v := range vs {
-		n := requests[v.ID].Name
-		volumes[n] = v
+		n, ok := requests[v.ID]
+		if ok {
+			volumes[n.Name] = v
+		}
 	}
 
 	// Output the volumes in name order
