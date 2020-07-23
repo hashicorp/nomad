@@ -458,22 +458,12 @@ func (v *vaultClient) establishConnection() {
 	// Create the retry timer and set initial duration to zero so it fires
 	// immediately
 	retryTimer := time.NewTimer(0)
-	initStatus := false
 OUTER:
 	for {
 		select {
 		case <-v.tomb.Dying():
 			return
 		case <-retryTimer.C:
-			// Ensure the API is reachable
-			if !initStatus {
-				if _, err := v.clientSys.Sys().InitStatus(); err != nil {
-					v.logger.Warn("failed to contact Vault API", "retry", v.config.ConnectionRetryIntv, "error", err)
-					retryTimer.Reset(v.config.ConnectionRetryIntv)
-					continue OUTER
-				}
-				initStatus = true
-			}
 			// Retry validating the token till success
 			if err := v.parseSelfToken(); err != nil {
 				v.logger.Error("failed to validate self token/role", "retry", v.config.ConnectionRetryIntv, "error", err)
