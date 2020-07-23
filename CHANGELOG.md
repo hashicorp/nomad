@@ -1,4 +1,4 @@
-## 0.12.1 (Unreleased)
+## 0.12.1 (July 23, 2020)
 
 SECURITY:
 
