@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/a8m/tree v0.0.0-20181222104329-6a0b80129de4
 	github.com/client9/misspell v0.3.4
-	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
+	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/golang/protobuf v1.3.4
 	github.com/golangci/golangci-lint v1.24.0
 	github.com/google/go-cmp v0.4.0 // indirect
