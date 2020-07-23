@@ -1229,7 +1229,7 @@ func (v *vaultClient) revokeDaemon() {
 		case <-v.tomb.Dying():
 			return
 		case now := <-ticker.C:
-			if established, _ := v.ConnectionEstablished(); !established {
+			if established, err := v.ConnectionEstablished(); !established || err != nil {
 				continue
 			}
 
