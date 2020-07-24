@@ -119,6 +119,7 @@ export default class Job extends Model {
   @hasMany('deployments') deployments;
   @hasMany('evaluations') evaluations;
   @belongsTo('namespace') namespace;
+  @belongsTo('job-scale') scaleState;
 
   @computed('taskGroups.@each.drivers')
   get drivers() {
