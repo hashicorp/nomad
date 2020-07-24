@@ -181,6 +181,7 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	// Query the job scale status
 	status, _, err := jobs.ScaleStatus(*job.ID, nil)
 	require.NoError(err)
+	require.Equal("default", status.Namespace)
 	require.Equal(0, status.TaskGroups["group1"].Desired) // present => as specified
 	require.Equal(1, status.TaskGroups["group2"].Desired) // nil     => default (1)
 	require.Equal(3, status.TaskGroups["group3"].Desired) // new     => as specified

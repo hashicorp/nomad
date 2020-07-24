@@ -1292,6 +1292,7 @@ type JobScaleStatusResponse struct {
 
 type JobScaleStatus struct {
 	JobID          string
+	Namespace      string
 	JobCreateIndex uint64
 	JobModifyIndex uint64
 	JobStopped     bool

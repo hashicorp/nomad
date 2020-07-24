@@ -2037,6 +2037,7 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 			// Setup the output
 			reply.JobScaleStatus = &structs.JobScaleStatus{
 				JobID:          job.ID,
+				Namespace:      job.Namespace,
 				JobCreateIndex: job.CreateIndex,
 				JobModifyIndex: job.ModifyIndex,
 				JobStopped:     job.Stop,

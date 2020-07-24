@@ -6533,6 +6533,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 
 	expectedStatus := structs.JobScaleStatus{
 		JobID:          jobV2.ID,
+		Namespace:      jobV2.Namespace,
 		JobCreateIndex: jobV2.CreateIndex,
 		JobModifyIndex: a1.CreateIndex,
 		JobStopped:     jobV2.Stop,
