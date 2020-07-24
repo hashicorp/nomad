@@ -115,7 +115,7 @@ echo "Install Podman"
 sudo sh -c "echo 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
 curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
 sudo apt-get update -qq
-sudo apt-get -qq -y install podman 
+sudo apt-get -qq -y install podman
 
 # get catatonit (to check podman --init switch)
 cd /tmp
@@ -132,21 +132,26 @@ wget -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}
 sudo unzip /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
 sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
 
-# disable systemd-resolved and configure dnsmasq
-# to forward local requests to consul
+# disable systemd-resolved and configure dnsmasq to forward local requests to
+# consul. the resolver files need to dynamic configuration based on the VPC
+# address and docker bridge IP, so those will be rewritten at boot time.
 sudo systemctl disable systemd-resolved.service
-sudo rm /etc/resolv.conf
-echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
 echo '
 port=53
 resolv-file=/var/run/dnsmasq/resolv.conf
 bind-interfaces
+interface=docker0
+interface=lo
+interface=eth0
 listen-address=127.0.0.1
 server=/consul/127.0.0.1#8600
 ' | sudo tee /etc/dnsmasq.d/default
 
-# add our hostname to etc/hosts
-echo "127.0.0.1 $(hostname)" | sudo tee -a /etc/hosts
+# this is going to be overwritten at provisioning time, but we need something
+# here or we can't fetch binaries to do the provisioning
+echo 'nameserver 8.8.8.8' > /tmp/resolv.conf
+sudo mv /tmp/resolv.conf /etc/resolv.conf
+
 sudo systemctl restart dnsmasq
 
 # enable cgroup_memory and swap
