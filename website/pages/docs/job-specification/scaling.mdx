@@ -11,7 +11,7 @@ description: The "scaling" stanza allows specifying scaling policy for a task gr
 
 The `scaling` stanza allows configuring scaling options for a task group, for the purpose
 of supporting external autoscalers like the [Nomad Autoscaler](https://github.com/hashicorp/nomad-autoscaler)
-and scaling via the Nomad UI.
+and scaling via the Nomad UI. This stanza is not supported within jobs of type `system`.
 
 ```hcl
 job "example" {
