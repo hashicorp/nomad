@@ -200,7 +200,7 @@ environment.
     both the Nomad hosts and applied to containers for an extra layer of
     security. Seccomp profiles are able to be passed directly to containers
     using the
-    **[security_opt](/docs/drivers/docker.html#security_opt)**
+    **[`security_opt`](/docs/drivers/docker.html#security_opt)**
     parameter available in the default [Docker
     driver](/docs/drivers/docker.html).
 
@@ -208,6 +208,12 @@ environment.
     Integrating service mesh technologies such as
     **[Consul](https://www.consul.io/)** can be extremely useful for limiting
     and efficiently load balancing network connectivity within a cluster.
+
+* **[TLS Settings](/docs/configuration/tls)** -
+    TLS settings, such as the available [cipher suites](/docs/configuration/tls#tls_cipher_suites), should be tuned to fit the needs of your environment.
+
+* **[HTTP Headers](/docs/configuration#http_api_response_headers)** -
+    Additional security [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers), such as [`X-XSS-Protection`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection), can be [configured](/docs/configuration#http_api_response_headers) for HTTP API responses. 
 
 ### Threat Model
 
@@ -292,7 +298,7 @@ The following are not part of the threat model for client agents:
     and the backend configuration of these drivers should be considered to
     implement defense in depth. For example, a custom Docker driver that limits
     the ability to mount the host file system may be subverted by network access
-    to an exposed Docker daemon API through other means such as the `raw_exec`
+    to an exposed Docker daemon API through other means such as the [`raw_exec`](/docs/drivers/raw_exec.html)
     driver.
 
 
@@ -303,7 +309,7 @@ There are two main components to consider to for external threats in a Nomad clu
 * **Server agent** - Internal cluster leader elections and replication is
     managed via Raft between server agents encrypted in transit. However,
     information about the server is stored unencrypted at rest in the agent's
-    data directory. This information may contain information such as ACL tokens
+    data directory. This may contain sensitive information such as ACL tokens
     and TLS certificates.
 
 * **Client agent** - Client-to-server communication within a cluster is
