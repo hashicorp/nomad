@@ -36,11 +36,21 @@ sudo systemctl restart vault.service
 # Add hostname to /etc/hosts
 echo "127.0.0.1 $(hostname)" | sudo tee --append /etc/hosts
 
-# Add Docker bridge network IP to /etc/resolv.conf (at the top)
-DOCKER_BRIDGE_IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetInterfaceIP "docker0"')
-echo "nameserver $DOCKER_BRIDGE_IP_ADDRESS" | sudo tee /etc/resolv.conf.new
-cat /etc/resolv.conf | sudo tee --append /etc/resolv.conf.new
-sudo mv /etc/resolv.conf.new /etc/resolv.conf
+# Use dnsmasq for DNS resolution
+echo "nameserver 127.0.0.1" > /tmp/resolv.conf
+sudo mv /tmp/resolv.conf /etc/resolv.conf
+
+# need to get the AWS DNS address from the VPC...
+# this is pretty hacky but will work for any typical case
+MAC=$(curl -s --fail http://169.254.169.254/latest/meta-data/mac)
+CIDR_BLOCK=$(curl -s --fail "http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/vpc-ipv4-cidr-block")
+VPC_DNS_ROOT=$(echo "$CIDR_BLOCK" | cut -d'.' -f1-3)
+{
+    echo "nameserver ${VPC_DNS_ROOT}.2"
+} > /tmp/dnsmasq-resolv.conf
+sudo mv /tmp/dnsmasq-resolv.conf /var/run/dnsmasq/resolv.conf
+
+sudo systemctl restart dnsmasq
 
 # Nomad
 
