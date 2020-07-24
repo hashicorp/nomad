@@ -1,5 +1,9 @@
 ## 0.12.2 (Unreleased)
 
+BUG FIXES:
+
+ * api: do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8481](https://github.com/hashicorp/nomad/issues/8481)]
+
 ## 0.12.1 (July 23, 2020)
 
 SECURITY:
