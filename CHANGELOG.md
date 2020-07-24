@@ -2,6 +2,7 @@
 
 BUG FIXES:
 
+ * api: added missing namespace field to scaling status GET response object [[GH-8527](https://github.com/hashicorp/nomad/issues/8527)]
  * api: do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8481](https://github.com/hashicorp/nomad/issues/8481)]
 
 ## 0.12.1 (July 23, 2020)
