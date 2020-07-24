@@ -448,6 +448,36 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 	})
 }
 
+func TestHTTP_jobUpdate_systemScaling(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := MockJob()
+		job.Type = helper.StringToPtr("system")
+		job.TaskGroups[0].Scaling = &api.ScalingPolicy{Enabled: helper.BoolToPtr(true)}
+		args := api.JobRegisterRequest{
+			Job: job,
+			WriteRequest: api.WriteRequest{
+				Region:    "global",
+				Namespace: api.DefaultNamespace,
+			},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		assert.Nil(t, obj)
+		assert.Equal(t, CodedError(400, "Task groups with job type system do not support scaling stanzas"), err)
+	})
+}
+
 func TestHTTP_JobUpdate(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {

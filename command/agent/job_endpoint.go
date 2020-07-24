@@ -391,6 +391,18 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		}
 	}
 
+	// GH-8481. Jobs of type system can only have a count of 1 and therefore do
+	// not support scaling. Even though this returns an error on the first
+	// occurrence, the error is generic but detailed enough that an operator
+	// can fix the problem across multiple task groups.
+	if args.Job.Type != nil && *args.Job.Type == api.JobTypeSystem {
+		for _, tg := range args.Job.TaskGroups {
+			if tg.Scaling != nil {
+				return nil, CodedError(400, "Task groups with job type system do not support scaling stanzas")
+			}
+		}
+	}
+
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
