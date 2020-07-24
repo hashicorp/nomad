@@ -73,9 +73,9 @@ sudo mv terraform /usr/local/bin
 terraform --version
 ```
 
-### Install the GCP SDK Command Line Tools
+### Install and Authenticate the GCP SDK Command Line Tools
 
-> **Note**: if you are using the free [Google Cloud Shell](https://cloud.google.com/shell) VM, you will already have `gcloud` installed. So, you can safely skip this step.
+**If you are using [Google Cloud](https://cloud.google.com/shell), you already have `gcloud` setup. So, you can safely skip this step.**
 
 To install the GCP SDK Command Line Tools, follow the installation instructions for your specific operating system: 
 
@@ -83,12 +83,10 @@ To install the GCP SDK Command Line Tools, follow the installation instructions 
 * [MacOS](https://cloud.google.com/sdk/docs/downloads-interactive#mac)
 * [Windows](https://cloud.google.com/sdk/docs/downloads-interactive#windows)
 
-#### Initialize the SDK
-
-To perform common setup tasks like authorizing with GCP using `gcloud`, if you haven't already done so, run the following command:
+After installation, authenticate `gcloud` with the following command:
 
 ```console
-gcloud init
+gcloud auth login
 ```
 
 ## Create a New Project
