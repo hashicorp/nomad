@@ -76,7 +76,7 @@ func TestDebugCapturedFiles(t *testing.T) {
 		"-address", url,
 		"-output", os.TempDir(),
 		"-server-id", "leader",
-		"-duration", "1s",
+		"-duration", "1300ms",
 		"-interval", "600ms",
 	})
 

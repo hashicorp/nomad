@@ -509,7 +509,6 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 		return
 	}
 
-	start := time.Now().Unix()
 	duration := time.After(c.duration)
 	// Set interval to 0 so that we immediately execute, wait the interval next time
 	interval := time.After(0 * time.Second)
@@ -523,7 +522,7 @@ func (c *DebugCommand) collectPeriodic(client *api.Client) {
 			return
 
 		case <-interval:
-			name = fmt.Sprintf("%04d", time.Now().Unix()-start)
+			name = fmt.Sprintf("%04d", intervalCount)
 			dir = filepath.Join("nomad", name)
 			c.Ui.Output(fmt.Sprintf("    Capture interval %s", name))
 			c.collectNomad(dir, client)
