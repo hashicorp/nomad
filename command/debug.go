@@ -338,23 +338,30 @@ func (c *DebugCommand) collect(client *api.Client) error {
 	// Fetch data directly from consul and vault. Ignore errors
 	var consul, vault string
 
-	m, ok := self.Config["Consul"].(map[string]interface{})
+	r, ok := self.Config["Consul"]
 	if ok {
-		raw := m["Addr"]
-		consul, _ = raw.(string)
-		raw = m["EnableSSL"]
-		ssl, _ := raw.(bool)
-		if ssl {
-			consul = "https://" + consul
-		} else {
-			consul = "http://" + consul
+		m, ok := r.(map[string]interface{})
+		if ok {
+
+			raw := m["Addr"]
+			consul, _ = raw.(string)
+			raw = m["EnableSSL"]
+			ssl, _ := raw.(bool)
+			if ssl {
+				consul = "https://" + consul
+			} else {
+				consul = "http://" + consul
+			}
 		}
 	}
 
-	m, ok = self.Config["Vault"].(map[string]interface{})
+	r, ok = self.Config["Vault"]
 	if ok {
-		raw := m["Addr"]
-		vault, _ = raw.(string)
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["Addr"]
+			vault, _ = raw.(string)
+		}
 	}
 
 	c.collectConsul(dir, consul)
