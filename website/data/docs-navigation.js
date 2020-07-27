@@ -249,7 +249,6 @@ export default [
     ]
   },
   { category: 'telemetry', content: ['metrics'] },
-  { category: 'vault-integration' },
   '------------',
   { category: 'enterprise' },
   'faq'

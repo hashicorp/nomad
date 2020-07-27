@@ -472,5 +472,7 @@
 /docs/enterprise/autopilot/index.html             /docs/enterprise#nomad-enterprise-platform 301!
 
 # Guide Catch-all Redirects
-/guides    https://learn.hashicorp.com/nomad  301!
-/guides/*  https://learn.hashicorp.com/nomad  301!
+
+
+# Vault Integration
+/docs/vault-integration /docs/integrations/vault-integration
