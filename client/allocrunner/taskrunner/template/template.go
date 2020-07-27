@@ -87,6 +87,9 @@ type TaskTemplateManagerConfig struct {
 	// VaultToken is the Vault token for the task.
 	VaultToken string
 
+	// VaultNamespace is the Vault namespace for the task
+	VaultNamespace string
+
 	// TaskDir is the task's directory
 	TaskDir string
 
@@ -655,8 +658,14 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	if cc.VaultConfig != nil && cc.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &cc.VaultConfig.Addr
 		conf.Vault.Token = &config.VaultToken
+
+		// Set the Vault Namespace. Passed in Task config has
+		// highest precedence.
 		if config.ClientConfig.VaultConfig.Namespace != "" {
 			conf.Vault.Namespace = &config.ClientConfig.VaultConfig.Namespace
+		}
+		if config.VaultNamespace != "" {
+			conf.Vault.Namespace = &config.VaultNamespace
 		}
 
 		if strings.HasPrefix(cc.VaultConfig.Addr, "https") || cc.VaultConfig.TLSCertFile != "" {

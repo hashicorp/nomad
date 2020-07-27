@@ -1490,6 +1490,57 @@ func TestJobEndpoint_Register_Vault_Policies(t *testing.T) {
 	}
 }
 
+func TestJobEndpoint_Register_Vault_MultiNamespaces(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault
+	tr, f := true, false
+	s1.config.VaultConfig.Enabled = &tr
+	s1.config.VaultConfig.AllowUnauthenticated = &f
+
+	// Replace the Vault Client on the server
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	goodToken := uuid.Generate()
+	goodPolicies := []string{"foo", "bar", "baz"}
+	tvc.SetLookupTokenAllowedPolicies(goodToken, goodPolicies)
+
+	// Create the register request with a job asking for a vault policy but
+	// don't send a Vault token
+	job := mock.Job()
+	job.VaultToken = goodToken
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
+		Namespace:  "ns1",
+		Policies:   []string{"foo"},
+		ChangeMode: structs.VaultChangeModeRestart,
+	}
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	// OSS or Ent check
+	if s1.EnterpriseState.Features() == 0 {
+		require.Contains(t, err.Error(), "multiple vault namespaces requires Nomad Enterprise")
+	} else {
+		require.NoError(t, err)
+	}
+}
+
 // TestJobEndpoint_Register_SemverConstraint asserts that semver ordering is
 // used when evaluating semver constraints.
 func TestJobEndpoint_Register_SemverConstraint(t *testing.T) {

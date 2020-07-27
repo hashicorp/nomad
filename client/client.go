@@ -2457,6 +2457,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	}
 
 	// Derive the tokens
+	// namespace is handled via nomad/vault
 	var resp structs.DeriveVaultTokenResponse
 	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
 		vlogger.Error("error making derive token RPC", "error", err)

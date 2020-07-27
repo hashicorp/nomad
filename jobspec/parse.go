@@ -506,6 +506,7 @@ func parseVault(result *api.Vault, list *ast.ObjectList) error {
 
 	// Check for invalid keys
 	valid := []string{
+		"namespace",
 		"policies",
 		"env",
 		"change_mode",

@@ -323,6 +323,26 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	return flattened
 }
 
+// VaultNaVaultNamespaceSet takes the structure returned by VaultPolicies and
+// returns a set of required namespaces
+func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
+	set := make(map[string]struct{})
+
+	for _, tgp := range policies {
+		for _, tp := range tgp {
+			if tp.Namespace != "" {
+				set[tp.Namespace] = struct{}{}
+			}
+		}
+	}
+
+	flattened := make([]string, 0, len(set))
+	for p := range set {
+		flattened = append(flattened, p)
+	}
+	return flattened
+}
+
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are
 // non-terminal and do not have a job already. This is useful in cases where the
 // job is normalized.

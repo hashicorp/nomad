@@ -57,7 +57,13 @@ func (tr *TaskRunner) setVaultToken(token string) {
 	tr.vaultToken = token
 
 	// Update the task's environment
-	tr.envBuilder.SetVaultToken(token, tr.clientConfig.VaultConfig.Namespace, tr.task.Vault.Env)
+	taskNamespace := tr.task.Vault.Namespace
+
+	ns := tr.clientConfig.VaultConfig.Namespace
+	if taskNamespace != "" {
+		ns = taskNamespace
+	}
+	tr.envBuilder.SetVaultToken(token, ns, tr.task.Vault.Env)
 }
 
 // getDriverHandle returns a driver handle.
