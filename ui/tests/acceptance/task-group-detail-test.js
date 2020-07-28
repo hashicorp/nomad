@@ -329,7 +329,9 @@ module('Acceptance | task group detail', function(hooks) {
     await TaskGroup.countStepper.increment.click();
     await settled();
 
-    const scaleRequest = server.pretender.handledRequests.find(req => req.url.endsWith('/scale'));
+    const scaleRequest = server.pretender.handledRequests.find(
+      req => req.method === 'POST' && req.url.endsWith('/scale')
+    );
     const requestBody = JSON.parse(scaleRequest.requestBody);
     assert.equal(requestBody.Target.Group, scalingGroup.name);
     assert.equal(requestBody.Count, scalingGroup.count + 1);

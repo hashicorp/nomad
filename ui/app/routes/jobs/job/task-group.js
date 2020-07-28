@@ -1,7 +1,7 @@
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
 import EmberError from '@ember/error';
-import { resolve } from 'rsvp';
+import { resolve, all } from 'rsvp';
 import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
@@ -43,10 +43,9 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
         }
 
         // Refresh job allocations before-hand (so page sort works on load)
-        return job
-          .hasMany('allocations')
-          .reload()
-          .then(() => taskGroup);
+        return all([job.hasMany('allocations').reload(), job.get('scaleState')]).then(
+          () => taskGroup
+        );
       })
       .catch(notifyError(this));
   }
@@ -56,7 +55,8 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
       const job = model.get('job');
       controller.set('watchers', {
         job: this.watchJob.perform(job),
-        summary: this.watchSummary.perform(job.get('summary')),
+        summary: this.watchSummary.perform(job),
+        scale: this.watchScale.perform(job),
         allocations: this.watchAllocations.perform(job),
         latestDeployment: job.get('supportsDeployments') && this.watchLatestDeployment.perform(job),
       });
@@ -64,9 +64,11 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
   }
 
   @watchRecord('job') watchJob;
-  @watchRecord('job-summary') watchSummary;
+  @watchRelationship('job-summary') watchSummary;
+  @watchRelationship('job-scale') watchScale;
   @watchRelationship('allocations') watchAllocations;
   @watchRelationship('latestDeployment') watchLatestDeployment;
 
-  @collect('watchJob', 'watchSummary', 'watchAllocations', 'watchLatestDeployment') watchers;
+  @collect('watchJob', 'watchSummary', 'watchScale', 'watchAllocations', 'watchLatestDeployment')
+  watchers;
 }
