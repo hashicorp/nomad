@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1436,7 +1437,7 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	}
 }
 
-// TestVaultClient_RevokeTokens_failures_TTL asserts that
+// TestVaultClient_RevokeTokens_Failures_TTL asserts that
 // the registered TTL doesn't get extended on retries
 func TestVaultClient_RevokeTokens_Failures_TTL(t *testing.T) {
 	t.Parallel()
@@ -1692,6 +1693,81 @@ func TestVaultClient_RevokeTokens_Idempotent(t *testing.T) {
 	require.Errorf(t, err, "failed to purge token: %v", s)
 	s, err = auth.Lookup(t2.Auth.ClientToken)
 	require.Errorf(t, err, "failed to purge token: %v", s)
+}
+
+// TestVaultClient_RevokeDaemon_Bounded asserts that token revocation
+// batches are bounded in size.
+func TestVaultClient_RevokeDaemon_Bounded(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+
+	// Disable client until we can change settings for testing
+	conf := v.Config.Copy()
+	conf.Enabled = helper.BoolToPtr(false)
+
+	const (
+		batchSize = 100
+		batches   = 3
+	)
+	resultCh := make(chan error, batches)
+	var totalPurges int64
+
+	// Purge function asserts batches are always < batchSize
+	purge := func(vas []*structs.VaultAccessor) error {
+		if len(vas) > batchSize {
+			resultCh <- fmt.Errorf("too many Vault accessors in batch: %d > %d", len(vas), batchSize)
+		} else {
+			resultCh <- nil
+		}
+		atomic.AddInt64(&totalPurges, int64(len(vas)))
+
+		return nil
+	}
+
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(conf, logger, purge, nil)
+	require.NoError(t, err)
+
+	// Override settings for testing and then enable client
+	client.maxRevokeBatchSize = batchSize
+	client.revocationIntv = 3 * time.Millisecond
+	conf = v.Config.Copy()
+	conf.Enabled = helper.BoolToPtr(true)
+	require.NoError(t, client.SetConfig(conf))
+
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create more tokens in Nomad than can fit in a batch; they don't need
+	// to exist in Vault.
+	accessors := make([]*structs.VaultAccessor, batchSize*batches)
+	for i := 0; i < len(accessors); i++ {
+		accessors[i] = &structs.VaultAccessor{Accessor: "abcd"}
+	}
+
+	// Mark for revocation
+	require.NoError(t, client.MarkForRevocation(accessors))
+
+	// Wait for tokens to be revoked
+	for i := 0; i < batches; i++ {
+		select {
+		case err := <-resultCh:
+			require.NoError(t, err)
+		case <-time.After(10 * time.Second):
+			// 10 seconds should be plenty long to process 3
+			// batches at a 3ms tick interval!
+			t.Errorf("timed out processing %d batches. %d/%d complete in 10s",
+				batches, i, batches)
+		}
+	}
+
+	require.Equal(t, int64(len(accessors)), atomic.LoadInt64(&totalPurges))
 }
 
 func waitForConnection(v *vaultClient, t *testing.T) {
