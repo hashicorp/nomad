@@ -1,7 +1,7 @@
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { action, computed } from '@ember/object';
+import { action, computed, get } from '@ember/object';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -50,6 +50,15 @@ export default class TaskGroupController extends Controller.extend(
   @alias('allocations') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedAllocations;
+
+  @computed('model.scaleState.events.@each.time', function() {
+    const events = get(this, 'model.scaleState.events');
+    if (events) {
+      return events.sortBy('time').reverse();
+    }
+    return [];
+  })
+  sortedScaleEvents;
 
   @computed('model.job.runningDeployment')
   get tooltipText() {

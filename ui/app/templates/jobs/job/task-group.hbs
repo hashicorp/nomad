@@ -138,34 +138,35 @@
   <LifecycleChart @tasks={{this.model.tasks}} />
 
   {{#if this.model.scaleState.isVisible}}
-    {{! this is where the accordion goes }}
     <div data-test-scaling-events class="boxed-section">
       <div class="boxed-section-head">
         Recent Scaling Events
       </div>
       <div class="boxed-section-body">
-        <ListAccordion @source={{this.model.scaleState.events}} @key="time" as |a|>
+        <ListAccordion data-test-scale-events @source={{this.sortedScaleEvents}} @key="time" as |a|>
           <a.head @buttonLabel="details" @isExpandable={{a.item.hasMeta}} class="with-columns">
             <div class="columns inline-definitions">
               <div class="column is-3">
                 <span class="icon-field">
-                  <span class="icon-container" title="{{if a.item.error "Error event"}}">
+                  <span class="icon-container" title="{{if a.item.error "Error event"}}" data-test-error={{a.item.error}}>
                     {{#if a.item.error}}{{x-icon "cancel-circle-fill" class="is-danger"}}{{/if}}
                   </span>
-                  <span data-test-time>{{format-ts a.item.time}}</span>
+                  <span data-test-time title="{{format-ts a.item.time}}">{{format-month-ts a.item.time}}</span>
                 </span>
               </div>
               <div class="column is-2">
-                {{#if a.item.count}}
-                  {{#if a.item.increased}}
-                    {{x-icon "arrow-up" class="is-danger"}}
-                  {{else}}
-                    {{x-icon "arrow-down" class="is-primary"}}
-                  {{/if}}
-                  <span>{{a.item.count}}</span>
+                {{#if (gte a.item.count 0)}}
+                  <span data-test-count-icon>
+                    {{#if a.item.increased}}
+                      {{x-icon "arrow-up" class="is-danger"}}
+                    {{else}}
+                      {{x-icon "arrow-down" class="is-primary"}}
+                    {{/if}}
+                  </span>
+                  <span data-test-count>{{a.item.count}}</span>
                 {{/if}}
               </div>
-              <div class="column">
+              <div class="column" data-test-message>
                 {{a.item.message}}
               </div>
             </div>
