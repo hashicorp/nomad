@@ -2,8 +2,10 @@ package consul
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -395,5 +397,72 @@ func TestConnect_getExposePathPort(t *testing.T) {
 			IP:     "10.0.10.0",
 		}))
 		require.EqualError(t, err, "Connect only supported with exactly 1 network (found 2)")
+	})
+}
+
+func TestConnect_newConnectGateway(t *testing.T) {
+	t.Parallel()
+
+	t.Run("not a gateway", func(t *testing.T) {
+		result := newConnectGateway("s1", &structs.ConsulConnect{Native: true})
+		require.Nil(t, result)
+	})
+
+	t.Run("canonical empty", func(t *testing.T) {
+		result := newConnectGateway("s1", &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Proxy: &structs.ConsulGatewayProxy{
+					ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+					EnvoyGatewayBindTaggedAddresses: false,
+					EnvoyGatewayBindAddresses:       nil,
+					EnvoyGatewayNoDefaultBind:       false,
+					EnvoyDNSDiscoveryType:           "LOGICAL_DNS",
+					Config:                          nil,
+				},
+			},
+		})
+		require.Equal(t, &api.AgentServiceConnectProxyConfig{
+			Config: map[string]interface{}{
+				"connect_timeout_ms":       int64(1000),
+				"envoy_dns_discovery_type": "LOGICAL_DNS",
+			},
+		}, result)
+	})
+
+	t.Run("full", func(t *testing.T) {
+		result := newConnectGateway("s1", &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Proxy: &structs.ConsulGatewayProxy{
+					ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+					EnvoyGatewayBindTaggedAddresses: true,
+					EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
+						"service1": &structs.ConsulGatewayBindAddress{
+							Address: "10.0.0.1",
+							Port:    2000,
+						},
+					},
+					EnvoyGatewayNoDefaultBind: true,
+					EnvoyDNSDiscoveryType:     "STRICT_DNS",
+					Config: map[string]interface{}{
+						"foo": 1,
+					},
+				},
+			},
+		})
+		require.Equal(t, &api.AgentServiceConnectProxyConfig{
+			Config: map[string]interface{}{
+				"connect_timeout_ms":                  int64(1000),
+				"envoy_dns_discovery_type":            "STRICT_DNS",
+				"envoy_gateway_bind_tagged_addresses": true,
+				"envoy_gateway_bind_addresses": map[string]*structs.ConsulGatewayBindAddress{
+					"service1": &structs.ConsulGatewayBindAddress{
+						Address: "10.0.0.1",
+						Port:    2000,
+					},
+				},
+				"envoy_gateway_no_default_bind": true,
+				"foo":                           1,
+			},
+		}, result)
 	})
 }

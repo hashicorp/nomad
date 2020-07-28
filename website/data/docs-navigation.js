@@ -166,6 +166,7 @@ export default [
       'env',
       'ephemeral_disk',
       'expose',
+      'gateway',
       'group',
       'job',
       'lifecycle',

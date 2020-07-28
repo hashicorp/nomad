@@ -651,9 +651,12 @@ func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// replace consul ACLs api with a mock for tracking calls
+	// replace consul ACLs API with a mock for tracking calls in tests
 	var consulACLsAPI mockConsulACLsAPI
 	s1.consulACLs = &consulACLsAPI
+
+	// replace consul Config API with a mock for tracking calls in tests
+	// var consulConfigsAPI mock
 
 	// Insert a SI token accessor that should be revoked
 	fsmState := s1.fsm.State()

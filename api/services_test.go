@@ -261,3 +261,161 @@ func TestService_Connect_SidecarTask_Canonicalize(t *testing.T) {
 		require.Equal(t, exp, st.Resources)
 	})
 }
+
+func TestService_ConsulGateway_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		cg := (*ConsulGateway)(nil)
+		cg.Canonicalize()
+		require.Nil(t, cg)
+	})
+
+	t.Run("set defaults", func(t *testing.T) {
+		cg := &ConsulGateway{
+			Proxy: &ConsulGatewayProxy{
+				ConnectTimeout:                  nil,
+				EnvoyGatewayBindTaggedAddresses: true,
+				EnvoyGatewayBindAddresses:       make(map[string]*ConsulGatewayBindAddress, 0),
+				EnvoyGatewayNoDefaultBind:       true,
+				EnvoyDNSDiscoveryType:           "",
+				Config:                          make(map[string]interface{}, 0),
+			},
+			Ingress: &ConsulIngressConfigEntry{
+				TLS: &ConsulGatewayTLSConfig{
+					Enabled: false,
+				},
+				Listeners: make([]*ConsulIngressListener, 0),
+			},
+		}
+		cg.Canonicalize()
+		require.Equal(t, timeToPtr(5*time.Second), cg.Proxy.ConnectTimeout)
+		require.Equal(t, "LOGICAL_DNS", cg.Proxy.EnvoyDNSDiscoveryType)
+		require.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
+		require.Nil(t, cg.Proxy.Config)
+		require.Nil(t, cg.Ingress.Listeners)
+	})
+}
+
+func TestService_ConsulGateway_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		result := (*ConsulGateway)(nil).Copy()
+		require.Nil(t, result)
+	})
+
+	gateway := &ConsulGateway{
+		Proxy: &ConsulGatewayProxy{
+			ConnectTimeout:                  timeToPtr(3 * time.Second),
+			EnvoyGatewayBindTaggedAddresses: true,
+			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+				"listener1": {Address: "10.0.0.1", Port: 2000},
+				"listener2": {Address: "10.0.0.1", Port: 2001},
+			},
+			EnvoyGatewayNoDefaultBind: true,
+			EnvoyDNSDiscoveryType:     "BAD_TYPE",
+			Config: map[string]interface{}{
+				"foo": "bar",
+				"baz": 3,
+			},
+		},
+		Ingress: &ConsulIngressConfigEntry{
+			TLS: &ConsulGatewayTLSConfig{
+				Enabled: true,
+			},
+			Listeners: []*ConsulIngressListener{{
+				Port:     3333,
+				Protocol: "tcp",
+				Services: []*ConsulIngressService{{
+					Name: "service1",
+					Hosts: []string{
+						"127.0.0.1", "127.0.0.1:3333",
+					}},
+				}},
+			},
+		},
+	}
+
+	t.Run("complete", func(t *testing.T) {
+		result := gateway.Copy()
+		require.Equal(t, gateway, result)
+	})
+}
+
+func TestService_ConsulIngressConfigEntry_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		c := (*ConsulIngressConfigEntry)(nil)
+		c.Canonicalize()
+		require.Nil(t, c)
+	})
+
+	t.Run("empty fields", func(t *testing.T) {
+		c := &ConsulIngressConfigEntry{
+			TLS:       nil,
+			Listeners: []*ConsulIngressListener{},
+		}
+		c.Canonicalize()
+		require.Nil(t, c.TLS)
+		require.Nil(t, c.Listeners)
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		c := &ConsulIngressConfigEntry{
+			TLS: &ConsulGatewayTLSConfig{Enabled: true},
+			Listeners: []*ConsulIngressListener{{
+				Port:     9090,
+				Protocol: "http",
+				Services: []*ConsulIngressService{{
+					Name:  "service1",
+					Hosts: []string{"1.1.1.1"},
+				}},
+			}},
+		}
+		c.Canonicalize()
+		require.Equal(t, &ConsulIngressConfigEntry{
+			TLS: &ConsulGatewayTLSConfig{Enabled: true},
+			Listeners: []*ConsulIngressListener{{
+				Port:     9090,
+				Protocol: "http",
+				Services: []*ConsulIngressService{{
+					Name:  "service1",
+					Hosts: []string{"1.1.1.1"},
+				}},
+			}},
+		}, c)
+	})
+}
+
+func TestService_ConsulIngressConfigEntry_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		result := (*ConsulIngressConfigEntry)(nil).Copy()
+		require.Nil(t, result)
+	})
+
+	entry := &ConsulIngressConfigEntry{
+		TLS: &ConsulGatewayTLSConfig{
+			Enabled: true,
+		},
+		Listeners: []*ConsulIngressListener{{
+			Port:     1111,
+			Protocol: "http",
+			Services: []*ConsulIngressService{{
+				Name:  "service1",
+				Hosts: []string{"1.1.1.1", "1.1.1.1:9000"},
+			}, {
+				Name:  "service2",
+				Hosts: []string{"2.2.2.2"},
+			}},
+		}},
+	}
+
+	t.Run("complete", func(t *testing.T) {
+		result := entry.Copy()
+		require.Equal(t, entry, result)
+	})
+}

@@ -828,6 +828,15 @@ func TestTask_UsesConnect(t *testing.T) {
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
+
+	t.Run("ingress gateway", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectIngressPrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
@@ -854,6 +863,16 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 					SidecarService: &ConsulSidecarService{
 						Port: "9090",
 					},
+				},
+			}},
+		}, true)
+	})
+
+	t.Run("tg uses gateway", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{{
+				Connect: &ConsulConnect{
+					Gateway: consulIngressGateway1,
 				},
 			}},
 		}, true)

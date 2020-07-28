@@ -152,6 +152,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 // ConsulConnect represents a Consul Connect jobspec stanza.
 type ConsulConnect struct {
 	Native         bool
+	Gateway        *ConsulGateway
 	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service"`
 	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task"`
 }
@@ -163,6 +164,7 @@ func (cc *ConsulConnect) Canonicalize() {
 
 	cc.SidecarService.Canonicalize()
 	cc.SidecarTask.Canonicalize()
+	cc.Gateway.Canonicalize()
 }
 
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
@@ -290,3 +292,274 @@ type ConsulExposePath struct {
 	LocalPathPort int    `mapstructure:"local_path_port"`
 	ListenerPort  string `mapstructure:"listener_port"`
 }
+
+// ConsulGateway is used to configure one of the Consul Connect Gateway types.
+type ConsulGateway struct {
+	// Proxy is used to configure the Envoy instance acting as the gateway.
+	Proxy *ConsulGatewayProxy
+
+	// Ingress represents the Consul Configuration Entry for an Ingress Gateway.
+	Ingress *ConsulIngressConfigEntry
+
+	// Terminating is not yet supported.
+	// Terminating *ConsulTerminatingConfigEntry
+
+	// Mesh is not yet supported.
+	// Mesh *ConsulMeshConfigEntry
+}
+
+func (g *ConsulGateway) Canonicalize() {
+	if g == nil {
+		return
+	}
+	g.Proxy.Canonicalize()
+	g.Ingress.Canonicalize()
+}
+
+func (g *ConsulGateway) Copy() *ConsulGateway {
+	if g == nil {
+		return nil
+	}
+
+	return &ConsulGateway{
+		Proxy:   g.Proxy.Copy(),
+		Ingress: g.Ingress.Copy(),
+	}
+}
+
+type ConsulGatewayBindAddress struct {
+	Address string `mapstructure:"address"`
+	Port    int    `mapstructure:"port"`
+}
+
+const (
+	defaultDNSDiscoveryType = "LOGICAL_DNS"
+)
+
+var (
+	defaultGatewayConnectTimeout = 5 * time.Second
+)
+
+// ConsulGatewayProxy is used to tune parameters of the proxy instance acting as
+// one of the forms of Connect gateways that Consul supports.
+//
+// https://www.consul.io/docs/connect/proxies/envoy#gateway-options
+type ConsulGatewayProxy struct {
+	ConnectTimeout                  *time.Duration                       `mapstructure:"connect_timeout"`
+	EnvoyGatewayBindTaggedAddresses bool                                 `mapstructure:"envoy_gateway_bind_tagged_addresses"`
+	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses"`
+	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind"`
+	EnvoyDNSDiscoveryType           string                               `mapstructure:"envoy_dns_discovery_type"`
+	Config                          map[string]interface{}               // escape hatch envoy config
+}
+
+func (p *ConsulGatewayProxy) Canonicalize() {
+	if p == nil {
+		return
+	}
+
+	if p.ConnectTimeout == nil {
+		// same as the default from consul
+		p.ConnectTimeout = timeToPtr(defaultGatewayConnectTimeout)
+	}
+
+	if p.EnvoyDNSDiscoveryType == "" {
+		// same as default from consul
+		p.EnvoyDNSDiscoveryType = defaultDNSDiscoveryType
+	}
+
+	if len(p.EnvoyGatewayBindAddresses) == 0 {
+		p.EnvoyGatewayBindAddresses = nil
+	}
+
+	if len(p.Config) == 0 {
+		p.Config = nil
+	}
+}
+
+func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
+	if p == nil {
+		return nil
+	}
+
+	var binds map[string]*ConsulGatewayBindAddress = nil
+	if p.EnvoyGatewayBindAddresses != nil {
+		binds = make(map[string]*ConsulGatewayBindAddress, len(p.EnvoyGatewayBindAddresses))
+		for k, v := range p.EnvoyGatewayBindAddresses {
+			binds[k] = v
+		}
+	}
+
+	var config map[string]interface{} = nil
+	if p.Config != nil {
+		config = make(map[string]interface{}, len(p.Config))
+		for k, v := range p.Config {
+			config[k] = v
+		}
+	}
+
+	return &ConsulGatewayProxy{
+		ConnectTimeout:                  timeToPtr(*p.ConnectTimeout),
+		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
+		EnvoyGatewayBindAddresses:       binds,
+		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
+		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
+		Config:                          config,
+	}
+}
+
+// ConsulGatewayTLSConfig is used to configure TLS for a gateway.
+type ConsulGatewayTLSConfig struct {
+	Enabled bool
+}
+
+func (tc *ConsulGatewayTLSConfig) Canonicalize() {
+}
+
+func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
+	if tc == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSConfig{
+		Enabled: tc.Enabled,
+	}
+}
+
+// ConsulIngressService is used to configure a service fronted by the ingress gateway.
+type ConsulIngressService struct {
+	// Namespace is not yet supported.
+	// Namespace string
+	Name string
+
+	Hosts []string
+}
+
+func (s *ConsulIngressService) Canonicalize() {
+	if s == nil {
+		return
+	}
+
+	if len(s.Hosts) == 0 {
+		s.Hosts = nil
+	}
+}
+
+func (s *ConsulIngressService) Copy() *ConsulIngressService {
+	if s == nil {
+		return nil
+	}
+
+	var hosts []string = nil
+	if n := len(s.Hosts); n > 0 {
+		hosts = make([]string, n)
+		copy(hosts, s.Hosts)
+	}
+
+	return &ConsulIngressService{
+		Name:  s.Name,
+		Hosts: hosts,
+	}
+}
+
+const (
+	defaultIngressListenerProtocol = "tcp"
+)
+
+// ConsulIngressListener is used to configure a listener on a Consul Ingress
+// Gateway.
+type ConsulIngressListener struct {
+	Port     int
+	Protocol string
+	Services []*ConsulIngressService
+}
+
+func (l *ConsulIngressListener) Canonicalize() {
+	if l == nil {
+		return
+	}
+
+	if l.Protocol == "" {
+		// same as default from consul
+		l.Protocol = defaultIngressListenerProtocol
+	}
+
+	if len(l.Services) == 0 {
+		l.Services = nil
+	}
+}
+
+func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
+	if l == nil {
+		return nil
+	}
+
+	var services []*ConsulIngressService = nil
+	if n := len(l.Services); n > 0 {
+		services = make([]*ConsulIngressService, n)
+		for i := 0; i < n; i++ {
+			services[i] = l.Services[i].Copy()
+		}
+	}
+
+	return &ConsulIngressListener{
+		Port:     l.Port,
+		Protocol: l.Protocol,
+		Services: services,
+	}
+}
+
+// ConsulIngressConfigEntry represents the Consul Configuration Entry type for
+// an Ingress Gateway.
+//
+// https://www.consul.io/docs/agent/config-entries/ingress-gateway#available-fields
+type ConsulIngressConfigEntry struct {
+	// Namespace is not yet supported.
+	// Namespace string
+
+	TLS       *ConsulGatewayTLSConfig
+	Listeners []*ConsulIngressListener
+}
+
+func (e *ConsulIngressConfigEntry) Canonicalize() {
+	if e == nil {
+		return
+	}
+
+	e.TLS.Canonicalize()
+
+	if len(e.Listeners) == 0 {
+		e.Listeners = nil
+	}
+
+	for _, listener := range e.Listeners {
+		listener.Canonicalize()
+	}
+}
+
+func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
+	if e == nil {
+		return nil
+	}
+
+	var listeners []*ConsulIngressListener = nil
+	if n := len(e.Listeners); n > 0 {
+		listeners = make([]*ConsulIngressListener, n)
+		for i := 0; i < n; i++ {
+			listeners[i] = e.Listeners[i].Copy()
+		}
+	}
+
+	return &ConsulIngressConfigEntry{
+		TLS:       e.TLS.Copy(),
+		Listeners: listeners,
+	}
+}
+
+// ConsulTerminatingConfigEntry is not yet supported.
+// type ConsulTerminatingConfigEntry struct {
+// }
+
+// ConsulMeshConfigEntry is not yet supported.
+// type ConsulMeshConfigEntry struct {
+// }

@@ -277,6 +277,21 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
+	// Create or Update Consul Configuration Entries defined in the job. For now
+	// Nomad only supports Configuration Entries of type "ingress-gateway" for managing
+	// Consul Connect Ingress Gateway tasks derived from TaskGroup services.
+	//
+	// This is done as a blocking operation that prevents the job from being
+	// submitted if the configuration entries cannot be set in Consul.
+	//
+	// Every job update will re-write the Configuration Entry into Consul.
+	for service, entry := range args.Job.ConfigEntries() {
+		ctx := context.Background()
+		if err := j.srv.consulConfigEntries.SetIngressGatewayConfigEntry(ctx, service, entry); err != nil {
+			return err
+		}
+	}
+
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
 	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy())

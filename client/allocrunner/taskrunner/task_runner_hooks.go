@@ -127,7 +127,7 @@ func (tr *TaskRunner) initHooks() {
 			}))
 		}
 
-		if task.Kind.IsConnectProxy() {
+		if task.Kind.IsConnectProxy() || task.Kind.IsAnyConnectGateway() {
 			tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(
 				newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
 			))
