@@ -161,7 +161,6 @@ export default function() {
     '/job/:id/scale',
     withBlockingSupport(function({ jobScales }, { params }) {
       const obj = jobScales.findBy({ jobId: params.id });
-      console.log('Job Scale Object', obj);
       return this.serialize(jobScales.findBy({ jobId: params.id }));
     })
   );

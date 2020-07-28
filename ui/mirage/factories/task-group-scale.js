@@ -2,7 +2,9 @@ import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({
-  name: id => id,
+  name() {
+    return this.id;
+  },
 
   desired: 1,
   placed: 1,
