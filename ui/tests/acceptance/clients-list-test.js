@@ -14,17 +14,6 @@ module('Acceptance | clients list', function(hooks) {
     window.localStorage.clear();
   });
 
-  test('it passes an accessibility audit', async function(assert) {
-    const nodesCount = ClientsList.pageSize + 1;
-
-    server.createList('node', nodesCount);
-    server.createList('agent', 1);
-
-    await ClientsList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
-  });
-
   test('/clients should list one page of clients', async function(assert) {
     // Make sure to make more nodes than 1 page to assert that pagination is working
     const nodesCount = ClientsList.pageSize + 1;
@@ -44,6 +33,7 @@ module('Acceptance | clients list', function(hooks) {
     });
 
     assert.equal(document.title, 'Clients - Nomad');
+    await a11yAudit();
   });
 
   test('each client record should show high-level info of the client', async function(assert) {
