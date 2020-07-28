@@ -189,6 +189,7 @@ func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 	plugin, err := state.CSIPluginByID(ws, "minnie")
 	require.NoError(t, err)
 	nodeID, err := srv.staticEndpoints.ClientCSI.nodeForController(plugin.ID, "")
+	require.NoError(t, err)
 
 	// only node1 has both the controller and a recent Nomad version
 	require.Equal(t, nodeID, node1.ID)
