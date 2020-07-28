@@ -61,10 +61,6 @@ export default class StepperInput extends Component {
     e.target.select();
   }
 
-  @action focusInput() {
-    this.element.querySelector('.stepper-input-input').focus();
-  }
-
   update(value) {
     debounce(this, sendUpdateAction, value, this.debounce);
   }

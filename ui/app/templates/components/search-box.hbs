@@ -4,8 +4,9 @@
     class="input {{this.inputClass}}"
     type="text"
     placeholder={{this.placeholder}}
+    aria-label={{this.placeholder}}
     value={{this._searchTerm}}
     oninput={{action "setSearchTerm"}}
     size="1">
-  <button class="suffix-icon" onclick={{action "clear"}} type="button">{{x-icon "cancel"}}</button>
+  <button class="suffix-icon" onclick={{action "clear"}} type="button" title="Clear search">{{x-icon "cancel"}}</button>
 </div>

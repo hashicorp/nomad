@@ -3,6 +3,7 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import moment from 'moment';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
@@ -39,6 +40,12 @@ module('Acceptance | client detail', function(hooks) {
     server.schema.allocations.all().models.forEach(allocation => {
       allocation.update({ clientStatus: 'running' });
     });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await ClientDetail.visit({ id: node.id });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function(assert) {

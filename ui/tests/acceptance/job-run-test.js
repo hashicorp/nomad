@@ -3,6 +3,7 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 
@@ -52,6 +53,12 @@ module('Acceptance | job run', function(hooks) {
     clientToken = server.create('token');
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await JobRun.visit();
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('visiting /jobs/run', async function(assert) {

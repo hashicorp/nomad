@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import moment from 'moment';
 
@@ -20,6 +21,11 @@ module('Acceptance | task detail', function(hooks) {
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {

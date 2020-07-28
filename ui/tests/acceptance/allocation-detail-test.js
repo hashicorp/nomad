@@ -4,6 +4,7 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 
@@ -44,6 +45,11 @@ module('Acceptance | allocation detail', function(hooks) {
     });
 
     await Allocation.visit({ id: allocation.id });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/allocation/:id should name the allocation and link to the corresponding job and node', async function(assert) {

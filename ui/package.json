@@ -52,6 +52,7 @@
     "d3-time-format": "^2.1.0",
     "d3-transition": "^1.1.0",
     "duration-js": "^4.0.0",
+    "ember-a11y-testing": "^3.0.2",
     "ember-auto-import": "^1.5.3",
     "ember-can": "^2.0.0",
     "ember-classic-decorator": "^1.0.8",
@@ -147,5 +148,8 @@
   },
   "dependencies": {
     "lru_map": "^0.3.3"
+  },
+  "resolutions": {
+    "ivy-codemirror/codemirror": "^5.56.0"
   }
 }

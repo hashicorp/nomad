@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import PageLayout from 'nomad-ui/tests/pages/layout';
@@ -16,6 +17,12 @@ module('Acceptance | regions (only one)', function(hooks) {
     server.create('agent');
     server.create('node');
     server.createList('job', 2, { createAllocations: false, noDeployments: true });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await JobsList.visit();
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('when there is only one region, the region switcher is not shown in the nav bar and the region is not in the page title', async function(assert) {

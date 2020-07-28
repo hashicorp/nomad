@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import PluginDetail from 'nomad-ui/tests/pages/storage/plugins/detail';
@@ -15,6 +16,12 @@ module('Acceptance | plugin detail', function(hooks) {
   hooks.beforeEach(function() {
     server.create('node');
     plugin = server.create('csi-plugin', { controllerRequired: true });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await PluginDetail.visit({ id: plugin.id });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/csi/plugins/:id should have a breadcrumb trail linking back to Plugins and Storage', async function(assert) {

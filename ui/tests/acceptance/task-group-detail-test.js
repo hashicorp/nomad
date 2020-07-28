@@ -2,6 +2,7 @@ import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
 import pageSizeSelect from './behaviors/page-size-select';
@@ -65,6 +66,12 @@ module('Acceptance | task group detail', function(hooks) {
     managementToken = server.create('token');
 
     window.localStorage.clear();
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
