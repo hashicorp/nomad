@@ -84,7 +84,7 @@ export default class JobSerializer extends ApplicationSerializer {
           related: buildURL(`${jobURL}/evaluations`, { namespace }),
         },
       },
-      scale: {
+      scaleState: {
         links: {
           related: buildURL(`${jobURL}/scale`, { namespace }),
         },
