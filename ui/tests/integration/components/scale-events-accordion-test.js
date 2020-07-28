@@ -93,7 +93,8 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
 
     await render(commonTemplate);
 
-    assert.equal(find('[data-test-count]').textContent, '');
+    assert.notOk(find('[data-test-count]'));
+    assert.notOk(find('[data-test-count-icon]'));
   });
 
   test('when an event has no meta properties, the accordion entry is not expandable', async function(assert) {

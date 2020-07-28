@@ -10,7 +10,7 @@
         </span>
       </div>
       <div class="column is-2">
-        {{#if (gte a.item.count 0)}}
+        {{#if a.item.hasCount}}
           <span data-test-count-icon>
             {{#if a.item.increased}}
               {{x-icon "arrow-up" class="is-danger"}}

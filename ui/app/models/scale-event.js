@@ -11,6 +11,11 @@ export default class ScaleEvent extends Fragment {
   @attr('boolean') error;
   @attr('string') evalId;
 
+  @computed('count', function() {
+    return this.count != null;
+  })
+  hasCount;
+
   @computed('count', 'previousCount', function() {
     return this.count > this.previousCount;
   })
