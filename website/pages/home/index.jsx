@@ -33,7 +33,7 @@ export default function Homepage() {
           {
             title: 'Simple and Lightweight',
             content:
-              'Single 35MB binary that integrates into existing infrastructure.  Easy to operate on-prem or in the cloud with minimal overhead.',
+              'Single binary that integrates into existing infrastructure. Easy to operate on-prem or in the cloud with minimal overhead.',
             icon: require('./img/why-nomad/simple-and-lightweight.svg'),
           },
           {
