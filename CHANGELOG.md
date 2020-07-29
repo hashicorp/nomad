@@ -2,7 +2,7 @@
 
 FEATURES:
 
- * **Multi-Vault Namespaces (Enterprise)**: Support for multiple Vault Namespaces [[GH-8453](https://github.com/hashicorp/nomad/issues/8453)]
+ * **Multiple Vault Namespaces (Enterprise)**: Support for multiple Vault Namespaces [[GH-8453](https://github.com/hashicorp/nomad/issues/8453)]
 
 BUG FIXES:
 
