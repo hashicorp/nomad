@@ -29,12 +29,12 @@ const (
 
 type consulHTTPSockHook struct {
 	logger hclog.Logger
-	alloc  *structs.Allocation
-	proxy  *httpSocketProxy
 
-	// lock synchronizes proxy which may be mutated and read concurrently via
-	// Prerun, Update, and Postrun.
-	lock sync.Mutex
+	// lock synchronizes proxy and alloc which may be mutated and read concurrently
+	// via Prerun, Update, and Postrun.
+	lock  sync.Mutex
+	alloc *structs.Allocation
+	proxy *httpSocketProxy
 }
 
 func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *consulHTTPSockHook {

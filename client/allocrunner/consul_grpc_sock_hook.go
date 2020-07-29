@@ -33,12 +33,12 @@ var (
 // Noop for allocations without a group Connect stanza using bridge networking.
 type consulGRPCSocketHook struct {
 	logger hclog.Logger
-	alloc  *structs.Allocation
-	proxy  *grpcSocketProxy
 
-	// mu synchronizes proxy as they may be mutated and accessed
-	// concurrently via Prerun, Update, Postrun.
-	mu sync.Mutex
+	// mu synchronizes proxy and alloc which may be mutated and read concurrently
+	// via Prerun, Update, Postrun.
+	mu    sync.Mutex
+	alloc *structs.Allocation
+	proxy *grpcSocketProxy
 }
 
 func newConsulGRPCSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *consulGRPCSocketHook {
