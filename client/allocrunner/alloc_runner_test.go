@@ -152,9 +152,9 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
 	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
-	// Create three tasks in the task group
+	// Create four tasks in the task group
 	sidecar := alloc.Job.TaskGroups[0].Tasks[0].Copy()
-	sidecar.Name = "sidecar"
+	sidecar.Name = "prestart-sidecar"
 	sidecar.Driver = "mock_driver"
 	sidecar.KillTimeout = 10 * time.Millisecond
 	sidecar.Lifecycle = &structs.TaskLifecycleConfig{
@@ -162,10 +162,24 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		Sidecar: true,
 	}
 
-	sidecar.Config = map[string]interface{}{
+		sidecar.Config = map[string]interface{}{
 		"run_for": "100s",
 	}
 
+	poststart := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	poststart.Name = "poststart-sidecar"
+	poststart.Driver = "mock_driver"
+	poststart.KillTimeout = 10 * time.Millisecond
+	poststart.Lifecycle = &structs.TaskLifecycleConfig{
+		Hook:    structs.TaskLifecycleHookPoststart,
+		Sidecar: true,
+	}
+
+	poststart.Config = map[string]interface{}{
+		"run_for": "100s",
+	}
+
+	// these two main tasks have the same name, is that ok?
 	main1 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	main1.Name = "task2"
 	main1.Driver = "mock_driver"
@@ -183,6 +197,7 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{sidecar, main1, main2}
 	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
 		sidecar.Name: tr,
+		poststart.Name: tr,
 		main1.Name:   tr,
 		main2.Name:   tr,
 	}
@@ -217,7 +232,7 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 
 		var state *structs.TaskState
 
-		// Task1 should be killed because Task2 exited
+		// both sidecars should be killed because Task2 exited
 		state = last.TaskStates[sidecar.Name]
 		if state.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
@@ -233,6 +248,23 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		if !hasTaskMainEvent(state) {
 			return false, fmt.Errorf("Did not find event %v: %#+v", structs.TaskMainDead, state.Events)
 		}
+
+		state = last.TaskStates[poststart.Name]
+		if state.State != structs.TaskStateDead {
+			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
+		}
+		if state.FinishedAt.IsZero() || state.StartedAt.IsZero() {
+			return false, fmt.Errorf("expected to have a start and finish time")
+		}
+		if len(state.Events) < 2 {
+			// At least have a received and destroyed
+			return false, fmt.Errorf("Unexpected number of events")
+		}
+
+		if !hasTaskMainEvent(state) {
+			return false, fmt.Errorf("Did not find event %v: %#+v", structs.TaskMainDead, state.Events)
+		}
+
 
 		// main tasks should die naturely
 		state = last.TaskStates[main1.Name]
