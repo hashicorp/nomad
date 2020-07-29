@@ -1083,10 +1083,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	// A set of de-duplicated volumes that need their volume claims released.
-	// Later we'll apply this raft.
-	volumesToGC := newCSIBatchRelease(n.srv, n.logger, 100)
-
 	for _, allocToUpdate := range args.Alloc {
 		allocToUpdate.ModifyTime = now.UTC().UnixNano()
 
@@ -1115,14 +1111,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			continue
 		}
 
-		// If the terminal alloc has CSI volumes, add the volumes to the batch
-		// of volumes we'll release the claims of.
-		for _, vol := range taskGroup.Volumes {
-			if vol.Type == structs.VolumeTypeCSI {
-				volumesToGC.add(vol.Source, alloc.Namespace)
-			}
-		}
-
 		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
 		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
 			eval := &structs.Evaluation{
@@ -1138,13 +1126,6 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			}
 			evals = append(evals, eval)
 		}
-	}
-
-	// Make a raft apply to release the CSI volume claims of terminal allocs.
-	var result *multierror.Error
-	err := volumesToGC.apply()
-	if err != nil {
-		result = multierror.Append(result, err)
 	}
 
 	// Add this to the batch
@@ -1177,13 +1158,12 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Wait for the future
 	if err := future.Wait(); err != nil {
-		result = multierror.Append(result, err)
-		return result.ErrorOrNil()
+		return err
 	}
 
 	// Setup the response
 	reply.Index = future.Index()
-	return result.ErrorOrNil()
+	return nil
 }
 
 // batchUpdate is used to update all the allocations
