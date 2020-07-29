@@ -55,8 +55,8 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
       const job = model.get('job');
       controller.set('watchers', {
         job: this.watchJob.perform(job),
-        summary: this.watchSummary.perform(job),
-        scale: this.watchScale.perform(job),
+        summary: this.watchSummary.perform(job.get('summary')),
+        scale: this.watchScale.perform(job.get('scaleState')),
         allocations: this.watchAllocations.perform(job),
         latestDeployment: job.get('supportsDeployments') && this.watchLatestDeployment.perform(job),
       });
@@ -64,8 +64,8 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
   }
 
   @watchRecord('job') watchJob;
-  @watchRelationship('job-summary') watchSummary;
-  @watchRelationship('job-scale') watchScale;
+  @watchRecord('job-summary') watchSummary;
+  @watchRecord('job-scale') watchScale;
   @watchRelationship('allocations') watchAllocations;
   @watchRelationship('latestDeployment') watchLatestDeployment;
 
