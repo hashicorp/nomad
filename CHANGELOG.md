@@ -1,5 +1,9 @@
 ## 0.12.2 (Unreleased)
 
+FEATURES:
+
+ * **Multiple Vault Namespaces (Enterprise)**: Support for multiple Vault Namespaces [[GH-8453](https://github.com/hashicorp/nomad/issues/8453)]
+
 BUG FIXES:
 
  * api: added missing namespace field to scaling status GET response object [[GH-8527](https://github.com/hashicorp/nomad/issues/8527)]
