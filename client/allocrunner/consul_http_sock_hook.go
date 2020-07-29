@@ -16,6 +16,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+func tgFirstNetworkIsBridge(tg *structs.TaskGroup) bool {
+	if len(tg.Networks) < 1 || tg.Networks[0].Mode != "bridge" {
+		return false
+	}
+	return true
+}
+
 const (
 	consulHTTPSocketHookName = "consul_http_socket"
 )
@@ -47,9 +54,10 @@ func (*consulHTTPSockHook) Name() string {
 //
 // todo(shoenig): what about CNI networks?
 func (h *consulHTTPSockHook) shouldRun() bool {
-	// we must be in bridge networking and at least one connect native task
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
-	if len(tg.Networks) < 1 || tg.Networks[0].Mode != "bridge" {
+
+	// we must be in bridge networking and at least one connect native task
+	if !tgFirstNetworkIsBridge(tg) {
 		return false
 	}
 

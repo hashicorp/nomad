@@ -57,8 +57,14 @@ func (*consulGRPCSocketHook) Name() string {
 // Requires the mutex to be held.
 func (h *consulGRPCSocketHook) shouldRun() bool {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+
+	// we must be in bridge networking and at least one connect sidecar task
+	if !tgFirstNetworkIsBridge(tg) {
+		return false
+	}
+
 	for _, s := range tg.Services {
-		if s.Connect.HasSidecar() { // todo(shoenig) check we are in bridge mode
+		if s.Connect.HasSidecar() {
 			return true
 		}
 	}
