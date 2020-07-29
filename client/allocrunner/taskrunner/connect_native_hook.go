@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocdir"
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -43,6 +44,10 @@ func newConnectNativeHookConfig(alloc *structs.Allocation, consul *config.Consul
 //
 // If consul is configured with ACLs enabled, a Service Identity token will be
 // generated on behalf of the native service and supplied to the task.
+//
+// If the alloc is configured with bridge networking enabled, the standard
+// CONSUL_HTTP_ADDR environment variable is defaulted to the unix socket created
+// for the alloc by the consul_grpc_sock_hook alloc runner hook.
 type connectNativeHook struct {
 	// alloc is the allocation with the connect native task being run
 	alloc *structs.Allocation
@@ -73,6 +78,13 @@ func (connectNativeHook) Name() string {
 	return connectNativeHookName
 }
 
+// merge b into a, overwriting on conflicts
+func merge(a, b map[string]string) {
+	for k, v := range b {
+		a[k] = v
+	}
+}
+
 func (h *connectNativeHook) Prestart(
 	ctx context.Context,
 	request *ifs.TaskPrestartRequest,
@@ -83,6 +95,8 @@ func (h *connectNativeHook) Prestart(
 		return nil
 	}
 
+	environment := make(map[string]string)
+
 	if h.consulShareTLS {
 		// copy TLS certificates
 		if err := h.copyCertificates(h.consulConfig, request.TaskDir.SecretsDir); err != nil {
@@ -92,17 +106,19 @@ func (h *connectNativeHook) Prestart(
 
 		// set environment variables for communicating with Consul agent, but
 		// only if those environment variables are not already set
-		response.Env = h.tlsEnv(request.TaskEnv.EnvMap)
-
+		merge(environment, h.tlsEnv(request.TaskEnv.EnvMap))
 	}
 
-	if err := h.maybeSetSITokenEnv(request.TaskDir.SecretsDir, request.Task.Name, response.Env); err != nil {
+	if err := h.maybeSetSITokenEnv(request.TaskDir.SecretsDir, request.Task.Name, environment); err != nil {
 		h.logger.Error("failed to load Consul Service Identity Token", "error", err, "task", request.Task.Name)
 		return err
 	}
 
+	merge(environment, h.bridgeEnv(request.TaskEnv.EnvMap))
+
 	// tls/acl setup for native task done
 	response.Done = true
+	response.Env = environment
 	return nil
 }
 
@@ -188,6 +204,25 @@ func (h *connectNativeHook) tlsEnv(env map[string]string) map[string]string {
 	}
 
 	return m
+}
+
+// bridgeEnv creates a set of additional environment variables to be used when launching
+// the connect native task. This will enable the task to communicate with Consul
+// if the task is running inside an alloc's network namespace (i.e. bridge mode).
+//
+// Sets CONSUL_HTTP_ADDR if not already set.
+func (h *connectNativeHook) bridgeEnv(env map[string]string) map[string]string {
+	if h.alloc.AllocatedResources.Shared.Networks[0].Mode != "bridge" {
+		return nil
+	}
+
+	if _, exists := env["CONSUL_HTTP_ADDR"]; !exists {
+		return map[string]string{
+			"CONSUL_HTTP_ADDR": "unix:///" + allocdir.AllocHTTPSocket,
+		}
+	}
+
+	return nil
 }
 
 // maybeSetSITokenEnv will set the CONSUL_HTTP_TOKEN environment variable in

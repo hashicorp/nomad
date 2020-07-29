@@ -167,7 +167,8 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			taskEnvBuilder: taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
 			logger:         hookLogger,
 		}),
-		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
 		newCSIHook(ar, hookLogger, alloc, ar.rpcClient, ar.csiManager, hrs),
 	}
 
