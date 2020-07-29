@@ -99,7 +99,7 @@ func (h *consulHTTPSockHook) Postrun() error {
 
 	if err := h.proxy.stop(); err != nil {
 		// Only log a failure to stop, worst case is the proxy leaks a goroutine.
-		h.logger.Debug("error stopping Consul HTTP proxy", "error", err)
+		h.logger.Warn("error stopping Consul HTTP proxy", "error", err)
 	}
 
 	return nil
@@ -167,7 +167,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 	// The Consul HTTP socket should be usable by all users in case a task is
 	// running as a non-privileged user. Unix does not allow setting domain
 	// socket permissions when creating the file, so we must manually call
-	// chmod afterwords.
+	// chmod afterwards.
 	if err := os.Chmod(hostHTTPSockPath, os.ModePerm); err != nil {
 		return errors.Wrap(err, "unable to set permissions on unix socket")
 	}
@@ -192,7 +192,7 @@ func (p *httpSocketProxy) stop() error {
 
 	select {
 	case <-p.doneCh:
-	case <-time.After(3 * time.Second):
+	case <-time.After(socketProxyStopWaitTime):
 		return errSocketProxyTimeout
 	}
 

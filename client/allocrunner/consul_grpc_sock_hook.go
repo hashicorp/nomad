@@ -21,6 +21,10 @@ import (
 
 const (
 	consulGRPCSockHookName = "consul_grpc_socket"
+
+	// socketProxyStopWaitTime is the amount of time to wait for a socket proxy
+	// to stop before assuming something went awry and return a timeout error.
+	socketProxyStopWaitTime = 3 * time.Second
 )
 
 var (
@@ -222,7 +226,7 @@ func (p *grpcSocketProxy) stop() error {
 	select {
 	case <-p.doneCh:
 		return nil
-	case <-time.After(3 * time.Second):
+	case <-time.After(socketProxyStopWaitTime):
 		return errSocketProxyTimeout
 	}
 }
