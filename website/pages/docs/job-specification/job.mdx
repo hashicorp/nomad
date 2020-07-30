@@ -88,6 +88,9 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
+- `name` `(string: <optional>)` - Specifies a name for the job, which otherwise
+  defaults to the job id.
+
 - `migrate` <code>([Migrate][]: nil)</code> - Specifies the groups strategy for
   migrating off of draining nodes. If omitted, a default migration strategy is
   applied. Only service jobs with a count greater than 1 support migrate stanzas.
