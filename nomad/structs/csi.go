@@ -207,10 +207,11 @@ func (s *CSISecrets) GoString() string {
 }
 
 type CSIVolumeClaim struct {
-	AllocationID string
-	NodeID       string
-	Mode         CSIVolumeClaimMode
-	State        CSIVolumeClaimState
+	AllocationID   string
+	NodeID         string
+	ExternalNodeID string
+	Mode           CSIVolumeClaimMode
+	State          CSIVolumeClaimState
 }
 
 type CSIVolumeClaimState int
@@ -620,20 +621,22 @@ type CSIVolumeClaimBatchRequest struct {
 }
 
 type CSIVolumeClaimRequest struct {
-	VolumeID     string
-	AllocationID string
-	NodeID       string
-	Claim        CSIVolumeClaimMode
-	State        CSIVolumeClaimState
+	VolumeID       string
+	AllocationID   string
+	NodeID         string
+	ExternalNodeID string
+	Claim          CSIVolumeClaimMode
+	State          CSIVolumeClaimState
 	WriteRequest
 }
 
 func (req *CSIVolumeClaimRequest) ToClaim() *CSIVolumeClaim {
 	return &CSIVolumeClaim{
-		AllocationID: req.AllocationID,
-		NodeID:       req.NodeID,
-		Mode:         req.Claim,
-		State:        req.State,
+		AllocationID:   req.AllocationID,
+		NodeID:         req.NodeID,
+		ExternalNodeID: req.ExternalNodeID,
+		Mode:           req.Claim,
+		State:          req.State,
 	}
 }
 
@@ -678,6 +681,16 @@ type CSIVolumeGetRequest struct {
 
 type CSIVolumeGetResponse struct {
 	Volume *CSIVolume
+	QueryMeta
+}
+
+type CSIVolumeUnpublishRequest struct {
+	VolumeID string
+	Claim    *CSIVolumeClaim
+	WriteRequest
+}
+
+type CSIVolumeUnpublishResponse struct {
 	QueryMeta
 }
 
