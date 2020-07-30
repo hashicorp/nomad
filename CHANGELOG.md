@@ -3,6 +3,7 @@
 FEATURES:
 
  * **Multiple Vault Namespaces (Enterprise)**: Support for multiple Vault Namespaces [[GH-8453](https://github.com/hashicorp/nomad/issues/8453)]
+ * **Scaling Observability UI**: View changes in task group scale (both manual and automatic) over time. [[GH-8551](https://github.com/hashicorp/nomad/issues/8551)]
 
 BUG FIXES:
 
