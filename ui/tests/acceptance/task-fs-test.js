@@ -1,3 +1,4 @@
+/* eslint-disable ember-a11y-testing/a11y-audit-called */ // Covered in behaviours/fs
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
