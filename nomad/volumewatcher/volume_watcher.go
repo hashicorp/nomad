@@ -168,10 +168,6 @@ func (vw *volumeWatcher) isUnclaimed(vol *structs.CSIVolume) bool {
 
 func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 
-	if len(vol.PastClaims) == 0 {
-		return nil
-	}
-
 	// PastClaims written by a volume GC core job will have no allocation,
 	// so we need to find out which allocs are eligible for cleanup.
 	for _, claim := range vol.PastClaims {
