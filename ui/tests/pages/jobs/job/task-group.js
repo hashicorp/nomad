@@ -53,6 +53,22 @@ export default create({
     permissions: text('[data-test-volume-permissions]'),
   }),
 
+  hasScaleEvents: isPresent('[data-test-scale-events]'),
+  scaleEvents: collection('[data-test-scale-events] [data-test-accordion-head]', {
+    error: isPresent('[data-test-error]'),
+    time: text('[data-test-time]'),
+    count: text('[data-test-count]'),
+    countIcon: { scope: '[data-test-count-icon]' },
+    message: text('[data-test-message]'),
+
+    isToggleable: isPresent('[data-test-accordion-toggle]:not(.is-invisible)'),
+    toggle: clickable('[data-test-accordion-toggle]'),
+  }),
+
+  scaleEventBodies: collection('[data-test-scale-events] [data-test-accordion-body]', {
+    meta: text(),
+  }),
+
   error: error(),
 
   emptyState: {

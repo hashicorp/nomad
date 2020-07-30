@@ -35,9 +35,10 @@ export default class WatchableNamespaceIDs extends Watchable {
     return associateNamespace(url, namespace);
   }
 
-  urlForFindRecord(id, type, hash) {
+  urlForFindRecord(id, type, hash, pathSuffix) {
     const [name, namespace] = JSON.parse(id);
     let url = super.urlForFindRecord(name, type, hash);
+    if (pathSuffix) url += `/${pathSuffix}`;
     return associateNamespace(url, namespace);
   }
 

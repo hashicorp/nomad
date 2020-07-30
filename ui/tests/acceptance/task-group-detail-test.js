@@ -329,7 +329,9 @@ module('Acceptance | task group detail', function(hooks) {
     await TaskGroup.countStepper.increment.click();
     await settled();
 
-    const scaleRequest = server.pretender.handledRequests.find(req => req.url.endsWith('/scale'));
+    const scaleRequest = server.pretender.handledRequests.find(
+      req => req.method === 'POST' && req.url.endsWith('/scale')
+    );
     const requestBody = JSON.parse(scaleRequest.requestBody);
     assert.equal(requestBody.Target.Group, scalingGroup.name);
     assert.equal(requestBody.Count, scalingGroup.count + 1);
@@ -403,5 +405,40 @@ module('Acceptance | task group detail', function(hooks) {
 
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     },
+  });
+
+  test('when a task group has no scaling events, there is no recent scaling events section', async function(assert) {
+    const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
+    taskGroupScale.update({ events: [] });
+    taskGroupScale.save();
+
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
+    assert.notOk(TaskGroup.hasScaleEvents);
+  });
+
+  test('the recent scaling events section shows all recent scaling events in reverse chronological order', async function(assert) {
+    const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
+    const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
+    assert.ok(TaskGroup.hasScaleEvents);
+
+    scaleEvents.forEach((scaleEvent, idx) => {
+      const ScaleEvent = TaskGroup.scaleEvents[idx];
+      assert.equal(ScaleEvent.time, moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ'));
+      assert.equal(ScaleEvent.message, scaleEvent.message);
+      assert.equal(ScaleEvent.count, scaleEvent.count);
+
+      if (scaleEvent.error) {
+        assert.ok(ScaleEvent.error);
+      }
+
+      if (Object.keys(scaleEvent.meta).length) {
+        assert.ok(ScaleEvent.isToggleable);
+      } else {
+        assert.notOk(ScaleEvent.isToggleable);
+      }
+    });
   });
 });

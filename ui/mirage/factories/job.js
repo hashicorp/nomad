@@ -158,6 +158,17 @@ export default Factory.extend({
       job_summary_id: jobSummary.id,
     });
 
+    const jobScale = server.create('job-scale', {
+      groupNames: groups.mapBy('name'),
+      jobId: job.id,
+      namespace: job.namespace,
+      shallow: job.shallow,
+    });
+
+    job.update({
+      jobScaleId: jobScale.id,
+    });
+
     if (!job.noDeployments) {
       Array(faker.random.number({ min: 1, max: 3 }))
         .fill(null)

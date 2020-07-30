@@ -137,6 +137,17 @@
 
   <LifecycleChart @tasks={{this.model.tasks}} />
 
+  {{#if this.model.scaleState.isVisible}}
+    <div data-test-scaling-events class="boxed-section">
+      <div class="boxed-section-head">
+        Recent Scaling Events
+      </div>
+      <div class="boxed-section-body">
+        <ScaleEventsAccordion @events={{this.sortedScaleEvents}} />
+      </div>
+    </div>
+  {{/if}}
+
   {{#if this.model.volumes.length}}
     <div data-test-volumes class="boxed-section">
       <div class="boxed-section-head">
