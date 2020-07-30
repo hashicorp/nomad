@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -15,12 +16,13 @@ import (
 //
 // It is a noop for allocs that do not depend on CSI Volumes.
 type csiHook struct {
-	ar         *allocRunner
-	alloc      *structs.Allocation
-	logger     hclog.Logger
-	csimanager csimanager.Manager
-	rpcClient  RPCer
-	updater    hookResourceSetter
+	ar             *allocRunner
+	alloc          *structs.Allocation
+	logger         hclog.Logger
+	csimanager     csimanager.Manager
+	rpcClient      RPCer
+	updater        hookResourceSetter
+	volumeRequests map[string]*volumeAndRequest
 }
 
 func (c *csiHook) Name() string {
@@ -43,6 +45,7 @@ func (c *csiHook) Prerun() error {
 	if err != nil {
 		return fmt.Errorf("claim volumes: %v", err)
 	}
+	c.volumeRequests = volumes
 
 	mounts := make(map[string]*csimanager.MountInfo, len(volumes))
 	for alias, pair := range volumes {
@@ -71,6 +74,37 @@ func (c *csiHook) Prerun() error {
 	c.updater.SetAllocHookResources(res)
 
 	return nil
+}
+
+// Postrun sends an RPC to the server to unpublish the volume. This may
+// forward client RPCs to the node plugins or to the controller plugins,
+// depending on whether other allocations on this node have claims on this
+// volume.
+func (c *csiHook) Postrun() error {
+	if !c.shouldRun() {
+		return nil
+	}
+
+	var mErr *multierror.Error
+
+	for _, pair := range c.volumeRequests {
+		req := &structs.CSIVolumeUnpublishRequest{
+			VolumeID: pair.request.Source,
+			Claim: &structs.CSIVolumeClaim{
+				AllocationID: c.alloc.ID,
+				NodeID:       c.alloc.NodeID,
+				Mode:         structs.CSIVolumeClaimRelease,
+			},
+			WriteRequest: structs.WriteRequest{
+				Region: c.alloc.Job.Region, Namespace: c.alloc.Job.Namespace},
+		}
+		err := c.rpcClient.RPC("CSIVolume.Unpublish",
+			req, &structs.CSIVolumeUnpublishResponse{})
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 type volumeAndRequest struct {
