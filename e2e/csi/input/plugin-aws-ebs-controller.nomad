@@ -10,7 +10,14 @@ job "plugin-aws-ebs-controller" {
     value     = "linux"
   }
 
+  spread {
+    attribute = "${node.unique.id}"
+  }
+
   group "controller" {
+
+    count = 2 // HA for node drain testing
+
     task "plugin" {
       driver = "docker"
 
