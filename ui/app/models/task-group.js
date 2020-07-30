@@ -59,7 +59,7 @@ export default class TaskGroup extends Fragment {
     return maybe(this.get('job.scaleState.taskGroupScales')).findBy('name', this.name);
   }
 
-  scale(count, reason) {
-    return this.job.scale(this.name, count, reason);
+  scale(count, message) {
+    return this.job.scale(this.name, count, message);
   }
 }
