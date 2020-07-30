@@ -22,7 +22,7 @@ module('Acceptance | search', function(hooks) {
     const otherNode = server.create('node', { name: 'aaa' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
-    server.create('job', { id: 'xyz', namespace: 'default' });
+    server.create('job', { id: 'xyz', name: 'xyz job', namespace: 'default' });
     server.create('job', { id: 'abc', namespace: 'default' });
 
     await visit('/');
@@ -43,7 +43,7 @@ module('Acceptance | search', function(hooks) {
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
         assert.equal(jobs.options.length, 2);
-        assert.equal(jobs.options[0].text, 'xyz');
+        assert.equal(jobs.options[0].text, 'xyz job');
         assert.equal(jobs.options[1].text, 'vwxyz');
       });
 
