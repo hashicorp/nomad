@@ -213,7 +213,8 @@ export default [
           'pot',
           'firecracker-task-driver',
           'nspawn',
-          'iis'
+          'iis',
+          'containerd'
         ]
       }
     ]
