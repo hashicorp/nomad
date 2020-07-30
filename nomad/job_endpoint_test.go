@@ -5369,6 +5369,42 @@ func TestJobEndpoint_Plan_NoDiff(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_Plan_Scaling asserts that the plan endpoint handles
+// jobs with scaling stanza
+func TestJobEndpoint_Plan_Scaling(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a plan request
+	job := mock.Job()
+	tg := job.TaskGroups[0]
+	tg.Tasks[0].Resources.MemoryMB = 999999999
+	scaling := &structs.ScalingPolicy{Min: 1, Max: 100}
+	tg.Scaling = scaling.TargetTaskGroup(job, tg)
+	planReq := &structs.JobPlanRequest{
+		Job:  job,
+		Diff: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Try without a token, expect failure
+	var planResp structs.JobPlanResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Plan", planReq, &planResp)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, planResp.FailedTGAllocs)
+	require.Contains(t, planResp.FailedTGAllocs, tg.Name)
+}
+
 func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 	t.Parallel()
 
