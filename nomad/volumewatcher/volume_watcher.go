@@ -20,9 +20,6 @@ type volumeWatcher struct {
 	// state is the state that is watched for state changes.
 	state *state.StateStore
 
-	// updateClaims is the function used to apply claims to raft
-	updateClaims updateClaimsFn
-
 	// server interface for CSI client RPCs
 	rpc CSIVolumeRPC
 
@@ -43,13 +40,12 @@ type volumeWatcher struct {
 func newVolumeWatcher(parent *Watcher, vol *structs.CSIVolume) *volumeWatcher {
 
 	w := &volumeWatcher{
-		updateCh:     make(chan *structs.CSIVolume, 1),
-		updateClaims: parent.updateClaims,
-		v:            vol,
-		state:        parent.state,
-		rpc:          parent.rpc,
-		logger:       parent.logger.With("volume_id", vol.ID, "namespace", vol.Namespace),
-		shutdownCtx:  parent.ctx,
+		updateCh:    make(chan *structs.CSIVolume, 1),
+		v:           vol,
+		state:       parent.state,
+		rpc:         parent.rpc,
+		logger:      parent.logger.With("volume_id", vol.ID, "namespace", vol.Namespace),
+		shutdownCtx: parent.ctx,
 	}
 
 	// Start the long lived watcher that scans for allocation updates
@@ -184,24 +180,8 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 		}
 	}
 
-	// we send a controller detach if a Nomad client no longer has
-	// any claim to the volume, so track the counts here
-	nodeClaims := map[string]int{} // node IDs -> count
-	for _, alloc := range vol.ReadAllocs {
-		if alloc != nil {
-			nodeClaims[alloc.NodeID]++
-		}
-	}
-	for _, alloc := range vol.WriteAllocs {
-		if alloc != nil {
-			nodeClaims[alloc.NodeID]++
-		}
-	}
-
 	var result *multierror.Error
-
 	for _, claim := range vol.PastClaims {
-
 		err := vw.unpublish(vol, claim)
 		if err != nil {
 			result = multierror.Append(result, err)

@@ -2,26 +2,12 @@ package volumewatcher
 
 import (
 	"context"
-	"errors"
 	"sync"
-	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/time/rate"
-)
-
-const (
-	// LimitStateQueriesPerSecond is the number of state queries allowed per
-	// second
-	LimitStateQueriesPerSecond = 100.0
-
-	// CrossVolumeUpdateBatchDuration is the duration in which volume
-	// claim updates are batched across all volume watchers before
-	// being committed to Raft.
-	CrossVolumeUpdateBatchDuration = 250 * time.Millisecond
 )
 
 // Watcher is used to watch volumes and their allocations created
@@ -30,18 +16,6 @@ const (
 type Watcher struct {
 	enabled bool
 	logger  log.Logger
-
-	// queryLimiter is used to limit the rate of blocking queries
-	queryLimiter *rate.Limiter
-
-	// updateBatchDuration is the duration in which volume
-	// claim updates are batched across all volume watchers
-	// before being committed to Raft.
-	updateBatchDuration time.Duration
-
-	// raft contains the set of Raft endpoints that can be used by the
-	// volumes watcher
-	raft VolumeRaftEndpoints
 
 	// rpc contains the set of Server methods that can be used by
 	// the volumes watcher for RPC
@@ -53,9 +27,6 @@ type Watcher struct {
 	// watchers is the set of active watchers, one per volume
 	watchers map[string]*volumeWatcher
 
-	// volumeUpdateBatcher is used to batch volume claim updates
-	volumeUpdateBatcher *VolumeUpdateBatcher
-
 	// ctx and exitFn are used to cancel the watcher
 	ctx    context.Context
 	exitFn context.CancelFunc
@@ -65,9 +36,7 @@ type Watcher struct {
 
 // NewVolumesWatcher returns a volumes watcher that is used to watch
 // volumes and trigger the scheduler as needed.
-func NewVolumesWatcher(logger log.Logger,
-	raft VolumeRaftEndpoints, rpc CSIVolumeRPC, stateQueriesPerSecond float64,
-	updateBatchDuration time.Duration) *Watcher {
+func NewVolumesWatcher(logger log.Logger, rpc CSIVolumeRPC) *Watcher {
 
 	// the leader step-down calls SetEnabled(false) which is what
 	// cancels this context, rather than passing in its own shutdown
@@ -75,13 +44,10 @@ func NewVolumesWatcher(logger log.Logger,
 	ctx, exitFn := context.WithCancel(context.Background())
 
 	return &Watcher{
-		raft:                raft,
-		rpc:                 rpc,
-		queryLimiter:        rate.NewLimiter(rate.Limit(stateQueriesPerSecond), 100),
-		updateBatchDuration: updateBatchDuration,
-		logger:              logger.Named("volumes_watcher"),
-		ctx:                 ctx,
-		exitFn:              exitFn,
+		rpc:    rpc,
+		logger: logger.Named("volumes_watcher"),
+		ctx:    ctx,
+		exitFn: exitFn,
 	}
 }
 
@@ -123,12 +89,6 @@ func (w *Watcher) flush(enabled bool) {
 
 	w.watchers = make(map[string]*volumeWatcher, 32)
 	w.ctx, w.exitFn = context.WithCancel(context.Background())
-
-	if enabled {
-		w.volumeUpdateBatcher = NewVolumeUpdateBatcher(w.ctx, w.updateBatchDuration, w.raft)
-	} else {
-		w.volumeUpdateBatcher = nil
-	}
 }
 
 // watchVolumes is the long lived go-routine that watches for volumes to
@@ -216,27 +176,4 @@ func (w *Watcher) addLocked(v *structs.CSIVolume) (*volumeWatcher, error) {
 	watcher := newVolumeWatcher(w, v)
 	w.watchers[v.ID+v.Namespace] = watcher
 	return watcher, nil
-}
-
-// TODO: this is currently dead code; we'll call a public remove
-// method on the Watcher once we have a periodic GC job
-// remove stops watching a volume and should only be called when locked.
-func (w *Watcher) removeLocked(volID, namespace string) {
-	if !w.enabled {
-		return
-	}
-	if watcher, ok := w.watchers[volID+namespace]; ok {
-		watcher.Stop()
-		delete(w.watchers, volID+namespace)
-	}
-}
-
-// updatesClaims sends the claims to the batch updater and waits for
-// the results
-func (w *Watcher) updateClaims(claims []structs.CSIVolumeClaimRequest) (uint64, error) {
-	b := w.volumeUpdateBatcher
-	if b == nil {
-		return 0, errors.New("volume watcher is not enabled")
-	}
-	return b.CreateUpdate(claims).Results()
 }
