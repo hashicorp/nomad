@@ -1672,6 +1672,11 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
+	// Ensure that all scaling policies have an appropriate ID
+	if err := propagateScalingPolicyIDs(oldJob, args.Job); err != nil {
+		return err
+	}
+
 	var index uint64
 	var updatedIndex uint64
 
