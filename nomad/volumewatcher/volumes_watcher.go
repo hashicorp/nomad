@@ -45,7 +45,7 @@ type Watcher struct {
 
 	// rpc contains the set of Server methods that can be used by
 	// the volumes watcher for RPC
-	rpc ClientRPC
+	rpc CSIVolumeRPC
 
 	// state is the state that is watched for state changes.
 	state *state.StateStore
@@ -66,7 +66,7 @@ type Watcher struct {
 // NewVolumesWatcher returns a volumes watcher that is used to watch
 // volumes and trigger the scheduler as needed.
 func NewVolumesWatcher(logger log.Logger,
-	raft VolumeRaftEndpoints, rpc ClientRPC, stateQueriesPerSecond float64,
+	raft VolumeRaftEndpoints, rpc CSIVolumeRPC, stateQueriesPerSecond float64,
 	updateBatchDuration time.Duration) *Watcher {
 
 	// the leader step-down calls SetEnabled(false) which is what

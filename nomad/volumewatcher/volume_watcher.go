@@ -2,13 +2,11 @@ package volumewatcher
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -26,7 +24,7 @@ type volumeWatcher struct {
 	updateClaims updateClaimsFn
 
 	// server interface for CSI client RPCs
-	rpc ClientRPC
+	rpc CSIVolumeRPC
 
 	logger      log.Logger
 	shutdownCtx context.Context // parent context
@@ -173,37 +171,53 @@ func (vw *volumeWatcher) isUnclaimed(vol *structs.CSIVolume) bool {
 }
 
 func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
-	var result *multierror.Error
-	nodeClaims := map[string]int{} // node IDs -> count
-	jobs := map[string]bool{}      // jobID -> stopped
 
-	// if a job is purged, the subsequent alloc updates can't
-	// trigger a GC job because there's no job for them to query.
-	// Job.Deregister will send a claim release on all claims
-	// but the allocs will not yet be terminated. save the status
-	// for each job so that we don't requery in this pass
-	checkStopped := func(jobID string) bool {
-		namespace := vw.v.Namespace
-		isStopped, ok := jobs[jobID]
-		if !ok {
-			ws := memdb.NewWatchSet()
-			job, err := vw.state.JobByID(ws, namespace, jobID)
-			if err != nil {
-				isStopped = true
-			}
-			if job == nil || job.Stopped() {
-				isStopped = true
-			}
-			jobs[jobID] = isStopped
-		}
-		return isStopped
+	if len(vol.PastClaims) == 0 {
+		return nil
 	}
+
+	// PastClaims written by a volume GC core job will have no allocation,
+	// so we need to find out which allocs are eligible for cleanup.
+	for _, claim := range vol.PastClaims {
+		if claim.AllocationID == "" {
+			vol = vw.collectPastClaims(vol)
+		}
+	}
+
+	// we send a controller detach if a Nomad client no longer has
+	// any claim to the volume, so track the counts here
+	nodeClaims := map[string]int{} // node IDs -> count
+	for _, alloc := range vol.ReadAllocs {
+		if alloc != nil {
+			nodeClaims[alloc.NodeID]++
+		}
+	}
+	for _, alloc := range vol.WriteAllocs {
+		if alloc != nil {
+			nodeClaims[alloc.NodeID]++
+		}
+	}
+
+	var result *multierror.Error
+
+	for _, claim := range vol.PastClaims {
+
+		err := vw.unpublish(vol, claim)
+		if err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+
+	return result.ErrorOrNil()
+
+}
+
+func (vw *volumeWatcher) collectPastClaims(vol *structs.CSIVolume) *structs.CSIVolume {
 
 	collect := func(allocs map[string]*structs.Allocation,
 		claims map[string]*structs.CSIVolumeClaim) {
 
 		for allocID, alloc := range allocs {
-
 			if alloc == nil {
 				_, exists := vol.PastClaims[allocID]
 				if !exists {
@@ -212,12 +226,7 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 						State:        structs.CSIVolumeClaimStateReadyToFree,
 					}
 				}
-				continue
-			}
-
-			nodeClaims[alloc.NodeID]++
-
-			if alloc.Terminated() || checkStopped(alloc.JobID) {
+			} else if alloc.Terminated() {
 				// don't overwrite the PastClaim if we've seen it before,
 				// so that we can track state between subsequent calls
 				_, exists := vol.PastClaims[allocID]
@@ -238,151 +247,19 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 
 	collect(vol.ReadAllocs, vol.ReadClaims)
 	collect(vol.WriteAllocs, vol.WriteClaims)
-
-	if len(vol.PastClaims) == 0 {
-		return nil
-	}
-
-	for _, claim := range vol.PastClaims {
-
-		var err error
-
-		// previous checkpoints may have set the past claim state already.
-		// in practice we should never see CSIVolumeClaimStateControllerDetached
-		// but having an option for the state makes it easy to add a checkpoint
-		// in a backwards compatible way if we need one later
-		switch claim.State {
-		case structs.CSIVolumeClaimStateNodeDetached:
-			goto NODE_DETACHED
-		case structs.CSIVolumeClaimStateControllerDetached:
-			goto RELEASE_CLAIM
-		case structs.CSIVolumeClaimStateReadyToFree:
-			goto RELEASE_CLAIM
-		}
-
-		err = vw.nodeDetach(vol, claim)
-		if err != nil {
-			result = multierror.Append(result, err)
-			break
-		}
-
-	NODE_DETACHED:
-		nodeClaims[claim.NodeID]--
-		err = vw.controllerDetach(vol, claim, nodeClaims)
-		if err != nil {
-			result = multierror.Append(result, err)
-			break
-		}
-
-	RELEASE_CLAIM:
-		// advance a CSIVolumeClaimStateControllerDetached claim
-		claim.State = structs.CSIVolumeClaimStateReadyToFree
-		err = vw.checkpoint(vol, claim)
-		if err != nil {
-			result = multierror.Append(result, err)
-			break
-		}
-		// the checkpoint deletes from the state store, but this operates
-		// on our local copy which aids in testing
-		delete(vol.PastClaims, claim.AllocationID)
-	}
-
-	return result.ErrorOrNil()
-
+	return vol
 }
 
-// nodeDetach makes the client NodePublish / NodeUnstage RPCs, which
-// must be completed before controller operations or releasing the claim.
-func (vw *volumeWatcher) nodeDetach(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
-	vw.logger.Trace("detaching node")
-	nReq := &cstructs.ClientCSINodeDetachVolumeRequest{
-		PluginID:       vol.PluginID,
-		VolumeID:       vol.ID,
-		ExternalID:     vol.RemoteID(),
-		AllocID:        claim.AllocationID,
-		NodeID:         claim.NodeID,
-		AttachmentMode: vol.AttachmentMode,
-		AccessMode:     vol.AccessMode,
-		ReadOnly:       claim.Mode == structs.CSIVolumeClaimRead,
+func (vw *volumeWatcher) unpublish(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	req := &structs.CSIVolumeUnpublishRequest{
+		VolumeID:     vol.ID,
+		Claim:        claim,
+		WriteRequest: structs.WriteRequest{Namespace: vol.Namespace},
 	}
-
-	err := vw.rpc.NodeDetachVolume(nReq,
-		&cstructs.ClientCSINodeDetachVolumeResponse{})
-	if err != nil {
-		return fmt.Errorf("could not detach from node: %v", err)
-	}
-	claim.State = structs.CSIVolumeClaimStateNodeDetached
-	return vw.checkpoint(vol, claim)
-}
-
-// controllerDetach makes the client RPC to the controller to
-// unpublish the volume if a controller is required and no other
-// allocs on the node need it
-func (vw *volumeWatcher) controllerDetach(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim, nodeClaims map[string]int) error {
-	if !vol.ControllerRequired || nodeClaims[claim.NodeID] > 1 {
-		claim.State = structs.CSIVolumeClaimStateReadyToFree
-		return nil
-	}
-	vw.logger.Trace("detaching controller")
-	// note: we need to get the CSI Node ID, which is not the same as
-	// the Nomad Node ID
-	ws := memdb.NewWatchSet()
-	targetNode, err := vw.state.NodeByID(ws, claim.NodeID)
+	err := vw.rpc.Unpublish(req, &structs.CSIVolumeUnpublishResponse{})
 	if err != nil {
 		return err
 	}
-	if targetNode == nil {
-		return fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, claim.NodeID)
-	}
-	targetCSIInfo, ok := targetNode.CSINodePlugins[vol.PluginID]
-	if !ok {
-		return fmt.Errorf("failed to find NodeInfo for node: %s", targetNode.ID)
-	}
-
-	plug, err := vw.state.CSIPluginByID(ws, vol.PluginID)
-	if err != nil {
-		return fmt.Errorf("plugin lookup error: %s %v", vol.PluginID, err)
-	}
-	if plug == nil {
-		return fmt.Errorf("plugin lookup error: %s missing plugin", vol.PluginID)
-	}
-
-	cReq := &cstructs.ClientCSIControllerDetachVolumeRequest{
-		VolumeID:        vol.RemoteID(),
-		ClientCSINodeID: targetCSIInfo.NodeInfo.ID,
-		Secrets:         vol.Secrets,
-	}
-	cReq.PluginID = plug.ID
-	err = vw.rpc.ControllerDetachVolume(cReq,
-		&cstructs.ClientCSIControllerDetachVolumeResponse{})
-	if err != nil {
-		return fmt.Errorf("could not detach from controller: %v", err)
-	}
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
-	return nil
-}
-
-func (vw *volumeWatcher) checkpoint(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
-	vw.logger.Trace("checkpointing claim")
-	req := structs.CSIVolumeClaimRequest{
-		VolumeID:     vol.ID,
-		AllocationID: claim.AllocationID,
-		NodeID:       claim.NodeID,
-		Claim:        structs.CSIVolumeClaimRelease,
-		State:        claim.State,
-		WriteRequest: structs.WriteRequest{
-			Namespace: vol.Namespace,
-			// Region:    vol.Region, // TODO(tgross) should volumes have regions?
-		},
-	}
-	index, err := vw.updateClaims([]structs.CSIVolumeClaimRequest{req})
-	if err == nil && index != 0 {
-		vw.wLock.Lock()
-		defer vw.wLock.Unlock()
-		vw.v.ModifyIndex = index
-	}
-	if err != nil {
-		return fmt.Errorf("could not checkpoint claim release: %v", err)
-	}
 	return nil
 }

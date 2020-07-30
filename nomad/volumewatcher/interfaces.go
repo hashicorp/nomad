@@ -1,7 +1,6 @@
 package volumewatcher
 
 import (
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -13,13 +12,12 @@ type VolumeRaftEndpoints interface {
 	UpsertVolumeClaims(*structs.CSIVolumeClaimBatchRequest) (uint64, error)
 }
 
-// ClientRPC is a minimal interface of the Server, intended as an aid
+// CSIVolumeRPC is a minimal interface of the Server, intended as an aid
 // for testing logic surrounding server-to-server or server-to-client
 // RPC calls and to avoid circular references between the nomad
 // package and the volumewatcher
-type ClientRPC interface {
-	ControllerDetachVolume(args *cstructs.ClientCSIControllerDetachVolumeRequest, reply *cstructs.ClientCSIControllerDetachVolumeResponse) error
-	NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error
+type CSIVolumeRPC interface {
+	Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *structs.CSIVolumeUnpublishResponse) error
 }
 
 // claimUpdater is the function used to update claims on behalf of a volume
