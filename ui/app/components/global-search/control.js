@@ -9,6 +9,7 @@ import Searchable from 'nomad-ui/mixins/searchable';
 import classic from 'ember-classic-decorator';
 
 const SLASH_KEY = 191;
+const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
 export default class GlobalSearchControl extends Component {
@@ -60,16 +61,16 @@ export default class GlobalSearchControl extends Component {
       set(this, 'jobs', jobs.toArray());
       set(this, 'nodes', nodes.toArray());
 
-      const jobResults = this.jobSearch.listSearched;
-      const nodeResults = this.nodeSearch.listSearched;
+      const jobResults = this.jobSearch.listSearched.slice(0, MAXIMUM_RESULTS);
+      const nodeResults = this.nodeSearch.listSearched.slice(0, MAXIMUM_RESULTS);
 
       return [
         {
-          groupName: `Jobs (${jobResults.length})`,
+          groupName: `Jobs (${this.jobSearch.listSearched.length})`,
           options: jobResults,
         },
         {
-          groupName: `Clients (${nodeResults.length})`,
+          groupName: `Clients (${this.nodeSearch.listSearched.length})`,
           options: nodeResults,
         },
       ];
