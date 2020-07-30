@@ -1672,6 +1672,11 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
+	// Ensure that all scaling policies have an appropriate ID
+	if err := propagateScalingPolicyIDs(oldJob, args.Job); err != nil {
+		return err
+	}
+
 	var index uint64
 	var updatedIndex uint64
 
@@ -1683,11 +1688,16 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if oldJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
 			updatedIndex = oldJob.JobModifyIndex + 1
-			snap.UpsertJob(updatedIndex, args.Job)
+			if err := snap.UpsertJob(updatedIndex, args.Job); err != nil {
+				return err
+			}
 		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
-		snap.UpsertJob(100, args.Job)
+		err := snap.UpsertJob(100, args.Job)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
