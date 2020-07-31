@@ -90,7 +90,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
 
   // Overridable functions that retrurn formatter functions
   xFormat(timeseries) {
-    return timeseries ? d3TimeFormat.timeFormat('%b') : d3Format.format(',');
+    return timeseries ? d3TimeFormat.timeFormat('%b %d, %H:%M') : d3Format.format(',');
   }
 
   yFormat() {
