@@ -145,3 +145,68 @@ export let Gaps = () => {
     },
   };
 };
+
+export let Annotations = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Line Chart data with annotations</h5>
+      <div class="block" style="height:250px">
+        {{#if (and this.data this.annotations)}}
+          <LineChart
+            @timeseries={{true}}
+            @xProp="x"
+            @yProp="y"
+            @data={{this.data}}
+            @annotations={{this.annotations}}
+            @onAnnotationClick={{action (mut this.activeAnnotation)}}/>
+          <p>{{this.activeAnnotation.info}}</p>
+        {{/if}}
+      </div>
+    `,
+    context: {
+      data: DelayedArray.create(
+        new Array(180).fill(null).map((_, idx) => ({
+          y: Math.sin((idx * 4 * Math.PI) / 180) * 100 + 200,
+          x: moment()
+            .add(idx, 'd')
+            .toDate(),
+        }))
+      ),
+      annotations: [
+        {
+          x: moment().toDate(),
+          type: 'info',
+          info: 'Far left',
+        },
+        {
+          x: moment()
+            .add(90 / 4, 'd')
+            .toDate(),
+          type: 'error',
+          info: 'This is the max of the sine curve',
+        },
+        {
+          x: moment()
+            .add(89, 'd')
+            .toDate(),
+          type: 'info',
+          info: 'This is the end of the first period',
+        },
+        {
+          x: moment()
+            .add((90 / 4) * 3, 'd')
+            .toDate(),
+          type: 'error',
+          info: 'This is the min of the sine curve',
+        },
+        {
+          x: moment()
+            .add(179, 'd')
+            .toDate(),
+          type: 'info',
+          info: 'Far right',
+        },
+      ],
+    },
+  };
+};
