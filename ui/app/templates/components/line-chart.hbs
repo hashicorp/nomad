@@ -26,6 +26,20 @@
   <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
   <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
 </svg>
+<div data-test-annotations class="line-chart-annotations" style={{this.chartAnnotationsStyle}}>
+  {{#each this.processedAnnotations as |annotation|}}
+    <div class="chart-annotation {{annotation.iconClass}}" style={{annotation.style}}>
+      <button
+        type="button"
+        class="indicator"
+        title={{annotation.label}}
+        onclick={{action this.annotationClick annotation.annotation}}>
+        {{x-icon annotation.icon}}
+      </button>
+      <div class="line" />
+    </div>
+  {{/each}}
+</div>
 <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
   <p>
     <span class="label">

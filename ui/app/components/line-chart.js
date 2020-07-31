@@ -14,7 +14,7 @@ import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
 import styleStringProperty from 'nomad-ui/utils/properties/style-string';
-import { classNames } from '@ember-decorators/component';
+import { classNames, classNameBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 // Returns a new array with the specified number of points linearly
@@ -31,12 +31,25 @@ const lerp = ([low, high], numPoints) => {
 // Round a number or an array of numbers
 const nice = val => (val instanceof Array ? val.map(nice) : Math.round(val));
 
+const iconFor = {
+  error: 'cancel-circle-fill',
+  info: 'info-circle-fill',
+};
+
+const iconClassFor = {
+  error: 'is-danger',
+  info: '',
+};
+
 @classic
 @classNames('chart', 'line-chart')
+@classNameBindings('annotations.length:with-annotations')
 export default class LineChart extends Component.extend(WindowResizable) {
   // Public API
 
   data = null;
+  annotations = null;
+  onAnnotationClick() {}
   xProp = null;
   yProp = null;
   timeseries = false;
@@ -99,6 +112,14 @@ export default class LineChart extends Component.extend(WindowResizable) {
 
   tooltipPosition = null;
   @styleStringProperty('tooltipPosition') tooltipStyle;
+
+  @computed('xAxisOffset')
+  get chartAnnotationBounds() {
+    return {
+      height: this.xAxisOffset,
+    };
+  }
+  @styleStringProperty('chartAnnotationBounds') chartAnnotationsStyle;
 
   @computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset')
   get xScale() {
@@ -244,6 +265,26 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return area(this.data);
   }
 
+  @computed('annotations.[]', 'xScale', 'xProp', 'timeseries')
+  get processedAnnotations() {
+    const { xScale, xProp, annotations, timeseries } = this;
+
+    if (!annotations || !annotations.length) return null;
+
+    return annotations.map(annotation => {
+      const x = xScale(annotation[xProp]);
+      const y = 0; // TODO: prevent overlap by staggering y-offset
+      const time = this.xFormat(timeseries)(annotation[xProp]);
+      return {
+        annotation,
+        style: `transform:translate(${x}px,${y}px)`,
+        icon: iconFor[annotation.type],
+        iconClass: iconClassFor[annotation.type],
+        label: `${annotation.type} event at ${time}`,
+      };
+    });
+  }
+
   didInsertElement() {
     this.updateDimensions();
 
@@ -342,6 +383,10 @@ export default class LineChart extends Component.extend(WindowResizable) {
       d3.select(this.element.querySelector('.y-axis')).call(this.yAxis);
       d3.select(this.element.querySelector('.y-gridlines')).call(this.yGridlines);
     }
+  }
+
+  annotationClick(annotation) {
+    this.onAnnotationClick(annotation);
   }
 
   windowResizeHandler() {
