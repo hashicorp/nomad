@@ -7,9 +7,9 @@ FEATURES:
 
 BUG FIXES:
 
- * core: Fixed a bug where `nomad job plan` reports success and no updates if the job contains a scaling policy [[GH-8551](https://github.com/hashicorp/nomad/issues/8567)]
- * api: Added missing namespace field to scaling status GET response object [[GH-8527](https://github.com/hashicorp/nomad/issues/8527)]
- * api: Do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8481](https://github.com/hashicorp/nomad/issues/8481)]
+ * core: Fixed a bug where `nomad job plan` reports success and no updates if the job contains a scaling policy [[GH-8567](https://github.com/hashicorp/nomad/issues/8567)]
+ * api: Added missing namespace field to scaling status GET response object [[GH-8530](https://github.com/hashicorp/nomad/issues/8530)]
+ * api: Do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8491](https://github.com/hashicorp/nomad/issues/8491)]
  * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
 
 ## 0.12.1 (July 23, 2020)
