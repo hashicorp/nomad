@@ -103,8 +103,7 @@ Run Options:
 
   -vault-namespace
     If set, the passed Vault namespace is stored in the job before sending to the
-    Nomad servers. This overrides the namespace found in $VAULT_NAMESPACE environment
-    variable and that found in the job.
+    Nomad servers.
 
   -verbose
     Display full information.
@@ -218,11 +217,6 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	if vaultToken != "" {
 		job.VaultToken = helper.StringToPtr(vaultToken)
-	}
-
-	// Parse the Vault namespace
-	if vaultNamespace == "" {
-		vaultNamespace = os.Getenv("VAULT_NAMESPACE")
 	}
 
 	if vaultNamespace != "" {
