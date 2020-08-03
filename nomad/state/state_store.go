@@ -1100,7 +1100,7 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		if raw == nil {
 			break
 		}
-		plug := raw.(*structs.CSIPlugin)
+		plug := raw.(*structs.CSIPlugin).Copy()
 
 		var hadDelete bool
 		if _, ok := inUseController[plug.ID]; !ok {
@@ -4746,6 +4746,7 @@ func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocati
 				// became healthy, just move on
 				return nil
 			}
+			plug = plug.Copy()
 			err = plug.DeleteAlloc(alloc.ID, alloc.NodeID)
 			if err != nil {
 				return err
