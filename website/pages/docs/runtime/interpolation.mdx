@@ -58,7 +58,7 @@ task "docs" {
 }
 ```
 
-## Node Variables [](#interpreted_node_vars)
+## Node Variables ((#interpreted_node_vars, #node-variables-))
 
 Below is a full listing of node attributes that are interpretable. These
 attributes are interpreted by **both** constraints and within the task and
@@ -244,6 +244,12 @@ Below is a table documenting common node properties:
     </tr>
     <tr>
       <td>
+        <code>{'${attr.platform.aws.placement.availability-zone}'}</code>
+      </td>
+      <td>Availability Zone of the client (if on AWS EC2)</td>
+    </tr>
+    <tr>
+      <td>
         <code>{'${attr.os.name}'}</code>
       </td>
       <td>
@@ -259,6 +265,8 @@ Below is a table documenting common node properties:
     </tr>
   </tbody>
 </table>
+
+The full list of node attributes can be obtained by running `nomad node status -verbose [node]`.
 
 Here are some examples of using node attributes and properties in a job file:
 
@@ -286,7 +294,7 @@ job "docs" {
 }
 ```
 
-## Environment Variables [](#interpreted_env_vars)
+## Environment Variables ((#interpreted_env_vars))
 
 The following are runtime environment variables that describe the environment
 the task is running in. These are only defined once the task has been placed on
@@ -295,7 +303,7 @@ a particular node and as such can not be used in constraints.
 Environment variables should be enclosed in brackets `${...}` for
 interpolation.
 
-### Dots in Variables [](#dots_in_vars)
+### Dots in Variables ((#dots_in_vars))
 
 Starting in Nomad 0.9, task configuration interpolation requires variables to
 be valid identifiers. While this does not affect default variables or common

@@ -63,7 +63,6 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 	s1, cleanupS1 := nomad.TestServer(t, func(c *nomad.Config) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 1
-		c.DevDisableBootstrap = true
 		c.TLSConfig = &sconfig.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,

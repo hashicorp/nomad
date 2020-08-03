@@ -1,7 +1,7 @@
 ---
 layout: api
 page_title: HTTP API
-sidebar_title: Overview
+sidebar_title: HTTP API Overview
 description: |-
   Nomad exposes a RESTful HTTP API to control almost every aspect of the
   Nomad agent.
@@ -37,7 +37,7 @@ The default port for the Nomad HTTP API is `4646`. This can be overridden via
 the Nomad configuration block. Here is an example curl request to query a Nomad
 server with the default configuration:
 
-```shell
+```shell-session
 $ curl http://127.0.0.1:4646/v1/agent/members
 ```
 
@@ -76,7 +76,7 @@ administration.
 
 Several endpoints in Nomad use or require ACL tokens to operate. The token are used to authenticate the request and determine if the request is allowed based on the associated authorizations. Tokens are specified per-request by using the `X-Nomad-Token` request header set to the `SecretID` of an ACL Token.
 
-For more details about ACLs, please see the [ACL Guide](/guides/security/acl).
+For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/nomad?track=acls#operations-and-development).
 
 ## Authentication
 
@@ -84,10 +84,21 @@ When ACLs are enabled, a Nomad token should be provided to API requests using th
 
 Here is an example using curl:
 
-```shell
+```shell-session
 $ curl \
     --header "X-Nomad-Token: aa534e09-6a07-0a45-2295-a7f77063d429" \
     https://localhost:4646/v1/jobs
+```
+
+## Namespaces
+
+Nomad Enterprise has support for namespaces, which allow jobs and their associated objects to be segmented from each other and other users of the cluster.  When using non-default namespace, the API request must pass the target namespace as an API query parameter.
+
+Here is an example using curl:
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/jobs?namespace=qa
 ```
 
 ## Blocking Queries
@@ -164,7 +175,7 @@ serviced by a server in the requested region.
 The HTTP API will gzip the response if the HTTP request denotes that the client
 accepts gzip compression. This is achieved by passing the accept encoding:
 
-```shell
+```shell-session
 $ curl \
     --header "Accept-Encoding: gzip" \
     https://localhost:4646/v1/...
@@ -179,7 +190,7 @@ In general, clients should prefer a client-side parser like `jq` instead of
 server-formatted data. Asking the server to format the data takes away
 processing cycles from more important tasks.
 
-```shell
+```shell-session
 $ curl https://localhost:4646/v1/page?pretty
 ```
 

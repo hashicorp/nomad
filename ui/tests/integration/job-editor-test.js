@@ -25,13 +25,10 @@ module('Integration | Component | job-editor', function(hooks) {
 
     // Required for placing allocations (a result of creating jobs)
     this.server.create('node');
-
-    await Editor.setContext(this);
   });
 
   hooks.afterEach(async function() {
     this.server.shutdown();
-    await Editor.removeContext();
   });
 
   const newJobName = 'new-job';
@@ -76,19 +73,19 @@ module('Integration | Component | job-editor', function(hooks) {
   `;
 
   const commonTemplate = hbs`
-    {{job-editor
-      job=job
-      context=context
-      onSubmit=onSubmit}}
+    <JobEditor
+      @job={{job}}
+      @context={{context}}
+      @onSubmit={{onSubmit}} />
   `;
 
   const cancelableTemplate = hbs`
-    {{job-editor
-      job=job
-      context=context
-      cancelable=true
-      onSubmit=onSubmit
-      onCancel=onCancel}}
+    <JobEditor
+      @job={{job}}
+      @context={{context}}
+      @cancelable={{true}}
+      @onSubmit={{onSubmit}}
+      @onCancel={{onCancel}} />
   `;
 
   const renderNewJob = async (component, job) => {

@@ -263,9 +263,47 @@
   border-bottom-right-radius: $radius;
   border-bottom-left-radius: $radius;
   overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 
   .pagination {
     padding: 0;
     margin: 0;
+  }
+
+  // Field overrides specifically for use of Field within a table foot.
+  // Bulma does a lot of typically helpful layout tweaks at different
+  // breakpoints that are undesirable in this context.
+  .field {
+    margin-bottom: 0;
+
+    &:first-child {
+      margin-left: 1.5em;
+    }
+
+    &.is-horizontal {
+      display: flex;
+    }
+
+    .label,
+    .field-label {
+      color: $grey;
+      flex-basis: 0;
+      flex-grow: 1;
+      flex-shrink: 0;
+      text-align: right;
+
+      &.is-small {
+        font-size: $size-7;
+      }
+    }
+
+    .field-body {
+      display: flex;
+      flex-basis: 0;
+      flex-grow: 5;
+      flex-shrink: 1;
+    }
   }
 }

@@ -20,12 +20,17 @@ import (
 
 const (
 	defaultLoggerMockDriverStdout = "Hello from the other side"
+	xssLoggerMockDriverStdout     = "<script>alert(document.domain);</script>"
 )
 
 var (
 	defaultLoggerMockDriver = map[string]interface{}{
 		"run_for":       "2s",
 		"stdout_string": defaultLoggerMockDriverStdout,
+	}
+	xssLoggerMockDriver = map[string]interface{}{
+		"run_for":       "2s",
+		"stdout_string": xssLoggerMockDriverStdout,
 	}
 )
 
@@ -322,6 +327,31 @@ func TestHTTP_FS_ReadAt(t *testing.T) {
 	})
 }
 
+// TestHTTP_FS_ReadAt_XSS asserts that the readat API is safe from XSS.
+func TestHTTP_FS_ReadAt_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		path := fmt.Sprintf("%s/v1/client/fs/readat/%s?path=alloc/logs/web.stdout.0&offset=0&limit=%d",
+			s.HTTPAddr(), a.ID, len(xssLoggerMockDriverStdout))
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
+
+		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
+		require.Equal(t, []string{"nosniff"}, resp.Header.Values("X-Content-Type-Options"))
+		require.Equal(t, []string{"1; mode=block"}, resp.Header.Values("X-XSS-Protection"))
+		require.Equal(t, []string{"default-src 'none'; style-src 'unsafe-inline'; sandbox"},
+			resp.Header.Values("Content-Security-Policy"))
+	})
+}
+
 func TestHTTP_FS_Cat(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -340,6 +370,30 @@ func TestHTTP_FS_Cat(t *testing.T) {
 		output, err := ioutil.ReadAll(respW.Result().Body)
 		require.Nil(err)
 		require.EqualValues(defaultLoggerMockDriverStdout, output)
+	})
+}
+
+// TestHTTP_FS_Cat_XSS asserts that the cat API is safe from XSS.
+func TestHTTP_FS_Cat_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		path := fmt.Sprintf("%s/v1/client/fs/cat/%s?path=alloc/logs/web.stdout.0", s.HTTPAddr(), a.ID)
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
+
+		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
+		require.Equal(t, []string{"nosniff"}, resp.Header.Values("X-Content-Type-Options"))
+		require.Equal(t, []string{"1; mode=block"}, resp.Header.Values("X-XSS-Protection"))
+		require.Equal(t, []string{"default-src 'none'; style-src 'unsafe-inline'; sandbox"},
+			resp.Header.Values("Content-Security-Policy"))
 	})
 }
 
@@ -384,6 +438,26 @@ func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			t.Fatal("should close but did not")
 		}
+	})
+}
+
+// TestHTTP_FS_Stream_NoFollow_XSS asserts that the stream API is safe from XSS.
+func TestHTTP_FS_Stream_NoFollow_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		path := fmt.Sprintf("%s/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&follow=false",
+			s.HTTPAddr(), a.ID)
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		expected := `{"Data":"PHNjcmlwdD5hbGVydChkb2N1bWVudC5kb21haW4pOzwvc2NyaXB0Pg==","File":"alloc/logs/web.stdout.0","Offset":40}`
+		require.Equal(t, expected, string(buf))
 	})
 }
 
@@ -463,6 +537,30 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		}, func(err error) {
 			t.Fatal(err)
 		})
+	})
+}
+
+// TestHTTP_FS_Logs_XSS asserts that the logs endpoint always returns
+// text/plain or application/json content regardless of whether the logs are
+// HTML+Javascript or not.
+func TestHTTP_FS_Logs_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		// Must make a "real" request to ensure Go's default content
+		// type detection does not detect text/html
+		path := fmt.Sprintf("%s/v1/client/fs/logs/%s?type=stdout&task=web&plain=true", s.HTTPAddr(), a.ID)
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
+
+		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
 	})
 }
 

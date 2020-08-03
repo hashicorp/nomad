@@ -2,7 +2,7 @@
 
 set -o errexit
 
-VERSION="v0.8.4"
+VERSION="v0.8.6"
 DOWNLOAD=https://github.com/containernetworking/plugins/releases/download/${VERSION}/cni-plugins-linux-amd64-${VERSION}.tgz
 TARGET_DIR=/opt/cni/bin
 
@@ -12,7 +12,7 @@ function install_cni() {
 		return
 	fi
 
-	wget -q -O /tmp/cni-plugins.tar.gz ${DOWNLOAD}
+	curl -sSL --fail -o /tmp/cni-plugins.tar.gz ${DOWNLOAD}
 	tar -xf /tmp/cni-plugins.tar.gz -C ${TARGET_DIR}
 	touch ${TARGET_DIR}/${VERSION}
 }

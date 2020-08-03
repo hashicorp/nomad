@@ -107,3 +107,27 @@ func TestResolveACLToken_LeaderToken(t *testing.T) {
 		assert.True(token.IsManagement())
 	}
 }
+
+func TestResolveSecretToken(t *testing.T) {
+	t.Parallel()
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.State()
+	leaderToken := s1.getLeaderAcl()
+	assert.NotEmpty(t, leaderToken)
+
+	token := mock.ACLToken()
+
+	err := state.UpsertACLTokens(110, []*structs.ACLToken{token})
+	assert.Nil(t, err)
+
+	respToken, err := s1.ResolveSecretToken(token.SecretID)
+	assert.Nil(t, err)
+	if assert.NotNil(t, respToken) {
+		assert.NotEmpty(t, respToken.AccessorID)
+	}
+
+}

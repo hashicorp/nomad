@@ -1,0 +1,154 @@
+---
+layout: docs
+page_title: 'Commands: operator snapshot agent'
+sidebar_title: snapshot agent
+description: |
+  Periodically saves snapshots of Nomad server state
+---
+
+# Command: operator snapshot agent
+
+<EnterpriseAlert />
+
+The snapshot agent takes snapshots of the state of the nomad servers and
+saves them locally, or pushes them to an optional remote storage service.
+
+The agent can be run as a long-running daemon process or in a one-shot mode
+from a batch job. As a long-running daemon, the agent will perform a leader
+election so multiple processes can be run in a highly available fashion with
+automatic failover. In daemon mode, the agent will also register itself with
+Consul as a service, along with health checks that show the agent is alive
+and able to take snapshots.
+
+If ACLs are enabled, a management token must be supplied in order to perform
+snapshot operations.
+
+The Config file has the following format (shown populated with default values):
+
+```hcl
+nomad {
+  address         = "http://127.0.0.1:8500"
+  token           = ""
+  region          = ""
+  ca_file         = ""
+  ca_path         = ""
+  cert_file       = ""
+  key_file        = ""
+  tls_server_name = ""
+}
+
+
+snapshot {
+  interval         = "1h"
+  retain           = 30
+  stale            = false
+  service          = "nomad-snapshot"
+  deregister_after = "72h"
+  lock_key         = "nomad-snapshot/lock"
+  max_failures     = 3
+  prefix           = "nomad"
+}
+
+log {
+  level           = "INFO"
+  enable_syslog   = false
+  syslog_facility = "LOCAL0"
+}
+
+consul {
+  enabled         = true
+  http_addr       = "127.0.0.1:8500"
+  token           = ""
+  datacenter      = ""
+  ca_file         = ""
+  ca_path         = ""
+  cert_file       = ""
+  key_file        = ""
+  tls_server_name = ""
+}
+
+# one storage block is required
+
+local_storage {
+  path = "."
+}
+
+aws_storage {
+  access_key_id     = ""
+  secret_access_key = ""
+  s3_region         = ""
+  s3_endpoint       = ""
+  s3_bucket         = ""
+  s3_key_prefix     = "nomad-snapshot"
+}
+
+azure_blob_storage {
+  account_name   = ""
+  account_key    = ""
+  container_name = ""
+}
+
+google_storage {
+  bucket = ""
+}
+```
+
+
+## Usage
+
+```plaintext
+nomad operator snapshot agent [options] <config_file>
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Snapshot agent Options
+
+### Snapshot Options
+- `-interval`: Interval at which to perform snapshots as a time with a unit suffix, which can be "s", "m", "h" for seconds, minutes, or hours. If 0 is provided, the agent will take a single snapshot and then exit, which is useful for running snapshots via batch jobs. Defaults to "1h".
+- `-lock-key`: A prefix in Consul's key-value store used to coordinate between different instances of the snapshot agent in order to only have one active instance at a time. For highly available operation of the snapshot agent, simply run multiple instances. All instances must be configured with the same lock key in order to properly coordinate. Defaults to "nomad-snapshot/lock".
+- `-max-failures`: Number of snapshot failures after which the snapshot agent will give up leadership. In a highly available operation with multiple snapshot agents available, this gives another agent a chance to take over if an agent is experiencing issues, such as running out of disk space for snapshots. Defaults to 3.
+- `-retain`: Number of snapshots to retain. After each snapshot is taken, the oldest snapshots will start to be deleted in order to retain at most this many snapshots. If this is set to 0, the agent will not perform this and snapshots will accumulate forever. Defaults to 30.
+
+### Agent Options
+- `-deregister-after`: An interval, after which if the agent is unhealthy it will be automatically deregistered from Consul service. discovery. This is a time with a unit suffix, which can be "s", "m", "h" for seconds, minutes, or hours. If 0 is provided, this will be disabled. Defaults to "72h".
+- `-log-level`: Controls verbosity of snapshot agent logs. Valid options are "TRACE", "DEBUG", "INFO", "WARN", "ERR". Defaults to "INFO".
+- `-log-json`: Output logs in JSON format. Defaults to false.
+- `-service`: The service name to used when registering the agent with Consul. Registering helps monitor running agents and the leader registers an additional health check to monitor that snapshots are taking place. Defaults to "nomad-snapshot".
+- `-syslog`: This enables forwarding logs to syslog. Defaults to false.
+- `-syslog-facility`: Sets the facility to use for forwarding logs to syslog. Defaults to "LOCAL0".
+
+### Local Storage Options
+- `-local-path`: Location to store snapshots locally. The default behavior of the snapshot agent is to store snapshots locally in this directory. Defaults to "." to use the current working directory. If an alternate storage option is configured, then local storage will be disabled and this option will be ignored.
+
+### S3 Storage Options:
+Note that despite the AWS references, any S3-compatible endpoint can be specified with '-aws-s3-endpoint'.
+
+- `-aws-access-key-id`: These arguments supply authentication information for
+- `-aws-secret-access-key`: connecting to S3. These may also be supplied using the following alternative methods:
+  - AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables
+  - A credentials file (~/.aws/credentials or the file at the path specified by the AWS_SHARED_CREDENTIALS_FILE environment variable)
+  - ECS task role metadata (container-specific)
+  - EC2 instance role metadata
+- `-aws-s3-bucket`: S3 bucket to use. Required for S3 storage, and setting this disables local storage.
+- `-aws-s3-key-prefix`: Prefix to use for snapshot files in S3. Defaults to "nomad-snapshot".
+- `-aws-s3-region`: S3 region to use. Required for S3 storage.
+- `-aws-s3-endpoint`: Optional S3 endpoint to use. Can also be specified using the AWS_S3_ENDPOINT environment variable.
+- `-aws-s3-server-side-encryption`: Enables server side encryption with AES-256, when storing snapshots to S3. Defaults to false.
+- `-aws-s3-static-snapshot-name`: Static file name to use for snapshot files. If this is set, snapshots are always saved with the same name, and are not versioned or rotated.
+- `-aws-s3-enable-kms`: Enables using Amazon KMS for encrypting snapshots
+- `-aws-s3-kms-key`: Optional KMS key to use, if this is not set the default KMS key will be used.
+
+### Azure Blob Storage Options
+(Note: Non-Solaris platforms only)
+- `-azure-blob-account-name`: These arguments supply authentication information
+- `-azure-blob-account_key`: for connecting to Azure Blob storage.
+- `-azure-blob-container-name`: Container to use. Required for Azure blob storage, and setting this disables local storage.
+- `-azure-blob-environment`: Environment to use. Defaults to AZUREPUBLICCLOUD. Other valid environments are AZURECHINACLOUD, AZUREGERMANCLOUD and AZUREUSGOVERNMENTCLOUD.
+
+
+### Google Storage Options
+
+- `-google-bucket`: The bucket to use.

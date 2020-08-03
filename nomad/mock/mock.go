@@ -65,9 +65,17 @@ func Node() *structs.Node {
 			},
 			Networks: []*structs.NetworkResource{
 				{
+					Mode:   "host",
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
 					MBits:  1000,
+				},
+			},
+			NodeNetworks: []*structs.NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Speed:  1000,
 				},
 			},
 		},
@@ -270,6 +278,246 @@ func Job() *structs.Job {
 	return job
 }
 
+func LifecycleSideTask(resources structs.Resources, i int) *structs.Task {
+	return &structs.Task{
+		Name:   fmt.Sprintf("side-%d", i),
+		Driver: "exec",
+		Config: map[string]interface{}{
+			"command": "/bin/date",
+		},
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:    structs.TaskLifecycleHookPrestart,
+			Sidecar: true,
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &resources,
+	}
+}
+
+func LifecycleInitTask(resources structs.Resources, i int) *structs.Task {
+	return &structs.Task{
+		Name:   fmt.Sprintf("init-%d", i),
+		Driver: "exec",
+		Config: map[string]interface{}{
+			"command": "/bin/date",
+		},
+		Lifecycle: &structs.TaskLifecycleConfig{
+			Hook:    structs.TaskLifecycleHookPrestart,
+			Sidecar: false,
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &resources,
+	}
+}
+
+func LifecycleMainTask(resources structs.Resources, i int) *structs.Task {
+	return &structs.Task{
+		Name:   fmt.Sprintf("main-%d", i),
+		Driver: "exec",
+		Config: map[string]interface{}{
+			"command": "/bin/date",
+		},
+		LogConfig: structs.DefaultLogConfig(),
+		Resources: &resources,
+	}
+}
+func VariableLifecycleJob(resources structs.Resources, main int, init int, side int) *structs.Job {
+	tasks := []*structs.Task{}
+	for i := 0; i < main; i++ {
+		tasks = append(tasks, LifecycleMainTask(resources, i))
+	}
+	for i := 0; i < init; i++ {
+		tasks = append(tasks, LifecycleInitTask(resources, i))
+	}
+	for i := 0; i < side; i++ {
+		tasks = append(tasks, LifecycleSideTask(resources, i))
+	}
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
+		Name:        "my-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeService,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "web",
+				Count: 1,
+				Tasks: tasks,
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+func LifecycleJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
+		Name:        "my-job",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeBatch,
+		Priority:    50,
+		AllAtOnce:   false,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "web",
+				Count: 1,
+				RestartPolicy: &structs.RestartPolicy{
+					Attempts: 0,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeFail,
+				},
+				Tasks: []*structs.Task{
+					{
+						Name:   "web",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "side",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:    structs.TaskLifecycleHookPrestart,
+							Sidecar: true,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "init",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook:    structs.TaskLifecycleHookPrestart,
+							Sidecar: false,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+				},
+			},
+		},
+		Meta: map[string]string{
+			"owner": "armon",
+		},
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+func LifecycleAlloc() *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "web",
+
+		// TODO Remove once clientv2 gets merged
+		Resources: &structs.Resources{
+			CPU:      500,
+			MemoryMB: 256,
+		},
+		TaskResources: map[string]*structs.Resources{
+			"web": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+			"init": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+			"side": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
+		},
+
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"init": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"side": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+			},
+		},
+		Job:           LifecycleJob(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
+	alloc.JobID = alloc.Job.ID
+	return alloc
+}
+
 func MaxParallelJob() *structs.Job {
 	update := *structs.DefaultUpdateStrategy
 	update.MaxParallel = 0
@@ -388,22 +636,34 @@ func MaxParallelJob() *structs.Job {
 func ConnectJob() *structs.Job {
 	job := Job()
 	tg := job.TaskGroups[0]
-	tg.Networks = []*structs.NetworkResource{
-		{
-			Mode: "bridge",
+	tg.Services = []*structs.Service{{
+		Name:      "testconnect",
+		PortLabel: "9999",
+		Connect: &structs.ConsulConnect{
+			SidecarService: new(structs.ConsulSidecarService),
 		},
-	}
-	tg.Services = []*structs.Service{
-		{
-			Name:      "testconnect",
-			PortLabel: "9999",
-			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
-			},
-		},
-	}
+	}}
 	tg.Networks = structs.Networks{{
 		Mode: "bridge", // always bridge ... for now?
+	}}
+	return job
+}
+
+func ConnectNativeJob(mode string) *structs.Job {
+	job := Job()
+	tg := job.TaskGroups[0]
+	tg.Networks = []*structs.NetworkResource{{
+		Mode: mode,
+	}}
+	tg.Services = []*structs.Service{{
+		Name:      "test_connect_native",
+		PortLabel: "9999",
+		Connect: &structs.ConsulConnect{
+			Native: true,
+		},
+	}}
+	tg.Tasks = []*structs.Task{{
+		Name: "native_task",
 	}}
 	return job
 }
@@ -669,6 +929,16 @@ func ConnectAlloc() *structs.Allocation {
 			},
 		},
 	}
+	return alloc
+}
+
+func ConnectNativeAlloc(mode string) *structs.Allocation {
+	alloc := Alloc()
+	alloc.Job = ConnectNativeJob(mode)
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{
+		Mode: mode,
+		IP:   "10.0.0.1",
+	}}
 	return alloc
 }
 
@@ -1011,5 +1281,109 @@ func ACLManagementToken() *structs.ACLToken {
 		CreateTime:  time.Now().UTC(),
 		CreateIndex: 10,
 		ModifyIndex: 20,
+	}
+}
+
+func ScalingPolicy() *structs.ScalingPolicy {
+	return &structs.ScalingPolicy{
+		ID:  uuid.Generate(),
+		Min: 1,
+		Max: 100,
+		Target: map[string]string{
+			structs.ScalingTargetNamespace: structs.DefaultNamespace,
+			structs.ScalingTargetJob:       uuid.Generate(),
+			structs.ScalingTargetGroup:     uuid.Generate(),
+		},
+		Policy: map[string]interface{}{
+			"a": "b",
+		},
+		Enabled:     true,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+}
+
+func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
+	job := Job()
+	policy := &structs.ScalingPolicy{
+		ID:      uuid.Generate(),
+		Min:     int64(job.TaskGroups[0].Count),
+		Max:     int64(job.TaskGroups[0].Count),
+		Policy:  map[string]interface{}{},
+		Enabled: true,
+	}
+	policy.TargetTaskGroup(job, job.TaskGroups[0])
+	job.TaskGroups[0].Scaling = policy
+	return job, policy
+}
+
+func MultiregionJob() *structs.Job {
+	job := Job()
+	update := *structs.DefaultUpdateStrategy
+	job.Update = update
+	job.TaskGroups[0].Update = &update
+	job.Multiregion = &structs.Multiregion{
+		Strategy: &structs.MultiregionStrategy{
+			MaxParallel: 1,
+			OnFailure:   "fail_all",
+		},
+		Regions: []*structs.MultiregionRegion{
+			{
+				Name:        "west",
+				Count:       2,
+				Datacenters: []string{"west-1", "west-2"},
+				Meta:        map[string]string{"region_code": "W"},
+			},
+			{
+				Name:        "east",
+				Count:       1,
+				Datacenters: []string{"east-1"},
+				Meta:        map[string]string{"region_code": "E"},
+			},
+		},
+	}
+	return job
+}
+
+func CSIPlugin() *structs.CSIPlugin {
+	return &structs.CSIPlugin{
+		ID:                 uuid.Generate(),
+		Provider:           "com.hashicorp:mock",
+		Version:            "0.1",
+		ControllerRequired: true,
+		Controllers:        map[string]*structs.CSIInfo{},
+		Nodes:              map[string]*structs.CSIInfo{},
+		Allocations:        []*structs.AllocListStub{},
+		ControllersHealthy: 0,
+		NodesHealthy:       0,
+	}
+}
+
+func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
+	return &structs.CSIVolume{
+		ID:                  uuid.Generate(),
+		Name:                "test-vol",
+		ExternalID:          "vol-01",
+		Namespace:           "default",
+		Topologies:          []*structs.CSITopology{},
+		AccessMode:          structs.CSIVolumeAccessModeSingleNodeWriter,
+		AttachmentMode:      structs.CSIVolumeAttachmentModeFilesystem,
+		MountOptions:        &structs.CSIMountOptions{},
+		Secrets:             structs.CSISecrets{},
+		Parameters:          map[string]string{},
+		Context:             map[string]string{},
+		ReadAllocs:          map[string]*structs.Allocation{},
+		WriteAllocs:         map[string]*structs.Allocation{},
+		ReadClaims:          map[string]*structs.CSIVolumeClaim{},
+		WriteClaims:         map[string]*structs.CSIVolumeClaim{},
+		PastClaims:          map[string]*structs.CSIVolumeClaim{},
+		PluginID:            plugin.ID,
+		Provider:            plugin.Provider,
+		ProviderVersion:     plugin.Version,
+		ControllerRequired:  plugin.ControllerRequired,
+		ControllersHealthy:  plugin.ControllersHealthy,
+		ControllersExpected: len(plugin.Controllers),
+		NodesHealthy:        plugin.NodesHealthy,
+		NodesExpected:       len(plugin.Nodes),
 	}
 }

@@ -12,4 +12,9 @@
   &.with-subheading {
     margin-bottom: 0.85rem;
   }
+
+  &.with-flex {
+    display: flex;
+    justify-content: space-between;
+  }
 }

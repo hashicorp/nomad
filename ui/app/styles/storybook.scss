@@ -56,4 +56,90 @@
   .annotation {
     font-size: 0.9rem;
   }
+
+  .palette {
+    .title {
+      font-size: 1.4rem;
+      font-weight: $weight-bold;
+      padding-bottom: 2px;
+      padding-top: 10px;
+    }
+
+    .description {
+      font-size: 0.8rem;
+      padding-bottom: 5px;
+    }
+
+    .item {
+      border: solid 1px $grey-blue;
+      display: inline-block;
+      margin: 0 5px 5px 0;
+
+      .color {
+        height: 90px;
+        width: 160px;
+      }
+
+      .info {
+        background-color: white;
+        border-top: solid 1px $grey-blue;
+        padding: 5px;
+      }
+
+      .hex {
+        font-size: 12px;
+        font-weight: $weight-bold;
+        margin-bottom: 0;
+      }
+
+      .name {
+        color: $ui-gray-500;
+        font-size: 11px;
+        margin-top: 0;
+      }
+    }
+  }
+
+  .typeface {
+    .hero,
+    .sample {
+      font-family: inherit;
+    }
+
+    .hero {
+      font-size: 140px;
+      line-height: 1.05;
+    }
+
+    .sample {
+      font-size: 15px;
+      margin: 0;
+    }
+  }
+
+  .multiples {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chart-container {
+    width: 200px;
+    padding: 15px;
+    border: 1px solid $ui-gray-200;
+    display: inline-block;
+
+    &.is-small {
+      width: 150px;
+    }
+
+    &.is-large {
+      width: 250px;
+    }
+
+    &.is-xlarge {
+      width: 300px;
+    }
+  }
 }

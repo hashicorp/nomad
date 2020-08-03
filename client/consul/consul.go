@@ -7,6 +7,9 @@ import (
 
 // ConsulServiceAPI is the interface the Nomad Client uses to register and
 // remove services and checks from Consul.
+//
+// ACL requirements
+// - service:write
 type ConsulServiceAPI interface {
 	// RegisterWorkload with Consul. Adds all service entries and checks to Consul.
 	RegisterWorkload(*consul.WorkloadServices) error
@@ -31,6 +34,9 @@ type TokenDeriverFunc func(*structs.Allocation, []string) (map[string]string, er
 
 // ServiceIdentityAPI is the interface the Nomad Client uses to request Consul
 // Service Identity tokens through Nomad Server.
+//
+// ACL requirements
+// - acl:write (used by Server only)
 type ServiceIdentityAPI interface {
 	// DeriveSITokens contacts the nomad server and requests consul service
 	// identity tokens be generated for tasks in the allocation.

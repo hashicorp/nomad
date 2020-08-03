@@ -1077,8 +1077,6 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 		c.ACLEnabled = true
 		c.DataDir = dir
 		c.DevMode = false
-		c.Bootstrap = true
-		c.DevDisableBootstrap = false
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)

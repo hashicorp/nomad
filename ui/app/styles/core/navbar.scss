@@ -8,6 +8,8 @@
     padding-left: 20px;
     padding-right: 20px;
     overflow: hidden;
+    align-items: center;
+    justify-content: space-between;
 
     .navbar-item {
       color: rgba($primary-invert, 0.8);
@@ -35,16 +37,19 @@
           display: block;
           position: absolute;
           left: 0px;
-          top: 1.25em;
         }
       }
+    }
+
+    .navbar-brand {
+      z-index: $z-gutter;
     }
 
     .navbar-end {
       display: flex;
       align-items: stretch;
       justify-content: flex-end;
-      margin-left: auto;
+      margin-left: inherit;
     }
 
     .navbar-end > a.navbar-item {
@@ -72,6 +77,51 @@
 
     .navbar-item {
       font-size: $size-4;
+    }
+  }
+
+  &.is-popup {
+    background-color: $nomad-green-dark;
+    height: 3.5rem;
+    color: $primary-invert;
+    padding-left: 20px;
+    padding-right: 20px;
+    overflow: hidden;
+
+    .navbar-brand {
+      margin-right: 8px;
+    }
+
+    .navbar-item {
+      color: white;
+
+      .navbar-label {
+        font-weight: 600;
+        margin-right: 1rem;
+      }
+    }
+
+    .navbar-end {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-left: inherit;
+    }
+
+    .navbar-end > a.navbar-item {
+      color: rgba($primary-invert, 0.8);
+      text-decoration: none;
+
+      &:hover {
+        color: $primary-invert;
+        background: transparent;
+      }
+    }
+
+    .navbar-brand > a.navbar-item {
+      &:hover {
+        background: transparent;
+      }
     }
   }
 

@@ -73,5 +73,3 @@ require (
 	k8s.io/client-go v8.0.0+incompatible
 	launchpad.net/gocheck v0.0.0-20140225173054-000000000087 // indirect
 )
-
-go 1.13

@@ -1,28 +1,32 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { action } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  system: service(),
+@classic
+export default class Abstract extends Component {
+  @service system;
 
-  job: null,
+  job = null;
 
   // Provide a value that is bound to a query param
-  sortProperty: null,
-  sortDescending: null,
+  sortProperty = null;
+  sortDescending = null;
 
   // Provide actions that require routing
-  gotoTaskGroup() {},
-  gotoJob() {},
+  gotoTaskGroup() {}
+  gotoJob() {}
 
   // Set to a { title, description } to surface an error
-  errorMessage: null,
+  errorMessage = null;
 
-  actions: {
-    clearErrorMessage() {
-      this.set('errorMessage', null);
-    },
-    handleError(errorObject) {
-      this.set('errorMessage', errorObject);
-    },
-  },
-});
+  @action
+  clearErrorMessage() {
+    this.set('errorMessage', null);
+  }
+
+  @action
+  handleError(errorObject) {
+    this.set('errorMessage', errorObject);
+  }
+}

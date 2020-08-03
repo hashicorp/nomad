@@ -1,0 +1,75 @@
+---
+layout: docs
+page_title: Nomad as a Windows Service
+sidebar_title: Windows Service
+description: Discusses how to register and run Nomad as a native Windows service.
+---
+
+# Installing Nomad as a Windows service
+
+Nomad can be run as a native Windows service. In order to do this, you will need
+to register the Nomad application with the Windows Service Control Manager using
+[`sc.exe`], configure Nomad to log to a file, and then start the Nomad service.
+
+~> **Note:** These steps should be run in a PowerShell session with Administrator
+capabilities.
+
+## Register Nomad with Windows
+
+[Download] the Nomad binary for your architecture.
+
+Use the [`sc.exe`] command to create a Service named "Nomad". The binPath
+argument should include the fully qualified path to the Nomad executable and any
+arguments to the nomad command: agent, -config, etc.
+
+```plaintext
+sc.exe create "Nomad" binPath="«full path to nomad.exe» agent -config=«path to config file or directory»" start= auto
+[SC] CreateService SUCCESS
+```
+
+If you receive a success message, your service is registered with the service
+manager.
+
+If you get an error, please verify the path to the binary and check the
+arguments, by running the contents of `binPath` directly in a PowerShell session
+and observing the results.
+
+## Configure Nomad to log to file
+
+Because Windows services run non-interactively and Nomad does not log to the
+Windows Event Viewer, you will need to configure file-based logging in Nomad.
+
+To do this, set the [`log_file`][logging] argument in your Nomad configuration
+file or in the binPath argument of the [`sc.exe`] command used to register the
+service.
+
+## Start the Nomad service
+
+You have two ways to start the service.
+
+- Go to the Windows Service Manager, and look for **Nomad** in the service name
+  column. Click the _Start_ button to start the service.
+
+- Using the [`sc.exe`] command:
+
+  ```plaintext
+  sc.exe start "Nomad"
+
+  SERVICE_NAME: Nomad
+        TYPE               : 10  WIN32_OWN_PROCESS
+        STATE              : 4  RUNNING
+                                (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)
+        WIN32_EXIT_CODE    : 0  (0x0)
+        SERVICE_EXIT_CODE  : 0  (0x0)
+        CHECKPOINT         : 0x0
+        WAIT_HINT          : 0x0
+        PID                : 8008
+        FLAGS              :
+  ```
+
+The service automatically starts up during/after boot, so you don't need to
+launch Nomad from the command-line again.
+
+[`sc.exe`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms682107(v=vs.85).aspx
+[download]: /downloads
+[logging]: /docs/configuration#log_file

@@ -30,6 +30,11 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
 						},
 					},
 				},
@@ -46,6 +51,9 @@ func TestParse(t *testing.T) {
 			namespace "secret" {
 				capabilities = ["deny", "read-logs"]
 			}
+			namespace "autoscaler" {
+				policy = "scale"
+			}
 			agent {
 				policy = "read"
 			}
@@ -58,6 +66,9 @@ func TestParse(t *testing.T) {
 			quota {
 				policy = "read"
 			}
+			plugin {
+				policy = "read"
+			}
 			`,
 			"",
 			&Policy{
@@ -68,6 +79,11 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
 						},
 					},
 					{
@@ -76,12 +92,20 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityListJobs,
 							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityScaleJob,
 							NamespaceCapabilitySubmitJob,
 							NamespaceCapabilityDispatchJob,
 							NamespaceCapabilityReadLogs,
 							NamespaceCapabilityReadFS,
 							NamespaceCapabilityAllocExec,
 							NamespaceCapabilityAllocLifecycle,
+							NamespaceCapabilityCSIMountVolume,
+							NamespaceCapabilityCSIWriteVolume,
 						},
 					},
 					{
@@ -89,6 +113,16 @@ func TestParse(t *testing.T) {
 						Capabilities: []string{
 							NamespaceCapabilityDeny,
 							NamespaceCapabilityReadLogs,
+						},
+					},
+					{
+						Name:   "autoscaler",
+						Policy: PolicyScale,
+						Capabilities: []string{
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityScaleJob,
 						},
 					},
 				},
@@ -102,6 +136,9 @@ func TestParse(t *testing.T) {
 					Policy: PolicyDeny,
 				},
 				Quota: &QuotaPolicy{
+					Policy: PolicyRead,
+				},
+				Plugin: &PluginPolicy{
 					Policy: PolicyRead,
 				},
 			},
@@ -244,6 +281,28 @@ func TestParse(t *testing.T) {
 			}
 			`,
 			"Invalid host volume name",
+			nil,
+		},
+		{
+			`
+			plugin {
+				policy = "list"
+			}
+			`,
+			"",
+			&Policy{
+				Plugin: &PluginPolicy{
+					Policy: PolicyList,
+				},
+			},
+		},
+		{
+			`
+			plugin {
+				policy = "reader"
+			}
+			`,
+			"Invalid plugin policy",
 			nil,
 		},
 	}

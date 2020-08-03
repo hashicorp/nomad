@@ -8,7 +8,7 @@ export let TableConfiguration = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Table, configuration</h5>
-      <AttributesTable @attributes={{attributes}} @class="attributes-table" />
+      <AttributesTable @attributePairs={{attributes}} @class="attributes-table" />
       `,
     context: {
       attributes: {

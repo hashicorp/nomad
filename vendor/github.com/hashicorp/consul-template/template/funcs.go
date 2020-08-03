@@ -19,6 +19,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	dep "github.com/hashicorp/consul-template/dependency"
+	"github.com/hashicorp/consul/api"
 	socktmpl "github.com/hashicorp/go-sockaddr/template"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -469,6 +470,62 @@ func servicesFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.Cata
 		missing.Add(d)
 
 		return result, nil
+	}
+}
+
+// connectFunc returns or accumulates health connect dependencies.
+func connectFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.HealthService, error) {
+	return func(s ...string) ([]*dep.HealthService, error) {
+		result := []*dep.HealthService{}
+
+		if len(s) == 0 || s[0] == "" {
+			return result, nil
+		}
+
+		d, err := dep.NewHealthConnectQuery(strings.Join(s, "|"))
+		if err != nil {
+			return nil, err
+		}
+
+		used.Add(d)
+
+		if value, ok := b.Recall(d); ok {
+			return value.([]*dep.HealthService), nil
+		}
+
+		missing.Add(d)
+
+		return result, nil
+	}
+}
+
+func connectCARootsFunc(b *Brain, used, missing *dep.Set,
+) func(...string) ([]*api.CARoot, error) {
+	return func(...string) ([]*api.CARoot, error) {
+		d := dep.NewConnectCAQuery()
+		used.Add(d)
+		if value, ok := b.Recall(d); ok {
+			return value.([]*api.CARoot), nil
+		}
+		missing.Add(d)
+		return nil, nil
+	}
+}
+
+func connectLeafFunc(b *Brain, used, missing *dep.Set,
+) func(...string) (*api.LeafCert, error) {
+	return func(s ...string) (*api.LeafCert, error) {
+		if len(s) == 0 || s[0] == "" {
+			return nil, nil
+		}
+		d := dep.NewConnectLeafQuery(s[0])
+		used.Add(d)
+		if value, ok := b.Recall(d); ok {
+			return value.(*api.LeafCert), nil
+		}
+		missing.Add(d)
+		return nil, nil
+
 	}
 }
 
@@ -1315,7 +1372,7 @@ func pathInSandbox(sandbox, path string) error {
 
 // sockaddr wraps go-sockaddr templating
 func sockaddr(args ...string) (string, error) {
-	t := fmt.Sprintf("{{ %s }} ", strings.Join(args, " "))
+	t := fmt.Sprintf("{{ %s }}", strings.Join(args, " "))
 	k, err := socktmpl.Parse(t)
 	if err != nil {
 		return "", err

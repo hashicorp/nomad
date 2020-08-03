@@ -1,0 +1,48 @@
+---
+layout: docs
+page_title: 'Commands: operator snapshot save'
+sidebar_title: snapshot save
+description: |
+  Saves snapshot of Nomad server state
+---
+
+# Command: operator snapshot save
+
+Retrieves an atomic, point-in-time snapshot of the state of the Nomad servers
+which includes jobs, nodes, allocations, periodic jobs, and ACLs for [outage
+recovery].
+
+If ACLs are enabled, a management token must be supplied in order to perform
+snapshot operations.
+
+To create a snapshot from the leader server and save it to "backup.snap":
+
+```shell-session
+$ nomad operator snapshot save backup.snap
+```
+
+To create a potentially stale snapshot from any available server (useful if no
+leader is available):
+
+```shell-session
+$ nomad operator snapshot save -stale backup.snap
+```
+
+## Usage
+
+```plaintext
+nomad operator snapshot save [options] <file>
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Snapshot Save Options
+
+- `-stale`: The stale argument defaults to "false" which means the leader
+  provides the result. If the cluster is in an outage state without a leader, you
+  may need to set `-stale` to "true" to get the configuration from a non-leader
+  server.
+
+[outage recovery]: https://learn.hashicorp.com/nomad/operating-nomad/outage

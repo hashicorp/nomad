@@ -1,0 +1,103 @@
+---
+layout: api
+page_title: Scaling Policies - HTTP API
+sidebar_title: Scaling Policies <sup>Beta</sup>
+description: The /scaling/policy endpoints are used to list and view scaling policies.
+---
+
+# Scaling Policies HTTP API
+
+The `/scaling/policies` and `/scaling/policy/` endpoints are used to list and view scaling policies.
+
+## List Scaling Policies <sup>Beta</sup>
+
+This endpoint returns the scaling policies from all jobs.
+
+| Method | Path                | Produces           |
+| ------ | ------------------- | ------------------ |
+| `GET`  | `/scaling/policies` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required                      |
+| ---------------- | ----------------- | --------------------------------- |
+| `YES`            | `all`             | `namespace:list-scaling-policies` |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/scaling/policies
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "CreateIndex": 10,
+    "Enabled": true,
+    "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
+    "ModifyIndex": 10,
+    "Target": {
+      "Group": "cache",
+      "Job": "example",
+      "Namespace": "default"
+    }
+  }
+]
+```
+
+## Read Scaling Policy <sup>Beta</sup>
+
+This endpoint reads a specific scaling policy.
+
+| Method | Path                         | Produces           |
+| ------ | ---------------------------- | ------------------ |
+| `GET`  | `/scaling/policy/:policy_id` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required                    |
+| ---------------- | ----------------- | ------------------------------- |
+| `YES`            | `all`             | `namespace:read-scaling-policy` |
+
+### Parameters
+
+- `:policy_id` `(string: <required>)` - Specifies the ID of the scaling policy (as returned
+  by the scaling policy list endpoint). This is specified as part of the path.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/scaling/policy/5e9f9ef2-5223-6d35-bac1-be0f3cb974ad
+```
+
+### Sample Response
+
+```json
+{
+  "CreateIndex": 10,
+  "Enabled": true,
+  "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
+  "Max": 10,
+  "Min": 0,
+  "ModifyIndex": 10,
+  "Policy": {
+    "engage": true,
+    "foo": "bar",
+    "howdy": "doody",
+    "value": 6.0
+  },
+  "Target": {
+    "Group": "cache",
+    "Job": "example",
+    "Namespace": "default"
+  }
+}
+```

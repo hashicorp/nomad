@@ -1,0 +1,30 @@
+---
+layout: docs
+page_title: 'Commands: operator snapshot inspect'
+sidebar_title: snapshot inspect
+description: |
+  Display the current Raft peer configuration.
+---
+
+# Command: operator snapshot inspect
+
+Displays information about a snapshot file on disk.
+
+To inspect the file "backup.snap":
+
+```shell-session
+$ nomad operator snapshot inspect backup.snap
+ID       2-19-1592495928936
+Size     3902
+Index    19
+Term     2
+Version  1
+```
+
+## Usage
+
+```plaintext
+nomad operator snapshot inspect <file>
+```
+
+[outage recovery]: https://learn.hashicorp.com/nomad/operating-nomad/outage

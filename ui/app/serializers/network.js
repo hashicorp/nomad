@@ -1,12 +1,12 @@
 import ApplicationSerializer from './application';
 import isIp from 'is-ip';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class NetworkSerializer extends ApplicationSerializer {
+  attrs = {
     cidr: 'CIDR',
     ip: 'IP',
     mbits: 'MBits',
-  },
+  };
 
   normalize(typeHash, hash) {
     const ip = hash.IP;
@@ -31,6 +31,6 @@ export default ApplicationSerializer.extend({
 
     hash.Ports = reservedPorts.concat(dynamicPorts).sortBy('name');
 
-    return this._super(...arguments);
-  },
-});
+    return super.normalize(...arguments);
+  }
+}

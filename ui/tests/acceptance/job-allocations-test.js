@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
 
 let job;
@@ -26,6 +27,15 @@ module('Acceptance | job allocations', function(hooks) {
     server.create('node');
 
     job = server.create('job', { noFailedPlacements: true, createAllocations: false });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    server.createList('allocation', Allocations.pageSize - 1, { shallow: true });
+    allocations = server.schema.allocations.where({ jobId: job.id }).models;
+
+    await Allocations.visit({ id: job.id });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('lists all allocations for the job', async function(assert) {

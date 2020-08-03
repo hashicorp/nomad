@@ -8,13 +8,10 @@ description: Learn about how preemption works in Nomad.
 # Preemption
 
 Preemption allows Nomad to kill existing allocations in order to place allocations for a higher priority job.
-The evicted allocation is temporary displaced until the cluster has capacity to run it. This allows operators to
+The evicted allocation is temporarily displaced until the cluster has capacity to run it. This allows operators to
 run high priority jobs even under resource contention across the cluster.
 
-~> **Advanced Topic!** This page covers technical details of Nomad. You do not
-~> need to understand these details to effectively use Nomad. The details are
-~> documented here for those who wish to learn about them without having to
-~> go spelunking through the source code.
+~> **Advanced Topic!** This page covers technical details of Nomad. You do not need to understand these details to effectively use Nomad. The details are documented here for those who wish to learn about them without having to go spelunking through the source code.
 
 # Preemption in Nomad
 
@@ -25,13 +22,13 @@ Prior to Nomad 0.9, when a cluster is at capacity, any allocations that result f
 job remain in the pending state until sufficient resources become available - regardless of the defined priority.
 This leads to priority inversion, where a low priority task can prevent high priority tasks from completing.
 
-Nomad 0.9 brings preemption capabilities to system jobs. The Nomad scheduler will evict lower priority running allocations
+Nomad has preemption capabilities for service, batch, and system jobs. The Nomad scheduler can be configured to evict lower priority running allocations
 to free up capacity for new allocations resulting from relatively higher priority jobs, sending evicted allocations back
 into the plan queue.
 
 # Details
 
-Preemption is enabled by default in Nomad 0.9. Operators can use the [scheduler config](/api/operator#update-scheduler-configuration) API endpoint to disable preemption.
+Preemption is enabled by default in Nomad 0.9 for system jobs. Operators can use the [scheduler config](/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
 
 Nomad uses the [job priority](/docs/job-specification/job#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority
@@ -55,7 +52,7 @@ allocations `a1`, `a2` and `a4` to satisfy those requirements.
 
 # Preemption Visibility
 
-Operators can use the [allocation API](/api/allocations#read-allocation) or the `alloc status` command to get visibility into
+Operators can use the [allocation API](/api-docs/allocations#read-allocation) or the `alloc status` command to get visibility into
 whether an allocation has been preempted. Preempted allocations will have their DesiredStatus set to “evict”. The `Allocation` object
 in the API also has two additional fields related to preemption.
 
@@ -71,7 +68,7 @@ in the API also has two additional fields related to preemption.
 preemption is necessary to place the job, it shows additional information in the CLI output for
 `nomad plan` as seen below.
 
-```shell
+```shell-session
 $ nomad plan example.nomad
 
 + Job: "test"

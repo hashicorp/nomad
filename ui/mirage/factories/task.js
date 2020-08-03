@@ -17,4 +17,16 @@ export default Factory.extend({
   driver: () => faker.helpers.randomize(DRIVERS),
 
   Resources: generateResources,
+
+  Lifecycle: i => {
+    const cycle = i % 3;
+
+    if (cycle === 0) {
+      return null;
+    } else if (cycle === 1) {
+      return { Hook: 'prestart', Sidecar: false };
+    } else {
+      return { Hook: 'prestart', Sidecar: true };
+    }
+  },
 });

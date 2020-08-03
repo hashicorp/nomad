@@ -81,6 +81,12 @@ type TestAgent struct {
 	// ports that are reserved through freeport that must be returned at
 	// the end of a test, done when Shutdown() is called.
 	ports []int
+
+	// Enterprise specifies if the agent is enterprise or not
+	Enterprise bool
+
+	// shutdown is set to true if agent has been shutdown
+	shutdown bool
 }
 
 // NewTestAgent returns a started agent with the given name and
@@ -91,6 +97,7 @@ func NewTestAgent(t testing.T, name string, configCallback func(*Config)) *TestA
 		T:              t,
 		Name:           name,
 		ConfigCallback: configCallback,
+		Enterprise:     EnterpriseTestAgent,
 	}
 
 	a.Start()
@@ -122,8 +129,15 @@ func (a *TestAgent) Start() *TestAgent {
 
 	i := 10
 
+	advertiseAddrs := *a.Config.AdvertiseAddrs
 RETRY:
 	i--
+
+	// Clear out the advertise addresses such that through retries we
+	// re-normalize the addresses correctly instead of using the values from the
+	// last port selection that had a port conflict.
+	newAddrs := advertiseAddrs
+	a.Config.AdvertiseAddrs = &newAddrs
 	a.pickRandomPorts(a.Config)
 	if a.Config.NodeName == "" {
 		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
@@ -168,7 +182,7 @@ RETRY:
 	}
 
 	failed := false
-	if a.Config.NomadConfig.Bootstrap && a.Config.Server.Enabled {
+	if a.Config.NomadConfig.BootstrapExpect == 1 && a.Config.Server.Enabled {
 		testutil.WaitForResult(func() (bool, error) {
 			args := &structs.GenericRequest{}
 			var leader string
@@ -212,7 +226,8 @@ RETRY:
 
 func (a *TestAgent) start() (*Agent, error) {
 	if a.LogOutput == nil {
-		a.LogOutput = testlog.NewWriter(a.T)
+		prefix := fmt.Sprintf("%v:%v ", a.Config.BindAddr, a.Config.Ports.RPC)
+		a.LogOutput = testlog.NewPrefixWriter(a.T, prefix)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
@@ -247,6 +262,11 @@ func (a *TestAgent) start() (*Agent, error) {
 // Shutdown stops the agent and removes the data directory if it is
 // managed by the test agent.
 func (a *TestAgent) Shutdown() error {
+	if a.shutdown {
+		return nil
+	}
+	a.shutdown = true
+
 	defer freeport.Return(a.ports)
 
 	defer func() {
@@ -308,15 +328,6 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 	c.Ports.RPC = ports[1]
 	c.Ports.Serf = ports[2]
 
-	// Clear out the advertise addresses such that through retries we
-	// re-normalize the addresses correctly instead of using the values from the
-	// last port selection that had a port conflict.
-	if c.AdvertiseAddrs != nil {
-		c.AdvertiseAddrs.HTTP = ""
-		c.AdvertiseAddrs.RPC = ""
-		c.AdvertiseAddrs.Serf = ""
-	}
-
 	if err := c.normalizeAddrs(); err != nil {
 		a.T.Fatalf("error normalizing config: %v", err)
 	}
@@ -357,10 +368,6 @@ func (a *TestAgent) config() *Config {
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
-
-	// Bootstrap ourselves
-	config.Bootstrap = true
-	config.BootstrapExpect = 1
 
 	// Tighten the fingerprinter timeouts
 	if conf.Client.Options == nil {

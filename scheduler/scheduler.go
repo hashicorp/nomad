@@ -76,6 +76,9 @@ type State interface {
 	// AllocsByNode returns all the allocations by node
 	AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error)
 
+	// AllocByID returns the allocation
+	AllocByID(ws memdb.WatchSet, allocID string) (*structs.Allocation, error)
+
 	// AllocsByNodeTerminal returns all the allocations by node filtering by terminal status
 	AllocsByNodeTerminal(ws memdb.WatchSet, node string, terminal bool) ([]*structs.Allocation, error)
 
@@ -91,6 +94,12 @@ type State interface {
 
 	// SchedulerConfig returns config options for the scheduler
 	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
+
+	// CSIVolumeByID fetch CSI volumes, containing controller jobs
+	CSIVolumeByID(memdb.WatchSet, string, string) (*structs.CSIVolume, error)
+
+	// CSIVolumeByID fetch CSI volumes, containing controller jobs
+	CSIVolumesByNodeID(memdb.WatchSet, string) (memdb.ResultIterator, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

@@ -3,19 +3,21 @@ import { task, timeout } from 'ember-concurrency';
 import { decode } from 'nomad-ui/utils/stream-frames';
 import AbstractLogger from './abstract-logger';
 import { fetchFailure } from './log';
+import classic from 'ember-classic-decorator';
 
-export default EmberObject.extend(AbstractLogger, {
-  interval: 1000,
+@classic
+export default class PollLogger extends EmberObject.extend(AbstractLogger) {
+  interval = 1000;
 
   start() {
     return this.poll.linked().perform();
-  },
+  }
 
   stop() {
     return this.poll.cancelAll();
-  },
+  }
 
-  poll: task(function*() {
+  @task(function*() {
     const { interval, logFetch } = this;
     while (true) {
       const url = this.fullUrl;
@@ -37,5 +39,6 @@ export default EmberObject.extend(AbstractLogger, {
 
       yield timeout(interval);
     }
-  }),
-});
+  })
+  poll;
+}

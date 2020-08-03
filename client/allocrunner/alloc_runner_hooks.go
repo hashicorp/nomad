@@ -7,10 +7,40 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
+
+type hookResourceSetter interface {
+	GetAllocHookResources() *cstructs.AllocHookResources
+	SetAllocHookResources(*cstructs.AllocHookResources)
+}
+
+type allocHookResourceSetter struct {
+	ar *allocRunner
+}
+
+func (a *allocHookResourceSetter) GetAllocHookResources() *cstructs.AllocHookResources {
+	a.ar.hookStateMu.RLock()
+	defer a.ar.hookStateMu.RUnlock()
+
+	return a.ar.hookState
+}
+
+func (a *allocHookResourceSetter) SetAllocHookResources(res *cstructs.AllocHookResources) {
+	a.ar.hookStateMu.Lock()
+	defer a.ar.hookStateMu.Unlock()
+
+	a.ar.hookState = res
+
+	// Propagate to all of the TRs within the lock to ensure consistent state.
+	// TODO: Refactor so TR's pull state from AR?
+	for _, tr := range a.ar.tasks {
+		tr.SetAllocHookResources(res)
+	}
+}
 
 type networkIsolationSetter interface {
 	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
@@ -95,7 +125,7 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.allocBroadcaster.Send(calloc)
 }
 
-// initRunnerHooks intializes the runners hooks.
+// initRunnerHooks initializes the runners hooks.
 func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	hookLogger := ar.logger.Named("runner_hook")
 
@@ -104,6 +134,10 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 
 	// create network isolation setting shim
 	ns := &allocNetworkIsolationSetter{ar: ar}
+
+	// create hook resource setting shim
+	hrs := &allocHookResourceSetter{ar: ar}
+	hrs.SetAllocHookResources(&cstructs.AllocHookResources{})
 
 	// build the network manager
 	nm, err := newNetworkManager(ar.Alloc(), ar.driverManager)
@@ -133,7 +167,9 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			taskEnvBuilder: taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
 			logger:         hookLogger,
 		}),
-		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newCSIHook(ar, hookLogger, alloc, ar.rpcClient, ar.csiManager, hrs),
 	}
 
 	return nil

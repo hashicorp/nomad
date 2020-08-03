@@ -96,20 +96,26 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		cleanup()
 	}
 
+	// Create a closed channel to mock TaskHookCoordinator.startConditionForTask.
+	// Closed channel indicates this task is not blocked on prestart hooks.
+	closedCh := make(chan struct{})
+	close(closedCh)
+
 	conf := &Config{
-		Alloc:              alloc,
-		ClientConfig:       clientConf,
-		Task:               thisTask,
-		TaskDir:            taskDir,
-		Logger:             clientConf.Logger,
-		Consul:             consulapi.NewMockConsulServiceClient(t, logger),
-		ConsulSI:           consulapi.NewMockServiceIdentitiesClient(),
-		Vault:              vaultclient.NewMockVaultClient(),
-		StateDB:            cstate.NoopDB{},
-		StateUpdater:       NewMockTaskStateUpdater(),
-		DeviceManager:      devicemanager.NoopMockManager(),
-		DriverManager:      drivermanager.TestDriverManager(t),
-		ServersContactedCh: make(chan struct{}),
+		Alloc:                alloc,
+		ClientConfig:         clientConf,
+		Task:                 thisTask,
+		TaskDir:              taskDir,
+		Logger:               clientConf.Logger,
+		Consul:               consulapi.NewMockConsulServiceClient(t, logger),
+		ConsulSI:             consulapi.NewMockServiceIdentitiesClient(),
+		Vault:                vaultclient.NewMockVaultClient(),
+		StateDB:              cstate.NoopDB{},
+		StateUpdater:         NewMockTaskStateUpdater(),
+		DeviceManager:        devicemanager.NoopMockManager(),
+		DriverManager:        drivermanager.TestDriverManager(t),
+		ServersContactedCh:   make(chan struct{}),
+		StartConditionMetCtx: closedCh,
 	}
 	return conf, trCleanup
 }
@@ -1496,6 +1502,7 @@ func TestTaskRunner_Download_ChrootExec(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.RestartPolicy = &structs.RestartPolicy{}
 	task.Driver = "exec"
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
@@ -1535,6 +1542,7 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.RestartPolicy = &structs.RestartPolicy{}
 	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
 		"command": "noop.sh",
@@ -1625,12 +1633,14 @@ func TestTaskRunner_Download_Retries(t *testing.T) {
 	task.Artifacts = []*structs.TaskArtifact{&artifact}
 
 	// Make the restart policy retry once
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
 		Delay:    1 * time.Second,
 		Mode:     structs.RestartPolicyModeFail,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
@@ -1867,12 +1877,14 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 	}
 
 	// Make the restart policy retry once
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
 		Delay:    0,
 		Mode:     structs.RestartPolicyModeFail,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
@@ -2239,13 +2251,15 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 
 	alloc := mock.Alloc()
 	// Make the restart policy try one ctx.update
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
+	rp := &structs.RestartPolicy{
 		Attempts: 1,
 		Interval: 10 * time.Minute,
 		Delay:    time.Nanosecond,
 		Mode:     structs.RestartPolicyModeFail,
 	}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
 	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.RestartPolicy = rp
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
 		"exit_code": "1",

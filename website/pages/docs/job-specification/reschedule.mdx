@@ -63,6 +63,7 @@ every node.
 
 - `delay` `(string: <varies>)` - Specifies the duration to wait before attempting
   to reschedule a failed task. This is specified using a label suffix like "30s" or "1h".
+  Delay cannot be less than 5 seconds.
 
 - `delay_function` `(string: <varies>)` - Specifies the function that is used to
   calculate subsequent reschedule delays. The initial delay is specified by the delay parameter.
@@ -111,12 +112,6 @@ defaults by job type:
    unlimited      = true
   }
   ```
-
-### Rescheduling during deployments
-
-The [update stanza](/docs/job-specification/update) controls rolling updates and canary deployments. A task
-group's reschedule stanza does not take affect during a deployment. For example, if a new version of the job
-is rolled out and the deployment failed due to a failing allocation, Nomad will not reschedule it.
 
 ### Disabling rescheduling
 

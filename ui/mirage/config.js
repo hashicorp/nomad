@@ -44,7 +44,7 @@ export default function() {
 
       // Annotate the response with the index
       if (response instanceof Response) {
-        response.headers['X-Nomad-Index'] = index;
+        response.headers['x-nomad-index'] = index;
         return response;
       }
       return new Response(200, { 'x-nomad-index': index }, response);
@@ -157,6 +157,14 @@ export default function() {
     return deployment ? this.serialize(deployment) : new Response(200, {}, 'null');
   });
 
+  this.get(
+    '/job/:id/scale',
+    withBlockingSupport(function({ jobScales }, { params }) {
+      const obj = jobScales.findBy({ jobId: params.id });
+      return this.serialize(jobScales.findBy({ jobId: params.id }));
+    })
+  );
+
   this.post('/job/:id/periodic/force', function(schema, { params }) {
     // Create the child job
     const parent = schema.jobs.find(params.id);
@@ -170,6 +178,10 @@ export default function() {
     });
 
     return okEmpty();
+  });
+
+  this.post('/job/:id/scale', function({ jobs }, { params }) {
+    return this.serialize(jobs.find(params.id));
   });
 
   this.delete('/job/:id', function(schema, { params }) {
@@ -227,6 +239,64 @@ export default function() {
     return new Response(204, {}, '');
   });
 
+  this.get(
+    '/volumes',
+    withBlockingSupport(function({ csiVolumes }, { queryParams }) {
+      if (queryParams.type !== 'csi') {
+        return new Response(200, {}, '[]');
+      }
+
+      const json = this.serialize(csiVolumes.all());
+      const namespace = queryParams.namespace || 'default';
+      return json.filter(volume =>
+        namespace === 'default'
+          ? !volume.NamespaceID || volume.NamespaceID === namespace
+          : volume.NamespaceID === namespace
+      );
+    })
+  );
+
+  this.get(
+    '/volume/:id',
+    withBlockingSupport(function({ csiVolumes }, { params }) {
+      if (!params.id.startsWith('csi/')) {
+        return new Response(404, {}, null);
+      }
+
+      const id = params.id.replace(/^csi\//, '');
+      const volume = csiVolumes.find(id);
+
+      if (!volume) {
+        return new Response(404, {}, null);
+      }
+
+      return this.serialize(volume);
+    })
+  );
+
+  this.get('/plugins', function({ csiPlugins }, { queryParams }) {
+    if (queryParams.type !== 'csi') {
+      return new Response(200, {}, '[]');
+    }
+
+    return this.serialize(csiPlugins.all());
+  });
+
+  this.get('/plugin/:id', function({ csiPlugins }, { params }) {
+    if (!params.id.startsWith('csi/')) {
+      return new Response(404, {}, null);
+    }
+
+    const id = params.id.replace(/^csi\//, '');
+    const volume = csiPlugins.find(id);
+
+    if (!volume) {
+      return new Response(404, {}, null);
+    }
+
+    return this.serialize(volume);
+  });
+
   this.get('/namespaces', function({ namespaces }) {
     const records = namespaces.all();
 
@@ -253,12 +323,30 @@ export default function() {
     };
   });
 
+  this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
+    const serverId = queryParams.server_id;
+    const clientId = queryParams.client_id;
+
+    if (serverId && clientId)
+      return new Response(400, {}, 'specify a client or a server, not both');
+    if (serverId && !agents.findBy({ name: serverId }))
+      return new Response(400, {}, 'specified server does not exist');
+    if (clientId && !nodes.find(clientId))
+      return new Response(400, {}, 'specified client does not exist');
+
+    if (queryParams.plain) {
+      return logFrames.join('');
+    }
+
+    return logEncode(logFrames, logFrames.length - 1);
+  });
+
   this.get('/status/leader', function(schema) {
     return JSON.stringify(findLeader(schema));
   });
 
   this.get('/acl/token/self', function({ tokens }, req) {
-    const secret = req.requestHeaders['X-Nomad-Token'];
+    const secret = req.requestHeaders['x-nomad-token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     // Return the token if it exists
@@ -272,7 +360,7 @@ export default function() {
 
   this.get('/acl/token/:id', function({ tokens }, req) {
     const token = tokens.find(req.params.id);
-    const secret = req.requestHeaders['X-Nomad-Token'];
+    const secret = req.requestHeaders['x-nomad-token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     // Return the token only if the request header matches the token
@@ -287,7 +375,7 @@ export default function() {
 
   this.get('/acl/policy/:id', function({ policies, tokens }, req) {
     const policy = policies.find(req.params.id);
-    const secret = req.requestHeaders['X-Nomad-Token'];
+    const secret = req.requestHeaders['x-nomad-token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     if (req.params.id === 'anonymous') {
@@ -335,16 +423,14 @@ export default function() {
     return logEncode(logFrames, logFrames.length - 1);
   };
 
-  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams }) {
-    // Ignore the task name at the beginning of the path
-    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams: { path } }) {
+    const filterPath = path.endsWith('/') ? path.substr(0, path.length - 1) : path;
     const files = filesForPath(allocFiles, filterPath);
     return this.serialize(files);
   };
 
-  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams }) {
-    // Ignore the task name at the beginning of the path
-    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams: { path } }) {
+    const filterPath = path.endsWith('/') ? path.substr(0, path.length - 1) : path;
 
     // Root path
     if (!filterPath) {
@@ -383,15 +469,12 @@ export default function() {
   };
 
   const fileOrError = function(allocFiles, path, message = 'Operation not allowed on a directory') {
-    // Ignore the task name at the beginning of the path
-    const filterPath = path.substr(path.indexOf('/') + 1);
-
     // Root path
-    if (!filterPath) {
+    if (path === '/') {
       return [null, new Response(400, {}, message)];
     }
 
-    const file = allocFiles.where({ path: filterPath }).models[0];
+    const file = allocFiles.where({ path }).models[0];
     if (file.isDir) {
       return [null, new Response(400, {}, message)];
     }

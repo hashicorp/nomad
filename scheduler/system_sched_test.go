@@ -1893,6 +1893,19 @@ func TestSystemSched_Preemption(t *testing.T) {
 					MBits:  1000,
 				},
 			},
+			NodeNetworks: []*structs.NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Addresses: []structs.NodeNetworkAddress{
+						{
+							Family:  structs.NodeNetworkAF_IPv4,
+							Alias:   "default",
+							Address: "192.168.0.100",
+						},
+					},
+				},
+			},
 		}
 		require.NoError(t, h.State.UpsertNode(h.NextIndex(), node))
 		nodes = append(nodes, node)

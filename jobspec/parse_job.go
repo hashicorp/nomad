@@ -38,6 +38,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	delete(m, "update")
 	delete(m, "vault")
 	delete(m, "spread")
+	delete(m, "multiregion")
 
 	// Set the ID and name to the object key
 	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
@@ -80,6 +81,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"vault",
 		"vault_token",
 		"consul_token",
+		"multiregion",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "job:")
@@ -139,6 +141,15 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		if err := parseMigrate(&result.Migrate, o); err != nil {
 			return multierror.Prefix(err, "migrate ->")
 		}
+	}
+
+	// If we have a multiregion block, then parse that
+	if o := listVal.Filter("multiregion"); len(o.Items) > 0 {
+		var mr api.Multiregion
+		if err := parseMultiregion(&mr, o); err != nil {
+			return multierror.Prefix(err, "multiregion ->")
+		}
+		result.Multiregion = &mr
 	}
 
 	// Parse out meta fields. These are in HCL as a list so we need

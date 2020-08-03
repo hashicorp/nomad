@@ -34,7 +34,7 @@ func (m *mockConsulACLsAPI) CheckSIPolicy(_ context.Context, _, _ string) error 
 	panic("not implemented yet")
 }
 
-func (m *mockConsulACLsAPI) CreateToken(_ context.Context, _ ServiceIdentityIndex) (*structs.SIToken, error) {
+func (m *mockConsulACLsAPI) CreateToken(_ context.Context, _ ServiceIdentityRequest) (*structs.SIToken, error) {
 	panic("not implemented yet")
 }
 
@@ -65,6 +65,14 @@ func (mps *mockPurgingServer) purgeFunc(accessors []*structs.SITokenAccessor) er
 }
 
 func (m *mockConsulACLsAPI) RevokeTokens(_ context.Context, accessors []*structs.SITokenAccessor, committed bool) bool {
+	return m.storeForRevocation(accessors, committed)
+}
+
+func (m *mockConsulACLsAPI) MarkForRevocation(accessors []*structs.SITokenAccessor) {
+	m.storeForRevocation(accessors, true)
+}
+
+func (m *mockConsulACLsAPI) storeForRevocation(accessors []*structs.SITokenAccessor, committed bool) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -88,10 +96,11 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 		c := NewConsulACLsAPI(aclAPI, logger, nil)
 
 		ctx := context.Background()
-		sii := ServiceIdentityIndex{
+		sii := ServiceIdentityRequest{
 			AllocID:   uuid.Generate(),
 			ClusterID: uuid.Generate(),
-			TaskName:  "my-task1",
+			TaskName:  "my-task1-sidecar-proxy",
+			TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "my-service"),
 		}
 
 		token, err := c.CreateToken(ctx, sii)
@@ -101,7 +110,7 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 			require.Nil(t, token)
 		} else {
 			require.NoError(t, err)
-			require.Equal(t, "my-task1", token.TaskName)
+			require.Equal(t, "my-task1-sidecar-proxy", token.TaskName)
 			require.True(t, helper.IsUUID(token.AccessorID))
 			require.True(t, helper.IsUUID(token.SecretID))
 		}
@@ -126,10 +135,11 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 		c := NewConsulACLsAPI(aclAPI, logger, nil)
 
 		ctx := context.Background()
-		generated, err := c.CreateToken(ctx, ServiceIdentityIndex{
+		generated, err := c.CreateToken(ctx, ServiceIdentityRequest{
 			ClusterID: uuid.Generate(),
 			AllocID:   uuid.Generate(),
-			TaskName:  "task1",
+			TaskName:  "task1-sidecar-proxy",
+			TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
 		})
 		require.NoError(t, err)
 
@@ -164,6 +174,31 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 		retryLater := c.RevokeTokens(ctx, accessors(token.AccessorID), false)
 		require.True(t, retryLater)
 	})
+}
+
+func TestConsulACLsAPI_MarkForRevocation(t *testing.T) {
+	t.Parallel()
+
+	logger := testlog.HCLogger(t)
+	aclAPI := consul.NewMockACLsAPI(logger)
+
+	c := NewConsulACLsAPI(aclAPI, logger, nil)
+
+	generated, err := c.CreateToken(context.Background(), ServiceIdentityRequest{
+		ClusterID: uuid.Generate(),
+		AllocID:   uuid.Generate(),
+		TaskName:  "task1-sidecar-proxy",
+		TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
+	})
+	require.NoError(t, err)
+
+	// set the mock error after calling CreateToken for setting up
+	aclAPI.SetError(nil)
+
+	accessors := []*structs.SITokenAccessor{{AccessorID: generated.AccessorID}}
+	c.MarkForRevocation(accessors)
+	require.Len(t, c.bgRetryRevocation, 1)
+	require.Contains(t, c.bgRetryRevocation, accessors[0])
 }
 
 func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
@@ -235,7 +270,7 @@ func TestConsulACLsAPI_Stop(t *testing.T) {
 
 	c := setup(t)
 	c.Stop()
-	_, err := c.CreateToken(context.Background(), ServiceIdentityIndex{
+	_, err := c.CreateToken(context.Background(), ServiceIdentityRequest{
 		ClusterID: "",
 		AllocID:   "",
 		TaskName:  "",

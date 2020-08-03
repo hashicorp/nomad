@@ -7,10 +7,10 @@ service_prefix "" {
   policy = "write"
 }
 
-node_prefix "" {
-  policy = "write"
+agent_prefix "" {
+  policy = "read"
 }
 
-agent_prefix "" {
+node_prefix "" {
   policy = "read"
 }

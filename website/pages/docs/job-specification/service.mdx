@@ -147,6 +147,11 @@ Connect][connect] integration.
 
   - `host` - Use the host IP and port.
 
+- `task` `(string: "")` - Specifies the name of the Nomad Task associated with
+  this service definition. Only available on group services. Must be set if this
+  service definition represents a Consul Connect Native service and there is more
+  than one task in the task group.
+
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   the Consul service with user-defined metadata.
 
@@ -213,6 +218,11 @@ scripts.
   add the IP of the service and the port, so this is just the relative URL to
   the health check endpoint. This is required for http-based health checks.
 
+- `expose` `(bool: false)` - Specifies whether an [Expose Path](/docs/job-specification/expose#path-parameters)
+  should be automatically generated for this check. Only compatible with
+  Connect-enabled task-group services using the default Connect proxy. Check
+  must be of [`type`][type] `http` or `grpc`.
+
 - `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
   number unless `address_mode = driver`. The port label must match one defined
@@ -235,6 +245,15 @@ scripts.
 - `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
   health check query to succeed. This is specified using a label suffix like
   "30s" or "1h". This must be greater than or equal to "1s"
+
+  ~> **Caveat:** Script checks use the task driver to execute in the task's
+  environment. For task drivers with namespace isolation such as `docker` or
+  `exec`, setting up the context for the script check may take an unexpectedly
+  long amount of time (a full second or two), especially on busy hosts. The
+  timeout configuration must allow for both this setup and the execution of
+  the script. Operators should use long timeouts (5 or more seconds) for script
+  checks, and monitor telemetry for
+  `client.allocrunner.taskrunner.tasklet_timeout`.
 
 - `type` `(string: <required>)` - This indicates the check types supported by
   Nomad. Valid options are `grpc`, `http`, `script`, and `tcp`. gRPC health
@@ -413,7 +432,7 @@ service {
     name     = "Postgres Check"
     type     = "script"
     command  = "/usr/local/bin/pg-tools"
-    args     = ["verify", "database" "prod", "up"]
+    args     = ["verify", "database", "prod", "up"]
     interval = "5s"
     timeout  = "2s"
   }
@@ -678,12 +697,13 @@ advertise and check directly since Nomad isn't managing any port assignments.
 
 [check_restart_stanza]: /docs/job-specification/check_restart 'check_restart stanza'
 [consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
-[service-discovery]: /guides/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
 [qemu]: /docs/drivers/qemu 'Nomad qemu Driver'
 [restart_stanza]: /docs/job-specification/restart 'restart stanza'
 [connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
-[shutdowndelay]: /docs/job-specification/task#inlinecode-shutdown_delay
-[killsignal]: /docs/job-specification/task#inlinecode-kill_signal
-[killtimeout]: /docs/job-specification/task#inlinecode-kill_timeout
+[type]: /docs/job-specification/service#type
+[shutdowndelay]: /docs/job-specification/task#shutdown_delay
+[killsignal]: /docs/job-specification/task#kill_signal
+[killtimeout]: /docs/job-specification/task#kill_timeout

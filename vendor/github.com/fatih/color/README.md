@@ -1,6 +1,12 @@
-# Color [![GoDoc](https://godoc.org/github.com/fatih/color?status.svg)](https://godoc.org/github.com/fatih/color) [![Build Status](https://img.shields.io/travis/fatih/color.svg?style=flat-square)](https://travis-ci.org/fatih/color)
+# Archived project. No maintenance. 
+
+This project is not maintained anymore and is archived. Feel free to fork and
+make your own changes if needed. For more detail read my blog post: [Taking an indefinite sabbatical from my projects](https://arslan.io/2018/10/09/taking-an-indefinite-sabbatical-from-my-projects/)
+
+Thanks to everyone for their valuable feedback and contributions.
 
 
+# Color [![GoDoc](https://godoc.org/github.com/fatih/color?status.svg)](https://godoc.org/github.com/fatih/color) 
 
 Color lets you use colorized outputs in terms of [ANSI Escape
 Codes](http://en.wikipedia.org/wiki/ANSI_escape_code#Colors) in Go (Golang). It
@@ -16,9 +22,6 @@ suits you.
 ```bash
 go get github.com/fatih/color
 ```
-
-Note that the `vendor` folder is here for stability. Remove the folder if you
-already have the dependencies in your GOPATH.
 
 ## Examples
 
@@ -130,13 +133,13 @@ fmt.Println("All text will now be bold magenta.")
 ```
 
 ### Disable/Enable color
-
-There might be a case where you want to explicitly disable/enable color output. the
-`go-isatty` package will automatically disable color output for non-tty output streams
+ 
+There might be a case where you want to explicitly disable/enable color output. the 
+`go-isatty` package will automatically disable color output for non-tty output streams 
 (for example if the output were piped directly to `less`)
 
-`Color` has support to disable/enable colors both globally and for single color
-definitions. For example suppose you have a CLI app and a `--no-color` bool flag. You
+`Color` has support to disable/enable colors both globally and for single color 
+definitions. For example suppose you have a CLI app and a `--no-color` bool flag. You 
 can easily disable the color output with:
 
 ```go
@@ -176,3 +179,4 @@ c.Println("This prints again cyan...")
 ## License
 
 The MIT License (MIT) - see [`LICENSE.md`](https://github.com/fatih/color/blob/master/LICENSE.md) for more details
+

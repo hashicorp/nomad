@@ -1,3 +1,5 @@
 import AbstractJobPage from './abstract';
+import classic from 'ember-classic-decorator';
 
-export default AbstractJobPage.extend();
+@classic
+export default class Batch extends AbstractJobPage {}

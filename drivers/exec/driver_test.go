@@ -59,7 +59,10 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 		t.Skip("Test only available not on Linux")
 	}
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
@@ -78,7 +81,10 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
@@ -97,7 +103,10 @@ func TestExecDriver_StartWait(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -129,7 +138,10 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -190,7 +202,10 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	dctx, dcancel := context.WithCancel(context.Background())
+	defer dcancel()
+
+	d := NewExecDriver(dctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -262,7 +277,10 @@ func TestExecDriver_DestroyKillsAll(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -360,7 +378,10 @@ func TestExecDriver_Stats(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	dctx, dcancel := context.WithCancel(context.Background())
+	defer dcancel()
+
+	d := NewExecDriver(dctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -403,7 +424,10 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -452,7 +476,10 @@ func TestExecDriver_User(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -486,7 +513,10 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -574,7 +604,10 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
 	require.NoError(err)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:         uuid.Generate(),
@@ -678,7 +711,10 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	config := &Config{NoPivotRoot: true}

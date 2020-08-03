@@ -250,16 +250,21 @@ type HMACKeysIterator struct {
 	pageInfo  *iterator.PageInfo
 	nextFunc  func() error
 	index     int
+	desc      hmacKeyDesc
 }
 
 // ListHMACKeys returns an iterator for listing HMACKeys.
 //
 // This method is EXPERIMENTAL and subject to change or removal without notice.
-func (c *Client) ListHMACKeys(ctx context.Context, projectID string) *HMACKeysIterator {
+func (c *Client) ListHMACKeys(ctx context.Context, projectID string, opts ...HMACKeyOption) *HMACKeysIterator {
 	it := &HMACKeysIterator{
 		ctx:       ctx,
 		raw:       raw.NewProjectsHmacKeysService(c.raw),
 		projectID: projectID,
+	}
+
+	for _, opt := range opts {
+		opt.withHMACKeyDesc(&it.desc)
 	}
 
 	it.pageInfo, it.nextFunc = iterator.NewPageInfo(
@@ -298,10 +303,18 @@ func (it *HMACKeysIterator) PageInfo() *iterator.PageInfo { return it.pageInfo }
 func (it *HMACKeysIterator) fetch(pageSize int, pageToken string) (token string, err error) {
 	call := it.raw.List(it.projectID)
 	setClientHeader(call.Header())
-	call = call.PageToken(pageToken)
-	// By default we'll also show deleted keys and then
-	// let users filter on their own.
-	call = call.ShowDeletedKeys(true)
+	if pageToken != "" {
+		call = call.PageToken(pageToken)
+	}
+	if it.desc.showDeletedKeys {
+		call = call.ShowDeletedKeys(true)
+	}
+	if it.desc.userProjectID != "" {
+		call = call.UserProject(it.desc.userProjectID)
+	}
+	if it.desc.forServiceAccountEmail != "" {
+		call = call.ServiceAccountEmail(it.desc.forServiceAccountEmail)
+	}
 	if pageSize > 0 {
 		call = call.MaxResults(int64(pageSize))
 	}
@@ -327,4 +340,48 @@ func (it *HMACKeysIterator) fetch(pageSize int, pageToken string) (token string,
 		it.hmacKeys = append(it.hmacKeys, hkey)
 	}
 	return resp.NextPageToken, nil
+}
+
+type hmacKeyDesc struct {
+	forServiceAccountEmail string
+	showDeletedKeys        bool
+	userProjectID          string
+}
+
+// HMACKeyOption configures the behavior of HMACKey related methods and actions.
+type HMACKeyOption interface {
+	withHMACKeyDesc(*hmacKeyDesc)
+}
+
+type hmacKeyDescFunc func(*hmacKeyDesc)
+
+func (hkdf hmacKeyDescFunc) withHMACKeyDesc(hkd *hmacKeyDesc) {
+	hkdf(hkd)
+}
+
+// ForHMACKeyServiceAccountEmail returns HMAC Keys that are
+// associated with the email address of a service account in the project.
+//
+// Only one service account email can be used as a filter, so if multiple
+// of these options are applied, the last email to be set will be used.
+func ForHMACKeyServiceAccountEmail(serviceAccountEmail string) HMACKeyOption {
+	return hmacKeyDescFunc(func(hkd *hmacKeyDesc) {
+		hkd.forServiceAccountEmail = serviceAccountEmail
+	})
+}
+
+// ShowDeletedHMACKeys will also list keys whose state is "DELETED".
+func ShowDeletedHMACKeys() HMACKeyOption {
+	return hmacKeyDescFunc(func(hkd *hmacKeyDesc) {
+		hkd.showDeletedKeys = true
+	})
+}
+
+// HMACKeysForUserProject will bill the request against userProjectID.
+//
+// Note: This is a noop right now and only provided for API compatibility.
+func HMACKeysForUserProject(userProjectID string) HMACKeyOption {
+	return hmacKeyDescFunc(func(hkd *hmacKeyDesc) {
+		hkd.userProjectID = userProjectID
+	})
 }

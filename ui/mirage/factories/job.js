@@ -18,6 +18,8 @@ export default Factory.extend({
     return this.id;
   },
 
+  version: 1,
+
   groupsCount: () => faker.random.number({ min: 1, max: 2 }),
 
   region: () => 'global',
@@ -128,6 +130,11 @@ export default Factory.extend({
       withServices: job.withGroupServices,
       shallow: job.shallow,
     };
+
+    if (job.groupTaskCount) {
+      groupProps.count = job.groupTaskCount;
+    }
+
     const groups = job.noHostVolumes
       ? server.createList('task-group', job.groupsCount, 'noHostVolumes', groupProps)
       : server.createList('task-group', job.groupsCount, groupProps);
@@ -149,6 +156,17 @@ export default Factory.extend({
     job.update({
       jobSummaryId: jobSummary.id,
       job_summary_id: jobSummary.id,
+    });
+
+    const jobScale = server.create('job-scale', {
+      groupNames: groups.mapBy('name'),
+      jobId: job.id,
+      namespace: job.namespace,
+      shallow: job.shallow,
+    });
+
+    job.update({
+      jobScaleId: jobScale.id,
     });
 
     if (!job.noDeployments) {

@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -69,6 +70,11 @@ func (tr *TaskRunner) initHooks() {
 		newDeviceHook(tr.devicemanager, hookLogger),
 	}
 
+	// If the task has a CSI stanza, add the hook.
+	if task.CSIPluginConfig != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(filepath.Join(tr.clientConfig.StateDir, "csi"), tr, tr, hookLogger))
+	}
+
 	// If Vault is enabled, add the hook
 	if task.Vault != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
@@ -121,12 +127,15 @@ func (tr *TaskRunner) initHooks() {
 			}))
 		}
 
-		// envoy bootstrap must execute after sidsHook maybe sets SI token
-		tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
-			alloc:          alloc,
-			consulHTTPAddr: tr.clientConfig.ConsulConfig.Addr,
-			logger:         hookLogger,
-		}))
+		if task.Kind.IsConnectProxy() {
+			tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(
+				newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
+			))
+		} else if task.Kind.IsConnectNative() {
+			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
+				newConnectNativeHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
+			))
+		}
 	}
 
 	// If there are any script checks, add the hook

@@ -10,6 +10,7 @@ import {
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
+import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
 export default create({
   visit: visitable('/allocations/:id'),
@@ -18,6 +19,10 @@ export default create({
 
   stop: twoStepButton('[data-test-stop]'),
   restart: twoStepButton('[data-test-restart]'),
+
+  execButton: {
+    scope: '[data-test-exec-button]',
+  },
 
   details: {
     scope: '[data-test-allocation-details]',
@@ -35,6 +40,8 @@ export default create({
   }),
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
+
+  lifecycleChart: LifecycleChart,
 
   tasks: collection('[data-test-task-row]', {
     name: text('[data-test-name]'),

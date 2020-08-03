@@ -481,7 +481,16 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 		t.Fatalf("Allocs did not get GC'd: %v", err)
 	})
 
-	require.Len(client.getAllocRunners(), 8)
+	// check that all 8 get run eventually
+	testutil.WaitForResult(func() (bool, error) {
+		ar := client.getAllocRunners()
+		if len(ar) != 8 {
+			return false, fmt.Errorf("expected 8 ARs, found %d: %v", len(ar), ar)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {

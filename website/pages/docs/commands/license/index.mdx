@@ -1,0 +1,29 @@
+---
+layout: docs
+page_title: 'Commands: license'
+sidebar_title: license
+description: |
+  The license command is used to interact with an enterprise license.
+---
+
+# Command: license
+
+~> License commands are new in Nomad 0.12.0 and are only available with Nomad Enterprise.
+
+The `license` command provides cluster level management of the Nomad Enterprise license.
+
+If ACLs are enabled then a token with operator privileges may be required in order to use
+this command.
+
+## Usage
+
+Usage: `nomad license <subcommand> [options]`
+
+Run `nomad license <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`license get`][get] - Get the current license
+- [`license put`][put] - Set the current license
+
+[get]: /docs/commands/license/get 'Get the current license'
+[put]: /docs/commands/license/put 'Set the current license'

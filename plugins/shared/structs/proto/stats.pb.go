@@ -3,10 +3,12 @@
 
 package proto
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import wrappers "github.com/golang/protobuf/ptypes/wrappers"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	wrappers "github.com/golang/protobuf/ptypes/wrappers"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -17,7 +19,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // StatObject is a collection of statistics either exposed at the top
 // level or via nested StatObjects.
@@ -35,16 +37,17 @@ func (m *StatObject) Reset()         { *m = StatObject{} }
 func (m *StatObject) String() string { return proto.CompactTextString(m) }
 func (*StatObject) ProtoMessage()    {}
 func (*StatObject) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_73a5e405c9cf442c, []int{0}
+	return fileDescriptor_cbe97f35e2eb2516, []int{0}
 }
+
 func (m *StatObject) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StatObject.Unmarshal(m, b)
 }
 func (m *StatObject) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StatObject.Marshal(b, m, deterministic)
 }
-func (dst *StatObject) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StatObject.Merge(dst, src)
+func (m *StatObject) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StatObject.Merge(m, src)
 }
 func (m *StatObject) XXX_Size() int {
 	return xxx_messageInfo_StatObject.Size(m)
@@ -100,16 +103,17 @@ func (m *StatValue) Reset()         { *m = StatValue{} }
 func (m *StatValue) String() string { return proto.CompactTextString(m) }
 func (*StatValue) ProtoMessage()    {}
 func (*StatValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_73a5e405c9cf442c, []int{1}
+	return fileDescriptor_cbe97f35e2eb2516, []int{1}
 }
+
 func (m *StatValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StatValue.Unmarshal(m, b)
 }
 func (m *StatValue) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StatValue.Marshal(b, m, deterministic)
 }
-func (dst *StatValue) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StatValue.Merge(dst, src)
+func (m *StatValue) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StatValue.Merge(m, src)
 }
 func (m *StatValue) XXX_Size() int {
 	return xxx_messageInfo_StatValue.Size(m)
@@ -184,10 +188,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("plugins/shared/structs/proto/stats.proto", fileDescriptor_stats_73a5e405c9cf442c)
+	proto.RegisterFile("plugins/shared/structs/proto/stats.proto", fileDescriptor_cbe97f35e2eb2516)
 }
 
-var fileDescriptor_stats_73a5e405c9cf442c = []byte{
+var fileDescriptor_cbe97f35e2eb2516 = []byte{
 	// 444 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0xd2, 0xdf, 0x6a, 0x13, 0x41,
 	0x14, 0x06, 0x70, 0x36, 0xdb, 0x24, 0xcd, 0xc9, 0x45, 0xed, 0x14, 0x61, 0x89, 0x22, 0xa1, 0x17,

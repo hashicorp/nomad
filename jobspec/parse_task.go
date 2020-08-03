@@ -12,6 +12,41 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+var (
+	commonTaskKeys = []string{
+		"driver",
+		"user",
+		"config",
+		"env",
+		"resources",
+		"meta",
+		"logs",
+		"kill_timeout",
+		"shutdown_delay",
+		"kill_signal",
+	}
+
+	normalTaskKeys = append(commonTaskKeys,
+		"artifact",
+		"constraint",
+		"affinity",
+		"dispatch_payload",
+		"lifecycle",
+		"leader",
+		"restart",
+		"service",
+		"template",
+		"vault",
+		"kind",
+		"volume_mount",
+		"csi_plugin",
+	)
+
+	sidecarTaskKeys = append(commonTaskKeys,
+		"name",
+	)
+)
+
 func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 	list = list.Children()
 	if len(list.Items) == 0 {
@@ -29,7 +64,7 @@ func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 		}
 		seen[n] = struct{}{}
 
-		t, err := parseTask(item)
+		t, err := parseTask(item, normalTaskKeys)
 		if err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 		}
@@ -42,7 +77,7 @@ func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseTask(item *ast.ObjectItem) (*api.Task, error) {
+func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	// We need this later
 	var listVal *ast.ObjectList
 	if ot, ok := item.Val.(*ast.ObjectType); ok {
@@ -52,29 +87,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	}
 
 	// Check for invalid keys
-	valid := []string{
-		"artifact",
-		"config",
-		"constraint",
-		"affinity",
-		"dispatch_payload",
-		"driver",
-		"env",
-		"kill_timeout",
-		"leader",
-		"logs",
-		"meta",
-		"resources",
-		"service",
-		"shutdown_delay",
-		"template",
-		"user",
-		"vault",
-		"kill_signal",
-		"kind",
-		"volume_mount",
-	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+	if err := helper.CheckHCLKeys(listVal, keys); err != nil {
 		return nil, err
 	}
 
@@ -87,14 +100,17 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	delete(m, "constraint")
 	delete(m, "affinity")
 	delete(m, "dispatch_payload")
+	delete(m, "lifecycle")
 	delete(m, "env")
 	delete(m, "logs")
 	delete(m, "meta")
 	delete(m, "resources")
+	delete(m, "restart")
 	delete(m, "service")
 	delete(m, "template")
 	delete(m, "vault")
 	delete(m, "volume_mount")
+	delete(m, "csi_plugin")
 
 	// Build the task
 	var t api.Task
@@ -131,6 +147,25 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 
 		t.Services = services
+	}
+
+	if o := listVal.Filter("csi_plugin"); len(o.Items) > 0 {
+		if len(o.Items) != 1 {
+			return nil, fmt.Errorf("csi_plugin -> Expected single stanza, got %d", len(o.Items))
+		}
+		i := o.Elem().Items[0]
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, i.Val); err != nil {
+			return nil, err
+		}
+
+		var cfg api.TaskCSIPluginConfig
+		if err := mapstructure.WeakDecode(m, &cfg); err != nil {
+			return nil, err
+		}
+
+		t.CSIPluginConfig = &cfg
 	}
 
 	// If we have config, then parse that
@@ -190,6 +225,13 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 
 		t.Resources = &r
+	}
+
+	// Parse restart policy
+	if o := listVal.Filter("restart"); len(o.Items) > 0 {
+		if err := parseRestartPolicy(&t.RestartPolicy, o); err != nil {
+			return nil, multierror.Prefix(err, "restart ->")
+		}
 	}
 
 	// If we have logs then parse that
@@ -275,6 +317,33 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 	}
 
+	// If we have a lifecycle block parse that
+	if o := listVal.Filter("lifecycle"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return nil, fmt.Errorf("only one lifecycle block is allowed in a task. Number of lifecycle blocks found: %d", len(o.Items))
+		}
+
+		var m map[string]interface{}
+		lifecycleBlock := o.Items[0]
+
+		// Check for invalid keys
+		valid := []string{
+			"hook",
+			"sidecar",
+		}
+		if err := helper.CheckHCLKeys(lifecycleBlock.Val, valid); err != nil {
+			return nil, multierror.Prefix(err, "lifecycle ->")
+		}
+
+		if err := hcl.DecodeObject(&m, lifecycleBlock.Val); err != nil {
+			return nil, err
+		}
+
+		t.Lifecycle = &api.TaskLifecycle{}
+		if err := mapstructure.WeakDecode(m, t.Lifecycle); err != nil {
+			return nil, err
+		}
+	}
 	return &t, nil
 }
 
@@ -359,7 +428,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"source",
 			"splay",
 			"env",
-			"vault_grace",
+			"vault_grace", //COMPAT(0.12) not used; emits warning in 0.11.
 		}
 		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
 			return err

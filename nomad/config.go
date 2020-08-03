@@ -49,16 +49,23 @@ func DefaultRPCAddr() *net.TCPAddr {
 
 // Config is used to parameterize the server
 type Config struct {
-	// Bootstrap mode is used to bring up the first Nomad server.  It is
-	// required so that it can elect a leader without any other nodes
-	// being present
-	Bootstrap bool
+	// Bootstrapped indicates if Server has bootstrapped or not.
+	// Its value must be 0 (not bootstrapped) or 1 (bootstrapped).
+	// All operations on Bootstrapped must be handled via `atomic.*Int32()` calls
+	Bootstrapped int32
 
 	// BootstrapExpect mode is used to automatically bring up a
 	// collection of Nomad servers. This can be used to automatically
-	// bring up a collection of nodes.  All operations on BootstrapExpect
-	// must be handled via `atomic.*Int32()` calls.
-	BootstrapExpect int32
+	// bring up a collection of nodes.
+	//
+	// The BootstrapExpect can be of any of the following values:
+	//  1: Server will form a single node cluster and become a leader immediately
+	//  N, larger than 1: Server will wait until it's connected to N servers
+	//      before attempting leadership and forming the cluster.  No Raft Log operation
+	//      will succeed until then.
+	//  0: Server will wait to get a Raft configuration from another node and may not
+	//      attempt to form a cluster or establish leadership on its own.
+	BootstrapExpect int
 
 	// DataDir is the directory to store our state in
 	DataDir string
@@ -70,10 +77,6 @@ type Config struct {
 	// EnableDebug is used to enable debugging RPC endpoints
 	// in the absence of ACLs
 	EnableDebug bool
-
-	// DevDisableBootstrap is used to disable bootstrap mode while
-	// in DevMode. This is largely used for testing.
-	DevDisableBootstrap bool
 
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
@@ -187,6 +190,21 @@ type Config struct {
 	// DeploymentGCThreshold is how "old" a deployment must be to be eligible
 	// for GC. This gives users some time to view terminal deployments.
 	DeploymentGCThreshold time.Duration
+
+	// CSIPluginGCInterval is how often we dispatch a job to GC unused plugins.
+	CSIPluginGCInterval time.Duration
+
+	// CSIPluginGCThreshold is how "old" a plugin must be to be eligible
+	// for GC. This gives users some time to debug plugins.
+	CSIPluginGCThreshold time.Duration
+
+	// CSIVolumeClaimGCInterval is how often we dispatch a job to GC
+	// volume claims.
+	CSIVolumeClaimGCInterval time.Duration
+
+	// CSIVolumeClaimGCThreshold is how "old" a volume must be to be
+	// eligible for GC. This gives users some time to debug volumes.
+	CSIVolumeClaimGCThreshold time.Duration
 
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
@@ -330,6 +348,13 @@ type Config struct {
 	// RPCMaxConnsPerClient is the maximum number of concurrent RPC
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
+
+	// LicenseConfig is a tunable knob for enterprise license testing.
+	LicenseConfig *LicenseConfig
+
+	// AgentShutdown is used to call agent.Shutdown from the context of a Server
+	// It is used primarily for licensing
+	AgentShutdown func() error
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -374,6 +399,10 @@ func DefaultConfig() *Config {
 		NodeGCThreshold:                  24 * time.Hour,
 		DeploymentGCInterval:             5 * time.Minute,
 		DeploymentGCThreshold:            1 * time.Hour,
+		CSIPluginGCInterval:              5 * time.Minute,
+		CSIPluginGCThreshold:             1 * time.Hour,
+		CSIVolumeClaimGCInterval:         5 * time.Minute,
+		CSIVolumeClaimGCThreshold:        1 * time.Hour,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
@@ -391,6 +420,7 @@ func DefaultConfig() *Config {
 		TLSConfig:                        &config.TLSConfig{},
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
+		LicenseConfig:                    &LicenseConfig{},
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
@@ -400,6 +430,7 @@ func DefaultConfig() *Config {
 		ServerHealthInterval: 2 * time.Second,
 		AutopilotInterval:    10 * time.Second,
 		DefaultSchedulerConfig: structs.SchedulerConfiguration{
+			SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled:  true,
 				BatchSchedulerEnabled:   false,

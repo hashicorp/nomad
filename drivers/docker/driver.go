@@ -1,8 +1,11 @@
 package docker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -87,10 +90,6 @@ type Driver struct {
 	// coordinate shutdown
 	ctx context.Context
 
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
 	// tasks is the in memory datastore mapping taskIDs to taskHandles
 	tasks *taskStore
 
@@ -117,16 +116,14 @@ type Driver struct {
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
-func NewDockerDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		config:         &DriverConfig{},
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		config:  &DriverConfig{},
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -269,6 +266,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	id, err := d.createImage(cfg, &driverConfig, client)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if runtime.GOOS == "windows" {
+		err = d.convertAllocPathsForWindowsLCOW(cfg, driverConfig.Image)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	containerCfg, err := d.createContainerConfig(cfg, &driverConfig, driverConfig.Image)
@@ -436,16 +440,21 @@ CREATE:
 			return container, nil
 		}
 
-		// Delete matching containers
-		err = client.RemoveContainer(docker.RemoveContainerOptions{
-			ID:    container.ID,
-			Force: true,
-		})
-		if err != nil {
-			d.logger.Error("failed to purge container", "container_id", container.ID)
-			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
-		} else {
-			d.logger.Info("purged container", "container_id", container.ID)
+		// Purge conflicting container if found.
+		// If container is nil here, the conflicting container was
+		// deleted in our check here, so retry again.
+		if container != nil {
+			// Delete matching containers
+			err = client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:    container.ID,
+				Force: true,
+			})
+			if err != nil {
+				d.logger.Error("failed to purge container", "container_id", container.ID)
+				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
+			} else {
+				d.logger.Info("purged container", "container_id", container.ID)
+			}
 		}
 
 		if attempted < 5 {
@@ -504,8 +513,6 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	image := driverConfig.Image
 	repo, tag := parseDockerImage(image)
 
-	callerID := fmt.Sprintf("%s-%s", task.ID, task.Name)
-
 	// We're going to check whether the image is already downloaded. If the tag
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
 	// bother to check and cache the id here. We'll download first, then cache.
@@ -514,7 +521,7 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	} else if tag != "latest" {
 		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
 			// Image exists so just increment its reference count
-			d.coordinator.IncrementImageReference(dockerImage.ID, image, callerID)
+			d.coordinator.IncrementImageReference(dockerImage.ID, image, task.ID)
 			return dockerImage.ID, nil
 		}
 	}
@@ -608,8 +615,24 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 	return dockerImage.ID, nil
 }
 
-func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
+func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image string) error {
+	imageConfig, err := client.InspectImage(image)
+	if err != nil {
+		return fmt.Errorf("the image does not exist: %v", err)
+	}
+	// LCOW If we are running a Linux Container on Windows, we need to mount it correctly, as c:\ does not exist on unix
+	if imageConfig.OS == "linux" {
+		a := []rune(task.Env[taskenv.AllocDir])
+		task.Env[taskenv.AllocDir] = strings.ReplaceAll(string(a[2:]), "\\", "/")
+		l := []rune(task.Env[taskenv.TaskLocalDir])
+		task.Env[taskenv.TaskLocalDir] = strings.ReplaceAll(string(l[2:]), "\\", "/")
+		s := []rune(task.Env[taskenv.SecretsDir])
+		task.Env[taskenv.SecretsDir] = strings.ReplaceAll(string(s[2:]), "\\", "/")
+	}
+	return nil
+}
 
+func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
@@ -672,6 +695,59 @@ var userMountToUnixMount = map[string]string{
 	nstructs.VolumeMountPropagationBidirectional: "rshared",
 }
 
+// takes a local seccomp daemon, reads the file contents for sending to the daemon
+// this code modified slightly from the docker CLI code
+// https://github.com/docker/cli/blob/8ef8547eb6934b28497d309d21e280bcd25145f5/cli/command/container/opts.go#L840
+func parseSecurityOpts(securityOpts []string) ([]string, error) {
+	for key, opt := range securityOpts {
+		con := strings.SplitN(opt, "=", 2)
+		if len(con) == 1 && con[0] != "no-new-privileges" {
+			if strings.Contains(opt, ":") {
+				con = strings.SplitN(opt, ":", 2)
+			} else {
+				return securityOpts, fmt.Errorf("invalid security_opt: %q", opt)
+			}
+		}
+		if con[0] == "seccomp" && con[1] != "unconfined" {
+			f, err := ioutil.ReadFile(con[1])
+			if err != nil {
+				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
+			}
+			b := bytes.NewBuffer(nil)
+			if err := json.Compact(b, f); err != nil {
+				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
+			}
+			securityOpts[key] = fmt.Sprintf("seccomp=%s", b.Bytes())
+		}
+	}
+
+	return securityOpts, nil
+}
+
+// memoryLimits computes the memory and memory_reservation values passed along to
+// the docker host config. These fields represent hard and soft memory limits from
+// docker's perspective, respectively.
+//
+// The memory field on the task configuration can be interpreted as a hard or soft
+// limit. Before Nomad v0.11.3, it was always a hard limit. Now, it is interpreted
+// as a soft limit if the memory_hard_limit value is configured on the docker
+// task driver configuration. When memory_hard_limit is set, the docker host
+// config is configured such that the memory field is equal to memory_hard_limit
+// value, and the memory_reservation field is set to the task driver memory value.
+//
+// If memory_hard_limit is not set (i.e. zero value), then the memory field of
+// the task resource config is interpreted as a hard limit. In this case both the
+// memory is set to the task resource memory value and memory_reservation is left
+// unset.
+//
+// Returns (memory (hard), memory_reservation (soft)) values in bytes.
+func (_ *Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
+	if driverHardLimitMB <= 0 {
+		return taskMemoryLimitBytes, 0
+	}
+	return driverHardLimitMB * 1024 * 1024, taskMemoryLimitBytes
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -686,7 +762,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		logger.Error("task.Resources is empty")
 		return c, fmt.Errorf("task.Resources is empty")
 	}
-
 	binds, err := d.containerBinds(task, driverConfig)
 	if err != nil {
 		return c, err
@@ -707,8 +782,26 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		config.WorkingDir = driverConfig.WorkDir
 	}
 
+	containerRuntime := driverConfig.Runtime
+	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
+		if !d.gpuRuntime {
+			return c, fmt.Errorf("requested docker runtime %q was not found", d.config.GPURuntimeName)
+		}
+		if containerRuntime != "" && containerRuntime != d.config.GPURuntimeName {
+			return c, fmt.Errorf("conflicting runtime requests: gpu runtime %q conflicts with task runtime %q", d.config.GPURuntimeName, containerRuntime)
+		}
+		containerRuntime = d.config.GPURuntimeName
+	}
+	if _, ok := d.config.allowRuntimes[containerRuntime]; !ok && containerRuntime != "" {
+		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
+	}
+
+	memory, memoryReservation := d.memoryLimits(driverConfig.MemoryHardLimit, task.Resources.LinuxResources.MemoryLimitBytes)
+
 	hostConfig := &docker.HostConfig{
-		Memory:    task.Resources.LinuxResources.MemoryLimitBytes,
+		Memory:            memory,            // hard limit
+		MemoryReservation: memoryReservation, // soft limit
+
 		CPUShares: task.Resources.LinuxResources.CPUShares,
 
 		// Binds are used to mount a host volume into the container. We mount a
@@ -719,14 +812,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
-		PidsLimit: driverConfig.PidsLimit,
-	}
+		PidsLimit: &driverConfig.PidsLimit,
 
-	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
-		if !d.gpuRuntime {
-			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
-		}
-		hostConfig.Runtime = d.config.GPURuntimeName
+		Runtime: containerRuntime,
 	}
 
 	// Calculate CPU Quota
@@ -748,9 +836,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
 		hostConfig.MemorySwap = 0
-		hostConfig.MemorySwappiness = -1
+		hostConfig.MemorySwappiness = nil
 	} else {
-		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+		hostConfig.MemorySwap = memory
+
+		// disable swap explicitly in non-Windows environments
+		var swapiness int64 = 0
+		hostConfig.MemorySwappiness = &swapiness
+
 	}
 
 	loggingDriver := driverConfig.Logging.Type
@@ -772,9 +865,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
-	logger.Debug("configured resources", "memory", hostConfig.Memory,
+	logger.Debug("configured resources",
+		"memory", hostConfig.Memory, "memory_reservation", hostConfig.MemoryReservation,
 		"cpu_shares", hostConfig.CPUShares, "cpu_quota", hostConfig.CPUQuota,
 		"cpu_period", hostConfig.CPUPeriod)
+
 	logger.Debug("binding directories", "binds", hclog.Fmt("%#v", hostConfig.Binds))
 
 	//  set privileged mode
@@ -820,6 +915,19 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.ShmSize = driverConfig.ShmSize
 	}
 
+	// setup Nomad DNS options, these are overridden by docker driver specific options
+	if task.DNS != nil {
+		hostConfig.DNS = task.DNS.Servers
+		hostConfig.DNSSearch = task.DNS.Searches
+		hostConfig.DNSOptions = task.DNS.Options
+	}
+
+	if len(driverConfig.DNSSearchDomains) > 0 {
+		hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+	}
+	if len(driverConfig.DNSOptions) > 0 {
+		hostConfig.DNSOptions = driverConfig.DNSOptions
+	}
 	// set DNS servers
 	for _, ip := range driverConfig.DNSServers {
 		if net.ParseIP(ip) != nil {
@@ -883,9 +991,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
-	// set DNS search domains and extra hosts
-	hostConfig.DNSSearch = driverConfig.DNSSearchDomains
-	hostConfig.DNSOptions = driverConfig.DNSOptions
 	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 
 	hostConfig.IpcMode = driverConfig.IPCMode
@@ -894,6 +999,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	hostConfig.UsernsMode = driverConfig.UsernsMode
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 	hostConfig.Sysctls = driverConfig.Sysctl
+
+	hostConfig.SecurityOpt, err = parseSecurityOpts(driverConfig.SecurityOpt)
+	if err != nil {
+		return c, fmt.Errorf("failed to parse security_opt configuration: %v", err)
+	}
 
 	ulimits, err := sliceMergeUlimit(driverConfig.Ulimit)
 	if err != nil {
@@ -1543,10 +1653,6 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 		ulimits = append(ulimits, ulimit)
 	}
 	return ulimits, nil
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }
 
 func isDockerTransientError(err error) bool {

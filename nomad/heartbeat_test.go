@@ -69,7 +69,6 @@ func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3 // Won't become leader
-		c.DevDisableBootstrap = true
 	})
 	defer cleanupS1()
 
@@ -215,16 +214,18 @@ func TestHeartbeat_ClearAllHeartbeatTimers(t *testing.T) {
 func TestHeartbeat_Server_HeartbeatTTL_Failover(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 3
+	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS2()
 
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+		c.BootstrapExpect = 3
 	})
 	defer cleanupS3()
 	servers := []*Server{s1, s2, s3}

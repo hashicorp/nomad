@@ -159,7 +159,7 @@ func TestDockerDriver_CPUCFSPeriod(t *testing.T) {
 	cfg.CPUCFSPeriod = 1000000
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, _, handle, cleanup := dockerSetup(t, task)
+	client, _, handle, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 
 	waitForExist(t, client, handle.containerID)
@@ -184,7 +184,7 @@ func TestDockerDriver_Sysctl_Ulimit(t *testing.T) {
 	cfg.Ulimit = expectedUlimits
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, d, handle, cleanup := dockerSetup(t, task)
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
@@ -678,7 +678,12 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, driver, handle, cleanup := dockerSetup(t, task)
+	client, driver, handle, cleanup := dockerSetup(t, task, map[string]interface{}{
+		"gc": map[string]interface{}{
+			"image":       true,
+			"image_delay": "1ms",
+		},
+	})
 	defer cleanup()
 
 	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
@@ -803,5 +808,61 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	defer d.DestroyTask(task.ID, true)
 
 	dtestutil.ExecTaskStreamingConformanceTests(t, d, task.ID)
+
+}
+
+// Tests that a given DNSConfig properly configures dns
+func Test_dnsConfig(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	require := require.New(t)
+	harness := dockerDriverHarness(t, nil)
+	defer harness.Kill()
+
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
+		task := &drivers.TaskConfig{
+			ID:        uuid.Generate(),
+			Name:      "nc-demo",
+			AllocID:   uuid.Generate(),
+			Resources: basicResources,
+			DNS:       c.cfg,
+		}
+		require.NoError(task.EncodeConcreteDriverConfig(&taskCfg))
+
+		cleanup := harness.MkAllocDir(task, false)
+		defer cleanup()
+
+		_, _, err := harness.StartTask(task)
+		require.NoError(err)
+		defer harness.DestroyTask(task.ID, true)
+
+		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+	}
 
 }

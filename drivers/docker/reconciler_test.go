@@ -61,7 +61,7 @@ func TestDanglingContainerRemoval(t *testing.T) {
 	defer freeport.Return(ports)
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, d, handle, cleanup := dockerSetup(t, task)
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 

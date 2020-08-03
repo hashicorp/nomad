@@ -21,7 +21,7 @@ and merged in lexicographical order. Directories are not loaded recursively.
 
 For example:
 
-```shell
+```shell-session
 $ nomad agent -config=server.conf -config=/etc/nomad -config=extra.json
 ```
 
@@ -119,6 +119,9 @@ testing.
     reachable from all server nodes. It is not required that clients can reach
     this address. Nomad servers will communicate to each other over RPC using
     the advertised Serf IP and advertised RPC Port.
+
+- `audit` `(`[`Audit`]`: nil)` - Enterprise-only. Specifies audit logging
+  configuration.
 
 - `bind_addr` `(string: "0.0.0.0")` - Specifies which address the Nomad
   agent should bind to for network services, including the HTTP interface as
@@ -328,6 +331,7 @@ http_api_response_headers {
 ```
 
 [`acl`]: /docs/configuration/acl 'Nomad Agent ACL Configuration'
+[`audit`]: /docs/configuration/audit 'Nomad Agent Audit Logging Configuration'
 [`client`]: /docs/configuration/client 'Nomad Agent client Configuration'
 [`consul`]: /docs/configuration/consul 'Nomad Agent consul Configuration'
 [`plugin`]: /docs/configuration/plugin 'Nomad Agent Plugin Configuration'
@@ -336,5 +340,5 @@ http_api_response_headers {
 [tls]: /docs/configuration/tls 'Nomad Agent tls Configuration'
 [`vault`]: /docs/configuration/vault 'Nomad Agent vault Configuration'
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
-[log-api]: /api/client#stream-logs
+[log-api]: /api-docs/client#stream-logs
 [hcl]: https://github.com/hashicorp/hcl 'HashiCorp Configuration Language'

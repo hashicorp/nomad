@@ -72,6 +72,7 @@ func (c *Command) readConfig() *Config {
 		},
 		Vault: &config.VaultConfig{},
 		ACL:   &ACLConfig{},
+		Audit: &config.AuditConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -284,6 +285,8 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
+	config.Server.DefaultSchedulerConfig.Canonicalize()
+
 	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}
@@ -346,69 +349,71 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
-	if config.DevMode {
-		// Skip the rest of the validation for dev mode
-		return true
-	}
-
-	// Ensure that we have the directories we need to run.
-	if config.Server.Enabled && config.DataDir == "" {
-		c.Ui.Error("Must specify data directory")
+	if err := config.Server.DefaultSchedulerConfig.Validate(); err != nil {
+		c.Ui.Error(err.Error())
 		return false
 	}
 
-	// The config is valid if the top-level data-dir is set or if both
-	// alloc-dir and state-dir are set.
-	if config.Client.Enabled && config.DataDir == "" {
-		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
-			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+	if !config.DevMode {
+		// Ensure that we have the directories we need to run.
+		if config.Server.Enabled && config.DataDir == "" {
+			c.Ui.Error("Must specify data directory")
 			return false
 		}
-	}
 
-	// Check the bootstrap flags
-	if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
-		// report an error if BootstrapExpect is set in CLI but server is disabled
-		c.Ui.Error("Bootstrap requires server mode to be enabled")
-		return false
-	}
-	if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
-		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+		// The config is valid if the top-level data-dir is set or if both
+		// alloc-dir and state-dir are set.
+		if config.Client.Enabled && config.DataDir == "" {
+			if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
+				c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+				return false
+			}
+		}
+
+		// Check the bootstrap flags
+		if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
+			// report an error if BootstrapExpect is set in CLI but server is disabled
+			c.Ui.Error("Bootstrap requires server mode to be enabled")
+			return false
+		}
+		if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
+			c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+		}
 	}
 
 	return true
 }
 
 // setupLoggers is used to setup the logGate, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) {
+func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
 	logGate := &gatedwriter.Writer{
-		Writer: &cli.UiWriter{Ui: c.Ui},
+		Writer: &cli.UiWriter{Ui: ui},
 	}
 
-	c.logFilter = LevelFilter()
-	c.logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
-	c.logFilter.Writer = logGate
-	if !ValidateLevelFilter(c.logFilter.MinLevel, c.logFilter) {
-		c.Ui.Error(fmt.Sprintf(
+	logFilter := LevelFilter()
+	logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
+	logFilter.Writer = logGate
+	if !ValidateLevelFilter(logFilter.MinLevel, logFilter) {
+		ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
-			c.logFilter.MinLevel, c.logFilter.Levels))
-		return nil, nil
+			logFilter.MinLevel, logFilter.Levels))
+		return nil, nil, nil
 	}
 
 	// Create a log writer, and wrap a logOutput around it
-	writers := []io.Writer{c.logFilter}
+	writers := []io.Writer{logFilter}
 
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil
+			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
+			return nil, nil, nil
 		}
-		writers = append(writers, &SyslogWrapper{l, c.logFilter})
+		writers = append(writers, &SyslogWrapper{l, logFilter})
 	}
 
 	// Check if file logging is enabled
@@ -425,8 +430,8 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		if config.LogRotateDuration != "" {
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil
+				ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
+				return nil, nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -435,7 +440,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		}
 
 		logFile := &logFile{
-			logFilter: c.logFilter,
+			logFilter: logFilter,
 			fileName:  fileName,
 			logPath:   dir,
 			duration:  logRotateDuration,
@@ -446,9 +451,9 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		writers = append(writers, logFile)
 	}
 
-	c.logOutput = io.MultiWriter(writers...)
-	log.SetOutput(c.logOutput)
-	return logGate, c.logOutput
+	logOutput := io.MultiWriter(writers...)
+	log.SetOutput(logOutput)
+	return logFilter, logGate, logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
@@ -602,7 +607,9 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Setup the log outputs
-	logGate, logOutput := c.setupLoggers(config)
+	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
+	c.logFilter = logFilter
+	c.logOutput = logOutput
 	if logGate == nil {
 		return 1
 	}
@@ -639,10 +646,12 @@ func (c *Command) Run(args []string) int {
 		logGate.Flush()
 		return 1
 	}
-	defer c.agent.Shutdown()
 
-	// Shutdown the HTTP server at the end
 	defer func() {
+		c.agent.Shutdown()
+
+		// Shutdown the http server at the end, to ease debugging if
+		// the agent takes long to shutdown
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
 		}
@@ -1216,9 +1225,9 @@ General Options (clients and servers):
     list of mode configurations:
 
   -dev-connect
-	Start the agent in development mode, but bind to a public network
-	interface rather than localhost for using Consul Connect. This
-	mode is supported only on Linux as root.
+    Start the agent in development mode, but bind to a public network
+    interface rather than localhost for using Consul Connect. This
+    mode is supported only on Linux as root.
 
 Server Options:
 

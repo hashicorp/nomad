@@ -127,13 +127,14 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 		return 1
 	}
 	if len(periodicJobs) > 1 {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple periodic jobs\n\n%s", createStatusListOutput(periodicJobs)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple periodic jobs\n\n%s", createStatusListOutput(periodicJobs, c.allNamespaces())))
 		return 1
 	}
 	jobID = periodicJobs[0].ID
+	q := &api.WriteOptions{Namespace: periodicJobs[0].JobSummary.Namespace}
 
 	// force the evaluation
-	evalID, _, err := client.Jobs().PeriodicForce(jobID, nil)
+	evalID, _, err := client.Jobs().PeriodicForce(jobID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error forcing periodic job %q: %s", jobID, err))
 		return 1

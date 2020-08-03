@@ -19,6 +19,7 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 * [ ] Implement `-verbose` (expands truncated UUIDs, adds other detail)
 * [ ] Update help text
 * [ ] Implement and test new HTTP endpoint in `command/agent/<command>_endpoint.go`
+* [ ] Register new URL paths in `command/agent/http.go`
 * [ ] Implement and test new RPC endpoint in `nomad/<command>_endpoint.go`
 * [ ] Implement and test new Client RPC endpoint in
   `client/<command>_endpoint.go` (For client endpoints like Filesystem only)
@@ -29,6 +30,7 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 ## Docs
 
 * [ ] Changelog
-* [ ] API docs https://www.nomadproject.io/api/index.html
-* [ ] CLI docs https://www.nomadproject.io/docs/commands/index.html
+* [ ] API docs https://www.nomadproject.io/api
+* [ ] CLI docs https://www.nomadproject.io/docs/commands
+* [ ] If adding new docs see [website README](../website/README.md#editing-navigation-sidebars)
 * [ ] Consider if it needs a guide https://www.nomadproject.io/guides/index.html

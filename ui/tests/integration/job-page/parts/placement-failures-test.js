@@ -31,7 +31,7 @@ module('Integration | Component | job-page/parts/placement-failures', function(h
     this.set('job', job);
 
     await render(hbs`
-      {{job-page/parts/placement-failures job=job}})
+      <JobPage::Parts::PlacementFailures @job={{job}} />)
     `);
 
     const failedEvaluation = this.get('job.evaluations')
@@ -70,7 +70,7 @@ module('Integration | Component | job-page/parts/placement-failures', function(h
     this.set('job', job);
 
     await render(hbs`
-      {{job-page/parts/placement-failures job=job}})
+      <JobPage::Parts::PlacementFailures @job={{job}} />)
     `);
 
     assert.notOk(find('[data-test-placement-failures]'), 'Placement failures section not found');

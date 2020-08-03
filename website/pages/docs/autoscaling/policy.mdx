@@ -1,0 +1,96 @@
+---
+layout: docs
+page_title: Scaling Policies
+sidebar_title: Policy
+description: >
+  Scaling policies describe the target resource desired state and how to
+  perform calculations to ensure the current state reaches the desired.
+---
+
+# Nomad Autoscaler Scaling Policies
+
+Nomad Autoscaler scaling policies can be configured via the
+[task group `scaling` stanza][jobspec_scaling_stanza] or by configuration
+files stored on disk.
+
+## Top Level Options
+
+- `enabled` - A boolean flag that allows operators to administratively disable a
+  policy from active evaluation.
+
+- `min` - The minimum running count of the targeted resource. This can be 0 or any
+  positive integer.
+
+- `max` - The maximum running count of the targeted resource. This can be 0 or any
+  positive integer.
+
+## `policy` Options
+
+- `cooldown` - A time interval after a scaling action during which no additional
+  scaling will be performed on the resource. It should be provided as a duration
+  (e.g.: `"5s"`, `"1m"`). If omitted the configuration value
+  [policy_default_cooldown][policy_default_cooldown_agent] from the agent will
+  be used.
+
+- `evaluation_interval` - Defines how often the policy is evaluated by the
+  Autoscaler. It should be provided as a duration (e.g.: `"5s"`, `"1m"`). If
+  omitted the configuration value [default_evaluation_interval][eval_interval_agent]
+  from the agent will be used.
+
+- `target` - Defines where the autoscaling target is running. Detailed information
+  on the configuration options can be found on the [Target Plugins][target_plugin_docs]
+  page.
+
+- `check` - Specifies one or more checks to be executed when determining if a
+  scaling action is required.
+
+## `check` Options
+
+- `source` - The APM plugin that should handle the metric query. If omitted,
+  this defaults to using the Nomad APM.
+
+- `query` - The query to run against the specified APM. Currently this query
+  should return a single value. Detailed information on the configuration options
+  can be found on the [APM Plugins][apm_plugin_docs] page.
+
+- `strategy` - The strategy to use, and it's configuration when calculating the
+  desired state based on the current count and the metric returned by the APM.
+  Detailed information on the configuration options can be found on the
+  [Strategy Plugins][strategy_plugin_docs] page.
+
+### Example
+
+A full example of a policy document that can be written into the Nomad task group
+`scaling` stanza or via a file within the `policy_dir` can be seen below.
+
+```hcl
+min     = 2
+max     = 10
+enabled = true
+
+policy {
+  evaluation_interval = "5s"
+  cooldown            = "1m"
+
+  target "target" {
+    Job   = "example"
+    Group = "example"
+  }
+
+  check "active_connections" {
+    source = "prometheus"
+    query  = "scalar(open_connections_example_cache)"
+
+    strategy "target_value" {
+      target = 10
+    }
+  }
+}
+```
+
+[policy_default_cooldown_agent]: /docs/autoscaling/agent#default_cooldown
+[eval_interval_agent]: /docs/autoscaling/agent#default_evaluation_interval
+[target_plugin_docs]: /docs/autoscaling/plugins/target
+[strategy_plugin_docs]: /docs/autoscaling/plugins/strategy
+[apm_plugin_docs]: /docs/autoscaling/plugins/apm
+[jobspec_scaling_stanza]: /docs/job-specification/scaling

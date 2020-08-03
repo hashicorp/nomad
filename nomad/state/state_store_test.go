@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func testStateStore(t *testing.T) *StateStore {
@@ -2826,6 +2828,822 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 	}
 }
 
+// TestStateStore_CSIVolume checks register, list and deregister for csi_volumes
+func TestStateStore_CSIVolume(t *testing.T) {
+	state := testStateStore(t)
+	index := uint64(1000)
+
+	// Volume IDs
+	vol0, vol1 := uuid.Generate(), uuid.Generate()
+
+	// Create a node running a healthy instance of the plugin
+	node := mock.Node()
+	pluginID := "minnie"
+	alloc := mock.Alloc()
+	alloc.DesiredStatus = "run"
+	alloc.ClientStatus = "running"
+	alloc.NodeID = node.ID
+	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"foo": {
+			Name:   "foo",
+			Source: vol0,
+			Type:   "csi",
+		},
+	}
+
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		pluginID: {
+			PluginID:                 pluginID,
+			AllocID:                  alloc.ID,
+			Healthy:                  true,
+			HealthDescription:        "healthy",
+			RequiresControllerPlugin: false,
+			RequiresTopologies:       false,
+			NodeInfo: &structs.CSINodeInfo{
+				ID:                      node.ID,
+				MaxVolumes:              64,
+				RequiresNodeStageVolume: true,
+			},
+		},
+	}
+
+	index++
+	err := state.UpsertNode(index, node)
+	require.NoError(t, err)
+	defer state.DeleteNode(9999, []string{pluginID})
+
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+
+	ns := structs.DefaultNamespace
+
+	v0 := structs.NewCSIVolume("foo", index)
+	v0.ID = vol0
+	v0.Namespace = ns
+	v0.PluginID = "minnie"
+	v0.Schedulable = true
+	v0.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	v0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
+	index++
+	v1 := structs.NewCSIVolume("foo", index)
+	v1.ID = vol1
+	v1.Namespace = ns
+	v1.PluginID = "adam"
+	v1.Schedulable = true
+	v1.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	v1.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
+	index++
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
+	require.NoError(t, err)
+
+	// volume registration is idempotent, unless identies are changed
+	index++
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0, v1})
+	require.NoError(t, err)
+
+	index++
+	v2 := v0.Copy()
+	v2.PluginID = "new-id"
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v2})
+	require.Error(t, err, fmt.Sprintf("volume exists: %s", v0.ID))
+
+	ws := memdb.NewWatchSet()
+	iter, err := state.CSIVolumesByNamespace(ws, ns)
+	require.NoError(t, err)
+
+	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			vol := raw.(*structs.CSIVolume)
+			vs = append(vs, vol)
+		}
+		return vs
+	}
+
+	vs := slurp(iter)
+	require.Equal(t, 2, len(vs))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByNodeID(ws, node.ID)
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
+
+	// Allocs
+	a0 := mock.Alloc()
+	a1 := mock.Alloc()
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{a0, a1})
+	require.NoError(t, err)
+
+	// Claims
+	r := structs.CSIVolumeClaimRead
+	w := structs.CSIVolumeClaimWrite
+	u := structs.CSIVolumeClaimRelease
+	claim0 := &structs.CSIVolumeClaim{
+		AllocationID: a0.ID,
+		NodeID:       node.ID,
+		Mode:         r,
+	}
+	claim1 := &structs.CSIVolumeClaim{
+		AllocationID: a1.ID,
+		NodeID:       node.ID,
+		Mode:         w,
+	}
+
+	index++
+	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
+	require.NoError(t, err)
+	index++
+	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
+	require.NoError(t, err)
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.False(t, vs[0].WriteFreeClaims())
+
+	claim0.Mode = u
+	err = state.CSIVolumeClaim(2, ns, vol0, claim0)
+	require.NoError(t, err)
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.True(t, vs[0].ReadSchedulable())
+
+	// registration is an error when the volume is in use
+	index++
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{v0})
+	require.Error(t, err, fmt.Sprintf("volume exists: %s", vol0))
+	// as is deregistration
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, false)
+	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))
+
+	// even if forced, because we have a non-terminal claim
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, true)
+	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))
+
+	// release claims to unblock deregister
+	index++
+	claim0.State = structs.CSIVolumeClaimStateReadyToFree
+	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
+	require.NoError(t, err)
+	index++
+	claim1.Mode = u
+	claim1.State = structs.CSIVolumeClaimStateReadyToFree
+	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
+	require.NoError(t, err)
+
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, false)
+	require.NoError(t, err)
+
+	// List, now omitting the deregistered volume
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 0, len(vs))
+
+	ws = memdb.NewWatchSet()
+	iter, err = state.CSIVolumesByNamespace(ws, ns)
+	require.NoError(t, err)
+	vs = slurp(iter)
+	require.Equal(t, 1, len(vs))
+}
+
+// TestStateStore_CSIPluginNodes uses node fingerprinting to create a plugin and update health
+func TestStateStore_CSIPluginNodes(t *testing.T) {
+	index := uint64(999)
+	state := testStateStore(t)
+	ws := memdb.NewWatchSet()
+	plugID := "foo"
+
+	// Create Nomad client Nodes
+	ns := []*structs.Node{mock.Node(), mock.Node()}
+	for _, n := range ns {
+		index++
+		err := state.UpsertNode(index, n)
+		require.NoError(t, err)
+	}
+
+	// Fingerprint a running controller plugin
+	n0, _ := state.NodeByID(ws, ns[0].ID)
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		plugID: {
+			PluginID:                 plugID,
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+	index++
+	err := state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Fingerprint two running node plugins
+	for _, n := range ns[:] {
+		n, _ := state.NodeByID(ws, n.ID)
+		n.CSINodePlugins = map[string]*structs.CSIInfo{
+			plugID: {
+				PluginID:                 plugID,
+				Healthy:                  true,
+				UpdateTime:               time.Now(),
+				RequiresControllerPlugin: true,
+				RequiresTopologies:       false,
+				NodeInfo:                 &structs.CSINodeInfo{},
+			},
+		}
+		index++
+		err = state.UpsertNode(index, n)
+		require.NoError(t, err)
+	}
+
+	plug, err := state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.True(t, plug.ControllerRequired)
+	require.Equal(t, 1, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
+
+	// Volume using the plugin
+	index++
+	vol := &structs.CSIVolume{
+		ID:        uuid.Generate(),
+		Namespace: structs.DefaultNamespace,
+		PluginID:  plugID,
+	}
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(t, err)
+
+	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
+	require.NoError(t, err)
+	require.True(t, vol.Schedulable, "volume should be schedulable")
+
+	// Controller is unhealthy
+	n0, _ = state.NodeByID(ws, ns[0].ID)
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		plugID: {
+			PluginID:                 plugID,
+			Healthy:                  false,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
+
+	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
+	require.NoError(t, err)
+	require.False(t, vol.Schedulable, "volume should not be schedulable")
+
+	// Node plugin is removed
+	n1, _ := state.NodeByID(ws, ns[1].ID)
+	n1.CSINodePlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n1)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 1, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 1, len(plug.Nodes), "nodes expected")
+
+	// Last node plugin is removed
+	n0, _ = state.NodeByID(ws, ns[0].ID)
+	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Nodes plugins should be gone but controllers left
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 0, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 0, len(plug.Nodes), "nodes expected")
+
+	// A node plugin is restored
+	n0, _ = state.NodeByID(ws, n0.ID)
+	n0.CSINodePlugins = map[string]*structs.CSIInfo{
+		plugID: {
+			PluginID:                 plugID,
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			NodeInfo:                 &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Nodes plugin should be replaced and healthy
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 1, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 1, len(plug.Nodes), "nodes expected")
+
+	// Remove node again
+	n0, _ = state.NodeByID(ws, ns[0].ID)
+	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Nodes plugins should be gone but controllers left
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 0, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 0, len(plug.Nodes), "nodes expected")
+
+	// controller is removed
+	n0, _ = state.NodeByID(ws, ns[0].ID)
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	// Plugin has been removed entirely
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Nil(t, plug)
+
+	// Volume still exists and is safe to query, but unschedulable
+	vol, err = state.CSIVolumeByID(ws, structs.DefaultNamespace, vol.ID)
+	require.NoError(t, err)
+	require.False(t, vol.Schedulable)
+}
+
+// TestStateStore_CSIPluginAllocUpdates tests the ordering
+// interactions for CSI plugins between Nomad client node updates and
+// allocation updates.
+func TestStateStore_CSIPluginAllocUpdates(t *testing.T) {
+	t.Parallel()
+	index := uint64(999)
+	state := testStateStore(t)
+	ws := memdb.NewWatchSet()
+
+	n := mock.Node()
+	index++
+	err := state.UpsertNode(index, n)
+	require.NoError(t, err)
+
+	// (1) unhealthy fingerprint, then terminal alloc, then healthy node update
+	plugID0 := "foo0"
+
+	alloc0 := mock.Alloc()
+	alloc0.NodeID = n.ID
+	alloc0.DesiredStatus = "run"
+	alloc0.ClientStatus = "running"
+	alloc0.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{ID: plugID0}
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc0})
+	require.NoError(t, err)
+
+	n, _ = state.NodeByID(ws, n.ID)
+	n.CSINodePlugins = map[string]*structs.CSIInfo{
+		plugID0: {
+			PluginID:                 plugID0,
+			AllocID:                  alloc0.ID,
+			Healthy:                  false,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			NodeInfo:                 &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n)
+	require.NoError(t, err)
+
+	plug, err := state.CSIPluginByID(ws, plugID0)
+	require.NoError(t, err)
+	require.Nil(t, plug, "no plugin should exist: not yet healthy")
+
+	alloc0.DesiredStatus = "stopped"
+	alloc0.ClientStatus = "complete"
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc0})
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID0)
+	require.NoError(t, err)
+	require.Nil(t, plug, "no plugin should exist: allocs never healthy")
+
+	n, _ = state.NodeByID(ws, n.ID)
+	n.CSINodePlugins[plugID0].Healthy = true
+	n.CSINodePlugins[plugID0].UpdateTime = time.Now()
+	index++
+	err = state.UpsertNode(index, n)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID0)
+	require.NoError(t, err)
+	require.NotNil(t, plug, "plugin should exist")
+
+	// (2) healthy fingerprint, then terminal alloc update
+	plugID1 := "foo1"
+
+	alloc1 := mock.Alloc()
+	n, _ = state.NodeByID(ws, n.ID)
+	n.CSINodePlugins = map[string]*structs.CSIInfo{
+		plugID1: {
+			PluginID:                 plugID1,
+			AllocID:                  alloc1.ID,
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			NodeInfo:                 &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID1)
+	require.NoError(t, err)
+	require.NotNil(t, plug, "plugin should exist")
+
+	alloc1.NodeID = n.ID
+	alloc1.DesiredStatus = "stop"
+	alloc1.ClientStatus = "complete"
+	alloc1.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{ID: plugID1}
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc1})
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID1)
+	require.NoError(t, err)
+	require.Nil(t, plug, "no plugin should exist: alloc became terminal")
+
+	// (3) terminal alloc update, then unhealthy fingerprint
+	plugID2 := "foo2"
+
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = n.ID
+	alloc2.DesiredStatus = "stop"
+	alloc2.ClientStatus = "complete"
+	alloc2.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{ID: plugID2}
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc2})
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID2)
+	require.NoError(t, err)
+	require.Nil(t, plug, "no plugin should exist: alloc became terminal")
+
+	n, _ = state.NodeByID(ws, n.ID)
+	n.CSINodePlugins = map[string]*structs.CSIInfo{
+		plugID2: {
+			PluginID:                 plugID2,
+			AllocID:                  alloc2.ID,
+			Healthy:                  false,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			NodeInfo:                 &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID2)
+	require.NoError(t, err)
+	require.Nil(t, plug, "plugin should not exist: never became healthy")
+
+}
+
+// TestStateStore_CSIPluginMultiNodeUpdates tests the ordering
+// interactions for CSI plugins between Nomad client node updates and
+// allocation updates when multiple nodes are involved
+func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
+	t.Parallel()
+	index := uint64(999)
+	state := testStateStore(t)
+	ws := memdb.NewWatchSet()
+
+	var err error
+
+	// Create Nomad client Nodes
+	ns := []*structs.Node{mock.Node(), mock.Node()}
+	for _, n := range ns {
+		index++
+		err = state.UpsertNode(index, n)
+		require.NoError(t, err)
+	}
+
+	plugID := "foo"
+	plugCfg := &structs.TaskCSIPluginConfig{ID: plugID}
+
+	// Fingerprint two running node plugins and their allocs; we'll
+	// leave these in place for the test to ensure we don't GC the
+	// plugin
+	for _, n := range ns[:] {
+		nAlloc := mock.Alloc()
+		n, _ := state.NodeByID(ws, n.ID)
+		n.CSINodePlugins = map[string]*structs.CSIInfo{
+			plugID: {
+				PluginID:                 plugID,
+				AllocID:                  nAlloc.ID,
+				Healthy:                  true,
+				UpdateTime:               time.Now(),
+				RequiresControllerPlugin: true,
+				RequiresTopologies:       false,
+				NodeInfo:                 &structs.CSINodeInfo{},
+			},
+		}
+		index++
+		err = state.UpsertNode(index, n)
+		require.NoError(t, err)
+
+		nAlloc.NodeID = n.ID
+		nAlloc.DesiredStatus = "run"
+		nAlloc.ClientStatus = "running"
+		nAlloc.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
+
+		index++
+		err = state.UpsertAllocs(index, []*structs.Allocation{nAlloc})
+		require.NoError(t, err)
+	}
+
+	// Fingerprint a running controller plugin
+	alloc0 := mock.Alloc()
+	n0, _ := state.NodeByID(ws, ns[0].ID)
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		plugID: {
+			PluginID:                 plugID,
+			AllocID:                  alloc0.ID,
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	plug, err := state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 1, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
+
+	n1, _ := state.NodeByID(ws, ns[1].ID)
+
+	alloc0.NodeID = n0.ID
+	alloc0.DesiredStatus = "stop"
+	alloc0.ClientStatus = "complete"
+	alloc0.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
+
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc0})
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 0, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
+
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = n1.ID
+	alloc1.DesiredStatus = "run"
+	alloc1.ClientStatus = "running"
+	alloc1.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
+
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc1})
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 0, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 0, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
+
+	n0, _ = state.NodeByID(ws, ns[0].ID)
+	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		plugID: {
+			PluginID:                 plugID,
+			AllocID:                  alloc0.ID,
+			Healthy:                  false,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n0)
+	require.NoError(t, err)
+
+	n1.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		plugID: {
+			PluginID:                 plugID,
+			AllocID:                  alloc1.ID,
+			Healthy:                  true,
+			UpdateTime:               time.Now(),
+			RequiresControllerPlugin: true,
+			RequiresTopologies:       false,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsReadOnlyAttach: true,
+				SupportsListVolumes:    true,
+			},
+		},
+	}
+	index++
+	err = state.UpsertNode(index, n1)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.True(t, plug.ControllerRequired)
+	require.Equal(t, 1, plug.ControllersHealthy, "controllers healthy")
+	require.Equal(t, 1, len(plug.Controllers), "controllers expected")
+	require.Equal(t, 2, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 2, len(plug.Nodes), "nodes expected")
+
+}
+
+func TestStateStore_CSIPluginJobs(t *testing.T) {
+	s := testStateStore(t)
+	deleteNodes := CreateTestCSIPlugin(s, "foo")
+	defer deleteNodes()
+
+	index := uint64(1001)
+
+	controllerJob := mock.Job()
+	controllerJob.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeController,
+	}
+
+	nodeJob := mock.Job()
+	nodeJob.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeNode,
+	}
+
+	err := s.UpsertJob(index, controllerJob)
+	require.NoError(t, err)
+	index++
+
+	err = s.UpsertJob(index, nodeJob)
+	require.NoError(t, err)
+	index++
+
+	// Get the plugin, and make better fake allocations for it
+	ws := memdb.NewWatchSet()
+	plug, err := s.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	index++
+
+	as := []*structs.Allocation{}
+	for id, info := range plug.Controllers {
+		as = append(as, &structs.Allocation{
+			ID:        info.AllocID,
+			Namespace: controllerJob.Namespace,
+			JobID:     controllerJob.ID,
+			Job:       controllerJob,
+			TaskGroup: "web",
+			EvalID:    uuid.Generate(),
+			NodeID:    id,
+		})
+	}
+	for id, info := range plug.Nodes {
+		as = append(as, &structs.Allocation{
+			ID:        info.AllocID,
+			JobID:     nodeJob.ID,
+			Namespace: nodeJob.Namespace,
+			Job:       nodeJob,
+			TaskGroup: "web",
+			EvalID:    uuid.Generate(),
+			NodeID:    id,
+		})
+	}
+
+	err = s.UpsertAllocs(index, as)
+	require.NoError(t, err)
+	index++
+
+	// Delete a job
+	err = s.DeleteJob(index, controllerJob.Namespace, controllerJob.ID)
+	require.NoError(t, err)
+	index++
+
+	// plugin still exists
+	plug, err = s.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	require.NotNil(t, plug)
+	require.Equal(t, 0, len(plug.Controllers))
+
+	// Delete a job
+	err = s.DeleteJob(index, nodeJob.Namespace, nodeJob.ID)
+	require.NoError(t, err)
+	index++
+
+	// plugin was collected
+	plug, err = s.CSIPluginByID(ws, "foo")
+	require.NoError(t, err)
+	require.Nil(t, plug)
+}
+
+func TestStateStore_RestoreCSIPlugin(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	plugin := mock.CSIPlugin()
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.CSIPluginRestore(plugin)
+	require.NoError(err)
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.CSIPluginByID(ws, plugin.ID)
+	require.NoError(err)
+	require.EqualValues(out, plugin)
+}
+
+func TestStateStore_RestoreCSIVolume(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	plugin := mock.CSIPlugin()
+	volume := mock.CSIVolume(plugin)
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.CSIVolumeRestore(volume)
+	require.NoError(err)
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.CSIVolumeByID(ws, "default", volume.ID)
+	require.NoError(err)
+	require.EqualValues(out, volume)
+}
+
 func TestStateStore_Indexes(t *testing.T) {
 	t.Parallel()
 
@@ -2852,8 +3670,8 @@ func TestStateStore_Indexes(t *testing.T) {
 	}
 
 	expect := &IndexEntry{"nodes", 1000}
-	if l := len(out); l != 1 && l != 2 {
-		t.Fatalf("unexpected number of index entries: %v", out)
+	if l := len(out); l < 1 {
+		t.Fatalf("unexpected number of index entries: %v", pretty.Sprint(out))
 	}
 
 	for _, index := range out {
@@ -7197,7 +8015,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// Ensure we see both policies
+	// Ensure we see neither policy
 	count := 0
 	for {
 		raw := iter.Next()
@@ -7668,7 +8486,7 @@ func TestStateStore_ClusterMetadata(t *testing.T) {
 	err := state.ClusterSetMetadata(100, meta)
 	require.NoError(err)
 
-	result, err := state.ClusterMetadata()
+	result, err := state.ClusterMetadata(nil)
 	require.NoError(err)
 	require.Equal(clusterID, result.ClusterID)
 	require.Equal(now, result.CreateTime)
@@ -7690,10 +8508,689 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 
 	restore.Commit()
 
-	out, err := state.ClusterMetadata()
+	out, err := state.ClusterMetadata(nil)
 	require.NoError(err)
 	require.Equal(clusterID, out.ClusterID)
 	require.Equal(now, out.CreateTime)
+}
+
+func TestStateStore_RestoreScalingPolicy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	scalingPolicy := mock.ScalingPolicy()
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.ScalingPolicyRestore(scalingPolicy)
+	require.NoError(err)
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByID(ws, scalingPolicy.ID)
+	require.NoError(err)
+	require.EqualValues(out, scalingPolicy)
+}
+
+func TestStateStore_UpsertScalingPolicy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	policy := mock.ScalingPolicy()
+	policy2 := mock.ScalingPolicy()
+
+	wsAll := memdb.NewWatchSet()
+	all, err := state.ScalingPolicies(wsAll)
+	require.NoError(err)
+	require.Nil(all.Next())
+
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
+	require.NoError(err)
+	require.True(watchFired(ws))
+	require.True(watchFired(wsAll))
+
+	ws = memdb.NewWatchSet()
+	out, err = state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.Equal(policy, out)
+
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	require.NoError(err)
+	require.Equal(policy2, out)
+
+	iter, err := state.ScalingPolicies(ws)
+	require.NoError(err)
+
+	// Ensure we see both policies
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	require.Equal(2, count)
+
+	index, err := state.Index("scaling_policy")
+	require.NoError(err)
+	require.True(1000 == index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	otherNamespace := "not-default-namespace"
+	state := testStateStore(t)
+	policy := mock.ScalingPolicy()
+	policy2 := mock.ScalingPolicy()
+	policy2.Target[structs.ScalingTargetNamespace] = otherNamespace
+
+	ws1 := memdb.NewWatchSet()
+	iter, err := state.ScalingPoliciesByNamespace(ws1, structs.DefaultNamespace)
+	require.NoError(err)
+	require.Nil(iter.Next())
+
+	ws2 := memdb.NewWatchSet()
+	iter, err = state.ScalingPoliciesByNamespace(ws2, otherNamespace)
+	require.NoError(err)
+	require.Nil(iter.Next())
+
+	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
+	require.NoError(err)
+	require.True(watchFired(ws1))
+	require.True(watchFired(ws2))
+
+	iter, err = state.ScalingPoliciesByNamespace(nil, structs.DefaultNamespace)
+	require.NoError(err)
+	policiesInDefaultNamespace := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policiesInDefaultNamespace = append(policiesInDefaultNamespace, raw.(*structs.ScalingPolicy).ID)
+	}
+	require.ElementsMatch([]string{policy.ID}, policiesInDefaultNamespace)
+
+	iter, err = state.ScalingPoliciesByNamespace(nil, otherNamespace)
+	require.NoError(err)
+	policiesInOtherNamespace := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policiesInOtherNamespace = append(policiesInOtherNamespace, raw.(*structs.ScalingPolicy).ID)
+	}
+	require.ElementsMatch([]string{policy2.ID}, policiesInOtherNamespace)
+}
+
+func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job, policy := mock.JobWithScalingPolicy()
+
+	// Create a watchset so we can test that upsert fires the watch
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	var newIndex uint64 = 1000
+	err = state.UpsertJob(newIndex, job)
+	require.NoError(err)
+	require.True(watchFired(ws), "watch did not fire")
+
+	ws = memdb.NewWatchSet()
+	out, err = state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(newIndex, out.CreateIndex)
+	require.Equal(newIndex, out.ModifyIndex)
+
+	index, err := state.Index("scaling_policy")
+	require.Equal(newIndex, index)
+}
+
+// Scaling Policy IDs are generated randomly during Job.Register
+// Subsequent updates of the job should preserve the ID for the scaling policy
+// associated with a given target.
+func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job, policy := mock.JobWithScalingPolicy()
+
+	var newIndex uint64 = 1000
+	err := state.UpsertJob(newIndex, job)
+	require.NoError(err)
+
+	ws := memdb.NewWatchSet()
+	p1, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.NotNil(p1)
+	require.Equal(newIndex, p1.CreateIndex)
+	require.Equal(newIndex, p1.ModifyIndex)
+
+	index, err := state.Index("scaling_policy")
+	require.Equal(newIndex, index)
+	require.NotEmpty(p1.ID)
+
+	// update the job
+	job.Meta["new-meta"] = "new-value"
+	newIndex += 100
+	err = state.UpsertJob(newIndex, job)
+	require.NoError(err)
+	require.False(watchFired(ws), "watch should not have fired")
+
+	p2, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.NotNil(p2)
+	require.Equal(p1.ID, p2.ID, "ID should not have changed")
+	require.Equal(p1.CreateIndex, p2.CreateIndex)
+	require.Equal(p1.ModifyIndex, p2.ModifyIndex)
+
+	index, err = state.Index("scaling_policy")
+	require.Equal(index, p1.CreateIndex, "table index should not have changed")
+}
+
+// Updating the scaling policy for a job should update the index table and fire the watch.
+// This test is the converse of TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex
+func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job, policy := mock.JobWithScalingPolicy()
+
+	var oldIndex uint64 = 1000
+	require.NoError(state.UpsertJob(oldIndex, job))
+
+	ws := memdb.NewWatchSet()
+	p1, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.NotNil(p1)
+	require.Equal(oldIndex, p1.CreateIndex)
+	require.Equal(oldIndex, p1.ModifyIndex)
+	prevId := p1.ID
+
+	index, err := state.Index("scaling_policy")
+	require.Equal(oldIndex, index)
+	require.NotEmpty(p1.ID)
+
+	// update the job with the updated scaling policy; make sure to use a different object
+	newPolicy := structs.CopyScalingPolicy(p1)
+	newPolicy.Policy["new-field"] = "new-value"
+	job.TaskGroups[0].Scaling = newPolicy
+	require.NoError(state.UpsertJob(oldIndex+100, job))
+	require.True(watchFired(ws), "watch should have fired")
+
+	p2, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.NotNil(p2)
+	require.Equal(p2.Policy["new-field"], "new-value")
+	require.Equal(prevId, p2.ID, "ID should not have changed")
+	require.Equal(oldIndex, p2.CreateIndex)
+	require.Greater(p2.ModifyIndex, oldIndex, "ModifyIndex should have advanced")
+
+	index, err = state.Index("scaling_policy")
+	require.Greater(index, oldIndex, "table index should have advanced")
+}
+
+func TestStateStore_DeleteScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	policy := mock.ScalingPolicy()
+	policy2 := mock.ScalingPolicy()
+
+	// Create the policy
+	err := state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy, policy2})
+	require.NoError(err)
+
+	// Create a watcher
+	ws := memdb.NewWatchSet()
+	_, err = state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+
+	// Delete the policy
+	err = state.DeleteScalingPolicies(1001, []string{policy.ID, policy2.ID})
+	require.NoError(err)
+
+	// Ensure watching triggered
+	require.True(watchFired(ws))
+
+	// Ensure we don't get the objects back
+	ws = memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	ws = memdb.NewWatchSet()
+	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	require.NoError(err)
+	require.Nil(out)
+
+	// Ensure we see both policies
+	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Target[structs.ScalingTargetNamespace])
+	require.NoError(err)
+	count := 0
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+	}
+	require.Equal(0, count)
+
+	index, err := state.Index("scaling_policy")
+	require.NoError(err)
+	require.True(1001 == index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job := mock.Job()
+
+	err := state.UpsertJob(1000, job)
+	require.NoError(err)
+
+	policy := mock.ScalingPolicy()
+	policy.Target[structs.ScalingTargetJob] = job.ID
+	err = state.UpsertScalingPolicies(1100, []*structs.ScalingPolicy{policy})
+	require.NoError(err)
+
+	// Ensure the scaling policy is present and start some watches
+	wsGet := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(wsGet, policy.Target)
+	require.NoError(err)
+	require.NotNil(out)
+	wsList := memdb.NewWatchSet()
+	_, err = state.ScalingPolicies(wsList)
+	require.NoError(err)
+
+	// Stop the job
+	job, err = state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	job.Stop = true
+	err = state.UpsertJob(1200, job)
+	require.NoError(err)
+
+	// Ensure:
+	// * the scaling policy was deleted
+	// * the watches were fired
+	// * the table index was advanced
+	require.True(watchFired(wsGet))
+	require.True(watchFired(wsList))
+	out, err = state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+	index, err := state.Index("scaling_policy")
+	require.GreaterOrEqual(index, uint64(1200))
+}
+
+func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job, policy := mock.JobWithScalingPolicy()
+	job.Stop = true
+
+	// establish watcher, verify there are no scaling policies yet
+	ws := memdb.NewWatchSet()
+	list, err := state.ScalingPolicies(ws)
+	require.NoError(err)
+	require.Nil(list.Next())
+
+	// upsert a stopped job, verify that we don't fire the watcher or add any scaling policies
+	err = state.UpsertJob(1000, job)
+	require.NoError(err)
+	require.False(watchFired(ws))
+	// stopped job should have no scaling policies, watcher doesn't fire
+	list, err = state.ScalingPolicies(ws)
+	require.NoError(err)
+	require.Nil(list.Next())
+
+	// Establish a new watcher
+	ws = memdb.NewWatchSet()
+	_, err = state.ScalingPolicies(ws)
+	require.NoError(err)
+	// Unstop this job, say you'll run it again...
+	job.Stop = false
+	err = state.UpsertJob(1100, job)
+	require.NoError(err)
+
+	// Ensure the scaling policy was added, watch was fired, index was advanced
+	require.True(watchFired(ws))
+	out, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	require.NoError(err)
+	require.NotNil(out)
+	index, err := state.Index("scaling_policy")
+	require.GreaterOrEqual(index, uint64(1100))
+}
+
+func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job := mock.Job()
+
+	err := state.UpsertJob(1000, job)
+	require.NoError(err)
+
+	policy := mock.ScalingPolicy()
+	policy.Target[structs.ScalingTargetJob] = job.ID
+	err = state.UpsertScalingPolicies(1001, []*structs.ScalingPolicy{policy})
+	require.NoError(err)
+
+	// Delete the job
+	err = state.DeleteJob(1002, job.Namespace, job.ID)
+	require.NoError(err)
+
+	// Ensure the scaling policy was deleted
+	ws := memdb.NewWatchSet()
+	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	require.NoError(err)
+	require.Nil(out)
+	index, err := state.Index("scaling_policy")
+	require.True(index > 1001)
+}
+
+// This test ensures that deleting a job that doesn't have any scaling policies
+// will not cause the scaling_policy table index to increase, on either job
+// registration or deletion.
+func TestStateStore_DeleteJob_ScalingPolicyIndexNoop(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job := mock.Job()
+
+	prevIndex, err := state.Index("scaling_policy")
+	require.NoError(err)
+
+	err = state.UpsertJob(1000, job)
+	require.NoError(err)
+
+	newIndex, err := state.Index("scaling_policy")
+	require.NoError(err)
+	require.Equal(prevIndex, newIndex)
+
+	// Delete the job
+	err = state.DeleteJob(1002, job.Namespace, job.ID)
+	require.NoError(err)
+
+	newIndex, err = state.Index("scaling_policy")
+	require.NoError(err)
+	require.Equal(prevIndex, newIndex)
+}
+
+func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+	policyA := mock.ScalingPolicy()
+	policyB1 := mock.ScalingPolicy()
+	policyB2 := mock.ScalingPolicy()
+	policyB1.Target[structs.ScalingTargetJob] = policyB2.Target[structs.ScalingTargetJob]
+
+	// Create the policies
+	var baseIndex uint64 = 1000
+	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{policyA, policyB1, policyB2})
+	require.NoError(err)
+
+	iter, err := state.ScalingPoliciesByJob(nil,
+		policyA.Target[structs.ScalingTargetNamespace],
+		policyA.Target[structs.ScalingTargetJob])
+	require.NoError(err)
+
+	// Ensure we see expected policies
+	count := 0
+	found := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+		found = append(found, raw.(*structs.ScalingPolicy).Target[structs.ScalingTargetGroup])
+	}
+	require.Equal(1, count)
+	sort.Strings(found)
+	expect := []string{policyA.Target[structs.ScalingTargetGroup]}
+	sort.Strings(expect)
+	require.Equal(expect, found)
+
+	iter, err = state.ScalingPoliciesByJob(nil,
+		policyB1.Target[structs.ScalingTargetNamespace],
+		policyB1.Target[structs.ScalingTargetJob])
+	require.NoError(err)
+
+	// Ensure we see expected policies
+	count = 0
+	found = []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+		found = append(found, raw.(*structs.ScalingPolicy).Target[structs.ScalingTargetGroup])
+	}
+	require.Equal(2, count)
+	sort.Strings(found)
+	expect = []string{
+		policyB1.Target[structs.ScalingTargetGroup],
+		policyB2.Target[structs.ScalingTargetGroup],
+	}
+	sort.Strings(expect)
+	require.Equal(expect, found)
+}
+
+func TestStateStore_UpsertScalingEvent(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	job := mock.Job()
+	groupName := job.TaskGroups[0].Name
+
+	newEvent := structs.NewScalingEvent("message 1").SetMeta(map[string]interface{}{
+		"a": 1,
+	})
+
+	wsAll := memdb.NewWatchSet()
+	all, err := state.ScalingEvents(wsAll)
+	require.NoError(err)
+	require.Nil(all.Next())
+
+	ws := memdb.NewWatchSet()
+	out, _, err := state.ScalingEventsByJob(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.Nil(out)
+
+	err = state.UpsertScalingEvent(1000, &structs.ScalingEventRequest{
+		Namespace:    job.Namespace,
+		JobID:        job.ID,
+		TaskGroup:    groupName,
+		ScalingEvent: newEvent,
+	})
+	require.NoError(err)
+	require.True(watchFired(ws))
+	require.True(watchFired(wsAll))
+
+	ws = memdb.NewWatchSet()
+	out, eventsIndex, err := state.ScalingEventsByJob(ws, job.Namespace, job.ID)
+	require.NoError(err)
+	require.Equal(map[string][]*structs.ScalingEvent{
+		groupName: {newEvent},
+	}, out)
+	require.EqualValues(eventsIndex, 1000)
+
+	iter, err := state.ScalingEvents(ws)
+	require.NoError(err)
+
+	count := 0
+	jobsReturned := []string{}
+	var jobEvents *structs.JobScalingEvents
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		jobEvents = raw.(*structs.JobScalingEvents)
+		jobsReturned = append(jobsReturned, jobEvents.JobID)
+		count++
+	}
+	require.Equal(1, count)
+	require.EqualValues(jobEvents.ModifyIndex, 1000)
+	require.EqualValues(jobEvents.ScalingEvents[groupName][0].CreateIndex, 1000)
+
+	index, err := state.Index("scaling_event")
+	require.NoError(err)
+	require.ElementsMatch([]string{job.ID}, jobsReturned)
+	require.Equal(map[string][]*structs.ScalingEvent{
+		groupName: {newEvent},
+	}, jobEvents.ScalingEvents)
+	require.EqualValues(1000, index)
+	require.False(watchFired(ws))
+}
+
+func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	namespace := uuid.Generate()
+	jobID := uuid.Generate()
+	group1 := uuid.Generate()
+	group2 := uuid.Generate()
+
+	index := uint64(1000)
+	for i := 1; i <= structs.JobTrackedScalingEvents+10; i++ {
+		newEvent := structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+			"i":     i,
+			"group": group1,
+		})
+		err := state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
+			Namespace:    namespace,
+			JobID:        jobID,
+			TaskGroup:    group1,
+			ScalingEvent: newEvent,
+		})
+		index++
+		require.NoError(err)
+
+		newEvent = structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+			"i":     i,
+			"group": group2,
+		})
+		err = state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
+			Namespace:    namespace,
+			JobID:        jobID,
+			TaskGroup:    group2,
+			ScalingEvent: newEvent,
+		})
+		index++
+		require.NoError(err)
+	}
+
+	out, _, err := state.ScalingEventsByJob(nil, namespace, jobID)
+	require.NoError(err)
+	require.Len(out, 2)
+
+	expectedEvents := []int{}
+	for i := structs.JobTrackedScalingEvents; i > 0; i-- {
+		expectedEvents = append(expectedEvents, i+10)
+	}
+
+	// checking order and content
+	require.Len(out[group1], structs.JobTrackedScalingEvents)
+	actualEvents := []int{}
+	for _, event := range out[group1] {
+		require.Equal(group1, event.Meta["group"])
+		actualEvents = append(actualEvents, event.Meta["i"].(int))
+	}
+	require.Equal(expectedEvents, actualEvents)
+
+	// checking order and content
+	require.Len(out[group2], structs.JobTrackedScalingEvents)
+	actualEvents = []int{}
+	for _, event := range out[group2] {
+		require.Equal(group2, event.Meta["group"])
+		actualEvents = append(actualEvents, event.Meta["i"].(int))
+	}
+	require.Equal(expectedEvents, actualEvents)
+}
+
+func TestStateStore_RestoreScalingEvents(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	jobScalingEvents := &structs.JobScalingEvents{
+		Namespace: uuid.Generate(),
+		JobID:     uuid.Generate(),
+		ScalingEvents: map[string][]*structs.ScalingEvent{
+			uuid.Generate(): {
+				structs.NewScalingEvent(uuid.Generate()),
+			},
+		},
+	}
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.ScalingEventsRestore(jobScalingEvents)
+	require.NoError(err)
+	restore.Commit()
+
+	ws := memdb.NewWatchSet()
+	out, _, err := state.ScalingEventsByJob(ws, jobScalingEvents.Namespace,
+		jobScalingEvents.JobID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.EqualValues(jobScalingEvents.ScalingEvents, out)
 }
 
 func TestStateStore_Abandon(t *testing.T) {

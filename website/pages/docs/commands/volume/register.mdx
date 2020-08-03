@@ -1,0 +1,115 @@
+---
+layout: docs
+page_title: 'Commands: volume register'
+sidebar_title: register
+description: |
+  Register volumes with CSI plugins.
+---
+
+# Command: volume register
+
+The `volume register` command registers external storage volumes with
+Nomad's [Container Storage Interface (CSI)][csi] support. The volume
+must exist on the remote storage provider before it can be registered
+and used by a task.
+
+## Usage
+
+```plaintext
+nomad volume register [options] [file]
+```
+
+The `volume register` command requires a single argument, specifying
+the path to a file containing a valid [volume
+specification][volume_specification]. This file will be read and the
+job will be submitted to Nomad for scheduling. If the supplied path is
+"-", the job file is read from STDIN. Otherwise it is read from the
+file at the supplied path.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Volume Specification
+
+The file may be provided as either HCL or JSON. An example HCL configuration:
+
+```hcl
+id = "ebs_prod_db1"
+name = "database"
+type = "csi"
+external_id = "vol-23452345"
+plugin_id = "ebs-prod"
+access_mode = "single-node-writer"
+attachment_mode = "file-system"
+mount_options {
+   fs_type = "ext4"
+   mount_flags = ["ro"]
+}
+secrets {
+   example_secret = "xyzzy"
+}
+parameters {
+    skuname = "Premium_LRS"
+}
+context {
+    endpoint = "http://192.168.1.101:9425"
+}
+```
+
+## Volume Specification Parameters
+
+- `id` `(string: <required>)` - The unique ID of the volume. This will
+  be how [`volume`][csi_volume] stanzas in a jobspec refer to the volume.
+
+- `name` `(string: <required>)` - The display name of the volume.
+
+- `type` `(string: <required>)` - The type of volume. Currently only
+  `"csi"` is supported.
+
+- `external_id` `(string: <required>)` - The ID of the physical volume
+  from the storage provider. For example, the volume ID of an AWS EBS
+  volume or Digital Ocean volume.
+
+- `plugin_id` `(string: <required>)` - The ID of the [CSI
+  plugin][csi_plugin] that manages this volume.
+
+- `access_mode` `(string: <required>)` - Defines whether a volume
+  should be available concurrently. Can be one of
+  `"single-node-reader-only"`, `"single-node-writer"`,
+  `"multi-node-reader-only"`, `"multi-node-single-writer"`, or
+  `"multi-node-multi-writer"`. Most CSI plugins support only
+  single-node modes. Consult the documentation of the storage provider
+  and CSI plugin.
+
+- `attachment_mode` `(string: <required>)` - The storage API that will
+  be used by the volume. Most storage providers will support
+  `"file-system"`, to mount pre-formatted file system volumes. Some
+  storage providers will support `"block-device"`, which will require
+  the job be configured with appropriate mount options.
+
+- `mount_options` <code>([mount_options][]:nil)</code> - Options for
+  mounting `block-device`volumes without a pre-formatted file system.
+  - `fs_type`: file system type (ex. `"ext4"`)
+  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
+
+- `secrets` <code>(map<string|string>:nil)</code> - An optional
+  key-value map of strings used as credentials for publishing and
+  unpublishing volumes.
+
+- `parameters` <code>(map<string|string>:nil)</code> - An optional
+  key-value map of strings passed directly to the CSI plugin to
+  configure the volume. The details of these parameters are specific
+  to each storage provider, so please see the specific plugin
+  documentation for more information.
+
+- `context` <code>(map<string|string>:nil)</code> - An optional
+  key-value map of strings passed directly to the CSI plugin to
+  validate the volume. The details of these parameters are specific to
+  each storage provider, so please see the specific plugin
+  documentation for more information.
+
+[volume_specification]: #volume-specification
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugin]: /docs/job-specification/csi_plugin
+[csi_volumes]: /docs/job-specification/volume

@@ -48,7 +48,7 @@ shortened relative time format like `5m ago`.
 
 List of all jobs:
 
-```shell
+```shell-session
 $ nomad job status
 ID       Type     Priority  Status          Submit Date
 job1     service  80        running         07/25/17 15:47:11 UTC
@@ -58,7 +58,7 @@ job3     service  50        dead (stopped)  07/22/17 16:34:48 UTC
 
 Short view of a specific job:
 
-```shell
+```shell-session
 $ nomad job status -short job1
 ID            = job1
 Name          = Test Job
@@ -73,7 +73,7 @@ Parameterized = false
 
 Full status information of a job:
 
-```shell
+```shell-session
 $ nomad job status example
 ID            = example
 Name          = example
@@ -105,7 +105,7 @@ ID        Node ID   Task Group  Version  Desired  Status   Created   Modified
 
 Full status information of a periodic job:
 
-```shell
+```shell-session
 $ nomad job status example
 ID                   = example
 Name                 = example
@@ -131,7 +131,7 @@ example/periodic-1500998420  running
 
 Full status information of a parameterized job:
 
-```shell
+```shell-session
 $ nomad job status example
 ID            = example
 Name          = example
@@ -160,7 +160,7 @@ example/dispatch-1485411499-fa2ee40e  running
 
 Full status information of a job with placement failures:
 
-```shell
+```shell-session
 $ nomad job status example
 ID            = example
 Name          = example
@@ -202,7 +202,7 @@ Full status information showing evaluations with a placement failure. The in
 progress evaluation denotes that Nomad is blocked waiting for resources to
 become available so that it can place the remaining allocations.
 
-```shell
+```shell-session
 $ nomad job status -evals example
 ID            = example
 Name          = example

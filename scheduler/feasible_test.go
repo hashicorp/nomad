@@ -223,11 +223,218 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			Result:           true,
 		},
 	}
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestCSIVolumeChecker(t *testing.T) {
+	t.Parallel()
+	state, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+
+	// Register running plugins on some nodes
+	nodes[0].CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID:       "foo",
+			Healthy:        true,
+			ControllerInfo: &structs.CSIControllerInfo{},
+		},
+	}
+	nodes[0].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+	nodes[1].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  false,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+	nodes[2].CSINodePlugins = map[string]*structs.CSIInfo{
+		"bar": {
+			PluginID: "bar",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+	nodes[4].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+
+	// Create the plugins in the state store
+	index := uint64(999)
+	for _, node := range nodes {
+		err := state.UpsertNode(index, node)
+		require.NoError(t, err)
+		index++
+	}
+
+	// Create the volume in the state store
+	vid := "volume-id"
+	vol := structs.NewCSIVolume(vid, index)
+	vol.PluginID = "foo"
+	vol.Namespace = structs.DefaultNamespace
+	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(t, err)
+	index++
+
+	// Create some other volumes in use on nodes[3] to trip MaxVolumes
+	vid2 := uuid.Generate()
+	vol2 := structs.NewCSIVolume(vid2, index)
+	vol2.PluginID = "foo"
+	vol2.Namespace = structs.DefaultNamespace
+	vol2.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	vol2.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol2})
+	require.NoError(t, err)
+	index++
+
+	alloc := mock.Alloc()
+	alloc.NodeID = nodes[4].ID
+	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		vid2: {
+			Name:   vid2,
+			Type:   "csi",
+			Source: vid2,
+		},
+	}
+	err = state.UpsertJob(index, alloc.Job)
+	require.NoError(t, err)
+	index++
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(index, summary))
+	index++
+	err = state.UpsertAllocs(index, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+	index++
+
+	// Create volume requests
+	noVolumes := map[string]*structs.VolumeRequest{}
+
+	volumes := map[string]*structs.VolumeRequest{
+		"baz": {
+			Type:   "csi",
+			Name:   "baz",
+			Source: "volume-id",
+		},
+		"nonsense": {
+			Type:   "host",
+			Name:   "nonsense",
+			Source: "my-host-volume",
+		},
+	}
+
+	checker := NewCSIVolumeChecker(ctx)
+	checker.SetNamespace(structs.DefaultNamespace)
+
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // Get it
+			Node:             nodes[0],
+			RequestedVolumes: volumes,
+			Result:           true,
+		},
+		{ // Unhealthy
+			Node:             nodes[1],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Wrong id
+			Node:             nodes[2],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // No Volumes requested or available
+			Node:             nodes[3],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // No Volumes requested, some available
+			Node:             nodes[0],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // Volumes requested, none available
+			Node:             nodes[3],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Volumes requested, MaxVolumes exceeded
+			Node:             nodes[4],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+	}
 
 	for i, c := range cases {
 		checker.SetVolumes(c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestNetworkChecker(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+	nodes[0].NodeResources.Networks = append(nodes[0].NodeResources.Networks, &structs.NetworkResource{Mode: "bridge"})
+	nodes[1].NodeResources.Networks = append(nodes[1].NodeResources.Networks, &structs.NetworkResource{Mode: "bridge"})
+	nodes[2].NodeResources.Networks = append(nodes[2].NodeResources.Networks, &structs.NetworkResource{Mode: "cni/mynet"})
+
+	checker := NewNetworkChecker(ctx)
+	cases := []struct {
+		network *structs.NetworkResource
+		results []bool
+	}{
+		{
+			network: &structs.NetworkResource{Mode: "host"},
+			results: []bool{true, true, true},
+		},
+		{
+			network: &structs.NetworkResource{Mode: "bridge"},
+			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{Mode: "cni/mynet"},
+			results: []bool{false, false, true},
+		},
+		{
+			network: &structs.NetworkResource{Mode: "cni/nonexistent"},
+			results: []bool{false, false, false},
+		},
+	}
+
+	for _, c := range cases {
+		checker.SetNetwork(c.network)
+		for i, node := range nodes {
+			require.Equal(t, c.results[i], checker.Feasible(node), "mode=%q, idx=%d", c.network.Mode, i)
 		}
 	}
 }
@@ -1859,7 +2066,7 @@ func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
 	mocked := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil, nil)
 
 	// Set the job to ineligible
 	ctx.Eligibility().SetJobEligibility(false, nodes[0].ComputedClass)
@@ -1877,7 +2084,7 @@ func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
 	mocked := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -1903,7 +2110,7 @@ func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -1925,7 +2132,7 @@ func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -1947,7 +2154,7 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(true)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass

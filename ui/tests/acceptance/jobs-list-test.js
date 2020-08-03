@@ -2,7 +2,10 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import pageSizeSelect from './behaviors/page-size-select';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 let managementToken, clientToken;
 
@@ -17,7 +20,14 @@ module('Acceptance | jobs list', function(hooks) {
     managementToken = server.create('token');
     clientToken = server.create('token');
 
+    window.localStorage.clear();
     window.localStorage.nomadTokenSecret = managementToken.secretId;
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await JobsList.visit();
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('visiting /jobs', async function(assert) {
@@ -152,7 +162,7 @@ module('Acceptance | jobs list', function(hooks) {
 
     await JobsList.visit();
 
-    await JobsList.search('dog');
+    await JobsList.search.fillIn('dog');
     assert.ok(JobsList.isEmpty, 'The empty message is shown');
     assert.equal(JobsList.emptyState.headline, 'No Matches', 'The message is appropriate');
   });
@@ -165,7 +175,7 @@ module('Acceptance | jobs list', function(hooks) {
 
     assert.equal(currentURL(), '/jobs?page=2', 'Page query param captures page=2');
 
-    await JobsList.search('foobar');
+    await JobsList.search.fillIn('foobar');
 
     assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
   });
@@ -339,6 +349,27 @@ module('Acceptance | jobs list', function(hooks) {
     assert.equal(JobsList.jobs.length, 1, 'Only one job shown due to query param');
   });
 
+  test('the active namespace is carried over to the storage pages', async function(assert) {
+    server.createList('namespace', 2);
+
+    const namespace = server.db.namespaces[1];
+    await JobsList.visit({ namespace: namespace.id });
+
+    await Layout.gutter.visitStorage();
+
+    assert.equal(currentURL(), `/csi/volumes?namespace=${namespace.id}`);
+  });
+
+  pageSizeSelect({
+    resourceName: 'job',
+    pageObject: JobsList,
+    pageObjectList: JobsList.jobs,
+    async setup() {
+      server.createList('job', JobsList.pageSize, { shallow: true, createAllocations: false });
+      await JobsList.visit();
+    },
+  });
+
   function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
     test(`the ${label} facet has the correct options`, async function(assert) {
       await beforeEach();
@@ -427,6 +458,20 @@ module('Acceptance | jobs list', function(hooks) {
         `/jobs?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
         'URL has the correct query param key and value'
       );
+    });
+
+    test('the run job button works when filters are set', async function(assert) {
+      ['pre-one', 'pre-two', 'pre-three'].forEach(name => {
+        server.create('job', { name, createAllocations: false, childrenCount: 0 });
+      });
+
+      await JobsList.visit();
+
+      await JobsList.facets.prefix.toggle();
+      await JobsList.facets.prefix.options[0].toggle();
+
+      await JobsList.runJobButton.click();
+      assert.equal(currentURL(), '/jobs/run');
     });
   }
 });

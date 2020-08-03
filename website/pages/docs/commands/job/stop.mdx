@@ -46,11 +46,15 @@ the request. It is safe to exit the monitor early using ctrl+c.
   set, the job will still be queryable and will be purged by the garbage
   collector.
 
+- `-global`
+    Stop a [multi-region] job in all its regions. By default, `job stop` will
+    stop only a single region at a time. Ignored for single-region jobs.
+
 ## Examples
 
 Stop the job with ID "job1":
 
-```shell
+```shell-session
 $ nomad job stop job1
 ==> Monitoring evaluation "43bfe672"
     Evaluation status changed: "pending" -> "complete"
@@ -59,9 +63,10 @@ $ nomad job stop job1
 
 Stop the job with ID "job1" and return immediately:
 
-```shell
+```shell-session
 $ nomad job stop -detach job1
 507d26cb
 ```
 
 [eval status]: /docs/commands/eval-status
+[multi-region]: /docs/job-specification/multiregion

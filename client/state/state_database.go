@@ -11,6 +11,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,7 +35,10 @@ devicemanager/
 |--> plugin_state -> *dmstate.PluginState
 
 drivermanager/
-|--> plugin_state -> *dmstate.PluginState
+|--> plugin_state -> *driverstate.PluginState
+
+dynamicplugins/
+|--> registry_state -> *dynamicplugins.RegistryState
 */
 
 var (
@@ -73,13 +77,20 @@ var (
 	// data
 	devManagerBucket = []byte("devicemanager")
 
-	// driverManagerBucket is the bucket name container all driver manager
+	// driverManagerBucket is the bucket name containing all driver manager
 	// related data
 	driverManagerBucket = []byte("drivermanager")
 
 	// managerPluginStateKey is the key by which plugin manager plugin state is
 	// stored at
 	managerPluginStateKey = []byte("plugin_state")
+
+	// dynamicPluginBucket is the bucket name containing all dynamic plugin
+	// registry data. each dynamic plugin registry will have its own subbucket.
+	dynamicPluginBucket = []byte("dynamicplugins")
+
+	// registryStateKey is the key at which dynamic plugin registry state is stored
+	registryStateKey = []byte("registry_state")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -582,6 +593,52 @@ func (s *BoltStateDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 		if err := driverBkt.Get(managerPluginStateKey, ps); err != nil {
 			if !boltdd.IsErrNotFound(err) {
 				return fmt.Errorf("failed to read driver manager plugin state: %v", err)
+			}
+
+			// Key not found, reset ps to nil
+			ps = nil
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ps, nil
+}
+
+// PutDynamicPluginRegistryState stores the dynamic plugin registry's
+// state or returns an error.
+func (s *BoltStateDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		// Retrieve the root dynamic plugin manager bucket
+		dynamicBkt, err := tx.CreateBucketIfNotExists(dynamicPluginBucket)
+		if err != nil {
+			return err
+		}
+		return dynamicBkt.Put(registryStateKey, ps)
+	})
+}
+
+// GetDynamicPluginRegistryState stores the dynamic plugin registry's
+// registry state or returns an error.
+func (s *BoltStateDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryState, error) {
+	var ps *dynamicplugins.RegistryState
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		dynamicBkt := tx.Bucket(dynamicPluginBucket)
+		if dynamicBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		// Restore Plugin State if it exists
+		ps = &dynamicplugins.RegistryState{}
+		if err := dynamicBkt.Get(registryStateKey, ps); err != nil {
+			if !boltdd.IsErrNotFound(err) {
+				return fmt.Errorf("failed to read dynamic plugin registry state: %v", err)
 			}
 
 			// Key not found, reset ps to nil

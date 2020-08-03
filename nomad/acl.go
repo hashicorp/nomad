@@ -84,3 +84,37 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 	}
 	return aclObj, nil
 }
+
+// ResolveSecretToken is used to translate an ACL Token Secret ID into
+// an ACLToken object, nil if ACLs are disabled, or an error.
+func (s *Server) ResolveSecretToken(secretID string) (*structs.ACLToken, error) {
+	// TODO(Drew) Look into using ACLObject cache or create a separate cache
+
+	// Fast-path if ACLs are disabled
+	if !s.config.ACLEnabled {
+		return nil, nil
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "resolveSecretToken"}, time.Now())
+
+	snap, err := s.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	// Lookup the ACL Token
+	var token *structs.ACLToken
+	// Handle anonymous requests
+	if secretID == "" {
+		token = structs.AnonymousACLToken
+	} else {
+		token, err = snap.ACLTokenBySecretID(nil, secretID)
+		if err != nil {
+			return nil, err
+		}
+		if token == nil {
+			return nil, structs.ErrTokenNotFound
+		}
+	}
+
+	return token, nil
+}

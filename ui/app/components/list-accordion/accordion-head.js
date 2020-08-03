@@ -1,16 +1,18 @@
 import Component from '@ember/component';
+import { classNames, classNameBindings } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  classNames: ['accordion-head'],
-  classNameBindings: ['isOpen::is-light', 'isExpandable::is-inactive'],
+@classic
+@classNames('accordion-head')
+@classNameBindings('isOpen::is-light', 'isExpandable::is-inactive')
+export default class AccordionHead extends Component {
+  'data-test-accordion-head' = true;
 
-  'data-test-accordion-head': true,
+  buttonLabel = 'toggle';
+  isOpen = false;
+  isExpandable = true;
+  item = null;
 
-  buttonLabel: 'toggle',
-  isOpen: false,
-  isExpandable: true,
-  item: null,
-
-  onClose() {},
-  onOpen() {},
-});
+  onClose() {}
+  onOpen() {}
+}

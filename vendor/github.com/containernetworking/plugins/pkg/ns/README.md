@@ -26,7 +26,7 @@ Note this requirement to wrap every network call is very onerous - any libraries
 
 When a new thread is spawned in Linux, it inherits the namespace of its parent. In versions of go **prior to 1.10**, if the runtime spawns a new OS thread, it picks the parent randomly. If the chosen parent thread has been moved to a new namespace (even temporarily), the new OS thread will be permanently "stuck in the wrong namespace", and goroutines will non-deterministically switch namespaces as they are rescheduled.
 
-In short, **there was no safe way to change network namespaces, even temporarily, from within a long-lived, multithreaded Go process**. If you wish to do this, you must use go 1.10 or greater.
+In short, **there was no safe way to change network namespaces, even temporarily, from within a long-lived, multithreaded Go process**. If you wish to do this, you must use go 1.10 or greater. 
 
 
 ### Creating network namespaces

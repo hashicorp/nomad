@@ -1,24 +1,28 @@
+import { computed } from '@ember/object';
 import { readOnly } from '@ember/object/computed';
 import { copy } from 'ember-copy';
 import Service from '@ember/service';
 
 let list = {};
 
-export default Service.extend({
-  list: readOnly(function() {
+export default class WatchListService extends Service {
+  @computed
+  get _list() {
     return copy(list, true);
-  }),
+  }
 
-  init() {
-    this._super(...arguments);
+  @readOnly('_list') list;
+
+  constructor() {
+    super(...arguments);
     list = {};
-  },
+  }
 
   getIndexFor(url) {
     return list[url] || 1;
-  },
+  }
 
   setIndexFor(url, value) {
     list[url] = +value;
-  },
-});
+  }
+}

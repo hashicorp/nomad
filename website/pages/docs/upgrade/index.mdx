@@ -1,0 +1,151 @@
+---
+layout: docs
+page_title: 'Upgrading'
+sidebar_current: 'guides-upgrade'
+description: |-
+  Learn how to upgrade Nomad.
+---
+
+# Upgrading
+
+Nomad is designed to be flexible and resilient when upgrading from one Nomad
+version to the next. Upgrades should cause neither a Nomad nor a service
+outage. However, there are some restrictions to be aware of before upgrading:
+
+- Nomad strives to be backward compatible for at least 1 point release, so
+  Nomad v0.10 hosts work with v0.9 hosts. Upgrading 2 point releases (eg v0.8
+  to v0.10) may work but is untested and unsupported.
+
+  - Nomad does _not_ support downgrading at this time. Downgrading clients
+    requires draining allocations and removing the [data directory][data_dir].
+    Downgrading servers safely requires re-provisioning the cluster.
+
+  - New features are unlikely to work correctly until all nodes have been
+    upgraded.
+
+  - Check the [version upgrade details page][upgrade-specific] for important
+    changes and backward incompatibilities.
+
+- When upgrading a Nomad Client, if it takes longer than the
+  [`heartbeat_grace`][heartbeat_grace] (10s by default) period to restart, all
+  allocations on that node may be rescheduled.
+
+Nomad supports upgrading in place or by rolling in new servers:
+
+- In Place: The Nomad binary can be updated on existing hosts. Running
+  allocations will continue running uninterrupted.
+
+- Rolling: New hosts containing the new Nomad version may be added followed by
+  the removal of old hosts. The old nodes must be drained to migrate running
+  allocations to the new nodes.
+
+This guide describes both approaches.
+
+## Upgrade Process
+
+Once you have checked the [upgrade details for the new
+version][upgrade-specific], the upgrade process is as simple as updating the
+binary on each host and restarting the Nomad service.
+
+At a high level we complete the following steps to upgrade Nomad:
+
+- **Add the new version**
+- **Check cluster health**
+- **Remove the old version**
+- **Check cluster health**
+- **Upgrade clients**
+
+### 1. Add the new version to the existing cluster
+
+While it is possible to upgrade Nomad client nodes before servers, this guide
+recommends upgrading servers first as many new client features will not work
+until servers are upgraded.
+
+Whether you are replacing Nomad in place on existing systems or bringing up new
+servers you should make changes incrementally, verifying cluster health at each
+step of the upgrade.
+
+On a single server, install the new version of Nomad. You can do this by
+joining a new server to the cluster or by replacing or upgrading the binary
+locally and restarting the Nomad service.
+
+### 2. Check cluster health
+
+[Monitor the Nomad logs][monitor] on the remaining servers to check that the
+new server has joined the cluster correctly.
+
+Run `nomad agent-info` on the new servers and check that the `last_log_index`
+is of a similar value to the other servers. This step ensures that changes have
+been replicated to the new server.
+
+```shell-session
+ubuntu@nomad-server-10-1-1-4:~$ nomad agent-info
+nomad
+  bootstrap = false
+  known_regions = 1
+  leader = false
+  server = true
+raft
+  applied_index = 53460
+  commit_index = 53460
+  fsm_pending = 0
+  last_contact = 54.512216ms
+  last_log_index = 53460
+  last_log_term = 1
+  last_snapshot_index = 49511
+  last_snapshot_term = 1
+  num_peers = 2
+...
+```
+
+Continue with the upgrades across the servers making sure to do a single Nomad
+server at a time. You can check state of the servers with [`nomad server members`][server-members], and the state of the client nodes with [`nomad node status`][node-status].
+
+### 3. Remove the old versions from servers
+
+If you are doing an in place upgrade on existing servers this step is not
+necessary as the version was changed in place.
+
+If you are doing an upgrade by adding new servers and removing old servers
+from the fleet you need to ensure that the server has left the fleet safely.
+
+1. Stop the service on the existing host
+2. On another server issue a `nomad server members` and check the status, if
+   the server is now in a left state you are safe to continue.
+3. If the server is not in a left state, issue a `nomad server force-leave <server id>`
+   to remove the server from the cluster.
+
+Monitor the logs of the other hosts in the Nomad cluster over this period.
+
+### 4. Check cluster health
+
+Use the same actions in step #2 above to confirm cluster health.
+
+### 5. Upgrade clients
+
+Following the successful upgrade of the servers you can now update your
+clients using a similar process as the servers. You may either upgrade clients
+in-place or start new nodes on the new version. See the [Workload Migration
+Guide](https://learn.hashicorp.com/nomad/operating-nomad/node-draining) for instructions on how to migrate running
+allocations from the old nodes to the new nodes with the [`nomad node drain`](/docs/commands/node/drain) command.
+
+## Done!
+
+You are now running the latest Nomad version. You can verify all
+Clients joined by running `nomad node status` and checking all the clients
+are in a `ready` state.
+
+## Upgrading to Nomad Enterprise
+
+The process of upgrading to a Nomad Enterprise version is identical to upgrading
+between versions of open source Nomad. The same guidance above should be
+followed and as always, prior to starting the upgrade please check the [specific
+version details](/docs/upgrade/upgrade-specific) page as some version
+differences may require specific steps.
+
+[data_dir]: /docs/configuration#data_dir
+[heartbeat_grace]: /docs/configuration/server#heartbeat_grace
+[monitor]: /docs/commands/monitor
+[node-status]: /docs/commands/node/status
+[server-members]: /docs/commands/server/members
+[upgrade-specific]: /docs/upgrade/upgrade-specific

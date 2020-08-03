@@ -225,11 +225,11 @@ func (s *scanner) acceptMinSize(min int) (end int) {
 // ValueError. The Tag returned in this case is just stripped of the unknown
 // value. All other values are preserved. It accepts tags in the BCP 47 format
 // and extensions to this standard defined in
-// http://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
+// https://www.unicode.org/reports/tr35/#Unicode_Language_and_Locale_Identifiers.
 func Parse(s string) (t Tag, err error) {
 	// TODO: consider supporting old-style locale key-value pairs.
 	if s == "" {
-		return und, ErrSyntax
+		return Und, ErrSyntax
 	}
 	if len(s) <= maxAltTaglen {
 		b := [maxAltTaglen]byte{}
@@ -251,7 +251,7 @@ func Parse(s string) (t Tag, err error) {
 }
 
 func parse(scan *scanner, s string) (t Tag, err error) {
-	t = und
+	t = Und
 	var end int
 	if n := len(scan.token); n <= 1 {
 		scan.toLower(0, len(scan.b))
@@ -260,7 +260,7 @@ func parse(scan *scanner, s string) (t Tag, err error) {
 		}
 		end = parseExtensions(scan)
 	} else if n >= 4 {
-		return und, ErrSyntax
+		return Und, ErrSyntax
 	} else { // the usual case
 		t, end = parseTag(scan)
 		if n := len(scan.token); n == 1 {

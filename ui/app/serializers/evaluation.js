@@ -2,9 +2,11 @@ import { inject as service } from '@ember/service';
 import { get } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
-export default ApplicationSerializer.extend({
-  system: service(),
+@classic
+export default class Evaluation extends ApplicationSerializer {
+  @service system;
 
   normalize(typeHash, hash) {
     const failures = hash.FailedTGAllocs || {};
@@ -27,6 +29,6 @@ export default ApplicationSerializer.extend({
     hash.CreateTimeNanos = hash.CreateTime % 1000000;
     hash.CreateTime = Math.floor(hash.CreateTime / 1000000);
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

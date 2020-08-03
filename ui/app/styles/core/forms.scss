@@ -41,6 +41,23 @@
     display: inline-block;
   }
 
+  &.is-horizontal {
+    .field-label {
+      margin-right: 1rem;
+      padding-top: 0.3em;
+      font-weight: $weight-semibold;
+      white-space: nowrap;
+
+      &.is-small {
+        padding-top: 0.55em;
+      }
+
+      &.is-multiline {
+        white-space: normal;
+      }
+    }
+  }
+
   &.is-sub-field {
     margin-left: 2em;
   }

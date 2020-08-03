@@ -1,18 +1,15 @@
 import Head from 'next/head'
+import HashiHead from '@hashicorp/react-head'
 import Content from '@hashicorp/react-content'
 
 export default function ResourcesPage() {
   return (
     <>
-      <Head>
-        <title key="title">Security | Nomad by HashiCorp</title>
-        <meta
-          name="description"
-          property="og:description"
-          content="Nomad takes security very seriously. Please responsibly disclose any security vulnerabilities found and we'll handle it quickly."
-          key="description"
-        />
-      </Head>
+      <HashiHead
+        is={Head}
+        title="Security | Nomad by HashiCorp"
+        description="Nomad takes security very seriously. Please responsibly disclose any security vulnerabilities found and we'll handle it quickly."
+      />
       <div id="p-security" className="g-grid-container">
         <Content
           product="nomad"

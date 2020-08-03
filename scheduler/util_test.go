@@ -675,6 +675,20 @@ func TestTasksUpdated(t *testing.T) {
 	j18 := mock.Job()
 	j18.Meta["j18_test"] = "roll_baby_roll"
 	require.True(t, tasksUpdated(j1, j18, name))
+
+	// Change network mode
+	j19 := mock.Job()
+	j19.TaskGroups[0].Networks = j19.TaskGroups[0].Tasks[0].Resources.Networks
+	j19.TaskGroups[0].Tasks[0].Resources.Networks = nil
+
+	j20 := mock.Job()
+	j20.TaskGroups[0].Networks = j20.TaskGroups[0].Tasks[0].Resources.Networks
+	j20.TaskGroups[0].Tasks[0].Resources.Networks = nil
+
+	require.False(t, tasksUpdated(j19, j20, name))
+
+	j20.TaskGroups[0].Networks[0].Mode = "bridge"
+	require.True(t, tasksUpdated(j19, j20, name))
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {

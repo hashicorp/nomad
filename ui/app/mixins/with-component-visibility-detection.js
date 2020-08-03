@@ -3,6 +3,7 @@ import Mixin from '@ember/object/mixin';
 import { assert } from '@ember/debug';
 import { on } from '@ember/object/evented';
 
+// eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   visibilityHandler() {
     assert('visibilityHandler needs to be overridden in the Component', false);

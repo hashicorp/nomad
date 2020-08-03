@@ -1,3 +1,5 @@
+plugin_dir = "/opt/nomad/plugins"
+
 client {
   enabled = true
 
@@ -14,6 +16,14 @@ client {
 
   host_volume "shared_data" {
     path = "/tmp/data"
+  }
+}
+
+plugin "nomad-driver-podman" {
+  config {
+    volumes {
+      enabled = true
+    }
   }
 }
 

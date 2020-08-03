@@ -6,6 +6,8 @@
 //   the landing page for the category
 
 export default [
+  'index',
+  '-----------',
   'libraries-and-sdks',
   'json-jobs',
   '-----------',
@@ -21,12 +23,15 @@ export default [
   'nodes',
   'metrics',
   'operator',
+  'plugins',
   'quotas',
   'regions',
+  'scaling-policies',
   'search',
   'sentinel-policies',
   'status',
   'system',
   'ui',
-  'validate'
+  'validate',
+  'volumes'
 ]

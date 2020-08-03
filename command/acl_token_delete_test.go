@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -40,14 +39,12 @@ func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
 
 	// Attempt to delete a token without providing a valid token with delete
 	// permissions
-	os.Setenv("NOMAD_TOKEN", "foo")
-	code := cmd.Run([]string{"-address=" + url, mockToken.AccessorID})
+	code := cmd.Run([]string{"-address=" + url, "-token=foo", mockToken.AccessorID})
 	assert.Equal(1, code)
 
 	// Delete a token using a valid management token set via an environment
 	// variable
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, mockToken.AccessorID})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, mockToken.AccessorID})
 	assert.Equal(0, code)
 
 	// Check the output

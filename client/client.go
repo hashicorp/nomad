@@ -26,8 +26,10 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/pluginmanager"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/state"
@@ -42,6 +44,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -177,10 +180,10 @@ type Client struct {
 	servers *servers.Manager
 
 	// heartbeat related times for tracking how often to heartbeat
-	lastHeartbeat   time.Time
 	heartbeatTTL    time.Duration
 	haveHeartbeated bool
 	heartbeatLock   sync.Mutex
+	heartbeatStop   *heartbeatStop
 
 	// triggerDiscoveryCh triggers Consul discovery; see triggerDiscovery
 	triggerDiscoveryCh chan struct{}
@@ -258,6 +261,9 @@ type Client struct {
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
 
+	// csimanager is responsible for managing csi plugins.
+	csimanager csimanager.Manager
+
 	// devicemanger is responsible for managing device plugins.
 	devicemanager devicemanager.Manager
 
@@ -279,6 +285,13 @@ type Client struct {
 	// successfully run once.
 	serversContactedCh   chan struct{}
 	serversContactedOnce sync.Once
+
+	// dynamicRegistry provides access to plugins that are dynamically registered
+	// with a nomad client. Currently only used for CSI.
+	dynamicRegistry dynamicplugins.Registry
+
+	// EnterpriseClient is used to set and check enterprise features for clients
+	EnterpriseClient *EnterpriseClient
 }
 
 var (
@@ -331,11 +344,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
+		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
+		c.updateNodeFromCSI,
 	)
 
 	// Initialize the server manager
@@ -344,10 +359,21 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Start server manager rebalancing go routine
 	go c.servers.Start()
 
-	// Initialize the client
+	// initialize the client
 	if err := c.init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize client: %v", err)
 	}
+
+	// initialize the dynamic registry (needs to happen after init)
+	c.dynamicRegistry =
+		dynamicplugins.NewRegistry(c.stateDB, map[string]dynamicplugins.PluginDispenser{
+			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller"))
+			},
+			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client"))
+			}, // TODO(tgross): refactor these dispenser constructors into csimanager to tidy it up
+		})
 
 	// Setup the clients RPC server
 	c.setupClientRpc()
@@ -383,6 +409,17 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	allowlistDrivers := cfg.ReadStringListToMap("driver.whitelist")
 	blocklistDrivers := cfg.ReadStringListToMap("driver.blacklist")
 
+	// Setup the csi manager
+	csiConfig := &csimanager.Config{
+		Logger:                c.logger,
+		DynamicRegistry:       c.dynamicRegistry,
+		UpdateNodeCSIInfoFunc: c.batchNodeUpdates.updateNodeFromCSI,
+		TriggerNodeEvent:      c.triggerNodeEvent,
+	}
+	csiManager := csimanager.New(csiConfig)
+	c.csimanager = csiManager
+	c.pluginManagers.RegisterAndRun(csiManager.PluginManager())
+
 	// Setup the driver manager
 	driverConfig := &drivermanager.Config{
 		Logger:              c.logger,
@@ -412,8 +449,16 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c.pluginManagers.RegisterAndRun(devManager)
 
 	// Batching of initial fingerprints is done to reduce the number of node
-	// updates sent to the server on startup.
+	// updates sent to the server on startup. This is the first RPC to the servers
 	go c.batchFirstFingerprints()
+
+	// create heartbeatStop. We go after the first attempt to connect to the server, so
+	// that our grace period for connection goes for the full time
+	c.heartbeatStop = newHeartbeatStop(c.getAllocRunner, batchFirstFingerprintsTimeout, logger, c.shutdownCh)
+
+	// Watch for disconnection, and heartbeatStopAllocs configured to have a maximum
+	// lifetime when out of touch with the server
+	go c.heartbeatStop.watch()
 
 	// Add the stats collector
 	statsCollector := stats.NewHostStatsCollector(c.logger, c.config.AllocDir, c.devicemanager.AllStats)
@@ -732,7 +777,7 @@ func (c *Client) Stats() map[string]map[string]string {
 			"node_id":         c.NodeID(),
 			"known_servers":   strings.Join(c.GetServers(), ","),
 			"num_allocations": strconv.Itoa(c.NumAllocs()),
-			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat)),
+			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat())),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
 		"runtime": hstats.RuntimeStats(),
@@ -1054,9 +1099,12 @@ func (c *Client) restoreState() error {
 			Vault:               c.vaultClient,
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
+			DynamicRegistry:     c.dynamicRegistry,
+			CSIManager:          c.csimanager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
+			RPCClient:           c,
 		}
 		c.configLock.RUnlock()
 
@@ -1077,10 +1125,21 @@ func (c *Client) restoreState() error {
 			continue
 		}
 
+		// Maybe mark the alloc for halt on missing server heartbeats
+		if c.heartbeatStop.shouldStop(alloc) {
+			err = c.heartbeatStop.stopAlloc(alloc.ID)
+			if err != nil {
+				c.logger.Error("error stopping alloc", "error", err, "alloc_id", alloc.ID)
+			}
+			continue
+		}
+
 		//XXX is this locking necessary?
 		c.allocLock.Lock()
 		c.allocs[alloc.ID] = ar
 		c.allocLock.Unlock()
+
+		c.heartbeatStop.allocHook(alloc)
 	}
 
 	// All allocs restored successfully, run them!
@@ -1279,6 +1338,12 @@ func (c *Client) setupNode() error {
 	if node.Drivers == nil {
 		node.Drivers = make(map[string]*structs.DriverInfo)
 	}
+	if node.CSIControllerPlugins == nil {
+		node.CSIControllerPlugins = make(map[string]*structs.CSIInfo)
+	}
+	if node.CSINodePlugins == nil {
+		node.CSINodePlugins = make(map[string]*structs.CSIInfo)
+	}
 	if node.Meta == nil {
 		node.Meta = make(map[string]string)
 	}
@@ -1371,7 +1436,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// if we still have node changes, merge them
 	if response.Resources != nil {
 		response.Resources.Networks = updateNetworks(
-			c.config.Node.Resources.Networks,
 			response.Resources.Networks,
 			c.config)
 		if !c.config.Node.Resources.Equals(response.Resources) {
@@ -1384,7 +1448,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {
 		response.NodeResources.Networks = updateNetworks(
-			c.config.Node.NodeResources.Networks,
 			response.NodeResources.Networks,
 			c.config)
 		if !c.config.Node.NodeResources.Equals(response.NodeResources) {
@@ -1400,33 +1463,40 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	return c.configCopy.Node
 }
 
-// updateNetworks preserves manually configured network options, but
-// applies fingerprint updates
-func updateNetworks(ns structs.Networks, up structs.Networks, c *config.Config) structs.Networks {
-	if c.NetworkInterface == "" {
-		ns = up
-	} else {
-		// If a network device is configured, filter up to contain details for only
+// updateNetworks filters and overrides network speed of host networks based
+// on configured settings
+func updateNetworks(up structs.Networks, c *config.Config) structs.Networks {
+	if up == nil {
+		return nil
+	}
+
+	if c.NetworkInterface != "" {
+		// For host networks, if a network device is configured filter up to contain details for only
 		// that device
 		upd := []*structs.NetworkResource{}
 		for _, n := range up {
-			if c.NetworkInterface == n.Device {
+			switch n.Mode {
+			case "host":
+				if c.NetworkInterface == n.Device {
+					upd = append(upd, n)
+				}
+			default:
 				upd = append(upd, n)
+
 			}
 		}
-		// If updates, use them. Otherwise, ns contains the configured interfaces
-		if len(upd) > 0 {
-			ns = upd
-		}
+		up = upd
 	}
 
-	// ns is set, apply the config NetworkSpeed to all
+	// if set, apply the config NetworkSpeed to networks in host mode
 	if c.NetworkSpeed != 0 {
-		for _, n := range ns {
-			n.MBits = c.NetworkSpeed
+		for _, n := range up {
+			if n.Mode == "host" {
+				n.MBits = c.NetworkSpeed
+			}
 		}
 	}
-	return ns
+	return up
 }
 
 // retryIntv calculates a retry interval value given the base
@@ -1490,6 +1560,10 @@ func (c *Client) registerAndHeartbeat() {
 	}
 }
 
+func (c *Client) lastHeartbeat() time.Time {
+	return c.heartbeatStop.getLastOk()
+}
+
 // getHeartbeatRetryIntv is used to retrieve the time to wait before attempting
 // another heartbeat.
 func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
@@ -1500,7 +1574,7 @@ func (c *Client) getHeartbeatRetryIntv(err error) time.Duration {
 	// Collect the useful heartbeat info
 	c.heartbeatLock.Lock()
 	haveHeartbeated := c.haveHeartbeated
-	last := c.lastHeartbeat
+	last := c.lastHeartbeat()
 	ttl := c.heartbeatTTL
 	c.heartbeatLock.Unlock()
 
@@ -1700,7 +1774,7 @@ func (c *Client) registerNode() error {
 
 	c.heartbeatLock.Lock()
 	defer c.heartbeatLock.Unlock()
-	c.lastHeartbeat = time.Now()
+	c.heartbeatStop.setLastOk(time.Now())
 	c.heartbeatTTL = resp.HeartbeatTTL
 	return nil
 }
@@ -1726,10 +1800,10 @@ func (c *Client) updateNodeStatus() error {
 
 	// Update the last heartbeat and the new TTL, capturing the old values
 	c.heartbeatLock.Lock()
-	last := c.lastHeartbeat
+	last := c.lastHeartbeat()
 	oldTTL := c.heartbeatTTL
 	haveHeartbeated := c.haveHeartbeated
-	c.lastHeartbeat = time.Now()
+	c.heartbeatStop.setLastOk(time.Now())
 	c.heartbeatTTL = resp.HeartbeatTTL
 	c.haveHeartbeated = true
 	c.heartbeatLock.Unlock()
@@ -1774,6 +1848,7 @@ func (c *Client) updateNodeStatus() error {
 		c.triggerDiscovery()
 	}
 
+	c.EnterpriseClient.SetFeatures(resp.Features)
 	return nil
 }
 
@@ -1863,9 +1938,6 @@ func (c *Client) allocSync() {
 // allocUpdates holds the results of receiving updated allocations from the
 // servers.
 type allocUpdates struct {
-	// index is index of server store snapshot used for fetching alloc status
-	index uint64
-
 	// pulled is the set of allocations that were downloaded from the servers.
 	pulled map[string]*structs.Allocation
 
@@ -2048,7 +2120,6 @@ OUTER:
 			filtered:      filtered,
 			pulled:        pulledAllocs,
 			migrateTokens: resp.MigrateTokens,
-			index:         resp.Index,
 		}
 
 		select {
@@ -2310,8 +2381,11 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		DeviceStatsReporter: c,
 		PrevAllocWatcher:    prevAllocWatcher,
 		PrevAllocMigrator:   prevAllocMigrator,
+		DynamicRegistry:     c.dynamicRegistry,
+		CSIManager:          c.csimanager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
+		RPCClient:           c,
 	}
 	c.configLock.RUnlock()
 
@@ -2322,6 +2396,9 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	// Store the alloc runner.
 	c.allocs[alloc.ID] = ar
+
+	// Maybe mark the alloc for halt on missing server heartbeats
+	c.heartbeatStop.allocHook(alloc)
 
 	go ar.Run()
 	return nil
@@ -2380,6 +2457,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 	}
 
 	// Derive the tokens
+	// namespace is handled via nomad/vault
 	var resp structs.DeriveVaultTokenResponse
 	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
 		vlogger.Error("error making derive token RPC", "error", err)

@@ -73,6 +73,11 @@ func QuotaPolicy(policy string) string {
 	return fmt.Sprintf("quota {\n\tpolicy = %q\n}\n", policy)
 }
 
+// PluginPolicy is a helper for generating the hcl for a given plugin policy.
+func PluginPolicy(policy string) string {
+	return fmt.Sprintf("plugin {\n\tpolicy = %q\n}\n", policy)
+}
+
 // CreatePolicy creates a policy with the given name and rule.
 func CreatePolicy(t testing.T, state StateStore, index uint64, name, rule string) {
 	t.Helper()

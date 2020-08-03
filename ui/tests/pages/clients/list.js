@@ -12,8 +12,11 @@ import {
 } from 'ember-cli-page-object';
 
 import facet from 'nomad-ui/tests/pages/components/facet';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
+  pageSize: 25,
+
   visit: visitable('/clients'),
 
   search: fillable('.search-box input'),
@@ -59,6 +62,8 @@ export default create({
     headline: text('[data-test-empty-clients-list-headline]'),
   },
 
+  pageSizeSelect: pageSizeSelect(),
+
   error: {
     isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
@@ -70,5 +75,6 @@ export default create({
     class: facet('[data-test-class-facet]'),
     state: facet('[data-test-state-facet]'),
     datacenter: facet('[data-test-datacenter-facet]'),
+    volume: facet('[data-test-volume-facet]'),
   },
 });

@@ -7,13 +7,13 @@ steps:
   - checkout
   - restore_cache:
       keys:
-        - v1-deps-{{ checksum "ui/yarn.lock" }}
-        - v1-deps-
+        - v2-deps-{{ checksum "ui/yarn.lock" }}
+        - v2-deps-
   - run:
       name: yarn install
       command: cd ui && yarn install
   - save_cache:
-      key: v1-deps-{{ checksum "ui/yarn.lock" }}
+      key: v2-deps-{{ checksum "ui/yarn.lock" }}
       paths:
         - ./ui/node_modules
   - run:
@@ -24,4 +24,8 @@ steps:
       command: cd ui && yarn run lint:hbs
   - run:
       name: Ember tests
-      command: cd ui && yarn test
+      command: mkdir -p /tmp/test-reports && cd ui && yarn test
+  - store_test_results:
+      path: /tmp/test-reports
+  - store_artifacts:
+      path: /tmp/test-reports

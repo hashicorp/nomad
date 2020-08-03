@@ -88,7 +88,7 @@ func TestServerMembersCommand_MultiRegion_Leave(t *testing.T) {
 	}
 
 	srv2, _, _ := testServer(t, false, config2)
-	defer srv1.Shutdown()
+	defer srv2.Shutdown()
 
 	// Join with srv1
 	addr := fmt.Sprintf("127.0.0.1:%d",

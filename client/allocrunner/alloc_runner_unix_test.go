@@ -236,9 +236,9 @@ func TestAllocRunner_PreStartFailuresLeadToFailed(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "2ms",
 	}
-	alloc.Job.TaskGroups[0].RestartPolicy = &structs.RestartPolicy{
-		Attempts: 0,
-	}
+	rp := &structs.RestartPolicy{Attempts: 0}
+	alloc.Job.TaskGroups[0].RestartPolicy = rp
+	task.RestartPolicy = rp
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())
 	defer cleanup()

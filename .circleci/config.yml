@@ -10,12 +10,14 @@ jobs:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./nomad/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -24,12 +26,31 @@ jobs:
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -37,16 +58,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -73,7 +110,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -86,13 +128,15 @@ jobs:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
-    - GOTEST_PKGS: ./api/...
+    - GOTEST_MOD: api
+    - GOTEST_PKGS: ''
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
     steps:
@@ -100,12 +144,31 @@ jobs:
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -113,16 +176,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -149,7 +228,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -162,12 +246,14 @@ jobs:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./drivers/exec
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -176,12 +262,31 @@ jobs:
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -189,16 +294,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -225,7 +346,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -238,12 +364,14 @@ jobs:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./client/...
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -252,12 +380,31 @@ jobs:
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -265,16 +412,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -301,25 +464,137 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/test-reports
+  test-windows:
+    machine:
+      image: windows-server-2019-vs2019:stable
+    working_directory: c:\gopath\src\github.com\hashicorp\nomad
+    steps:
+    - run:
+        command: git config --global core.autocrlf false
+    - checkout
+    - run:
+        command: |
+          mkdir -p $GOBIN
+          mkdir -p $GOTESTSUM_PATH
+        name: Setup
+    - run:
+        command: |
+          set -x
+
+          echo installing golang ${GOLANG_VERSION}
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf c:/go
+            sudo mkdir -p c:
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C c: -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf c:/go
+            mkdir -p c:
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d c:
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
+    - run:
+        command: go version
+    - run:
+        command: |
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"$VAULT_VERSION"/vault_"$VAULT_VERSION"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
+    - run:
+        command: vault version
+    - run:
+        command: choco install make
+    - run:
+        command: |
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          make deps
+        name: Install golang dependencies
+    - run:
+        command: docker pull hashicorpnomad/busybox-windows:server2016-0.1
+        name: Pre-download docker test image
+    - run:
+        command: |
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          go build -o $GOBIN\nomad.exe
+        name: Build nomad
+    - run:
+        command: |
+          # Only test docker driver tests for now
+          export PATH=$PATH:/c/go/bin:/c/gopath/bin
+          gotestsum --format=short-verbose \
+            --junitfile $GOTESTSUM_PATH/results.xml \
+            github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/client/lib/fifo \
+            github.com/hashicorp/nomad/client/logmon
+        name: Run tests with gotestsum
+    - store_test_results:
+        path: c:\tmp\test-reports
+    - store_artifacts:
+        path: c:\tmp\test-reports
+    environment:
+    - GOBIN: c:\gopath\bin
+    - GOLANG_VERSION: 1.14.6
+    - GOPATH: c:\gopath
+    - GOTESTSUM_PATH: c:\tmp\test-reports
+    - GOTESTSUM_VERSION: 0.4.2
+    - VAULT_VERSION: 1.4.1
+    resource_class: windows.medium
+    shell: bash --login -eo pipefail
   test-shared-exec:
     machine:
       image: ubuntu-1604:201903-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./drivers/shared/executor
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -328,12 +603,31 @@ jobs:
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -341,16 +635,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -377,7 +687,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -393,13 +708,13 @@ jobs:
     - checkout
     - restore_cache:
         keys:
-        - v1-deps-{{ checksum "ui/yarn.lock" }}
-        - v1-deps-
+        - v2-deps-{{ checksum "ui/yarn.lock" }}
+        - v2-deps-
     - run:
         command: cd ui && yarn install
         name: yarn install
     - save_cache:
-        key: v1-deps-{{ checksum "ui/yarn.lock" }}
+        key: v2-deps-{{ checksum "ui/yarn.lock" }}
         paths:
         - ./ui/node_modules
     - run:
@@ -409,11 +724,15 @@ jobs:
         command: cd ui && yarn run lint:hbs
         name: lint:hbs
     - run:
-        command: cd ui && yarn test
+        command: mkdir -p /tmp/test-reports && cd ui && yarn test
         name: Ember tests
+    - store_test_results:
+        path: /tmp/test-reports
+    - store_artifacts:
+        path: /tmp/test-reports
   lint-go:
     docker:
-    - image: golang:1.12.16
+    - image: golang:1.14.6
     working_directory: /go/src/github.com/hashicorp/nomad
     steps:
     - checkout
@@ -434,12 +753,15 @@ jobs:
     - run:
         command: make checkscripts
     - run:
+        command: mkdir -p ui/dist && make generate-all static-assets
+    - run:
         command: make -C .circleci CIRCLECI="circleci-local-cli --skip-update-check" ci-verify
         name: check .circleci/config.yml is up-to-date
     environment:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
@@ -458,7 +780,7 @@ jobs:
           # Ignore job if running an enterprise build
           IMAGE_TAG=$(cat website/Dockerfile website/package-lock.json | sha256sum | awk '{print $1;}')
           echo "Using $IMAGE_TAG"
-          if  [ "$CIRCLE_REPOSITORY_URL" != "git@github.com:hashicorp/nomad" ]; then
+          if  [ "$CIRCLE_REPOSITORY_URL" != "git@github.com:hashicorp/nomad.git" ]; then
             echo "Not Nomad OSS Repo, not building website docker image"
           elif curl https://hub.docker.com/v2/repositories/hashicorp/nomad-website/tags/$IMAGE_TAG -fsL > /dev/null; then
               echo "Dependencies have not changed, not building a new website docker image."
@@ -476,26 +798,47 @@ jobs:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ''
-    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/rkt|./drivers/shared/executor|./nomad|./devices
+    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices
     - GOTESTARCH: amd64
     steps:
     - checkout
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -503,16 +846,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -539,7 +898,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -548,12 +912,13 @@ jobs:
         path: /tmp/test-reports
   test-devices:
     docker:
-    - image: golang:1.12.16
+    - image: golang:1.14.6
     working_directory: /go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
@@ -573,16 +938,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ -z $GOTEST_PKGS_EXCLUDE ];
@@ -598,25 +979,105 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
         path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/test-reports
+  build-darwin-binaries:
+    macos:
+      xcode: 11.3.1
+    working_directory: ~/go/src/github.com/hashicorp/nomad
+    steps:
+    - checkout
+    - run:
+        command: echo 'export PATH="${GOPATH}/bin:${HOME}/goinstall/go/bin:$PATH"' >> ${BASH_ENV}
+        name: configure PATH
+    - run:
+        command: |
+          set -x
+
+          echo installing golang ${GOLANG_VERSION}
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf ~/goinstall/go
+            sudo mkdir -p ~/goinstall
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C ~/goinstall -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf ~/goinstall/go
+            mkdir -p ~/goinstall
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d ~/goinstall
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
+    - run:
+        command: source ${BASH_ENV} && make deps
+    - run:
+        command: brew install protobuf
+    - run:
+        command: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
+    - run:
+        command: source ${BASH_ENV} && make pkg/darwin_amd64.zip
+    - store_artifacts:
+        destination: /builds/nomad_darwin_amd64.zip
+        path: pkg/darwin_amd64.zip
+    environment:
+    - GIT_PAGER: cat
+    - GOLANG_VERSION: 1.14.6
+    - GOMAXPROCS: 1
+    - GOPATH: /Users/distiller/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
+    - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
+    - NOMAD_SLOW_TEST: 1
+    - PAGER: cat
+  algolia_index:
+    docker:
+    - image: node:12
+    steps:
+    - checkout
+    - run:
+        command: |
+          if  [ "$CIRCLE_REPOSITORY_URL" != "git@github.com:hashicorp/nomad.git" ]; then
+            echo "Not Nomad OSS Repo, not indexing Algolia"
+            exit 0
+          fi
+
+          cd website/
+          npm install
+          node scripts/index_search_content.js
+        name: Push content to Algolia Index
   test-docker:
     machine:
       image: circleci/classic:201808-01
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./drivers/docker
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: amd64
@@ -625,12 +1086,31 @@ jobs:
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -638,16 +1118,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -674,7 +1170,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -683,12 +1184,13 @@ jobs:
         path: /tmp/test-reports
   build-binaries:
     docker:
-    - image: golang:1.12.16
+    - image: golang:1.14.6
     working_directory: /go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
@@ -716,7 +1218,7 @@ jobs:
         path: pkg/linux_amd64.zip
   test-e2e:
     docker:
-    - image: golang:1.12.16
+    - image: golang:1.14.6
     working_directory: /go/src/github.com/hashicorp/nomad
     steps:
     - checkout
@@ -738,6 +1240,7 @@ jobs:
     - GIT_PAGER: cat
     - GOMAXPROCS: 1
     - GOPATH: /go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
@@ -747,12 +1250,14 @@ jobs:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
-    - GOLANG_VERSION: 1.12.16
+    - GOLANG_VERSION: 1.14.6
     - GOMAXPROCS: 1
     - GOPATH: /home/circleci/go
+    - GOTESTSUM_JSONFILE: /tmp/test-reports/testjsonfile.json
     - GOTESTSUM_JUNITFILE: /tmp/test-reports/results.xml
     - NOMAD_SLOW_TEST: 1
     - PAGER: cat
+    - GOTEST_MOD: ''
     - GOTEST_PKGS: ./client/fingerprint
     - GOTEST_PKGS_EXCLUDE: ''
     - GOTESTARCH: '386'
@@ -761,12 +1266,31 @@ jobs:
     - run:
         command: |
           set -x
+
           echo installing golang ${GOLANG_VERSION}
-          sudo rm -rf /usr/local/go
-          wget -O /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
-          rm -rf /tmp/golang.tar.gz
-        name: install golang
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          if [[ "${os}" != "windows" ]]
+          then
+            sudo rm -rf /usr/local/go
+            sudo mkdir -p /usr/local
+            curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+            sudo tar -C /usr/local -xzf /tmp/golang.tar.gz
+            rm -rf /tmp/golang.tar.gz
+          else
+            rm -rf /usr/local/go
+            mkdir -p /usr/local
+            curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+            unzip -q -o /tmp/go.zip -d /usr/local
+            rm -rf /tmp/go.zip
+          fi
+        name: Install golang
     - run:
         command: |
           sudo rm -rf /usr/bin/protoc
@@ -774,16 +1298,32 @@ jobs:
         name: install protoc
     - run:
         command: |
-          wget -q -O /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.1/consul_1.6.1_linux_amd64.zip
+          curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.6.4/consul_1.6.4_linux_amd64.zip
           sudo unzip -d /usr/local/bin /tmp/consul.zip
           rm -rf /tmp/consul*
-        name: Install Consul 1.6.1
+        name: Install Consul 1.6.4
     - run:
         command: |
-          wget -q -O /tmp/vault.zip https://releases.hashicorp.com/vault/1.2.3/vault_1.2.3_linux_amd64.zip
-          sudo unzip -d /usr/local/bin /tmp/vault.zip
-          rm -rf /tmp/vault*
-        name: Install Vault 1.2.3
+          set -x
+
+          case "${OSTYPE}" in
+            linux*)  os="linux" ;;
+            darwin*) os="darwin" ;;
+            msys*)   os="windows" ;;
+            *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+          esac
+
+          curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"1.2.4"/vault_"1.2.4"_"${os}"_amd64.zip
+
+          if [[ "${os}" != "windows" ]]; then
+            sudo unzip -d /usr/local/bin /tmp/vault.zip
+            rm -rf /tmp/vault*
+          else
+            rm -rf c:\Windows\vault.exe
+            unzip /tmp/vault.zip -d "/c/Windows"
+            rm -rf /tmp/vault*
+          fi
+        name: Install Vault
     - run:
         command: |
           if [ ! -z $GOTESTARCH ] && [ $GOTESTARCH == "386" ]; then
@@ -810,7 +1350,12 @@ jobs:
 
           mkdir -p /tmp/test-reports
           sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-          sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+
+          if [ ! -z $GOTEST_MOD ]; then
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+          else
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+          fi
         name: Running Nomad Tests
         no_output_timeout: 20m
     - store_test_results:
@@ -825,7 +1370,22 @@ workflows:
           branches:
             ignore:
             - stable-website
+            - /^.-ui\b.*/
     - lint-go:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - stable-website
+    - build-darwin-binaries:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - stable-website
+    - test-windows:
         filters:
           branches:
             ignore:
@@ -915,5 +1475,11 @@ workflows:
           branches:
             only:
             - master
+        context: static-sites
+    - algolia_index:
+        filters:
+          branches:
+            only:
+            - stable-website
         context: static-sites
   version: 2

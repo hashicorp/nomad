@@ -1,0 +1,17 @@
+executor: go-macos
+steps:
+  - checkout
+  - run:
+      name: configure PATH
+      command:
+        echo 'export PATH="${GOPATH}/bin:${HOME}/goinstall/go/bin:$PATH"' >> ${BASH_ENV}
+
+  - install-golang:
+      target_directory: ~/goinstall
+  - run: source ${BASH_ENV} && make deps
+  - run: brew install protobuf
+  - run: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
+  - run: source ${BASH_ENV} && make pkg/darwin_amd64.zip
+  - store_artifacts:
+      path: pkg/darwin_amd64.zip
+      destination: /builds/nomad_darwin_amd64.zip

@@ -49,6 +49,18 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       assert.equal(currentURL(), `/jobs/${job.id}/evaluations`);
     });
 
+    test('the title buttons are dependent on job status', async function(assert) {
+      if (job.status === 'dead') {
+        assert.ok(JobDetail.start.isPresent);
+        assert.notOk(JobDetail.stop.isPresent);
+        assert.notOk(JobDetail.execButton.isPresent);
+      } else {
+        assert.notOk(JobDetail.start.isPresent);
+        assert.ok(JobDetail.stop.isPresent);
+        assert.ok(JobDetail.execButton.isPresent);
+      }
+    });
+
     if (context === 'allocations') {
       test('allocations for the job are shown in the overview', async function(assert) {
         assert.ok(JobDetail.allocationsSummary, 'Allocations are shown in the summary section');

@@ -1,11 +1,13 @@
 import { get } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+@classic
+export default class DeploymentSerializer extends ApplicationSerializer {
+  attrs = {
     versionNumber: 'JobVersion',
-  },
+  };
 
   normalize(typeHash, hash) {
     if (hash) {
@@ -29,8 +31,8 @@ export default ApplicationSerializer.extend({
       hash.JobID = hash.JobForLatestID = JSON.stringify([hash.JobID, hash.Namespace]);
     }
 
-    return this._super(typeHash, hash);
-  },
+    return super.normalize(typeHash, hash);
+  }
 
   extractRelationships(modelClass, hash) {
     const namespace = this.store.adapterFor(modelClass.modelName).get('namespace');
@@ -44,7 +46,7 @@ export default ApplicationSerializer.extend({
           },
         },
       },
-      this._super(modelClass, hash)
+      super.extractRelationships(modelClass, hash)
     );
-  },
-});
+  }
+}

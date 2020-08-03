@@ -12,10 +12,10 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
+	"github.com/hashicorp/go-msgpack/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/ugorji/go/codec"
 )
 
 const (
@@ -398,7 +398,46 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
 
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
+		return nil, err
+	}
+
 	return s.execStreamImpl(conn, &args)
+}
+
+// readWsHandshake reads the websocket handshake message and sets
+// query authentication token, if request requires a handshake
+func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
+
+	// Avoid handshake if request doesn't require one
+	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
+		return nil
+	} else if h, err := strconv.ParseBool(hv); err != nil {
+		return fmt.Errorf("ws_handshake value is not a boolean: %v", err)
+	} else if !h {
+		return nil
+	}
+
+	var h wsHandshakeMessage
+	err := readFn(&h)
+	if err != nil {
+		return err
+	}
+
+	supportedWSHandshakeVersion := 1
+	if h.Version != supportedWSHandshakeVersion {
+		return fmt.Errorf("unexpected handshake value: %v", h.Version)
+	}
+
+	q.AuthToken = h.AuthToken
+	return nil
+}
+
+type wsHandshakeMessage struct {
+	Version   int    `json:"version"`
+	AuthToken string `json:"auth_token"`
 }
 
 func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExecRequest) (interface{}, error) {

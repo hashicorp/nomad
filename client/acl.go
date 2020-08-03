@@ -74,6 +74,11 @@ func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
 	return a, err
 }
 
+func (c *Client) ResolveSecretToken(secretID string) (*structs.ACLToken, error) {
+	_, t, err := c.resolveTokenAndACL(secretID)
+	return t, err
+}
+
 func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToken, error) {
 	// Fast-path if ACLs are disabled
 	if !c.config.ACLEnabled {

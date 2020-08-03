@@ -2,8 +2,8 @@ import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import EmberError from '@ember/error';
 
-export default Route.extend({
-  store: service(),
+export default class TaskRoute extends Route {
+  @service store;
 
   breadcrumbs(model) {
     if (!model) return [];
@@ -13,7 +13,7 @@ export default Route.extend({
         args: ['allocations.allocation.task', model.get('allocation'), model],
       },
     ];
-  },
+  }
 
   model({ name }) {
     const allocation = this.modelFor('allocations.allocation');
@@ -31,5 +31,5 @@ export default Route.extend({
     }
 
     return task;
-  },
-});
+  }
+}

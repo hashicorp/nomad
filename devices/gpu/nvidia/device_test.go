@@ -26,7 +26,7 @@ func (c *MockNvmlClient) GetStatsData() ([]*nvml.StatsData, error) {
 }
 
 func TestReserve(t *testing.T) {
-	for _, testCase := range []struct {
+	cases := []struct {
 		Name                string
 		ExpectedReservation *device.ContainerReservation
 		ExpectedError       error
@@ -47,7 +47,8 @@ func TestReserve(t *testing.T) {
 				"UUID3",
 			},
 			Device: &NvidiaDevice{
-				logger: hclog.NewNullLogger(),
+				logger:  hclog.NewNullLogger(),
+				enabled: true,
 			},
 		},
 		{
@@ -66,7 +67,8 @@ func TestReserve(t *testing.T) {
 				devices: map[string]struct{}{
 					"UUID3": {},
 				},
-				logger: hclog.NewNullLogger(),
+				logger:  hclog.NewNullLogger(),
+				enabled: true,
 			},
 		},
 		{
@@ -88,7 +90,8 @@ func TestReserve(t *testing.T) {
 					"UUID2": {},
 					"UUID3": {},
 				},
-				logger: hclog.NewNullLogger(),
+				logger:  hclog.NewNullLogger(),
+				enabled: true,
 			},
 		},
 		{
@@ -102,13 +105,36 @@ func TestReserve(t *testing.T) {
 					"UUID2": {},
 					"UUID3": {},
 				},
-				logger: hclog.NewNullLogger(),
+				logger:  hclog.NewNullLogger(),
+				enabled: true,
 			},
 		},
-	} {
-		actualReservation, actualError := testCase.Device.Reserve(testCase.RequestedIDs)
-		req := require.New(t)
-		req.Equal(testCase.ExpectedReservation, actualReservation)
-		req.Equal(testCase.ExpectedError, actualError)
+		{
+			Name:                "Device is disabled",
+			ExpectedReservation: nil,
+			ExpectedError:       device.ErrPluginDisabled,
+			RequestedIDs: []string{
+				"UUID1",
+				"UUID2",
+				"UUID3",
+			},
+			Device: &NvidiaDevice{
+				devices: map[string]struct{}{
+					"UUID1": {},
+					"UUID2": {},
+					"UUID3": {},
+				},
+				logger:  hclog.NewNullLogger(),
+				enabled: false,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			actualReservation, actualError := c.Device.Reserve(c.RequestedIDs)
+			require.Equal(t, c.ExpectedReservation, actualReservation)
+			require.Equal(t, c.ExpectedError, actualError)
+		})
 	}
 }

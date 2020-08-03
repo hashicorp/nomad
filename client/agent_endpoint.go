@@ -7,11 +7,12 @@ import (
 	"io"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -209,4 +210,25 @@ OUTER:
 		handleStreamResultError(streamErr, helper.Int64ToPtr(500), encoder)
 		return
 	}
+}
+
+// Host collects data about the host evironment running the agent
+func (a *Agent) Host(args *structs.QueryOptions, reply *structs.HostDataResponse) error {
+	aclObj, err := a.c.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
+		(aclObj == nil && !a.c.config.EnableDebug) {
+		return structs.ErrPermissionDenied
+	}
+
+	data, err := host.MakeHostData()
+	if err != nil {
+		return err
+	}
+
+	reply.AgentID = a.c.NodeID()
+	reply.HostData = data
+	return nil
 }

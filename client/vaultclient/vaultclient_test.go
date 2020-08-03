@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
-	vaultconsts "github.com/hashicorp/vault/helper/consts"
+	vaultconsts "github.com/hashicorp/vault/sdk/helper/consts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

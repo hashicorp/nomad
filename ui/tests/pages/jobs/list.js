@@ -3,25 +3,29 @@ import {
   create,
   collection,
   clickable,
-  fillable,
-  is,
   isPresent,
+  property,
   text,
+  triggerable,
   visitable,
 } from 'ember-cli-page-object';
 
 import facet from 'nomad-ui/tests/pages/components/facet';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
-  pageSize: 10,
+  pageSize: 25,
 
   visit: visitable('/jobs'),
 
-  search: fillable('[data-test-jobs-search] input'),
+  search: {
+    scope: '[data-test-jobs-search] input',
+    keydown: triggerable('keydown'),
+  },
 
   runJobButton: {
     scope: '[data-test-run-job]',
-    isDisabled: is('[disabled]'),
+    isDisabled: property('disabled'),
   },
 
   jobs: collection('[data-test-job-row]', {
@@ -63,6 +67,8 @@ export default create({
       label: text(),
     }),
   },
+
+  pageSizeSelect: pageSizeSelect(),
 
   facets: {
     type: facet('[data-test-type-facet]'),

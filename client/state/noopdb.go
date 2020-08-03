@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -67,6 +68,14 @@ func (n NoopDB) PutDriverPluginState(ps *driverstate.PluginState) error {
 }
 
 func (n NoopDB) GetDriverPluginState() (*driverstate.PluginState, error) {
+	return nil, nil
+}
+
+func (n NoopDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) error {
+	return nil
+}
+
+func (n NoopDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryState, error) {
 	return nil, nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -23,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 	"golang.org/x/sys/unix"
 )
 
@@ -40,7 +40,7 @@ func TestAllocations_Restart(t *testing.T) {
 		Mode:     nstructs.RestartPolicyModeFail,
 	}
 	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10ms",
+		"run_for": "10s",
 	}
 	require.Nil(client.addAlloc(a, ""))
 
@@ -216,10 +216,12 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 
 	a := mock.Alloc()
 	a.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	a.Job.TaskGroups[0].RestartPolicy = &nstructs.RestartPolicy{
+	rp := &nstructs.RestartPolicy{
 		Attempts: 0,
 		Mode:     nstructs.RestartPolicyModeFail,
 	}
+	a.Job.TaskGroups[0].RestartPolicy = rp
+	a.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
 	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "10ms",
 	}

@@ -7,22 +7,46 @@
 
 export default [
   {
+    category: 'install',
+    content: [
+      { category: 'quickstart' },
+      {
+        category: 'production',
+        content: [
+          'requirements',
+          'nomad-agent',
+          'reference-architecture',
+          'deployment-guide'
+        ]
+      },
+      'windows-service'
+    ]
+  },
+  { category: 'upgrade', content: ['upgrade-specific'] },
+  {
+    category: 'integrations',
+    content: ['consul-integration', 'consul-connect', 'vault-integration']
+  },
+  '-----------',
+  {
     category: 'internals',
     content: [
       'architecture',
-      { category: 'plugins', content: ['base', 'task-drivers', 'devices'] },
+      { category: 'plugins', content: ['base', 'task-drivers', 'devices', 'csi'] },
       {
         category: 'scheduling',
         content: ['scheduling', 'preemption']
       },
       'consensus',
-      'gossip'
+      'gossip',
+      'security'
     ]
   },
   {
     category: 'configuration',
     content: [
       'acl',
+      'audit',
       'autopilot',
       'client',
       'consul',
@@ -60,10 +84,10 @@ export default [
         category: 'alloc',
         content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop']
       },
-
+      'debug',
       {
         category: 'deployment',
-        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status']
+        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
       },
       'eval-status',
       {
@@ -85,6 +109,10 @@ export default [
           'validate'
         ]
       },
+      {
+        category: 'license',
+        content: ['get', 'put']
+      },
       'monitor',
       {
         category: 'namespace',
@@ -102,9 +130,14 @@ export default [
           'keygen',
           'keyring',
           'raft-list-peers',
-          'raft-remove-peer'
+          'raft-remove-peer',
+          'snapshot-agent',
+          'snapshot-inspect',
+          'snapshot-restore',
+          'snapshot-save'
         ]
       },
+      { category: 'plugin', content: ['status'] },
       {
         category: 'quota',
         content: ['apply', 'delete', 'init', 'inspect', 'list', 'status']
@@ -114,7 +147,8 @@ export default [
       'status',
       { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
-      'version'
+      'version',
+      { category: 'volume', content: ['register', 'deregister', 'status'] }
     ]
   },
   '----------',
@@ -126,15 +160,19 @@ export default [
       'check_restart',
       'connect',
       'constraint',
+      'csi_plugin',
       'device',
       'dispatch_payload',
       'env',
       'ephemeral_disk',
+      'expose',
       'group',
       'job',
+      'lifecycle',
       'logs',
       'meta',
       'migrate',
+      'multiregion',
       'network',
       'parameterized',
       'periodic',
@@ -142,6 +180,7 @@ export default [
       'reschedule',
       'resources',
       'restart',
+      'scaling',
       'service',
       'sidecar_service',
       'sidecar_task',
@@ -161,18 +200,20 @@ export default [
       'docker',
       'exec',
       'java',
+      'podman',
       'qemu',
       'raw_exec',
-      'rkt',
       {
         category: 'external',
         content: [
           'lxc',
-          'podman',
+          'rkt',
           'singularity',
           'jail-task-driver',
           'pot',
-          'firecracker-task-driver'
+          'firecracker-task-driver',
+          'nspawn',
+          'iis'
         ]
       }
     ]
@@ -183,6 +224,29 @@ export default [
   },
   'schedulers',
   { category: 'runtime', content: ['environment', 'interpolation'] },
+  {
+    category: 'autoscaling',
+    content: [
+      'agent',
+      'api',
+      'cli',
+      'policy',
+      {
+        category: 'plugins',
+        content: [
+          'apm',
+          'strategy',
+          'target'
+        ]
+      },
+      {
+        category: 'internals',
+        content: [
+          'checks'
+        ]
+      }
+    ]
+  },
   { category: 'telemetry', content: ['metrics'] },
   { category: 'vault-integration' },
   '------------',

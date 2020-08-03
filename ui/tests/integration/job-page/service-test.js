@@ -12,7 +12,6 @@ module('Integration | Component | job-page/service', function(hooks) {
   setupRenderingTest(hooks);
 
   hooks.beforeEach(function() {
-    Job.setContext(this);
     fragmentSerializerInitializer(this.owner);
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
@@ -27,12 +26,12 @@ module('Integration | Component | job-page/service', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{job-page/service
-      job=job
-      sortProperty=sortProperty
-      sortDescending=sortDescending
-      currentPage=currentPage
-      gotoJob=gotoJob}}
+    <JobPage::Service
+      @job={{job}}
+      @sortProperty={{sortProperty}}
+      @sortDescending={{sortDescending}}
+      @currentPage={{currentPage}}
+      @gotoJob={{gotoJob}} />
   `;
 
   const commonProperties = job => ({
@@ -70,7 +69,7 @@ module('Integration | Component | job-page/service', function(hooks) {
   });
 
   test('Stopping a job without proper permissions shows an error message', async function(assert) {
-    this.server.pretender.delete('/v1/job/:id', () => [403, {}, null]);
+    this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = makeMirageJob(this.server);
     await this.store.findAll('job');
@@ -98,7 +97,7 @@ module('Integration | Component | job-page/service', function(hooks) {
   });
 
   test('Starting a job without proper permissions shows an error message', async function(assert) {
-    this.server.pretender.post('/v1/job/:id', () => [403, {}, null]);
+    this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
     await this.store.findAll('job');
@@ -190,7 +189,7 @@ module('Integration | Component | job-page/service', function(hooks) {
   });
 
   test('When promoting the active deployment fails, an error is shown', async function(assert) {
-    this.server.pretender.post('/v1/deployment/promote/:id', () => [403, {}, null]);
+    this.server.pretender.post('/v1/deployment/promote/:id', () => [403, {}, '']);
 
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });

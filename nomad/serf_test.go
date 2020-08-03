@@ -105,7 +105,6 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.NodeName = "node1"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer cleanupS1()
@@ -113,7 +112,6 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.NodeName = "node2"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer cleanupS2()
@@ -121,7 +119,6 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.NodeName = "node3"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer cleanupS3()
@@ -200,21 +197,18 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer cleanupS2()
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer cleanupS3()
@@ -263,7 +257,6 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node4")
 	})
 	defer cleanupS4()
@@ -313,7 +306,6 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 		c.NonVoter = true
 	})
@@ -321,7 +313,6 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 		c.NonVoter = true
 	})
@@ -329,7 +320,6 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer cleanupS3()
@@ -351,7 +341,6 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node4")
 	})
 	defer cleanupS4()
@@ -418,12 +407,10 @@ func TestNomad_BadExpect(t *testing.T) {
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
-		c.DevDisableBootstrap = true
 	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.DevDisableBootstrap = true
 	})
 	defer cleanupS2()
 	servers := []*Server{s1, s2}
@@ -446,7 +433,7 @@ func TestNomad_BadExpect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		for _, s := range servers {
 			p, _ := s.numPeers()
-			if p != 1 {
+			if p != 0 {
 				return false, fmt.Errorf("%d", p)
 			}
 		}

@@ -1,29 +1,43 @@
-import DocsPage, { getInitialProps } from '../components/docs-page'
-import orderData from '../data/docs-navigation.js'
+import Head from 'next/head'
+import Link from 'next/link'
+import DocsPage from '@hashicorp/react-docs-page'
+import { createMdxProvider } from '@hashicorp/nextjs-scripts/lib/providers/docs'
+import order from '../data/docs-navigation.js'
 import { frontMatter } from '../pages/docs/**/*.mdx'
-import { MDXProvider } from '@mdx-js/react'
 import Placement from '../components/placement-table'
 
-const DEFAULT_COMPONENTS = { Placement }
+const MDXProvider = createMdxProvider({
+  product: 'nomad',
+  additionalComponents: { Placement },
+})
 
-function DocsLayoutWrapper(pageMeta) {
+export default function DocsLayoutWrapper(pageMeta) {
   function DocsLayout(props) {
     return (
-      <MDXProvider components={DEFAULT_COMPONENTS}>
+      <MDXProvider>
         <DocsPage
           {...props}
-          orderData={orderData}
-          frontMatter={frontMatter}
-          category="docs"
-          pageMeta={pageMeta}
+          product="nomad"
+          head={{
+            is: Head,
+            title: `${pageMeta.page_title} | Nomad by HashiCorp`,
+            description: pageMeta.description,
+            siteName: 'Nomad by HashiCorp',
+          }}
+          sidenav={{
+            Link,
+            category: 'docs',
+            currentPage: props.path,
+            data: frontMatter,
+            order,
+          }}
+          resourceURL={`https://github.com/hashicorp/nomad/blob/master/website/pages/${pageMeta.__resourcePath}`}
         />
       </MDXProvider>
     )
   }
 
-  DocsLayout.getInitialProps = getInitialProps
+  DocsLayout.getInitialProps = ({ asPath }) => ({ path: asPath })
 
   return DocsLayout
 }
-
-export default DocsLayoutWrapper

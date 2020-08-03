@@ -2,6 +2,7 @@ import EmberObject, { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
+import classic from 'ember-classic-decorator';
 
 const percent = (numerator, denominator) => {
   if (!numerator || !denominator) {
@@ -12,13 +13,15 @@ const percent = (numerator, denominator) => {
 
 const empty = ts => ({ timestamp: ts, used: null, percent: null });
 
-const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
+@classic
+class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
-  node: null,
+  node = null;
 
-  url: computed('node', function() {
+  @computed('node')
+  get url() {
     return `/v1/client/stats?node_id=${this.get('node.id')}`;
-  }),
+  }
 
   append(frame) {
     const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
@@ -36,27 +39,30 @@ const NodeStatsTracker = EmberObject.extend(AbstractStatsTracker, {
       used: memoryUsed,
       percent: percent(memoryUsed / 1024 / 1024, this.reservedMemory),
     });
-  },
+  }
 
   pause() {
     const ts = new Date();
     this.memory.pushObject(empty(ts));
     this.cpu.pushObject(empty(ts));
-  },
+  }
 
   // Static figures, denominators for stats
-  reservedCPU: alias('node.resources.cpu'),
-  reservedMemory: alias('node.resources.memory'),
+  @alias('node.resources.cpu') reservedCPU;
+  @alias('node.resources.memory') reservedMemory;
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
-  cpu: computed('node', function() {
+  @computed('node')
+  get cpu() {
     return RollingArray(this.bufferSize);
-  }),
-  memory: computed('node', function() {
+  }
+
+  @computed('node')
+  get memory() {
     return RollingArray(this.bufferSize);
-  }),
-});
+  }
+}
 
 export default NodeStatsTracker;
 

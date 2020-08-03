@@ -109,13 +109,18 @@ the installation instructions for
 
 ```hcl
 plugin "nvidia-gpu" {
-  ignored_gpu_ids = ["GPU-fef8089b", "GPU-ac81e44d"]
-  fingerprint_period = "1m"
+  config {
+    enabled            = true
+    ignored_gpu_ids    = ["GPU-fef8089b", "GPU-ac81e44d"]
+    fingerprint_period = "1m"
+  }
 }
 ```
 
 The `nvidia-gpu` device plugin supports the following configuration in the agent
 config:
+
+- `enabled` `(bool: true)` - Control whether the plugin should be enabled and running.
 
 - `ignored_gpu_ids` `(array<string>: [])` - Specifies the set of GPU UUIDs that
   should be ignored when fingerprinting.
@@ -139,7 +144,7 @@ tested or documented by Nomad.
 
 Inspect a node with a GPU:
 
-```shell
+```shell-session
 $ nomad node status 4d46e59f
 ID            = 4d46e59f
 Name          = nomad
@@ -176,7 +181,7 @@ No allocations placed
 
 Display detailed statistics on a node with a GPU:
 
-```shell
+```shell-session
 $ nomad node status -stats 4d46e59f
 ID            = 4d46e59f
 Name          = nomad
@@ -261,7 +266,7 @@ job "gpu-test" {
 }
 ```
 
-```shell
+```shell-session
 $ nomad run example.nomad
 ==> Monitoring evaluation "21bd7584"
     Evaluation triggered by job "gpu-test"

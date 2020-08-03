@@ -93,8 +93,6 @@ var fArch = flag.String("env.arch", "",
 var fTags = flag.String("env.tags", "",
 	"comma delimited list of tags associated with the environment")
 
-var pkgFramework = New()
-
 type Framework struct {
 	suites      []*TestSuite
 	provisioner provisioning.Provisioner
@@ -157,10 +155,11 @@ func (f *Framework) AddSuites(s ...*TestSuite) *Framework {
 	return f
 }
 
+var pkgSuites []*TestSuite
+
 // AddSuites adds a set of test suites to the package scoped Framework
-func AddSuites(s ...*TestSuite) *Framework {
-	pkgFramework.AddSuites(s...)
-	return pkgFramework
+func AddSuites(s ...*TestSuite) {
+	pkgSuites = append(pkgSuites, s...)
 }
 
 // Run starts the test framework, running each TestSuite
@@ -191,7 +190,9 @@ func (f *Framework) Run(t *testing.T) {
 
 // Run starts the package scoped Framework, running each TestSuite
 func Run(t *testing.T) {
-	pkgFramework.Run(t)
+	f := New()
+	f.AddSuites(pkgSuites...)
+	f.Run(t)
 }
 
 // runSuite is called from Framework.Run inside of a sub test for each TestSuite.

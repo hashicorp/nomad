@@ -17,7 +17,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -118,6 +120,10 @@ type allocRunner struct {
 	// transistions.
 	runnerHooks []interfaces.RunnerHook
 
+	// hookState is the output of allocrunner hooks
+	hookState   *cstructs.AllocHookResources
+	hookStateMu sync.RWMutex
+
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
@@ -134,6 +140,14 @@ type allocRunner struct {
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
 	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
+	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
+	// plugins).
+	dynamicRegistry dynamicplugins.Registry
+
+	// csiManager is used to wait for CSI Volumes to be attached, and by the task
+	// runner to manage their mounting
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -146,6 +160,17 @@ type allocRunner struct {
 	// servers have been contacted for the first time in case of a failed
 	// restore.
 	serversContactedCh chan struct{}
+
+	taskHookCoordinator *taskHookCoordinator
+
+	// rpcClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient RPCer
+}
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -176,9 +201,12 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
+		dynamicRegistry:          config.DynamicRegistry,
+		csiManager:               config.CSIManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
+		rpcClient:                config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID
@@ -189,6 +217,8 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
+
+	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
 
 	// Initialize the runners hooks.
 	if err := ar.initRunnerHooks(config.ClientConfig); err != nil {
@@ -207,20 +237,23 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		config := &taskrunner.Config{
-			Alloc:               ar.alloc,
-			ClientConfig:        ar.clientConfig,
-			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
-			Logger:              ar.logger,
-			StateDB:             ar.stateDB,
-			StateUpdater:        ar,
-			Consul:              ar.consulClient,
-			ConsulSI:            ar.sidsClient,
-			Vault:               ar.vaultClient,
-			DeviceStatsReporter: ar.deviceStatsReporter,
-			DeviceManager:       ar.devicemanager,
-			DriverManager:       ar.driverManager,
-			ServersContactedCh:  ar.serversContactedCh,
+			Alloc:                ar.alloc,
+			ClientConfig:         ar.clientConfig,
+			Task:                 task,
+			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
+			Logger:               ar.logger,
+			StateDB:              ar.stateDB,
+			StateUpdater:         ar,
+			DynamicRegistry:      ar.dynamicRegistry,
+			Consul:               ar.consulClient,
+			ConsulSI:             ar.sidsClient,
+			Vault:                ar.vaultClient,
+			DeviceStatsReporter:  ar.deviceStatsReporter,
+			CSIManager:           ar.csiManager,
+			DeviceManager:        ar.devicemanager,
+			DriverManager:        ar.driverManager,
+			ServersContactedCh:   ar.serversContactedCh,
+			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 		}
 
 		// Create, but do not Run, the task runner
@@ -357,12 +390,17 @@ func (ar *allocRunner) Restore() error {
 	ar.state.DeploymentStatus = ds
 	ar.stateLock.Unlock()
 
+	states := make(map[string]*structs.TaskState)
+
 	// Restore task runners
 	for _, tr := range ar.tasks {
 		if err := tr.Restore(); err != nil {
 			return err
 		}
+		states[tr.Task().Name] = tr.TaskState()
 	}
+
+	ar.taskHookCoordinator.taskStateUpdated(states)
 
 	return nil
 }
@@ -405,6 +443,8 @@ func (ar *allocRunner) TaskStateUpdated() {
 func (ar *allocRunner) handleTaskStateUpdates() {
 	defer close(ar.taskStateUpdateHandlerCh)
 
+	hasSidecars := hasSidecarTasks(ar.tasks)
+
 	for done := false; !done; {
 		select {
 		case <-ar.taskStateUpdatedCh:
@@ -423,10 +463,6 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		// If task runners should be killed, this is set to the task
 		// name whose fault it is.
 		killTask := ""
-
-		// True if task runners should be killed because a leader
-		// failed (informational).
-		leaderFailed := false
 
 		// Task state has been updated; gather the state of the other tasks
 		trNum := len(ar.tasks)
@@ -454,18 +490,24 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			} else if tr.IsLeader() {
 				killEvent = structs.NewTaskEvent(structs.TaskLeaderDead)
-				leaderFailed = true
-				killTask = name
 			}
+		}
+
+		// if all live runners are sidecars - kill alloc
+		if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
+			killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 		}
 
 		// If there's a kill event set and live runners, kill them
 		if killEvent != nil && len(liveRunners) > 0 {
 
 			// Log kill reason
-			if leaderFailed {
+			switch killEvent.Type {
+			case structs.TaskLeaderDead:
 				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
-			} else {
+			case structs.TaskMainDead:
+				ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
+			default:
 				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
 			}
 
@@ -487,6 +529,8 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			}
 		}
+
+		ar.taskHookCoordinator.taskStateUpdated(states)
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)

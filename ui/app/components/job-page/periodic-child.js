@@ -1,8 +1,11 @@
 import AbstractJobPage from './abstract';
 import { computed } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default AbstractJobPage.extend({
-  breadcrumbs: computed('job.{name,id}', 'job.parent.{name,id}', function() {
+@classic
+export default class PeriodicChild extends AbstractJobPage {
+  @computed('job.{name,id}', 'job.parent.{name,id}')
+  get breadcrumbs() {
     const job = this.job;
     const parent = this.get('job.parent');
 
@@ -17,5 +20,5 @@ export default AbstractJobPage.extend({
         args: ['jobs.job', job],
       },
     ];
-  }),
-});
+  }
+}

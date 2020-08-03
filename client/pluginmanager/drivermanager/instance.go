@@ -186,18 +186,28 @@ func (i *instanceManager) dispense() (plugin drivers.DriverPlugin, err error) {
 	}
 
 	var pluginInstance loader.PluginInstance
+	dispenseFn := func() (loader.PluginInstance, error) {
+		return i.loader.Dispense(i.id.Name, i.id.PluginType, i.pluginConfig, i.logger)
+	}
 
 	if reattach, ok := i.fetchReattach(); ok {
 		// Reattach to existing plugin
 		pluginInstance, err = i.loader.Reattach(i.id.Name, i.id.PluginType, reattach)
+
+		// If reattachment fails, get a new plugin instance
+		if err != nil {
+			i.logger.Warn("failed to reattach to plugin, starting new instance", "err", err)
+			pluginInstance, err = dispenseFn()
+		}
 	} else {
 		// Get an instance of the plugin
-		pluginInstance, err = i.loader.Dispense(i.id.Name, i.id.PluginType, i.pluginConfig, i.logger)
+		pluginInstance, err = dispenseFn()
 	}
+
 	if err != nil {
 		// Retry as the error just indicates the singleton has exited
 		if err == singleton.SingletonPluginExited {
-			pluginInstance, err = i.loader.Dispense(i.id.Name, i.id.PluginType, i.pluginConfig, i.logger)
+			pluginInstance, err = dispenseFn()
 		}
 
 		// If we still have an error there is a real problem
@@ -236,10 +246,6 @@ func (i *instanceManager) cleanup() {
 
 	if i.plugin == nil {
 		return
-	}
-
-	if internalPlugin, ok := i.plugin.Plugin().(drivers.InternalDriverPlugin); ok {
-		internalPlugin.Shutdown()
 	}
 
 	if !i.plugin.Exited() {
@@ -305,6 +311,12 @@ func (i *instanceManager) fingerprint() {
 					i.handleFingerprintError()
 				}
 				continue
+			}
+
+			// avoid fingerprinting again if ctx and fpChan both close
+			if i.ctx.Err() != nil {
+				cancel()
+				return
 			}
 
 			// if the channel is closed attempt to open a new one

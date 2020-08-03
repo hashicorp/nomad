@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	log "github.com/hashicorp/go-hclog"
@@ -42,10 +43,10 @@ func main() {
 	}
 
 	// Serve the plugin
-	plugins.Serve(factory)
+	plugins.ServeCtx(factory)
 }
 
 // factory returns a new instance of the docker driver plugin
-func factory(log log.Logger) interface{} {
-	return docker.NewDockerDriver(log)
+func factory(ctx context.Context, log log.Logger) interface{} {
+	return docker.NewDockerDriver(ctx, log)
 }

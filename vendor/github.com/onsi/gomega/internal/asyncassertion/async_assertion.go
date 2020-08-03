@@ -1,3 +1,5 @@
+// untested sections: 2
+
 package asyncassertion
 
 import (
@@ -22,11 +24,11 @@ type AsyncAssertion struct {
 	actualInput     interface{}
 	timeoutInterval time.Duration
 	pollingInterval time.Duration
-	fail            types.GomegaFailHandler
+	failWrapper     *types.GomegaFailWrapper
 	offset          int
 }
 
-func New(asyncType AsyncAssertionType, actualInput interface{}, fail types.GomegaFailHandler, timeoutInterval time.Duration, pollingInterval time.Duration, offset int) *AsyncAssertion {
+func New(asyncType AsyncAssertionType, actualInput interface{}, failWrapper *types.GomegaFailWrapper, timeoutInterval time.Duration, pollingInterval time.Duration, offset int) *AsyncAssertion {
 	actualType := reflect.TypeOf(actualInput)
 	if actualType.Kind() == reflect.Func {
 		if actualType.NumIn() != 0 || actualType.NumOut() == 0 {
@@ -37,7 +39,7 @@ func New(asyncType AsyncAssertionType, actualInput interface{}, fail types.Gomeg
 	return &AsyncAssertion{
 		asyncType:       asyncType,
 		actualInput:     actualInput,
-		fail:            fail,
+		failWrapper:     failWrapper,
 		timeoutInterval: timeoutInterval,
 		pollingInterval: pollingInterval,
 		offset:          offset,
@@ -45,10 +47,12 @@ func New(asyncType AsyncAssertionType, actualInput interface{}, fail types.Gomeg
 }
 
 func (assertion *AsyncAssertion) Should(matcher types.GomegaMatcher, optionalDescription ...interface{}) bool {
+	assertion.failWrapper.TWithHelper.Helper()
 	return assertion.match(matcher, true, optionalDescription...)
 }
 
 func (assertion *AsyncAssertion) ShouldNot(matcher types.GomegaMatcher, optionalDescription ...interface{}) bool {
+	assertion.failWrapper.TWithHelper.Helper()
 	return assertion.match(matcher, false, optionalDescription...)
 }
 
@@ -56,9 +60,12 @@ func (assertion *AsyncAssertion) buildDescription(optionalDescription ...interfa
 	switch len(optionalDescription) {
 	case 0:
 		return ""
-	default:
-		return fmt.Sprintf(optionalDescription[0].(string), optionalDescription[1:]...) + "\n"
+	case 1:
+		if describe, ok := optionalDescription[0].(func() string); ok {
+			return describe() + "\n"
+		}
 	}
+	return fmt.Sprintf(optionalDescription[0].(string), optionalDescription[1:]...) + "\n"
 }
 
 func (assertion *AsyncAssertion) actualInputIsAFunction() bool {
@@ -99,8 +106,6 @@ func (assertion *AsyncAssertion) match(matcher types.GomegaMatcher, desiredMatch
 	timer := time.Now()
 	timeout := time.After(assertion.timeoutInterval)
 
-	description := assertion.buildDescription(optionalDescription...)
-
 	var matches bool
 	var err error
 	mayChange := true
@@ -109,6 +114,8 @@ func (assertion *AsyncAssertion) match(matcher types.GomegaMatcher, desiredMatch
 		mayChange = assertion.matcherMayChange(matcher, value)
 		matches, err = matcher.Match(value)
 	}
+
+	assertion.failWrapper.TWithHelper.Helper()
 
 	fail := func(preamble string) {
 		errMsg := ""
@@ -122,7 +129,9 @@ func (assertion *AsyncAssertion) match(matcher types.GomegaMatcher, desiredMatch
 				message = matcher.NegatedFailureMessage(value)
 			}
 		}
-		assertion.fail(fmt.Sprintf("%s after %.3fs.\n%s%s%s", preamble, time.Since(timer).Seconds(), description, message, errMsg), 3+assertion.offset)
+		assertion.failWrapper.TWithHelper.Helper()
+		description := assertion.buildDescription(optionalDescription...)
+		assertion.failWrapper.Fail(fmt.Sprintf("%s after %.3fs.\n%s%s%s", preamble, time.Since(timer).Seconds(), description, message, errMsg), 3+assertion.offset)
 	}
 
 	if assertion.asyncType == AsyncAssertionTypeEventually {

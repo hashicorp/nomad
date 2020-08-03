@@ -9,7 +9,7 @@ module('Integration | Component | placement failures', function(hooks) {
   setupRenderingTest(hooks);
 
   const commonTemplate = hbs`
-      {{placement-failure taskGroup=taskGroup}}
+      <PlacementFailure @taskGroup={{taskGroup}} />
   `;
 
   test('should render the placement failure (basic render)', async function(assert) {

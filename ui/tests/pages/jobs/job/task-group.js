@@ -11,13 +11,18 @@ import {
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import error from 'nomad-ui/tests/pages/components/error';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
+import stepperInput from 'nomad-ui/tests/pages/components/stepper-input';
+import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
 export default create({
-  pageSize: 10,
+  pageSize: 25,
 
   visit: visitable('/jobs/:id/:name'),
 
   search: fillable('.search-box input'),
+
+  countStepper: stepperInput('[data-test-task-group-count-stepper]'),
 
   tasksCount: text('[data-test-task-group-tasks]'),
   cpu: text('[data-test-task-group-cpu]'),
@@ -38,6 +43,8 @@ export default create({
 
   isEmpty: isPresent('[data-test-empty-allocations-list]'),
 
+  lifecycleChart: LifecycleChart,
+
   hasVolumes: isPresent('[data-test-volumes]'),
   volumes: collection('[data-test-volumes] [data-test-volume]', {
     name: text('[data-test-volume-name]'),
@@ -46,9 +53,27 @@ export default create({
     permissions: text('[data-test-volume-permissions]'),
   }),
 
+  hasScaleEvents: isPresent('[data-test-scale-events]'),
+  scaleEvents: collection('[data-test-scale-events] [data-test-accordion-head]', {
+    error: isPresent('[data-test-error]'),
+    time: text('[data-test-time]'),
+    count: text('[data-test-count]'),
+    countIcon: { scope: '[data-test-count-icon]' },
+    message: text('[data-test-message]'),
+
+    isToggleable: isPresent('[data-test-accordion-toggle]:not(.is-invisible)'),
+    toggle: clickable('[data-test-accordion-toggle]'),
+  }),
+
+  scaleEventBodies: collection('[data-test-scale-events] [data-test-accordion-body]', {
+    meta: text(),
+  }),
+
   error: error(),
 
   emptyState: {
     headline: text('[data-test-empty-allocations-list-headline]'),
   },
+
+  pageSizeSelect: pageSizeSelect(),
 });

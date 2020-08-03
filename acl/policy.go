@@ -10,10 +10,12 @@ import (
 const (
 	// The following levels are the only valid values for the `policy = "read"` stanza.
 	// When policies are merged together, the most privilege is granted, except for deny
-	// which always takes precedence and supercedes.
+	// which always takes precedence and supersedes.
 	PolicyDeny  = "deny"
 	PolicyRead  = "read"
+	PolicyList  = "list"
 	PolicyWrite = "write"
+	PolicyScale = "scale"
 )
 
 const (
@@ -22,17 +24,26 @@ const (
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
-	NamespaceCapabilityDeny             = "deny"
-	NamespaceCapabilityListJobs         = "list-jobs"
-	NamespaceCapabilityReadJob          = "read-job"
-	NamespaceCapabilitySubmitJob        = "submit-job"
-	NamespaceCapabilityDispatchJob      = "dispatch-job"
-	NamespaceCapabilityReadLogs         = "read-logs"
-	NamespaceCapabilityReadFS           = "read-fs"
-	NamespaceCapabilityAllocExec        = "alloc-exec"
-	NamespaceCapabilityAllocNodeExec    = "alloc-node-exec"
-	NamespaceCapabilityAllocLifecycle   = "alloc-lifecycle"
-	NamespaceCapabilitySentinelOverride = "sentinel-override"
+	NamespaceCapabilityDeny                = "deny"
+	NamespaceCapabilityListJobs            = "list-jobs"
+	NamespaceCapabilityReadJob             = "read-job"
+	NamespaceCapabilitySubmitJob           = "submit-job"
+	NamespaceCapabilityDispatchJob         = "dispatch-job"
+	NamespaceCapabilityReadLogs            = "read-logs"
+	NamespaceCapabilityReadFS              = "read-fs"
+	NamespaceCapabilityAllocExec           = "alloc-exec"
+	NamespaceCapabilityAllocNodeExec       = "alloc-node-exec"
+	NamespaceCapabilityAllocLifecycle      = "alloc-lifecycle"
+	NamespaceCapabilitySentinelOverride    = "sentinel-override"
+	NamespaceCapabilityCSIRegisterPlugin   = "csi-register-plugin"
+	NamespaceCapabilityCSIWriteVolume      = "csi-write-volume"
+	NamespaceCapabilityCSIReadVolume       = "csi-read-volume"
+	NamespaceCapabilityCSIListVolume       = "csi-list-volume"
+	NamespaceCapabilityCSIMountVolume      = "csi-mount-volume"
+	NamespaceCapabilityListScalingPolicies = "list-scaling-policies"
+	NamespaceCapabilityReadScalingPolicy   = "read-scaling-policy"
+	NamespaceCapabilityReadJobScaling      = "read-job-scaling"
+	NamespaceCapabilityScaleJob            = "scale-job"
 )
 
 var (
@@ -62,6 +73,7 @@ type Policy struct {
 	Node        *NodePolicy         `hcl:"node"`
 	Operator    *OperatorPolicy     `hcl:"operator"`
 	Quota       *QuotaPolicy        `hcl:"quota"`
+	Plugin      *PluginPolicy       `hcl:"plugin"`
 	Raw         string              `hcl:"-"`
 }
 
@@ -73,7 +85,8 @@ func (p *Policy) IsEmpty() bool {
 		p.Agent == nil &&
 		p.Node == nil &&
 		p.Operator == nil &&
-		p.Quota == nil
+		p.Quota == nil &&
+		p.Plugin == nil
 }
 
 // NamespacePolicy is the policy for a specific namespace
@@ -106,10 +119,23 @@ type QuotaPolicy struct {
 	Policy string
 }
 
+type PluginPolicy struct {
+	Policy string
+}
+
 // isPolicyValid makes sure the given string matches one of the valid policies.
 func isPolicyValid(policy string) bool {
 	switch policy {
-	case PolicyDeny, PolicyRead, PolicyWrite:
+	case PolicyDeny, PolicyRead, PolicyWrite, PolicyScale:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *PluginPolicy) isValid() bool {
+	switch p.Policy {
+	case PolicyDeny, PolicyRead, PolicyList:
 		return true
 	default:
 		return false
@@ -122,7 +148,9 @@ func isNamespaceCapabilityValid(cap string) bool {
 	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
 		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
-		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec:
+		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
+		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin,
+		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride:
@@ -135,24 +163,41 @@ func isNamespaceCapabilityValid(cap string) bool {
 // expandNamespacePolicy provides the equivalent set of capabilities for
 // a namespace policy
 func expandNamespacePolicy(policy string) []string {
+	read := []string{
+		NamespaceCapabilityListJobs,
+		NamespaceCapabilityReadJob,
+		NamespaceCapabilityCSIListVolume,
+		NamespaceCapabilityCSIReadVolume,
+		NamespaceCapabilityReadJobScaling,
+		NamespaceCapabilityListScalingPolicies,
+		NamespaceCapabilityReadScalingPolicy,
+	}
+
+	write := append(read, []string{
+		NamespaceCapabilityScaleJob,
+		NamespaceCapabilitySubmitJob,
+		NamespaceCapabilityDispatchJob,
+		NamespaceCapabilityReadLogs,
+		NamespaceCapabilityReadFS,
+		NamespaceCapabilityAllocExec,
+		NamespaceCapabilityAllocLifecycle,
+		NamespaceCapabilityCSIMountVolume,
+		NamespaceCapabilityCSIWriteVolume,
+	}...)
+
 	switch policy {
 	case PolicyDeny:
 		return []string{NamespaceCapabilityDeny}
 	case PolicyRead:
-		return []string{
-			NamespaceCapabilityListJobs,
-			NamespaceCapabilityReadJob,
-		}
+		return read
 	case PolicyWrite:
+		return write
+	case PolicyScale:
 		return []string{
-			NamespaceCapabilityListJobs,
-			NamespaceCapabilityReadJob,
-			NamespaceCapabilitySubmitJob,
-			NamespaceCapabilityDispatchJob,
-			NamespaceCapabilityReadLogs,
-			NamespaceCapabilityReadFS,
-			NamespaceCapabilityAllocExec,
-			NamespaceCapabilityAllocLifecycle,
+			NamespaceCapabilityListScalingPolicies,
+			NamespaceCapabilityReadScalingPolicy,
+			NamespaceCapabilityReadJobScaling,
+			NamespaceCapabilityScaleJob,
 		}
 	default:
 		return nil
@@ -260,6 +305,10 @@ func Parse(rules string) (*Policy, error) {
 
 	if p.Quota != nil && !isPolicyValid(p.Quota.Policy) {
 		return nil, fmt.Errorf("Invalid quota policy: %#v", p.Quota)
+	}
+
+	if p.Plugin != nil && !p.Plugin.isValid() {
+		return nil, fmt.Errorf("Invalid plugin policy: %#v", p.Plugin)
 	}
 	return p, nil
 }

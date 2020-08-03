@@ -18,13 +18,22 @@ job "countdash" {
       connect {
         sidecar_service {}
       }
+
+      check {
+        expose   = true
+        name     = "api-health"
+        type     = "http"
+        path     = "/health"
+        interval = "5s"
+        timeout  = "3s"
+      }
     }
 
     task "web" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v1"
+        image = "hashicorpnomad/counter-api:v2"
       }
     }
   }
@@ -63,7 +72,7 @@ job "countdash" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v1"
+        image = "hashicorpnomad/counter-dashboard:v2"
       }
     }
   }

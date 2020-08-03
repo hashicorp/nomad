@@ -45,6 +45,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
               },
             ],
             wasPreempted: false,
+            allocationTaskGroup: null,
           },
           relationships: {
             followUpEvaluation: {
@@ -116,6 +117,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
               },
             ],
             wasPreempted: false,
+            allocationTaskGroup: null,
           },
           relationships: {
             followUpEvaluation: {
@@ -180,6 +182,7 @@ module('Unit | Serializer | Allocation', function(hooks) {
               },
             ],
             wasPreempted: true,
+            allocationTaskGroup: null,
           },
           relationships: {
             followUpEvaluation: {
@@ -202,6 +205,93 @@ module('Unit | Serializer | Allocation', function(hooks) {
                 id: 'preempter-allocation',
                 type: 'allocation',
               },
+            },
+            job: {
+              data: {
+                id: '["test-summary","test-namespace"]',
+                type: 'job',
+              },
+            },
+          },
+        },
+      },
+    },
+
+    {
+      name: 'Derives task group from embedded job when available',
+      in: {
+        ID: 'test-allocation',
+        JobID: 'test-summary',
+        Name: 'test-summary[1]',
+        Namespace: 'test-namespace',
+        TaskGroup: 'test-group',
+        CreateTime: +sampleDate * 1000000,
+        ModifyTime: +sampleDate * 1000000,
+        TaskStates: {
+          task: {
+            State: 'running',
+            Failed: false,
+          },
+        },
+        Job: {
+          ID: 'test-summary',
+          Name: 'test-summary',
+          TaskGroups: [
+            {
+              Name: 'fake-group',
+              Count: 2,
+              Tasks: [],
+              EphemeralDisk: {},
+            },
+            {
+              Name: 'test-group',
+              Count: 3,
+              Tasks: [],
+              EphemeralDisk: {},
+            },
+          ],
+        },
+      },
+      out: {
+        data: {
+          id: 'test-allocation',
+          type: 'allocation',
+          attributes: {
+            taskGroupName: 'test-group',
+            name: 'test-summary[1]',
+            modifyTime: sampleDate,
+            createTime: sampleDate,
+            states: [
+              {
+                name: 'task',
+                state: 'running',
+                failed: false,
+              },
+            ],
+            wasPreempted: false,
+            allocationTaskGroup: {
+              name: 'test-group',
+              count: 3,
+              tasks: [],
+              services: [],
+              volumes: [],
+            },
+          },
+          relationships: {
+            followUpEvaluation: {
+              data: null,
+            },
+            nextAllocation: {
+              data: null,
+            },
+            previousAllocation: {
+              data: null,
+            },
+            preemptedAllocations: {
+              data: [],
+            },
+            preemptedByAllocation: {
+              data: null,
             },
             job: {
               data: {

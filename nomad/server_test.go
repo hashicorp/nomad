@@ -56,7 +56,6 @@ func TestServer_RPC_TLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -73,7 +72,6 @@ func TestServer_RPC_TLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -90,7 +88,6 @@ func TestServer_RPC_TLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -125,7 +122,6 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -142,7 +138,6 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
@@ -159,7 +154,6 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 		c.Region = "regionFoo"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer cleanupS3()
@@ -470,7 +464,6 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 		c.NodeName = "node1"
 		c.Region = "regionFoo"
@@ -480,7 +473,6 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 		c.NodeName = "node2"
 		c.Region = "regionFoo"

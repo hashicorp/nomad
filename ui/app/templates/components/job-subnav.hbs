@@ -1,0 +1,12 @@
+<div data-test-subnav="job" class="tabs is-subnav">
+  <ul>
+    <li data-test-tab="overview"><LinkTo @route="jobs.job.index" @model={{@job}} @activeClass="is-active">Overview</LinkTo></li>
+    <li data-test-tab="definition"><LinkTo @route="jobs.job.definition" @model={{@job}} @activeClass="is-active">Definition</LinkTo></li>
+    <li data-test-tab="versions"><LinkTo @route="jobs.job.versions" @model={{@job}} @activeClass="is-active">Versions</LinkTo></li>
+    {{#if this.job.supportsDeployments}}
+      <li data-test-tab="deployments"><LinkTo @route="jobs.job.deployments" @model={{@job}} @activeClass="is-active">Deployments</LinkTo></li>
+    {{/if}}
+    <li data-test-tab="allocations"><LinkTo @route="jobs.job.allocations" @model={{@job}} @activeClass="is-active">Allocations</LinkTo></li>
+    <li data-test-tab="evaluations"><LinkTo @route="jobs.job.evaluations" @model={{@job}} @activeClass="is-active">Evaluations</LinkTo></li>
+  </ul>
+</div>

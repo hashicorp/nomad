@@ -2,20 +2,21 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import moment from 'moment';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: 'ol',
-  classNames: ['timeline'],
-
-  versions: overridable(() => []),
+@classic
+@tagName('ol')
+@classNames('timeline')
+export default class JobVersionsStream extends Component {
+  @overridable(() => []) versions;
 
   // Passes through to the job-diff component
-  verbose: true,
+  verbose = true;
 
-  annotatedVersions: computed('versions.[]', function() {
-    const versions = this.versions
-      .sortBy('submitTime')
-      .reverse();
+  @computed('versions.[]')
+  get annotatedVersions() {
+    const versions = this.versions.sortBy('submitTime').reverse();
     return versions.map((version, index) => {
       const meta = {};
 
@@ -32,5 +33,5 @@ export default Component.extend({
 
       return { version, meta };
     });
-  }),
-});
+  }
+}

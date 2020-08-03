@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
-	vaultconsts "github.com/hashicorp/vault/helper/consts"
+	vaultconsts "github.com/hashicorp/vault/sdk/helper/consts"
 )
 
 const (
@@ -157,20 +158,20 @@ func TestVaultClient_BadConfig(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	// Should be no error since Vault is not enabled
-	_, err := NewVaultClient(nil, logger, nil)
+	_, err := NewVaultClient(nil, logger, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "valid") {
 		t.Fatalf("expected config error: %v", err)
 	}
 
 	tr := true
 	conf.Enabled = &tr
-	_, err = NewVaultClient(conf, logger, nil)
+	_, err = NewVaultClient(conf, logger, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "token must be set") {
 		t.Fatalf("Expected token unset error: %v", err)
 	}
 
 	conf.Token = "123"
-	_, err = NewVaultClient(conf, logger, nil)
+	_, err = NewVaultClient(conf, logger, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "address must be set") {
 		t.Fatalf("Expected address unset error: %v", err)
 	}
@@ -192,7 +193,7 @@ func TestVaultClient_WithNamespaceSupport(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	// Should be no error since Vault is not enabled
-	c, err := NewVaultClient(conf, logger, nil)
+	c, err := NewVaultClient(conf, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -217,7 +218,7 @@ func TestVaultClient_WithoutNamespaceSupport(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	// Should be no error since Vault is not enabled
-	c, err := NewVaultClient(conf, logger, nil)
+	c, err := NewVaultClient(conf, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -236,7 +237,7 @@ func TestVaultClient_EstablishConnection(t *testing.T) {
 		v := testutil.NewTestVaultDelayed(t)
 		logger := testlog.HCLogger(t)
 		v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-		client, err := NewVaultClient(v.Config, logger, nil)
+		client, err := NewVaultClient(v.Config, logger, nil, nil)
 		if err != nil {
 			t.Fatalf("failed to build vault client: %v", err)
 		}
@@ -304,7 +305,7 @@ func TestVaultClient_ValidateRole(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	require.NoError(t, err)
 
 	defer client.Stop()
@@ -353,7 +354,7 @@ func TestVaultClient_ValidateRole_Success(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	require.NoError(t, err)
 
 	defer client.Stop()
@@ -399,7 +400,7 @@ func TestVaultClient_ValidateRole_Deprecated_Success(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	require.NoError(t, err)
 
 	defer client.Stop()
@@ -423,7 +424,7 @@ func TestVaultClient_ValidateRole_Deprecated_Success(t *testing.T) {
 	})
 }
 
-func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
+func TestVaultClient_ValidateRole_NonExistent(t *testing.T) {
 	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
@@ -433,7 +434,7 @@ func TestVaultClient_ValidateRole_NonExistant(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
 	v.Config.Role = "test-nonexistent"
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -481,7 +482,7 @@ func TestVaultClient_ValidateToken(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -523,7 +524,7 @@ func TestVaultClient_SetActive(t *testing.T) {
 	defer v.Stop()
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -559,7 +560,7 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	v2.Config.Token = defaultTestVaultWhitelistRoleAndToken(v2, t, 20)
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -622,7 +623,7 @@ func TestVaultClient_SetConfig_Deadlock(t *testing.T) {
 	v2.Config.Token = defaultTestVaultWhitelistRoleAndToken(v2, t, 20)
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -647,7 +648,7 @@ func TestVaultClient_SetConfig_Disable(t *testing.T) {
 	defer v.Stop()
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -685,7 +686,7 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -721,7 +722,7 @@ func TestVaultClientRenewUpdatesExpiration(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -760,7 +761,7 @@ func TestVaultClient_StopsAfterPermissionError(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -794,7 +795,7 @@ func TestVaultClient_LoopsUntilCannotRenew(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -856,7 +857,7 @@ func TestVaultClient_LookupToken_Invalid(t *testing.T) {
 
 	// Enable vault but use a bad address so it never establishes a conn
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(conf, logger, nil)
+	client, err := NewVaultClient(conf, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -875,7 +876,7 @@ func TestVaultClient_LookupToken_Root(t *testing.T) {
 	defer v.Stop()
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -940,7 +941,7 @@ func TestVaultClient_LookupToken_Role(t *testing.T) {
 	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1002,7 +1003,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 	defer v.Stop()
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1062,7 +1063,7 @@ func TestVaultClient_CreateToken_Root(t *testing.T) {
 	defer v.Stop()
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1110,7 +1111,7 @@ func TestVaultClient_CreateToken_Whitelist_Role(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1161,7 +1162,7 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1220,7 +1221,7 @@ func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1269,7 +1270,7 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1307,7 +1308,7 @@ func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
 
 	// Start the client
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, nil)
+	client, err := NewVaultClient(v.Config, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1341,7 +1342,7 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 	}
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(vconfig, logger, nil)
+	client, err := NewVaultClient(vconfig, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1365,6 +1366,33 @@ func TestVaultClient_CreateToken_Prestart(t *testing.T) {
 	}
 }
 
+func TestVaultClient_MarkForRevocation(t *testing.T) {
+	vconfig := &config.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Token:   uuid.Generate(),
+		Addr:    "http://127.0.0.1:0",
+	}
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(vconfig, logger, nil, nil)
+	require.NoError(t, err)
+
+	client.SetActive(true)
+	defer client.Stop()
+
+	// Create some VaultAccessors
+	vas := []*structs.VaultAccessor{
+		mock.VaultAccessor(),
+		mock.VaultAccessor(),
+	}
+
+	err = client.MarkForRevocation(vas)
+	require.NoError(t, err)
+
+	// Wasn't committed
+	require.Len(t, client.revoking, 2)
+	require.Equal(t, 2, client.stats().TrackedForRevoke)
+
+}
 func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	t.Parallel()
 	vconfig := &config.VaultConfig{
@@ -1373,7 +1401,7 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 		Addr:    "http://127.0.0.1:0",
 	}
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(vconfig, logger, nil)
+	client, err := NewVaultClient(vconfig, logger, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1409,6 +1437,52 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	}
 }
 
+// TestVaultClient_RevokeTokens_Failures_TTL asserts that
+// the registered TTL doesn't get extended on retries
+func TestVaultClient_RevokeTokens_Failures_TTL(t *testing.T) {
+	t.Parallel()
+	vconfig := &config.VaultConfig{
+		Enabled: helper.BoolToPtr(true),
+		Token:   uuid.Generate(),
+		Addr:    "http://127.0.0.1:0",
+	}
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(vconfig, logger, nil, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	// Create some VaultAccessors
+	vas := []*structs.VaultAccessor{
+		mock.VaultAccessor(),
+		mock.VaultAccessor(),
+	}
+
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+
+	// Was committed
+	require.Len(t, client.revoking, 2)
+
+	// set TTL
+	ttl := time.Now().Add(50 * time.Second)
+	client.revoking[vas[0]] = ttl
+	client.revoking[vas[1]] = ttl
+
+	// revoke again and ensure that TTL isn't extended
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+
+	require.Len(t, client.revoking, 2)
+	expected := map[*structs.VaultAccessor]time.Time{
+		vas[0]: ttl,
+		vas[1]: ttl,
+	}
+	require.Equal(t, expected, client.revoking)
+}
+
 func TestVaultClient_RevokeTokens_Root(t *testing.T) {
 	t.Parallel()
 	v := testutil.NewTestVault(t)
@@ -1421,7 +1495,7 @@ func TestVaultClient_RevokeTokens_Root(t *testing.T) {
 	}
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, purge)
+	client, err := NewVaultClient(v.Config, logger, purge, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1489,7 +1563,7 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 	}
 
 	logger := testlog.HCLogger(t)
-	client, err := NewVaultClient(v.Config, logger, purge)
+	client, err := NewVaultClient(v.Config, logger, purge, nil)
 	if err != nil {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
@@ -1539,6 +1613,161 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 	if s, err := auth.Lookup(t2.Auth.ClientToken); err == nil {
 		t.Fatalf("Revoked token lookup didn't fail: %+v", s)
 	}
+}
+
+// TestVaultClient_RevokeTokens_Idempotent asserts that token revocation
+// is idempotent, and can cope with cases if token was deleted out of band.
+func TestVaultClient_RevokeTokens_Idempotent(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+
+	purged := map[string]struct{}{}
+	purge := func(accessors []*structs.VaultAccessor) error {
+		for _, accessor := range accessors {
+			purged[accessor.Accessor] = struct{}{}
+		}
+		return nil
+	}
+
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(v.Config, logger, purge, nil)
+	if err != nil {
+		t.Fatalf("failed to build vault client: %v", err)
+	}
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create some vault tokens
+	auth := v.Client.Auth().Token()
+	req := vapi.TokenCreateRequest{
+		Policies: []string{"default"},
+	}
+	t1, err := auth.Create(&req)
+	require.NoError(t, err)
+	require.NotNil(t, t1)
+	require.NotNil(t, t1.Auth)
+
+	t2, err := auth.Create(&req)
+	require.NoError(t, err)
+	require.NotNil(t, t2)
+	require.NotNil(t, t2.Auth)
+
+	t3, err := auth.Create(&req)
+	require.NoError(t, err)
+	require.NotNil(t, t3)
+	require.NotNil(t, t3.Auth)
+
+	// revoke t3 out of band
+	err = auth.RevokeAccessor(t3.Auth.Accessor)
+	require.NoError(t, err)
+
+	// Create two VaultAccessors
+	vas := []*structs.VaultAccessor{
+		{Accessor: t1.Auth.Accessor},
+		{Accessor: t2.Auth.Accessor},
+		{Accessor: t3.Auth.Accessor},
+	}
+
+	// Issue a token revocation
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+	require.Empty(t, client.revoking)
+
+	// revoke token again
+	err = client.RevokeTokens(context.Background(), vas, true)
+	require.NoError(t, err)
+	require.Empty(t, client.revoking)
+
+	// Lookup the token and make sure we get an error
+	require.Len(t, purged, 3)
+	require.Contains(t, purged, t1.Auth.Accessor)
+	require.Contains(t, purged, t2.Auth.Accessor)
+	require.Contains(t, purged, t3.Auth.Accessor)
+	s, err := auth.Lookup(t1.Auth.ClientToken)
+	require.Errorf(t, err, "failed to purge token: %v", s)
+	s, err = auth.Lookup(t2.Auth.ClientToken)
+	require.Errorf(t, err, "failed to purge token: %v", s)
+}
+
+// TestVaultClient_RevokeDaemon_Bounded asserts that token revocation
+// batches are bounded in size.
+func TestVaultClient_RevokeDaemon_Bounded(t *testing.T) {
+	t.Parallel()
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Set the configs token in a new test role
+	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+
+	// Disable client until we can change settings for testing
+	conf := v.Config.Copy()
+	conf.Enabled = helper.BoolToPtr(false)
+
+	const (
+		batchSize = 100
+		batches   = 3
+	)
+	resultCh := make(chan error, batches)
+	var totalPurges int64
+
+	// Purge function asserts batches are always < batchSize
+	purge := func(vas []*structs.VaultAccessor) error {
+		if len(vas) > batchSize {
+			resultCh <- fmt.Errorf("too many Vault accessors in batch: %d > %d", len(vas), batchSize)
+		} else {
+			resultCh <- nil
+		}
+		atomic.AddInt64(&totalPurges, int64(len(vas)))
+
+		return nil
+	}
+
+	logger := testlog.HCLogger(t)
+	client, err := NewVaultClient(conf, logger, purge, nil)
+	require.NoError(t, err)
+
+	// Override settings for testing and then enable client
+	client.maxRevokeBatchSize = batchSize
+	client.revocationIntv = 3 * time.Millisecond
+	conf = v.Config.Copy()
+	conf.Enabled = helper.BoolToPtr(true)
+	require.NoError(t, client.SetConfig(conf))
+
+	client.SetActive(true)
+	defer client.Stop()
+
+	waitForConnection(client, t)
+
+	// Create more tokens in Nomad than can fit in a batch; they don't need
+	// to exist in Vault.
+	accessors := make([]*structs.VaultAccessor, batchSize*batches)
+	for i := 0; i < len(accessors); i++ {
+		accessors[i] = &structs.VaultAccessor{Accessor: "abcd"}
+	}
+
+	// Mark for revocation
+	require.NoError(t, client.MarkForRevocation(accessors))
+
+	// Wait for tokens to be revoked
+	for i := 0; i < batches; i++ {
+		select {
+		case err := <-resultCh:
+			require.NoError(t, err)
+		case <-time.After(10 * time.Second):
+			// 10 seconds should be plenty long to process 3
+			// batches at a 3ms tick interval!
+			t.Errorf("timed out processing %d batches. %d/%d complete in 10s",
+				batches, i, batches)
+		}
+	}
+
+	require.Equal(t, int64(len(accessors)), atomic.LoadInt64(&totalPurges))
 }
 
 func waitForConnection(v *vaultClient, t *testing.T) {

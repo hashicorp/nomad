@@ -81,7 +81,7 @@ Nomad UI releases are in lockstep with Nomad releases and are integrated into th
 
 ### Storybook UI Library
 
-The Storybook project provides a browser to see what components and patterns are present in the application and how to use them. You can run it locally with `yarn storybook`. The latest version from the `master` branch is at [`nomad-storybook.netlify.com`](https://nomad-storybook.netlify.com/).
+The Storybook project provides a browser to see what components and patterns are present in the application and how to use them. You can run it locally with `yarn storybook` after you have `ember serve` running. The latest version from the `master` branch is at [`nomad-storybook.netlify.com`](https://nomad-storybook.netlify.com/).
 
 To generate a new story for a component, run `ember generate story component-name`. You can use the existing stories as a guide.
 

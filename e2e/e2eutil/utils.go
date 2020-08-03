@@ -2,16 +2,18 @@ package e2eutil
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
-	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,11 +64,10 @@ func stringToPtrOrNil(s string) *string {
 }
 
 func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
-	r := require.New(t)
 
 	// Parse job
 	job, err := jobspec.ParseFile(jobFile)
-	r.Nil(err)
+	require.NoError(t, err)
 
 	// Set custom job ID (distinguish among tests)
 	job.ID = helper.StringToPtr(jobID)
@@ -85,7 +86,7 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 		idx = meta.LastIndex
 		return resp.EvalID != "", fmt.Errorf("expected EvalID:%s", pretty.Sprint(resp))
 	}, func(err error) {
-		r.NoError(err)
+		require.NoError(t, err)
 	})
 
 	allocs, _, err := jobs.Allocations(jobID, false, &api.QueryOptions{WaitIndex: idx})
@@ -94,22 +95,32 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 }
 
 func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
-	r := require.New(t)
-	g := NewGomegaWithT(t)
 	jobs := nomadClient.Jobs()
 
 	// Start allocations
 	RegisterAllocs(t, nomadClient, jobFile, jobID, cToken)
 
-	// Wrap in retry to wait until placement
-	g.Eventually(func() []*api.AllocationListStub {
-		// Look for allocations
-		allocs, _, _ := jobs.Allocations(jobID, false, nil)
-		return allocs
-	}, 30*time.Second, time.Second).ShouldNot(BeEmpty())
+	var err error
+	allocs := []*api.AllocationListStub{}
+	evals := []*api.Evaluation{}
 
-	allocs, _, err := jobs.Allocations(jobID, false, nil)
-	r.NoError(err)
+	// Wrap in retry to wait until placement
+	ok := assert.Eventually(t, func() bool {
+		allocs, _, err = jobs.Allocations(jobID, false, nil)
+		if len(allocs) < 1 {
+			evals, _, err = nomadClient.Jobs().Evaluations(jobID, nil)
+		}
+		return len(allocs) > 0
+	}, 30*time.Second, time.Second)
+
+	msg := fmt.Sprintf("allocations not placed for %s", jobID)
+	if !ok && len(evals) > 0 {
+		for _, eval := range evals {
+			msg += fmt.Sprintf("\n  %s - %s", eval.Status, eval.StatusDescription)
+		}
+	}
+	require.Truef(t, ok, msg)
+	require.NoError(t, err) // we only care about the last error
 	return allocs
 }
 
@@ -148,6 +159,29 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 		}
 
 		return alloc.ClientStatus != structs.AllocClientStatusPending, fmt.Errorf("expected status not pending, but was: %s", alloc.ClientStatus)
+	}, func(err error) {
+		t.Fatalf("failed to wait on alloc: %v", err)
+	})
+}
+
+func WaitForAllocStopped(t *testing.T, nomadClient *api.Client, allocID string) {
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(time.Millisecond * 100)
+		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+		switch alloc.ClientStatus {
+		case structs.AllocClientStatusComplete:
+			return true, nil
+		case structs.AllocClientStatusFailed:
+			return true, nil
+		case structs.AllocClientStatusLost:
+			return true, nil
+		default:
+			return false, fmt.Errorf("expected stopped alloc, but was: %s",
+				alloc.ClientStatus)
+		}
 	}, func(err error) {
 		t.Fatalf("failed to wait on alloc: %v", err)
 	})
@@ -196,4 +230,51 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 	}, func(err error) {
 		t.Fatalf("failed to wait on deployment: %v", err)
 	})
+}
+
+// CheckServicesPassing scans for passing agent checks via the given agent API
+// client.
+//
+// Deprecated: not useful in e2e, where more than one node exists and Nomad jobs
+// are placed non-deterministically. The Consul agentAPI only knows about what
+// is registered on its node, and cannot be used to query for cluster wide state.
+func CheckServicesPassing(t *testing.T, agentAPI *consulapi.Agent, allocIDs []string) {
+	failing := map[string]*consulapi.AgentCheck{}
+	for i := 0; i < 60; i++ {
+		checks, err := agentAPI.Checks()
+		require.NoError(t, err)
+
+		// Filter out checks for other services
+		for cid, check := range checks {
+			found := false
+			for _, allocID := range allocIDs {
+				if strings.Contains(check.ServiceID, allocID) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				delete(checks, cid)
+			}
+		}
+
+		// Ensure checks are all passing
+		failing = map[string]*consulapi.AgentCheck{}
+		for _, check := range checks {
+			if check.Status != "passing" {
+				failing[check.CheckID] = check
+				break
+			}
+		}
+
+		if len(failing) == 0 {
+			break
+		}
+
+		t.Logf("still %d checks not passing", len(failing))
+
+		time.Sleep(time.Second)
+	}
+	require.Len(t, failing, 0, pretty.Sprint(failing))
 }

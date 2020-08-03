@@ -23,15 +23,15 @@ module('Integration | Component | two step button', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{two-step-button
-      idleText=idleText
-      cancelText=cancelText
-      confirmText=confirmText
-      confirmationMessage=confirmationMessage
-      awaitingConfirmation=awaitingConfirmation
-      disabled=disabled
-      onConfirm=onConfirm
-      onCancel=onCancel}}
+    <TwoStepButton
+      @idleText={{idleText}}
+      @cancelText={{cancelText}}
+      @confirmText={{confirmText}}
+      @confirmationMessage={{confirmationMessage}}
+      @awaitingConfirmation={{awaitingConfirmation}}
+      @disabled={{disabled}}
+      @onConfirm={{onConfirm}}
+      @onCancel={{onCancel}} />
   `;
 
   test('presents as a button in the idle state', async function(assert) {

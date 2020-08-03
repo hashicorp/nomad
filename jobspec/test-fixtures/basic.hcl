@@ -71,7 +71,26 @@ job "binstore-storagelocker" {
     count = 5
 
     volume "foo" {
-      type = "host"
+      type   = "host"
+      source = "/path"
+    }
+
+    volume "bar" {
+      type   = "csi"
+      source = "bar-vol"
+
+      mount_options {
+        fs_type = "ext4"
+      }
+    }
+
+    volume "baz" {
+      type   = "csi"
+      source = "bar-vol"
+
+      mount_options {
+        mount_flags = ["ro"]
+      }
     }
 
     restart {
@@ -133,6 +152,8 @@ job "binstore-storagelocker" {
       }
     }
 
+    stop_after_client_disconnect = "120s"
+
     task "binstore" {
       driver = "docker"
       user   = "bob"
@@ -157,6 +178,10 @@ job "binstore-storagelocker" {
       volume_mount {
         volume      = "foo"
         destination = "/mnt/foo"
+      }
+
+      restart {
+        attempts = 10
       }
 
       logs {
@@ -267,7 +292,8 @@ job "binstore-storagelocker" {
       }
 
       vault {
-        policies = ["foo", "bar"]
+        namespace = "ns1"
+        policies  = ["foo", "bar"]
       }
 
       template {
@@ -291,6 +317,11 @@ job "binstore-storagelocker" {
 
     task "storagelocker" {
       driver = "docker"
+
+      lifecycle {
+        hook    = "prestart"
+        sidecar = true
+      }
 
       config {
         image = "hashicorp/storagelocker"

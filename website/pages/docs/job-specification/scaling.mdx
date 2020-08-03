@@ -1,0 +1,55 @@
+---
+layout: docs
+page_title: scaling Stanza - Job Specification
+sidebar_title: scaling <sup>Beta</sup>
+description: The "scaling" stanza allows specifying scaling policy for a task group
+---
+
+# `scaling` Stanza
+
+<Placement groups={['job', 'group']} />
+
+The `scaling` stanza allows configuring scaling options for a task group, for the purpose
+of supporting external autoscalers like the [Nomad Autoscaler](https://github.com/hashicorp/nomad-autoscaler)
+and scaling via the Nomad UI. This stanza is not supported within jobs of type `system`.
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+  group "cache" {
+    task "redis" {
+      driver = "docker"
+      config {
+        image = "redis:3.2"
+      }
+    }
+    scaling {
+      enabled = true
+      min = 0
+      max = 10
+      policy {
+      }
+    }
+  }
+}
+```
+
+## `scaling` Parameters
+
+- `min` - <code>(int: nil)</code> - The minimum acceptable count for the task group.
+  This should be honored by the external autoscaler. It will also be honored by Nomad
+  during job updates and scaling operations. Defaults to the specified task group [count][].
+
+- `max` - <code>(int: &lt;required&gt;)</code> - The maximum acceptable count for the task group.
+  This should be honored by the external autoscaler. It will also be honored by Nomad
+  during job updates and scaling operations.
+
+- `enabled` - <code>(bool: false)</code> - Whether the scaling policy is enabled.
+  This is intended to allow temporarily disabling an autoscaling policy, and should be
+  honored by the external autoscaler.
+
+- `policy` - <code>(map<string|...>: nil)</code> - The autoscaling policy. This is
+  opaque to Nomad, consumed and parsed only by the external autoscaler. Therefore,
+  its contents are specific to the autoscaler; see autoscaler documentation.
+
+[count]: /docs/job-specification/group/#count 'Nomad Task Group specification'

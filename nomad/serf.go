@@ -83,7 +83,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 		s.peerLock.Unlock()
 
 		// If we still expecting to bootstrap, may need to handle this
-		if atomic.LoadInt32(&s.config.BootstrapExpect) != 0 {
+		if atomic.LoadInt32(&s.config.Bootstrapped) == 0 {
 			s.maybeBootstrap()
 		}
 	}
@@ -111,7 +111,7 @@ func (s *Server) maybeBootstrap() {
 	// Bootstrap can only be done if there are no committed logs,
 	// remove our expectations of bootstrapping
 	if index != 0 {
-		atomic.StoreInt32(&s.config.BootstrapExpect, 0)
+		atomic.StoreInt32(&s.config.Bootstrapped, 1)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (s *Server) maybeBootstrap() {
 		if p.Region != s.config.Region {
 			continue
 		}
-		if p.Expect != 0 && p.Expect != int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
+		if p.Expect != 0 && p.Expect != s.config.BootstrapExpect {
 			s.logger.Error("peer has a conflicting expect value. All nodes should expect the same number", "member", member)
 			return
 		}
@@ -138,11 +138,12 @@ func (s *Server) maybeBootstrap() {
 		if !p.NonVoter {
 			voters++
 		}
+
 		servers = append(servers, *p)
 	}
 
 	// Skip if we haven't met the minimum expect count
-	if voters < int(atomic.LoadInt32(&s.config.BootstrapExpect)) {
+	if voters < s.config.BootstrapExpect {
 		return
 	}
 
@@ -181,7 +182,7 @@ func (s *Server) maybeBootstrap() {
 		if len(peers) > 0 {
 			s.logger.Info("disabling bootstrap mode because existing Raft peers being reported by peer",
 				"peer_name", server.Name, "peer_address", server.Addr)
-			atomic.StoreInt32(&s.config.BootstrapExpect, 0)
+			atomic.StoreInt32(&s.config.Bootstrapped, 1)
 			return
 		}
 	}
@@ -223,7 +224,7 @@ func (s *Server) maybeBootstrap() {
 	}
 
 	// Bootstrapping complete, or failed for some reason, don't enter this again
-	atomic.StoreInt32(&s.config.BootstrapExpect, 0)
+	atomic.StoreInt32(&s.config.Bootstrapped, 1)
 }
 
 // nodeFailed is used to handle fail events on the serf cluster

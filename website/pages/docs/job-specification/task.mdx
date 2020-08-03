@@ -53,19 +53,22 @@ job "docs" {
   be passed to the running process.
 
 - `kill_timeout` `(string: "5s")` - Specifies the duration to wait for an
-  application to gracefully quit before force-killing. Nomad sends an `SIGINT`.
-  If the task does not exit before the configured timeout, `SIGKILL` is sent to
-  the task. Note that the value set here is capped at the value set for
-  [`max_kill_timeout`][max_kill] on the agent running the task, which has a
-  default value of 30 seconds.
+  application to gracefully quit before force-killing. Nomad first sends a
+  [`kill_signal`][kill_signal]. If the task does not exit before the configured
+  timeout, `SIGKILL` is sent to the task. Note that the value set here is capped
+  at the value set for [`max_kill_timeout`][max_kill] on the agent running the
+  task, which has a default value of 30 seconds.
 
 - `kill_signal` `(string)` - Specifies a configurable kill signal for a task,
-  where the default is SIGINT. Note that this is only supported for drivers
-  sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
+  where the default is SIGINT (or SIGTERM for `docker`). Note that this is only
+  supported for drivers sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
 
 - `leader` `(bool: false)` - Specifies whether the task is the leader task of
   the task group. If set to true, when the leader task completes, all other
   tasks within the task group will be gracefully shutdown.
+
+- `lifecycle` <code>([Lifecycle][]: nil)</code> - Specifies when a task is run
+  within the lifecycle of a task group. Added in Nomad v0.11.
 
 - `logs` <code>([Logs][]: nil)</code> - Specifies logging configuration for the
   `stdout` and `stderr` of the task.
@@ -74,7 +77,7 @@ job "docs" {
   with user-defined metadata.
 
 - `resources` <code>([Resources][]: &lt;required&gt;)</code> - Specifies the minimum
-  resource requirements such as RAM, CPU and network.
+  resource requirements such as RAM, CPU and devices.
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
   [Consul][] for service discovery. Nomad automatically registers when a task
@@ -127,9 +130,7 @@ task "server" {
   }
 
   resources {
-    network {
-      mbits = 250
-    }
+    cpu = 20
   }
 }
 ```
@@ -197,6 +198,7 @@ task "server" {
 [env]: /docs/job-specification/env 'Nomad env Job Specification'
 [meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
 [resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
+[lifecycle]: /docs/job-specification/lifecycle 'Nomad lifecycle Job Specification'
 [logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
 [service]: /docs/job-specification/service 'Nomad service Job Specification'
 [vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
@@ -204,8 +206,9 @@ task "server" {
 [java]: /docs/drivers/java 'Nomad Java Driver'
 [docker]: /docs/drivers/docker 'Nomad Docker Driver'
 [rkt]: /docs/drivers/rkt 'Nomad rkt Driver'
-[service_discovery]: /guides/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[service_discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [template]: /docs/job-specification/template 'Nomad template Job Specification'
-[user_drivers]: /docs/configuration/client#_quot_user_checked_drivers_quot_
-[user_blacklist]: /docs/configuration/client#_quot_user_blacklist_quot_
+[user_drivers]: /docs/configuration/client#user-checked_drivers
+[user_blacklist]: /docs/configuration/client#user-blacklist
 [max_kill]: /docs/configuration/client#max_kill_timeout
+[kill_signal]: /docs/job-specification/task#kill_signal

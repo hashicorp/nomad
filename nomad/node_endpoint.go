@@ -78,11 +78,12 @@ type Node struct {
 
 // Register is used to upsert a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
+	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
 		// forwarded server, so add the mapping to cache the
 		// connection and allow the server to send RPCs to the client.
-		if err == nil && n.ctx != nil && n.ctx.NodeID == "" {
+		if err == nil && n.ctx != nil && n.ctx.NodeID == "" && !isForwarded {
 			n.ctx.NodeID = args.Node.ID
 			n.srv.addNodeConn(n.ctx)
 		}
@@ -243,6 +244,8 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 		}
 	}
 
+	reply.Features = n.srv.EnterpriseState.Features()
+
 	return nil
 }
 
@@ -370,11 +373,12 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 
 // UpdateStatus is used to update the status of a client node
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
+	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.UpdateStatus", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
 		// forwarded server, so add the mapping to cache the
 		// connection and allow the server to send RPCs to the client.
-		if err == nil && n.ctx != nil && n.ctx.NodeID == "" {
+		if err == nil && n.ctx != nil && n.ctx.NodeID == "" && !isForwarded {
 			n.ctx.NodeID = args.NodeID
 			n.srv.addNodeConn(n.ctx)
 		}
@@ -921,11 +925,12 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 // per allocation.
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeClientAllocsResponse) error {
+	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
 		// forwarded server, so add the mapping to cache the
 		// connection and allow the server to send RPCs to the client.
-		if err == nil && n.ctx != nil && n.ctx.NodeID == "" {
+		if err == nil && n.ctx != nil && n.ctx.NodeID == "" && !isForwarded {
 			n.ctx.NodeID = args.NodeID
 			n.srv.addNodeConn(n.ctx)
 		}
@@ -1078,40 +1083,68 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	now := time.Now()
 	var evals []*structs.Evaluation
 
-	for _, alloc := range args.Alloc {
-		alloc.ModifyTime = now.UTC().UnixNano()
+	// A set of de-duplicated volumes that need their volume claims released.
+	// Later we'll apply this raft.
+	volumesToGC := newCSIBatchRelease(n.srv, n.logger, 100)
 
-		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
-		if alloc.ClientStatus == structs.AllocClientStatusFailed {
-			// Only create evaluations if this is an existing alloc,
-			// and eligible as per its task group's ReschedulePolicy
-			if existingAlloc, _ := n.srv.State().AllocByID(nil, alloc.ID); existingAlloc != nil {
-				job, err := n.srv.State().JobByID(nil, existingAlloc.Namespace, existingAlloc.JobID)
-				if err != nil {
-					n.logger.Error("UpdateAlloc unable to find job", "job", existingAlloc.JobID, "error", err)
-					continue
-				}
-				if job == nil {
-					n.logger.Debug("UpdateAlloc unable to find job", "job", existingAlloc.JobID)
-					continue
-				}
-				taskGroup := job.LookupTaskGroup(existingAlloc.TaskGroup)
-				if taskGroup != nil && existingAlloc.FollowupEvalID == "" && existingAlloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
-					eval := &structs.Evaluation{
-						ID:          uuid.Generate(),
-						Namespace:   existingAlloc.Namespace,
-						TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
-						JobID:       existingAlloc.JobID,
-						Type:        job.Type,
-						Priority:    job.Priority,
-						Status:      structs.EvalStatusPending,
-						CreateTime:  now.UTC().UnixNano(),
-						ModifyTime:  now.UTC().UnixNano(),
-					}
-					evals = append(evals, eval)
-				}
+	for _, allocToUpdate := range args.Alloc {
+		allocToUpdate.ModifyTime = now.UTC().UnixNano()
+
+		if !allocToUpdate.TerminalStatus() {
+			continue
+		}
+
+		alloc, _ := n.srv.State().AllocByID(nil, allocToUpdate.ID)
+		if alloc == nil {
+			continue
+		}
+
+		// if the job has been purged, this will always return error
+		job, err := n.srv.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+		if err != nil {
+			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID, "error", err)
+			continue
+		}
+		if job == nil {
+			n.logger.Debug("UpdateAlloc unable to find job", "job", alloc.JobID)
+			continue
+		}
+
+		taskGroup := job.LookupTaskGroup(alloc.TaskGroup)
+		if taskGroup == nil {
+			continue
+		}
+
+		// If the terminal alloc has CSI volumes, add the volumes to the batch
+		// of volumes we'll release the claims of.
+		for _, vol := range taskGroup.Volumes {
+			if vol.Type == structs.VolumeTypeCSI {
+				volumesToGC.add(vol.Source, alloc.Namespace)
 			}
 		}
+
+		// Add an evaluation if this is a failed alloc that is eligible for rescheduling
+		if allocToUpdate.ClientStatus == structs.AllocClientStatusFailed && alloc.FollowupEvalID == "" && alloc.RescheduleEligible(taskGroup.ReschedulePolicy, now) {
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   alloc.Namespace,
+				TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+				JobID:       alloc.JobID,
+				Type:        job.Type,
+				Priority:    job.Priority,
+				Status:      structs.EvalStatusPending,
+				CreateTime:  now.UTC().UnixNano(),
+				ModifyTime:  now.UTC().UnixNano(),
+			}
+			evals = append(evals, eval)
+		}
+	}
+
+	// Make a raft apply to release the CSI volume claims of terminal allocs.
+	var result *multierror.Error
+	err := volumesToGC.apply()
+	if err != nil {
+		result = multierror.Append(result, err)
 	}
 
 	// Add this to the batch
@@ -1144,12 +1177,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Wait for the future
 	if err := future.Wait(); err != nil {
-		return err
+		result = multierror.Append(result, err)
+		return result.ErrorOrNil()
 	}
 
 	// Setup the response
 	reply.Index = future.Index()
-	return nil
+	return result.ErrorOrNil()
 }
 
 // batchUpdate is used to update all the allocations
@@ -1622,6 +1656,11 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 	return nil
 }
 
+type connectTask struct {
+	TaskKind structs.TaskKind
+	TaskName string
+}
+
 func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.DeriveSITokenResponse) error {
 	setError := func(e error, recoverable bool) {
 		if e != nil {
@@ -1708,13 +1747,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	}
 
 	// make sure each task in args.Tasks is a connect-enabled task
-	// note: the tasks at this point should be the "connect-sidecar-<id>" name
-	//
-	unneeded := tasksNotUsingConnect(tg, args.Tasks)
-	if len(unneeded) > 0 {
+	notConnect, tasks := connectTasks(tg, args.Tasks)
+	if len(notConnect) > 0 {
 		setError(fmt.Errorf(
 			"Requested Consul Service Identity tokens for tasks that are not Connect enabled: %v",
-			strings.Join(unneeded, ", "),
+			strings.Join(notConnect, ", "),
 		), false)
 	}
 
@@ -1736,8 +1773,8 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 
 	// would like to pull some of this out...
 
-	// Create the SI tokens
-	input := make(chan string, numWorkers)
+	// Create the SI tokens from a slice of task name + connect service
+	input := make(chan connectTask, numWorkers)
 	results := make(map[string]*structs.SIToken, numWorkers)
 	for i := 0; i < numWorkers; i++ {
 		g.Go(func() error {
@@ -1747,17 +1784,16 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 					if !ok {
 						return nil
 					}
-
-					sii := ServiceIdentityIndex{
+					secret, err := n.srv.consulACLs.CreateToken(ctx, ServiceIdentityRequest{
+						TaskKind:  task.TaskKind,
+						TaskName:  task.TaskName,
 						ClusterID: clusterID,
 						AllocID:   alloc.ID,
-						TaskName:  task,
-					}
-					secret, err := n.srv.consulACLs.CreateToken(ctx, sii)
+					})
 					if err != nil {
 						return err
 					}
-					results[task] = secret
+					results[task.TaskName] = secret
 				case <-ctx.Done():
 					return nil
 				}
@@ -1768,11 +1804,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	// Send the input
 	go func() {
 		defer close(input)
-		for _, task := range args.Tasks {
+		for _, connectTask := range tasks {
 			select {
 			case <-ctx.Done():
 				return
-			case input <- task:
+			case input <- connectTask:
 			}
 		}
 	}()
@@ -1831,15 +1867,21 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	return nil
 }
 
-func tasksNotUsingConnect(tg *structs.TaskGroup, tasks []string) []string {
-	var unneeded []string
+func connectTasks(tg *structs.TaskGroup, tasks []string) ([]string, []connectTask) {
+	var notConnect []string
+	var usesConnect []connectTask
 	for _, task := range tasks {
 		tgTask := tg.LookupTask(task)
 		if !taskUsesConnect(tgTask) {
-			unneeded = append(unneeded, task)
+			notConnect = append(notConnect, task)
+		} else {
+			usesConnect = append(usesConnect, connectTask{
+				TaskName: task,
+				TaskKind: tgTask.Kind,
+			})
 		}
 	}
-	return unneeded
+	return notConnect, usesConnect
 }
 
 func taskUsesConnect(task *structs.Task) bool {
@@ -1847,8 +1889,7 @@ func taskUsesConnect(task *structs.Task) bool {
 		// not even in the task group
 		return false
 	}
-	// todo(shoenig): TBD what Kind does a native task have?
-	return task.Kind.IsConnectProxy()
+	return task.UsesConnect()
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {

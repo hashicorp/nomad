@@ -4,7 +4,7 @@ page_title: resources Stanza - Job Specification
 sidebar_title: resources
 description: |-
   The "resources" stanza describes the requirements a task needs to execute.
-  Resource requirements include memory, network, cpu, and more.
+  Resource requirements include memory, cpu, and more.
 ---
 
 # `resources` Stanza
@@ -12,7 +12,7 @@ description: |-
 <Placement groups={['job', 'group', 'task', 'resources']} />
 
 The `resources` stanza describes the requirements a task needs to execute.
-Resource requirements include memory, network, CPU, and more.
+Resource requirements include memory, CPU, and more.
 
 ```hcl
 job "docs" {
@@ -21,14 +21,6 @@ job "docs" {
       resources {
         cpu    = 100
         memory = 256
-
-        network {
-          mbits = 100
-          port "http" {}
-          port "ssh" {
-            static = 22
-          }
-        }
 
         device "nvidia/gpu" {
           count = 2
@@ -44,9 +36,6 @@ job "docs" {
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
 - `memory` `(int: 300)` - Specifies the memory required in MB
-
-- `network` <code>([Network][]: &lt;optional&gt;)</code> - Specifies the network
-  requirements, including static and dynamic port allocations.
 
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
@@ -67,25 +56,6 @@ resources {
 }
 ```
 
-### Network
-
-This example shows network constraints as specified in the [network][] stanza
-which require 1 Gbit of bandwidth, dynamically allocates two ports, and
-statically allocates one port:
-
-```hcl
-resources {
-  network {
-    mbits = 1000
-    port "http" {}
-    port "https" {}
-    port "lb" {
-      static = "8889"
-    }
-  }
-}
-```
-
 ### Devices
 
 This example shows a device constraints as specified in the [device][] stanza
@@ -99,5 +69,4 @@ resources {
 }
 ```
 
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
 [device]: /docs/job-specification/device 'Nomad device Job Specification'

@@ -73,22 +73,22 @@ func BuildAllocServices(node *structs.Node, alloc *structs.Allocation, restarter
 }
 
 // Copy method for easing tests
-func (t *WorkloadServices) Copy() *WorkloadServices {
+func (ws *WorkloadServices) Copy() *WorkloadServices {
 	newTS := new(WorkloadServices)
-	*newTS = *t
+	*newTS = *ws
 
 	// Deep copy Services
-	newTS.Services = make([]*structs.Service, len(t.Services))
-	for i := range t.Services {
-		newTS.Services[i] = t.Services[i].Copy()
+	newTS.Services = make([]*structs.Service, len(ws.Services))
+	for i := range ws.Services {
+		newTS.Services[i] = ws.Services[i].Copy()
 	}
 	return newTS
 }
 
-func (w *WorkloadServices) Name() string {
-	if w.Task != "" {
-		return w.Task
+func (ws *WorkloadServices) Name() string {
+	if ws.Task != "" {
+		return ws.Task
 	}
 
-	return "group-" + w.Group
+	return "group-" + ws.Group
 }

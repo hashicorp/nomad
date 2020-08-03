@@ -1,4 +1,5 @@
 import config from 'nomad-ui/config/environment';
+import { pickOne } from '../utils';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
 const withTokens = getConfigValue('mirageWithTokens', true);
@@ -41,6 +42,16 @@ function smallCluster(server) {
   server.createList('job', 5);
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
+  server.createList('csi-plugin', 2);
+
+  const csiAllocations = server.createList('allocation', 5);
+  const volumes = server.schema.csiVolumes.all().models;
+  csiAllocations.forEach(alloc => {
+    const volume = pickOne(volumes);
+    volume.writeAllocs.add(alloc);
+    volume.readAllocs.add(alloc);
+    volume.save();
+  });
 }
 
 function mediumCluster(server) {

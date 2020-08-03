@@ -13,7 +13,7 @@ const REF_TIME = new Date();
 export default Factory.extend({
   id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
 
-  jobVersion: () => faker.random.number(10),
+  jobVersion: 1,
 
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
   modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
@@ -25,11 +25,17 @@ export default Factory.extend({
 
   namespace: null,
 
-  clientStatus: () => faker.helpers.randomize(CLIENT_STATUSES),
+  clientStatus() {
+    return this.forceRunningClientStatus ? 'running' : faker.helpers.randomize(CLIENT_STATUSES);
+  },
+
   desiredStatus: () => faker.helpers.randomize(DESIRED_STATUSES),
 
   // When true, doesn't create any resources, state, or events
   shallow: false,
+
+  // When true, sets the client status to running
+  forceRunningClientStatus: false,
 
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {

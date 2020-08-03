@@ -1,0 +1,107 @@
+---
+layout: docs
+page_title: 'Commands: volume status'
+sidebar_title: status
+description: |
+  Display information and status of volumes.
+---
+
+# Command: volume status
+
+The `volume status` command displays status information for [Container
+Storage Interface (CSI)][csi] volumes.
+
+## Usage
+
+```plaintext
+nomad volume status [options] [volume]
+```
+
+This command accepts an optional volume ID or prefix as the sole argument. If there
+is an exact match based on the provided volume ID or prefix, then information about
+the specific volume is queried and displayed. Otherwise, a list of matching volumes
+and information will be displayed.
+
+If the ID is omitted, the command lists out all of the existing volumes and a few
+of the most useful status fields for each.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Status Options
+
+- `-type`: Display only volumes of a particular type. Currently only
+  the `csi` type is supported, so this option can be omitted when
+  querying the status of CSI volumes.
+
+- `-plugin_id`: Display only volumes managed by a particular [CSI
+  plugin][csi_plugin].
+
+- `-short`: Display short output. Used only when a single volume is
+  being queried. Drops verbose volume allocation data from the
+  output.
+
+- `-verbose`: Show full information. Allocation create and modify
+  times are shown in `yyyy/mm/dd hh:mm:ss` format.
+
+## Examples
+
+List of all volumes:
+
+```shell-session
+$ nomad volume [-type csi] status
+ID            Name      Plugin ID  Schedulable  Access Mode
+ebs_prod_db1  database  ebs-prod   true         single-node-writer
+```
+
+Short view of a specific volume:
+
+```shell-session
+$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+ID                   = ebs_prod_db1
+Name                 = database
+Type                 = csi
+External ID          = vol-23452345
+Plugin ID            = ebs-prod
+Provider             = aws.ebs
+Version              = 1.0.1
+Schedulable          = true
+Controllers Healthy  = 1
+Controllers Expected = 1
+Nodes Healthy        = 1
+Nodes Expected       = 1
+Access Mode          = single-node-writer
+Attachment Mode      = file-system
+Mount Options        = fs_type: ext4 flags: ro
+Namespace            = default
+```
+
+Full status information of a volume:
+
+```shell-session
+$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+ID                   = ebs_prod_db1
+Name                 = database
+Type                 = csi
+External ID          = vol-23452345
+Plugin ID            = ebs-prod
+Provider             = aws.ebs
+Version              = 1.0.1
+Schedulable          = true
+Controllers Healthy  = 1
+Controllers Expected = 1
+Nodes Healthy        = 1
+Nodes Expected       = 1
+Access Mode          = single-node-writer
+Attachment Mode      = file-system
+Mount Options        = fs_type: ext4 flags: ro
+Namespace            = default
+
+Allocations
+ID        Node ID   Access Mode   Task Group  Version  Desired  [...]
+b00fa322  28be17d5  write         csi         0        run
+```
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugin]: /docs/job-specification/csi_plugin

@@ -15,9 +15,9 @@ export function formatPercentage(params, options = {}) {
   let ratio;
   let total = options.total;
 
-  if (total !== undefined) {
+  if (total != undefined) {
     total = safeNumber(total);
-  } else if (complement !== undefined) {
+  } else if (complement != undefined) {
     total = value + safeNumber(complement);
   } else {
     // Ensures that ratio is between 0 and 1 when neither total or complement are defined

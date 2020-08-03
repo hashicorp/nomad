@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/hashicorp/go-msgpack/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 )
 
 var (
@@ -33,12 +33,16 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	case strings.HasPrefix(path, "stat/"):
 		return s.FileStatRequest(resp, req)
 	case strings.HasPrefix(path, "readat/"):
-		return s.FileReadAtRequest(resp, req)
+		return s.wrapUntrustedContent(s.FileReadAtRequest)(resp, req)
 	case strings.HasPrefix(path, "cat/"):
-		return s.FileCatRequest(resp, req)
+		return s.wrapUntrustedContent(s.FileCatRequest)(resp, req)
 	case strings.HasPrefix(path, "stream/"):
 		return s.Stream(resp, req)
 	case strings.HasPrefix(path, "logs/"):
+		// Logs are *trusted* content because the endpoint
+		// explicitly sets the Content-Type to text/plain or
+		// application/json depending on the value of the ?plain=
+		// parameter.
 		return s.Logs(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
@@ -319,6 +323,14 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		Follow:    follow,
 	}
 	s.parse(resp, req, &fsReq.QueryOptions.Region, &fsReq.QueryOptions)
+
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	if plain {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
+	}
 
 	// Make the request
 	return s.fsStreamImpl(resp, req, "FileSystem.Logs", fsReq, fsReq.AllocID)

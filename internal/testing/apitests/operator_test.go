@@ -36,7 +36,8 @@ func TestAPI_OperatorSchedulerGetSetConfiguration(t *testing.T) {
 	resp, wm, err := operator.SchedulerSetConfiguration(newConf, nil)
 	require.Nil(err)
 	require.NotZero(wm.LastIndex)
-	require.False(resp.Updated)
+	// non CAS requests should update on success
+	require.True(resp.Updated)
 
 	config, _, err = operator.SchedulerGetConfiguration(nil)
 	require.Nil(err)

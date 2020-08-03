@@ -36,8 +36,10 @@ job "docs" {
   node attribute or metadata. See the
   [Nomad spread reference](/docs/job-specification/spread) for more details.
 
-- `count` `(int: 1)` - Specifies the number of the task groups that should
-  be running under this group. This value must be non-negative.
+- `count` `(int)` - Specifies the number of instances that should be running
+  under for this group. This value must be non-negative. This defaults to the
+  `min` value specified in the [`scaling`](/docs/job-specification/scaling)
+  block, if present; otherwise, this defaults to `1`.
 
 - `ephemeral_disk` <code>([EphemeralDisk][]: nil)</code> - Specifies the
   ephemeral disk requirements of the group. Ephemeral disks can be marked as
@@ -50,6 +52,10 @@ job "docs" {
   migrating off of draining nodes. Only service jobs with a count greater than
   1 support migrate stanzas.
 
+- `network` <code>([Network][]: &lt;optional&gt;)</code> - Specifies the network
+  requirements and configuration, including static and dynamic port allocations,
+  for the group.
+
 - `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
   rescheduling strategy. Nomad will then attempt to schedule the task on another
   node if any of the group allocation statuses become "failed".
@@ -57,6 +63,10 @@ job "docs" {
 - `restart` <code>([Restart][]: nil)</code> - Specifies the restart policy for
   all tasks in this group. If omitted, a default policy exists for each job
   type, which can be found in the [restart stanza documentation][restart].
+
+- `service` <code>([Service][]: nil)</code> - Specifies integrations with
+  [Consul][] for service discovery. Nomad automatically registers each service when an allocation
+  is started and de-registers them when the allocation is destroyed.
 
 - `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
   stopping a group's tasks. The delay occurs between Consul deregistration
@@ -67,6 +77,20 @@ job "docs" {
   if there are any defined group services. In addition, tasks may have their
   own [`shutdown_delay`](/docs/job-specification/task#shutdown_delay)
   which waits between deregistering task services and stopping the task.
+
+- `stop_after_client_disconnect` `(string: "")` - Specifies a duration
+  after which a Nomad client that cannot communicate with the servers
+  will stop allocations based on this task group. By default, a client
+  will not stop an allocation until explicitly told to by a server. A
+  client that fails to heartbeat to a server within the
+  [`heartbeat_grace`] window and any allocations running on it will be
+  marked "lost" and Nomad will schedule replacement
+  allocations. However, these replaced allocations will continue to
+  run on the non-responsive client; an operator may desire that these
+  replaced allocations are also stopped in this case — for example,
+  allocations requiring exclusive access to an external resource. When
+  specified, the Nomad client will stop them after this duration. The
+  Nomad client process must be running for this to occur.
 
 - `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
@@ -129,15 +153,107 @@ group "example" {
 }
 ```
 
+### Network
+
+This example shows network constraints as specified in the [network][] stanza
+which uses the `bridge` networking mode, dynamically allocates two ports, and
+statically allocates one port:
+
+```hcl
+group "example" {
+  network {
+    mode = "bridge"
+    port "http" {}
+    port "https" {}
+    port "lb" {
+      static = "8889"
+    }
+  }
+}
+```
+
+### Service Discovery
+
+This example creates a service in Consul. To read more about service discovery
+in Nomad, please see the [Nomad service discovery documentation][service_discovery].
+
+```hcl
+group "example" {
+  network {
+    port "api" {}
+  }
+
+  service {
+    name = "example"
+    port = "api"
+    tags = ["default"]
+
+    check {
+      type     = "tcp"
+      interval = "10s"
+      timeout  = "2s"
+    }
+  }
+
+  task "api" { ... }
+}
+```
+
+### Stop After Client Disconnect
+
+This example shows how `stop_after_client_disconnect` interacts with
+other stanzas. For the `first` group, after the default 10 second
+[`heartbeat_grace`] window expires and 90 more seconds passes, the
+server will reschedule the allocation. The client will wait 90 seconds
+before sending a stop signal (`SIGTERM`) to the `first-task`
+task. After 15 more seconds because of the task's `kill_timeout`, the
+client will send `SIGKILL`. The `second` group does not have
+`stop_after_client_disconnect`, so the server will reschedule the
+allocation after the 10 second [`heartbeat_grace`] expires. It will
+not be stopped on the client, regardless of how long the client is out
+of touch.
+
+Note that if the server's clocks are not closely synchronized with
+each other, the server may reschedule the group before the client has
+stopped the allocation. Operators should ensure that clock drift
+between servers is as small as possible.
+
+Note also that a group using this feature will be stopped on the
+client if the Nomad server cluster fails, since the client will be
+unable to contact any server in that case. Groups opting in to this
+feature are therefore exposed to an additional runtime dependency and
+potential point of failure.
+
+```hcl
+group "first" {
+  stop_after_client_disconnect = "90s"
+
+  task "first-task" {
+    kill_timeout = "15s"
+  }
+}
+
+group "second" {
+
+  task "second-task" {
+    kill_timeout = "5s"
+  }
+}
+```
+
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
 [spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
 [affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
+[`heartbeat_grace`]: /docs/configuration/server#heartbeat_grace
 [meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
 [migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
+[network]: /docs/job-specification/network 'Nomad network Job Specification'
 [reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
 [restart]: /docs/job-specification/restart 'Nomad restart Job Specification'
+[service]: /docs/job-specification/service 'Nomad service Job Specification'
+[service_discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
 [volume]: /docs/job-specification/volume 'Nomad volume Job Specification'

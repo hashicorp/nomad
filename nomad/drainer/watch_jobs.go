@@ -144,13 +144,11 @@ func (w *drainingJobWatcher) watch() {
 	for {
 		w.logger.Trace("getting job allocs at index", "index", waitIndex)
 		jobAllocs, index, err := w.getJobAllocs(w.getQueryCtx(), waitIndex)
-		w.logger.Trace("retrieved allocs for draining jobs", "num_allocs", len(jobAllocs), "index", index, "error", err)
 		if err != nil {
 			if err == context.Canceled {
 				// Determine if it is a cancel or a shutdown
 				select {
 				case <-w.ctx.Done():
-					w.logger.Trace("shutting down")
 					return
 				default:
 					// The query context was cancelled;
@@ -170,6 +168,7 @@ func (w *drainingJobWatcher) watch() {
 				continue
 			}
 		}
+		w.logger.Trace("retrieved allocs for draining jobs", "num_allocs", len(jobAllocs), "index", index)
 
 		lastHandled := waitIndex
 		waitIndex = index

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
@@ -20,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 func TestMonitor_Monitor(t *testing.T) {
@@ -349,6 +349,88 @@ func TestAgentProfile_ACL(t *testing.T) {
 			} else {
 				require.NoError(err)
 				require.NotNil(reply.Payload)
+			}
+		})
+	}
+}
+
+func TestAgentHost(t *testing.T) {
+	t.Parallel()
+
+	// start server and client
+	s1, cleanup := nomad.TestServer(t, nil)
+	defer cleanup()
+
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{s1.GetConfig().RPCAddr.String()}
+		c.EnableDebug = true
+	})
+	defer cleanupC()
+
+	req := structs.QueryOptions{}
+	var resp structs.HostDataResponse
+
+	err := c.ClientRPC("Agent.Host", &req, &resp)
+	require.NoError(t, err)
+
+	require.NotNil(t, resp.HostData)
+	require.Equal(t, c.NodeID(), resp.AgentID)
+}
+
+func TestAgentHost_ACL(t *testing.T) {
+	t.Parallel()
+
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer cleanupC()
+
+	policyGood := mock.AgentPolicy(acl.PolicyRead)
+	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1005, "valid", policyGood)
+
+	policyBad := mock.NodePolicy(acl.PolicyWrite)
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1009, "invalid", policyBad)
+
+	cases := []struct {
+		Name    string
+		Token   string
+		authErr bool
+	}{
+		{
+			Name:    "bad token",
+			Token:   tokenBad.SecretID,
+			authErr: true,
+		},
+		{
+			Name:  "good token",
+			Token: tokenGood.SecretID,
+		},
+		{
+			Name:  "root token",
+			Token: root.SecretID,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			req := structs.QueryOptions{
+				AuthToken: tc.Token,
+			}
+			var resp structs.HostDataResponse
+
+			err := c.ClientRPC("Agent.Host", &req, &resp)
+			if tc.authErr {
+				require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+			} else {
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.HostData)
 			}
 		})
 	}

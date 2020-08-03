@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/vault/helper/jsonutil"
-	"github.com/hashicorp/vault/helper/parseutil"
+	"github.com/hashicorp/vault/sdk/helper/jsonutil"
+	"github.com/hashicorp/vault/sdk/helper/parseutil"
 )
 
 // Secret is the structure returned for every secret within Vault.
@@ -292,6 +292,8 @@ type SecretAuth struct {
 	TokenPolicies    []string          `json:"token_policies"`
 	IdentityPolicies []string          `json:"identity_policies"`
 	Metadata         map[string]string `json:"metadata"`
+	Orphan           bool              `json:"orphan"`
+	EntityID         string            `json:"entity_id"`
 
 	LeaseDuration int  `json:"lease_duration"`
 	Renewable     bool `json:"renewable"`

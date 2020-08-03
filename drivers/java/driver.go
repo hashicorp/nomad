@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -50,7 +51,7 @@ var (
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewDriver(l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -87,6 +88,7 @@ var (
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
 		},
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -95,6 +97,7 @@ var (
 func init() {
 	if runtime.GOOS == "linux" {
 		capabilities.FSIsolation = drivers.FSIsolationChroot
+		capabilities.MountConfigs = drivers.MountConfigSupportAll
 	}
 }
 
@@ -133,23 +136,17 @@ type Driver struct {
 	// nomadConf is the client agent's configuration
 	nomadConfig *base.ClientDriverConfig
 
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
-func NewDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -342,6 +339,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	user := cfg.User
 	if user == "" {
 		user = "nobody"
+	}
+
+	if cfg.DNS != nil {
+		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
+		}
+		cfg.Mounts = append(cfg.Mounts, dnsMount)
 	}
 
 	execCmd := &executor.ExecCommand{
@@ -586,8 +591,4 @@ func GetAbsolutePath(bin string) (string, error) {
 	}
 
 	return filepath.EvalSymlinks(lp)
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }

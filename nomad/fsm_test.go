@@ -63,7 +63,6 @@ func testFSM(t *testing.T) *nomadFSM {
 	if fsm == nil {
 		t.Fatalf("missing fsm")
 	}
-	state.TestInitState(t, fsm.state)
 	return fsm
 }
 
@@ -2823,6 +2822,7 @@ func TestFSM_SnapshotRestore_SchedulerConfiguration(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	schedConfig := &structs.SchedulerConfiguration{
+		SchedulerAlgorithm: "spread",
 		PreemptionConfig: structs.PreemptionConfig{
 			SystemSchedulerEnabled: true,
 		},
@@ -2853,7 +2853,7 @@ func TestFSM_SnapshotRestore_ClusterMetadata(t *testing.T) {
 	require := require.New(t)
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out, err := state2.ClusterMetadata()
+	out, err := state2.ClusterMetadata(memdb.NewWatchSet())
 	require.NoError(err)
 	require.Equal(clusterID, out.ClusterID)
 }
@@ -3152,7 +3152,8 @@ func TestFSM_ClusterMetadata(t *testing.T) {
 	r.Nil(result)
 
 	// Verify the clusterID is set directly in the state store
-	storedMetadata, err := fsm.state.ClusterMetadata()
+	ws := memdb.NewWatchSet()
+	storedMetadata, err := fsm.state.ClusterMetadata(ws)
 	r.NoError(err)
 	r.Equal(clusterID, storedMetadata.ClusterID)
 
@@ -3166,7 +3167,7 @@ func TestFSM_ClusterMetadata(t *testing.T) {
 	result = fsm.Apply(makeLog(buf))
 	r.Error(result.(error))
 
-	storedMetadata, err = fsm.state.ClusterMetadata()
+	storedMetadata, err = fsm.state.ClusterMetadata(ws)
 	r.NoError(err)
 	r.Equal(clusterID, storedMetadata.ClusterID)
 	r.Equal(now, storedMetadata.CreateTime)

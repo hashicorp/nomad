@@ -117,11 +117,32 @@ func TestParse(t *testing.T) {
 								Operand: "=",
 							},
 						},
-
 						Volumes: map[string]*api.VolumeRequest{
 							"foo": {
-								Name: "foo",
-								Type: "host",
+								Name:         "foo",
+								Type:         "host",
+								Source:       "/path",
+								ExtraKeysHCL: nil,
+							},
+							"bar": {
+								Name:   "bar",
+								Type:   "csi",
+								Source: "bar-vol",
+								MountOptions: &api.CSIMountOptions{
+									FSType: "ext4",
+								},
+								ExtraKeysHCL: nil,
+							},
+							"baz": {
+								Name:   "baz",
+								Type:   "csi",
+								Source: "bar-vol",
+								MountOptions: &api.CSIMountOptions{
+									MountFlags: []string{
+										"ro",
+									},
+								},
+								ExtraKeysHCL: nil,
 							},
 						},
 						Affinities: []*api.Affinity{
@@ -163,6 +184,7 @@ func TestParse(t *testing.T) {
 								},
 							},
 						},
+						StopAfterClientDisconnect: helper.TimeToPtr(120 * time.Second),
 						ReschedulePolicy: &api.ReschedulePolicy{
 							Interval: helper.TimeToPtr(12 * time.Hour),
 							Attempts: helper.IntToPtr(5),
@@ -214,6 +236,9 @@ func TestParse(t *testing.T) {
 										Operand: "set_contains",
 										Weight:  helper.Int8ToPtr(25),
 									},
+								},
+								RestartPolicy: &api.RestartPolicy{
+									Attempts: helper.IntToPtr(10),
 								},
 								Services: []*api.Service{
 									{
@@ -307,6 +332,7 @@ func TestParse(t *testing.T) {
 									},
 								},
 								Vault: &api.Vault{
+									Namespace:  helper.StringToPtr("ns1"),
 									Policies:   []string{"foo", "bar"},
 									Env:        helper.BoolToPtr(true),
 									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
@@ -339,6 +365,10 @@ func TestParse(t *testing.T) {
 								Name:   "storagelocker",
 								Driver: "docker",
 								User:   "",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    "prestart",
+									Sidecar: true,
+								},
 								Config: map[string]interface{}{
 									"image": "hashicorp/storagelocker",
 								},
@@ -557,6 +587,30 @@ func TestParse(t *testing.T) {
 										GetterOptions: nil,
 										RelativeDest:  helper.StringToPtr("var/foo"),
 									},
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"csi-plugin.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("binstore-storagelocker"),
+				Name: helper.StringToPtr("binstore-storagelocker"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("binsl"),
+						Tasks: []*api.Task{
+							{
+								Name:   "binstore",
+								Driver: "docker",
+								CSIPluginConfig: &api.TaskCSIPluginConfig{
+									ID:       "org.hashicorp.csi",
+									Type:     api.CSIPluginTypeMonolith,
+									MountDir: "/csi/test",
 								},
 							},
 						},
@@ -960,10 +1014,15 @@ func TestParse(t *testing.T) {
 								Mode: "bridge",
 								ReservedPorts: []api.Port{
 									{
-										Label: "http",
-										Value: 80,
-										To:    8080,
+										Label:       "http",
+										Value:       80,
+										To:          8080,
+										HostNetwork: "public",
 									},
+								},
+								DNS: &api.DNSConfig{
+									Servers: []string{"8.8.8.8"},
+									Options: []string{"ndots:2", "edns0"},
 								},
 							},
 						},
@@ -977,6 +1036,7 @@ func TestParse(t *testing.T) {
 									SidecarService: &api.ConsulSidecarService{
 										Tags: []string{"side1", "side2"},
 										Proxy: &api.ConsulProxy{
+											LocalServicePort: 8080,
 											Upstreams: []*api.ConsulUpstream{
 												{
 													DestinationName: "other-service",
@@ -1066,6 +1126,176 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-proxy-expose.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_proxy_expose"),
+				Name: helper.StringToPtr("group_service_proxy_expose"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{
+									ExposeConfig: &api.ConsulExposeConfig{
+										Path: []*api.ConsulExposePath{{
+											Path:          "/health",
+											Protocol:      "http",
+											LocalPathPort: 2222,
+											ListenerPort:  "healthcheck",
+										}, {
+											Path:          "/metrics",
+											Protocol:      "grpc",
+											LocalPathPort: 3000,
+											ListenerPort:  "metrics",
+										}},
+									},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-sidecar_task-name.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("sidecar_task_name"),
+				Name: helper.StringToPtr("sidecar_task_name"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native:         false,
+							SidecarService: &api.ConsulSidecarService{},
+							SidecarTask: &api.SidecarTask{
+								Name: "my-sidecar",
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-proxy.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("service-connect-proxy"),
+				Name: helper.StringToPtr("service-connect-proxy"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{
+									LocalServiceAddress: "10.0.1.2",
+									LocalServicePort:    8080,
+									ExposeConfig: &api.ConsulExposeConfig{
+										Path: []*api.ConsulExposePath{{
+											Path:          "/metrics",
+											Protocol:      "http",
+											LocalPathPort: 9001,
+											ListenerPort:  "metrics",
+										}, {
+											Path:          "/health",
+											Protocol:      "http",
+											LocalPathPort: 9002,
+											ListenerPort:  "health",
+										}},
+									},
+									Upstreams: []*api.ConsulUpstream{{
+										DestinationName: "upstream1",
+										LocalBindPort:   2001,
+									}, {
+										DestinationName: "upstream2",
+										LocalBindPort:   2002,
+									}},
+									Config: map[string]interface{}{
+										"foo": "bar",
+									},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-local-service.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("connect-proxy-local-service"),
+				Name: helper.StringToPtr("connect-proxy-local-service"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{
+									LocalServiceAddress: "10.0.1.2",
+									LocalServicePort:    9876,
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-check-expose.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("group_service_proxy_expose"),
+				Name: helper.StringToPtr("group_service_proxy_expose"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							SidecarService: &api.ConsulSidecarService{
+								Proxy: &api.ConsulProxy{},
+							},
+						},
+						Checks: []api.ServiceCheck{{
+							Name:   "example-check1",
+							Expose: true,
+						}, {
+							Name:   "example-check2",
+							Expose: false,
+						}},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-native.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("connect_native_service"),
+				Name: helper.StringToPtr("connect_native_service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name:     "example",
+						TaskName: "task1",
+						Connect: &api.ConsulConnect{
+							Native: true,
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-enable-tag-override.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("group_service_eto"),
@@ -1077,6 +1307,92 @@ func TestParse(t *testing.T) {
 						EnableTagOverride: true,
 					}},
 				}},
+			},
+			false,
+		},
+
+		{
+			"tg-scaling-policy.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("elastic"),
+				Name: helper.StringToPtr("elastic"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Scaling: &api.ScalingPolicy{
+							Min: helper.Int64ToPtr(5),
+							Max: helper.Int64ToPtr(100),
+							Policy: map[string]interface{}{
+								"foo": "bar",
+								"b":   true,
+								"val": 5,
+								"f":   .1,
+							},
+							Enabled: helper.BoolToPtr(false),
+						},
+					},
+				},
+			},
+			false,
+		},
+
+		{
+			"tg-scaling-policy-minimal.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("elastic"),
+				Name: helper.StringToPtr("elastic"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: helper.StringToPtr("group"),
+						Scaling: &api.ScalingPolicy{
+							Min:     nil,
+							Max:     helper.Int64ToPtr(10),
+							Policy:  nil,
+							Enabled: nil,
+						},
+					},
+				},
+			},
+			false,
+		},
+
+		{
+			"tg-scaling-policy-missing-max.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"tg-scaling-policy-multi-policy.hcl",
+			nil,
+			true,
+		},
+
+		{
+			"multiregion.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("multiregion_job"),
+				Name: helper.StringToPtr("multiregion_job"),
+				Multiregion: &api.Multiregion{
+					Strategy: &api.MultiregionStrategy{
+						MaxParallel: helper.IntToPtr(1),
+						OnFailure:   helper.StringToPtr("fail_all"),
+					},
+					Regions: []*api.MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       helper.IntToPtr(2),
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+						{
+							Name:        "east",
+							Count:       helper.IntToPtr(1),
+							Datacenters: []string{"east-1", "east-2"},
+							Meta:        map[string]string{"region_code": "E"},
+						},
+					},
+				},
 			},
 			false,
 		},

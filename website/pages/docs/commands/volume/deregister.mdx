@@ -1,0 +1,37 @@
+---
+layout: docs
+page_title: 'Commands: volume deregister'
+sidebar_title: deregister
+description: |
+  Deregister volumes with CSI plugins.
+---
+
+# Command: volume deregister
+
+The `volume deregister` command deregisters external storage volumes with
+Nomad's [Container Storage Interface (CSI)][csi] support. The volume
+must exist on the remote storage provider before it can be deregistered
+and used by a task.
+
+## Usage
+
+```plaintext
+nomad volume deregister [options] [volume]
+```
+
+The `volume deregister` command requires a single argument, specifying
+the ID of volume to be deregistered. Deregistration will fail if the
+volume is still in use by an allocation or in the process of being
+unpublished.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Deregister Options
+
+- `-force`: Force deregistration of the volume and immediately drop claims for
+  terminal allocations. Returns an error if the volume has running
+  allocations. This does not detach the volume from client nodes.
+
+[csi]: https://github.com/container-storage-interface/spec

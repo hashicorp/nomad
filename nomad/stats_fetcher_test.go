@@ -13,7 +13,6 @@ func TestStatsFetcher(t *testing.T) {
 
 	conf := func(c *Config) {
 		c.Region = "region-a"
-		c.DevDisableBootstrap = true
 		c.BootstrapExpect = 3
 	}
 

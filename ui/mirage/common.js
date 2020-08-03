@@ -23,6 +23,8 @@ export const HOSTS = provide(100, () => {
   return `${ip}:${faker.random.number({ min: 4000, max: 4999 })}`;
 });
 
+export const STORAGE_PROVIDERS = ['ebs', 'zfs', 'nfs', 'cow', 'moo'];
+
 export function generateResources(options = {}) {
   return {
     CPU: faker.helpers.randomize(CPU_RESERVATIONS),

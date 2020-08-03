@@ -47,6 +47,9 @@ type templateHook struct {
 	// vaultToken is the current Vault token
 	vaultToken string
 
+	// vaultNamespace is the current Vault namespace
+	vaultNamespace string
+
 	// taskDir is the task directory
 	taskDir string
 }
@@ -75,6 +78,12 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	// Store the current Vault token and the task directory
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
+
+	// Set vault namespace if specified
+	if req.Task.Vault != nil {
+		h.vaultNamespace = req.Task.Vault.Namespace
+	}
+
 	unblockCh, err := h.newManager()
 	if err != nil {
 		return err
@@ -98,6 +107,7 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		Templates:            h.config.templates,
 		ClientConfig:         h.config.clientConfig,
 		VaultToken:           h.vaultToken,
+		VaultNamespace:       h.vaultNamespace,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.config.envBuilder,
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,

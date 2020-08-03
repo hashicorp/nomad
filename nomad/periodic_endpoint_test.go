@@ -116,7 +116,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 		req.AuthToken = token.SecretID
 		var resp structs.PeriodicForceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
-		assert.NotEqual(0, resp.Index)
+		assert.NotEqual(uint64(0), resp.Index)
 
 		// Lookup the evaluation
 		ws := memdb.NewWatchSet()
@@ -132,7 +132,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 		req.AuthToken = root.SecretID
 		var resp structs.PeriodicForceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
-		assert.NotEqual(0, resp.Index)
+		assert.NotEqual(uint64(0), resp.Index)
 
 		// Lookup the evaluation
 		ws := memdb.NewWatchSet()

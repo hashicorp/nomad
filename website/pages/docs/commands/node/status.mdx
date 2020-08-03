@@ -53,7 +53,7 @@ information will be displayed. If running the command on a Nomad Client, the
 
 List view:
 
-```shell
+```shell-session
 $ nomad node status
 ID        DC   Name   Class   Drain  Eligibility  Status
 a72dfba2  dc1  node1  <none>  false  eligible     ready
@@ -62,7 +62,7 @@ a72dfba2  dc1  node1  <none>  false  eligible     ready
 
 List view, with running allocations:
 
-```shell
+```shell-session
 $ nomad node status -allocs
 ID        DC   Name   Class   Drain  Eligibility  Status  Running Allocs
 4d2ba53b  dc1  node1  <none>  false  eligible     ready   1
@@ -71,7 +71,7 @@ ID        DC   Name   Class   Drain  Eligibility  Status  Running Allocs
 
 Single-node view in short mode:
 
-```shell
+```shell-session
 $ nomad node status -short 1f3f03ea
 ID     = c754da1f
 Name   = nomad
@@ -88,7 +88,7 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 
 Full output for a single node:
 
-```shell
+```shell-session
 $ nomad node status 1f3f03ea
 ID     = c754da1f
 Name    = nomad-server01
@@ -131,7 +131,7 @@ ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 
 Using `-self` when on a Nomad Client:
 
-```shell
+```shell-session
 $ nomad node status -self
 ID     = c754da1f
 Name   = nomad-client01
@@ -201,7 +201,7 @@ the following:
 
 Using `-stats` to see detailed to resource usage information on the node:
 
-```shell
+```shell-session
 $ nomad node status -stats c754da1f
 ID     = c754da1f
 Name   = nomad-client01
@@ -282,7 +282,7 @@ ed3665f5  8bf94335  example  cache       run             running
 
 To view verbose information about the node:
 
-```shell
+```shell-session
 $ nomad node status -verbose c754da1f
 ID     = c754da1f-6337-b86d-47dc-2ef4c71aca14
 Name   = nomad
@@ -291,6 +291,13 @@ DC     = dc1
 Drain  = false
 Status = ready
 Uptime = 17h7m41s
+
+Host Volumes
+Name  ReadOnly  Source
+
+CSI Volumes
+ID        Name  Plugin ID  Schedulable  Access Mode         Mount Options
+402f2c83  vol   plug       true         single-node-writer  <none>
 
 Drivers
 Driver    Detected  Healthy  Message                        Time

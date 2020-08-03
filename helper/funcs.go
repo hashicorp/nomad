@@ -3,7 +3,10 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"path/filepath"
+	"reflect"
 	"regexp"
+	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -386,4 +389,96 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 	}
 
 	return result
+}
+
+// UnusedKeys returns a pretty-printed error if any `hcl:",unusedKeys"` is not empty
+func UnusedKeys(obj interface{}) error {
+	val := reflect.ValueOf(obj)
+	if val.Kind() == reflect.Ptr {
+		val = reflect.Indirect(val)
+	}
+	return unusedKeysImpl([]string{}, val)
+}
+
+func unusedKeysImpl(path []string, val reflect.Value) error {
+	stype := val.Type()
+	for i := 0; i < stype.NumField(); i++ {
+		ftype := stype.Field(i)
+		fval := val.Field(i)
+		tags := strings.Split(ftype.Tag.Get("hcl"), ",")
+		name := tags[0]
+		tags = tags[1:]
+
+		if fval.Kind() == reflect.Ptr {
+			fval = reflect.Indirect(fval)
+		}
+
+		// struct? recurse. Add the struct's key to the path
+		if fval.Kind() == reflect.Struct {
+			err := unusedKeysImpl(append([]string{name}, path...), fval)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Search the hcl tags for "unusedKeys"
+		unusedKeys := false
+		for _, p := range tags {
+			if p == "unusedKeys" {
+				unusedKeys = true
+				break
+			}
+		}
+
+		if unusedKeys {
+			ks, ok := fval.Interface().([]string)
+			if ok && len(ks) != 0 {
+				ps := ""
+				if len(path) > 0 {
+					ps = strings.Join(path, ".") + " "
+				}
+				return fmt.Errorf("%sunexpected keys %s",
+					ps,
+					strings.Join(ks, ", "))
+			}
+		}
+	}
+	return nil
+}
+
+// RemoveEqualFold removes the first string that EqualFold matches. It updates xs in place
+func RemoveEqualFold(xs *[]string, search string) {
+	sl := *xs
+	for i, x := range sl {
+		if strings.EqualFold(x, search) {
+			sl = append(sl[:i], sl[i+1:]...)
+			if len(sl) == 0 {
+				*xs = nil
+			} else {
+				*xs = sl
+			}
+			return
+		}
+	}
+}
+
+// CheckNamespaceScope ensures that the provided namespace is equal to
+// or a parent of the requested namespaces. Returns requested namespaces
+// which are not equal to or a child of the provided namespace.
+func CheckNamespaceScope(provided string, requested []string) []string {
+	var offending []string
+	for _, ns := range requested {
+		rel, err := filepath.Rel(provided, ns)
+		if err != nil {
+			offending = append(offending, ns)
+			// If relative path requires ".." it's not a child
+		} else if strings.Contains(rel, "..") {
+			offending = append(offending, ns)
+		}
+	}
+	if len(offending) > 0 {
+		return offending
+	}
+	return nil
 }

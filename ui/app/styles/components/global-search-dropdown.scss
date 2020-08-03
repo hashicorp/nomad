@@ -1,0 +1,59 @@
+.global-search-dropdown {
+  background: transparent;
+  border: 0;
+  position: fixed;
+
+  .ember-power-select-search {
+    margin-left: $icon-dimensions;
+    border: 0;
+  }
+
+  input,
+  input:focus {
+    background: transparent;
+    border: 0;
+    outline: 0;
+  }
+
+  // Prevent Safari from disrupting styling, adapted from http://geek.michaelgrace.org/2011/06/webkit-search-input-styling/
+  input[type='search'] {
+    -webkit-appearance: textfield;
+  }
+
+  input::-webkit-search-decoration,
+  input::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  .ember-power-select-options {
+    background: white;
+    padding: 0.35rem;
+
+    &[role='listbox'] {
+      border: 1px solid $grey-blue;
+      box-shadow: 0 6px 8px -2px rgba($black, 0.05), 0 8px 4px -4px rgba($black, 0.1);
+    }
+
+    .ember-power-select-option {
+      padding: 0.2rem 0.4rem;
+      border-radius: $radius;
+
+      &[aria-current='true'] {
+        background: transparentize($blue, 0.8);
+        color: $blue;
+      }
+
+      .highlighted {
+        font-weight: $weight-semibold;
+      }
+    }
+  }
+
+  .ember-power-select-group-name {
+    text-transform: uppercase;
+    display: inline;
+    color: darken($grey-blue, 20%);
+    font-size: $size-7;
+    font-weight: $weight-semibold;
+  }
+}

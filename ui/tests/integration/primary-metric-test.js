@@ -31,8 +31,12 @@ module('Integration | Component | primary metric', function(hooks) {
         yield trackerSignalPauseSpy();
       }),
 
-      cpu: computed(() => []),
-      memory: computed(() => []),
+      cpu: computed(function() {
+        return [];
+      }),
+      memory: computed(function() {
+        return [];
+      }),
     });
 
     const mockStatsTrackersRegistry = Service.extend({
@@ -51,9 +55,9 @@ module('Integration | Component | primary metric', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    {{primary-metric
-      resource=resource
-      metric=metric}}
+    <PrimaryMetric
+      @resource={{resource}}
+      @metric={{metric}} />
   `;
 
   test('Contains a line chart, a percentage bar, a percentage figure, and an absolute usage figure', async function(assert) {
@@ -146,9 +150,9 @@ module('Integration | Component | primary metric', function(hooks) {
     this.setProperties({ resource, metric, showComponent: true });
     await render(hbs`
       {{#if showComponent}}
-        {{primary-metric
-          resource=resource
-          metric=metric}}
+        <PrimaryMetric
+          @resource={{resource}}
+          @metric={{metric}} />
         }}
       {{/if}}
     `);

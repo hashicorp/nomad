@@ -21,10 +21,16 @@ export default create({
     },
   },
 
-  state: text('[data-test-state]'),
+  state: text('.title [data-test-state]'),
   startedAt: text('[data-test-started-at]'),
 
+  lifecycle: text('.pair [data-test-lifecycle]'),
+
   restart: twoStepButton('[data-test-restart]'),
+
+  execButton: {
+    scope: '[data-test-exec-button]',
+  },
 
   breadcrumbs: collection('[data-test-breadcrumb]', {
     id: attribute('data-test-breadcrumb'),
@@ -42,6 +48,14 @@ export default create({
   }),
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
+
+  hasPrestartTasks: isPresent('[data-test-prestart-tasks]'),
+  prestartTasks: collection('[data-test-prestart-task]', {
+    name: text('[data-test-name]'),
+    state: text('[data-test-state]'),
+    lifecycle: text('[data-test-lifecycle]'),
+    isBlocking: isPresent('.icon-is-warning'),
+  }),
 
   hasAddresses: isPresent('[data-test-task-addresses]'),
   addresses: collection('[data-test-task-address]', {

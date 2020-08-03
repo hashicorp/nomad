@@ -43,7 +43,7 @@ scheduling has finished or failed.
 
 Force the evaluation of the job `example`, monitoring placement:
 
-```shell
+```shell-session
 $ nomad job periodic force example
 ==> Monitoring evaluation "54b2d6d9"
     Evaluation triggered by job "example/periodic-1555094493"
@@ -55,12 +55,12 @@ $ nomad job periodic force example
 
 Force the evaluation of the job `example` and return immediately:
 
-```shell
+```shell-session
 $ nomad job periodic force -detach example
 Force periodic successful
 Evaluation ID: 0865fbf3-30de-5f53-0811-821e73e63178
 ```
 
 [eval status]: /docs/commands/eval-status
-[force the evaluation]: /api/jobs#force-new-periodic-instance
+[force the evaluation]: /api-docs/jobs#force-new-periodic-instance
 [periodic job]: /docs/job-specification/periodic

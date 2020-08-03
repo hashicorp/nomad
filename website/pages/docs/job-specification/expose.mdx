@@ -1,0 +1,228 @@
+---
+layout: docs
+page_title: expose Stanza - Job Specification
+sidebar_title: expose
+description: |-
+  The "expose" stanza allows specifying options for configuring Envoy expose
+  paths used in Consul Connect integration
+---
+
+# `expose` Stanza
+
+<Placement
+  groups={[
+    'job',
+    'group',
+    'service',
+    'connect',
+    'sidecar_service',
+    'proxy',
+    'expose',
+  ]}
+/>
+
+The `expose` stanza allows configuration of additional listeners for the default Envoy sidecar
+proxy managed by Nomad for [Consul Connect](/guides/integrations/consul-connect). These
+listeners create a bypass of the Connect TLS and network namespace isolation, enabling
+non-Connect enabled services to make requests to specific HTTP paths through the sidecar proxy.
+
+The `expose` configuration is valid within the context of a `proxy` stanza. Additional
+information about Expose Path configurations for Envoy can be found in Consul's
+[Expose Paths Configuration Reference](https://www.consul.io/docs/connect/registration/service-registration.html#expose-paths-configuration-reference).
+
+Service [check](https://nomadproject.io/docs/job-specification/service/#check-parameters)
+configurations can use their [expose](/docs/job-specification/service#expose)
+parameter to automatically generate expose path configurations for HTTP and gRPC checks.
+
+```hcl
+job "expose-check-example" {
+  datacenters = ["dc1"]
+
+  group "api" {
+    network {
+      mode = "bridge"
+    }
+
+    service {
+      name = "count-api"
+      port = "9001"
+
+      connect {
+        sidecar_service {}
+      }
+
+      check {
+        expose   = true
+        name     = "api-health"
+        type     = "http"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "3s"
+      }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+    }
+  }
+}
+```
+
+For uses other than Consul service checks, use the `expose` configuration in the
+`proxy` stanza. The example below effectively demonstrates exposing the `/health`
+endpoint similar to the example above, but using the fully flexible `expose`
+configuration.
+
+```hcl
+job "expose-example" {
+  datacenters = ["dc1"]
+
+  group "api" {
+    network {
+      mode = "bridge"
+
+      port "api_expose_healthcheck" {
+        to = -1
+      }
+    }
+
+    service {
+      name = "count-api"
+      port = "9001"
+
+      connect {
+        sidecar_service {
+          proxy {
+            expose {
+              path {
+                path            = "/health"
+                protocol        = "http"
+                local_path_port = 9001
+                listener_port   = "api_expose_healthcheck"
+              }
+            }
+          }
+        }
+      }
+
+      check {
+        name     = "api-health"
+        type     = "http"
+        path     = "/health"
+        port     = "api_expose_healthcheck"
+        interval = "10s"
+        timeout  = "3s"
+      }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+
+      # e.g. reference ${NOMAD_PORT_api_expose_healthcheck} for other uses
+    }
+  }
+}
+```
+
+## `expose` Parameters
+
+- `path` <code>([Path]: nil)</code> - A list of [Envoy Expose Path Configurations](/docs/job-specification/expose/#path-1)
+  to expose through Envoy.
+
+### `path` Parameters
+
+- `path` `(string: required)` - The HTTP or gRPC path to expose. The path must be prefixed
+  with a slash.
+- `protocol` `(string: required)` - Sets the protocol of the listener. Must be
+  `http` or `http2`. For gRPC use `http2`.
+- `local_path_port` `(int: required)` - The port the service is listening to for connections to
+  the configured `path`. Typically this will be the same as the `service.port` value, but
+  could be different if for example the exposed path is intended to resolve to another task
+  in the task group.
+- `listener_port` <code>([Port]: required)</code> - The name of the port to use
+  for the exposed listener. The port should be configured to [map inside](/docs/job-specification/network#to)
+  the task's network namespace.
+
+## `expose` Examples
+
+The following example is configured to expose the `/metrics` endpoint of the Connect-enabled
+`count-dashboard` service, using the `HTTP` protocol. `count-dashboard` is expected
+to listen inside its namespace to port `9001`, and external services will be able to
+reach its `/metrics` endpoint by connecting to the [network interface](https://nomadproject.io/docs/configuration/client/#network_interface)
+of the node on the allocated `metrics` [Port](/docs/job-specification/network#port-parameters).
+
+```hcl
+service {
+  name = "count-dashboard"
+  port = "9001"
+
+  connect {
+    sidecar_service {
+      proxy {
+        expose {
+          path {
+            path            = "/metrics"
+            protocol        = "http"
+            local_path_port = 9001
+            listener_port   = "metrics"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## `path` Examples
+
+The following example is an expose configuration that exposes a `/metrics` endpoint
+using the `http2` protocol (typical for gRPC), and an HTTP `/v2/health` endpoint.
+
+```hcl
+proxy {
+  expose {
+    path {
+      path            = "/metrics"
+      protocol        = "http2"
+      local_path_port = 9001
+      listener_port   = "expose"
+    }
+    path {
+      path            = "/v2/health"
+      protocol        = "http"
+      local_path_port = 9001
+      listener_port   = "expose"
+    }
+  }
+}
+```
+
+### Exposing Service Checks
+
+A common use case for `expose` is for exposing endpoints used in Consul service check
+definitions. For these cases the [expose](/docs/job-specification/service#expose)
+parameter in the service check stanza can be used to automatically generate the
+expose path configuration. Configuring a port for use by the check is optional,
+as a dynamic port will be automatically generated if not provided.
+
+```hcl
+check {
+  expose   = true
+  type     = "http"
+  name     = "dashboard-health"
+  path     = "/health"
+  interval = "10s"
+  timeout  = "3s"
+}
+```
+
+[path]: /docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'
+[port]: /docs/job-specification/network#port-parameters 'Nomad Port Parameters'

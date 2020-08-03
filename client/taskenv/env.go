@@ -70,14 +70,20 @@ const (
 	// The ip:port are always the host's.
 	AddrPrefix = "NOMAD_ADDR_"
 
+	HostAddrPrefix = "NOMAD_HOST_ADDR_"
+
 	// IpPrefix is the prefix for passing the host IP of a port allocation
 	// to a task.
 	IpPrefix = "NOMAD_IP_"
+
+	HostIpPrefix = "NOMAD_HOST_IP_"
 
 	// PortPrefix is the prefix for passing the port allocation to a task.
 	// It will be the task's port if a port map is specified. Task's should
 	// bind to this port.
 	PortPrefix = "NOMAD_PORT_"
+
+	AllocPortPrefix = "NOMAD_ALLOC_PORT_"
 
 	// HostPortPrefix is the prefix for passing the host port when a port
 	// map is specified.
@@ -620,6 +626,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 
+		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusively
 		// Add ports from other tasks
 		for taskName, resources := range alloc.AllocatedResources.Tasks {
 			// Add ports from other tasks
@@ -637,6 +644,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 
+		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusively
 		// Add ports from group networks
 		//TODO Expose IPs but possibly only via variable interpolation
 		for _, nw := range alloc.AllocatedResources.Shared.Networks {
@@ -647,6 +655,11 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 				addGroupPort(b.otherPorts, p)
 			}
 		}
+
+		// Add any allocated host ports
+		if alloc.AllocatedResources.Shared.Ports != nil {
+			addPorts(b.otherPorts, alloc.AllocatedResources.Shared.Ports)
+		}
 	}
 
 	upstreams := []structs.ConsulUpstream{}
@@ -656,7 +669,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		}
 	}
 	if len(upstreams) > 0 {
-		b.SetUpstreams(upstreams)
+		b.setUpstreamsLocked(upstreams)
 	}
 
 	return b
@@ -752,8 +765,12 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 // SetUpstreams defined by connect enabled group services
 func (b *Builder) SetUpstreams(upstreams []structs.ConsulUpstream) *Builder {
 	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.setUpstreamsLocked(upstreams)
+}
+
+func (b *Builder) setUpstreamsLocked(upstreams []structs.ConsulUpstream) *Builder {
 	b.upstreams = upstreams
-	b.mu.Unlock()
 	return b
 }
 
@@ -852,4 +869,24 @@ func addGroupPort(m map[string]string, port structs.Port) {
 	}
 
 	m[HostPortPrefix+port.Label] = strconv.Itoa(port.Value)
+}
+
+func addPorts(m map[string]string, ports structs.AllocatedPorts) {
+	for _, p := range ports {
+		m[AddrPrefix+p.Label] = fmt.Sprintf("%s:%d", p.HostIP, p.Value)
+		m[HostAddrPrefix+p.Label] = fmt.Sprintf("%s:%d", p.HostIP, p.Value)
+		m[IpPrefix+p.Label] = p.HostIP
+		m[HostIpPrefix+p.Label] = p.HostIP
+		if p.To > 0 {
+			val := strconv.Itoa(p.To)
+			m[PortPrefix+p.Label] = val
+			m[AllocPortPrefix+p.Label] = val
+		} else {
+			val := strconv.Itoa(p.Value)
+			m[PortPrefix+p.Label] = val
+			m[AllocPortPrefix+p.Label] = val
+		}
+
+		m[HostPortPrefix+p.Label] = strconv.Itoa(p.Value)
+	}
 }
