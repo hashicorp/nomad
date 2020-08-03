@@ -162,7 +162,7 @@ endef
 $(foreach t,$(ALL_TARGETS),$(eval $(call makePackageTarget,$(t))))
 
 .PHONY: bootstrap
-bootstrap: deps lint-deps git-hooks # Install all dependencies
+bootstrap: deps git-hooks # Install all dependencies
 
 .PHONY: deps
 deps:  ## Install build and development dependencies
@@ -193,6 +193,7 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
+	GO111MODULE=on go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
 	@golangci-lint run -j 1
 
 	@echo "==> Spell checking website..."

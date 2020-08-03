@@ -21,6 +21,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -1028,7 +1029,33 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	} else {
 		// TODO add support for more than one network
+		nebulaIntfName := "nebula1"
+		if value, ok := os.LookupEnv("NEBULA_INTF"); ok {
+			nebulaIntfName = value
+		}
+
 		network := task.Resources.NomadResources.Networks[0]
+		var nebulaIpAddr *string
+		if network.Device == nebulaIntfName {
+			logger.Info("Nomad client config already configured to listen on Nebula interface")
+		} else {
+			logger.Info(fmt.Sprintf("Task configured on the %s interface. " +
+				"Looking to bind it to Nebula interface too", network.Device))
+			interfaceDetector := &fingerprint.DefaultNetworkInterfaceDetector{}
+			nebulaIntf, err := interfaceDetector.InterfaceByName(nebulaIntfName)
+			if err != nil {
+				logger.Info("Nebula interface not found ", "interface", nebulaIntfName)
+			} else {
+				addrs, err := nebulaIntf.Addrs()
+				if err != nil {
+					logger.Error("Error getting address from Nebula interface", "err", err)
+				} else {
+					nebulaIpAddr = &strings.Split(addrs[0].String(), "/")[0]
+					logger.Info("Nebula interface found. Attempting to bind ports to it", "nebula_ip", *nebulaIpAddr)
+				}
+			}
+		}
+
 		publishedPorts := map[docker.Port][]docker.PortBinding{}
 		exposedPorts := map[docker.Port]struct{}{}
 
@@ -1046,6 +1073,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
 			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
+			if nebulaIpAddr != nil {
+				publishedPorts[containerPort+"/tcp"] = append(publishedPorts[containerPort+"/tcp"], getPortBinding(*nebulaIpAddr, hostPortStr)...)
+				publishedPorts[containerPort+"/udp"] = append(publishedPorts[containerPort+"/udp"], getPortBinding(*nebulaIpAddr, hostPortStr)...)
+			}
 			logger.Debug("allocated static port", "ip", network.IP, "port", port.Value)
 
 			exposedPorts[containerPort+"/tcp"] = struct{}{}
@@ -1067,6 +1098,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
 			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
+			if nebulaIpAddr != nil {
+				publishedPorts[containerPort+"/tcp"] = append(publishedPorts[containerPort+"/tcp"], getPortBinding(*nebulaIpAddr, hostPortStr)...)
+				publishedPorts[containerPort+"/udp"] = append(publishedPorts[containerPort+"/udp"], getPortBinding(*nebulaIpAddr, hostPortStr)...)
+			}
 			logger.Debug("allocated mapped port", "ip", network.IP, "port", port.Value)
 
 			exposedPorts[containerPort+"/tcp"] = struct{}{}
