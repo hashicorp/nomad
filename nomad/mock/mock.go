@@ -1346,17 +1346,11 @@ func MultiregionJob() *structs.Job {
 }
 
 func CSIPlugin() *structs.CSIPlugin {
-	return &structs.CSIPlugin{
-		ID:                 uuid.Generate(),
-		Provider:           "com.hashicorp:mock",
-		Version:            "0.1",
-		ControllerRequired: true,
-		Controllers:        map[string]*structs.CSIInfo{},
-		Nodes:              map[string]*structs.CSIInfo{},
-		Allocations:        []*structs.AllocListStub{},
-		ControllersHealthy: 0,
-		NodesHealthy:       0,
-	}
+	plug := structs.NewCSIPlugin(uuid.Generate(), 0)
+	plug.Provider = "com.hashicorp:mock"
+	plug.Version = "0.1"
+	plug.ControllerRequired = true
+	return plug
 }
 
 func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
