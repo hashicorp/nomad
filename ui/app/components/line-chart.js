@@ -290,15 +290,25 @@ export default class LineChart extends Component.extend(WindowResizable) {
       sortedAnnotations = sortedAnnotations.reverse();
     }
 
+    let prevX = 0;
+    let prevHigh = false;
     return sortedAnnotations.map(annotation => {
       const x = xScale(annotation[xProp]);
-      const y = 0; // TODO: prevent overlap by staggering y-offset
+      if (prevX && !prevHigh && Math.abs(x - prevX) < 30) {
+        prevHigh = true;
+      } else if (prevHigh) {
+        prevHigh = false;
+      }
+      const y = prevHigh ? -15 : 0;
       const formattedX = this.xFormat(timeseries)(annotation[xProp]);
+
+      prevX = x;
       return {
         annotation,
         style: `transform:translate(${x}px,${y}px)`,
         icon: iconFor[annotation.type],
         iconClass: iconClassFor[annotation.type],
+        staggerClass: prevHigh ? 'is-staggered' : '',
         label: `${annotation.type} event at ${formattedX}`,
       };
     });

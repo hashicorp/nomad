@@ -28,7 +28,7 @@
 </svg>
 <div data-test-annotations class="line-chart-annotations" style={{this.chartAnnotationsStyle}}>
   {{#each this.processedAnnotations as |annotation|}}
-    <div data-test-annotation class="chart-annotation {{annotation.iconClass}}" style={{annotation.style}}>
+  <div data-test-annotation class="chart-annotation {{annotation.iconClass}} {{annotation.staggerClass}}" style={{annotation.style}}>
       <button
         type="button"
         class="indicator"

@@ -2,6 +2,10 @@
   position: absolute;
   height: 100%;
 
+  &.is-staggered {
+    height: calc(100% + 15px);
+  }
+
   .indicator {
     color: $grey;
     display: block;

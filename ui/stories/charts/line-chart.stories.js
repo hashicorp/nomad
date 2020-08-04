@@ -159,7 +159,19 @@ export let Annotations = () => {
             @data={{this.data}}
             @annotations={{this.annotations}}
             @onAnnotationClick={{action (mut this.activeAnnotation)}}/>
-          <p>{{this.activeAnnotation.info}}</p>
+        {{/if}}
+      </div>
+      <p style="margin:2em 0; padding: 1em; background:#FFEEAC">{{this.activeAnnotation.info}}</p>
+      <h5 class="title is-5">Line Chart data with staggered annotations</h5>
+      <div class="block" style="height:150px; width:450px">
+        {{#if (and this.data this.annotations)}}
+          <LineChart
+            @timeseries={{true}}
+            @xProp="x"
+            @yProp="y"
+            @data={{this.data}}
+            @annotations={{this.annotations}}
+            @onAnnotationClick={{action (mut this.activeAnnotation)}}/>
         {{/if}}
       </div>
     `,
@@ -191,6 +203,13 @@ export let Annotations = () => {
             .toDate(),
           type: 'info',
           info: 'This is the end of the first period',
+        },
+        {
+          x: moment()
+            .add(96, 'd')
+            .toDate(),
+          type: 'info',
+          info: 'A close annotation for staggering purposes',
         },
         {
           x: moment()
