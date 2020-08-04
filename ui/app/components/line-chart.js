@@ -1,6 +1,7 @@
 /* eslint-disable ember/no-observers */
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { assert } from '@ember/debug';
 import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { guidFor } from '@ember/object/internals';
@@ -52,6 +53,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
   onAnnotationClick() {}
   xProp = null;
   yProp = null;
+  curve = 'linear';
   timeseries = false;
   chartClass = 'is-primary';
 
@@ -99,6 +101,16 @@ export default class LineChart extends Component.extend(WindowResizable) {
 
     const y = datum[this.yProp];
     return this.yFormat()(y);
+  }
+
+  @computed('curve')
+  get curveMethod() {
+    const mappings = {
+      linear: 'curveLinear',
+      stepAfter: 'curveStepAfter',
+    };
+    assert(`Provided curve "${this.curve}" is not an allowed curve type`, mappings[this.curve]);
+    return mappings[this.curve];
   }
 
   // Overridable functions that retrurn formatter functions
@@ -238,12 +250,13 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return this.width - this.yAxisWidth;
   }
 
-  @computed('data.[]', 'xScale', 'yScale')
+  @computed('data.[]', 'xScale', 'yScale', 'curveMethod')
   get line() {
-    const { xScale, yScale, xProp, yProp } = this;
+    const { xScale, yScale, xProp, yProp, curveMethod } = this;
 
     const line = d3Shape
       .line()
+      .curve(d3Shape[curveMethod])
       .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y(d => yScale(d[yProp]));
@@ -251,12 +264,13 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return line(this.data);
   }
 
-  @computed('data.[]', 'xScale', 'yScale')
+  @computed('data.[]', 'xScale', 'yScale', 'curveMethod')
   get area() {
-    const { xScale, yScale, xProp, yProp } = this;
+    const { xScale, yScale, xProp, yProp, curveMethod } = this;
 
     const area = d3Shape
       .area()
+      .curve(d3Shape[curveMethod])
       .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y0(yScale(0))

@@ -210,3 +210,34 @@ export let Annotations = () => {
     },
   };
 };
+
+export let StepLine = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Line Chart with a Step Line</h5>
+      <div class="block" style="height:250px">
+        {{#if this.data}}
+          <LineChart
+            @xProp="x"
+            @yProp="y"
+            @curve="stepAfter"
+            @data={{this.data}} />
+          <p>{{this.activeAnnotation.info}}</p>
+        {{/if}}
+      </div>
+    `,
+    context: {
+      data: DelayedArray.create([
+        { x: 1, y: 5 },
+        { x: 2, y: 1 },
+        { x: 3, y: 2 },
+        { x: 4, y: 2 },
+        { x: 5, y: 9 },
+        { x: 6, y: 3 },
+        { x: 7, y: 4 },
+        { x: 8, y: 1 },
+        { x: 9, y: 5 },
+      ]),
+    },
+  };
+};
