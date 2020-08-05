@@ -12,7 +12,7 @@ import (
 func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
-		return s.csiVolumePost(resp, req)
+		return s.csiVolumePut(resp, req)
 	case http.MethodGet:
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -66,7 +66,7 @@ func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *htt
 		case http.MethodGet:
 			return s.csiVolumeGet(id, resp, req)
 		case http.MethodPut:
-			return s.csiVolumePut(id, resp, req)
+			return s.csiVolumePut(resp, req)
 		case http.MethodDelete:
 			return s.csiVolumeDelete(id, resp, req)
 		default:
@@ -115,7 +115,7 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 	return vol, nil
 }
 
-func (s *HTTPServer) csiVolumePost(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumePut(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case http.MethodPost, http.MethodPut:
 	default:
@@ -125,35 +125,6 @@ func (s *HTTPServer) csiVolumePost(resp http.ResponseWriter, req *http.Request) 
 	args0 := structs.CSIVolumeRegisterRequest{}
 	if err := decodeBody(req, &args0); err != nil {
 		return err, CodedError(400, err.Error())
-	}
-
-	args := structs.CSIVolumeRegisterRequest{
-		Volumes: args0.Volumes,
-	}
-	s.parseWriteRequest(req, &args.WriteRequest)
-
-	var out structs.CSIVolumeRegisterResponse
-	if err := s.agent.RPC("CSIVolume.Register", &args, &out); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &out.QueryMeta)
-
-	return nil, nil
-}
-
-func (s *HTTPServer) csiVolumePut(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodPut {
-		return nil, CodedError(405, ErrInvalidMethod)
-	}
-
-	args0 := structs.CSIVolumeRegisterRequest{}
-	if err := decodeBody(req, &args0); err != nil {
-		return err, CodedError(400, err.Error())
-	}
-
-	if len(args0.Volumes) != 1 || id != args0.Volumes[0].ID {
-		return nil, CodedError(400, "URL ID does not match Volume body")
 	}
 
 	args := structs.CSIVolumeRegisterRequest{
