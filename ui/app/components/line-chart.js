@@ -50,6 +50,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
 
   data = null;
   annotations = null;
+  activeAnnotation = null;
   onAnnotationClick() {}
   xProp = null;
   yProp = null;
