@@ -17,4 +17,10 @@ export default Factory.extend({
           'nomad_autoscaler.reason_history': ['scaling down because factor is 0.000000'],
         }
       : {},
+
+  afterCreate(scaleEvent) {
+    if (scaleEvent.error) {
+      scaleEvent.update({ count: null });
+    }
+  },
 });
