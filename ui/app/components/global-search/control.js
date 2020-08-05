@@ -66,11 +66,11 @@ export default class GlobalSearchControl extends Component {
 
       return [
         {
-          groupName: `Jobs (${this.jobSearch.listSearched.length})`,
+          groupName: resultsGroupLabel('Jobs', jobResults, this.jobSearch.listSearched),
           options: jobResults,
         },
         {
-          groupName: `Clients (${this.nodeSearch.listSearched.length})`,
+          groupName: resultsGroupLabel('Clients', nodeResults, this.nodeSearch.listSearched),
           options: nodeResults,
         },
       ];
@@ -179,4 +179,16 @@ class NodeSearch extends EmberObject.extend(Searchable) {
 
   fuzzySearchEnabled = true;
   includeFuzzySearchMatches = true;
+}
+
+function resultsGroupLabel(type, renderedResults, allResults) {
+  let countString;
+
+  if (renderedResults.length < allResults.length) {
+    countString = `showing ${renderedResults.length} of ${allResults.length}`;
+  } else {
+    countString = renderedResults.length;
+  }
+
+  return `${type} (${countString})`;
 }

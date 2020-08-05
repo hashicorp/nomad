@@ -155,7 +155,7 @@ module('Acceptance | search', function(hooks) {
 
     PageLayout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
-        assert.equal(jobs.name, 'Jobs (15)');
+        assert.equal(jobs.name, 'Jobs (showing 10 of 15)');
         assert.equal(jobs.options.length, 10);
       });
     });
