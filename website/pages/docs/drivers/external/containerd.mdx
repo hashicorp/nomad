@@ -20,8 +20,8 @@ for running and managing container lifecycle. Docker daemon also uses containerd
 dockerd (docker daemon) --> containerd --> containerd-shim --> runc
 ```
 
-nomad-driver-containerd enables nomad client to launch containers directly using containerd, without docker!
-Docker daemon is not required on the host system.
+`nomad-driver-containerd` enables Nomad clients to launch containers directly using containerd, without Docker!
+The Docker daemon is therefore not required on the host system.
 
 See the project's [`homepage`](https://github.com/Roblox/nomad-driver-containerd) for more details.
 
@@ -77,7 +77,7 @@ job "redis" {
 
 The containerd task driver supports the following parameters:
 
-- `image` - (Required) OCI image (docker is also OCI compatible) for your container.
+- `image` - (Required) OCI image (Docker is also OCI compatible) for your container.
 
 ```hcl
 config {
@@ -146,7 +146,7 @@ config {
 ```
 - `mounts` - (Optional) A list of mounts to be mounted in the container.
 Volume, bind and tmpfs type mounts are supported. fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211) are supported.
-   - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`. **Default:** volume.
+   - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`. **Default:** `volume`.
    - `target` - (Required) Target path in the container.
    - `source` - (Optional) Source path on the host.
    - `options` - (Optional) fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211). **NOTE:** For bind mounts, atleast `rbind` and `ro` are required.
