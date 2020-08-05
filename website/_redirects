@@ -1,29 +1,34 @@
 /api/*  /api-docs/:splat 200
 /docs/telemetry/overview  /docs/telemetry 301!
 
-# Nomad Learn Redirects
-/intro/getting-started/install.html     https://learn.hashicorp.com/nomad/getting-started/install 301!
-/intro/getting-started/install          https://learn.hashicorp.com/nomad/getting-started/install 301!
-/intro/getting-started/running.html     https://learn.hashicorp.com/nomad/getting-started/running 301!
-/intro/getting-started/running          https://learn.hashicorp.com/nomad/getting-started/running 301!
-/intro/getting-started/jobs.html        https://learn.hashicorp.com/nomad/getting-started/jobs 301!
-/intro/getting-started/jobs             https://learn.hashicorp.com/nomad/getting-started/jobs 301!
-/intro/getting-started/cluster.html     https://learn.hashicorp.com/nomad/getting-started/cluster 301!
-/intro/getting-started/cluster          https://learn.hashicorp.com/nomad/getting-started/cluster 301!
-/intro/getting-started/ui.html          https://learn.hashicorp.com/nomad/getting-started/ui 301!
-/intro/getting-started/ui               https://learn.hashicorp.com/nomad/getting-started/ui 301!
-/intro/getting-started/next-steps.html  https://learn.hashicorp.com/nomad/getting-started/next-steps 301!
-/intro/getting-started/next-steps       https://learn.hashicorp.com/nomad/getting-started/next-steps 301!
+# This redirect supports a URL built into the Nomad UI, and should always be
+# directed someplace valid to support the text "Read about Outage Recovery."
+/guides/outage.html    https://learn.hashicorp.com/nomad/operating-nomad/outage 301!
 
-/guides/load-balancing                  https://learn.hashicorp.com/nomad?track=load-balancing#operations-and-development 301!
-/guides/load-balancing/fabio.html       https://learn.hashicorp.com/nomad/load-balancing/fabio 301!
-/guides/load-balancing/fabio            https://learn.hashicorp.com/nomad/load-balancing/fabio 301!
-/guides/load-balancing/nginx.html       https://learn.hashicorp.com/nomad/load-balancing/nginx 301!
-/guides/load-balancing/nginx            https://learn.hashicorp.com/nomad/load-balancing/nginx 301!
-/guides/load-balancing/haproxy.html     https://learn.hashicorp.com/nomad/load-balancing/haproxy 301!
-/guides/load-balancing/haproxy          https://learn.hashicorp.com/nomad/load-balancing/haproxy 301!
-/guides/load-balancing/traefik.html     https://learn.hashicorp.com/nomad/load-balancing/traefik 301!
-/guides/load-balancing/traefik          https://learn.hashicorp.com/nomad/load-balancing/traefik 301!
+
+# Nomad Learn Redirects
+/intro/getting-started/install.html     https://learn.hashicorp.com/tutorials/nomad/get-started-install 301!
+/intro/getting-started/install          https://learn.hashicorp.com/tutorials/nomad/get-started-install 301!
+/intro/getting-started/running.html     https://learn.hashicorp.com/tutorials/nomad/get-started-run 301!
+/intro/getting-started/running          https://learn.hashicorp.com/tutorials/nomad/get-started-run 301!
+/intro/getting-started/jobs.html        https://learn.hashicorp.com/tutorials/nomad/get-started-jobs 301!
+/intro/getting-started/jobs             https://learn.hashicorp.com/tutorials/nomad/get-started-jobs 301!
+/intro/getting-started/cluster.html     https://learn.hashicorp.com/tutorials/nomad/get-started-cluster 301!
+/intro/getting-started/cluster          https://learn.hashicorp.com/tutorials/nomad/get-started-cluster 301!
+/intro/getting-started/ui.html          https://learn.hashicorp.com/tutorials/nomad/get-started-ui 301!
+/intro/getting-started/ui               https://learn.hashicorp.com/tutorials/nomad/get-started-ui 301!
+/intro/getting-started/next-steps.html  https://learn.hashicorp.com/tutorials/nomad/get-started-learn-more 301!
+/intro/getting-started/next-steps       https://learn.hashicorp.com/tutorials/nomad/get-started-learn-more 301!
+
+/guides/load-balancing                  https://learn.hashicorp.com/collections/nomad/load-balancing 301!
+/guides/load-balancing/fabio.html       https://learn.hashicorp.com/tutorials/nomad/load-balancing-fabio 301!
+/guides/load-balancing/fabio            https://learn.hashicorp.com/tutorials/nomad/load-balancing-fabio 301!
+/guides/load-balancing/nginx.html       https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx 301!
+/guides/load-balancing/nginx            https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx 301!
+/guides/load-balancing/haproxy.html     https://learn.hashicorp.com/tutorials/nomad/load-balancing-haproxy 301!
+/guides/load-balancing/haproxy          https://learn.hashicorp.com/tutorials/nomad/load-balancing-haproxy 301!
+/guides/load-balancing/traefik.html     https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik 301!
+/guides/load-balancing/traefik          https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik 301!
 
 /guides/stateful-workloads                    https://learn.hashicorp.com/nomad?track=stateful-workload#operations-and-development 301!
 /guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes 301!
@@ -399,7 +404,6 @@
 /guides/nomad-metrics                         https://learn.hashicorp.com/nomad/operating-nomad/prometheus-metrics 301!
 /guides/node-draining.html                    https://learn.hashicorp.com/nomad/operating-nomad/node-draining 301!
 /guides/node-draining                         https://learn.hashicorp.com/nomad/operating-nomad/node-draining 301!
-/guides/outage.html                           https://learn.hashicorp.com/nomad/operating-nomad/outage 301!
 /guides/outage                                https://learn.hashicorp.com/nomad/operating-nomad/outage 301!
 /guides/acl.html                              https://learn.hashicorp.com/nomad?track=acls#acls 301!
 /guides/acl                                   https://learn.hashicorp.com/nomad?track=acls#acls 301!
