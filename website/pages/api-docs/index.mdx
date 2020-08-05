@@ -24,7 +24,7 @@ promise backwards compatibility even with the v1 prefix. We'll remove this
 warning when this policy changes. We expect to reach API stability by Nomad
 1.0.
 
-## Addressing &amp; Ports
+## Addressing and Ports
 
 Nomad binds to a specific set of addresses and ports. The HTTP API is served via
 the `http` address and port. This `address:port` must be accessible locally. If
@@ -76,7 +76,7 @@ administration.
 
 Several endpoints in Nomad use or require ACL tokens to operate. The token are used to authenticate the request and determine if the request is allowed based on the associated authorizations. Tokens are specified per-request by using the `X-Nomad-Token` request header set to the `SecretID` of an ACL Token.
 
-For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/nomad?track=acls#operations-and-development).
+For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/collections/nomad/access-control).
 
 ## Authentication
 
