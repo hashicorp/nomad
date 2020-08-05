@@ -12,7 +12,7 @@ export default class ScaleEventsChart extends Component {
 
   @computed('events.[]')
   get data() {
-    const data = this.events.filterBy('hasCount');
+    const data = this.events.filterBy('hasCount').sortBy('time');
 
     // Extend the domain of the chart to the current time
     data.push({
@@ -29,7 +29,7 @@ export default class ScaleEventsChart extends Component {
       });
     }
 
-    return data.sortBy('time');
+    return data;
   }
 
   @computed('events.[]')
