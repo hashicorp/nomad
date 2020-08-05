@@ -8,9 +8,9 @@
   @activeAnnotation={{this.activeEvent}}
   @onAnnotationClick={{action this.toggleEvent}} />
 {{#if this.activeEvent}}
-  <div>
+  <div data-test-event-details>
     <div class="event">
-      <div class="type">
+      <div data-test-type class="type">
         {{#if this.activeEvent.event.error}}
           {{x-icon "cancel-circle-fill" class="is-danger"}}
         {{else}}
@@ -18,8 +18,8 @@
         {{/if}}
       </div>
       <div>
-        <p class="timestamp">{{format-ts this.activeEvent.event.time}}</p>
-        <p class="message">{{this.activeEvent.event.message}}</p>
+        <p data-test-timestamp class="timestamp">{{format-month-ts this.activeEvent.event.time}}</p>
+        <p data-test-message class="message">{{this.activeEvent.event.message}}</p>
       </div>
     </div>
     <JsonViewer @json={{this.activeEvent.event.meta}} @fluidHeight={{true}} />
