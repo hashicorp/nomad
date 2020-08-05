@@ -306,7 +306,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
       prevX = x;
       return {
         annotation,
-        style: `transform:translate(${x}px,${y}px)`,
+        style: `transform:translate(${x}px,${y}px)`.htmlSafe(),
         icon: iconFor[annotation.type],
         iconClass: iconClassFor[annotation.type],
         staggerClass: prevHigh ? 'is-staggered' : '',
