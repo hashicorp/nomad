@@ -31,7 +31,10 @@
   <div data-test-annotation class="chart-annotation {{annotation.iconClass}} {{annotation.staggerClass}}" style={{annotation.style}}>
       <button
         type="button"
-        class="indicator {{if (eq annotation.annotation this.activeAnnotation) "is-active"}}"
+        class="indicator {{if (or
+          (and this.annotationKey (eq-by this.annotationKey annotation.annotation this.activeAnnotation))
+          (and (not this.annotationKey) (eq annotation.annotation this.activeAnnotation))
+        ) "is-active"}}"
         title={{annotation.label}}
         onclick={{action this.annotationClick annotation.annotation}}>
         {{x-icon annotation.icon}}

@@ -6,6 +6,7 @@
   @data={{this.data}}
   @annotations={{this.annotations}}
   @activeAnnotation={{this.activeEvent}}
+  @annotationKey="event.uid"
   @onAnnotationClick={{action this.toggleEvent}} />
 {{#if this.activeEvent}}
   <div data-test-event-details>

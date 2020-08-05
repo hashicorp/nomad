@@ -1,5 +1,6 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { copy } from 'ember-copy';
+import { computed, get } from '@ember/object';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
@@ -37,12 +38,12 @@ export default class ScaleEventsChart extends Component {
     return this.events.rejectBy('hasCount').map(ev => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
-      event: ev,
+      event: copy(ev),
     }));
   }
 
   toggleEvent(ev) {
-    if (this.activeEvent === ev) {
+    if (this.activeEvent && get(this.activeEvent, 'event.uid') === get(ev, 'event.uid')) {
       this.closeEventDetails();
     } else {
       this.set('activeEvent', ev);
