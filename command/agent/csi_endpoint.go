@@ -10,7 +10,11 @@ import (
 )
 
 func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	switch req.Method {
+	case http.MethodPut, http.MethodPost:
+		return s.csiVolumePost(resp, req)
+	case http.MethodGet:
+	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -101,21 +105,55 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 		return nil, CodedError(404, "volume not found")
 	}
 
+	vol := structsCSIVolumeToApi(out.Volume)
+
 	// remove sensitive fields, as our redaction mechanism doesn't
 	// help serializing here
-	out.Volume.Secrets = nil
-	out.Volume.MountOptions = nil
-	return out.Volume, nil
+	vol.Secrets = nil
+	vol.MountOptions = nil
+
+	return vol, nil
 }
 
-func (s *HTTPServer) csiVolumePut(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "PUT" {
+func (s *HTTPServer) csiVolumePost(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	switch req.Method {
+	case http.MethodPost, http.MethodPut:
+	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
 	args0 := structs.CSIVolumeRegisterRequest{}
 	if err := decodeBody(req, &args0); err != nil {
 		return err, CodedError(400, err.Error())
+	}
+
+	args := structs.CSIVolumeRegisterRequest{
+		Volumes: args0.Volumes,
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSIVolumeRegisterResponse
+	if err := s.agent.RPC("CSIVolume.Register", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+
+	return nil, nil
+}
+
+func (s *HTTPServer) csiVolumePut(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args0 := structs.CSIVolumeRegisterRequest{}
+	if err := decodeBody(req, &args0); err != nil {
+		return err, CodedError(400, err.Error())
+	}
+
+	if len(args0.Volumes) != 1 || id != args0.Volumes[0].ID {
+		return nil, CodedError(400, "URL ID does not match Volume body")
 	}
 
 	args := structs.CSIVolumeRegisterRequest{
@@ -263,11 +301,14 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 		ID:                  plug.ID,
 		Provider:            plug.Provider,
 		Version:             plug.Version,
+		Allocations:         make([]*api.AllocationListStub, len(plug.Allocations)),
 		ControllerRequired:  plug.ControllerRequired,
 		ControllersHealthy:  plug.ControllersHealthy,
 		ControllersExpected: len(plug.Controllers),
+		Controllers:         make(map[string]*api.CSIInfo),
 		NodesHealthy:        plug.NodesHealthy,
 		NodesExpected:       len(plug.Nodes),
+		Nodes:               make(map[string]*api.CSIInfo),
 		CreateIndex:         plug.CreateIndex,
 		ModifyIndex:         plug.ModifyIndex,
 	}
@@ -282,6 +323,49 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 
 	for _, a := range plug.Allocations {
 		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a))
+	}
+
+	return out
+}
+
+// structsCSIVolumeToApi converts CSIVolume, creating the allocation array
+func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
+	out := &api.CSIVolume{
+		ID:             vol.ID,
+		Name:           vol.Name,
+		ExternalID:     vol.ExternalID,
+		Namespace:      vol.Namespace,
+		Topologies:     structsCSITopolgiesToApi(vol.Topologies),
+		AccessMode:     structsCSIAccessModeToApi(vol.AccessMode),
+		AttachmentMode: structsCSIAttachmentModeToApi(vol.AttachmentMode),
+		MountOptions:   structsCSIMountOptionsToApi(vol.MountOptions),
+		Secrets:        structsCSISecretsToApi(vol.Secrets),
+		Parameters:     vol.Parameters,
+		Context:        vol.Context,
+
+		// Allocations is the collapsed list of both read and write allocs
+		Allocations: []*api.AllocationListStub{},
+
+		Schedulable:         vol.Schedulable,
+		PluginID:            vol.PluginID,
+		Provider:            vol.Provider,
+		ProviderVersion:     vol.ProviderVersion,
+		ControllerRequired:  vol.ControllerRequired,
+		ControllersHealthy:  vol.ControllersHealthy,
+		ControllersExpected: vol.ControllersExpected,
+		NodesHealthy:        vol.NodesHealthy,
+		NodesExpected:       vol.NodesExpected,
+		ResourceExhausted:   vol.ResourceExhausted,
+		CreateIndex:         vol.CreateIndex,
+		ModifyIndex:         vol.ModifyIndex,
+	}
+
+	for _, a := range vol.WriteAllocs {
+		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
+	}
+
+	for _, a := range vol.ReadAllocs {
+		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
 	}
 
 	return out
@@ -437,5 +521,65 @@ func structsTaskEventToApi(te *structs.TaskEvent) *api.TaskEvent {
 		// DiskSize:         te.DiskSize,
 	}
 
+	return out
+}
+
+// structsCSITopolgiesToApi converts topologies, part of structsCSIVolumeToApi
+func structsCSITopolgiesToApi(tops []*structs.CSITopology) (out []*api.CSITopology) {
+	for _, t := range tops {
+		out = append(out, &api.CSITopology{
+			Segments: t.Segments,
+		})
+	}
+
+	return out
+}
+
+// structsCSIAccessModeToApi converts access mode, part of structsCSIVolumeToApi
+func structsCSIAccessModeToApi(mode structs.CSIVolumeAccessMode) api.CSIVolumeAccessMode {
+	switch mode {
+	case structs.CSIVolumeAccessModeSingleNodeReader:
+		return api.CSIVolumeAccessModeSingleNodeReader
+	case structs.CSIVolumeAccessModeSingleNodeWriter:
+		return api.CSIVolumeAccessModeSingleNodeWriter
+	case structs.CSIVolumeAccessModeMultiNodeReader:
+		return api.CSIVolumeAccessModeMultiNodeReader
+	case structs.CSIVolumeAccessModeMultiNodeSingleWriter:
+		return api.CSIVolumeAccessModeMultiNodeSingleWriter
+	case structs.CSIVolumeAccessModeMultiNodeMultiWriter:
+		return api.CSIVolumeAccessModeMultiNodeMultiWriter
+	default:
+	}
+	return api.CSIVolumeAccessModeUnknown
+}
+
+// structsCSIAttachmentModeToApiModeToApi converts attachment mode, part of structsCSIVolumeToApi
+func structsCSIAttachmentModeToApi(mode structs.CSIVolumeAttachmentMode) api.CSIVolumeAttachmentMode {
+	switch mode {
+	case structs.CSIVolumeAttachmentModeBlockDevice:
+		return api.CSIVolumeAttachmentModeBlockDevice
+	case structs.CSIVolumeAttachmentModeFilesystem:
+		return api.CSIVolumeAttachmentModeFilesystem
+	default:
+	}
+	return api.CSIVolumeAttachmentModeUnknown
+}
+
+// structsCSIMountOptionsToApi converts mount options, part of structsCSIVolumeToApi
+func structsCSIMountOptionsToApi(opts *structs.CSIMountOptions) *api.CSIMountOptions {
+	if opts == nil {
+		return nil
+	}
+
+	return &api.CSIMountOptions{
+		FSType:     opts.FSType,
+		MountFlags: opts.MountFlags,
+	}
+}
+
+func structsCSISecretsToApi(secrets structs.CSISecrets) (out api.CSISecrets) {
+	for k, v := range secrets {
+		out[k] = v
+	}
 	return out
 }
