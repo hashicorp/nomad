@@ -36,7 +36,7 @@ For more information on Nomad server cluster design, see the [cluster requiremen
 
 The design shared in this document is the recommended architecture for production environments, as it provides flexibility and resilience. Nomad utilizes an existing Consul server cluster; however, the deployment design of the Consul server cluster is outside the scope of this document.
 
-Nomad to Consul connectivity is over HTTP and should be secured with TLS as well as a Consul token to provide encryption of all traffic. This is done using Nomad's [Automatic Clustering with Consul](https://learn.hashicorp.com/nomad/operating-nomad/clustering).
+Nomad to Consul connectivity is over HTTP and should be secured with TLS as well as a Consul token to provide encryption of all traffic. This is done using Nomad's [Automatic Clustering with Consul](https://learn.hashicorp.com/tutorials/nomad/clustering).
 
 ### Deployment Topology within a Single Region ((#one-region))
 

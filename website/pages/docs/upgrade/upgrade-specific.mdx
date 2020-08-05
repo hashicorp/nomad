@@ -22,18 +22,17 @@ standard upgrade flow.
 Enterprise binaries for Nomad are now publicly available via
 [releases.hashicorp.com](https://releases.hashicorp.com/nomad/). By default all
 enterprise features are enabled for 6 hours. During that time enterprise users
-should apply their license with the [`nomad license put
-...`](https://www.nomadproject.io/docs/commands/license/put) command.
+should apply their license with the [`nomad license put ...`](https://www.nomadproject.io/docs/commands/license/put) command.
 
 Once the 6 hour demonstration period expires, Nomad will shutdown. If restarted
 Nomad will shutdown in a very short amount of time unless a valid license is
 applied.
 
 ~> **Warning:** Due to a [bug][gh-8457] in Nomad v0.12.0, existing clusters
-   that are upgraded will **not** have 6 hours to apply a license. The minimal
-   grace period should be sufficient to apply a valid license, but enterprise
-   users are encouraged to delay upgrading until Nomad v0.12.1 is released and
-   fixes the issue.
+that are upgraded will **not** have 6 hours to apply a license. The minimal
+grace period should be sufficient to apply a valid license, but enterprise
+users are encouraged to delay upgrading until Nomad v0.12.1 is released and
+fixes the issue.
 
 ### Docker access host filesystem
 
@@ -94,10 +93,10 @@ incorrectly during scoring. The result of this bug was that scoring biased in
 favor of nodes with reserved resources vs nodes without reserved resources.
 
 Placements will be more correct but slightly different in v0.11.2 vs earlier
-versions of Nomad. Operators do *not* need to take any actions as the impact of
+versions of Nomad. Operators do _not_ need to take any actions as the impact of
 the bug fix will only minimally affect scoring.
 
-Feasability (whether a node is capable of running a job at all) is *not*
+Feasability (whether a node is capable of running a job at all) is _not_
 affected.
 
 ### Periodic Jobs and Daylight Saving Time
@@ -345,9 +344,7 @@ Before Nomad 0.9.0 ports mapped via a task driver's `port_map` stanza could be
 interpolated via the `NOMAD_PORT_<label>` environment variables.
 
 However, in Nomad 0.9.0 no parameters in a driver's `config` stanza, including
-its `port_map`, are available for interpolation. This means `{{ env
-NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT =
-"${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the *host* ports,
+its `port_map`, are available for interpolation. This means `{{ env NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT = "${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the _host_ ports,
 not the container's.
 
 Nomad 0.10 introduced Task Group Networking which natively supports port
@@ -596,8 +593,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
-[tls-guide]: https://learn.hashicorp.com/nomad/transport-security/enable-tls
-[tls-vault-guide]: https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad
+[tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
+[tls-vault-guide]: https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad
 [update]: /docs/job-specification/update
 [validate]: /docs/commands/job/validate
 [vault_grace]: /docs/job-specification/template

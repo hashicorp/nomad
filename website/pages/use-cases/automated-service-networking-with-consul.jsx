@@ -18,7 +18,7 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
             {
               text: 'Read More',
               url:
-                'https://learn.hashicorp.com/nomad/operating-nomad/clustering#use-consul-to-automatically-cluster-nodes',
+                'https://learn.hashicorp.com/tutorials/nomad/clustering#use-consul-to-automatically-cluster-nodes',
               type: 'outbound',
             },
           ],

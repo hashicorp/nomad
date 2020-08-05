@@ -243,7 +243,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/nomad/operating-nomad/clustering).
+[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/tutorials/nomad/clustering).
 
 ### Restricting Schedulers
 
@@ -266,8 +266,8 @@ scheduler configuration determines which scheduling algorithm is configured—
 spread scheduling or binpacking—and which job types are eligible for preemption.
 
 ~> **Warning:** Once the cluster is bootstrapped, you must configure this using
-   the [update scheduler configuration][update-scheduler-config] API. This
-   option is only consulted during bootstrap.
+the [update scheduler configuration][update-scheduler-config] API. This
+option is only consulted during bootstrap.
 
 The structure matches the [Update Scheduler Config][update-scheduler-config] API
 endpoint, which you should consult for canonical documentation. However, the
