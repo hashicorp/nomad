@@ -1,1 +1,27 @@
-<LineChart @data={{this.data}} @annotations={{this.annotations}} @timeseries={{true}} />
+<LineChart
+  @timeseries={{true}}
+  @curve="stepAfter"
+  @xProp="time"
+  @yProp="count"
+  @data={{this.data}}
+  @annotations={{this.annotations}}
+  @activeAnnotation={{this.activeEvent}}
+  @onAnnotationClick={{action this.toggleEvent}} />
+{{#if this.activeEvent}}
+  <div>
+    <div class="event">
+      <div class="type">
+        {{#if this.activeEvent.event.error}}
+          {{x-icon "cancel-circle-fill" class="is-danger"}}
+        {{else}}
+          {{x-icon "info-circle-fill" class="is-dark"}}
+        {{/if}}
+      </div>
+      <div>
+        <p class="timestamp">{{format-ts this.activeEvent.event.time}}</p>
+        <p class="message">{{this.activeEvent.event.message}}</p>
+      </div>
+    </div>
+    <JsonViewer @json={{this.activeEvent.event.meta}} @fluidHeight={{true}} />
+  </div>
+{{/if}}
