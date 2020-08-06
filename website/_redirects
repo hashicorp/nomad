@@ -58,24 +58,9 @@
 /guides/governance-and-policy/sentinel/job.html              https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
 /guides/governance-and-policy/sentinel/job                   https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
 
-/guides/analytical-workloads                           https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/analytical-workloads/index.html                https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/analytical-workloads/spark/configuration       https://learn.hashicorp.com/nomad/spark/configuration 301!
-/guides/analytical-workloads/spark/configuration.html  https://learn.hashicorp.com/nomad/spark/configuration 301!
-/guides/analytical-workloads/spark/customizing         https://learn.hashicorp.com/nomad/spark/customizing 301!
-/guides/analytical-workloads/spark/customizing.html    https://learn.hashicorp.com/nomad/spark/customizing 301!
-/guides/analytical-workloads/spark/dynamic             https://learn.hashicorp.com/nomad/spark/dynamic 301!
-/guides/analytical-workloads/spark/dynamic.html        https://learn.hashicorp.com/nomad/spark/dynamic 301!
-/guides/analytical-workloads/spark/hdfs                https://learn.hashicorp.com/nomad/spark/hdfs 301!
-/guides/analytical-workloads/spark/hdfs.html           https://learn.hashicorp.com/nomad/spark/hdfs 301!
-/guides/analytical-workloads/spark/monitoring          https://learn.hashicorp.com/nomad/spark/monitoring 301!
-/guides/analytical-workloads/spark/monitoring.html     https://learn.hashicorp.com/nomad/spark/monitoring 301!
-/guides/analytical-workloads/spark/pre                 https://learn.hashicorp.com/nomad/spark/pre 301!
-/guides/analytical-workloads/spark/pre.html            https://learn.hashicorp.com/nomad/spark/pre 301!
-/guides/analytical-workloads/spark/resource            https://learn.hashicorp.com/nomad/spark/resource 301!
-/guides/analytical-workloads/spark/resource.html       https://learn.hashicorp.com/nomad/spark/resource 301!
-/guides/analytical-workloads/spark/submit              https://learn.hashicorp.com/nomad/spark/submit 301!
-/guides/analytical-workloads/spark/submit.html         https://learn.hashicorp.com/nomad/spark/submit 301!
+# Spark guide links are all repointed to deprecated nomad-spark repo
+/guides/analytical-workloads     https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
+/guides/analytical-workloads/*   https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
 
 /guides/operating-a-job                            https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
 /guides/operating-a-job/accessing-logs             https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
