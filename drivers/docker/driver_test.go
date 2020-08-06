@@ -1337,6 +1337,7 @@ func TestDockerDriver_DNS(t *testing.T) {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+	testutil.ExecCompatible(t)
 
 	cases := []struct {
 		name string
