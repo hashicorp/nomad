@@ -1,3 +1,9 @@
+## 0.11.4 (August 7, 2020)
+
+BUG FIXES:
+
+ * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [GH-8553]
+
 ## 0.11.3 (June 5, 2020)
 
 IMPROVEMENTS:
