@@ -48,7 +48,7 @@
 /guides/web-ui/securing.html                https://learn.hashicorp.com/tutorials/nomad/web-ui-access#access-an-acl-enabled-ui 301!
 /guides/web-ui/securing                     https://learn.hashicorp.com/tutorials/nomad/web-ui-access#access-an-acl-enabled-ui 301!
 
-/guides/governance-and-policy                                https://learn.hashicorp.com/nomad?track=governance-and-policy#operations-and-development 301!
+/guides/governance-and-policy                                https://learn.hashicorp.com/collections/nomad/governance-and-policy 301!
 /guides/governance-and-policy/namespaces.html                https://learn.hashicorp.com/tutorials/nomad/namespaces 301!
 /guides/governance-and-policy/namespaces                     https://learn.hashicorp.com/tutorials/nomad/namespaces 301!
 /guides/governance-and-policy/quotas.html                    https://learn.hashicorp.com/tutorials/nomad/quotas 301!
