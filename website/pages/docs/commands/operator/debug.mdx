@@ -61,9 +61,45 @@ configured.
    directory. Defaults to the current directory. If specified, no
    archive is built.
 
-- `-consul-token`: Token used to query Consul. Defaults to `CONSUL_TOKEN`
+- `-consul-http-addr=<addr>`: The address and port of the Consul HTTP
+  agent. Overrides the `CONSUL_HTTP_ADDR` environment variable.
 
-- `-vault-token`: Token used to query Vault. Defaults to `VAULT_TOKEN`
+- `-consul-token=<token>`: Token used to query Consul. Overrides the
+    `CONSUL_HTTP_TOKEN` environment variable and the Consul token
+    file.
+
+- `-consul-token-file=<path>`: Path to the Consul token file. Overrides the `CONSUL_HTTP_TOKEN_FILE`
+    environment variable.
+
+- `-consul-client-cert=<path>`: Path to the Consul client cert file. Overrides the `CONSUL_CLIENT_CERT`
+    environment variable.
+
+- `-consul-client-key=<path>`: Path to the Consul client key file. Overrides the `CONSUL_CLIENT_KEY`
+    environment variable.
+
+- `-consul-ca-cert=<path>`: Path to a CA file to use with Consul. Overrides the `CONSUL_CACERT`
+    environment variable and the Consul CA path.
+
+- `-consul-ca-path=<path>`: Path to a directory of PEM encoded CA cert files to verify the Consul
+    certificate. Overrides the `CONSUL_CAPATH` environment variable.
+
+- `-vault-address=<addr>`: The address and port of the Vault HTTP agent. Overrides the `VAULT_ADDR`
+    environment variable.
+
+- `-vault-token=<token>`: Token used to query Vault. Overrides the `VAULT_TOKEN` environment
+    variable.
+
+- `-vault-client-cert=<path>`: Path to the Vault client cert file. Overrides the `VAULT_CLIENT_CERT`
+    environment variable.
+
+- `-vault-client-key=<path>`: Path to the Vault client key file. Overrides the `VAULT_CLIENT_KEY`
+    environment variable.
+
+- `-vault-ca-cert=<path>`: Path to a CA file to use with Vault. Overrides the `VAULT_CACERT`
+    environment variable and the Vault CA path.
+
+- `-vault-ca-path=<path>`: Path to a directory of PEM encoded CA cert files to verify the Vault
+    certificate. Overrides the `VAULT_CAPATH` environment variable.
 
 ## Output
 
@@ -77,8 +113,8 @@ Starting debugger and capturing cluster data...
     Interval: '5s'
     Duration: '20s'
     Capture interval 0000
-    Capture interval 0005
-    Capture interval 0010
-    Capture interval 0015
+    Capture interval 0001
+    Capture interval 0002
+    Capture interval 0003
 Created debug archive: nomad-debug-2020-07-20-205223Z.tar.gz
 ```
