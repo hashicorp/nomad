@@ -59,8 +59,16 @@
 /guides/governance-and-policy/sentinel/job                   https://learn.hashicorp.com/tutorials/nomad/sentinel 301!
 
 # Spark guide links are all repointed to deprecated nomad-spark repo
-/guides/analytical-workloads     https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
-/guides/analytical-workloads/*   https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
+/guides/spark                                  https://github.com/hashicorp/nomad-spark 301!
+/guides/spark/*                                https://github.com/hashicorp/nomad-spark 301!
+/guides/analytical-workloads                   https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
+/guides/analytical-workloads/*                 https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
+## These are subsumed in the splat over analytical-workloads, but I'm keeping them here in case
+## we want to reclaim the slug "analytical-workloads" at some point and deal with some bad links.
+#/guides/analytical-workloads/spark/spark.html  https://github.com/hashicorp/nomad-spark 301!
+#/guides/analytical-workloads/spark/spark       https://github.com/hashicorp/nomad-spark 301!
+
+
 
 /guides/operating-a-job                            https://learn.hashicorp.com/collections/nomad/manage-jobs 301!
 /guides/operating-a-job/index.html                 https://learn.hashicorp.com/collections/nomad/manage-jobs 301!
@@ -403,14 +411,6 @@
 /guides/sentinel/job.html                     https://learn.hashicorp.com/tutorials/nomad/sentinel 301!
 /guides/sentinel/job                          https://learn.hashicorp.com/tutorials/nomad/sentinel 301!
 
-/guides/analytical-workloads/spark/spark.html     https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/analytical-workloads/spark/spark          https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/spark                                     https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/spark/index.html                          https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/spark/spark.html                          https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/spark/spark                               https://learn.hashicorp.com/nomad?track=spark#spark 301!
-/guides/spark/pre.html                            https://learn.hashicorp.com/nomad/spark/pre 301!
-/guides/spark/pre                                 https://learn.hashicorp.com/nomad/spark/pre 301!
 /guides/security/namespaces.html                  https://learn.hashicorp.com/tutorials/nomad/namespaces 301!
 /guides/security/namespaces                       https://learn.hashicorp.com/tutorials/nomad/namespaces 301!
 /guides/security/quotas.html                      https://learn.hashicorp.com/tutorials/nomad/quotas 301!
