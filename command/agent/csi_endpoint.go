@@ -487,9 +487,6 @@ func structsTaskEventToApi(te *structs.TaskEvent) *api.TaskEvent {
 		TaskSignalReason: te.TaskSignalReason,
 		TaskSignal:       te.TaskSignal,
 		GenericSource:    te.GenericSource,
-
-		// DiskSize is in the deprecated section of the api struct but is not in structs
-		// DiskSize:         te.DiskSize,
 	}
 
 	return out
