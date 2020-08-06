@@ -404,6 +404,13 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	// Because the node is not registered
 	require.EqualError(t, err, "controller publish: attach volume: No path to node")
+
+	// The node SecretID is authorized for all policies
+	claimReq.AuthToken = node.SecretID
+	claimReq.Namespace = ""
+	claimResp = &structs.CSIVolumeClaimResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	require.EqualError(t, err, "controller publish: attach volume: No path to node")
 }
 
 func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
