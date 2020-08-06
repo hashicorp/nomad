@@ -455,7 +455,7 @@ module('Acceptance | task group detail', function(hooks) {
     });
   });
 
-  test('when a task group has at least count scaling events and the count scaling events outnumber the non-count scaling events, a timeline is shown instead of an accordion', async function(assert) {
+  test('when a task group has at least two count scaling events and the count scaling events outnumber the non-count scaling events, a timeline is shown instead of an accordion', async function(assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
     taskGroupScale.update({
       events: [
