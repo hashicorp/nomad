@@ -1303,6 +1303,9 @@ func (v *vaultClient) revokeDaemon() {
 			// Build the list of accessors that need to be revoked while pruning any TTL'd checks
 			toRevoke := len(v.revoking)
 			if toRevoke > v.maxRevokeBatchSize {
+				v.logger.Info("batching tokens to be revoked",
+					"to_revoke", toRevoke, "batch_size", v.maxRevokeBatchSize,
+					"batch_interval", v.revocationIntv)
 				toRevoke = v.maxRevokeBatchSize
 			}
 			revoking := make([]*structs.VaultAccessor, 0, toRevoke)
