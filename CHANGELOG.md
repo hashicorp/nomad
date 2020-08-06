@@ -1,5 +1,9 @@
 ## 0.11.4 (August 7, 2020)
 
+SECURITY:
+
+ * build: Updated to Go 1.14.6. Go 1.14.5 contained 2 CVEs which are low severity for Nomad [[GH-8467](https://github.com/hashicorp/nomad/issues/8467)]
+
 BUG FIXES:
 
  * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [GH-8553]
