@@ -783,7 +783,7 @@ NEXT_VOLUME:
 			if err != nil {
 				return err
 			}
-			if alloc == nil {
+			if alloc == nil || alloc.TerminalStatus() {
 				err = gcClaims(vol.Namespace, vol.ID)
 				if err != nil {
 					return err
@@ -796,7 +796,7 @@ NEXT_VOLUME:
 			if err != nil {
 				return err
 			}
-			if alloc == nil {
+			if alloc == nil || alloc.TerminalStatus() {
 				err = gcClaims(vol.Namespace, vol.ID)
 				if err != nil {
 					return err

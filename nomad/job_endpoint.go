@@ -780,19 +780,6 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 
-	// For a job with volumes, find its volumes before deleting the job.
-	// Later we'll apply this raft.
-	volumesToGC := newCSIBatchRelease(j.srv, j.logger, 100)
-	if job != nil {
-		for _, tg := range job.TaskGroups {
-			for _, vol := range tg.Volumes {
-				if vol.Type == structs.VolumeTypeCSI {
-					volumesToGC.add(vol.Source, job.Namespace)
-				}
-			}
-		}
-	}
-
 	var eval *structs.Evaluation
 
 	// The job priority / type is strange for this, since it's not a high
@@ -832,13 +819,6 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.EvalCreateIndex = index
 	reply.Index = index
 
-	// Make a raft apply to release the CSI volume claims of terminal allocs.
-	var result *multierror.Error
-	err = volumesToGC.apply()
-	if err != nil {
-		result = multierror.Append(result, err)
-	}
-
 	// COMPAT(1.1.0) - Remove entire conditional block
 	// 0.12.1 introduced atomic job deregistration eval
 	if eval != nil && args.Eval == nil {
@@ -852,16 +832,15 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		// Commit this evaluation via Raft
 		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
 		if err != nil {
-			result = multierror.Append(result, err)
 			j.logger.Error("eval create failed", "error", err, "method", "deregister")
-			return result.ErrorOrNil()
+			return err
 		}
 
 		reply.EvalCreateIndex = evalIndex
 		reply.Index = evalIndex
 	}
 
-	return result.ErrorOrNil()
+	return nil
 }
 
 // BatchDeregister is used to remove a set of jobs from the cluster.
