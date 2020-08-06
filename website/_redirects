@@ -30,23 +30,23 @@
 /guides/load-balancing/traefik.html     https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik 301!
 /guides/load-balancing/traefik          https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik 301!
 
-/guides/stateful-workloads                    https://learn.hashicorp.com/nomad?track=stateful-workload#operations-and-development 301!
-/guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes 301!
-/guides/stateful-workloads/host-volumes       https://learn.hashicorp.com/nomad/stateful-workloads/host-volumes 301!
-/guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/nomad/stateful-workloads/portworx 301!
-/guides/stateful-workloads/portworx           https://learn.hashicorp.com/nomad/stateful-workloads/portworx 301!
+/guides/stateful-workloads                    https://learn.hashicorp.com/collections/nomad/stateful-workloads 301!
+/guides/stateful-workloads/host-volumes.html  https://learn.hashicorp.com/tutorials/nomad/stateful-workloads-host-volumes 301!
+/guides/stateful-workloads/host-volumes       https://learn.hashicorp.com/tutorials/nomad/stateful-workloads-host-volumes 301!
+/guides/stateful-workloads/portworx.html      https://learn.hashicorp.com/tutorials/nomad/stateful-workloads-portworx 301!
+/guides/stateful-workloads/portworx           https://learn.hashicorp.com/tutorials/nomad/stateful-workloads-portworx 301!
 
-/guides/web-ui                              https://learn.hashicorp.com/nomad?track=web-ui#getting-started 301!
-/guides/web-ui/access.html                  https://learn.hashicorp.com/nomad/web-ui/access 301!
-/guides/web-ui/accessing                    https://learn.hashicorp.com/nomad/web-ui/access 301!
-/guides/web-ui/submitting-a-job.html        https://learn.hashicorp.com/nomad/web-ui/ui-workload 301!
-/guides/web-ui/submitting-a-job             https://learn.hashicorp.com/nomad/web-ui/ui-workload 301!
-/guides/web-ui/operating-a-job.html         https://learn.hashicorp.com/nomad/web-ui/submit-job 301!
-/guides/web-ui/operating-a-job              https://learn.hashicorp.com/nomad/web-ui/submit-job 301!
-/guides/web-ui/inspecting-the-cluster.html  https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster 301!
-/guides/web-ui/inspecting-the-cluster       https://learn.hashicorp.com/nomad/web-ui/inspecting-the-cluster 301!
-/guides/web-ui/securing.html                https://learn.hashicorp.com/nomad/web-ui/access 301!
-/guides/web-ui/securing                     https://learn.hashicorp.com/nomad/web-ui/access 301!
+/guides/web-ui                              https://learn.hashicorp.com/collections/nomad/web-ui 301!
+/guides/web-ui/access.html                  https://learn.hashicorp.com/tutorials/nomad/web-ui-access 301!
+/guides/web-ui/accessing                    https://learn.hashicorp.com/tutorials/nomad/web-ui-access 301!
+/guides/web-ui/submitting-a-job.html        https://learn.hashicorp.com/tutorials/nomad/web-ui-workload-info 301!
+/guides/web-ui/submitting-a-job             https://learn.hashicorp.com/tutorials/nomad/web-ui-workload-info 301!
+/guides/web-ui/operating-a-job.html         https://learn.hashicorp.com/tutorials/nomad/web-ui-submit-job 301!
+/guides/web-ui/operating-a-job              https://learn.hashicorp.com/tutorials/nomad/web-ui-submit-job 301!
+/guides/web-ui/inspecting-the-cluster.html  https://learn.hashicorp.com/tutorials/nomad/web-ui-cluster-info 301!
+/guides/web-ui/inspecting-the-cluster       https://learn.hashicorp.com/tutorials/nomad/web-ui-cluster-info 301!
+/guides/web-ui/securing.html                https://learn.hashicorp.com/tutorials/nomad/web-ui-access#access-an-acl-enabled-ui 301!
+/guides/web-ui/securing                     https://learn.hashicorp.com/tutorials/nomad/web-ui-access#access-an-acl-enabled-ui 301!
 
 /guides/governance-and-policy                                https://learn.hashicorp.com/nomad?track=governance-and-policy#operations-and-development 301!
 /guides/governance-and-policy/namespaces.html                https://learn.hashicorp.com/nomad/governance-and-policy/namespaces 301!
