@@ -62,22 +62,22 @@
 /guides/analytical-workloads     https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
 /guides/analytical-workloads/*   https://github.com/hashicorp/nomad-spark 301!  # goes to deprecated page in repo
 
-/guides/operating-a-job                            https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
-/guides/operating-a-job/accessing-logs             https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
-/guides/operating-a-job/accessing-logs.html        https://learn.hashicorp.com/nomad/managing-jobs/accessing-logs 301!
-/guides/operating-a-job/configuring-tasks          https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks 301!
-/guides/operating-a-job/configuring-tasks.html     https://learn.hashicorp.com/nomad/managing-jobs/configuring-tasks 301!
-/guides/operating-a-job/external                   https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins 301!
-/guides/operating-a-job/external/index.html        https://learn.hashicorp.com/nomad?track=using-plugins#using-plugins 301!
-/guides/operating-a-job/external/lxc               https://learn.hashicorp.com/nomad/using-plugins/lxc 301!
-/guides/operating-a-job/external/lxc.html          https://learn.hashicorp.com/nomad/using-plugins/lxc 301!
-/guides/operating-a-job/index.html                 https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs 301!
-/guides/operating-a-job/inspecting-state           https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state 301!
-/guides/operating-a-job/inspecting-state.html      https://learn.hashicorp.com/nomad/managing-jobs/inspecting-state 301!
-/guides/operating-a-job/resource-utilization       https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization 301!
-/guides/operating-a-job/resource-utilization.html  https://learn.hashicorp.com/nomad/managing-jobs/resource-utilization 301!
-/guides/operating-a-job/submitting-jobs            https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs 301!
-/guides/operating-a-job/submitting-jobs.html       https://learn.hashicorp.com/nomad/managing-jobs/submitting-jobs 301!
+/guides/operating-a-job                            https://learn.hashicorp.com/collections/nomad/manage-jobs 301!
+/guides/operating-a-job/index.html                 https://learn.hashicorp.com/collections/nomad/manage-jobs 301!
+/guides/operating-a-job/accessing-logs             https://learn.hashicorp.com/tutorials/nomad/jobs-accessing-logs 301!
+/guides/operating-a-job/accessing-logs.html        https://learn.hashicorp.com/tutorials/nomad/jobs-accessing-logs 301!
+/guides/operating-a-job/configuring-tasks          https://learn.hashicorp.com/tutorials/nomad/jobs-configuring 301!
+/guides/operating-a-job/configuring-tasks.html     https://learn.hashicorp.com/tutorials/nomad/jobs-configuring 301!
+/guides/operating-a-job/external                   https://learn.hashicorp.com/collections/nomad/plugins 301!
+/guides/operating-a-job/external/index.html        https://learn.hashicorp.com/collections/nomad/plugins 301!
+/guides/operating-a-job/external/lxc               https://learn.hashicorp.com/tutorials/nomad/plugin-lxc 301!
+/guides/operating-a-job/external/lxc.html          https://learn.hashicorp.com/tutorials/nomad/plugin-lxc 301!
+/guides/operating-a-job/inspecting-state           https://learn.hashicorp.com/tutorials/nomad/jobs-inspec 301!
+/guides/operating-a-job/inspecting-state.html      https://learn.hashicorp.com/tutorials/nomad/jobs-inspec 301!
+/guides/operating-a-job/resource-utilization       https://learn.hashicorp.com/tutorials/nomad/jobs-utilization 301!
+/guides/operating-a-job/resource-utilization.html  https://learn.hashicorp.com/tutorials/nomad/jobs-utilization 301!
+/guides/operating-a-job/submitting-jobs            https://learn.hashicorp.com/tutorials/nomad/jobs-submit 301!
+/guides/operating-a-job/submitting-jobs.html       https://learn.hashicorp.com/tutorials/nomad/jobs-submit 301!
 
 /guides/operating-a-job/advanced-scheduling/advanced-scheduling            https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling 301!
 /guides/operating-a-job/advanced-scheduling/advanced-scheduling.html       https://learn.hashicorp.com/nomad/advanced-scheduling/advanced-scheduling 301!
