@@ -10,6 +10,7 @@ BUG FIXES:
  * core: Fixed a bug where `nomad job plan` reports success and no updates if the job contains a scaling policy [[GH-8567](https://github.com/hashicorp/nomad/issues/8567)]
  * api: Added missing namespace field to scaling status GET response object [[GH-8530](https://github.com/hashicorp/nomad/issues/8530)]
  * api: Do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8491](https://github.com/hashicorp/nomad/issues/8491)]
+ * build: Updated to Go 1.14.7. Go 1.14.6 contained a CVE that is not believed to impact Nomad [[GH-8601](https://github.com/hashicorp/nomad/issues/8601)]
  * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
 
 ## 0.12.1 (July 23, 2020)
