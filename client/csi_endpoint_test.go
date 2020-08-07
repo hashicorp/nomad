@@ -41,7 +41,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
@@ -198,7 +198,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				},
 				VolumeID: "foo",
 			},
-			ExpectedErr: errors.New("plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates attachmentmode",
@@ -287,7 +287,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",

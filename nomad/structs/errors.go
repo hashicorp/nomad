@@ -52,6 +52,8 @@ var (
 	ErrNodeLacksRpc               = errors.New(errNodeLacksRpc)
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
 
+	ErrUnknownNode = errors.New(ErrUnknownNodePrefix)
+
 	ErrDeploymentTerminalNoCancel    = errors.New(errDeploymentTerminalNoCancel)
 	ErrDeploymentTerminalNoFail      = errors.New(errDeploymentTerminalNoFail)
 	ErrDeploymentTerminalNoPause     = errors.New(errDeploymentTerminalNoPause)
@@ -61,6 +63,9 @@ var (
 	ErrDeploymentTerminalNoRun       = errors.New(errDeploymentTerminalNoRun)
 	ErrDeploymentTerminalNoSetHealth = errors.New(errDeploymentTerminalNoSetHealth)
 	ErrDeploymentRunningNoUnblock    = errors.New(errDeploymentRunningNoUnblock)
+
+	ErrCSIClientRPCIgnorable = errors.New("CSI client error (ignorable)")
+	ErrCSIClientRPCRetryable = errors.New("CSI client error (retryable)")
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.
