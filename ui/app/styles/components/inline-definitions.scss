@@ -8,6 +8,10 @@
     font-weight: $weight-semibold;
   }
 
+  &.is-faded {
+    color: darken($grey-blue, 20%);
+  }
+
   .pair {
     margin-right: 2em;
     white-space: nowrap;
@@ -24,6 +28,14 @@
     .has-emphasis {
       color: $text;
       font-weight: $weight-semibold;
+    }
+  }
+
+  .icon-field {
+    display: flex;
+    margin-left: -1em;
+    .icon-container {
+      width: 1.5em;
     }
   }
 

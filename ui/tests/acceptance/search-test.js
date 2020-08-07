@@ -1,3 +1,4 @@
+/* eslint-disable ember-a11y-testing/a11y-audit-called */ // TODO
 import { module, test } from 'qunit';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -22,7 +23,7 @@ module('Acceptance | search', function(hooks) {
     const otherNode = server.create('node', { name: 'aaa' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
-    server.create('job', { id: 'xyz', namespace: 'default' });
+    server.create('job', { id: 'xyz', name: 'xyz job', namespace: 'default' });
     server.create('job', { id: 'abc', namespace: 'default' });
 
     await visit('/');
@@ -43,7 +44,7 @@ module('Acceptance | search', function(hooks) {
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
         assert.equal(jobs.options.length, 2);
-        assert.equal(jobs.options[0].text, 'xyz');
+        assert.equal(jobs.options[0].text, 'xyz job');
         assert.equal(jobs.options[1].text, 'vwxyz');
       });
 
@@ -137,6 +138,25 @@ module('Acceptance | search', function(hooks) {
     PageLayout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
         assert.equal(jobs.options[0].formattedText, '*s*mtp-*sensor*');
+      });
+    });
+  });
+
+  test('results are truncated at 10 per group', async function(assert) {
+    server.create('node', { name: 'xyz' });
+
+    for (let i = 0; i < 15; i++) {
+      server.create('job', { id: `job-${i}`, namespaceId: 'default' });
+    }
+
+    await visit('/');
+
+    await selectSearch(PageLayout.navbar.search.scope, 'job');
+
+    PageLayout.navbar.search.as(search => {
+      search.groups[0].as(jobs => {
+        assert.equal(jobs.name, 'Jobs (showing 10 of 15)');
+        assert.equal(jobs.options.length, 10);
       });
     });
   });

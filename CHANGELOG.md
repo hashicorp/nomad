@@ -1,9 +1,16 @@
 ## 0.12.2 (Unreleased)
 
+FEATURES:
+
+ * **Multiple Vault Namespaces (Enterprise)**: Support for multiple Vault Namespaces [[GH-8453](https://github.com/hashicorp/nomad/issues/8453)]
+ * **Scaling Observability UI**: View changes in task group scale (both manual and automatic) over time. [[GH-8551](https://github.com/hashicorp/nomad/issues/8551)]
+
 BUG FIXES:
 
- * api: added missing namespace field to scaling status GET response object [[GH-8527](https://github.com/hashicorp/nomad/issues/8527)]
- * api: do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8481](https://github.com/hashicorp/nomad/issues/8481)]
+ * core: Fixed a bug where `nomad job plan` reports success and no updates if the job contains a scaling policy [[GH-8567](https://github.com/hashicorp/nomad/issues/8567)]
+ * api: Added missing namespace field to scaling status GET response object [[GH-8530](https://github.com/hashicorp/nomad/issues/8530)]
+ * api: Do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8491](https://github.com/hashicorp/nomad/issues/8491)]
+ * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
 
 ## 0.12.1 (July 23, 2020)
 
@@ -80,6 +87,16 @@ BUG FIXES:
  * ui: The log streamer will now always follow logs when the current scroll position is the end of the buffer. [[GH-8177](https://github.com/hashicorp/nomad/issues/8177)]
  * ui: The task group detail page no longer makes excessive requests to the allocation and stats endpoints. [[GH-8216](https://github.com/hashicorp/nomad/issues/8216)]
  * ui: Polling endpoints that have yet to be fetched normally works as expected (regression from 0.11.3). [[GH-8207](https://github.com/hashicorp/nomad/issues/8207)]
+
+## 0.11.4 (August 7, 2020)
+
+SECURITY:
+
+ * build: *Backport from v0.12.1* - Updated to Go 1.14.6. Go 1.14.5 contained 2 CVEs which are low severity for Nomad [[GH-8467](https://github.com/hashicorp/nomad/issues/8467)]
+
+BUG FIXES:
+
+ * vault: *Backport from v0.12.2* - Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
 
 ## 0.11.3 (June 5, 2020)
 

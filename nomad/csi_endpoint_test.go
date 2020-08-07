@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -403,6 +404,105 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	// Because the node is not registered
 	require.EqualError(t, err, "controller publish: attach volume: No path to node")
+}
+
+func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	var err error
+	index := uint64(1000)
+	ns := structs.DefaultNamespace
+	state := srv.fsm.State()
+	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+
+	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
+	index++
+	accessToken := mock.CreatePolicyAndToken(t, state, index, "claim", policy)
+
+	codec := rpcClient(t, srv)
+
+	type tc struct {
+		name           string
+		startingState  structs.CSIVolumeClaimState
+		hasController  bool
+		expectedErrMsg string
+	}
+
+	testCases := []tc{
+		{
+			name:           "no path to node plugin",
+			startingState:  structs.CSIVolumeClaimStateTaken,
+			hasController:  true,
+			expectedErrMsg: "could not detach from node: Unknown node ",
+		},
+		{
+			name:           "no registered controller plugin",
+			startingState:  structs.CSIVolumeClaimStateNodeDetached,
+			hasController:  true,
+			expectedErrMsg: "could not detach from controller: controller detach volume: plugin missing: minnie",
+		},
+		{
+			name:          "success",
+			startingState: structs.CSIVolumeClaimStateControllerDetached,
+			hasController: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			volID := uuid.Generate()
+			nodeID := uuid.Generate()
+			allocID := uuid.Generate()
+
+			claim := &structs.CSIVolumeClaim{
+				AllocationID:   allocID,
+				NodeID:         nodeID,
+				ExternalNodeID: "i-example",
+				Mode:           structs.CSIVolumeClaimRead,
+				State:          tc.startingState,
+			}
+
+			vol := &structs.CSIVolume{
+				ID:                 volID,
+				Namespace:          ns,
+				AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+				AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
+				PluginID:           "minnie",
+				Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
+				ControllerRequired: tc.hasController,
+			}
+
+			index++
+			err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+			require.NoError(t, err)
+
+			req := &structs.CSIVolumeUnpublishRequest{
+				VolumeID: volID,
+				Claim:    claim,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: ns,
+					AuthToken: accessToken.SecretID,
+				},
+			}
+
+			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
+				&structs.CSIVolumeUnpublishResponse{})
+
+			if tc.expectedErrMsg == "" {
+				require.NoError(t, err)
+			} else {
+				require.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
+					"error message %q did not contain %q", err.Error(), tc.expectedErrMsg)
+			}
+		})
+	}
+
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {

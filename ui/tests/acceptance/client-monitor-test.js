@@ -3,6 +3,7 @@ import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ClientMonitor from 'nomad-ui/tests/pages/clients/monitor';
 
 let node;
@@ -23,6 +24,12 @@ module('Acceptance | client monitor', function(hooks) {
 
     server.create('agent');
     run.later(run, run.cancelTimers, 500);
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await ClientMonitor.visit({ id: node.id });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/clients/:id/monitor should have a breadcrumb trail linking back to clients', async function(assert) {

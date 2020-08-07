@@ -773,22 +773,23 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
 	j := &structs.Job{
-		Stop:        *job.Stop,
-		Region:      *job.Region,
-		Namespace:   *job.Namespace,
-		ID:          *job.ID,
-		ParentID:    *job.ParentID,
-		Name:        *job.Name,
-		Type:        *job.Type,
-		Priority:    *job.Priority,
-		AllAtOnce:   *job.AllAtOnce,
-		Datacenters: job.Datacenters,
-		Payload:     job.Payload,
-		Meta:        job.Meta,
-		ConsulToken: *job.ConsulToken,
-		VaultToken:  *job.VaultToken,
-		Constraints: ApiConstraintsToStructs(job.Constraints),
-		Affinities:  ApiAffinitiesToStructs(job.Affinities),
+		Stop:           *job.Stop,
+		Region:         *job.Region,
+		Namespace:      *job.Namespace,
+		ID:             *job.ID,
+		ParentID:       *job.ParentID,
+		Name:           *job.Name,
+		Type:           *job.Type,
+		Priority:       *job.Priority,
+		AllAtOnce:      *job.AllAtOnce,
+		Datacenters:    job.Datacenters,
+		Payload:        job.Payload,
+		Meta:           job.Meta,
+		ConsulToken:    *job.ConsulToken,
+		VaultToken:     *job.VaultToken,
+		VaultNamespace: *job.VaultNamespace,
+		Constraints:    ApiConstraintsToStructs(job.Constraints),
+		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -976,6 +977,12 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		for l, task := range taskGroup.Tasks {
 			t := &structs.Task{}
 			ApiTaskToStructsTask(task, t)
+
+			// Set the tasks vault namespace from Job if it was not
+			// specified by the task or group
+			if t.Vault != nil && t.Vault.Namespace == "" && job.VaultNamespace != "" {
+				t.Vault.Namespace = job.VaultNamespace
+			}
 			tg.Tasks[l] = t
 		}
 	}
@@ -1089,6 +1096,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
 			Policies:     apiTask.Vault.Policies,
+			Namespace:    *apiTask.Vault.Namespace,
 			Env:          *apiTask.Vault.Env,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,

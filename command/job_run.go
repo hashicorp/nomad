@@ -101,6 +101,10 @@ Run Options:
     the job file. This overrides the token found in $VAULT_TOKEN environment
     variable and that found in the job.
 
+  -vault-namespace
+    If set, the passed Vault namespace is stored in the job before sending to the
+    Nomad servers.
+
   -verbose
     Display full information.
 `
@@ -119,6 +123,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-verbose":         complete.PredictNothing,
 			"-consul-token":    complete.PredictNothing,
 			"-vault-token":     complete.PredictAnything,
+			"-vault-namespace": complete.PredictAnything,
 			"-output":          complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
 			"-preserve-counts": complete.PredictNothing,
@@ -133,7 +138,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts bool
-	var checkIndexStr, consulToken, vaultToken string
+	var checkIndexStr, consulToken, vaultToken, vaultNamespace string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -145,6 +150,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
+	flags.StringVar(&vaultNamespace, "vault-namespace", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -211,6 +217,10 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	if vaultToken != "" {
 		job.VaultToken = helper.StringToPtr(vaultToken)
+	}
+
+	if vaultNamespace != "" {
+		job.VaultNamespace = helper.StringToPtr(vaultNamespace)
 	}
 
 	if output {

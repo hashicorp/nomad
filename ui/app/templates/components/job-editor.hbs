@@ -41,11 +41,13 @@
     <div class="boxed-section-body is-full-bleed">
       <IvyCodemirror
         data-test-editor
+        aria-label="Job definition"
         @value={{or this.job._newDefinition this.jobSpec}}
         @valueUpdated={{action (mut this.job._newDefinition)}}
         @options={{hash
           mode="javascript"
           theme="hashi"
+          screenReaderLabel="Job definition editor"
           tabSize=2
           lineNumbers=true
         }} />

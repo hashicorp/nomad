@@ -5855,6 +5855,7 @@ func TestTaskDiff(t *testing.T) {
 			Name: "Vault edited",
 			Old: &Task{
 				Vault: &Vault{
+					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
 					ChangeMode:   "signal",
@@ -5863,6 +5864,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 			New: &Task{
 				Vault: &Vault{
+					Namespace:    "ns2",
 					Policies:     []string{"bar", "baz"},
 					Env:          false,
 					ChangeMode:   "restart",
@@ -5894,6 +5896,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "true",
 								New:  "false",
 							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Namespace",
+								Old:  "ns1",
+								New:  "ns2",
+							},
 						},
 						Objects: []*ObjectDiff{
 							{
@@ -5924,6 +5932,7 @@ func TestTaskDiff(t *testing.T) {
 			Contextual: true,
 			Old: &Task{
 				Vault: &Vault{
+					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
 					ChangeMode:   "signal",
@@ -5932,6 +5941,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 			New: &Task{
 				Vault: &Vault{
+					Namespace:    "ns1",
 					Policies:     []string{"bar", "baz"},
 					Env:          true,
 					ChangeMode:   "signal",
@@ -5962,6 +5972,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Env",
 								Old:  "true",
 								New:  "true",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Namespace",
+								Old:  "ns1",
+								New:  "ns1",
 							},
 						},
 						Objects: []*ObjectDiff{

@@ -10,7 +10,7 @@ description: |-
 
 # `job` Stanza
 
-<Placement group={['job']} />
+<Placement groups={['job']} />
 
 The `job` stanza is the top-most configuration option in the job specification.
 A job is a declarative specification of tasks that Nomad should run. Jobs have
@@ -87,6 +87,9 @@ job "docs" {
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
+
+- `name` `(string: <optional>)` - Specifies a name for the job, which otherwise
+  defaults to the job ID.
 
 - `migrate` <code>([Migrate][]: nil)</code> - Specifies the groups strategy for
   migrating off of draining nodes. If omitted, a default migration strategy is

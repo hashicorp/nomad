@@ -2364,24 +2364,6 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 		req, &structs.CSIVolumeClaimResponse{})
 	require.NoError(err)
 
-	// ready-to-free claim; once it's gone we know the volumewatcher
-	// has run once and stopped
-	req.AllocationID = alloc2.ID
-	req.Claim = structs.CSIVolumeClaimRelease
-	req.State = structs.CSIVolumeClaimStateControllerDetached
-	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim",
-		req, &structs.CSIVolumeClaimResponse{})
-	require.NoError(err)
-
-	// wait for volumewatcher
-	var vol *structs.CSIVolume
-	require.Eventually(func() bool {
-		vol, _ = state.CSIVolumeByID(ws, ns, volID)
-		return len(vol.ReadAllocs) == 0 &&
-			len(vol.ReadClaims) == 0 &&
-			len(vol.PastClaims) == 0
-	}, time.Second*1, 10*time.Millisecond, "stale claim was not released")
-
 	// Delete allocation and job
 	index++
 	err = state.DeleteJob(index, ns, job.ID)
@@ -2405,23 +2387,10 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	// client RPCs without triggering the volumewatcher's normal code
 	// path.
 	require.Eventually(func() bool {
-		vol, _ = state.CSIVolumeByID(ws, ns, volID)
+		vol, _ := state.CSIVolumeByID(ws, ns, volID)
 		return len(vol.WriteClaims) == 1 &&
 			len(vol.WriteAllocs) == 1 &&
 			len(vol.PastClaims) == 0
 	}, time.Second*1, 10*time.Millisecond, "claims were released unexpectedly")
-
-	req.AllocationID = alloc1.ID
-	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim",
-		req, &structs.CSIVolumeClaimResponse{})
-	require.NoError(err)
-
-	// wait for volumewatcher
-	require.Eventually(func() bool {
-		vol, _ = state.CSIVolumeByID(ws, ns, volID)
-		return len(vol.WriteClaims) == 0 &&
-			len(vol.WriteAllocs) == 0 &&
-			len(vol.PastClaims) == 0
-	}, time.Second*1, 10*time.Millisecond, "claims were not released")
 
 }

@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
@@ -26,6 +27,12 @@ module('Acceptance | volume detail', function(hooks) {
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     volume = server.create('csi-volume');
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await VolumeDetail.visit({ id: volume.id });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {

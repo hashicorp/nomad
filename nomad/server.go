@@ -1016,23 +1016,10 @@ func (s *Server) setupDeploymentWatcher() error {
 	return nil
 }
 
-// setupVolumeWatcher creates a volume watcher that consumes the RPC
-// endpoints for state information and makes transitions via Raft through a
-// shim that provides the appropriate methods.
+// setupVolumeWatcher creates a volume watcher that sends CSI RPCs
 func (s *Server) setupVolumeWatcher() error {
-
-	// Create the raft shim type to restrict the set of raft methods that can be
-	// made
-	raftShim := &volumeWatcherRaftShim{
-		apply: s.raftApply,
-	}
-
-	// Create the volume watcher
 	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
-		s.logger, raftShim,
-		s.staticEndpoints.ClientCSI,
-		volumewatcher.LimitStateQueriesPerSecond,
-		volumewatcher.CrossVolumeUpdateBatchDuration)
+		s.logger, s.staticEndpoints.CSIVolume, s.getLeaderAcl())
 
 	return nil
 }
@@ -1061,7 +1048,8 @@ func (s *Server) setupConsul(consulACLs consul.ACLsAPI) {
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
+	delegate := s.entVaultDelegate()
+	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors, delegate)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ServerMonitor from 'nomad-ui/tests/pages/servers/monitor';
 
 let agent;
@@ -22,6 +23,12 @@ module('Acceptance | server monitor', function(hooks) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
     run.later(run, run.cancelTimers, 500);
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await ServerMonitor.visit({ name: agent.name });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/servers/:id/monitor should have a breadcrumb trail linking back to servers', async function(assert) {

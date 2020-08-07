@@ -1,9 +1,9 @@
-<nav class="navbar is-primary">
+<nav class="navbar is-primary" title="navigation">
   <div class="navbar-brand">
     <span data-test-header-gutter-toggle class="gutter-toggle" aria-label="menu" onclick={{action this.onHamburgerClick}}>
       <HamburgerMenu />
     </span>
-    <LinkTo @route="jobs" class="navbar-item is-logo">
+    <LinkTo @route="jobs" class="navbar-item is-logo" aria-label="Home">
       <NomadLogo />
     </LinkTo>
   </div>
@@ -19,7 +19,7 @@
   <div class="navbar-item is-gutter">
     <RegionSwitcher @decoration="is-outlined" />
   </div>
-  <nav class="breadcrumb is-large">
+  <nav class="breadcrumb is-large" title="breadcrumb navigation">
     <ul>
       {{yield}}
     </ul>

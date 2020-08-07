@@ -20,10 +20,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestConsulSockHook_PrerunPostrun_Ok asserts that a proxy is started when the
+// TestConsulGRPCSocketHook_PrerunPostrun_Ok asserts that a proxy is started when the
 // Consul unix socket hook's Prerun method is called and stopped with the
 // Postrun method is called.
-func TestConsulSockHook_PrerunPostrun_Ok(t *testing.T) {
+func TestConsulGRPCSocketHook_PrerunPostrun_Ok(t *testing.T) {
 	t.Parallel()
 
 	// As of Consul 1.6.0 the test server does not support the gRPC
@@ -43,7 +43,7 @@ func TestConsulSockHook_PrerunPostrun_Ok(t *testing.T) {
 	defer cleanup()
 
 	// Start the unix socket proxy
-	h := newConsulSockHook(logger, alloc, allocDir, consulConfig)
+	h := newConsulGRPCSocketHook(logger, alloc, allocDir, consulConfig)
 	require.NoError(t, h.Prerun())
 
 	gRPCSock := filepath.Join(allocDir.AllocDir, allocdir.AllocGRPCSocket)
@@ -98,9 +98,9 @@ func TestConsulSockHook_PrerunPostrun_Ok(t *testing.T) {
 	require.Zero(t, n)
 }
 
-// TestConsulSockHook_Prerun_Error asserts that invalid Consul addresses cause
+// TestConsulGRPCSocketHook_Prerun_Error asserts that invalid Consul addresses cause
 // Prerun to return an error if the alloc requires a grpc proxy.
-func TestConsulSockHook_Prerun_Error(t *testing.T) {
+func TestConsulGRPCSocketHook_Prerun_Error(t *testing.T) {
 	t.Parallel()
 
 	logger := testlog.HCLogger(t)
@@ -117,7 +117,7 @@ func TestConsulSockHook_Prerun_Error(t *testing.T) {
 	{
 		// An alloc without a Connect proxy sidecar should not return
 		// an error.
-		h := newConsulSockHook(logger, alloc, allocDir, consulConfig)
+		h := newConsulGRPCSocketHook(logger, alloc, allocDir, consulConfig)
 		require.NoError(t, h.Prerun())
 
 		// Postrun should be a noop
@@ -127,8 +127,8 @@ func TestConsulSockHook_Prerun_Error(t *testing.T) {
 	{
 		// An alloc *with* a Connect proxy sidecar *should* return an error
 		// when Consul is not configured.
-		h := newConsulSockHook(logger, connectAlloc, allocDir, consulConfig)
-		require.Error(t, h.Prerun())
+		h := newConsulGRPCSocketHook(logger, connectAlloc, allocDir, consulConfig)
+		require.EqualError(t, h.Prerun(), "consul address must be set on nomad client")
 
 		// Postrun should be a noop
 		require.NoError(t, h.Postrun())
@@ -137,22 +137,22 @@ func TestConsulSockHook_Prerun_Error(t *testing.T) {
 	{
 		// Updating an alloc without a sidecar to have a sidecar should
 		// error when the sidecar is added.
-		h := newConsulSockHook(logger, alloc, allocDir, consulConfig)
+		h := newConsulGRPCSocketHook(logger, alloc, allocDir, consulConfig)
 		require.NoError(t, h.Prerun())
 
 		req := &interfaces.RunnerUpdateRequest{
 			Alloc: connectAlloc,
 		}
-		require.Error(t, h.Update(req))
+		require.EqualError(t, h.Update(req), "consul address must be set on nomad client")
 
 		// Postrun should be a noop
 		require.NoError(t, h.Postrun())
 	}
 }
 
-// TestConsulSockHook_proxy_Unix asserts that the destination can be a unix
+// TestConsulGRPCSocketHook_proxy_Unix asserts that the destination can be a unix
 // socket path.
-func TestConsulSockHook_proxy_Unix(t *testing.T) {
+func TestConsulGRPCSocketHook_proxy_Unix(t *testing.T) {
 	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "nomadtest_proxy_Unix")

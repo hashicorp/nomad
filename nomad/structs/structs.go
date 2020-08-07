@@ -3805,6 +3805,9 @@ type Job struct {
 	// transfer the token and is not stored after Job submission.
 	VaultToken string
 
+	// VaultNamespace is the Vault namepace
+	VaultNamespace string
+
 	// NomadTokenID is the Accessor ID of the ACL token (if any)
 	// used to register this version of the job. Used by deploymentwatcher.
 	NomadTokenID string
@@ -7973,6 +7976,9 @@ const (
 type Vault struct {
 	// Policies is the set of policies that the task needs access to
 	Policies []string
+
+	// Namespace is the vault namespace that should be used.
+	Namespace string
 
 	// Env marks whether the Vault Token should be exposed as an environment
 	// variable

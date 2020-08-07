@@ -157,6 +157,14 @@ export default function() {
     return deployment ? this.serialize(deployment) : new Response(200, {}, 'null');
   });
 
+  this.get(
+    '/job/:id/scale',
+    withBlockingSupport(function({ jobScales }, { params }) {
+      const obj = jobScales.findBy({ jobId: params.id });
+      return this.serialize(jobScales.findBy({ jobId: params.id }));
+    })
+  );
+
   this.post('/job/:id/periodic/force', function(schema, { params }) {
     // Create the child job
     const parent = schema.jobs.find(params.id);

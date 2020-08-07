@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSliceStringIsSubset(t *testing.T) {
@@ -155,5 +157,49 @@ func BenchmarkCleanEnvVar(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		CleanEnvVar(in, replacement)
+	}
+}
+
+func TestCheckNamespaceScope(t *testing.T) {
+	cases := []struct {
+		desc      string
+		provided  string
+		requested []string
+		offending []string
+	}{
+		{
+			desc:      "root ns requesting namespace",
+			provided:  "",
+			requested: []string{"engineering"},
+		},
+		{
+			desc:      "matching parent ns with child",
+			provided:  "engineering",
+			requested: []string{"engineering", "engineering/sub-team"},
+		},
+		{
+			desc:      "mismatch ns",
+			provided:  "engineering",
+			requested: []string{"finance", "engineering/sub-team", "eng"},
+			offending: []string{"finance", "eng"},
+		},
+		{
+			desc:      "mismatch child",
+			provided:  "engineering/sub-team",
+			requested: []string{"engineering/new-team", "engineering/sub-team", "engineering/sub-team/child"},
+			offending: []string{"engineering/new-team"},
+		},
+		{
+			desc:      "matching prefix",
+			provided:  "engineering",
+			requested: []string{"engineering/new-team", "engineering/new-team/sub-team"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			offending := CheckNamespaceScope(tc.provided, tc.requested)
+			require.Equal(t, offending, tc.offending)
+		})
 	}
 }
