@@ -60,6 +60,11 @@ func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 	return err
 }
 
+func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?detach=true&node=%v", url.PathEscape(volID), nodeID), nil, w)
+	return err
+}
+
 // CSIVolumeAttachmentMode duplicated in nomad/structs/csi.go
 type CSIVolumeAttachmentMode string
 

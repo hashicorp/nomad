@@ -28,6 +28,10 @@ Usage: nomad volume <subcommand> [options]
 
       $ nomad volume deregister <id>
 
+  Detach an unused volume:
+
+      $ nomad volume detach <vol id> <node id>
+
   Please see the individual subcommand help for detailed usage information.
 `
 	return strings.TrimSpace(helpText)

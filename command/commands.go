@@ -723,6 +723,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"volume detach": func() (cli.Command, error) {
+			return &VolumeDetachCommand{
+				Meta: meta,
+			}, nil
+		},
 	}
 
 	deprecated := map[string]cli.CommandFactory{

@@ -123,7 +123,17 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	raw := req.URL.Query().Get("force")
+	raw := req.URL.Query().Get("detach")
+	var detach bool
+	if raw != "" {
+		var err error
+		detach, err = strconv.ParseBool(raw)
+		if err != nil {
+			return nil, CodedError(400, "invalid detach value")
+		}
+	}
+
+	raw = req.URL.Query().Get("force")
 	var force bool
 	if raw != "" {
 		var err error
@@ -131,6 +141,30 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 		if err != nil {
 			return nil, CodedError(400, "invalid force value")
 		}
+	}
+
+	if detach {
+		nodeID := req.URL.Query().Get("node")
+		if nodeID == "" {
+			return nil, CodedError(400, "detach requires node ID")
+		}
+
+		args := structs.CSIVolumeUnpublishRequest{
+			VolumeID: id,
+			Claim: &structs.CSIVolumeClaim{
+				NodeID: nodeID,
+				Mode:   structs.CSIVolumeClaimRelease,
+			},
+		}
+		s.parseWriteRequest(req, &args.WriteRequest)
+
+		var out structs.CSIVolumeUnpublishResponse
+		if err := s.agent.RPC("CSIVolume.Unpublish", &args, &out); err != nil {
+			return nil, err
+		}
+
+		setMeta(resp, &out.QueryMeta)
+		return nil, nil
 	}
 
 	args := structs.CSIVolumeDeregisterRequest{
