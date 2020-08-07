@@ -1,15 +1,16 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ClientCSI is used to forward RPC requests to the targed Nomad client's
@@ -110,12 +111,8 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 // client has stopped and been GC'd, or where the controller has stopped but
 // we don't have the fingerprint update yet
 func (a *ClientCSI) isRetryable(err error, clientID, pluginID string) bool {
-	// TODO(tgross): it would be nicer to use errors.Is here but we
-	// need to make sure we're using error wrapping to make that work
-	errMsg := err.Error()
-	return strings.Contains(errMsg, fmt.Sprintf("Unknown node: %s", clientID)) ||
-		strings.Contains(errMsg, "no plugins registered for type: csi-controller") ||
-		strings.Contains(errMsg, fmt.Sprintf("plugin %s for type controller not found", pluginID))
+	return errors.Is(err, structs.ErrUnknownNode) ||
+		errors.Is(err, structs.ErrCSIClientRPCRetryable)
 }
 
 func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error {

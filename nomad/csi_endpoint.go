@@ -605,9 +605,7 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 		// we should only get this error if the Nomad node disconnects and
 		// is garbage-collected, so at this point we don't have any reason
 		// to operate as though the volume is attached to it.
-		if !errors.Is(err, fmt.Errorf("Unknown node: %s", claim.NodeID)) {
-			// TODO(tgross): need to capture case where NodeUnpublish previously
-			// happened but we failed to checkpoint for some reason
+		if !errors.Is(err, structs.ErrUnknownNode) {
 			return fmt.Errorf("could not detach from node: %w", err)
 		}
 	}
@@ -662,8 +660,6 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	err = v.srv.RPC("ClientCSI.ControllerDetachVolume", req,
 		&cstructs.ClientCSIControllerDetachVolumeResponse{})
 	if err != nil {
-		// TODO(tgross): need to capture case where ControllerUnpublish previously
-		// happened but we failed to checkpoint for some reason
 		return fmt.Errorf("could not detach from controller: %v", err)
 	}
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
@@ -704,7 +700,7 @@ func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.
 	// get the the storage provider's ID for the client node (not
 	// Nomad's ID for the node)
 	targetCSIInfo, ok := targetNode.CSINodePlugins[vol.PluginID]
-	if !ok {
+	if !ok || targetCSIInfo.NodeInfo == nil {
 		return "", fmt.Errorf("failed to find storage provider info for client %q, node plugin %q is not running or has not fingerprinted on this client", targetNode.ID, vol.PluginID)
 	}
 	return targetCSIInfo.NodeInfo.ID, nil
