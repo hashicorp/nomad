@@ -1019,7 +1019,7 @@ func (s *Server) setupDeploymentWatcher() error {
 // setupVolumeWatcher creates a volume watcher that sends CSI RPCs
 func (s *Server) setupVolumeWatcher() error {
 	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
-		s.logger, s.staticEndpoints.CSIVolume)
+		s.logger, s.staticEndpoints.CSIVolume, s.getLeaderAcl())
 
 	return nil
 }

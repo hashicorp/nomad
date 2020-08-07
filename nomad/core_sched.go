@@ -724,9 +724,12 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		req := &structs.CSIVolumeClaimRequest{
 			VolumeID: volID,
 			Claim:    structs.CSIVolumeClaimRelease,
+			WriteRequest: structs.WriteRequest{
+				Namespace: ns,
+				Region:    c.srv.Region(),
+				AuthToken: eval.LeaderACL,
+			},
 		}
-		req.Namespace = ns
-		req.Region = c.srv.config.Region
 		err := c.srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
 		return err
 	}
@@ -850,8 +853,11 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 			continue
 		}
 
-		req := &structs.CSIPluginDeleteRequest{ID: plugin.ID}
-		req.Region = c.srv.Region()
+		req := &structs.CSIPluginDeleteRequest{ID: plugin.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    c.srv.Region(),
+				AuthToken: eval.LeaderACL,
+			}}
 		err := c.srv.RPC("CSIPlugin.Delete", req, &structs.CSIPluginDeleteResponse{})
 		if err != nil {
 			if err.Error() == "plugin in use" {

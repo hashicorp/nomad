@@ -21,6 +21,9 @@ type Watcher struct {
 	// the volumes watcher for RPC
 	rpc CSIVolumeRPC
 
+	// the ACL needed to send RPCs
+	leaderAcl string
+
 	// state is the state that is watched for state changes.
 	state *state.StateStore
 
@@ -36,7 +39,7 @@ type Watcher struct {
 
 // NewVolumesWatcher returns a volumes watcher that is used to watch
 // volumes and trigger the scheduler as needed.
-func NewVolumesWatcher(logger log.Logger, rpc CSIVolumeRPC) *Watcher {
+func NewVolumesWatcher(logger log.Logger, rpc CSIVolumeRPC, leaderAcl string) *Watcher {
 
 	// the leader step-down calls SetEnabled(false) which is what
 	// cancels this context, rather than passing in its own shutdown
@@ -44,10 +47,11 @@ func NewVolumesWatcher(logger log.Logger, rpc CSIVolumeRPC) *Watcher {
 	ctx, exitFn := context.WithCancel(context.Background())
 
 	return &Watcher{
-		rpc:    rpc,
-		logger: logger.Named("volumes_watcher"),
-		ctx:    ctx,
-		exitFn: exitFn,
+		rpc:       rpc,
+		logger:    logger.Named("volumes_watcher"),
+		ctx:       ctx,
+		exitFn:    exitFn,
+		leaderAcl: leaderAcl,
 	}
 }
 
