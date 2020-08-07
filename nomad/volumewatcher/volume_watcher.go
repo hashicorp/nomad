@@ -23,6 +23,9 @@ type volumeWatcher struct {
 	// server interface for CSI client RPCs
 	rpc CSIVolumeRPC
 
+	// the ACL needed to send RPCs
+	leaderAcl string
+
 	logger      log.Logger
 	shutdownCtx context.Context // parent context
 	ctx         context.Context // own context
@@ -44,6 +47,7 @@ func newVolumeWatcher(parent *Watcher, vol *structs.CSIVolume) *volumeWatcher {
 		v:           vol,
 		state:       parent.state,
 		rpc:         parent.rpc,
+		leaderAcl:   parent.leaderAcl,
 		logger:      parent.logger.With("volume_id", vol.ID, "namespace", vol.Namespace),
 		shutdownCtx: parent.ctx,
 	}
@@ -228,9 +232,13 @@ func (vw *volumeWatcher) collectPastClaims(vol *structs.CSIVolume) *structs.CSIV
 
 func (vw *volumeWatcher) unpublish(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	req := &structs.CSIVolumeUnpublishRequest{
-		VolumeID:     vol.ID,
-		Claim:        claim,
-		WriteRequest: structs.WriteRequest{Namespace: vol.Namespace},
+		VolumeID: vol.ID,
+		Claim:    claim,
+		WriteRequest: structs.WriteRequest{
+			Namespace: vol.Namespace,
+			Region:    vw.state.Config().Region,
+			AuthToken: vw.leaderAcl,
+		},
 	}
 	err := vw.rpc.Unpublish(req, &structs.CSIVolumeUnpublishResponse{})
 	if err != nil {

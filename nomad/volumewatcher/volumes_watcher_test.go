@@ -22,7 +22,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	srv.state = state.TestStateStore(t)
 	index := uint64(100)
 
-	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv)
+	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
 	watcher.SetEnabled(true, srv.State())
 
 	plugin := mock.CSIPlugin()
@@ -57,7 +57,7 @@ func TestVolumeWatch_Checkpoint(t *testing.T) {
 	srv.state = state.TestStateStore(t)
 	index := uint64(100)
 
-	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv)
+	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
 
 	plugin := mock.CSIPlugin()
 	node := testNode(plugin, srv.State())
@@ -98,7 +98,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	srv := &MockStatefulRPCServer{}
 	srv.state = state.TestStateStore(t)
 	index := uint64(100)
-	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv)
+	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
 
 	watcher.SetEnabled(true, srv.State())
 	require.Equal(0, len(watcher.watchers))
@@ -190,7 +190,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 
 	index := uint64(100)
 
-	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv)
+	watcher := NewVolumesWatcher(testlog.HCLogger(t), srv, "")
 
 	watcher.SetEnabled(true, srv.State())
 	require.Equal(0, len(watcher.watchers))
