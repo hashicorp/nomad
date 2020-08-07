@@ -1,6 +1,6 @@
 # Provision a Nomad cluster in the Cloud
 
-Use this repo to easily provision a Nomad sandbox environment on AWS or Azure with 
+Use this repo to easily provision a Nomad sandbox environment on AWS, Azure, or GCP with 
 [Packer](https://packer.io) and [Terraform](https://terraform.io). 
 [Consul](https://www.consul.io/intro/index.html) and 
 [Vault](https://www.vaultproject.io/intro/index.html) are also installed 
@@ -27,6 +27,7 @@ Azure CLI.
 
 - Follow the steps [here](aws/README.md) to provision a cluster on AWS.
 - Follow the steps [here](azure/README.md) to provision a cluster on Azure.
+- Follow the steps [here](gcp/README.md) to provision a cluster on GCP.
 
 Continue with the steps below after a cluster has been provisioned.
 

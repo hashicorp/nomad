@@ -1,0 +1,48 @@
+{
+    "variables": {
+        "project": "{{env `GOOGLE_PROJECT`}}",
+        "account_file": "{{env `GOOGLE_APPLICATION_CREDENTIALS`}}",
+        "zone": "us-east1-b",
+        "disk_size_gb": "10",
+        "source_image_family": "ubuntu-1604-lts"
+    },
+    "builders": [
+        {
+            "name": "hashistack",
+            "type": "googlecompute",
+            "account_file": "{{user `account_file`}}",
+            "project_id": "{{user `project`}}",
+            "source_image_family": "{{user `source_image_family`}}",
+            "image_description": "HashiStack Image for Getting Started with HashiCorp Nomad",
+            "image_name": "hashistack",
+            "disk_size": "{{user `disk_size_gb`}}",
+            "machine_type": "n1-standard-1",
+            "state_timeout": "15m",
+            "ssh_username": "ubuntu",
+            "zone": "{{user `zone`}}"
+        }
+    ],
+    "provisioners": [
+        {
+          "type": "shell",
+          "inline": [
+            "sudo mkdir /ops",
+            "sudo chmod 777 /ops"
+          ]
+        },
+        {
+          "type": "file",
+          "source": "../shared",
+          "destination": "/ops"
+        },
+        {
+          "type": "file",
+          "source": "../examples",
+          "destination": "/ops"
+        },
+        {
+          "type": "shell",
+          "script": "../shared/scripts/setup.sh"
+        }
+    ]
+}
