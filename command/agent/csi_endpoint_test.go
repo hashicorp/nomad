@@ -52,6 +52,7 @@ func TestHTTP_CSIEndpointUtils(t *testing.T) {
 	tops := structsCSITopolgiesToApi([]*structs.CSITopology{{
 		Segments: map[string]string{"foo": "bar"},
 	}})
+
 	require.Equal(t, "bar", tops[0].Segments["foo"])
 }
 
