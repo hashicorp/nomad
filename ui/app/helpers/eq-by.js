@@ -9,7 +9,7 @@ import { helper } from '@ember/component/helper';
  * Returns true when obj1 and obj2 have the same value for property "prop"
  */
 export function eqBy([prop, obj1, obj2]) {
-  if (!obj1 || !obj2) return false;
+  if (!prop || !obj1 || !obj2) return false;
   return get(obj1, prop) === get(obj2, prop);
 }
 
