@@ -4,15 +4,18 @@ import { frontMatter as data } from '../pages/intro/**/*.mdx'
 import Head from 'next/head'
 import Link from 'next/link'
 import { createMdxProvider } from '@hashicorp/nextjs-scripts/lib/providers/docs'
+import Search from '../components/search'
+import SearchProvider from '../components/search/provider'
 
 const MDXProvider = createMdxProvider({ product: 'nomad' })
 
 export default function IntroLayoutWrapper(pageMeta) {
   function IntroLayout(props) {
+    const { children, ...propsWithoutChildren } = props
     return (
       <MDXProvider>
         <DocsPage
-          {...props}
+          {...propsWithoutChildren}
           product="nomad"
           head={{
             is: Head,
@@ -26,9 +29,15 @@ export default function IntroLayoutWrapper(pageMeta) {
             currentPage: props.path,
             data,
             order,
+            disableFilter: true,
           }}
           resourceURL={`https://github.com/hashicorp/nomad/blob/master/website/pages/${pageMeta.__resourcePath}`}
-        />
+        >
+          <SearchProvider>
+            <Search placeholder="Search Nomad documentation" />
+            {children}
+          </SearchProvider>
+        </DocsPage>
       </MDXProvider>
     )
   }

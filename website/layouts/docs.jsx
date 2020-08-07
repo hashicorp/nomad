@@ -5,6 +5,8 @@ import { createMdxProvider } from '@hashicorp/nextjs-scripts/lib/providers/docs'
 import order from '../data/docs-navigation.js'
 import { frontMatter } from '../pages/docs/**/*.mdx'
 import Placement from '../components/placement-table'
+import Search from '../components/search'
+import SearchProvider from '../components/search/provider'
 
 const MDXProvider = createMdxProvider({
   product: 'nomad',
@@ -13,10 +15,11 @@ const MDXProvider = createMdxProvider({
 
 export default function DocsLayoutWrapper(pageMeta) {
   function DocsLayout(props) {
+    const { children, ...propsWithoutChildren } = props
     return (
       <MDXProvider>
         <DocsPage
-          {...props}
+          {...propsWithoutChildren}
           product="nomad"
           head={{
             is: Head,
@@ -30,9 +33,15 @@ export default function DocsLayoutWrapper(pageMeta) {
             currentPage: props.path,
             data: frontMatter,
             order,
+            disableFilter: true,
           }}
           resourceURL={`https://github.com/hashicorp/nomad/blob/master/website/pages/${pageMeta.__resourcePath}`}
-        />
+        >
+          <SearchProvider>
+            <Search placeholder="Search Nomad documentation" />
+            {children}
+          </SearchProvider>
+        </DocsPage>
       </MDXProvider>
     )
   }
