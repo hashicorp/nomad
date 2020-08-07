@@ -297,8 +297,8 @@ $ curl \
 
 ## Delete Volume
 
-This endpoint deregisters an external volume with Nomad. It is an
-error to deregister a volume that is in use.
+This endpoint deregisters an external volume with Nomad or detaches the volume
+from a node. It is an error to deregister or detach a volume that is in use.
 
 | Method  | Path                         | Produces           |
 | ------- | ---------------------------- | ------------------ |
@@ -322,6 +322,12 @@ The table below shows this endpoint's support for
   drop claims for terminal allocations. Returns an error if the volume has
   running allocations. This does not detach the volume from client nodes.
   This is specified as a query string parameter.
+
+- `detach` `(bool: false)`- Detach the volume from the node given by the `node`
+  parameter, rather than deregister it.
+
+- `node` `(string: "")`- The node to detach the volume from. This parameter is
+  required if the `detach` parameter is `true`.
 
 ### Sample Request
 
