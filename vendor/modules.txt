@@ -360,10 +360,10 @@ github.com/hashicorp/consul-template/signals
 github.com/hashicorp/consul-template/template
 github.com/hashicorp/consul-template/version
 github.com/hashicorp/consul-template/watch
-# github.com/hashicorp/consul/api v1.4.0
+# github.com/hashicorp/consul/api v1.4.1-0.20200730220852-12f574c9de39
 ## explicit
 github.com/hashicorp/consul/api
-# github.com/hashicorp/consul/sdk v0.4.0
+# github.com/hashicorp/consul/sdk v0.5.0
 ## explicit
 github.com/hashicorp/consul/sdk/freeport
 github.com/hashicorp/consul/sdk/testutil
@@ -418,7 +418,7 @@ github.com/hashicorp/go-memdb
 # github.com/hashicorp/go-msgpack v1.1.5
 ## explicit
 github.com/hashicorp/go-msgpack/codec
-# github.com/hashicorp/go-multierror v1.0.1-0.20191120192120-72917a1559e1
+# github.com/hashicorp/go-multierror v1.1.0
 ## explicit
 github.com/hashicorp/go-multierror
 # github.com/hashicorp/go-plugin v1.0.2-0.20191004171845-809113480b55
@@ -473,7 +473,7 @@ github.com/hashicorp/hcl/v2/json
 github.com/hashicorp/logutils
 # github.com/hashicorp/mdns v1.0.1
 github.com/hashicorp/mdns
-# github.com/hashicorp/memberlist v0.1.6
+# github.com/hashicorp/memberlist v0.2.2
 ## explicit
 github.com/hashicorp/memberlist
 # github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
@@ -489,7 +489,7 @@ github.com/hashicorp/raft
 # github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 ## explicit
 github.com/hashicorp/raft-boltdb
-# github.com/hashicorp/serf v0.8.5
+# github.com/hashicorp/serf v0.9.3
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
@@ -556,7 +556,7 @@ github.com/mattn/go-shellwords
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/miekg/dns v1.1.26
 github.com/miekg/dns
-# github.com/mitchellh/cli v1.0.0
+# github.com/mitchellh/cli v1.1.0
 ## explicit
 github.com/mitchellh/cli
 # github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
@@ -677,12 +677,11 @@ github.com/pierrec/lz4/internal/xxh32
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/posener/complete v1.2.1
+# github.com/posener/complete v1.2.3
 ## explicit
 github.com/posener/complete
 github.com/posener/complete/cmd
 github.com/posener/complete/cmd/install
-github.com/posener/complete/match
 # github.com/prometheus/client_golang v1.4.0
 ## explicit
 github.com/prometheus/client_golang/prometheus
