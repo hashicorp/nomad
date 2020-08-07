@@ -493,7 +493,8 @@ func structsTaskEventToApi(te *structs.TaskEvent) *api.TaskEvent {
 }
 
 // structsCSITopolgiesToApi converts topologies, part of structsCSIVolumeToApi
-func structsCSITopolgiesToApi(tops []*structs.CSITopology) (out []*api.CSITopology) {
+func structsCSITopolgiesToApi(tops []*structs.CSITopology) []*api.CSITopology {
+	out := make([]*api.CSITopology, len(tops))
 	for _, t := range tops {
 		out = append(out, &api.CSITopology{
 			Segments: t.Segments,
@@ -545,7 +546,8 @@ func structsCSIMountOptionsToApi(opts *structs.CSIMountOptions) *api.CSIMountOpt
 	}
 }
 
-func structsCSISecretsToApi(secrets structs.CSISecrets) (out api.CSISecrets) {
+func structsCSISecretsToApi(secrets structs.CSISecrets) api.CSISecrets {
+	out := make(api.CSISecrets, len(secrets))
 	for k, v := range secrets {
 		out[k] = v
 	}

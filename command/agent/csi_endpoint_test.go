@@ -42,6 +42,19 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 	})
 }
 
+func TestHTTP_CSIEndpointUtils(t *testing.T) {
+	secrets := structsCSISecretsToApi(structs.CSISecrets{
+		"foo": "bar",
+	})
+
+	require.Equal(t, "bar", secrets["foo"])
+
+	tops := structsCSITopolgiesToApi([]*structs.CSITopology{{
+		Segments: map[string]string{"foo": "bar"},
+	}})
+	require.Equal(t, "bar", tops[0].Segments["foo"])
+}
+
 func TestHTTP_CSIEndpointVolume(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
