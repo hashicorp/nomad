@@ -100,4 +100,28 @@ module('Integration | Component | line chart', function(hooks) {
     await click('[data-test-annotation] button');
     assert.ok(this.click.calledWith(annotations[0]));
   });
+
+  test('annotations will have staggered heights when too close to be positioned side-by-side', async function(assert) {
+    const annotations = [{ x: 2, type: 'info' }, { x: 2.4, type: 'error' }, { x: 9, type: 'info' }];
+    this.setProperties({
+      annotations,
+      data: [{ x: 1, y: 1 }, { x: 10, y: 10 }],
+      click: sinon.spy(),
+    });
+
+    await render(hbs`
+      <div style="width:200px;">
+        <LineChart
+          @xProp="x"
+          @yProp="y"
+          @data={{this.data}}
+          @annotations={{this.annotations}} />
+      </div>
+    `);
+
+    const annotationEls = findAll('[data-test-annotation]');
+    assert.notOk(annotationEls[0].classList.contains('is-staggered'));
+    assert.ok(annotationEls[1].classList.contains('is-staggered'));
+    assert.notOk(annotationEls[2].classList.contains('is-staggered'));
+  });
 });
