@@ -27,7 +27,7 @@
   <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
 </svg>
 <div data-test-annotations class="line-chart-annotations" style={{this.chartAnnotationsStyle}}>
-  {{#each this.processedAnnotations as |annotation|}}
+  {{#each this.processedAnnotations key=this.annotationKey as |annotation|}}
   <div data-test-annotation class="chart-annotation {{annotation.iconClass}} {{annotation.staggerClass}}" style={{annotation.style}}>
       <button
         type="button"
