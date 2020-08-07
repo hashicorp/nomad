@@ -55,8 +55,8 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.9.0 // indirect
 	github.com/hashicorp/consul v1.7.1-0.20200213195527-b137060630b4
 	github.com/hashicorp/consul-template v0.24.1
-	github.com/hashicorp/consul/api v1.4.0
-	github.com/hashicorp/consul/sdk v0.4.0
+	github.com/hashicorp/consul/api v1.4.1-0.20200730220852-12f574c9de39
+	github.com/hashicorp/consul/sdk v0.5.0
 	github.com/hashicorp/cronexpr v1.1.0
 	github.com/hashicorp/go-checkpoint v0.0.0-20171009173528-1545e56e46de
 	github.com/hashicorp/go-cleanhttp v0.5.1
@@ -68,7 +68,7 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.2.0
 	github.com/hashicorp/go-memdb v1.2.1
 	github.com/hashicorp/go-msgpack v1.1.5
-	github.com/hashicorp/go-multierror v1.0.1-0.20191120192120-72917a1559e1
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/go-plugin v1.0.2-0.20191004171845-809113480b55
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
@@ -78,12 +78,12 @@ require (
 	github.com/hashicorp/hcl v1.0.1-0.20191016231534-914dc3f8dd7c
 	github.com/hashicorp/hcl/v2 v2.5.1
 	github.com/hashicorp/logutils v1.0.0
-	github.com/hashicorp/memberlist v0.1.6
+	github.com/hashicorp/memberlist v0.2.2
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20200529203653-c4416b26d3eb
 	github.com/hashicorp/raft v1.1.3-0.20200211192230-365023de17e6
 	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
-	github.com/hashicorp/serf v0.8.5
+	github.com/hashicorp/serf v0.9.3
 	github.com/hashicorp/vault/api v1.0.5-0.20190730042357-746c0b111519
 	github.com/hashicorp/vault/sdk v0.1.14-0.20190730042320-0dc007d98cc8
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
@@ -94,7 +94,7 @@ require (
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-colorable v0.1.6
-	github.com/mitchellh/cli v1.0.0
+	github.com/mitchellh/cli v1.1.0
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.0.0
 	github.com/mitchellh/go-ps v0.0.0-20190716172923-621e5597135b
@@ -110,7 +110,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.2-0.20200307132014-f49fed0d6290 // indirect
 	github.com/opencontainers/selinux v1.4.1-0.20200311111634-a2f0d9c2aafc // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/posener/complete v1.2.1
+	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.4.0
 	github.com/prometheus/common v0.9.1
 	github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
