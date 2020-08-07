@@ -31,4 +31,10 @@ export default class ScaleEvent extends Fragment {
     return Object.keys(this.meta).length > 0;
   })
   hasMeta;
+
+  // Since scale events don't have proper IDs, this UID is a compromise
+  @computed('time', 'timeNanos', 'message', function() {
+    return `${+this.time}${this.timeNanos}_${this.message}`;
+  })
+  uid;
 }

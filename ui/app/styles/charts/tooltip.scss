@@ -72,6 +72,7 @@
       }
 
       .label {
+        white-space: nowrap;
         font-weight: $weight-bold;
         color: $black;
         margin: 0;
@@ -79,6 +80,10 @@
         &.is-empty {
           color: rgba($grey, 0.6);
         }
+      }
+
+      .value {
+        padding-left: 1em;
       }
     }
 
