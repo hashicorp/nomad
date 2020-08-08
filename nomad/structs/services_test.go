@@ -8,6 +8,50 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestServiceCheck_Hash(t *testing.T) {
+	t.Parallel()
+
+	original := &ServiceCheck{
+		Name:                   "check",
+		SuccessBeforePassing:   3,
+		FailuresBeforeCritical: 4,
+	}
+
+	type sc = ServiceCheck
+	type tweaker = func(check *sc)
+
+	hash := func(c *sc) string {
+		return c.Hash("ServiceID")
+	}
+
+	t.Run("reflexive", func(t *testing.T) {
+		require.Equal(t, hash(original), hash(original))
+	})
+
+	// these tests use tweaker to modify 1 field and make the false assertion
+	// on comparing the resulting hash output
+
+	try := func(t *testing.T, tweak tweaker) {
+		originalHash := hash(original)
+		modifiable := original.Copy()
+		tweak(modifiable)
+		tweakedHash := hash(modifiable)
+		require.NotEqual(t, originalHash, tweakedHash)
+	}
+
+	t.Run("name", func(t *testing.T) {
+		try(t, func(s *sc) { s.Name = "newName" })
+	})
+
+	t.Run("success_before_passing", func(t *testing.T) {
+		try(t, func(s *sc) { s.SuccessBeforePassing = 99 })
+	})
+
+	t.Run("failures_before_critical", func(t *testing.T) {
+		try(t, func(s *sc) { s.FailuresBeforeCritical = 99 })
+	})
+}
+
 func TestService_Hash(t *testing.T) {
 	t.Parallel()
 

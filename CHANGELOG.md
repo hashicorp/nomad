@@ -7,6 +7,7 @@ FEATURES:
 
 IMPROVEMENTS:
  * consul/connect: Added support for bridge networks with Connect Native tasks [[GH-8290](https://github.com/hashicorp/nomad/issues/8290)]
+ * consul: Added support for setting `success_before_passing` and `failures_before_critical` on consul service checks. [[GH-6913](https://github.com/hashicorp/nomad/issues/6913)]
 
 BUG FIXES:
 

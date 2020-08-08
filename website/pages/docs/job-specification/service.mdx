@@ -202,6 +202,12 @@ scripts.
   service. Valid options are the empty string, `passing`, `warning`, and
   `critical`.
 
+- `success_before_passing` `(int:0)` - The number of successful checks required before
+  Consul will transition the service status to [`passing`][consul_passfail].
+
+- `failures_before_critical` `(int:0)` - The number of failing checks required before
+  Consul will transition the service status to [`critical`][consul_passfail].
+
 - `interval` `(string: <required>)` - Specifies the frequency of the health checks
   that Consul will perform. This is specified using a label suffix like "30s"
   or "1h". This must be greater than or equal to "1s"
@@ -697,6 +703,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 
 [check_restart_stanza]: /docs/job-specification/check_restart 'check_restart stanza'
 [consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
+[consul_passfail]: https://www.consul.io/docs/agent/checks#success-failures-before-passing-critical
 [service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
