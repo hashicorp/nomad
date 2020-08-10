@@ -1032,27 +1032,30 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	// Setup port mapping and exposed ports
-	ports := newPublishedPorts(logger, driverConfig.PortMap)
+	ports := newPublishedPorts(logger)
 	switch {
-	case task.Resources.Ports != nil && len(*task.Resources.Ports) > 0:
+	case task.Resources.Ports != nil && len(driverConfig.Ports) > 0:
 		// Do not set up docker port mapping if shared alloc networking is used
 		if strings.HasPrefix(hostConfig.NetworkMode, "container:") {
 			break
 		}
 
-		for _, port := range *task.Resources.Ports {
-			ports.add(port.Label, port.HostIP, port.Value, true)
+		for _, port := range driverConfig.Ports {
+			if mapping, ok := task.Resources.Ports.Get(port); ok {
+				ports.add(mapping.Label, mapping.HostIP, mapping.Value, mapping.To)
+			} else {
+				return c, fmt.Errorf("Port %q not found, check network stanza", port)
+			}
 		}
-
 	case len(task.Resources.NomadResources.Networks) > 0:
 		network := task.Resources.NomadResources.Networks[0]
 
 		for _, port := range network.ReservedPorts {
-			ports.add(port.Label, network.IP, port.Value, false)
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
 		}
 
 		for _, port := range network.DynamicPorts {
-			ports.add(port.Label, network.IP, port.Value, false)
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
 		}
 
 	default:

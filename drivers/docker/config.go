@@ -347,6 +347,7 @@ var (
 		"runtime":         hclspec.NewAttr("runtime", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
+		"ports":           hclspec.NewAttr("ports", "list(string)", false),
 		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
 		"privileged":      hclspec.NewAttr("privileged", "bool", false),
 		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
@@ -413,6 +414,7 @@ type TaskConfig struct {
 	Runtime           string             `codec:"runtime"`
 	PidsLimit         int64              `codec:"pids_limit"`
 	PidMode           string             `codec:"pid_mode"`
+	Ports             []string           `codec:"ports"`
 	PortMap           hclutils.MapStrInt `codec:"port_map"`
 	Privileged        bool               `codec:"privileged"`
 	ReadonlyRootfs    bool               `codec:"readonly_rootfs"`
