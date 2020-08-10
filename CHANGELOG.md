@@ -5,6 +5,9 @@ FEATURES:
  * **Multiple Vault Namespaces (Enterprise)**: Support for multiple Vault Namespaces [[GH-8453](https://github.com/hashicorp/nomad/issues/8453)]
  * **Scaling Observability UI**: View changes in task group scale (both manual and automatic) over time. [[GH-8551](https://github.com/hashicorp/nomad/issues/8551)]
 
+IMPROVEMENTS:
+ * consul/connect: Added support for bridge networks with Connect Native tasks [[GH-8290](https://github.com/hashicorp/nomad/issues/8290)]
+
 BUG FIXES:
 
  * core: Fixed a bug where `nomad job plan` reports success and no updates if the job contains a scaling policy [[GH-8567](https://github.com/hashicorp/nomad/issues/8567)]
