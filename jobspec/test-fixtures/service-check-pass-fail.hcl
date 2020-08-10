@@ -10,14 +10,14 @@ job "check_pass_fail" {
         port = "http"
 
         check {
-          name           = "check-name"
-          type           = "http"
-          path           = "/"
-          method         = "POST"
-          interval       = "10s"
-          timeout        = "2s"
-          initial_status = "passing"
-          success_before_passing = 3
+          name                     = "check-name"
+          type                     = "http"
+          path                     = "/"
+          method                   = "POST"
+          interval                 = "10s"
+          timeout                  = "2s"
+          initial_status           = "passing"
+          success_before_passing   = 3
           failures_before_critical = 4
         }
       }
