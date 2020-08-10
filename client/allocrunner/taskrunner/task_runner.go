@@ -936,6 +936,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	alloc := tr.Alloc()
 	invocationid := uuid.Generate()[:8]
 	taskResources := tr.taskResources
+	ports := tr.Alloc().AllocatedResources.Shared.Ports
 	env := tr.envBuilder.Build()
 	tr.networkIsolationLock.Lock()
 	defer tr.networkIsolationLock.Unlock()
@@ -964,6 +965,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				CPUShares:        taskResources.Cpu.CpuShares,
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
+			Ports: &ports,
 		},
 		Devices:          tr.hookResources.getDevices(),
 		Mounts:           tr.hookResources.getMounts(),

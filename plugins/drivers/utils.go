@@ -147,6 +147,19 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 		}
 	}
 
+	if pb.Ports != nil {
+		ports := structs.AllocatedPorts(make([]structs.AllocatedPortMapping, len(pb.Ports)))
+		for i, port := range pb.Ports {
+			ports[i] = structs.AllocatedPortMapping{
+				Label:  port.Label,
+				Value:  int(port.Value),
+				To:     int(port.To),
+				HostIP: port.HostIp,
+			}
+		}
+		r.Ports = &ports
+	}
+
 	return &r
 }
 
@@ -201,6 +214,20 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 			CpusetMems:       r.LinuxResources.CpusetMems,
 			PercentTicks:     r.LinuxResources.PercentTicks,
 		}
+	}
+
+	if r.Ports != nil {
+		ports := make([]*proto.PortMapping, len(*r.Ports))
+		for i, port := range *r.Ports {
+			ports[i] = &proto.PortMapping{
+				Label:  port.Label,
+				Value:  int32(port.Value),
+				To:     int32(port.To),
+				HostIp: port.HostIP,
+			}
+		}
+
+		pb.Ports = ports
 	}
 
 	return &pb

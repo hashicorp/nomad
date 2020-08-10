@@ -1538,6 +1538,58 @@ func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
 
 	task, cfg, ports := dockerTask(t)
 	defer freeport.Return(ports)
+	cfg.PortMap = map[string]int{
+		"main":  8080,
+		"REDIS": 6379,
+	}
+
+	hostIP := "127.0.0.1"
+	if runtime.GOOS == "windows" {
+		hostIP = ""
+	}
+	portmappings := structs.AllocatedPorts(make([]structs.AllocatedPortMapping, len(ports)))
+	portmappings[0] = structs.AllocatedPortMapping{
+		Label:  "main",
+		Value:  ports[0],
+		HostIP: hostIP,
+	}
+	portmappings[1] = structs.AllocatedPortMapping{
+		Label:  "REDIS",
+		Value:  ports[1],
+		HostIP: hostIP,
+	}
+	portmappings[1] = structs.AllocatedPortMapping{
+		Label:  "other",
+		Value:  9999,
+		HostIP: hostIP,
+	}
+	task.Resources.Ports = &portmappings
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_main=8080")
+	require.Contains(t, c.Config.Env, "NOMAD_PORT_REDIS=6379")
+
+	// Verify that the correct ports are FORWARDED
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+	}
+	require.Exactly(t, expectedPortBindings, c.HostConfig.PortBindings)
+
+}
+func TestDockerDriver_CreateContainerConfig_PortsMappingOld(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
 	res := ports[0]
 	dyn := ports[1]
 	cfg.PortMap = map[string]int{

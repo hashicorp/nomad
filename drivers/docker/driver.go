@@ -1032,61 +1032,36 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	// Setup port mapping and exposed ports
-	if len(task.Resources.NomadResources.Networks) == 0 {
-		if len(driverConfig.PortMap) > 0 {
-			return c, fmt.Errorf("Trying to map ports but no network interface is available")
+	ports := newPublishedPorts(logger, driverConfig.PortMap)
+	switch {
+	case task.Resources.Ports != nil && len(*task.Resources.Ports) > 0:
+		// Do not set up docker port mapping if shared alloc networking is used
+		if strings.HasPrefix(hostConfig.NetworkMode, "container:") {
+			break
 		}
-	} else {
-		// TODO add support for more than one network
+
+		for _, port := range *task.Resources.Ports {
+			ports.add(port.Label, port.HostIP, port.Value, true)
+		}
+
+	case len(task.Resources.NomadResources.Networks) > 0:
 		network := task.Resources.NomadResources.Networks[0]
-		publishedPorts := map[docker.Port][]docker.PortBinding{}
-		exposedPorts := map[docker.Port]struct{}{}
 
 		for _, port := range network.ReservedPorts {
-			// By default we will map the allocated port 1:1 to the container
-			containerPortInt := port.Value
-
-			// If the user has mapped a port using port_map we'll change it here
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPortInt = mapped
-			}
-
-			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(strconv.Itoa(containerPortInt))
-
-			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
-			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
-			logger.Debug("allocated static port", "ip", network.IP, "port", port.Value)
-
-			exposedPorts[containerPort+"/tcp"] = struct{}{}
-			exposedPorts[containerPort+"/udp"] = struct{}{}
-			logger.Debug("exposed port", "port", port.Value)
+			ports.add(port.Label, network.IP, port.Value, false)
 		}
 
 		for _, port := range network.DynamicPorts {
-			// By default we will map the allocated port 1:1 to the container
-			containerPortInt := port.Value
-
-			// If the user has mapped a port using port_map we'll change it here
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPortInt = mapped
-			}
-
-			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(strconv.Itoa(containerPortInt))
-
-			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
-			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
-			logger.Debug("allocated mapped port", "ip", network.IP, "port", port.Value)
-
-			exposedPorts[containerPort+"/tcp"] = struct{}{}
-			exposedPorts[containerPort+"/udp"] = struct{}{}
-			logger.Debug("exposed port", "port", containerPort)
+			ports.add(port.Label, network.IP, port.Value, false)
 		}
 
-		hostConfig.PortBindings = publishedPorts
-		config.ExposedPorts = exposedPorts
+	default:
+		if len(driverConfig.PortMap) > 0 {
+			return c, fmt.Errorf("Trying to map ports but no network interface is available")
+		}
 	}
+	hostConfig.PortBindings = ports.publishedPorts
+	config.ExposedPorts = ports.exposedPorts
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if driverConfig.Command != "" {
