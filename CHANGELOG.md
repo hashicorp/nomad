@@ -14,6 +14,7 @@ BUG FIXES:
  * api: Added missing namespace field to scaling status GET response object [[GH-8530](https://github.com/hashicorp/nomad/issues/8530)]
  * api: Do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8491](https://github.com/hashicorp/nomad/issues/8491)]
  * build: Updated to Go 1.14.7. Go 1.14.6 contained a CVE that is not believed to impact Nomad [[GH-8601](https://github.com/hashicorp/nomad/issues/8601)]
+ * deployments: Fixed a bug where Nomad Enterprise multi-region deployments would not leave "pending" status if namespaces were also in use.
  * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
 
 ## 0.12.1 (July 23, 2020)
