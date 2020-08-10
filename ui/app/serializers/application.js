@@ -43,6 +43,18 @@ export default class Application extends JSONSerializer {
     store.push(documentHash);
   }
 
+  normalize(modelClass, hash) {
+    if (this.arrayNullOverrides) {
+      this.arrayNullOverrides.forEach(key => {
+        if (!hash[key]) {
+          hash[key] = [];
+        }
+      });
+    }
+
+    return super.normalize(modelClass, hash);
+  }
+
   normalizeFindAllResponse(store, modelClass) {
     const result = super.normalizeFindAllResponse(...arguments);
     this.cullStore(store, modelClass.modelName, result.data);
