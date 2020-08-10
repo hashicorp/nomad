@@ -164,7 +164,7 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 }
 
 func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "DELETE" {
+	if req.Method != http.MethodDelete {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
