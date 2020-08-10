@@ -33,13 +33,16 @@ export default class IndexController extends Controller.extend(Sortable) {
   // Set in the route
   preempter = null;
 
-  @overridable(function() {
+  @overridable(function () {
     // { title, description }
     return null;
   })
   error;
 
-  @alias('model.allocatedResources.networks.firstObject') network;
+  @computed('model.allocatedResources.ports.@each.label')
+  get ports() {
+    return (this.get('model.allocatedResources.ports') || []).sortBy('label');
+  }
 
   @computed('model.taskGroup.services.@each.name')
   get services() {
@@ -62,7 +65,7 @@ export default class IndexController extends Controller.extend(Sortable) {
     }
   }
 
-  @task(function*() {
+  @task(function* () {
     try {
       yield this.model.stop();
       // Eagerly update the allocation clientStatus to avoid flickering
@@ -76,7 +79,7 @@ export default class IndexController extends Controller.extend(Sortable) {
   })
   stopAllocation;
 
-  @task(function*() {
+  @task(function* () {
     try {
       yield this.model.restart();
     } catch (err) {

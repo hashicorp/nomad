@@ -9,11 +9,11 @@ import moment from 'moment';
 let allocation;
 let task;
 
-module('Acceptance | task detail', function(hooks) {
+module('Acceptance | task detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
@@ -23,12 +23,12 @@ module('Acceptance | task detail', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     await a11yAudit();
     assert.ok(true, 'a11y audit passes');
   });
 
-  test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {
+  test('/allocation/:id/:task_name should name the task and list high-level task information', async function (assert) {
     assert.ok(Task.title.text.includes(task.name), 'Task name');
     assert.ok(Task.state.includes(task.state), 'Task state');
 
@@ -44,7 +44,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
-  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
@@ -96,13 +96,13 @@ module('Acceptance | task detail', function(hooks) {
     );
   });
 
-  test('/allocation/:id/:task_name should include resource utilization graphs', async function(assert) {
+  test('/allocation/:id/:task_name should include resource utilization graphs', async function (assert) {
     assert.equal(Task.resourceCharts.length, 2, 'Two resource utilization graphs');
     assert.equal(Task.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
     assert.equal(Task.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 
-  test('/allocation/:id/:task_name lists related prestart tasks for a main task when they exist', async function(assert) {
+  test('/allocation/:id/:task_name lists related prestart tasks for a main task when they exist', async function (assert) {
     const job = server.create('job', {
       groupsCount: 2,
       groupTaskCount: 3,
@@ -182,43 +182,13 @@ module('Acceptance | task detail', function(hooks) {
     assert.notOk(Task.hasPrestartTasks);
   });
 
-  test('the addresses table lists all reserved and dynamic ports', async function(assert) {
-    const taskResources = allocation.taskResourceIds
-      .map(id => server.db.taskResources.find(id))
-      .find(resources => resources.name === task.name);
-    const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-    const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
-    const addresses = reservedPorts.concat(dynamicPorts);
-
-    assert.equal(Task.addresses.length, addresses.length, 'All addresses are listed');
-  });
-
-  test('each address row shows the label and value of the address', async function(assert) {
-    const taskResources = allocation.taskResourceIds
-      .map(id => server.db.taskResources.find(id))
-      .findBy('name', task.name);
-    const networkAddress = taskResources.resources.Networks[0].IP;
-    const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-    const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
-    const address = reservedPorts.concat(dynamicPorts).sortBy('Label')[0];
-
-    const addressRow = Task.addresses.objectAt(0);
-    assert.equal(
-      addressRow.isDynamic,
-      reservedPorts.includes(address) ? 'No' : 'Yes',
-      'Dynamic port is denoted as such'
-    );
-    assert.equal(addressRow.name, address.Label, 'Label');
-    assert.equal(addressRow.address, `${networkAddress}:${address.Value}`, 'Value');
-  });
-
-  test('the events table lists all recent events', async function(assert) {
+  test('the events table lists all recent events', async function (assert) {
     const events = server.db.taskEvents.where({ taskStateId: task.id });
 
     assert.equal(Task.events.length, events.length, `Lists ${events.length} events`);
   });
 
-  test('when a task has volumes, the volumes table is shown', async function(assert) {
+  test('when a task has volumes, the volumes table is shown', async function (assert) {
     const taskGroup = server.schema.taskGroups.where({
       jobId: allocation.jobId,
       name: allocation.taskGroup,
@@ -230,7 +200,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.volumes.length, jobTask.volumeMounts.length);
   });
 
-  test('when a task does not have volumes, the volumes table is not shown', async function(assert) {
+  test('when a task does not have volumes, the volumes table is not shown', async function (assert) {
     const job = server.create('job', { createAllocations: false, noHostVolumes: true });
     allocation = server.create('allocation', { jobId: job.id, clientStatus: 'running' });
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
@@ -239,7 +209,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.notOk(Task.hasVolumes);
   });
 
-  test('each volume in the volumes table shows information about the volume', async function(assert) {
+  test('each volume in the volumes table shows information about the volume', async function (assert) {
     const taskGroup = server.schema.taskGroups.where({
       jobId: allocation.jobId,
       name: allocation.taskGroup,
@@ -256,7 +226,7 @@ module('Acceptance | task detail', function(hooks) {
     });
   });
 
-  test('each recent event should list the time, type, and description of the event', async function(assert) {
+  test('each recent event should list the time, type, and description of the event', async function (assert) {
     const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
     const recentEvent = Task.events.objectAt(Task.events.length - 1);
 
@@ -269,7 +239,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(recentEvent.message, event.displayMessage, 'Event message');
   });
 
-  test('when the allocation is not found, the application errors', async function(assert) {
+  test('when the allocation is not found, the application errors', async function (assert) {
     await Task.visit({ id: 'not-a-real-allocation', name: task.name });
 
     assert.equal(
@@ -288,7 +258,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('when the allocation is found but the task is not, the application errors', async function(assert) {
+  test('when the allocation is found but the task is not, the application errors', async function (assert) {
     await Task.visit({ id: allocation.id, name: 'not-a-real-task-name' });
 
     assert.ok(
@@ -307,7 +277,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('task can be restarted', async function(assert) {
+  test('task can be restarted', async function (assert) {
     await Task.restart.idle();
     await Task.restart.confirm();
 
@@ -325,7 +295,7 @@ module('Acceptance | task detail', function(hooks) {
     );
   });
 
-  test('when task restart fails, an error message is shown', async function(assert) {
+  test('when task restart fails, an error message is shown', async function (assert) {
     server.pretender.put('/v1/client/allocation/:id/restart', () => [403, {}, '']);
 
     await Task.restart.idle();
@@ -343,16 +313,16 @@ module('Acceptance | task detail', function(hooks) {
     assert.notOk(Task.inlineError.isShown, 'Inline error is no longer shown');
   });
 
-  test('exec button is present', async function(assert) {
+  test('exec button is present', async function (assert) {
     assert.ok(Task.execButton.isPresent);
   });
 });
 
-module('Acceptance | task detail (no addresses)', function(hooks) {
+module('Acceptance | task detail (no addresses)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('job');
@@ -362,16 +332,16 @@ module('Acceptance | task detail (no addresses)', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('when the task has no addresses, the addresses table is not shown', async function(assert) {
+  test('when the task has no addresses, the addresses table is not shown', async function (assert) {
     assert.notOk(Task.hasAddresses, 'No addresses table');
   });
 });
 
-module('Acceptance | task detail (different namespace)', function(hooks) {
+module('Acceptance | task detail (different namespace)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('namespace');
@@ -383,7 +353,7 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
@@ -420,11 +390,11 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
   });
 });
 
-module('Acceptance | task detail (not running)', function(hooks) {
+module('Acceptance | task detail (not running)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('namespace');
@@ -436,21 +406,21 @@ module('Acceptance | task detail (not running)', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function(assert) {
+  test('when the allocation for a task is not running, the resource utilization graphs are replaced by an empty message', async function (assert) {
     assert.equal(Task.resourceCharts.length, 0, 'No resource charts');
     assert.equal(Task.resourceEmptyMessage, "Task isn't running", 'Empty message is appropriate');
   });
 
-  test('exec button is absent', async function(assert) {
+  test('exec button is absent', async function (assert) {
     assert.notOk(Task.execButton.isPresent);
   });
 });
 
-module('Acceptance | proxy task detail', function(hooks) {
+module('Acceptance | proxy task detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  hooks.beforeEach(async function() {
+  hooks.beforeEach(async function () {
     server.create('agent');
     server.create('node');
     server.create('job', { createAllocations: false });
@@ -464,7 +434,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     await Task.visit({ id: allocation.id, name: taskState.name });
   });
 
-  test('a proxy tag is shown', async function(assert) {
+  test('a proxy tag is shown', async function (assert) {
     assert.ok(Task.title.proxyTag.isPresent);
   });
 });

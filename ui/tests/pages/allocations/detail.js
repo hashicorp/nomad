@@ -85,7 +85,6 @@ export default create({
   ...allocations('[data-test-preemptions] [data-test-allocation]', 'preemptions'),
 
   ports: collection('[data-test-allocation-port]', {
-    dynamic: text('[data-test-allocation-port-is-dynamic]'),
     name: text('[data-test-allocation-port-name]'),
     address: text('[data-test-allocation-port-address]'),
     to: text('[data-test-allocation-port-to]'),
