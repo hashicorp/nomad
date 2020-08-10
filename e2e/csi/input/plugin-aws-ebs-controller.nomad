@@ -3,7 +3,7 @@
 # https://github.com/kubernetes-sigs/aws-ebs-csi-driver/tree/master/deploy/kubernetes
 
 job "plugin-aws-ebs-controller" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
