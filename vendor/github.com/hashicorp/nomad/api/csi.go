@@ -61,7 +61,7 @@ func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 }
 
 func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?detach=true&node=%v", url.PathEscape(volID), nodeID), nil, w)
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, w)
 	return err
 }
 
