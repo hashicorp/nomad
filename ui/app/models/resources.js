@@ -8,4 +8,5 @@ export default class Resources extends Fragment {
   @attr('number') disk;
   @attr('number') iops;
   @fragmentArray('network', { defaultValue: () => [] }) networks;
+  @fragmentArray('port', { defaultValue: () => [] }) ports;
 }
