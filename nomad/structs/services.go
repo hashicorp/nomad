@@ -267,12 +267,20 @@ func (sc *ServiceCheck) validate() error {
 		}
 	}
 
+	// passFailCheckTypes are intersection of check types supported by both Consul
+	// and Nomad when using the pass/fail check threshold features.
+	passFailCheckTypes := []string{"tcp", "http", "grpc"}
+
 	if sc.SuccessBeforePassing < 0 {
 		return fmt.Errorf("success_before_passing must be non-negative")
+	} else if sc.SuccessBeforePassing > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+		return fmt.Errorf("success_before_passing not supported for check of type %q", sc.Type)
 	}
 
 	if sc.FailuresBeforeCritical < 0 {
 		return fmt.Errorf("failures_before_critical must be non-negative")
+	} else if sc.FailuresBeforeCritical > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
 	}
 
 	return sc.CheckRestart.Validate()

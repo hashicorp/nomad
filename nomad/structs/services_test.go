@@ -52,6 +52,84 @@ func TestServiceCheck_Hash(t *testing.T) {
 	})
 }
 
+func TestServiceCheck_validate_PassingTypes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid", func(t *testing.T) {
+		for _, checkType := range []string{"tcp", "http", "grpc"} {
+			err := (&ServiceCheck{
+				Name:                 "check",
+				Type:                 checkType,
+				Path:                 "/path",
+				Interval:             1 * time.Second,
+				Timeout:              2 * time.Second,
+				SuccessBeforePassing: 3,
+			}).validate()
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                 "check",
+			Type:                 "script",
+			Command:              "/nothing",
+			Interval:             1 * time.Second,
+			Timeout:              2 * time.Second,
+			SuccessBeforePassing: 3,
+		}).validate()
+		require.EqualError(t, err, `success_before_passing not supported for check of type "script"`)
+	})
+}
+
+func TestServiceCheck_validate_FailingTypes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid", func(t *testing.T) {
+		for _, checkType := range []string{"tcp", "http", "grpc"} {
+			err := (&ServiceCheck{
+				Name:                   "check",
+				Type:                   checkType,
+				Path:                   "/path",
+				Interval:               1 * time.Second,
+				Timeout:                2 * time.Second,
+				FailuresBeforeCritical: 3,
+			}).validate()
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                   "check",
+			Type:                   "script",
+			Command:                "/nothing",
+			Interval:               1 * time.Second,
+			Timeout:                2 * time.Second,
+			SuccessBeforePassing:   0,
+			FailuresBeforeCritical: 3,
+		}).validate()
+		require.EqualError(t, err, `failures_before_critical not supported for check of type "script"`)
+	})
+}
+
+func TestServiceCheck_validate_PassFailZero_on_scripts(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                   "check",
+			Type:                   "script",
+			Command:                "/nothing",
+			Interval:               1 * time.Second,
+			Timeout:                2 * time.Second,
+			SuccessBeforePassing:   0, // script checks should still pass validation
+			FailuresBeforeCritical: 0, // script checks should still pass validation
+		}).validate()
+		require.NoError(t, err)
+	})
+}
+
 func TestService_Hash(t *testing.T) {
 	t.Parallel()
 
