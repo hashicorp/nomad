@@ -1290,6 +1290,8 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 	chkReg.Status = check.InitialStatus
 	chkReg.Timeout = check.Timeout.String()
 	chkReg.Interval = check.Interval.String()
+	chkReg.SuccessBeforePassing = check.SuccessBeforePassing
+	chkReg.FailuresBeforeCritical = check.FailuresBeforeCritical
 
 	// Require an address for http or tcp checks
 	if port == 0 && check.RequiresPort() {

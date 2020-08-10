@@ -169,6 +169,16 @@ func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
 	return subset, offending
 }
 
+// SliceStringContains returns whether item exists at least once in list.
+func SliceStringContains(list []string, item string) bool {
+	for _, s := range list {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
 func SliceSetDisjoint(first, second []string) (bool, []string) {
 	contained := make(map[string]struct{}, len(first))
 	for _, k := range first {

@@ -8,6 +8,128 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestServiceCheck_Hash(t *testing.T) {
+	t.Parallel()
+
+	original := &ServiceCheck{
+		Name:                   "check",
+		SuccessBeforePassing:   3,
+		FailuresBeforeCritical: 4,
+	}
+
+	type sc = ServiceCheck
+	type tweaker = func(check *sc)
+
+	hash := func(c *sc) string {
+		return c.Hash("ServiceID")
+	}
+
+	t.Run("reflexive", func(t *testing.T) {
+		require.Equal(t, hash(original), hash(original))
+	})
+
+	// these tests use tweaker to modify 1 field and make the false assertion
+	// on comparing the resulting hash output
+
+	try := func(t *testing.T, tweak tweaker) {
+		originalHash := hash(original)
+		modifiable := original.Copy()
+		tweak(modifiable)
+		tweakedHash := hash(modifiable)
+		require.NotEqual(t, originalHash, tweakedHash)
+	}
+
+	t.Run("name", func(t *testing.T) {
+		try(t, func(s *sc) { s.Name = "newName" })
+	})
+
+	t.Run("success_before_passing", func(t *testing.T) {
+		try(t, func(s *sc) { s.SuccessBeforePassing = 99 })
+	})
+
+	t.Run("failures_before_critical", func(t *testing.T) {
+		try(t, func(s *sc) { s.FailuresBeforeCritical = 99 })
+	})
+}
+
+func TestServiceCheck_validate_PassingTypes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid", func(t *testing.T) {
+		for _, checkType := range []string{"tcp", "http", "grpc"} {
+			err := (&ServiceCheck{
+				Name:                 "check",
+				Type:                 checkType,
+				Path:                 "/path",
+				Interval:             1 * time.Second,
+				Timeout:              2 * time.Second,
+				SuccessBeforePassing: 3,
+			}).validate()
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                 "check",
+			Type:                 "script",
+			Command:              "/nothing",
+			Interval:             1 * time.Second,
+			Timeout:              2 * time.Second,
+			SuccessBeforePassing: 3,
+		}).validate()
+		require.EqualError(t, err, `success_before_passing not supported for check of type "script"`)
+	})
+}
+
+func TestServiceCheck_validate_FailingTypes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid", func(t *testing.T) {
+		for _, checkType := range []string{"tcp", "http", "grpc"} {
+			err := (&ServiceCheck{
+				Name:                   "check",
+				Type:                   checkType,
+				Path:                   "/path",
+				Interval:               1 * time.Second,
+				Timeout:                2 * time.Second,
+				FailuresBeforeCritical: 3,
+			}).validate()
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                   "check",
+			Type:                   "script",
+			Command:                "/nothing",
+			Interval:               1 * time.Second,
+			Timeout:                2 * time.Second,
+			SuccessBeforePassing:   0,
+			FailuresBeforeCritical: 3,
+		}).validate()
+		require.EqualError(t, err, `failures_before_critical not supported for check of type "script"`)
+	})
+}
+
+func TestServiceCheck_validate_PassFailZero_on_scripts(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                   "check",
+			Type:                   "script",
+			Command:                "/nothing",
+			Interval:               1 * time.Second,
+			Timeout:                2 * time.Second,
+			SuccessBeforePassing:   0, // script checks should still pass validation
+			FailuresBeforeCritical: 0, // script checks should still pass validation
+		}).validate()
+		require.NoError(t, err)
+	})
+}
+
 func TestService_Hash(t *testing.T) {
 	t.Parallel()
 
