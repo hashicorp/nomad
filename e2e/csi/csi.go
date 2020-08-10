@@ -70,7 +70,7 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 		if err != nil {
 			return false
 		}
-		if plugin.ControllersHealthy != 1 || plugin.NodesHealthy < 2 {
+		if plugin.ControllersHealthy < 2 || plugin.NodesHealthy < 2 {
 			return false
 		}
 		return true
