@@ -8667,6 +8667,7 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 	require.Equal(newIndex, out.ModifyIndex)
 
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(newIndex, index)
 }
 
@@ -8693,6 +8694,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	require.Equal(newIndex, p1.ModifyIndex)
 
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(newIndex, index)
 	require.NotEmpty(p1.ID)
 
@@ -8711,6 +8713,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	require.Equal(p1.ModifyIndex, p2.ModifyIndex)
 
 	index, err = state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(index, p1.CreateIndex, "table index should not have changed")
 }
 
@@ -8736,6 +8739,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	prevId := p1.ID
 
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(oldIndex, index)
 	require.NotEmpty(p1.ID)
 
@@ -8755,6 +8759,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	require.Greater(p2.ModifyIndex, oldIndex, "ModifyIndex should have advanced")
 
 	index, err = state.Index("scaling_policy")
+	require.NoError(err)
 	require.Greater(index, oldIndex, "table index should have advanced")
 }
 
@@ -8856,6 +8861,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 	require.NoError(err)
 	require.Nil(out)
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.GreaterOrEqual(index, uint64(1200))
 }
 
@@ -8899,6 +8905,7 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(out)
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.GreaterOrEqual(index, uint64(1100))
 }
 
@@ -8929,6 +8936,7 @@ func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
 	require.NoError(err)
 	require.Nil(out)
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.True(index > 1001)
 }
 
