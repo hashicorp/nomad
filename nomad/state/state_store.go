@@ -1158,7 +1158,9 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			return fmt.Errorf("csi_plugins lookup error %s: %v", id, err)
 		}
 		if raw == nil {
-			return fmt.Errorf("csi_plugins missing plugin %s", id)
+			// plugin may have been deregistered but we didn't
+			// update the fingerprint yet
+			continue
 		}
 
 		plug := raw.(*structs.CSIPlugin).Copy()
