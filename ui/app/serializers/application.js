@@ -60,15 +60,27 @@ export default class Application extends JSONSerializer {
         if (conversion.APIName) {
           apiKey = conversion.APIName;
           uiKey = conversion.UIName;
+        } else if (conversion.name) {
+          apiKey = conversion.name;
+          uiKey = conversion.name;
         } else {
           apiKey = conversion;
           uiKey = conversion;
         }
 
         const map = hash[apiKey] || {};
+
         hash[uiKey] = Object.keys(map).map(mapKey => {
           const propertiesForKey = map[mapKey] || {};
-          return assign({ Name: mapKey }, propertiesForKey);
+          const convertedMap = { Name: mapKey };
+
+          if (conversion.convertor) {
+            conversion.convertor(propertiesForKey, convertedMap);
+          } else {
+            assign(convertedMap, propertiesForKey);
+          }
+
+          return convertedMap;
         });
       });
     }

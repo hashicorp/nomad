@@ -7,13 +7,25 @@ import attr from 'ember-data/attr';
 
 class TestSerializer extends ApplicationSerializer {
   arrayNullOverrides = ['Things'];
-  mapToArray = ['ArrayableMap', { APIName: 'APINameArrayableMap', UIName: 'RenamedArrayableMap' }];
+  mapToArray = [
+    'ArrayableMap',
+    { APIName: 'APINameArrayableMap', UIName: 'RenamedArrayableMap' },
+    {
+      name: 'ConvertedArrayableMap',
+      convertor: (apiHash, uiHash) => {
+        Object.keys(apiHash).forEach(key => {
+          uiHash[`${key}${key}`] = apiHash[key];
+        });
+      },
+    },
+  ];
 }
 
 class TestModel extends Model {
   @attr() things;
   @attr() arrayableMap;
   @attr() renamedArrayableMap;
+  @attr() convertedArrayableMap;
 }
 
 module('Unit | Serializer | Application', function(hooks) {
@@ -35,6 +47,7 @@ module('Unit | Serializer | Application', function(hooks) {
         Things: null,
         ArrayableMap: null,
         APINameArrayableMap: null,
+        ConvertedArrayableMap: null,
       },
       out: {
         data: {
@@ -43,6 +56,7 @@ module('Unit | Serializer | Application', function(hooks) {
             things: [],
             arrayableMap: [],
             renamedArrayableMap: [],
+            convertedArrayableMap: [],
           },
           relationships: {},
           type: 'test',
@@ -62,6 +76,9 @@ module('Unit | Serializer | Application', function(hooks) {
         APINameArrayableMap: {
           a: { X: 1 },
         },
+        ConvertedArrayableMap: {
+          a: { X: 1, Y: 2 },
+        },
       },
       out: {
         data: {
@@ -74,6 +91,7 @@ module('Unit | Serializer | Application', function(hooks) {
               { Name: 'c.d', Order: 3 },
             ],
             renamedArrayableMap: [{ Name: 'a', X: 1 }],
+            convertedArrayableMap: [{ Name: 'a', XX: 1, YY: 2 }],
           },
           relationships: {},
           type: 'test',
