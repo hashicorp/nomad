@@ -8,9 +8,8 @@ description: |
 
 # Command: volume detach
 
-The `volume detach` command detachs external storage volumes with Nomad's
-[Container Storage Interface (CSI)][csi] support. The volume must exist on the
-remote storage provider before it can be detached and used by a task.
+The `volume detach` command detaches external storage volumes with Nomad's
+[Container Storage Interface (CSI)][csi] support.
 
 ## Usage
 
@@ -20,7 +19,7 @@ nomad volume detach [options] [volume] [node]
 
 The `volume detach` command requires two arguments, specifying the ID of the
 volume to be detached and the node to detach it from. Detaching will fail if
-fail if the volume is still in use by an allocation.
+the volume is still in use by an allocation.
 
 ## General Options
 
