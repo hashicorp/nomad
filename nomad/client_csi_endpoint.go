@@ -40,7 +40,7 @@ func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAtt
 		if err == nil {
 			return nil
 		}
-		if a.isRetryable(err, clientID, args.PluginID) {
+		if a.isRetryable(err) {
 			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
 			continue
 		}
@@ -69,7 +69,7 @@ func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerV
 		if err == nil {
 			return nil
 		}
-		if a.isRetryable(err, clientID, args.PluginID) {
+		if a.isRetryable(err) {
 			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
 			continue
 		}
@@ -98,7 +98,7 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 		if err == nil {
 			return nil
 		}
-		if a.isRetryable(err, clientID, args.PluginID) {
+		if a.isRetryable(err) {
 			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
 			continue
 		}
@@ -110,7 +110,7 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 // we can retry the same RPC on a different controller in the cases where the
 // client has stopped and been GC'd, or where the controller has stopped but
 // we don't have the fingerprint update yet
-func (a *ClientCSI) isRetryable(err error, clientID, pluginID string) bool {
+func (a *ClientCSI) isRetryable(err error) bool {
 	return errors.Is(err, structs.ErrUnknownNode) ||
 		errors.Is(err, structs.ErrCSIClientRPCRetryable)
 }
