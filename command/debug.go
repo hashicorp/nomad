@@ -648,12 +648,9 @@ func (c *external) token() string {
 	}
 
 	if c.tokenFile != "" {
-		fh, err := os.Open(c.tokenFile)
+		bs, err := ioutil.ReadFile(c.tokenFile)
 		if err == nil {
-			bs, err := ioutil.ReadAll(fh)
-			if err == nil {
-				return strings.TrimSpace(string(bs))
-			}
+			return strings.TrimSpace(string(bs))
 		}
 	}
 
