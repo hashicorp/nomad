@@ -18,12 +18,12 @@ type taskHookCoordinator struct {
 	mainTaskCtx       context.Context
 	mainTaskCtxCancel func()
 
-	poststartTaskCtx context.Context
+	poststartTaskCtx       context.Context
 	poststartTaskCtxCancel func()
 
 	prestartSidecar   map[string]struct{}
 	prestartEphemeral map[string]struct{}
-	mainTasksPending map[string]struct{}
+	mainTasksPending  map[string]struct{}
 }
 
 func newTaskHookCoordinator(logger hclog.Logger, tasks []*structs.Task) *taskHookCoordinator {
@@ -34,14 +34,14 @@ func newTaskHookCoordinator(logger hclog.Logger, tasks []*structs.Task) *taskHoo
 	poststartTaskCtx, poststartCancelFn := context.WithCancel(context.Background())
 
 	c := &taskHookCoordinator{
-		logger:            logger,
-		closedCh:          closedCh,
-		mainTaskCtx:       mainTaskCtx,
-		mainTaskCtxCancel: mainCancelFn,
-		prestartSidecar:   map[string]struct{}{},
-		prestartEphemeral: map[string]struct{}{},
-		mainTasksPending: map[string]struct{}{},
-		poststartTaskCtx: poststartTaskCtx,
+		logger:                 logger,
+		closedCh:               closedCh,
+		mainTaskCtx:            mainTaskCtx,
+		mainTaskCtxCancel:      mainCancelFn,
+		prestartSidecar:        map[string]struct{}{},
+		prestartEphemeral:      map[string]struct{}{},
+		mainTasksPending:       map[string]struct{}{},
+		poststartTaskCtx:       poststartTaskCtx,
 		poststartTaskCtxCancel: poststartCancelFn,
 	}
 	c.setTasks(tasks)
@@ -63,8 +63,10 @@ func (c *taskHookCoordinator) setTasks(tasks []*structs.Task) {
 			} else {
 				c.prestartEphemeral[task.Name] = struct{}{}
 			}
+		case structs.TaskLifecycleHookPoststart:
+			// Poststart hooks don't need to be tracked.
 		default:
-			c.logger.Error("invalid lifecycle hook", "hook", task.Lifecycle.Hook)
+			c.logger.Error("invalid lifecycle hook", "task", task.Name, "hook", task.Lifecycle.Hook)
 		}
 	}
 
@@ -99,11 +101,6 @@ func (c *taskHookCoordinator) startConditionForTask(task *structs.Task) <-chan s
 
 // This is not thread safe! This must only be called from one thread per alloc runner.
 func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskState) {
-	if c.mainTaskCtx.Err() != nil {
-		// nothing to do here
-		return
-	}
-
 	for task := range c.prestartSidecar {
 		st := states[task]
 		if st == nil || st.StartedAt.IsZero() {
