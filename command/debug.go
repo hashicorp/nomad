@@ -40,15 +40,6 @@ type DebugCommand struct {
 	cancel     context.CancelFunc
 }
 
-type external struct {
-	tls       *api.TLSConfig
-	addrVal   string
-	auth      string
-	ssl       bool
-	tokenVal  string
-	tokenFile string
-}
-
 const (
 	userAgent = "nomad debug"
 )
@@ -632,31 +623,6 @@ func (c *DebugCommand) collectVault(dir, vault string) error {
 	return nil
 }
 
-func (c *external) addr(addr string) string {
-	if c.addrVal == "" {
-		return addr
-	}
-	if c.ssl && c.addrVal[0:5] != "https" {
-		return "https" + c.addrVal[4:]
-	}
-	return c.addrVal
-}
-
-func (c *external) token() string {
-	if c.tokenVal != "" {
-		return c.tokenVal
-	}
-
-	if c.tokenFile != "" {
-		bs, err := ioutil.ReadFile(c.tokenFile)
-		if err == nil {
-			return strings.TrimSpace(string(bs))
-		}
-	}
-
-	return ""
-}
-
 // writeBytes writes a file to the archive, recording it in the manifest
 func (c *DebugCommand) writeBytes(dir, file string, data []byte) error {
 	path := filepath.Join(dir, file)
@@ -850,4 +816,52 @@ func argNodes(input string) []string {
 		out = append(out, s)
 	}
 	return out
+}
+
+// external holds address configuration for Consul and Vault APIs
+type external struct {
+	tls       *api.TLSConfig
+	addrVal   string
+	auth      string
+	ssl       bool
+	tokenVal  string
+	tokenFile string
+}
+
+func (e *external) addr(defaultAddr string) string {
+	if e.addrVal == "" {
+		return defaultAddr
+	}
+
+	if !e.ssl {
+		if strings.HasPrefix(e.addrVal, "http:") {
+			return e.addrVal
+		}
+		return "http://" + e.addrVal
+	}
+
+	if strings.HasPrefix(e.addrVal, "https:") {
+		return e.addrVal
+	}
+
+	if strings.HasPrefix(e.addrVal, "http:") {
+		return "https:" + e.addrVal[5:]
+	}
+
+	return "https://" + e.addrVal
+}
+
+func (e *external) token() string {
+	if e.tokenVal != "" {
+		return e.tokenVal
+	}
+
+	if e.tokenFile != "" {
+		bs, err := ioutil.ReadFile(e.tokenFile)
+		if err == nil {
+			return strings.TrimSpace(string(bs))
+		}
+	}
+
+	return ""
 }

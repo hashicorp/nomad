@@ -24,6 +24,12 @@ func TestDebugUtils(t *testing.T) {
 
 	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
 	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
+	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
+	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
 }
 
 func TestDebugFails(t *testing.T) {
