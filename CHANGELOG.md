@@ -23,6 +23,7 @@ BUG FIXES:
  * csi: Fixed a bug where the `NodePublish` workflow incorrectly created target paths that should be created by the CSI plugin. [[GH-8505](https://github.com/hashicorp/nomad/issues/8505)]
  * csi: Fixed a bug in `nomad node status` where volumes attached to a node for an improperly cleaned-up allocation caused a panic in the CLI. [[GH-8525](https://github.com/hashicorp/nomad/issues/8525)]
  * deployments: Fixed a bug where Nomad Enterprise multi-region deployments would not leave "pending" status if namespaces were also in use.
+ * vault: Fixed a bug where vault integration fails if Vault's /sys/init endpoint is disabled [[GH-8524](https://github.com/hashicorp/nomad/issues/8524)]
  * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
 
 ## 0.12.1 (July 23, 2020)
