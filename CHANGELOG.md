@@ -29,6 +29,9 @@ BUG FIXES:
  * deployments: Fixed a bug where Nomad Enterprise multi-region deployments would not leave "pending" status if namespaces were also in use.
  * vault: Fixed a bug where vault integration fails if Vault's /sys/init endpoint is disabled [[GH-8524](https://github.com/hashicorp/nomad/issues/8524)]
  * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
+ * ui: Fixed various accessibility audit failures [[GH-8455](https://github.com/hashicorp/nomad/pull/8455)]
+ * ui: Fixed global search navigation where job name ≠ ID [[GH-8560](https://github.com/hashicorp/nomad/pull/8560)]
+ * ui: Fixed slow global search rendering by truncating results [[GH-8571](https://github.com/hashicorp/nomad/pull/8571)]
 
 ## 0.12.1 (July 23, 2020)
 
