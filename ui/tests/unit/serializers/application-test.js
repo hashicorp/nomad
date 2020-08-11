@@ -7,10 +7,12 @@ import attr from 'ember-data/attr';
 
 class TestSerializer extends ApplicationSerializer {
   arrayNullOverrides = ['Things'];
+  mapToArray = ['ArrayableMap'];
 }
 
 class TestModel extends Model {
   @attr() things;
+  @attr() arrayableMap;
 }
 
 module('Unit | Serializer | Application', function(hooks) {
@@ -26,16 +28,18 @@ module('Unit | Serializer | Application', function(hooks) {
 
   const normalizationTestCases = [
     {
-      name: 'Null array',
+      name: 'Null array and map',
       in: {
         ID: 'test-test',
         Things: null,
+        ArrayableMap: null,
       },
       out: {
         data: {
           id: 'test-test',
           attributes: {
             things: [],
+            arrayableMap: [],
           },
           relationships: {},
           type: 'test',
@@ -43,16 +47,26 @@ module('Unit | Serializer | Application', function(hooks) {
       },
     },
     {
-      name: 'Non-null array',
+      name: 'Non-null array and map',
       in: {
         ID: 'test-test',
         Things: [1, 2, 3],
+        ArrayableMap: {
+          a: { Order: 1 },
+          b: { Order: 2 },
+          'c.d': { Order: 3 },
+        },
       },
       out: {
         data: {
           id: 'test-test',
           attributes: {
             things: [1, 2, 3],
+            arrayableMap: [
+              { Name: 'a', Order: 1 },
+              { Name: 'b', Order: 2 },
+              { Name: 'c.d', Order: 3 },
+            ],
           },
           relationships: {},
           type: 'test',

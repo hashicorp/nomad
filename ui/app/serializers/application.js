@@ -4,6 +4,7 @@ import { makeArray } from '@ember/array';
 import JSONSerializer from 'ember-data/serializers/json';
 import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
+import { assign } from '@ember/polyfills';
 
 export default class Application extends JSONSerializer {
   primaryKey = 'ID';
@@ -49,6 +50,16 @@ export default class Application extends JSONSerializer {
         if (!hash[key]) {
           hash[key] = [];
         }
+      });
+    }
+
+    if (this.mapToArray) {
+      this.mapToArray.forEach(key => {
+        const map = hash[key] || {};
+        hash[key] = Object.keys(map).map(mapKey => {
+          const propertiesForKey = map[mapKey] || {};
+          return assign({ Name: mapKey }, propertiesForKey);
+        });
       });
     }
 

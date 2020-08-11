@@ -1,6 +1,5 @@
 import { inject as service } from '@ember/service';
 import { get } from '@ember/object';
-import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
 
@@ -8,13 +7,9 @@ import classic from 'ember-classic-decorator';
 export default class Evaluation extends ApplicationSerializer {
   @service system;
 
-  normalize(typeHash, hash) {
-    const failures = hash.FailedTGAllocs || {};
-    hash.FailedTGAllocs = Object.keys(failures).map(key => {
-      const propertiesForKey = failures[key] || {};
-      return assign({ Name: key }, propertiesForKey);
-    });
+  mapToArray = ['FailedTGAllocs'];
 
+  normalize(typeHash, hash) {
     hash.PlainJobId = hash.JobID;
     hash.Namespace =
       hash.Namespace ||
