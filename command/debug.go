@@ -59,7 +59,7 @@ General Options:
 
 Debug Options:
 
-  -duration=<interval>
+  -duration=<duration>
     The duration of the log monitor command. Defaults to 2m.
 
   -interval=<interval>
