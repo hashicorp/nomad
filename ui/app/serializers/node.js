@@ -9,14 +9,7 @@ export default class NodeSerializer extends ApplicationSerializer {
     httpAddr: 'HTTPAddr',
   };
 
-  mapToArray = ['Drivers'];
-
-  normalize(modelClass, hash) {
-    const hostVolumes = hash.HostVolumes || {};
-    hash.HostVolumes = Object.keys(hostVolumes).map(key => hostVolumes[key]);
-
-    return super.normalize(modelClass, hash);
-  }
+  mapToArray = ['Drivers', 'HostVolumes'];
 
   extractRelationships(modelClass, hash) {
     const { modelName } = modelClass;

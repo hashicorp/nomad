@@ -3,6 +3,7 @@ import ApplicationSerializer from './application';
 
 export default class TaskGroup extends ApplicationSerializer {
   arrayNullOverrides = ['Services'];
+  mapToArray = ['Volumes'];
 
   normalize(typeHash, hash) {
     // Provide EphemeralDisk to each task
@@ -11,9 +12,6 @@ export default class TaskGroup extends ApplicationSerializer {
     });
 
     hash.ReservedEphemeralDisk = hash.EphemeralDisk.SizeMB;
-
-    const volumes = hash.Volumes || {};
-    hash.Volumes = Object.keys(volumes).map(key => volumes[key]);
 
     return super.normalize(typeHash, hash);
   }
