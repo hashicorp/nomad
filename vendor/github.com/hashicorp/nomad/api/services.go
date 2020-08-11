@@ -138,6 +138,14 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	for i, check := range s.Checks {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
 		s.Checks[i].CheckRestart.Canonicalize()
+
+		if s.Checks[i].SuccessBeforePassing < 0 {
+			s.Checks[i].SuccessBeforePassing = 0
+		}
+
+		if s.Checks[i].FailuresBeforeCritical < 0 {
+			s.Checks[i].FailuresBeforeCritical = 0
+		}
 	}
 }
 

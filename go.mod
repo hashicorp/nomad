@@ -23,7 +23,7 @@ require (
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5
 	github.com/NYTimes/gziphandler v1.0.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
-	github.com/armon/go-metrics v0.3.3
+	github.com/armon/go-metrics v0.3.4
 	github.com/aws/aws-sdk-go v1.25.41
 	github.com/boltdb/bolt v1.3.1
 	github.com/checkpoint-restore/go-criu v0.0.0-20190109184317-bdb7599cd87b // indirect
