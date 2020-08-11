@@ -1,16 +1,15 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ClientCSI is used to forward RPC requests to the targed Nomad client's
@@ -41,7 +40,8 @@ func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAtt
 			return nil
 		}
 		if a.isRetryable(err) {
-			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
 			continue
 		}
 		return fmt.Errorf("controller attach volume: %v", err)
@@ -70,7 +70,8 @@ func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerV
 			return nil
 		}
 		if a.isRetryable(err) {
-			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
 			continue
 		}
 		return fmt.Errorf("validate volume: %v", err)
@@ -99,7 +100,8 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 			return nil
 		}
 		if a.isRetryable(err) {
-			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
 			continue
 		}
 		return fmt.Errorf("controller detach volume: %v", err)
@@ -111,8 +113,10 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 // client has stopped and been GC'd, or where the controller has stopped but
 // we don't have the fingerprint update yet
 func (a *ClientCSI) isRetryable(err error) bool {
-	return errors.Is(err, structs.ErrUnknownNode) ||
-		errors.Is(err, structs.ErrCSIClientRPCRetryable)
+	// TODO: msgpack-rpc mangles the error so we lose the wrapping,
+	// but if that can be fixed upstream we should use that here instead
+	return strings.Contains(err.Error(), "CSI client error (retryable)") ||
+		strings.Contains(err.Error(), "Unknown node")
 }
 
 func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error {
