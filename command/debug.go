@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -18,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
@@ -586,7 +588,7 @@ func (c *DebugCommand) collectConsul(dir, consul string) error {
 		return nil
 	}
 
-	client := api.DefaultHttpClient()
+	client := defaultHttpClient()
 	api.ConfigureTLS(client, c.consul.tls)
 
 	req, _ := http.NewRequest("GET", addr+"/v1/agent/self", nil)
@@ -611,7 +613,7 @@ func (c *DebugCommand) collectVault(dir, vault string) error {
 		return nil
 	}
 
-	client := api.DefaultHttpClient()
+	client := defaultHttpClient()
 	api.ConfigureTLS(client, c.vault.tls)
 
 	req, _ := http.NewRequest("GET", addr+"/sys/health", nil)
@@ -864,4 +866,16 @@ func (e *external) token() string {
 	}
 
 	return ""
+}
+
+// defaultHttpClient configures a basic httpClient
+func defaultHttpClient() *http.Client {
+	httpClient := cleanhttp.DefaultClient()
+	transport := httpClient.Transport.(*http.Transport)
+	transport.TLSHandshakeTimeout = 10 * time.Second
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
+
+	return httpClient
 }
