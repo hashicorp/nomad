@@ -51,21 +51,35 @@ func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *htt
 	// Tokenize the suffix of the path to get the volume id
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volume/csi/")
 	tokens := strings.Split(reqSuffix, "/")
-	if len(tokens) > 2 || len(tokens) < 1 {
+	if len(tokens) < 1 {
 		return nil, CodedError(404, resourceNotFoundErr)
 	}
 	id := tokens[0]
 
-	switch req.Method {
-	case "GET":
-		return s.csiVolumeGet(id, resp, req)
-	case "PUT":
-		return s.csiVolumePut(id, resp, req)
-	case "DELETE":
-		return s.csiVolumeDelete(id, resp, req)
-	default:
-		return nil, CodedError(405, ErrInvalidMethod)
+	if len(tokens) == 1 {
+		switch req.Method {
+		case http.MethodGet:
+			return s.csiVolumeGet(id, resp, req)
+		case http.MethodPut:
+			return s.csiVolumePut(id, resp, req)
+		case http.MethodDelete:
+			return s.csiVolumeDelete(id, resp, req)
+		default:
+			return nil, CodedError(405, ErrInvalidMethod)
+		}
 	}
+
+	if len(tokens) == 2 {
+		if tokens[1] != "detach" {
+			return nil, CodedError(404, resourceNotFoundErr)
+		}
+		if req.Method != http.MethodDelete {
+			return nil, CodedError(405, ErrInvalidMethod)
+		}
+		return s.csiVolumeDetach(id, resp, req)
+	}
+
+	return nil, CodedError(404, resourceNotFoundErr)
 }
 
 func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -146,6 +160,34 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 
 	setMeta(resp, &out.QueryMeta)
 
+	return nil, nil
+}
+
+func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodDelete {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	nodeID := req.URL.Query().Get("node")
+	if nodeID == "" {
+		return nil, CodedError(400, "detach requires node ID")
+	}
+
+	args := structs.CSIVolumeUnpublishRequest{
+		VolumeID: id,
+		Claim: &structs.CSIVolumeClaim{
+			NodeID: nodeID,
+			Mode:   structs.CSIVolumeClaimRelease,
+		},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSIVolumeUnpublishResponse
+	if err := s.agent.RPC("CSIVolume.Unpublish", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
 	return nil, nil
 }
 

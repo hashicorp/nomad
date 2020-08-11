@@ -148,7 +148,7 @@ export default [
       { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
       'version',
-      { category: 'volume', content: ['register', 'deregister', 'status'] }
+      { category: 'volume', content: ['deregister', 'detach', 'status', 'register'] }
     ]
   },
   '----------',
