@@ -54,9 +54,19 @@ export default class Application extends JSONSerializer {
     }
 
     if (this.mapToArray) {
-      this.mapToArray.forEach(key => {
-        const map = hash[key] || {};
-        hash[key] = Object.keys(map).map(mapKey => {
+      this.mapToArray.forEach(conversion => {
+        let apiKey, uiKey;
+
+        if (conversion.APIName) {
+          apiKey = conversion.APIName;
+          uiKey = conversion.UIName;
+        } else {
+          apiKey = conversion;
+          uiKey = conversion;
+        }
+
+        const map = hash[apiKey] || {};
+        hash[uiKey] = Object.keys(map).map(mapKey => {
           const propertiesForKey = map[mapKey] || {};
           return assign({ Name: mapKey }, propertiesForKey);
         });
