@@ -289,14 +289,14 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('ports are listed', async function (assert) {
-    const allServerPorts = allocation.allocatedResources.Shared.Ports
+    const allServerPorts = allocation.allocatedResources.Shared.Ports;
 
     allServerPorts.sortBy('Label').forEach((serverPort, index) => {
       const renderedPort = Allocation.ports[index];
 
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.to, serverPort.To);
-      const expectedAddr = isIp.v6(serverPort.HostIP) ? `[${serverPort.HostIP}]:${serverPort.Value}` : `${serverPort.HostIP}:${serverPort.Value}`
+      const expectedAddr = isIp.v6(serverPort.HostIP) ? `[${serverPort.HostIP}]:${serverPort.Value}` : `${serverPort.HostIP}:${serverPort.Value}`;
       assert.equal(renderedPort.address, expectedAddr);
     });
   });
