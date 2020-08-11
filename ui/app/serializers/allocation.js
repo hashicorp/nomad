@@ -28,6 +28,8 @@ export default class AllocationSerializer extends ApplicationSerializer {
     },
   ];
 
+  separateNanos = ['CreateTime', 'ModifyTime'];
+
   normalize(typeHash, hash) {
     hash.JobVersion = hash.JobVersion != null ? hash.JobVersion : get(hash, 'Job.Version');
 
@@ -38,12 +40,6 @@ export default class AllocationSerializer extends ApplicationSerializer {
       this.get('system.activeNamespace.id') ||
       'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
-
-    hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
-    hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
-
-    hash.CreateTimeNanos = hash.CreateTime % 1000000;
-    hash.CreateTime = Math.floor(hash.CreateTime / 1000000);
 
     hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
 

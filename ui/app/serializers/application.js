@@ -85,6 +85,14 @@ export default class Application extends JSONSerializer {
       });
     }
 
+    if (this.separateNanos) {
+      this.separateNanos.forEach(key => {
+        const timeWithNanos = hash[key];
+        hash[`${key}Nanos`] = timeWithNanos % 1000000;
+        hash[key] = Math.floor(timeWithNanos / 1000000);
+      });
+    }
+
     return super.normalize(modelClass, hash);
   }
 

@@ -7,6 +7,7 @@ import attr from 'ember-data/attr';
 
 class TestSerializer extends ApplicationSerializer {
   arrayNullOverrides = ['Things'];
+
   mapToArray = [
     'ArrayableMap',
     { APIName: 'APINameArrayableMap', UIName: 'RenamedArrayableMap' },
@@ -19,13 +20,19 @@ class TestSerializer extends ApplicationSerializer {
       },
     },
   ];
+
+  separateNanos = ['Time'];
 }
 
 class TestModel extends Model {
   @attr() things;
+
   @attr() arrayableMap;
   @attr() renamedArrayableMap;
   @attr() convertedArrayableMap;
+
+  @attr() time;
+  @attr() timeNanos;
 }
 
 module('Unit | Serializer | Application', function(hooks) {
@@ -48,6 +55,7 @@ module('Unit | Serializer | Application', function(hooks) {
         ArrayableMap: null,
         APINameArrayableMap: null,
         ConvertedArrayableMap: null,
+        Time: 1607839992000100000,
       },
       out: {
         data: {
@@ -57,6 +65,8 @@ module('Unit | Serializer | Application', function(hooks) {
             arrayableMap: [],
             renamedArrayableMap: [],
             convertedArrayableMap: [],
+            time: 1607839992000,
+            timeNanos: 100096,
           },
           relationships: {},
           type: 'test',
@@ -79,6 +89,7 @@ module('Unit | Serializer | Application', function(hooks) {
         ConvertedArrayableMap: {
           a: { X: 1, Y: 2 },
         },
+        Time: 1607839992000100000,
       },
       out: {
         data: {
@@ -92,6 +103,8 @@ module('Unit | Serializer | Application', function(hooks) {
             ],
             renamedArrayableMap: [{ Name: 'a', X: 1 }],
             convertedArrayableMap: [{ Name: 'a', XX: 1, YY: 2 }],
+            time: 1607839992000,
+            timeNanos: 100096,
           },
           relationships: {},
           type: 'test',
