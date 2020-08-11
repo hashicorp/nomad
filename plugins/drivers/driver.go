@@ -334,6 +334,7 @@ func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
 type Resources struct {
 	NomadResources *structs.AllocatedTaskResources
 	LinuxResources *LinuxResources
+	Ports          *structs.AllocatedPorts
 }
 
 func (r *Resources) Copy() *Resources {
@@ -346,6 +347,11 @@ func (r *Resources) Copy() *Resources {
 	}
 	if r.LinuxResources != nil {
 		res.LinuxResources = r.LinuxResources.Copy()
+	}
+
+	if r.Ports != nil {
+		ports := structs.AllocatedPorts(append(make([]structs.AllocatedPortMapping, 0, len(*r.Ports)), *r.Ports...))
+		res.Ports = &ports
 	}
 	return res
 }

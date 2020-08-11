@@ -467,6 +467,10 @@ message Resources {
 
     // LinuxResources are the computed values to set for specific Linux features
     LinuxResources linux_resources = 2;
+
+    // Ports are the allocated port mappings for the allocation.
+    // A task may use these to manually configure port mapping if shared network namespaces aren't being used.
+    repeated PortMapping ports = 3;
 }
 
 message AllocatedTaskResources {
@@ -495,6 +499,13 @@ message NetworkResource {
 message NetworkPort {
     string label = 1;
     int32 value = 2;
+}
+
+message PortMapping {
+    string label = 1;
+    int32 value = 2;
+    int32 to = 3;
+    string host_ip = 4;
 }
 
 message LinuxResources {
