@@ -45,52 +45,54 @@ export default class Application extends JSONSerializer {
   }
 
   normalize(modelClass, hash) {
-    if (this.arrayNullOverrides) {
-      this.arrayNullOverrides.forEach(key => {
-        if (!hash[key]) {
-          hash[key] = [];
-        }
-      });
-    }
+    if (hash) {
+      if (this.arrayNullOverrides) {
+        this.arrayNullOverrides.forEach(key => {
+          if (!hash[key]) {
+            hash[key] = [];
+          }
+        });
+      }
 
-    if (this.mapToArray) {
-      this.mapToArray.forEach(conversion => {
-        let apiKey, uiKey;
+      if (this.mapToArray) {
+        this.mapToArray.forEach(conversion => {
+          let apiKey, uiKey;
 
-        if (conversion.APIName) {
-          apiKey = conversion.APIName;
-          uiKey = conversion.UIName;
-        } else if (conversion.name) {
-          apiKey = conversion.name;
-          uiKey = conversion.name;
-        } else {
-          apiKey = conversion;
-          uiKey = conversion;
-        }
-
-        const map = hash[apiKey] || {};
-
-        hash[uiKey] = Object.keys(map).map(mapKey => {
-          const propertiesForKey = map[mapKey] || {};
-          const convertedMap = { Name: mapKey };
-
-          if (conversion.convertor) {
-            conversion.convertor(propertiesForKey, convertedMap);
+          if (conversion.APIName) {
+            apiKey = conversion.APIName;
+            uiKey = conversion.UIName;
+          } else if (conversion.name) {
+            apiKey = conversion.name;
+            uiKey = conversion.name;
           } else {
-            assign(convertedMap, propertiesForKey);
+            apiKey = conversion;
+            uiKey = conversion;
           }
 
-          return convertedMap;
-        });
-      });
-    }
+          const map = hash[apiKey] || {};
 
-    if (this.separateNanos) {
-      this.separateNanos.forEach(key => {
-        const timeWithNanos = hash[key];
-        hash[`${key}Nanos`] = timeWithNanos % 1000000;
-        hash[key] = Math.floor(timeWithNanos / 1000000);
-      });
+          hash[uiKey] = Object.keys(map).map(mapKey => {
+            const propertiesForKey = map[mapKey] || {};
+            const convertedMap = { Name: mapKey };
+
+            if (conversion.convertor) {
+              conversion.convertor(propertiesForKey, convertedMap);
+            } else {
+              assign(convertedMap, propertiesForKey);
+            }
+
+            return convertedMap;
+          });
+        });
+      }
+
+      if (this.separateNanos) {
+        this.separateNanos.forEach(key => {
+          const timeWithNanos = hash[key];
+          hash[`${key}Nanos`] = timeWithNanos % 1000000;
+          hash[key] = Math.floor(timeWithNanos / 1000000);
+        });
+      }
     }
 
     return super.normalize(modelClass, hash);
