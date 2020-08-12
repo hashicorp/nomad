@@ -21,9 +21,11 @@ export default class AllocationSerializer extends ApplicationSerializer {
   mapToArray = [
     {
       name: 'TaskStates',
-      convertor: (apiHash, uiHash) => {
-        Object.keys(apiHash).forEach(stateKey => (uiHash[stateKey] = apiHash[stateKey]));
-        uiHash.Resources = apiHash.TaskResources && apiHash.TaskResources[uiHash.Name];
+      convertor: (apiHashMember, uiHashMember, mapKey, apiHash) => {
+        Object.keys(apiHashMember).forEach(
+          stateKey => (uiHashMember[stateKey] = apiHashMember[stateKey])
+        );
+        uiHashMember.Resources = apiHash.TaskResources && apiHash.TaskResources[mapKey];
       },
     },
   ];

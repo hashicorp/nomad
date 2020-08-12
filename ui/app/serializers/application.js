@@ -76,7 +76,7 @@ export default class Application extends JSONSerializer {
             const convertedMap = { Name: mapKey };
 
             if (conversion.convertor) {
-              conversion.convertor(propertiesForKey, convertedMap);
+              conversion.convertor(propertiesForKey, convertedMap, mapKey, hash);
             } else {
               assign(convertedMap, propertiesForKey);
             }
