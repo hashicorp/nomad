@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
@@ -98,4 +99,25 @@ func TestHTTP_CSIEndpointVolume(t *testing.T) {
 		require.Equal(t, 2, out.NodesExpected)
 		require.Equal(t, 2, out.NodesHealthy)
 	})
+}
+
+// TestHTTP_CSIEndpoint_Cast is a smoke test for converting from structs to
+// API structs
+func TestHTTP_CSIEndpoint_Cast(t *testing.T) {
+	t.Parallel()
+
+	plugin := mock.CSIPlugin()
+	plugin.Nodes["node1"] = &structs.CSIInfo{
+		PluginID: plugin.ID,
+		AllocID:  "alloc1",
+		NodeInfo: &structs.CSINodeInfo{ID: "instance-1", MaxVolumes: 3},
+	}
+	apiPlugin := structsCSIPluginToApi(plugin)
+	require.Equal(t,
+		plugin.Nodes["node1"].NodeInfo.MaxVolumes,
+		apiPlugin.Nodes["node1"].NodeInfo.MaxVolumes)
+
+	vol := mock.CSIVolume(plugin)
+	apiVol := structsCSIVolumeToApi(vol)
+	require.Equal(t, vol.MountOptions.MountFlags, apiVol.MountOptions.MountFlags)
 }
