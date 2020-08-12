@@ -39,6 +39,14 @@ func (m *ErrDB) PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentS
 	return fmt.Errorf("Error!")
 }
 
+func (m *ErrDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus) error {
+	return fmt.Errorf("Error!")
+}
+
 func (m *ErrDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, fmt.Errorf("Error!")
 }

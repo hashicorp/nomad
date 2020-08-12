@@ -33,6 +33,11 @@ type StateDB interface {
 	GetDeploymentStatus(allocID string) (*structs.AllocDeploymentStatus, error)
 	PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentStatus) error
 
+	// Get/Put NetworkStatus get and put the allocation's network
+	// status. It may be nil.
+	GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error)
+	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus) error
+
 	// GetTaskRunnerState returns the LocalState and TaskState for a
 	// TaskRunner. Either state may be nil if it is not found, but if an
 	// error is encountered only the error will be non-nil.

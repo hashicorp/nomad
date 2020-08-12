@@ -35,6 +35,14 @@ func (n NoopDB) PutDeploymentStatus(allocID string, ds *structs.AllocDeploymentS
 	return nil
 }
 
+func (n NoopDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error) {
+	return nil, nil
+}
+
+func (n NoopDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus) error {
+	return nil
+}
+
 func (n NoopDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, nil
 }
