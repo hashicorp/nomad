@@ -1099,7 +1099,11 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		if raw == nil {
 			break
 		}
-		plug := raw.(*structs.CSIPlugin).Copy()
+		plug, ok := raw.(*structs.CSIPlugin)
+		if !ok {
+			continue
+		}
+		plug = plug.Copy()
 
 		var hadDelete bool
 		if _, ok := inUseController[plug.ID]; !ok {
