@@ -4,8 +4,8 @@ import ApplicationSerializer from './application';
 export default class JobSummary extends ApplicationSerializer {
   mapToArray = [
     {
-      APIName: 'Summary',
-      UIName: 'TaskGroupSummaries',
+      apiName: 'Summary',
+      uiName: 'TaskGroupSummaries',
       convertor: (apiHash, uiHash) => {
         Object.keys(apiHash).forEach(allocKey => (uiHash[`${allocKey}Allocs`] = apiHash[allocKey]));
       },

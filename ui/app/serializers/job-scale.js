@@ -1,7 +1,7 @@
 import ApplicationSerializer from './application';
 
 export default class JobScale extends ApplicationSerializer {
-  mapToArray = [{ APIName: 'TaskGroups', UIName: 'TaskGroupScales' }];
+  mapToArray = [{ apiName: 'TaskGroups', uiName: 'TaskGroupScales' }];
 
   normalize(modelClass, hash) {
     hash.PlainJobId = hash.JobID;

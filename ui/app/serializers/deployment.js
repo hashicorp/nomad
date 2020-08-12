@@ -9,7 +9,7 @@ export default class DeploymentSerializer extends ApplicationSerializer {
     versionNumber: 'JobVersion',
   };
 
-  mapToArray = [{ APIName: 'TaskGroups', UIName: 'TaskGroupSummaries' }];
+  mapToArray = [{ apiName: 'TaskGroups', uiName: 'TaskGroupSummaries' }];
 
   normalize(typeHash, hash) {
     if (hash) {

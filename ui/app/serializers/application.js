@@ -58,9 +58,9 @@ export default class Application extends JSONSerializer {
         this.mapToArray.forEach(conversion => {
           let apiKey, uiKey;
 
-          if (conversion.APIName) {
-            apiKey = conversion.APIName;
-            uiKey = conversion.UIName;
+          if (conversion.apiName) {
+            apiKey = conversion.apiName;
+            uiKey = conversion.uiName;
           } else if (conversion.name) {
             apiKey = conversion.name;
             uiKey = conversion.name;

@@ -10,7 +10,7 @@ class TestSerializer extends ApplicationSerializer {
 
   mapToArray = [
     'ArrayableMap',
-    { APIName: 'APINameArrayableMap', UIName: 'RenamedArrayableMap' },
+    { apiName: 'OriginalNameArrayableMap', uiName: 'RenamedArrayableMap' },
     {
       name: 'ConvertedArrayableMap',
       convertor: (apiHashMember, uiHashMember, mapKey, apiHash) => {
@@ -55,7 +55,7 @@ module('Unit | Serializer | Application', function(hooks) {
         ID: 'test-test',
         Things: null,
         ArrayableMap: null,
-        APINameArrayableMap: null,
+        OriginalNameArrayableMap: null,
         ConvertedArrayableMap: null,
         Time: 1607839992000100000,
       },
@@ -85,7 +85,7 @@ module('Unit | Serializer | Application', function(hooks) {
           b: { Order: 2 },
           'c.d': { Order: 3 },
         },
-        APINameArrayableMap: {
+        OriginalNameArrayableMap: {
           a: { X: 1 },
         },
         ConvertedArrayableMap: {
