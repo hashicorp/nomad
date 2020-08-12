@@ -268,6 +268,9 @@ func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *htt
 // structsCSIPluginToApi converts CSIPlugin, setting Expected the count of known plugin
 // instances
 func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
+	if plug == nil {
+		return nil
+	}
 	out := &api.CSIPlugin{
 		ID:                  plug.ID,
 		Provider:            plug.Provider,
@@ -301,6 +304,9 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 
 // structsCSIVolumeToApi converts CSIVolume, creating the allocation array
 func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
+	if vol == nil {
+		return nil
+	}
 	out := &api.CSIVolume{
 		ID:             vol.ID,
 		Name:           vol.Name,
@@ -344,6 +350,9 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 
 // structsCSIInfoToApi converts CSIInfo, part of CSIPlugin
 func structsCSIInfoToApi(info *structs.CSIInfo) *api.CSIInfo {
+	if info == nil {
+		return nil
+	}
 	out := &api.CSIInfo{
 		PluginID:                 info.PluginID,
 		Healthy:                  info.Healthy,
@@ -380,6 +389,9 @@ func structsCSIInfoToApi(info *structs.CSIInfo) *api.CSIInfo {
 
 // structsAllocListStubToApi converts AllocListStub, for CSIPlugin
 func structsAllocListStubToApi(alloc *structs.AllocListStub) *api.AllocationListStub {
+	if alloc == nil {
+		return nil
+	}
 	out := &api.AllocationListStub{
 		ID:                    alloc.ID,
 		EvalID:                alloc.EvalID,
@@ -416,6 +428,9 @@ func structsAllocListStubToApi(alloc *structs.AllocListStub) *api.AllocationList
 
 // structsAllocDeploymentStatusToApi converts RescheduleTracker, part of AllocListStub
 func structsAllocDeploymentStatusToApi(ads *structs.AllocDeploymentStatus) *api.AllocDeploymentStatus {
+	if ads == nil {
+		return nil
+	}
 	out := &api.AllocDeploymentStatus{
 		Healthy:     ads.Healthy,
 		Timestamp:   ads.Timestamp,
@@ -427,6 +442,9 @@ func structsAllocDeploymentStatusToApi(ads *structs.AllocDeploymentStatus) *api.
 
 // structsRescheduleTrackerToApi converts RescheduleTracker, part of AllocListStub
 func structsRescheduleTrackerToApi(rt *structs.RescheduleTracker) *api.RescheduleTracker {
+	if rt == nil {
+		return nil
+	}
 	out := &api.RescheduleTracker{}
 
 	for _, e := range rt.Events {
@@ -442,6 +460,9 @@ func structsRescheduleTrackerToApi(rt *structs.RescheduleTracker) *api.Reschedul
 
 // structsTaskStateToApi converts TaskState, part of AllocListStub
 func structsTaskStateToApi(ts *structs.TaskState) *api.TaskState {
+	if ts == nil {
+		return nil
+	}
 	out := &api.TaskState{
 		State:       ts.State,
 		Failed:      ts.Failed,
@@ -460,6 +481,9 @@ func structsTaskStateToApi(ts *structs.TaskState) *api.TaskState {
 
 // structsTaskEventToApi converts TaskEvents, part of AllocListStub
 func structsTaskEventToApi(te *structs.TaskEvent) *api.TaskEvent {
+	if te == nil {
+		return nil
+	}
 	out := &api.TaskEvent{
 		Type:           te.Type,
 		Time:           te.Time,
