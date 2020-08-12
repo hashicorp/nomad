@@ -234,6 +234,7 @@ func TestTaskHookCoordinator_PoststartStartsAfterMain(t *testing.T) {
 	sideTask := tasks[1]
 	postTask := tasks[2]
 
+	// Make the the third task a poststart hook
 	postTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
 
 	coord := newTaskHookCoordinator(logger, tasks)
@@ -251,14 +252,14 @@ func TestTaskHookCoordinator_PoststartStartsAfterMain(t *testing.T) {
 			Failed: false,
 		},
 		mainTask.Name: {
-			State:      structs.TaskStateRunning,
-			Failed:     false,
-			StartedAt:  time.Now(),
+			State:     structs.TaskStateRunning,
+			Failed:    false,
+			StartedAt: time.Now(),
 		},
 		sideTask.Name: {
-			State:      structs.TaskStateRunning,
-			Failed:     false,
-			StartedAt:  time.Now(),
+			State:     structs.TaskStateRunning,
+			Failed:    false,
+			StartedAt: time.Now(),
 		},
 	}
 
@@ -268,7 +269,6 @@ func TestTaskHookCoordinator_PoststartStartsAfterMain(t *testing.T) {
 	require.Truef(t, isChannelClosed(sideCh), "%s channel was open, should be closed", sideTask.Name)
 	require.Truef(t, isChannelClosed(mainCh), "%s channel was open, should be closed", mainTask.Name)
 }
-
 
 func isChannelClosed(ch <-chan struct{}) bool {
 	select {

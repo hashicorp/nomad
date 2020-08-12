@@ -367,6 +367,7 @@ func VariableLifecycleJob(resources structs.Resources, main int, init int, side 
 	job.Canonicalize()
 	return job
 }
+
 func LifecycleJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
@@ -454,6 +455,7 @@ func LifecycleJob() *structs.Job {
 	job.Canonicalize()
 	return job
 }
+
 func LifecycleAlloc() *structs.Allocation {
 	alloc := &structs.Allocation{
 		ID:        uuid.Generate(),

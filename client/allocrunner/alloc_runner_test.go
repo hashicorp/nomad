@@ -142,6 +142,100 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	})
 }
 
+// TestAllocRunner_Lifecycle_Poststart asserts that a service job with 2
+// poststart lifecycle hooks (1 sidecar, 1 ephemeral) starts all 3 tasks, only
+// the ephemeral one finishes, and the other 2 exit when the alloc is stopped.
+func TestAllocRunner_Lifecycle_Poststart(t *testing.T) {
+	alloc := mock.LifecycleAlloc()
+
+	alloc.Job.Type = structs.JobTypeService
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	mainTask.Config["run_for"] = "100s"
+
+	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
+	sidecarTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+	sidecarTask.Config["run_for"] = "100s"
+
+	ephemeralTask := alloc.Job.TaskGroups[0].Tasks[2]
+	ephemeralTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	require.NoError(t, err)
+	defer destroy(ar)
+	go ar.Run()
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	// Wait for main and sidecar tasks to be running, and that the
+	// ephemeral task ran and exited.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected main task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[sidecarTask.Name].State; s != structs.TaskStateRunning {
+			return false, fmt.Errorf("expected sidecar task to be running not %s", s)
+		}
+
+		if s := last.TaskStates[ephemeralTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected ephemeral task to be dead not %s", s)
+		}
+
+		if last.TaskStates[ephemeralTask.Name].Failed {
+			return false, fmt.Errorf("expected ephemeral task to be successful not failed")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+
+	// Tell the alloc to stop
+	stopAlloc := alloc.Copy()
+	stopAlloc.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(stopAlloc)
+
+	// Wait for main and sidecar tasks to stop.
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+		}
+
+		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected main task to be dead not %s", s)
+		}
+
+		if last.TaskStates[mainTask.Name].Failed {
+			return false, fmt.Errorf("expected main task to be successful not failed")
+		}
+
+		if s := last.TaskStates[sidecarTask.Name].State; s != structs.TaskStateDead {
+			return false, fmt.Errorf("expected sidecar task to be dead not %s", s)
+		}
+
+		if last.TaskStates[sidecarTask.Name].Failed {
+			return false, fmt.Errorf("expected sidecar task to be successful not failed")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("error waiting for initial state:\n%v", err)
+	})
+}
+
 // TestAllocRunner_TaskMain_KillTG asserts that when main tasks die the
 // entire task group is killed.
 func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
@@ -162,7 +256,7 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		Sidecar: true,
 	}
 
-		sidecar.Config = map[string]interface{}{
+	sidecar.Config = map[string]interface{}{
 		"run_for": "100s",
 	}
 
@@ -196,10 +290,10 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 
 	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{sidecar, main1, main2}
 	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
-		sidecar.Name: tr,
+		sidecar.Name:   tr,
 		poststart.Name: tr,
-		main1.Name:   tr,
-		main2.Name:   tr,
+		main1.Name:     tr,
+		main2.Name:     tr,
 	}
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
@@ -264,7 +358,6 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		if !hasTaskMainEvent(state) {
 			return false, fmt.Errorf("Did not find event %v: %#+v", structs.TaskMainDead, state.Events)
 		}
-
 
 		// main tasks should die naturely
 		state = last.TaskStates[main1.Name]
