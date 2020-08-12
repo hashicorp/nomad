@@ -561,7 +561,12 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		},
 	})
 
-	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), d.config.pullActivityTimeoutDuration)
+	pullDur, err := time.ParseDuration(driverConfig.ImagePullTimeout)
+	if err != nil {
+		return "", fmt.Errorf("Failed to parse image_pull_timeout: %v", err)
+	}
+
+	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), pullDur, d.config.pullActivityTimeoutDuration)
 }
 
 func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {

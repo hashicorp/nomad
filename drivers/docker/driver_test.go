@@ -452,8 +452,9 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image:   "127.0.0.1:32121/foo", // bad path
-		Command: "echo",
+		Image:            "127.0.0.1:32121/foo", // bad path
+		ImagePullTimeout: "5m",
+		Command:          "echo",
 		Args: []string{
 			"hello",
 		},
