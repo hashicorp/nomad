@@ -72,7 +72,7 @@ func newAllocHealthWatcherHook(logger log.Logger, alloc *structs.Allocation, hs 
 
 	// Neither deployments nor migrations care about the health of
 	// non-service jobs so never watch their health
-	if alloc.Job.Type != structs.JobTypeService {
+	if !(alloc.Job.Type == structs.JobTypeService || alloc.Job.Type == structs.JobTypeSystem) {
 		return noopAllocHealthWatcherHook{}
 	}
 

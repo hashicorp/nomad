@@ -21,6 +21,11 @@ const (
 	// we will attempt to schedule if we continue to hit conflicts for batch.
 	maxBatchScheduleAttempts = 2
 
+	// maxSystemScheduleAttempts is used to limit the number of times
+	// we will attempt to schedule if we continue to hit conflicts for system
+	// jobs.
+	maxSystemScheduleAttempts = 5
+
 	// allocNotNeeded is the status used when a job no longer requires an allocation
 	allocNotNeeded = "alloc not needed due to job update"
 
@@ -60,6 +65,8 @@ const (
 	maxPastRescheduleEvents = 5
 )
 
+type newGenericStackFn func(batch bool, ctx Context) *GenericStack
+
 // SetStatusError is used to set the status of the evaluation to the given error
 type SetStatusError struct {
 	Err        error
@@ -97,6 +104,10 @@ type GenericScheduler struct {
 	blocked        *structs.Evaluation
 	failedTGAllocs map[string]*structs.AllocMetric
 	queuedAllocs   map[string]int
+
+	maxScheduleAttempts int
+	newStackFn newGenericStackFn
+	maxPlacementsCalcFn maxPlacementsCalcFnType
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -106,6 +117,9 @@ func NewServiceScheduler(logger log.Logger, state State, planner Planner) Schedu
 		state:   state,
 		planner: planner,
 		batch:   false,
+		maxScheduleAttempts: maxServiceScheduleAttempts,
+		newStackFn: NewGenericStack,
+		maxPlacementsCalcFn: serviceMaxPlacementsCalcFn,
 	}
 	return s
 }
@@ -117,6 +131,9 @@ func NewBatchScheduler(logger log.Logger, state State, planner Planner) Schedule
 		state:   state,
 		planner: planner,
 		batch:   true,
+		maxScheduleAttempts: maxBatchScheduleAttempts,
+		newStackFn: NewGenericStack,
+		maxPlacementsCalcFn: serviceMaxPlacementsCalcFn,
 	}
 	return s
 }
@@ -149,11 +166,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 
 	// Retry up to the maxScheduleAttempts and reset if progress is made.
 	progress := func() bool { return progressMade(s.planResult) }
-	limit := maxServiceScheduleAttempts
-	if s.batch {
-		limit = maxBatchScheduleAttempts
-	}
-	if err := retryMax(limit, s.process, progress); err != nil {
+	if err := retryMax(s.maxScheduleAttempts, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			// Scheduling was tried but made no forward progress so create a
 			// blocked eval to retry once resources become available.
@@ -248,7 +261,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = NewGenericStack(s.batch, s.ctx)
+	s.stack = s.newStackFn(s.batch, s.ctx)
 	if !s.job.Stopped() {
 		s.stack.SetJob(s.job)
 	}
@@ -351,6 +364,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	reconciler := NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
+		s.maxPlacementsCalcFn(s.ctx, s.stack),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID)
 	results := reconciler.Compute()
 	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", results))
@@ -726,8 +740,10 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 	if schedConfig != nil {
 		if s.job.Type == structs.JobTypeBatch {
 			enablePreemption = schedConfig.PreemptionConfig.BatchSchedulerEnabled
-		} else {
+		} else if s.job.Type == structs.JobTypeService {
 			enablePreemption = schedConfig.PreemptionConfig.ServiceSchedulerEnabled
+		} else if s.job.Type == structs.JobTypeSystem {
+			enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
 		}
 	}
 	// Run stack again with preemption enabled

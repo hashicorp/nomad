@@ -17,6 +17,8 @@
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
 
+  <JobPage::Parts::LatestDeployment @job={{this.job}} @handleError={{action "handleError"}} />
+
   <JobPage::Parts::TaskGroups
     @job={{this.job}}
     @sortProperty={{this.sortProperty}}

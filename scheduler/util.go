@@ -954,3 +954,65 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		return false, false, newAlloc
 	}
 }
+
+
+// systemMaxPlacementsCalcFn
+func systemMaxPlacementsCalcFn(ctx Context, stack Stack) maxPlacementsCalcType {
+	return func(job *structs.Job, tg *structs.TaskGroup, existingAllocs []*structs.Allocation) (int, error) {
+		// Get the ready nodes in the required datacenters
+		nodes, _, err := readyNodesInDCs(ctx.State(), job.Datacenters)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get ready nodes: %v", err)
+		}
+
+		// TODO()
+		existing := make(map[string]*structs.Allocation)
+
+		for _, alloc := range existingAllocs {
+			if alloc.Job.ID == job.ID && alloc.Job.Version == job.Version && alloc.Job.CreateIndex == job.CreateIndex  && alloc.TaskGroup == tg.Name {
+				existing[alloc.NodeID] = alloc
+			}
+		}
+
+		// TODO(dubadub) should we discount tained node as well?
+		counter := 0
+
+		for _, node := range nodes {
+			// Set the node as the base set
+			stack.SetNodes([]*structs.Node{node})
+
+			// Try to find relevant allocation on this node.
+			alloc := existing[node.ID]
+
+			// Stage an eviction of the current allocation. This is done so that
+			// the current allocation is discounted when checking for feasibility.
+			// Otherwise we would be trying to fit the tasks current resources and
+			// updated resources. After select is called we can remove the evict.
+			if alloc != nil {
+				ctx.Plan().AppendStoppedAlloc(alloc, allocInPlace, "", "")
+			}
+
+			// Attempt to match the task group
+			option := stack.Select(tg, nil) // This select only looks at one node so we don't pass selectOptions
+
+			if alloc != nil {
+				// Pop the allocation
+				ctx.Plan().PopUpdate(alloc)
+			}
+
+			if option != nil {
+				counter += 1
+			}
+		}
+
+		return counter, nil
+	}
+}
+
+
+// serviceMaxPlacementsCalcFn
+func serviceMaxPlacementsCalcFn(ctx Context, stack Stack) maxPlacementsCalcType {
+	return func(job *structs.Job, tg *structs.TaskGroup, existingAllocs []*structs.Allocation) (int, error) {
+		return tg.Count, nil
+	}
+}

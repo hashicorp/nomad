@@ -32,6 +32,10 @@ const (
 type allocUpdateType func(existing *structs.Allocation, newJob *structs.Job,
 	newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation)
 
+
+type maxPlacementsCalcType func(job *structs.Job, tg *structs.TaskGroup,
+	existingAllocs []*structs.Allocation) (int, error)
+
 // allocReconciler is used to determine the set of allocations that require
 // placement, inplace updating or stopping given the job specification and
 // existing cluster state. The reconciler should only be used for batch and
@@ -43,6 +47,9 @@ type allocReconciler struct {
 
 	// canInplace is used to check if the allocation can be inplace upgraded
 	allocUpdateFn allocUpdateType
+
+	// maxPlacementsCalcType calculates
+	maxPlacementsCalcFn maxPlacementsCalcType
 
 	// batch marks whether the job is a batch job
 	batch bool
@@ -158,8 +165,8 @@ func (r *reconcileResults) Changes() int {
 
 // NewAllocReconciler creates a new reconciler that should be used to determine
 // the changes required to bring the cluster state inline with the declared jobspec
-func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
-	jobID string, job *structs.Job, deployment *structs.Deployment,
+func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, maxPlacementsCalcFn maxPlacementsCalcType,
+	batch bool, jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string) *allocReconciler {
 	return &allocReconciler{
 		logger:         logger.Named("reconciler"),
@@ -176,6 +183,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
 			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
 		},
+		maxPlacementsCalcFn: maxPlacementsCalcFn,
 	}
 }
 
@@ -373,6 +381,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		}
 	}
 
+	// Calculate maximum possible number of placement for a given task group
+	maxNumPlacements, err := a.maxPlacementsCalcFn(a.job, tg, a.existingAllocs)
+	if err != nil {
+		a.logger.Error("failed to calculate maxNumPlacements", "error", err)
+	}
+
 	// Filter allocations that do not need to be considered because they are
 	// from an older job version and are terminal.
 	all, ignore := a.filterOldTerminalAllocs(all)
@@ -398,12 +412,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Create a structure for choosing names. Seed with the taken names which is
 	// the union of untainted and migrating nodes (includes canaries)
-	nameIndex := newAllocNameIndex(a.jobID, group, tg.Count, untainted.union(migrate, rescheduleNow))
+	nameIndex := newAllocNameIndex(a.jobID, group, maxNumPlacements, untainted.union(migrate, rescheduleNow))
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// included stopped allocations.
 	canaryState := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, canaryState, lostLaterEvals)
+	stop := a.computeStop(tg, maxNumPlacements, nameIndex, untainted, migrate, lost, canaries, canaryState, lostLaterEvals)
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
@@ -447,7 +461,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Determine how many we can place
 	canaryState = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-	limit := a.computeLimit(tg, untainted, destructive, migrate, canaryState)
+	limit := a.computeLimit(tg, maxNumPlacements, untainted, destructive, migrate, canaryState)
 
 	// Place if:
 	// * The deployment is not paused or failed
@@ -456,7 +470,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// * There is no delayed stop_after_client_disconnect alloc, which delays scheduling for the whole group
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, canaryState)
+		place = a.computePlacements(tg, maxNumPlacements, nameIndex, untainted, migrate, rescheduleNow, canaryState)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -667,11 +681,11 @@ func (a *allocReconciler) handleGroupCanaries(all allocSet, desiredChanges *stru
 // computeLimit returns the placement limit for a particular group. The inputs
 // are the group definition, the untainted, destructive, and migrate allocation
 // set and whether we are in a canary state.
-func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, destructive, migrate allocSet, canaryState bool) int {
+func (a *allocReconciler) computeLimit(group *structs.TaskGroup, maxNumPlacements int, untainted, destructive, migrate allocSet, canaryState bool) int {
 	// If there is no update strategy or deployment for the group we can deploy
 	// as many as the group has
 	if group.Update.IsEmpty() || len(destructive)+len(migrate) == 0 {
-		return group.Count
+		return maxNumPlacements
 	} else if a.deploymentPaused || a.deploymentFailed {
 		// If the deployment is paused or failed, do not create anything else
 		return 0
@@ -711,7 +725,7 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 
 // computePlacement returns the set of allocations to place given the group
 // definition, the set of untainted, migrating and reschedule allocations for the group.
-func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
+func (a *allocReconciler) computePlacements(group *structs.TaskGroup, maxNumPlacements int,
 	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet, canaryState bool) []allocPlaceResult {
 
 	// Add rescheduled placement results
@@ -731,13 +745,13 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 
 	// Hot path the nothing to do case
 	existing := len(untainted) + len(migrate) + len(reschedule)
-	if existing >= group.Count {
+	if existing >= maxNumPlacements {
 		return place
 	}
 
 	// Add remaining placement results
-	if existing < group.Count {
-		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
+	if existing < maxNumPlacements {
+		for _, name := range nameIndex.Next(uint(maxNumPlacements - existing)) {
 			place = append(place, allocPlaceResult{
 				name:               name,
 				taskGroup:          group,
@@ -752,7 +766,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 // computeStop returns the set of allocations that are marked for stopping given
 // the group definition, the set of allocations in various states and whether we
 // are canarying.
-func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *allocNameIndex,
+func (a *allocReconciler) computeStop(group *structs.TaskGroup, maxNumPlacements int, nameIndex *allocNameIndex,
 	untainted, migrate, lost, canaries allocSet, canaryState bool, followupEvals map[string]string) allocSet {
 
 	// Mark all lost allocations for stop. Previous allocation doesn't matter
@@ -767,7 +781,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	}
 
 	// Hot path the nothing to do case
-	remove := len(untainted) + len(migrate) - group.Count
+	remove := len(untainted) + len(migrate) - maxNumPlacements
 	if remove <= 0 {
 		return stop
 	}
@@ -799,7 +813,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 
 	// Prefer selecting from the migrating set before stopping existing allocs
 	if len(migrate) != 0 {
-		mNames := newAllocNameIndex(a.jobID, group.Name, group.Count, migrate)
+		mNames := newAllocNameIndex(a.jobID, group.Name, maxNumPlacements, migrate)
 		removeNames := mNames.Highest(uint(remove))
 		for id, alloc := range migrate {
 			if _, match := removeNames[alloc.Name]; !match {
