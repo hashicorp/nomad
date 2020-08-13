@@ -387,6 +387,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, a.now, a.evalID, a.deployment)
+	a.logger.Info("RESCHEDULING NOW ", "rescheduleNow", len(rescheduleNow), "rescheduleNow_all", rescheduleNow, "rlater", len(rescheduleLater), "rlater_all", rescheduleLater)
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
 	lostLater := lost.delayByStopAfterClientDisconnect()
@@ -455,7 +456,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// * There is no delayed stop_after_client_disconnect alloc, which delays scheduling for the whole group
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow)
+		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, canaryState)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -533,9 +534,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		})
 		a.result.place = append(a.result.place, allocPlaceResult{
 			name:          alloc.Name,
-			canary:        false,
+			canary:        alloc.DeploymentStatus.IsCanary(),
 			taskGroup:     tg,
 			previousAlloc: alloc,
+
+			downgradeNonCanary: canaryState && !alloc.DeploymentStatus.IsCanary(),
+			minJobVersion:      alloc.Job.Version,
 		})
 	}
 
@@ -708,7 +712,7 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 // computePlacement returns the set of allocations to place given the group
 // definition, the set of untainted, migrating and reschedule allocations for the group.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
-	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet) []allocPlaceResult {
+	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet, canaryState bool) []allocPlaceResult {
 
 	// Add rescheduled placement results
 	var place []allocPlaceResult
@@ -719,6 +723,9 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			previousAlloc: alloc,
 			reschedule:    true,
 			canary:        alloc.DeploymentStatus.IsCanary(),
+
+			downgradeNonCanary: canaryState && !alloc.DeploymentStatus.IsCanary(),
+			minJobVersion:      alloc.Job.Version,
 		})
 	}
 

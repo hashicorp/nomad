@@ -398,7 +398,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			alloc.PreemptedAllocations = preemptedAllocIDs
 		}
 
-		s.plan.AppendAlloc(alloc)
+		s.plan.AppendAlloc(alloc, false)
 	}
 
 	return nil

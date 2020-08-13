@@ -387,12 +387,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			update.DeploymentID = s.deployment.GetID()
 			update.DeploymentStatus = nil
 		}
-		s.ctx.Plan().AppendAlloc(update)
+		s.ctx.Plan().AppendAlloc(update, false)
 	}
 
 	// Handle the annotation updates
 	for _, update := range results.attributeUpdates {
-		s.ctx.Plan().AppendAlloc(update)
+		s.ctx.Plan().AppendAlloc(update, false)
 	}
 
 	// Nothing remaining to do if placement is not required
@@ -456,6 +456,21 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 		for _, missing := range results {
 			// Get the task group
 			tg := missing.TaskGroup()
+			var downgradedJob *structs.Job
+
+			if missing.DowngradeNonCanary() {
+				job, err := s.state.LatestStableJobByID(nil, s.job.Namespace, s.job.ID, missing.MinJobVersion())
+				if err != nil {
+					return fmt.Errorf("failed to lookup stable version %v: %v", missing.MinJobVersion(), err)
+				}
+				if g := job.LookupTaskGroup(tg.Name); g != nil {
+					tg = g
+					downgradedJob = job
+
+					// ensure we are operating on the correct job
+					s.stack.SetJob(job)
+				}
+			}
 
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
@@ -483,11 +498,19 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			selectOptions := getSelectOptions(prevAllocation, preferredNode)
 			option := s.selectNextOption(tg, selectOptions)
 
+			s.logger.Error("INSPECTING PLACEMENT",
+				"result", fmt.Sprintf("%#+v", missing),
+				"option", option)
+
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
+
+			if downgradedJob != nil {
+				s.stack.SetJob(s.job)
+			}
 
 			// Set fields based on if we found an allocation option
 			if option != nil {
@@ -527,6 +550,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					},
 				}
 
+				s.logger.Error("INSPECTING PLACEMENT22",
+					"result", fmt.Sprintf("%#+v", missing),
+					"option", option,
+					"alloc_id", alloc.ID,
+				)
+
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
@@ -544,10 +573,14 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					}
 				}
 
+				if downgradedJob != nil {
+					alloc.Job = downgradedJob
+				}
+
 				s.handlePreemptions(option, alloc, missing)
 
 				// Track the placement
-				s.plan.AppendAlloc(alloc)
+				s.plan.AppendAlloc(alloc, downgradedJob != nil)
 
 			} else {
 				// Lazy initialize the failed map

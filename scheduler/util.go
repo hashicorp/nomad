@@ -655,7 +655,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			},
 		}
 		newAlloc.Metrics = ctx.Metrics()
-		ctx.Plan().AppendAlloc(newAlloc)
+		ctx.Plan().AppendAlloc(newAlloc, false)
 
 		// Remove this allocation from the slice
 		doInplace(&i, &n, &inplaceCount)

@@ -92,6 +92,8 @@ type State interface {
 	// job ID
 	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
 
+	LatestStableJobByID(ws memdb.WatchSet, namespace, jobID string, minVersion uint64) (*structs.Job, error)
+
 	// SchedulerConfig returns config options for the scheduler
 	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
 

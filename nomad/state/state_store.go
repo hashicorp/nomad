@@ -1749,6 +1749,56 @@ func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, namespace, id stri
 	return nil, nil
 }
 
+func (s *StateStore) LatestStableJobByID(ws memdb.WatchSet, namespace, id string, minVersion uint64) (*structs.Job, error) {
+	txn := s.db.Txn(false)
+
+	// Get all the historic jobs for this ID
+	iter, err := txn.Get("job_version", "id_prefix", namespace, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if ws != nil {
+		ws.Add(iter.WatchCh())
+	}
+
+	var latestStable, latestUnstable *structs.Job
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		// Ensure the ID is an exact match
+		j := raw.(*structs.Job)
+		if j.ID != id {
+			continue
+		}
+
+		if j.Version < minVersion {
+			continue
+		}
+
+		if j.Stable {
+			if latestStable == nil || latestStable.Version < j.Version {
+				latestStable = j
+			}
+		} else {
+			if latestUnstable == nil || latestUnstable.Version < j.Version {
+				latestUnstable = j
+			}
+
+		}
+	}
+
+	if latestStable != nil {
+		return latestStable, nil
+	}
+
+	return latestUnstable, nil
+}
+
 func (s *StateStore) JobVersions(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.Txn(false)
 
