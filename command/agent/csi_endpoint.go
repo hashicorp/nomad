@@ -407,6 +407,7 @@ func structsAllocListStubToApi(alloc *structs.AllocListStub) *api.AllocationList
 		DesiredDescription:    alloc.DesiredDescription,
 		ClientStatus:          alloc.ClientStatus,
 		ClientDescription:     alloc.ClientDescription,
+		TaskStates:            make(map[string]*api.TaskState, len(alloc.TaskStates)),
 		FollowupEvalID:        alloc.FollowupEvalID,
 		PreemptedAllocations:  alloc.PreemptedAllocations,
 		PreemptedByAllocation: alloc.PreemptedByAllocation,
@@ -445,7 +446,7 @@ func structsRescheduleTrackerToApi(rt *structs.RescheduleTracker) *api.Reschedul
 	if rt == nil {
 		return nil
 	}
-	out := &api.RescheduleTracker{}
+	out := &api.RescheduleTracker{Events: []*api.RescheduleEvent{}}
 
 	for _, e := range rt.Events {
 		out.Events = append(out.Events, &api.RescheduleEvent{
@@ -470,6 +471,7 @@ func structsTaskStateToApi(ts *structs.TaskState) *api.TaskState {
 		LastRestart: ts.LastRestart,
 		StartedAt:   ts.StartedAt,
 		FinishedAt:  ts.FinishedAt,
+		Events:      []*api.TaskEvent{},
 	}
 
 	for _, te := range ts.Events {
