@@ -29,7 +29,7 @@ see [](https://github.com/ceph/ceph-csi/blob/master/docs/deploy-rbd.md)
 
 - `--cluster=${NOMAD_DC}`
 
-  - The cluster the Controller/Node is apart of. Reccomend using `${NOMAD_DC}`
+  - The cluster the Controller/Node is a part of. Recommend using `${NOMAD_DC}`
 
 - `--instanceid=${attr.unique.platform.aws.instance-id}`
   
