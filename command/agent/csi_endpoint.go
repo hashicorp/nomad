@@ -275,14 +275,14 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 		ID:                  plug.ID,
 		Provider:            plug.Provider,
 		Version:             plug.Version,
-		Allocations:         make([]*api.AllocationListStub, len(plug.Allocations)),
+		Allocations:         make([]*api.AllocationListStub, 0, len(plug.Allocations)),
 		ControllerRequired:  plug.ControllerRequired,
 		ControllersHealthy:  plug.ControllersHealthy,
 		ControllersExpected: len(plug.Controllers),
-		Controllers:         make(map[string]*api.CSIInfo),
+		Controllers:         make(map[string]*api.CSIInfo, len(plug.Controllers)),
 		NodesHealthy:        plug.NodesHealthy,
 		NodesExpected:       len(plug.Nodes),
-		Nodes:               make(map[string]*api.CSIInfo),
+		Nodes:               make(map[string]*api.CSIInfo, len(plug.Nodes)),
 		CreateIndex:         plug.CreateIndex,
 		ModifyIndex:         plug.ModifyIndex,
 	}
@@ -307,6 +307,9 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 	if vol == nil {
 		return nil
 	}
+
+	allocs := len(vol.WriteAllocs) + len(vol.ReadAllocs)
+
 	out := &api.CSIVolume{
 		ID:             vol.ID,
 		Name:           vol.Name,
@@ -321,7 +324,7 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		Context:        vol.Context,
 
 		// Allocations is the collapsed list of both read and write allocs
-		Allocations: []*api.AllocationListStub{},
+		Allocations: make([]*api.AllocationListStub, 0, allocs),
 
 		Schedulable:         vol.Schedulable,
 		PluginID:            vol.PluginID,
@@ -446,7 +449,9 @@ func structsRescheduleTrackerToApi(rt *structs.RescheduleTracker) *api.Reschedul
 	if rt == nil {
 		return nil
 	}
-	out := &api.RescheduleTracker{Events: []*api.RescheduleEvent{}}
+	out := &api.RescheduleTracker{
+		Events: make([]*api.RescheduleEvent, 0, len(rt.Events)),
+	}
 
 	for _, e := range rt.Events {
 		out.Events = append(out.Events, &api.RescheduleEvent{
@@ -471,7 +476,7 @@ func structsTaskStateToApi(ts *structs.TaskState) *api.TaskState {
 		LastRestart: ts.LastRestart,
 		StartedAt:   ts.StartedAt,
 		FinishedAt:  ts.FinishedAt,
-		Events:      []*api.TaskEvent{},
+		Events:      make([]*api.TaskEvent, 0, len(ts.Events)),
 	}
 
 	for _, te := range ts.Events {
