@@ -25,7 +25,7 @@ see [](https://github.com/ceph/ceph-csi/blob/master/docs/deploy-rbd.md)
 
 - `--nodeid=${node.unique.name}`
 
-  - A unique ID for the node the task is running on. Reccomend using `${node.unique.name}`
+  - A unique ID for the node the task is running on. Recommend using `${node.unique.name}`
 
 - `--cluster=${NOMAD_DC}`
 
