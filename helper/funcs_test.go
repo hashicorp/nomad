@@ -24,6 +24,14 @@ func TestSliceStringIsSubset(t *testing.T) {
 	}
 }
 
+func TestSliceStringContains(t *testing.T) {
+	list := []string{"a", "b", "c"}
+	require.True(t, SliceStringContains(list, "a"))
+	require.True(t, SliceStringContains(list, "b"))
+	require.True(t, SliceStringContains(list, "c"))
+	require.False(t, SliceStringContains(list, "d"))
+}
+
 func TestCompareSliceSetString(t *testing.T) {
 	cases := []struct {
 		A      []string

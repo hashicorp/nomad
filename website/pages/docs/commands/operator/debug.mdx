@@ -1,0 +1,120 @@
+---
+layout: docs
+page_title: 'Commands: operator debug'
+sidebar_title: debug
+description: |
+  Build an archive of debug data.
+---
+
+# Command: operator debug
+
+The `operator debug` command builds an archive containing Nomad cluster
+configuration and state information, Nomad server and client node
+logs, and pprof profiles from the selected servers and client nodes.
+
+If no selection option is specified, the debug archive contains only
+cluster meta information.
+
+## Usage
+
+```plaintext
+nomad operator debug [options]
+```
+
+This command accepts comma separated `server-id` and `node-id` IDs for
+monitoring and pprof profiling. If IDs are provided, the command will
+monitor logs for the `duration`, saving a snapshot of Nomad state
+every `interval`. Captured logs and configurations are subjected to
+redaction, but may still contain sensitive information and the archive
+contents should be reviewed before sharing.
+
+If an `output` path is provided, `debug` will create a timestamped
+directory in that path instead of an archive. By default, the command
+creates a compressed tar archive in the current directory.
+
+Consul and Vault status and version information are included if
+configured.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Debug Options
+
+- `-duration=2m`: Set the duration of the log monitor command.
+  Defaults to `"2m"`. Logs will be captured from specified servers and
+  nodes at `log-level`.
+
+- `-interval=2m`: The interval between snapshots of the Nomad state.
+   If unspecified, only one snapshot is captured.
+
+- `-log-level=DEBUG`: The log level to monitor. Defaults to `DEBUG`.
+
+- `-node-id=n1,n2`: Comma separated list of Nomad client node ids, to
+   monitor for logs and include pprof data. Accepts id prefixes.
+
+- `-server-id=s1,s2`: Comma separated list of Nomad server names, or
+   the special server name "leader" to monitor for logs and include
+   pprof data.
+
+- `-output=path`: Path to the parent directory of the output
+   directory. Defaults to the current directory. If specified, no
+   archive is built.
+
+- `-consul-http-addr=<addr>`: The address and port of the Consul HTTP
+  agent. Overrides the `CONSUL_HTTP_ADDR` environment variable.
+
+- `-consul-token=<token>`: Token used to query Consul. Overrides the
+    `CONSUL_HTTP_TOKEN` environment variable and the Consul token
+    file.
+
+- `-consul-token-file=<path>`: Path to the Consul token file. Overrides the `CONSUL_HTTP_TOKEN_FILE`
+    environment variable.
+
+- `-consul-client-cert=<path>`: Path to the Consul client cert file. Overrides the `CONSUL_CLIENT_CERT`
+    environment variable.
+
+- `-consul-client-key=<path>`: Path to the Consul client key file. Overrides the `CONSUL_CLIENT_KEY`
+    environment variable.
+
+- `-consul-ca-cert=<path>`: Path to a CA file to use with Consul. Overrides the `CONSUL_CACERT`
+    environment variable and the Consul CA path.
+
+- `-consul-ca-path=<path>`: Path to a directory of PEM encoded CA cert files to verify the Consul
+    certificate. Overrides the `CONSUL_CAPATH` environment variable.
+
+- `-vault-address=<addr>`: The address and port of the Vault HTTP agent. Overrides the `VAULT_ADDR`
+    environment variable.
+
+- `-vault-token=<token>`: Token used to query Vault. Overrides the `VAULT_TOKEN` environment
+    variable.
+
+- `-vault-client-cert=<path>`: Path to the Vault client cert file. Overrides the `VAULT_CLIENT_CERT`
+    environment variable.
+
+- `-vault-client-key=<path>`: Path to the Vault client key file. Overrides the `VAULT_CLIENT_KEY`
+    environment variable.
+
+- `-vault-ca-cert=<path>`: Path to a CA file to use with Vault. Overrides the `VAULT_CACERT`
+    environment variable and the Vault CA path.
+
+- `-vault-ca-path=<path>`: Path to a directory of PEM encoded CA cert files to verify the Vault
+    certificate. Overrides the `VAULT_CAPATH` environment variable.
+
+## Output
+
+This command prints the name of the timestamped archive file produced.
+
+## Examples
+
+```shell-session
+$ nomad operator debug -duration 20s -interval 5s -server-id leader -node-id 6e,dd
+Starting debugger and capturing cluster data...
+    Interval: '5s'
+    Duration: '20s'
+    Capture interval 0000
+    Capture interval 0001
+    Capture interval 0002
+    Capture interval 0003
+Created debug archive: nomad-debug-2020-07-20-205223Z.tar.gz
+```

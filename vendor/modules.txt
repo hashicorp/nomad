@@ -60,7 +60,7 @@ github.com/apparentlymart/go-textseg/v12/textseg
 # github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 ## explicit
 github.com/armon/circbuf
-# github.com/armon/go-metrics v0.3.3
+# github.com/armon/go-metrics v0.3.4
 ## explicit
 github.com/armon/go-metrics
 github.com/armon/go-metrics/circonus

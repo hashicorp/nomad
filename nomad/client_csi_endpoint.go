@@ -1,16 +1,15 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ClientCSI is used to forward RPC requests to the targed Nomad client's
@@ -40,8 +39,9 @@ func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAtt
 		if err == nil {
 			return nil
 		}
-		if a.isRetryable(err, clientID, args.PluginID) {
-			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
+		if a.isRetryable(err) {
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
 			continue
 		}
 		return fmt.Errorf("controller attach volume: %v", err)
@@ -69,8 +69,9 @@ func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerV
 		if err == nil {
 			return nil
 		}
-		if a.isRetryable(err, clientID, args.PluginID) {
-			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
+		if a.isRetryable(err) {
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
 			continue
 		}
 		return fmt.Errorf("validate volume: %v", err)
@@ -98,8 +99,9 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 		if err == nil {
 			return nil
 		}
-		if a.isRetryable(err, clientID, args.PluginID) {
-			a.logger.Debug("failed to reach controller on client %q: %v", clientID, err)
+		if a.isRetryable(err) {
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
 			continue
 		}
 		return fmt.Errorf("controller detach volume: %v", err)
@@ -110,9 +112,11 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 // we can retry the same RPC on a different controller in the cases where the
 // client has stopped and been GC'd, or where the controller has stopped but
 // we don't have the fingerprint update yet
-func (a *ClientCSI) isRetryable(err error, clientID, pluginID string) bool {
-	return errors.Is(err, structs.ErrUnknownNode) ||
-		errors.Is(err, structs.ErrCSIClientRPCRetryable)
+func (a *ClientCSI) isRetryable(err error) bool {
+	// TODO: msgpack-rpc mangles the error so we lose the wrapping,
+	// but if that can be fixed upstream we should use that here instead
+	return strings.Contains(err.Error(), "CSI client error (retryable)") ||
+		strings.Contains(err.Error(), "Unknown node")
 }
 
 func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error {

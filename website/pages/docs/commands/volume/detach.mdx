@@ -1,0 +1,28 @@
+---
+layout: docs
+page_title: 'Commands: volume detach'
+sidebar_title: detach
+description: |
+  Detach volumes with CSI plugins.
+---
+
+# Command: volume detach
+
+The `volume detach` command detaches external storage volumes with Nomad's
+[Container Storage Interface (CSI)][csi] support.
+
+## Usage
+
+```plaintext
+nomad volume detach [options] [volume] [node]
+```
+
+The `volume detach` command requires two arguments, specifying the ID of the
+volume to be detached and the node to detach it from. Detaching will fail if
+the volume is still in use by an allocation.
+
+## General Options
+
+@include 'general_options.mdx'
+
+[csi]: https://github.com/container-storage-interface/spec

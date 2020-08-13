@@ -73,26 +73,28 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 // ServiceCheck represents the consul health check that Nomad registers.
 type ServiceCheck struct {
 	//FIXME Id is unused. Remove?
-	Id            string
-	Name          string
-	Type          string
-	Command       string
-	Args          []string
-	Path          string
-	Protocol      string
-	PortLabel     string `mapstructure:"port"`
-	Expose        bool
-	AddressMode   string `mapstructure:"address_mode"`
-	Interval      time.Duration
-	Timeout       time.Duration
-	InitialStatus string `mapstructure:"initial_status"`
-	TLSSkipVerify bool   `mapstructure:"tls_skip_verify"`
-	Header        map[string][]string
-	Method        string
-	CheckRestart  *CheckRestart `mapstructure:"check_restart"`
-	GRPCService   string        `mapstructure:"grpc_service"`
-	GRPCUseTLS    bool          `mapstructure:"grpc_use_tls"`
-	TaskName      string        `mapstructure:"task"`
+	Id                     string
+	Name                   string
+	Type                   string
+	Command                string
+	Args                   []string
+	Path                   string
+	Protocol               string
+	PortLabel              string `mapstructure:"port"`
+	Expose                 bool
+	AddressMode            string `mapstructure:"address_mode"`
+	Interval               time.Duration
+	Timeout                time.Duration
+	InitialStatus          string `mapstructure:"initial_status"`
+	TLSSkipVerify          bool   `mapstructure:"tls_skip_verify"`
+	Header                 map[string][]string
+	Method                 string
+	CheckRestart           *CheckRestart `mapstructure:"check_restart"`
+	GRPCService            string        `mapstructure:"grpc_service"`
+	GRPCUseTLS             bool          `mapstructure:"grpc_use_tls"`
+	TaskName               string        `mapstructure:"task"`
+	SuccessBeforePassing   int           `mapstructure:"success_before_passing"`
+	FailuresBeforeCritical int           `mapstructure:"failures_before_critical"`
 }
 
 // Service represents a Consul service definition.
@@ -136,6 +138,14 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	for i, check := range s.Checks {
 		s.Checks[i].CheckRestart = s.CheckRestart.Merge(check.CheckRestart)
 		s.Checks[i].CheckRestart.Canonicalize()
+
+		if s.Checks[i].SuccessBeforePassing < 0 {
+			s.Checks[i].SuccessBeforePassing = 0
+		}
+
+		if s.Checks[i].FailuresBeforeCritical < 0 {
+			s.Checks[i].FailuresBeforeCritical = 0
+		}
 	}
 }
 

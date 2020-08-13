@@ -1016,6 +1016,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 
 	// Spin up many requests. These should block
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	cancels := 0
 	numRequests := 20
@@ -1029,7 +1030,7 @@ func TestVaultClient_LookupToken_RateLimit(t *testing.T) {
 					cancels += 1
 					return
 				}
-				t.Fatalf("self lookup failed: %v", err)
+				t.Errorf("self lookup failed: %v", err)
 				return
 			}
 

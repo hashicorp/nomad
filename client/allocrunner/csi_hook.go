@@ -96,7 +96,10 @@ func (c *csiHook) Postrun() error {
 				Mode:         structs.CSIVolumeClaimRelease,
 			},
 			WriteRequest: structs.WriteRequest{
-				Region: c.alloc.Job.Region, Namespace: c.alloc.Job.Namespace},
+				Region:    c.alloc.Job.Region,
+				Namespace: c.alloc.Job.Namespace,
+				AuthToken: c.ar.clientConfig.Node.SecretID,
+			},
 		}
 		err := c.rpcClient.RPC("CSIVolume.Unpublish",
 			req, &structs.CSIVolumeUnpublishResponse{})
@@ -156,8 +159,12 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			AllocationID: c.alloc.ID,
 			NodeID:       c.alloc.NodeID,
 			Claim:        claimType,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.alloc.Job.Region,
+				Namespace: c.alloc.Job.Namespace,
+				AuthToken: c.ar.clientConfig.Node.SecretID,
+			},
 		}
-		req.Region = c.alloc.Job.Region
 
 		var resp structs.CSIVolumeClaimResponse
 		if err := c.rpcClient.RPC("CSIVolume.Claim", req, &resp); err != nil {

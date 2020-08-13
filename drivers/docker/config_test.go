@@ -264,7 +264,8 @@ config {
   network_aliases = ["redis"]
   network_mode = "host"
   pids_limit = 2000
-  pid_mode = "host"
+	pid_mode = "host"
+	ports = ["http", "https"]
   port_map {
     http = 80
     redis = 6379
@@ -395,6 +396,7 @@ config {
 		NetworkMode:    "host",
 		PidsLimit:      2000,
 		PidMode:        "host",
+		Ports:          []string{"http", "https"},
 		PortMap: map[string]int{
 			"http":  80,
 			"redis": 6379,

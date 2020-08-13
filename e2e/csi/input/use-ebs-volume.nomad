@@ -1,6 +1,6 @@
 # a job that mounts an EBS volume and writes its job ID as a file
 job "use-ebs-volume" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
