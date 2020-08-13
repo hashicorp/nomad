@@ -1,4 +1,8 @@
-## 0.12.3 (Unreleased)
+## 0.12.3 (August 13, 2020)
+
+BUG FIXES:
+
+ * csi: Fixed a panic in the API affecting both plugins and volumes. [[GH-8655](https://github.com/hashicorp/nomad/issues/8655)]
 
 ## 0.12.2 (August 12, 2020)
 
