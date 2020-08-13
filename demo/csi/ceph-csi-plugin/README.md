@@ -49,7 +49,7 @@ nomad job run ceph-csi-plugin.hcl
 
 The `external_id` value for the volume must be strictly formatted, see `ceph_csi.tf`. Based on [Ceph-CSI ID Format](https://github.com/ceph/ceph-csi/blob/71ddf51544be498eee03734573b765eb04480bb9/internal/util/volid.go#L27), see [examples](https://github.com/ceph/ceph-csi/blob/71ddf51544be498eee03734573b765eb04480bb9/internal/util/volid_test.go#L33)
 
-the `secrets` block will be populated with values pulled from `/etc/ceph/ceph.client.<user>.keyring`, e.g.
+The `secrets` block will be populated with values pulled from `/etc/ceph/ceph.client.<user>.keyring`, e.g.
 ```
 userid = "<user>"
 userkey = "AWBg/BtfJInSFBATOrrnCh6UGE3QB3nYakdF+g=="
