@@ -424,10 +424,10 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	// The fact that we have destructive updates and have less canaries than is
 	// desired means we need to create canaries
-	numDestructive := len(destructive)
 	strategy := tg.Update
 	canariesPromoted := dstate != nil && dstate.Promoted
-	requireCanary := numDestructive != 0 && strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
+	requireCanary := (len(destructive) != 0 || (len(untainted) == 0 && len(migrate)+len(lost) != 0)) &&
+		strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
 	if requireCanary {
 		dstate.DesiredCanaries = strategy.Canary
 	}
@@ -455,7 +455,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// * There is no delayed stop_after_client_disconnect alloc, which delays scheduling for the whole group
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow)
+		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, canaryState)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -533,9 +533,12 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		})
 		a.result.place = append(a.result.place, allocPlaceResult{
 			name:          alloc.Name,
-			canary:        false,
+			canary:        alloc.DeploymentStatus.IsCanary(),
 			taskGroup:     tg,
 			previousAlloc: alloc,
+
+			downgradeNonCanary: canaryState && !alloc.DeploymentStatus.IsCanary(),
+			minJobVersion:      alloc.Job.Version,
 		})
 	}
 
@@ -708,7 +711,7 @@ func (a *allocReconciler) computeLimit(group *structs.TaskGroup, untainted, dest
 // computePlacement returns the set of allocations to place given the group
 // definition, the set of untainted, migrating and reschedule allocations for the group.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
-	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet) []allocPlaceResult {
+	nameIndex *allocNameIndex, untainted, migrate allocSet, reschedule allocSet, canaryState bool) []allocPlaceResult {
 
 	// Add rescheduled placement results
 	var place []allocPlaceResult
@@ -719,6 +722,9 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			previousAlloc: alloc,
 			reschedule:    true,
 			canary:        alloc.DeploymentStatus.IsCanary(),
+
+			downgradeNonCanary: canaryState && (alloc.DeploymentStatus == nil || !alloc.DeploymentStatus.IsCanary()),
+			minJobVersion:      alloc.Job.Version,
 		})
 	}
 
@@ -732,8 +738,9 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	if existing < group.Count {
 		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
 			place = append(place, allocPlaceResult{
-				name:      name,
-				taskGroup: group,
+				name:               name,
+				taskGroup:          group,
+				downgradeNonCanary: canaryState,
 			})
 		}
 	}

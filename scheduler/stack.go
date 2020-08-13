@@ -46,6 +46,7 @@ type GenericStack struct {
 
 	wrappedChecks        *FeasibilityWrapper
 	quota                FeasibleIterator
+	jobVersion           *uint64
 	jobConstraint        *ConstraintChecker
 	taskGroupDrivers     *DriverChecker
 	taskGroupConstraint  *ConstraintChecker
@@ -89,6 +90,13 @@ func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
 }
 
 func (s *GenericStack) SetJob(job *structs.Job) {
+	if s.jobVersion != nil && *s.jobVersion == job.Version {
+		return
+	}
+
+	jobVer := job.Version
+	s.jobVersion = &jobVer
+
 	s.jobConstraint.SetConstraints(job.Constraints)
 	s.distinctHostsConstraint.SetJob(job)
 	s.distinctPropertyConstraint.SetJob(job)
