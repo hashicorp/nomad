@@ -23,8 +23,8 @@ EOF
         ]
         mounts = [
           {
-            type = "tmpfs"
-            target = "/tmp/csi/keys"
+            type     = "tmpfs"
+            target   = "/tmp/csi/keys"
             readonly = false
             tmpfs_options {
               size = 1000000 # size in bytes
@@ -39,7 +39,7 @@ EOF
           "--nodeserver=true",
           "--endpoint=unix://csi/csi.sock",
           "--instanceid=${attr.unique.platform.aws.instance-id}",
-          "--nodeid=${attr.unique.consul.name}", 
+          "--nodeid=${attr.unique.consul.name}",
           # TCP port for liveness metrics requests (/metrics)
           "--metricsport=${NOMAD_PORT_prometheus}",
         ]
@@ -57,7 +57,7 @@ EOF
       service {
         name = "prometheus"
         port = "prometheus"
-        tags = [ "ceph-csi" ]
+        tags = ["ceph-csi"]
       }
       csi_plugin {
         id        = "ceph-csi"
@@ -107,7 +107,7 @@ EOF
       service {
         name = "prometheus"
         port = "prometheus"
-        tags = [ "ceph-csi" ]
+        tags = ["ceph-csi"]
       }
       csi_plugin {
         id        = "ceph-csi"

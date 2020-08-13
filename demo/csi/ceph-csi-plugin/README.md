@@ -12,12 +12,12 @@ The example plugin job creates a file at `local/cloud.conf` using a [`template`]
 The Ceph CSI Node task requires that [`privileged = true`](https://www.nomadproject.io/docs/drivers/docker#privileged) be set. This is not needed for the Controller task.
 
 ## Container Arguments
-
-see [](https://github.com/ceph/ceph-csi/blob/master/docs/deploy-rbd.md)
-
-- `"--type=rbd"`
-
-  - This option must match the `mount_dir` specified in the `csi_plugin` stanza for the task.
+ 
+Refer to the official plugin [guide](https://github.com/ceph/ceph-csi/blob/master/docs/deploy-rbd.md).
+ 
+- `--type=rbd`
+ 
+  - Driver type `rbd` (or alternately `cephfs`)
 
 - `--endpoint=unix:///csi/csi.sock`
 
@@ -47,7 +47,7 @@ nomad job run ceph-csi-plugin.hcl
 
 ### Volume Registration
 
-The `external_id` value for the volume must be strictly formatted, see `ceph_csi.tf`. Based on [Ceph-CSI ID Format](https://github.com/ceph/ceph-csi/blob/71ddf51544be498eee03734573b765eb04480bb9/internal/util/volid.go#L27), see [examples](https://github.com/ceph/ceph-csi/blob/71ddf51544be498eee03734573b765eb04480bb9/internal/util/volid_test.go#L33)
+The `external_id` value for the volume must be strictly formatted, see `ceph_csi.tf`. Based on [Ceph-CSI ID Format](https://github.com/ceph/ceph-csi/blob/71ddf51544be498eee03734573b765eb04480bb9/internal/util/volid.go#L27), see [examples](https://github.com/ceph/ceph-csi/blob/71ddf51544be498eee03734573b765eb04480bb9/internal/util/volid_test.go#L33).
 
 The `secrets` block will be populated with values pulled from `/etc/ceph/ceph.client.<user>.keyring`, e.g.
 ```
