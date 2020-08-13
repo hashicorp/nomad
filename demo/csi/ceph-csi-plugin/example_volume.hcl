@@ -11,8 +11,8 @@ mount_options {
 }
 parameters {}
 secrets {
-  userID  = "admin"
-  userKey = "AWBg/BtfJInSFBATOrrnCh6UGE3QB3nYakdF+g=="
+  userID  = "<userid>"
+  userKey = "<userkey>"
 }
 context {
   # note: although these are 'parameters' in the ceph-csi spec
