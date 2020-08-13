@@ -459,11 +459,19 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			var downgradedJob *structs.Job
 
 			if missing.DowngradeNonCanary() {
-				job, err := s.state.LatestStableJobByID(nil, s.job.Namespace, s.job.ID, missing.MinJobVersion())
+				job, err := s.state.LatestStableJobByID(nil, s.job.Namespace, s.job.ID)
 				if err != nil {
 					return fmt.Errorf("failed to lookup stable version %v: %v", missing.MinJobVersion(), err)
 				}
+				if job == nil || job.Version < missing.MinJobVersion() {
+					job, err = s.state.JobByIDAndVersion(nil, s.job.Namespace, s.job.ID, missing.MinJobVersion())
+					if err != nil {
+						return fmt.Errorf("failed to lookup stable version %v: %v", missing.MinJobVersion(), err)
+					}
+
+				}
 				if g := job.LookupTaskGroup(tg.Name); g != nil {
+					s.logger.Error("DOWNGRADED JOB VERSION", "tg", tg.Name, "current_version", s.job.Version, "new_version", job.Version, "stable", job.Stable)
 					tg = g
 					downgradedJob = job
 

@@ -88,11 +88,13 @@ type State interface {
 	// GetJobByID is used to lookup a job by ID
 	JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error)
 
+	LatestStableJobByID(ws memdb.WatchSet, namespace, jobID string) (*structs.Job, error)
+
+	JobByIDAndVersion(ws memdb.WatchSet, namespace, id string, version uint64) (*structs.Job, error)
+
 	// LatestDeploymentByJobID returns the latest deployment matching the given
 	// job ID
 	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
-
-	LatestStableJobByID(ws memdb.WatchSet, namespace, jobID string, minVersion uint64) (*structs.Job, error)
 
 	// SchedulerConfig returns config options for the scheduler
 	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
