@@ -9,6 +9,54 @@ import { assign } from '@ember/polyfills';
 export default class Application extends JSONSerializer {
   primaryKey = 'ID';
 
+  /**
+    A list of keys that are converted to empty arrays if their value is null.
+
+    arrayNullOverrides = ['Array'];
+    { Array: null } => { Array: [] }
+
+    @property arrayNullOverrides
+    @type String[]
+   */
+  arrayNullOverrides = null;
+
+  /**
+    A list of keys or objects to convert a map into an array of maps with the original map keys as Name properties.
+
+    mapToArray = ['Map'];
+    { Map: { a: { x: 1 } } } => { Map: [ { Name: 'a', x: 1 }] }
+
+    mapToArray = [{ apiName: 'M', uiName: 'Map' }];
+    { M: { a: { x: 1 } } } => { Map: [ { Name: 'a', x: 1 }] }
+
+    mapToArray = [{
+      name: 'Map',
+      convertor: (apiHashMember, uiHashMember, mapKey, apiHash) => {
+        uiHashMember.Other = apiHash.Other;
+        uiHashMember.xx = apiHashMember.x;
+        uiHashMember.AlsoName = mapKey;
+      }
+    }];
+
+    { Map: { a: { x: 1 } }, Other: 1919 } => { Map: [ { Name: 'a', AlsoName: 'a', xx: 1, Other: 1919 } ] }
+
+    @property mapToArray
+    @type String[]|Object[]
+   */
+  mapToArray = null;
+
+  /**
+    A list of keys for nanosecond timestamps that will be split into two properties: `separateNanos = ['Time']` will
+    produce a `Time` property with a millisecond timestamp and `TimeNanos` with the nanoseconds alone.
+
+    separateNanos = ['Time'];
+    { Time: 1607839992000100000 } => { Time: 1607839992000, TimeNanos: 100096 }
+
+    @property separateNanos
+    @type String[]
+   */
+  separateNanos = null;
+
   keyForAttribute(attr) {
     return attr.camelize().capitalize();
   }
