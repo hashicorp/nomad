@@ -41,7 +41,7 @@ export default class Application extends JSONSerializer {
     { Map: { a: { x: 1 } }, Other: 1919 } => { Map: [ { Name: 'a', AlsoName: 'a', xx: 1, Other: 1919 } ] }
 
     @property mapToArray
-    @type String[]|Object[]
+    @type (String|Object)[]
    */
   mapToArray = null;
 
