@@ -1,5 +1,9 @@
 ## 0.12.4 (Unreleased)
 
+IMPROVEMENTS:
+
+ * driver/docker: Allow configurable image pull context timeout setting. [[GH-5718](https://github.com/hashicorp/nomad/issues/5718)]
+
 ## 0.12.3 (August 13, 2020)
 
 BUG FIXES:
