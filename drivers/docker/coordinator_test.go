@@ -73,10 +73,10 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 	// Create a coordinator
 	coordinator := newDockerCoordinator(config)
 
-	id, _ := coordinator.PullImage(image, nil, uuid.Generate(), nil, 2*time.Minute)
+	id, _ := coordinator.PullImage(image, nil, uuid.Generate(), nil, 5*time.Minute, 2*time.Minute)
 	for i := 0; i < 9; i++ {
 		go func() {
-			coordinator.PullImage(image, nil, uuid.Generate(), nil, 2*time.Minute)
+			coordinator.PullImage(image, nil, uuid.Generate(), nil, 5*time.Minute, 2*time.Minute)
 		}()
 	}
 
@@ -129,7 +129,7 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 	callerIDs := make([]string, 10, 10)
 	for i := 0; i < 10; i++ {
 		callerIDs[i] = uuid.Generate()
-		id, _ = coordinator.PullImage(image, nil, callerIDs[i], nil, 2*time.Minute)
+		id, _ = coordinator.PullImage(image, nil, callerIDs[i], nil, 5*time.Minute, 2*time.Minute)
 	}
 
 	// Check the reference count
@@ -195,7 +195,7 @@ func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
 	callerID := uuid.Generate()
 
 	// Pull image
-	id, _ := coordinator.PullImage(image, nil, callerID, nil, 2*time.Minute)
+	id, _ := coordinator.PullImage(image, nil, callerID, nil, 5*time.Minute, 2*time.Minute)
 
 	// Check the reference count
 	if references := coordinator.imageRefCount[id]; len(references) != 1 {
@@ -211,7 +211,7 @@ func TestDockerCoordinator_Remove_Cancel(t *testing.T) {
 	}
 
 	// Pull image again within delay
-	id, _ = coordinator.PullImage(image, nil, callerID, nil, 2*time.Minute)
+	id, _ = coordinator.PullImage(image, nil, callerID, nil, 5*time.Minute, 2*time.Minute)
 
 	// Check the reference count
 	if references := coordinator.imageRefCount[id]; len(references) != 1 {
@@ -244,7 +244,7 @@ func TestDockerCoordinator_No_Cleanup(t *testing.T) {
 	callerID := uuid.Generate()
 
 	// Pull image
-	id, _ := coordinator.PullImage(image, nil, callerID, nil, 2*time.Minute)
+	id, _ := coordinator.PullImage(image, nil, callerID, nil, 5*time.Minute, 2*time.Minute)
 
 	// Check the reference count
 	if references := coordinator.imageRefCount[id]; len(references) != 0 {
@@ -283,10 +283,10 @@ func TestDockerCoordinator_Cleanup_HonorsCtx(t *testing.T) {
 	callerID := uuid.Generate()
 
 	// Pull image
-	id1, _ := coordinator.PullImage(image1ID, nil, callerID, nil, 2*time.Minute)
+	id1, _ := coordinator.PullImage(image1ID, nil, callerID, nil, 5*time.Minute, 2*time.Minute)
 	require.Len(t, coordinator.imageRefCount[id1], 1, "image reference count")
 
-	id2, _ := coordinator.PullImage(image2ID, nil, callerID, nil, 2*time.Minute)
+	id2, _ := coordinator.PullImage(image2ID, nil, callerID, nil, 5*time.Minute, 2*time.Minute)
 	require.Len(t, coordinator.imageRefCount[id2], 1, "image reference count")
 
 	// remove one image, cancel ctx, remove second, and assert only first image is cleanedup
