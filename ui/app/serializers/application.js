@@ -26,7 +26,7 @@ export default class Application extends JSONSerializer {
     mapToArray = ['Map'];
     { Map: { a: { x: 1 } } } => { Map: [ { Name: 'a', x: 1 }] }
 
-    mapToArray = [{ apiName: 'M', uiName: 'Map' }];
+    mapToArray = [{ beforeName: 'M', afterName: 'Map' }];
     { M: { a: { x: 1 } } } => { Map: [ { Name: 'a', x: 1 }] }
 
     @property mapToArray
@@ -95,9 +95,9 @@ export default class Application extends JSONSerializer {
         this.mapToArray.forEach(conversion => {
           let apiKey, uiKey;
 
-          if (conversion.apiName) {
-            apiKey = conversion.apiName;
-            uiKey = conversion.uiName;
+          if (conversion.beforeName) {
+            apiKey = conversion.beforeName;
+            uiKey = conversion.afterName;
           } else {
             apiKey = conversion;
             uiKey = conversion;

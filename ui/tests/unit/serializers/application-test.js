@@ -10,7 +10,7 @@ class TestSerializer extends ApplicationSerializer {
 
   mapToArray = [
     'ArrayableMap',
-    { apiName: 'OriginalNameArrayableMap', uiName: 'RenamedArrayableMap' },
+    { beforeName: 'OriginalNameArrayableMap', afterName: 'RenamedArrayableMap' },
   ];
 
   separateNanos = ['Time'];
