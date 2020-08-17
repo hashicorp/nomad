@@ -29,17 +29,6 @@ export default class Application extends JSONSerializer {
     mapToArray = [{ apiName: 'M', uiName: 'Map' }];
     { M: { a: { x: 1 } } } => { Map: [ { Name: 'a', x: 1 }] }
 
-    mapToArray = [{
-      name: 'Map',
-      convertor: (apiHashMember, uiHashMember, mapKey, apiHash) => {
-        uiHashMember.Other = apiHash.Other;
-        uiHashMember.xx = apiHashMember.x;
-        uiHashMember.AlsoName = mapKey;
-      }
-    }];
-
-    { Map: { a: { x: 1 } }, Other: 1919 } => { Map: [ { Name: 'a', AlsoName: 'a', xx: 1, Other: 1919 } ] }
-
     @property mapToArray
     @type (String|Object)[]
    */
@@ -109,9 +98,6 @@ export default class Application extends JSONSerializer {
           if (conversion.apiName) {
             apiKey = conversion.apiName;
             uiKey = conversion.uiName;
-          } else if (conversion.name) {
-            apiKey = conversion.name;
-            uiKey = conversion.name;
           } else {
             apiKey = conversion;
             uiKey = conversion;
@@ -123,11 +109,7 @@ export default class Application extends JSONSerializer {
             const propertiesForKey = map[mapKey] || {};
             const convertedMap = { Name: mapKey };
 
-            if (conversion.convertor) {
-              conversion.convertor(propertiesForKey, convertedMap, mapKey, hash);
-            } else {
-              assign(convertedMap, propertiesForKey);
-            }
+            assign(convertedMap, propertiesForKey);
 
             return convertedMap;
           });

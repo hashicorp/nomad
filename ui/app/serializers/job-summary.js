@@ -2,20 +2,25 @@ import { get } from '@ember/object';
 import ApplicationSerializer from './application';
 
 export default class JobSummary extends ApplicationSerializer {
-  mapToArray = [
-    {
-      apiName: 'Summary',
-      uiName: 'TaskGroupSummaries',
-      convertor: (apiHash, uiHash) => {
-        Object.keys(apiHash).forEach(allocKey => (uiHash[`${allocKey}Allocs`] = apiHash[allocKey]));
-      },
-    },
-  ];
-
   normalize(modelClass, hash) {
     hash.PlainJobId = hash.JobID;
     hash.ID = JSON.stringify([hash.JobID, hash.Namespace || 'default']);
     hash.JobID = hash.ID;
+
+    // Transform the map-based Summary object into an array-based
+    // TaskGroupSummary fragment list
+
+    const fullSummary = hash.Summary || {};
+    hash.TaskGroupSummaries = Object.keys(fullSummary).map(key => {
+      const allocStats = fullSummary[key] || {};
+      const summary = { Name: key };
+
+      Object.keys(allocStats).forEach(
+        allocKey => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
+      );
+
+      return summary;
+    });
 
     // Lift the children stats out of the Children object
     const childrenStats = get(hash, 'Children');

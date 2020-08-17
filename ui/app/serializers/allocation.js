@@ -18,21 +18,20 @@ export default class AllocationSerializer extends ApplicationSerializer {
     states: 'TaskStates',
   };
 
-  mapToArray = [
-    {
-      name: 'TaskStates',
-      convertor: (apiHashMember, uiHashMember, mapKey, apiHash) => {
-        Object.keys(apiHashMember).forEach(
-          stateKey => (uiHashMember[stateKey] = apiHashMember[stateKey])
-        );
-        uiHashMember.Resources = apiHash.TaskResources && apiHash.TaskResources[mapKey];
-      },
-    },
-  ];
-
   separateNanos = ['CreateTime', 'ModifyTime'];
 
   normalize(typeHash, hash) {
+    // Transform the map-based TaskStates object into an array-based
+    // TaskState fragment list
+    const states = hash.TaskStates || {};
+    hash.TaskStates = Object.keys(states).map(key => {
+      const state = states[key] || {};
+      const summary = { Name: key };
+      Object.keys(state).forEach(stateKey => (summary[stateKey] = state[stateKey]));
+      summary.Resources = hash.TaskResources && hash.TaskResources[key];
+      return summary;
+    });
+
     hash.JobVersion = hash.JobVersion != null ? hash.JobVersion : get(hash, 'Job.Version');
 
     hash.PlainJobId = hash.JobID;

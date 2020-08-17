@@ -11,16 +11,6 @@ class TestSerializer extends ApplicationSerializer {
   mapToArray = [
     'ArrayableMap',
     { apiName: 'OriginalNameArrayableMap', uiName: 'RenamedArrayableMap' },
-    {
-      name: 'ConvertedArrayableMap',
-      convertor: (apiHashMember, uiHashMember, mapKey, apiHash) => {
-        Object.keys(apiHashMember).forEach(key => {
-          uiHashMember.SomethingExtra = apiHash.SomethingExtra;
-          uiHashMember.AlsoName = mapKey;
-          uiHashMember[`${key}${key}`] = apiHashMember[key];
-        });
-      },
-    },
   ];
 
   separateNanos = ['Time'];
@@ -31,7 +21,6 @@ class TestModel extends Model {
 
   @attr() arrayableMap;
   @attr() renamedArrayableMap;
-  @attr() convertedArrayableMap;
 
   @attr() time;
   @attr() timeNanos;
@@ -56,7 +45,6 @@ module('Unit | Serializer | Application', function(hooks) {
         Things: null,
         ArrayableMap: null,
         OriginalNameArrayableMap: null,
-        ConvertedArrayableMap: null,
         Time: 1607839992000100000,
       },
       out: {
@@ -66,7 +54,6 @@ module('Unit | Serializer | Application', function(hooks) {
             things: [],
             arrayableMap: [],
             renamedArrayableMap: [],
-            convertedArrayableMap: [],
             time: 1607839992000,
             timeNanos: 100096,
           },
@@ -88,9 +75,6 @@ module('Unit | Serializer | Application', function(hooks) {
         OriginalNameArrayableMap: {
           a: { X: 1 },
         },
-        ConvertedArrayableMap: {
-          a: { X: 1, Y: 2 },
-        },
         Time: 1607839992000100000,
         SomethingExtra: 'xyz',
       },
@@ -105,15 +89,6 @@ module('Unit | Serializer | Application', function(hooks) {
               { Name: 'c.d', Order: 3 },
             ],
             renamedArrayableMap: [{ Name: 'a', X: 1 }],
-            convertedArrayableMap: [
-              {
-                Name: 'a',
-                AlsoName: 'a',
-                XX: 1,
-                YY: 2,
-                SomethingExtra: 'xyz',
-              },
-            ],
             time: 1607839992000,
             timeNanos: 100096,
           },
