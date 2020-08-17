@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 import sinon from 'sinon';
 
@@ -14,10 +15,11 @@ module('Integration | Component | copy-button', function(hooks) {
     await render(hbs`<CopyButton @class="copy-button" />`);
 
     assert.dom('.copy-button .icon-is-copy-action').exists();
+    await componentA11yAudit(this.element, assert);
   });
 
   test('it shows the success icon on success and resets afterward', async function(assert) {
-    const clock = sinon.useFakeTimers();
+    const clock = sinon.useFakeTimers({ shouldAdvanceTime: true });
 
     await render(hbs`<CopyButton @class="copy-button" />`);
 
@@ -25,6 +27,7 @@ module('Integration | Component | copy-button', function(hooks) {
     await triggerCopySuccess('.copy-button button');
 
     assert.dom('.copy-button .icon-is-copy-success').exists();
+    await componentA11yAudit(this.element, assert);
 
     clock.runAll();
 
@@ -41,5 +44,6 @@ module('Integration | Component | copy-button', function(hooks) {
     await triggerCopyError('.copy-button button');
 
     assert.dom('.copy-button .icon-is-alert-triangle').exists();
+    await componentA11yAudit(this.element, assert);
   });
 });
