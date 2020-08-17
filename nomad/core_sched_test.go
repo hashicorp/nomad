@@ -2449,7 +2449,9 @@ func TestCoreScheduler_FailLoop(t *testing.T) {
 
 	out, token, err = srv.evalBroker.Dequeue(sched, time.Second*5)
 	require.NoError(err)
-	require.Nil(out,
-		"failed core jobs should not result in follow-up. TriggeredBy: %v",
-		out.TriggeredBy)
+	if out != nil {
+		t.Fatalf(
+			"failed core jobs should not result in follow-up. TriggeredBy: %v",
+			out.TriggeredBy)
+	}
 }
