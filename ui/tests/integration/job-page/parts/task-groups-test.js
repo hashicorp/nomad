@@ -5,6 +5,7 @@ import { module, test } from 'qunit';
 import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { setupRenderingTest } from 'ember-qunit';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/parts/task-groups', function(hooks) {
   setupRenderingTest(hooks);
@@ -56,6 +57,8 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
       job.get('taskGroups.length'),
       'One row per task group'
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('each row in the task group table should show basic information about the task group', async function(assert) {

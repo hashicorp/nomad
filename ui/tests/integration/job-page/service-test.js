@@ -7,6 +7,7 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { startJob, stopJob, expectError, expectDeleteRequest, expectStartRequest } from './helpers';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/service', function(hooks) {
   setupRenderingTest(hooks);
@@ -81,6 +82,8 @@ module('Integration | Component | job-page/service', function(hooks) {
 
     await stopJob();
     expectError(assert, 'Could Not Stop Job');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function(assert) {
@@ -126,6 +129,8 @@ module('Integration | Component | job-page/service', function(hooks) {
 
     assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
     assert.equal(allocationRow.taskGroup, allocation.taskGroup, 'Task Group name');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('Recent allocations caps out at five', async function(assert) {
@@ -162,6 +167,8 @@ module('Integration | Component | job-page/service', function(hooks) {
       Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
       'No allocations empty message'
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('Active deployment can be promoted', async function(assert) {
@@ -212,6 +219,8 @@ module('Integration | Component | job-page/service', function(hooks) {
       find('[data-test-job-error-body]').textContent.includes('ACL'),
       'The error message mentions ACLs'
     );
+
+    await componentA11yAudit(this.element, assert);
 
     await click('[data-test-job-error-close]');
 

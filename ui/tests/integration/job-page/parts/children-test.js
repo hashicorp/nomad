@@ -5,6 +5,7 @@ import sinon from 'sinon';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/parts/children', function(hooks) {
   setupRenderingTest(hooks);
@@ -92,6 +93,8 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     assert.ok(
       new RegExp(`1.10.+?${childrenCount}`).test(find('.pagination-numbers').textContent.trim())
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('is sorted based on the sortProperty and sortDescending properties', async function(assert) {

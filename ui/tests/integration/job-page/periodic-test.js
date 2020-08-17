@@ -11,6 +11,7 @@ import {
   expectDeleteRequest,
   expectStartRequest,
 } from './helpers';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/periodic', function(hooks) {
   setupRenderingTest(hooks);
@@ -155,6 +156,8 @@ module('Integration | Component | job-page/periodic', function(hooks) {
 
     await stopJob();
     expectError(assert, 'Could Not Stop Job');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function(assert) {

@@ -4,6 +4,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/parts/summary', function(hooks) {
   setupRenderingTest(hooks);
@@ -36,6 +37,8 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
 
     assert.ok(find('[data-test-children-status-bar]'), 'Children status bar found');
     assert.notOk(find('[data-test-allocation-status-bar]'), 'Allocation status bar not found');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('jobs without children use the allocations diagram', async function(assert) {
@@ -53,6 +56,8 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
 
     assert.ok(find('[data-test-allocation-status-bar]'), 'Allocation status bar found');
     assert.notOk(find('[data-test-children-status-bar]'), 'Children status bar not found');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('the allocations diagram lists all allocation status figures', async function(assert) {
@@ -176,6 +181,8 @@ module('Integration | Component | job-page/parts/summary', function(hooks) {
       find('.inline-chart [data-test-allocation-status-bar]'),
       'Allocation bar is rendered in an inline-chart container'
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('the collapsed/expanded state is persisted to localStorage', async function(assert) {

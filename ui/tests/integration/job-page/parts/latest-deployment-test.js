@@ -5,6 +5,7 @@ import hbs from 'htmlbars-inline-precompile';
 import moment from 'moment';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/parts/latest-deployment', function(hooks) {
   setupRenderingTest(hooks);
@@ -108,6 +109,8 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
       deployment.get('statusDescription'),
       'Status description is in the metrics block'
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function(assert) {
@@ -149,6 +152,8 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
 
     assert.ok(find('[data-test-deployment-task-groups]'), 'Task groups found');
     assert.ok(find('[data-test-deployment-allocations]'), 'Allocations found');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('each task group in the expanded task group section shows task group details', async function(assert) {
