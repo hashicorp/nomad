@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -920,28 +921,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.ShmSize = driverConfig.ShmSize
 	}
 
-	// setup Nomad DNS options, these are overridden by docker driver specific options
-	if task.DNS != nil {
-		hostConfig.DNS = task.DNS.Servers
-		hostConfig.DNSSearch = task.DNS.Searches
-		hostConfig.DNSOptions = task.DNS.Options
-	}
-
-	if len(driverConfig.DNSSearchDomains) > 0 {
-		hostConfig.DNSSearch = driverConfig.DNSSearchDomains
-	}
-	if len(driverConfig.DNSOptions) > 0 {
-		hostConfig.DNSOptions = driverConfig.DNSOptions
-	}
-	// set DNS servers
-	for _, ip := range driverConfig.DNSServers {
-		if net.ParseIP(ip) != nil {
-			hostConfig.DNS = append(hostConfig.DNS, ip)
-		} else {
-			logger.Error("invalid ip address for container dns server", "ip", ip)
-		}
-	}
-
 	// Setup devices
 	for _, device := range driverConfig.Devices {
 		dd, err := device.toDockerDevice()
@@ -975,6 +954,40 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+	}
+
+	// Setup DNS
+	// If task DNS options are configured Nomad will manage the resolv.conf file
+	// Docker driver dns options are not compatible with task dns options
+	if task.DNS != nil {
+		dnsMount, err := resolvconf.GenerateDNSMount(task.TaskDir().Dir, task.DNS)
+		if err != nil {
+			return c, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
+		}
+		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+			Target:   dnsMount.TaskPath,
+			Source:   dnsMount.HostPath,
+			Type:     "bind",
+			ReadOnly: dnsMount.Readonly,
+			BindOptions: &docker.BindOptions{
+				Propagation: dnsMount.PropagationMode,
+			},
+		})
+	} else {
+		if len(driverConfig.DNSSearchDomains) > 0 {
+			hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+		}
+		if len(driverConfig.DNSOptions) > 0 {
+			hostConfig.DNSOptions = driverConfig.DNSOptions
+		}
+		// set DNS servers
+		for _, ip := range driverConfig.DNSServers {
+			if net.ParseIP(ip) != nil {
+				hostConfig.DNS = append(hostConfig.DNS, ip)
+			} else {
+				logger.Error("invalid ip address for container dns server", "ip", ip)
+			}
+		}
 	}
 
 	for _, m := range task.Mounts {
