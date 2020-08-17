@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../utils/clean-whitespace';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job diff', function(hooks) {
   setupRenderingTest(hooks);
@@ -55,6 +56,8 @@ module('Integration | Component | job diff', function(hooks) {
       '- Removed Field: "12"',
       'Removed field is rendered correctly'
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('job object diffs', async function(assert) {
@@ -156,6 +159,8 @@ module('Integration | Component | job diff', function(hooks) {
       this.get('diff').Objects[1].Objects[0].Fields.length,
       'Objects within objects are rendered'
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   function field(name, type, newVal, oldVal) {

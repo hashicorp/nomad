@@ -4,6 +4,7 @@ import { click, find, findAll, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import moment from 'moment';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | scale-events-chart', function(hooks) {
   setupRenderingTest(hooks);
@@ -58,6 +59,7 @@ module('Integration | Component | scale-events-chart', function(hooks) {
       findAll('[data-test-annotation]').length,
       events.filter(ev => ev.count == null).length
     );
+    await componentA11yAudit(this.element, assert);
   });
 
   test('clicking an annotation presents details for the event', async function(assert) {
@@ -82,6 +84,8 @@ module('Integration | Component | scale-events-chart', function(hooks) {
       getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
       JSON.stringify(annotation.meta, null, 2)
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('clicking an active annotation closes event details', async function(assert) {

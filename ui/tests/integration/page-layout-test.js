@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { find, click, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | page layout', function(hooks) {
   setupRenderingTest(hooks);
@@ -25,6 +26,7 @@ module('Integration | Component | page layout', function(hooks) {
     await click('[data-test-header-gutter-toggle]');
 
     assert.ok(find('[data-test-gutter-menu]').classList.contains('is-open'), 'Gutter menu is open');
+    await componentA11yAudit(this.element, assert);
   });
 
   test('the gutter-menu hamburger menu closes the gutter menu', async function(assert) {

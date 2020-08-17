@@ -2,6 +2,7 @@ import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | list pagination', function(hooks) {
   setupRenderingTest(hooks);
@@ -38,6 +39,7 @@ module('Integration | Component | list pagination', function(hooks) {
 
     assert.ok(!findAll('.first').length, 'On the first page, there is no first link');
     assert.ok(!findAll('.prev').length, 'On the first page, there is no prev link');
+    await componentA11yAudit(this.element, assert);
 
     assert.equal(
       findAll('.link').length,
@@ -51,6 +53,7 @@ module('Integration | Component | list pagination', function(hooks) {
 
     assert.ok(findAll('.next').length, 'While not on the last page, there is a next link');
     assert.ok(findAll('.last').length, 'While not on the last page, there is a last link');
+    await componentA11yAudit(this.element, assert);
 
     assert.ok(
       findAll('.item').length,

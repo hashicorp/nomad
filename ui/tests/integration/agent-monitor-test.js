@@ -7,6 +7,7 @@ import Pretender from 'pretender';
 import sinon from 'sinon';
 import { logEncode } from '../../mirage/data/logs';
 import { selectOpen, selectOpenChoose } from '../utils/ember-power-select-extensions';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | agent-monitor', function(hooks) {
   setupRenderingTest(hooks);
@@ -53,6 +54,8 @@ module('Integration | Component | agent-monitor', function(hooks) {
     assert.ok(find('[data-test-toggle]'));
     assert.ok(find('[data-test-log-box]'));
     assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'));
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when provided with a client, AgentMonitor streams logs for the client', async function(assert) {

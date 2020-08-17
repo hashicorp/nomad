@@ -6,6 +6,7 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { find, render } from '@ember/test-helpers';
 import Response from 'ember-cli-mirage/response';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | allocation row', function(hooks) {
   setupRenderingTest(hooks);
@@ -105,6 +106,7 @@ module('Integration | Component | allocation row', function(hooks) {
     `);
 
     assert.ok(find('[data-test-icon="unhealthy-driver"]'), 'Unhealthy driver icon is shown');
+    await componentA11yAudit(this.element, assert);
   });
 
   test('Allocation row shows an icon indicator when it was preempted', async function(assert) {
@@ -119,6 +121,7 @@ module('Integration | Component | allocation row', function(hooks) {
     `);
 
     assert.ok(find('[data-test-icon="preemption"]'), 'Preempted icon is shown');
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when an allocation is not running, the utilization graphs are omitted', async function(assert) {

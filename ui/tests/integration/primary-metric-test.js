@@ -4,6 +4,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { find, render } from '@ember/test-helpers';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { task } from 'ember-concurrency';
 import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
@@ -75,6 +76,7 @@ module('Integration | Component | primary metric', function(hooks) {
     assert.ok(find('[data-test-percentage-bar]'), 'Percentage bar');
     assert.ok(find('[data-test-percentage]'), 'Percentage figure');
     assert.ok(find('[data-test-absolute-value]'), 'Absolute usage figure');
+    await componentA11yAudit(this.element, assert);
   });
 
   test('The CPU metric maps to is-info', async function(assert) {

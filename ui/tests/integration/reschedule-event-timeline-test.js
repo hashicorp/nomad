@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { find, findAll, render } from '@ember/test-helpers';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import hbs from 'htmlbars-inline-precompile';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 
 module('Integration | Component | reschedule event timeline', function(hooks) {
@@ -69,6 +70,8 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
       allocation.get('clientStatus'),
       'Allocation shows the status'
     );
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when the allocation has failed and there is a follow up evaluation, a note with a time is shown', async function(assert) {
@@ -93,6 +96,8 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
       'Stop warning is shown since the last allocation failed'
     );
     assert.notOk(find('[data-test-attempt-notice]'), 'Reschdule attempt notice is not shown');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when the allocation has failed and there is no follow up evaluation, a warning is shown', async function(assert) {
@@ -126,6 +131,8 @@ module('Integration | Component | reschedule event timeline', function(hooks) {
       'Reschedule notice is shown since the follow up eval says so'
     );
     assert.notOk(find('[data-test-stop-warning]'), 'Stop warning is not shown');
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when the allocation has a next allocation already, it is shown in the timeline', async function(assert) {

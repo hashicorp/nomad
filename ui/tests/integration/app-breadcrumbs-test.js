@@ -5,6 +5,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { findAll, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import PromiseObject from 'nomad-ui/utils/classes/promise-object';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | app breadcrumbs', function(hooks) {
   setupRenderingTest(hooks);
@@ -24,7 +25,7 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
   const commonCrumbs = [{ label: 'One', args: ['one'] }, { label: 'Two', args: ['two'] }];
 
   const template = hbs`
-    <AppBreadcrumbs />
+    <ul><AppBreadcrumbs /></ul>
   `;
 
   test('breadcrumbs comes from the breadcrumbs service', async function(assert) {
@@ -74,6 +75,8 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
       '…',
       'Promise breadcrumb is in a loading state'
     );
+
+    await componentA11yAudit(this.element, assert);
 
     resolvePromise({ label: 'Two', args: ['two'] });
 
