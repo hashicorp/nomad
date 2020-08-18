@@ -3522,8 +3522,8 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 
 func TestStateStore_CSIPluginJobs(t *testing.T) {
 	s := testStateStore(t)
-	deleteNodes := CreateTestCSIPlugin(s, "foo")
-	defer deleteNodes()
+	// deleteNodes := CreateTestCSIPlugin(s, "foo")
+	// defer deleteNodes()
 
 	index := uint64(1001)
 
@@ -3581,6 +3581,11 @@ func TestStateStore_CSIPluginJobs(t *testing.T) {
 	require.NoError(t, err)
 	index++
 
+	// We use the summary to add
+	err = s.ReconcileJobSummaries(index)
+	require.NoError(t, err)
+	index++
+
 	// Delete a job
 	err = s.DeleteJob(index, controllerJob.Namespace, controllerJob.ID)
 	require.NoError(t, err)
@@ -3600,7 +3605,7 @@ func TestStateStore_CSIPluginJobs(t *testing.T) {
 	// plugin was collected
 	plug, err = s.CSIPluginByID(ws, "foo")
 	require.NoError(t, err)
-	require.Nil(t, plug)
+	require.True(t, plug.IsEmpty())
 }
 
 func TestStateStore_RestoreCSIPlugin(t *testing.T) {
