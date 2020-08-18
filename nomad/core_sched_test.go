@@ -2394,3 +2394,64 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	}, time.Second*1, 10*time.Millisecond, "claims were released unexpectedly")
 
 }
+
+func TestCoreScheduler_FailLoop(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	srv, cleanupSrv := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.EvalDeliveryLimit = 2
+		c.EvalFailedFollowupBaselineDelay = time.Duration(50 * time.Millisecond)
+		c.EvalFailedFollowupDelayRange = time.Duration(1 * time.Millisecond)
+	})
+	defer cleanupSrv()
+	codec := rpcClient(t, srv)
+	sched := []string{structs.JobTypeCore}
+
+	testutil.WaitForResult(func() (bool, error) {
+		return srv.evalBroker.Enabled(), nil
+	}, func(err error) {
+		t.Fatalf("should enable eval broker")
+	})
+
+	// Enqueue a core job eval that can never succeed because it was enqueued
+	// by another leader that's now gone
+	expected := srv.coreJobEval(structs.CoreJobCSIPluginGC, 100)
+	expected.LeaderACL = "nonsense"
+	srv.evalBroker.Enqueue(expected)
+
+	nack := func(evalID, token string) error {
+		req := &structs.EvalAckRequest{
+			EvalID:       evalID,
+			Token:        token,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+		var resp structs.GenericResponse
+		return msgpackrpc.CallWithCodec(codec, "Eval.Nack", req, &resp)
+	}
+
+	out, token, err := srv.evalBroker.Dequeue(sched, time.Second*5)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(expected, out)
+
+	// first fail
+	require.NoError(nack(out.ID, token))
+
+	out, token, err = srv.evalBroker.Dequeue(sched, time.Second*5)
+	require.NoError(err)
+	require.NotNil(out)
+	require.Equal(expected, out)
+
+	// second fail, should not result in failed-follow-up
+	require.NoError(nack(out.ID, token))
+
+	out, token, err = srv.evalBroker.Dequeue(sched, time.Second*5)
+	require.NoError(err)
+	if out != nil {
+		t.Fatalf(
+			"failed core jobs should not result in follow-up. TriggeredBy: %v",
+			out.TriggeredBy)
+	}
+}
