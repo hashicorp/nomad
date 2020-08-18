@@ -4591,41 +4591,6 @@ func (m *Multiregion) Copy() *Multiregion {
 	return copy
 }
 
-func (m *Multiregion) Validate(jobType string, jobDatacenters []string) error {
-	var mErr multierror.Error
-	seen := map[string]struct{}{}
-	for _, region := range m.Regions {
-		if _, ok := seen[region.Name]; ok {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Multiregion region %q can't be listed twice",
-					region.Name))
-		}
-		seen[region.Name] = struct{}{}
-		if len(region.Datacenters) == 0 && len(jobDatacenters) == 0 {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Multiregion region %q must have at least 1 datacenter",
-					region.Name),
-			)
-		}
-	}
-	if m.Strategy != nil {
-		switch jobType {
-		case JobTypeBatch:
-			if m.Strategy.OnFailure != "" || m.Strategy.MaxParallel != 0 {
-				mErr.Errors = append(mErr.Errors,
-					errors.New("Multiregion batch jobs can't have an update strategy"))
-			}
-		case JobTypeSystem:
-			if m.Strategy.OnFailure != "" {
-				mErr.Errors = append(mErr.Errors,
-					errors.New("Multiregion system jobs can't have an on_failure setting"))
-			}
-		default: // service
-		}
-	}
-	return mErr.ErrorOrNil()
-}
-
 type MultiregionStrategy struct {
 	MaxParallel int
 	OnFailure   string
