@@ -4,6 +4,7 @@ resource "aws_instance" "server" {
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
   # Instance tags
@@ -13,8 +14,6 @@ resource "aws_instance" "server" {
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
-
-  iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
 resource "aws_instance" "client_linux" {
@@ -24,6 +23,7 @@ resource "aws_instance" "client_linux" {
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
   depends_on             = [aws_instance.server]
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
   # Instance tags
@@ -40,8 +40,6 @@ resource "aws_instance" "client_linux" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
-
-  iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
 resource "aws_instance" "client_windows" {
@@ -51,7 +49,7 @@ resource "aws_instance" "client_windows" {
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.windows_client_count
   depends_on             = [aws_instance.server]
-  iam_instance_profile   = aws_iam_instance_profile.instance_profile.name
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
   # Instance tags
