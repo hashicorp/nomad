@@ -38,6 +38,47 @@ func TestCSIVolumeClaim(t *testing.T) {
 	require.True(t, vol.WriteFreeClaims())
 }
 
+func TestCSIPluginJobs(t *testing.T) {
+	plug := NewCSIPlugin("foo", 1000)
+	job := &Job{
+		ID:   "job",
+		Type: "service",
+		TaskGroups: []*TaskGroup{{
+			Name:  "foo",
+			Count: 11,
+			Tasks: []*Task{{
+				CSIPluginConfig: &TaskCSIPluginConfig{
+					ID:   "foo",
+					Type: CSIPluginTypeController,
+				},
+			}},
+		}},
+	}
+
+	summary := &JobSummary{}
+
+	plug.AddJob(job, summary)
+	require.Equal(t, 11, plug.ControllersExpected)
+
+	// New job id & make it a system node plugin job
+	job.ID = "bar"
+	job.Type = "system"
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig.Type = CSIPluginTypeNode
+
+	summary = &JobSummary{
+		Summary: map[string]TaskGroupSummary{
+			"foo": {
+				Queued:   1,
+				Running:  1,
+				Starting: 1,
+			},
+		},
+	}
+
+	plug.AddJob(job, summary)
+	require.Equal(t, 3, plug.NodesExpected)
+}
+
 func TestCSIPluginCleanup(t *testing.T) {
 	plug := NewCSIPlugin("foo", 1000)
 	plug.AddPlugin("n0", &CSIInfo{
