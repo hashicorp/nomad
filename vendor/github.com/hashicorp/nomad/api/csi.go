@@ -214,8 +214,10 @@ type CSIPlugin struct {
 	Allocations         []*AllocationListStub
 	ControllersHealthy  int
 	ControllersExpected int
+	ControllerJobs      []JobDescription
 	NodesHealthy        int
 	NodesExpected       int
+	NodeJobs            []JobDescription
 	CreateIndex         uint64
 	ModifyIndex         uint64
 }
@@ -244,6 +246,12 @@ func (v CSIPluginIndexSort) Less(i, j int) bool {
 
 func (v CSIPluginIndexSort) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
+}
+
+type JobDescription struct {
+	Namespace string
+	ID        string
+	Version   uint64
 }
 
 // CSIPlugins returns a handle on the CSIPlugins endpoint
