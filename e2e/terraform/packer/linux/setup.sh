@@ -115,6 +115,44 @@ wget -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}
 sudo unzip /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
 sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
 
+# Install CNI plugins
+sudo mkdir -p /opt/cni/bin
+wget -q -O - \
+     https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz \
+    | sudo tar -C /opt/cni/bin -xz
+
+# enable varlink socket (not included in ubuntu package)
+sudo tee /etc/systemd/system/io.podman.service << EOF
+[Unit]
+Description=Podman Remote API Service
+Requires=io.podman.socket
+After=io.podman.socket
+Documentation=man:podman-varlink(1)
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/podman varlink unix:%t/podman/io.podman --timeout=60000
+TimeoutStopSec=30
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+Also=io.podman.socket
+EOF
+
+sudo tee /etc/systemd/system/io.podman.socket << EOF
+[Unit]
+Description=Podman Remote API Socket
+Documentation=man:podman-varlink(1) https://podman.io/blogs/2019/01/16/podman-varlink.html
+
+[Socket]
+ListenStream=%t/podman/io.podman
+SocketMode=0600
+
+[Install]
+WantedBy=sockets.target
+EOF
+
 # disable systemd-resolved and configure dnsmasq to forward local requests to
 # consul. the resolver files need to dynamic configuration based on the VPC
 # address and docker bridge IP, so those will be rewritten at boot time.

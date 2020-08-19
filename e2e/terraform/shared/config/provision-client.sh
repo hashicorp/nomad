@@ -59,44 +59,6 @@ sudo cp "$NOMAD_SRC/$NOMAD_CONFIG" "$NOMAD_DEST/$NOMAD_CONFIG_FILENAME"
 # Setup Host Volumes
 sudo mkdir -p /tmp/data
 
-# Install CNI plugins
-sudo mkdir -p /opt/cni/bin
-wget -q -O - \
-     https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz \
-    | sudo tar -C /opt/cni/bin -xz
-
-# enable varlink socket (not included in ubuntu package)
-cat > /etc/systemd/system/io.podman.service << EOF
-[Unit]
-Description=Podman Remote API Service
-Requires=io.podman.socket
-After=io.podman.socket
-Documentation=man:podman-varlink(1)
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/podman varlink unix:%t/podman/io.podman --timeout=60000
-TimeoutStopSec=30
-KillMode=process
-
-[Install]
-WantedBy=multi-user.target
-Also=io.podman.socket
-EOF
-
-cat > /etc/systemd/system/io.podman.socket << EOF
-[Unit]
-Description=Podman Remote API Socket
-Documentation=man:podman-varlink(1) https://podman.io/blogs/2019/01/16/podman-varlink.html
-
-[Socket]
-ListenStream=%t/podman/io.podman
-SocketMode=0600
-
-[Install]
-WantedBy=sockets.target
-EOF
-
 # enable as a systemd service
 sudo cp "$NOMAD_SRC/nomad.service" /etc/systemd/system/nomad.service
 
