@@ -127,11 +127,10 @@ github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/checkpoint-restore/go-criu v0.0.0-20190109184317-bdb7599cd87b
-## explicit
-github.com/checkpoint-restore/go-criu/rpc
-# github.com/cilium/ebpf v0.0.0-20200617135954-7acf5cc039f4
-## explicit
+# github.com/checkpoint-restore/go-criu/v4 v4.1.0
+github.com/checkpoint-restore/go-criu/v4
+github.com/checkpoint-restore/go-criu/v4/rpc
+# github.com/cilium/ebpf v0.0.0-20200702112145-1c8d4c9ef775
 github.com/cilium/ebpf
 github.com/cilium/ebpf/asm
 github.com/cilium/ebpf/internal
@@ -148,7 +147,6 @@ github.com/circonus-labs/circonusllhist
 ## explicit
 github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/console v1.0.0
-## explicit
 github.com/containerd/console
 # github.com/containerd/containerd v1.3.2
 github.com/containerd/containerd/errdefs
@@ -176,8 +174,8 @@ github.com/coreos/go-iptables/iptables
 # github.com/coreos/go-semver v0.3.0
 ## explicit
 github.com/coreos/go-semver/semver
-# github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
-github.com/coreos/go-systemd/dbus
+# github.com/coreos/go-systemd/v22 v22.1.0
+github.com/coreos/go-systemd/v22/dbus
 # github.com/cyphar/filepath-securejoin v0.2.3-0.20190205144030-7efe413b52e1
 ## explicit
 github.com/cyphar/filepath-securejoin
@@ -279,11 +277,11 @@ github.com/fsouza/go-dockerclient
 # github.com/go-ole/go-ole v1.2.1
 github.com/go-ole/go-ole
 github.com/go-ole/go-ole/oleutil
-# github.com/godbus/dbus v4.1.0+incompatible => github.com/godbus/dbus v5.0.1+incompatible
-github.com/godbus/dbus
+# github.com/godbus/dbus/v5 v5.0.3
+github.com/godbus/dbus/v5
 # github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/proto
-# github.com/golang/protobuf v1.3.4
+# github.com/golang/protobuf v1.4.2 => github.com/golang/protobuf v1.3.4
 ## explicit
 github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/proto
@@ -583,10 +581,11 @@ github.com/mitchellh/hashstructure
 github.com/mitchellh/mapstructure
 # github.com/mitchellh/reflectwalk v1.0.1
 github.com/mitchellh/reflectwalk
+# github.com/moby/sys/mountinfo v0.1.3
+github.com/moby/sys/mountinfo
 # github.com/morikuni/aec v1.0.0
 github.com/morikuni/aec
-# github.com/mrunalp/fileutils v0.0.0-20171103030105-7d4729fb3618
-## explicit
+# github.com/mrunalp/fileutils v0.0.0-20200520151820-abd8a0e76976
 github.com/mrunalp/fileutils
 # github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2
 github.com/nicolai86/scaleway-sdk
@@ -634,11 +633,12 @@ github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/opencontainers/runc v1.0.0-rc90
+# github.com/opencontainers/runc v1.0.0-rc92
 ## explicit
 github.com/opencontainers/runc/libcontainer
 github.com/opencontainers/runc/libcontainer/apparmor
 github.com/opencontainers/runc/libcontainer/cgroups
+github.com/opencontainers/runc/libcontainer/cgroups/devices
 github.com/opencontainers/runc/libcontainer/cgroups/ebpf
 github.com/opencontainers/runc/libcontainer/cgroups/ebpf/devicefilter
 github.com/opencontainers/runc/libcontainer/cgroups/fs
@@ -651,19 +651,17 @@ github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/intelrdt
 github.com/opencontainers/runc/libcontainer/keys
 github.com/opencontainers/runc/libcontainer/logs
-github.com/opencontainers/runc/libcontainer/mount
 github.com/opencontainers/runc/libcontainer/nsenter
 github.com/opencontainers/runc/libcontainer/seccomp
+github.com/opencontainers/runc/libcontainer/specconv
 github.com/opencontainers/runc/libcontainer/stacktrace
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
 github.com/opencontainers/runc/libcontainer/utils
 github.com/opencontainers/runc/types
-# github.com/opencontainers/runtime-spec v1.0.2-0.20200307132014-f49fed0d6290
-## explicit
+# github.com/opencontainers/runtime-spec v1.0.3-0.20200728170252-4d89ac9fbff6
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/opencontainers/selinux v1.4.1-0.20200311111634-a2f0d9c2aafc
-## explicit
+# github.com/opencontainers/selinux v1.6.0
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
@@ -726,7 +724,6 @@ github.com/shirou/gopsutil/mem
 github.com/shirou/gopsutil/net
 github.com/shirou/gopsutil/process
 # github.com/sirupsen/logrus v1.6.0
-## explicit
 github.com/sirupsen/logrus
 # github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 ## explicit
@@ -763,7 +760,6 @@ github.com/ulikunitz/xz/internal/hash
 github.com/ulikunitz/xz/internal/xlog
 github.com/ulikunitz/xz/lzma
 # github.com/vishvananda/netlink v1.1.0
-## explicit
 github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
@@ -788,6 +784,8 @@ github.com/vmware/govmomi/vim25/progress
 github.com/vmware/govmomi/vim25/soap
 github.com/vmware/govmomi/vim25/types
 github.com/vmware/govmomi/vim25/xml
+# github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243
+github.com/willf/bitset
 # github.com/zclconf/go-cty v1.4.1
 ## explicit
 github.com/zclconf/go-cty/cty
@@ -877,7 +875,7 @@ golang.org/x/oauth2/jwt
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20200523222454-059865788121
+# golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1
 ## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
@@ -1076,3 +1074,4 @@ honnef.co/go/tools/version
 # github.com/hashicorp/nomad/api => ./api
 # github.com/kr/pty => github.com/kr/pty v1.1.5
 # github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
+# github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
