@@ -37,7 +37,7 @@ sudo apt-get install -y python-setuptools python-pip
 sudo pip install numpy
 
 # Install sockaddr
-aws s3 cp "s3://nomad-team-test-binary/tools/sockaddr_linux_amd64" /tmp/sockaddr
+aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
 sudo mv /tmp/sockaddr /usr/local/bin
 sudo chmod +x /usr/local/bin/sockaddr
 sudo chown root:root /usr/local/bin/sockaddr
