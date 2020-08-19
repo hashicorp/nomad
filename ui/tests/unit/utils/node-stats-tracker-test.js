@@ -55,7 +55,7 @@ module('Unit | Util | NodeStatsTracker', function() {
     );
   });
 
-  test('reservedCPU and reservedMemory properties come from the node', async function(assert) {
+  test('reservedCPU and reservedMemory properties come from the node resources by default', async function(assert) {
     const node = MockNode();
     const tracker = NodeStatsTracker.create({ fetch, node });
 
@@ -65,6 +65,19 @@ module('Unit | Util | NodeStatsTracker', function() {
       node.resources.memory,
       'reservedMemory comes from the node'
     );
+  });
+
+  test('reservedCPU and reservedMemory properties come from the node reserved resources when present', async function(assert) {
+    const node = MockNode({
+      reserved: {
+        cpu: 1000,
+        memory: 2000,
+      },
+    });
+    const tracker = NodeStatsTracker.create({ fetch, node });
+
+    assert.equal(tracker.get('reservedCPU'), 1000);
+    assert.equal(tracker.get('reservedMemory'), 2000);
   });
 
   test('poll results in requesting the url and calling append with the resulting JSON', async function(assert) {

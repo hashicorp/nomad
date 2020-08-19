@@ -1,5 +1,5 @@
 import EmberObject, { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { or } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
 import classic from 'ember-classic-decorator';
@@ -48,8 +48,8 @@ class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   }
 
   // Static figures, denominators for stats
-  @alias('node.resources.cpu') reservedCPU;
-  @alias('node.resources.memory') reservedMemory;
+  @or('node.reserved.cpu', 'node.resources.cpu') reservedCPU;
+  @or('node.reserved.memory', 'node.resources.memory') reservedMemory;
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
