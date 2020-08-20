@@ -22,7 +22,6 @@ VAULTDIR=/opt/vault
 
 # Will be overwritten by sha specified
 NOMADVERSION=0.9.1
-NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 NOMADPLUGINDIR=/opt/nomad/plugins
@@ -67,12 +66,6 @@ sudo chmod 755 $VAULTCONFIGDIR
 sudo mkdir -p $VAULTDIR
 sudo chmod 755 $VAULTDIR
 
-echo "Install Nomad"
-curl -fsL -o /tmp/nomad.zip $NOMADDOWNLOAD
-sudo unzip -q /tmp/nomad.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/nomad
-sudo chown root:root /usr/local/bin/nomad
-
 echo "Configure Nomad"
 sudo mkdir -p $NOMADCONFIGDIR
 sudo chmod 755 $NOMADCONFIGDIR
@@ -80,6 +73,11 @@ sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
 sudo mkdir -p $NOMADPLUGINDIR
 sudo chmod 755 $NOMADPLUGINDIR
+
+echo "Install Nomad"
+sudo mv /tmp/install-nomad /opt/install-nomad
+sudo chmod +x /opt/install-nomad
+/opt/install-nomad --nomad_version $NOMADVERSION --nostart
 
 echo "Installing third-party apt repositories"
 
