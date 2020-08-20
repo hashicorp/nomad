@@ -125,34 +125,6 @@
     </div>
   {{/if}}
 
-  {{#if this.network.ports.length}}
-    <div class="boxed-section" data-test-task-addresses>
-      <div class="boxed-section-head">
-        Addresses
-      </div>
-      <div class="boxed-section-body is-full-bleed">
-        <ListTable @source={{this.network.ports}} as |t|>
-          <t.head>
-            <th class="is-1">Dynamic?</th>
-            <th class="is-2">Name</th>
-            <th>Address</th>
-          </t.head>
-          <t.body as |row|>
-            <tr data-test-task-address>
-              <td data-test-task-address-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
-              <td data-test-task-address-name>{{row.model.name}}</td>
-              <td data-test-task-address-address>
-                <a href="http://{{this.network.ip}}:{{row.model.port}}" target="_blank" rel="noopener noreferrer">
-                  {{this.network.ip}}:{{row.model.port}}
-                </a>
-              </td>
-            </tr>
-          </t.body>
-        </ListTable>
-      </div>
-    </div>
-  {{/if}}
-
   {{#if this.model.task.volumeMounts.length}}
     <div data-test-volumes class="boxed-section">
       <div class="boxed-section-head">

@@ -7,6 +7,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
+import isIp from 'is-ip';
 
 let job;
 let node;
@@ -195,11 +196,6 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('each task row should list high-level information for the task', async function(assert) {
     const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
-    const taskResources = allocation.taskResourceIds
-      .map(id => server.db.taskResources.find(id))
-      .sortBy('name')[0];
-    const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-    const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
     const events = server.db.taskEvents.where({ taskStateId: task.id });
     const event = events[events.length - 1];
 
@@ -223,19 +219,6 @@ module('Acceptance | allocation detail', function(hooks) {
         moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
         'Event Time'
       );
-
-      assert.ok(reservedPorts.length, 'The task has reserved ports');
-      assert.ok(dynamicPorts.length, 'The task has dynamic ports');
-
-      const addressesText = taskRow.ports;
-      reservedPorts.forEach(port => {
-        assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-        assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
-      });
-      dynamicPorts.forEach(port => {
-        assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-        assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
-      });
 
       const volumesText = taskRow.volumes;
       volumes.forEach(volume => {
@@ -306,19 +289,15 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('ports are listed', async function(assert) {
-    const serverNetwork = allocation.allocatedResources.Shared.Networks[0];
-    const allServerPorts = serverNetwork.ReservedPorts.concat(serverNetwork.DynamicPorts);
+    const allServerPorts = allocation.allocatedResources.Shared.Ports;
 
     allServerPorts.sortBy('Label').forEach((serverPort, index) => {
       const renderedPort = Allocation.ports[index];
 
-      assert.equal(
-        renderedPort.dynamic,
-        serverNetwork.ReservedPorts.includes(serverPort) ? 'No' : 'Yes'
-      );
       assert.equal(renderedPort.name, serverPort.Label);
-      assert.equal(renderedPort.address, `${serverNetwork.IP}:${serverPort.Value}`);
       assert.equal(renderedPort.to, serverPort.To);
+      const expectedAddr = isIp.v6(serverPort.HostIP) ? `[${serverPort.HostIP}]:${serverPort.Value}` : `${serverPort.HostIP}:${serverPort.Value}`;
+      assert.equal(renderedPort.address, expectedAddr);
     });
   });
 

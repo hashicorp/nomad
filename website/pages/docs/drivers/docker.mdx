@@ -44,6 +44,10 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+- `image_pull_timeout` - (Optional) A time duration that controls how long Nomad
+  will wait before cancelling an in-progress pull of the Docker image as specified
+  in `image`. Defaults to `"5m"`.
+
 - `args` - (Optional) A list of arguments to the optional `command`. If no
   `command` is specified, the arguments are passed directly to the container.
   References to environment variables or any [interpretable Nomad
@@ -822,6 +826,10 @@ plugin "docker" {
 - `infra_image` - This is the Docker image to use when creating the parent
   container necessary when sharing network namespaces between tasks. Defaults
   to "gcr.io/google_containers/pause-amd64:3.0".
+
+- `infra_image_pull_timeout` - A time duration that controls how long Nomad will
+  wait before cancelling an in-progress pull of the Docker image as specified in
+  `infra_image`. Defaults to `"5m"`.
 
 ## Client Configuration
 

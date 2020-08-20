@@ -41,7 +41,7 @@ func deployLinux(t *testing.T, target *ProvisioningTarget) error {
 		if deployment.RemoteBinaryPath == "" {
 			return fmt.Errorf("remote binary path not set")
 		}
-		s3_url := fmt.Sprintf("s3://nomad-team-test-binary/builds-oss/nomad_%s_%s.tar.gz",
+		s3_url := fmt.Sprintf("s3://nomad-team-dev-test-binaries/builds-oss/nomad_%s_%s.tar.gz",
 			deployment.Platform, deployment.NomadSha,
 		)
 		remoteDir := filepath.Dir(deployment.RemoteBinaryPath)
@@ -119,7 +119,7 @@ func deployWindows(t *testing.T, target *ProvisioningTarget) error {
 			return fmt.Errorf("remote binary path not set")
 		}
 		script := fmt.Sprintf(`
-			Read-S3Object -BucketName nomad-team-test-binary -Key "builds-oss/nomad_windows_amd64_%s.zip" -File ./nomad.zip
+			Read-S3Object -BucketName nomad-team-dev-test-binaries -Key "builds-oss/nomad_windows_amd64_%s.zip" -File ./nomad.zip
 			Expand-Archive ./nomad.zip ./ -Force
 			Remove-Item %s  -ErrorAction Ignore
 			Move-Item -Path .\pkg\windows_amd64\nomad.exe -Destination %s -Force`,

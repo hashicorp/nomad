@@ -513,11 +513,13 @@ func TestExecutor_cmdDevices(t *testing.T) {
 	}
 
 	expected := &lconfigs.Device{
-		Path:        "/task/dev/null",
-		Type:        99,
-		Major:       1,
-		Minor:       3,
-		Permissions: "rwm",
+		DeviceRule: lconfigs.DeviceRule{
+			Type:        99,
+			Major:       1,
+			Minor:       3,
+			Permissions: "rwm",
+		},
+		Path: "/task/dev/null",
 	}
 
 	found, err := cmdDevices(input)

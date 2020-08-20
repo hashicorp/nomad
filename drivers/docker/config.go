@@ -259,6 +259,11 @@ var (
 			hclspec.NewAttr("infra_image", "string", false),
 			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
 		),
+		// timeout to use when pulling the infra image.
+		"infra_image_pull_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("infra_image_pull_timeout", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
 
 		// the duration that the driver will wait for activity from the Docker engine during an image pull
 		// before canceling the request
@@ -266,7 +271,6 @@ var (
 			hclspec.NewAttr("pull_activity_timeout", "string", false),
 			hclspec.NewLiteral(`"2m"`),
 		),
-
 		// disable_log_collection indicates whether docker driver should collect logs of docker
 		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
@@ -350,6 +354,10 @@ var (
 		"ports":           hclspec.NewAttr("ports", "list(string)", false),
 		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
 		"privileged":      hclspec.NewAttr("privileged", "bool", false),
+		"image_pull_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("image_pull_timeout", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
 		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
 		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
 		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
@@ -417,6 +425,7 @@ type TaskConfig struct {
 	Ports             []string           `codec:"ports"`
 	PortMap           hclutils.MapStrInt `codec:"port_map"`
 	Privileged        bool               `codec:"privileged"`
+	ImagePullTimeout  string             `codec:"image_pull_timeout"`
 	ReadonlyRootfs    bool               `codec:"readonly_rootfs"`
 	SecurityOpt       []string           `codec:"security_opt"`
 	ShmSize           int64              `codec:"shm_size"`
@@ -569,18 +578,20 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint                    string        `codec:"endpoint"`
-	Auth                        AuthConfig    `codec:"auth"`
-	TLS                         TLSConfig     `codec:"tls"`
-	GC                          GCConfig      `codec:"gc"`
-	Volumes                     VolumeConfig  `codec:"volumes"`
-	AllowPrivileged             bool          `codec:"allow_privileged"`
-	AllowCaps                   []string      `codec:"allow_caps"`
-	GPURuntimeName              string        `codec:"nvidia_runtime"`
-	InfraImage                  string        `codec:"infra_image"`
-	DisableLogCollection        bool          `codec:"disable_log_collection"`
-	PullActivityTimeout         string        `codec:"pull_activity_timeout"`
-	pullActivityTimeoutDuration time.Duration `codec:"-"`
+	Endpoint                      string        `codec:"endpoint"`
+	Auth                          AuthConfig    `codec:"auth"`
+	TLS                           TLSConfig     `codec:"tls"`
+	GC                            GCConfig      `codec:"gc"`
+	Volumes                       VolumeConfig  `codec:"volumes"`
+	AllowPrivileged               bool          `codec:"allow_privileged"`
+	AllowCaps                     []string      `codec:"allow_caps"`
+	GPURuntimeName                string        `codec:"nvidia_runtime"`
+	InfraImage                    string        `codec:"infra_image"`
+	InfraImagePullTimeout         string        `codec:"infra_image_pull_timeout"`
+	infraImagePullTimeoutDuration time.Duration `codec:"-"`
+	DisableLogCollection          bool          `codec:"disable_log_collection"`
+	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
+	pullActivityTimeoutDuration   time.Duration `codec:"-"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
@@ -667,6 +678,14 @@ func (d *Driver) SetConfig(c *base.Config) error {
 			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
 		}
 		d.config.pullActivityTimeoutDuration = dur
+	}
+
+	if d.config.InfraImagePullTimeout != "" {
+		dur, err := time.ParseDuration(d.config.InfraImagePullTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duaration: %v", err)
+		}
+		d.config.infraImagePullTimeoutDuration = dur
 	}
 
 	d.config.allowRuntimes = make(map[string]struct{}, len(d.config.AllowRuntimesList))

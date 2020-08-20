@@ -9,11 +9,11 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
 // runAs takes a user id as a string and looks up the user, and sets the command
@@ -71,10 +71,11 @@ func (e *UniversalExecutor) runAs(userid string) error {
 func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
-			Resources: &lconfigs.Resources{
-				AllowAllDevices: helper.BoolToPtr(true),
-			},
+			Resources: &lconfigs.Resources{},
 		},
+	}
+	for _, device := range specconv.AllowedDevices {
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.DeviceRule)
 	}
 
 	err := configureBasicCgroups(cfg)

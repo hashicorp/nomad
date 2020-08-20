@@ -43,8 +43,29 @@ variable "nomad_sha" {
   default     = ""
 }
 
+variable "aws_assume_role_arn" {
+  description = "The AWS IAM role to assume (not used by human users)"
+  default     = ""
+}
+
+variable "aws_assume_role_session_name" {
+  description = "The AWS IAM session name to assume (not used by human users)"
+  default     = ""
+}
+
+variable "aws_assume_role_external_id" {
+  description = "The AWS IAM external ID to assume (not used by human users)"
+  default     = ""
+}
+
 provider "aws" {
   region = var.region
+
+  assume_role {
+    role_arn     = var.aws_assume_role_arn
+    session_name = var.aws_assume_role_session_name
+    external_id  = var.aws_assume_role_external_id
+  }
 }
 
 resource "random_pet" "e2e" {

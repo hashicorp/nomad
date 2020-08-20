@@ -3486,6 +3486,23 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 	a.DiskMB -= delta.DiskMB
 }
 
+func (a *AllocatedSharedResources) Canonicalize() {
+	if len(a.Networks) > 0 {
+		if len(a.Networks[0].DynamicPorts)+len(a.Networks[0].ReservedPorts) > 0 && len(a.Ports) == 0 {
+			for _, ports := range [][]Port{a.Networks[0].DynamicPorts, a.Networks[0].ReservedPorts} {
+				for _, p := range ports {
+					a.Ports = append(a.Ports, AllocatedPortMapping{
+						Label:  p.Label,
+						Value:  p.Value,
+						To:     p.To,
+						HostIP: a.Networks[0].IP,
+					})
+				}
+			}
+		}
+	}
+}
+
 // AllocatedCpuResources captures the allocated CPU resources.
 type AllocatedCpuResources struct {
 	CpuShares int64
@@ -4589,41 +4606,6 @@ func (m *Multiregion) Copy() *Multiregion {
 		copy.Regions = append(copy.Regions, copyRegion)
 	}
 	return copy
-}
-
-func (m *Multiregion) Validate(jobType string, jobDatacenters []string) error {
-	var mErr multierror.Error
-	seen := map[string]struct{}{}
-	for _, region := range m.Regions {
-		if _, ok := seen[region.Name]; ok {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Multiregion region %q can't be listed twice",
-					region.Name))
-		}
-		seen[region.Name] = struct{}{}
-		if len(region.Datacenters) == 0 && len(jobDatacenters) == 0 {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Multiregion region %q must have at least 1 datacenter",
-					region.Name),
-			)
-		}
-	}
-	if m.Strategy != nil {
-		switch jobType {
-		case JobTypeBatch:
-			if m.Strategy.OnFailure != "" || m.Strategy.MaxParallel != 0 {
-				mErr.Errors = append(mErr.Errors,
-					errors.New("Multiregion batch jobs can't have an update strategy"))
-			}
-		case JobTypeSystem:
-			if m.Strategy.OnFailure != "" {
-				mErr.Errors = append(mErr.Errors,
-					errors.New("Multiregion system jobs can't have an on_failure setting"))
-			}
-		default: // service
-		}
-	}
-	return mErr.ErrorOrNil()
 }
 
 type MultiregionStrategy struct {

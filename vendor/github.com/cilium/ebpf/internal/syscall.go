@@ -1,12 +1,12 @@
 package internal
 
 import (
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"unsafe"
 
 	"github.com/cilium/ebpf/internal/unix"
-	"golang.org/x/xerrors"
 )
 
 //go:generate stringer -output syscall_string.go -type=BPFCmd
@@ -107,7 +107,7 @@ func BPFObjPin(fileName string, fd *FD) error {
 		return err
 	}
 	if uint64(statfs.Type) != bpfFSType {
-		return xerrors.Errorf("%s is not on a bpf filesystem", fileName)
+		return fmt.Errorf("%s is not on a bpf filesystem", fileName)
 	}
 
 	value, err := fd.Value()
@@ -121,7 +121,7 @@ func BPFObjPin(fileName string, fd *FD) error {
 	}
 	_, err = BPF(BPF_OBJ_PIN, unsafe.Pointer(&attr), unsafe.Sizeof(attr))
 	if err != nil {
-		return xerrors.Errorf("pin object %s: %w", fileName, err)
+		return fmt.Errorf("pin object %s: %w", fileName, err)
 	}
 	return nil
 }
@@ -133,7 +133,7 @@ func BPFObjGet(fileName string) (*FD, error) {
 	}
 	ptr, err := BPF(BPF_OBJ_GET, unsafe.Pointer(&attr), unsafe.Sizeof(attr))
 	if err != nil {
-		return nil, xerrors.Errorf("get object %s: %w", fileName, err)
+		return nil, fmt.Errorf("get object %s: %w", fileName, err)
 	}
 	return NewFD(uint32(ptr)), nil
 }

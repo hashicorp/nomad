@@ -41,25 +41,26 @@ job "consul-example" {
       driver = "docker"
 
       config {
-        image = "redis:3.2"
+        image   = "busybox:1"
+        command = "nc"
+        args    = ["-ll", "-p", "1234", "-e", "/bin/cat"]
 
         port_map {
-          db = 6379
+          db = 1234
         }
       }
 
       resources {
-        cpu    = 500 # 500 MHz
-        memory = 256 # 256MB
+        cpu    = 100
+        memory = 100
 
         network {
-          mbits = 10
           port "db" {}
         }
       }
 
       service {
-        name = "redis-cache"
+        name = "consul-example"
         tags = ["global", "cache"]
         port = "db"
 

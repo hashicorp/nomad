@@ -1,7 +1,6 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 import classic from 'ember-classic-decorator';
 
@@ -16,26 +15,6 @@ export default class IndexController extends Controller {
   @computed('otherTaskStates.@each.lifecycle')
   get prestartTaskStates() {
     return this.otherTaskStates.filterBy('task.lifecycle');
-  }
-
-  @alias('model.resources.networks.firstObject') network;
-
-  @computed('network.{reservedPorts.[],dynamicPorts.[]}')
-  get ports() {
-    return (this.get('network.reservedPorts') || [])
-      .map(port => ({
-        name: port.Label,
-        port: port.Value,
-        isDynamic: false,
-      }))
-      .concat(
-        (this.get('network.dynamicPorts') || []).map(port => ({
-          name: port.Label,
-          port: port.Value,
-          isDynamic: true,
-        }))
-      )
-      .sortBy('name');
   }
 
   @overridable(() => {

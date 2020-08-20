@@ -1,4 +1,4 @@
-job "redis" {
+job "podman-redis" {
   datacenters = ["dc1"]
   type        = "service"
 
