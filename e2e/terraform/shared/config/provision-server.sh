@@ -33,25 +33,6 @@ sudo systemctl enable vault.service
 sudo systemctl daemon-reload
 sudo systemctl restart vault.service
 
-# Add hostname to /etc/hosts
-echo "127.0.0.1 $(hostname)" | sudo tee --append /etc/hosts
-
-# Use dnsmasq for DNS resolution
-echo "nameserver 127.0.0.1" > /tmp/resolv.conf
-sudo mv /tmp/resolv.conf /etc/resolv.conf
-
-# need to get the AWS DNS address from the VPC...
-# this is pretty hacky but will work for any typical case
-MAC=$(curl -s --fail http://169.254.169.254/latest/meta-data/mac)
-CIDR_BLOCK=$(curl -s --fail "http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/vpc-ipv4-cidr-block")
-VPC_DNS_ROOT=$(echo "$CIDR_BLOCK" | cut -d'.' -f1-3)
-{
-    echo "nameserver ${VPC_DNS_ROOT}.2"
-} > /tmp/dnsmasq-resolv.conf
-sudo mv /tmp/dnsmasq-resolv.conf /var/run/dnsmasq/resolv.conf
-
-sudo systemctl restart dnsmasq
-
 # Nomad
 
 NOMAD_SRC=/ops/shared/nomad

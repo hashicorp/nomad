@@ -28,9 +28,11 @@ NOMADDIR=/opt/nomad
 NOMADPLUGINDIR=/opt/nomad/plugins
 
 # Dependencies
-sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common
+sudo apt-get install -y \
+     software-properties-common \
+     dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
+     apt-transport-https ca-certificates gnupg2
 
 # Install sockaddr
 aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
@@ -42,8 +44,8 @@ sudo chown root:root /usr/local/bin/sockaddr
 sudo ufw disable || echo "ufw not installed"
 
 echo "Install Consul"
-curl -L -o /tmp/consul.zip $CONSULDOWNLOAD
-sudo unzip /tmp/consul.zip -d /usr/local/bin
+curl -fsL -o /tmp/consul.zip $CONSULDOWNLOAD
+sudo unzip -q /tmp/consul.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/consul
 sudo chown root:root /usr/local/bin/consul
 
@@ -54,8 +56,8 @@ sudo mkdir -p $CONSULDIR
 sudo chmod 755 $CONSULDIR
 
 echo "Install Vault"
-curl -L -o /tmp/vault.zip $VAULTDOWNLOAD
-sudo unzip /tmp/vault.zip -d /usr/local/bin
+curl -fsL -o /tmp/vault.zip $VAULTDOWNLOAD
+sudo unzip -q /tmp/vault.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/vault
 sudo chown root:root /usr/local/bin/vault
 
@@ -66,8 +68,8 @@ sudo mkdir -p $VAULTDIR
 sudo chmod 755 $VAULTDIR
 
 echo "Install Nomad"
-curl -L -o /tmp/nomad.zip $NOMADDOWNLOAD
-sudo unzip /tmp/nomad.zip -d /usr/local/bin
+curl -fsL -o /tmp/nomad.zip $NOMADDOWNLOAD
+sudo unzip -q /tmp/nomad.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/nomad
 sudo chown root:root /usr/local/bin/nomad
 
@@ -79,41 +81,84 @@ sudo chmod 755 $NOMADDIR
 sudo mkdir -p $NOMADPLUGINDIR
 sudo chmod 755 $NOMADPLUGINDIR
 
-echo "Install Docker"
+echo "Installing third-party apt repositories"
+
+# Docker
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
-sudo apt-get install -y apt-transport-https ca-certificates gnupg2
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable"
+
+# Java
+sudo add-apt-repository -y ppa:openjdk-r/ppa
+
+# Podman
+. /etc/os-release
+curl -fsSL "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
+sudo add-apt-repository "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /"
+
 sudo apt-get update
+
+echo "Installing Docker"
 sudo apt-get install -y docker-ce
 
-echo "Install Java"
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-sudo apt-get update
+echo "Installing Java"
 sudo apt-get install -y openjdk-8-jdk
 JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
-echo "Install Podman"
-. /etc/os-release
-sudo sh -c "echo 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
-sudo apt-get update -qq
-sudo apt-get -qq -y install podman
+echo "Installing CNI plugins"
+sudo mkdir -p /opt/cni/bin
+wget -q -O - \
+     https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz \
+    | sudo tar -C /opt/cni/bin -xz
+
+echo "Installing Podman"
+sudo apt-get -y install podman
 
 # get catatonit (to check podman --init switch)
-cd /tmp
-wget https://github.com/openSUSE/catatonit/releases/download/v0.1.4/catatonit.x86_64
+wget -q -P /tmp https://github.com/openSUSE/catatonit/releases/download/v0.1.4/catatonit.x86_64
 mkdir -p /usr/libexec/podman
-sudo mv catatonit* /usr/libexec/podman/catatonit
+sudo mv /tmp/catatonit* /usr/libexec/podman/catatonit
 sudo chmod +x /usr/libexec/podman/catatonit
 
-echo "Install latest podman task driver"
+echo "Installing latest podman task driver"
 # install nomad-podman-driver and move to plugin dir
 latest_podman=$(curl -s https://releases.hashicorp.com/nomad-driver-podman/index.json | jq --raw-output '.versions |= with_entries(select(.key|match("^\\d+\\.\\d+\\.\\d+$"))) | .versions | keys[]' | sort -rV | head -n1)
 
-wget -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip
-sudo unzip /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
+wget -q -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip
+sudo unzip -q /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
 sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
+
+# enable varlink socket (not included in ubuntu package)
+sudo tee /etc/systemd/system/io.podman.service << EOF
+[Unit]
+Description=Podman Remote API Service
+Requires=io.podman.socket
+After=io.podman.socket
+Documentation=man:podman-varlink(1)
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/podman varlink unix:%t/podman/io.podman --timeout=60000
+TimeoutStopSec=30
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+Also=io.podman.socket
+EOF
+
+sudo tee /etc/systemd/system/io.podman.socket << EOF
+[Unit]
+Description=Podman Remote API Socket
+Documentation=man:podman-varlink(1) https://podman.io/blogs/2019/01/16/podman-varlink.html
+
+[Socket]
+ListenStream=%t/podman/io.podman
+SocketMode=0600
+
+[Install]
+WantedBy=sockets.target
+EOF
 
 # disable systemd-resolved and configure dnsmasq to forward local requests to
 # consul. the resolver files need to dynamic configuration based on the VPC

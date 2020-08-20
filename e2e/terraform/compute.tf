@@ -7,6 +7,8 @@ resource "aws_instance" "server" {
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
+  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
+
   # Instance tags
   tags = {
     Name           = "${local.random_name}-server-${count.index}"
@@ -25,6 +27,8 @@ resource "aws_instance" "client_linux" {
   depends_on             = [aws_instance.server]
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
+
+  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
 
   # Instance tags
   tags = {
@@ -52,6 +56,8 @@ resource "aws_instance" "client_windows" {
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
+  user_data = file("${path.root}/userdata/windows-2016.ps1")
+
   # Instance tags
   tags = {
     Name           = "${local.random_name}-client-windows-${count.index}"
@@ -66,9 +72,4 @@ resource "aws_instance" "client_windows" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
-
-  # We need this userdata script because Windows machines don't
-  # configure ssh with cloud-init by default.
-  user_data = file("${path.root}/shared/config/userdata-windows.ps1")
-
 }
