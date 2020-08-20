@@ -316,9 +316,8 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 func structsJobDescriptionToApi(desc structs.JobDescription) api.JobDescription {
 	return api.JobDescription{
 		Namespace: desc.Namespace,
-		JobID:     desc.JobID,
+		ID:        desc.ID,
 		Version:   desc.Version,
-		Expected:  desc.Expected,
 	}
 }
 
@@ -378,6 +377,7 @@ func structsCSIInfoToApi(info *structs.CSIInfo) *api.CSIInfo {
 	}
 	out := &api.CSIInfo{
 		PluginID:                 info.PluginID,
+		AllocID:                  info.AllocID,
 		Healthy:                  info.Healthy,
 		HealthDescription:        info.HealthDescription,
 		UpdateTime:               info.UpdateTime,
