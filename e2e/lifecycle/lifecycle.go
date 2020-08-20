@@ -89,8 +89,19 @@ func (tc *LifecycleE2ETest) TestServiceJob(f *framework.F) {
 			return false, fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
 		}
 
-		if alloc.TaskStates["poststart"].StartedAt.IsZero() {
+		if alloc.TaskStates["poststart"].FinishedAt.IsZero() {
 			return false, fmt.Errorf("poststart task hasn't started")
+		}
+
+		afi, _, err := nomadClient.AllocFS().List(alloc, "alloc", nil)
+		if err != nil {
+			return false, err
+		}
+		expected := map[string]bool{
+			"main-checked": true}
+		got := checkFiles(expected, afi)
+		if !got["main-checked"] {
+			return false, fmt.Errorf("main-checked file has not been written")
 		}
 
 		return true, nil
@@ -100,6 +111,8 @@ func (tc *LifecycleE2ETest) TestServiceJob(f *framework.F) {
 
 	alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
 	require.NoError(err)
+
+	require.False(alloc.TaskStates["poststart"].Failed)
 
 	// stop the job
 	_, _, err = nomadClient.Jobs().Deregister(jobID, false, nil)
@@ -112,8 +125,8 @@ func (tc *LifecycleE2ETest) TestServiceJob(f *framework.F) {
 	expected := map[string]bool{
 		"init-ran": true, "sidecar-ran": true, "main-ran": true, "poststart-ran": true,
 		"poststart-started": true, "main-started": true,
-		"init-running": false, "sidecar-running": false,
-		"main-running": false, "poststart-running": false}
+		"init-running": false, "poststart-running": false,
+		"main-checked": true}
 	got := checkFiles(expected, afi)
 	require.Equal(expected, got)
 }

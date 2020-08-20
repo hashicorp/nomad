@@ -65,7 +65,6 @@ EOT
       template {
         data = <<EOT
 #!/bin/sh
-trap "rm ${NOMAD_ALLOC_DIR}/sidecar-running" SIGINT SIGTERM
 touch ${NOMAD_ALLOC_DIR}/sidecar-ran
 touch ${NOMAD_ALLOC_DIR}/sidecar-running
 sleep 5
@@ -97,17 +96,16 @@ EOT
       template {
         data = <<EOT
 #!/bin/sh
-trap "rm ${NOMAD_ALLOC_DIR}/main-running" SIGINT SIGTERM
 touch ${NOMAD_ALLOC_DIR}/main-ran
 touch ${NOMAD_ALLOC_DIR}/main-running
 touch ${NOMAD_ALLOC_DIR}/main-started
-# NEED TO HANG AROUND TO GIVE POSTSTART TIME TO GET STARTED
-sleep 10
 if [ ! -f ${NOMAD_ALLOC_DIR}/init-ran ]; then exit 11; fi
 if [ -f ${NOMAD_ALLOC_DIR}/init-running ]; then exit 12; fi
 if [ ! -f ${NOMAD_ALLOC_DIR}/sidecar-ran ]; then exit 13; fi
 if [ ! -f ${NOMAD_ALLOC_DIR}/sidecar-running ]; then exit 14; fi
+sleep 2
 if [ ! -f ${NOMAD_ALLOC_DIR}/poststart-started ]; then exit 15; fi
+touch ${NOMAD_ALLOC_DIR}/main-checked
 sleep 300
 EOT
 
