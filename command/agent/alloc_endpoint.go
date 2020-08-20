@@ -94,6 +94,7 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 	}
 
 	// Decode the payload if there is any
+
 	alloc := out.Alloc
 	if alloc.Job != nil && len(alloc.Job.Payload) != 0 {
 		decoded, err := snappy.Decode(nil, alloc.Job.Payload)
@@ -104,6 +105,9 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 		alloc.Job.Payload = decoded
 	}
 	alloc.SetEventDisplayMessages()
+
+	// Handle 0.12 ports upgrade path
+	alloc.AllocatedResources.Shared.Canonicalize()
 
 	return alloc, nil
 }

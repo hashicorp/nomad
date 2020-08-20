@@ -3486,6 +3486,23 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 	a.DiskMB -= delta.DiskMB
 }
 
+func (a *AllocatedSharedResources) Canonicalize() {
+	if len(a.Networks) > 0 {
+		if len(a.Networks[0].DynamicPorts)+len(a.Networks[0].ReservedPorts) > 0 && len(a.Ports) == 0 {
+			for _, ports := range [][]Port{a.Networks[0].DynamicPorts, a.Networks[0].ReservedPorts} {
+				for _, p := range ports {
+					a.Ports = append(a.Ports, AllocatedPortMapping{
+						Label:  p.Label,
+						Value:  p.Value,
+						To:     p.To,
+						HostIP: a.Networks[0].IP,
+					})
+				}
+			}
+		}
+	}
+}
+
 // AllocatedCpuResources captures the allocated CPU resources.
 type AllocatedCpuResources struct {
 	CpuShares int64

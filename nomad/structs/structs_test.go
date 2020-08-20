@@ -5508,3 +5508,43 @@ func TestNodeResources_Merge(t *testing.T) {
 		},
 	}, res)
 }
+
+func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
+	a := &AllocatedSharedResources{
+		Networks: []*NetworkResource{
+			{
+				IP: "127.0.0.1",
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 22222,
+						To:    8080,
+					},
+				},
+				ReservedPorts: []Port{
+					{
+						Label: "redis",
+						Value: 6783,
+						To:    6783,
+					},
+				},
+			},
+		},
+	}
+
+	a.Canonicalize()
+	require.Exactly(t, AllocatedPorts{
+		{
+			Label:  "http",
+			Value:  22222,
+			To:     8080,
+			HostIP: "127.0.0.1",
+		},
+		{
+			Label:  "redis",
+			Value:  6783,
+			To:     6783,
+			HostIP: "127.0.0.1",
+		},
+	}, a.Ports)
+}
