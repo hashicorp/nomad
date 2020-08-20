@@ -15,18 +15,15 @@ const (
 // FindCgroupMountpointDir is used to find the cgroup mount point on a Linux
 // system.
 func FindCgroupMountpointDir() (string, error) {
-	mount, err := cgroups.FindCgroupMountpointDir()
+	mount, err := cgroups.GetCgroupMounts(false)
 	if err != nil {
-		switch e := err.(type) {
-		case *cgroups.NotFoundError:
-			// It's okay if the mount point is not discovered
-			return "", nil
-		default:
-			// All other errors are passed back as is
-			return "", e
-		}
+		return "", err
 	}
-	return mount, nil
+	// It's okay if the mount point is not discovered
+	if len(mount) == 0 {
+		return "", nil
+	}
+	return mount[0].Mountpoint, nil
 }
 
 // Fingerprint tries to find a valid cgroup mount point
