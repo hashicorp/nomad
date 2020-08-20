@@ -3,11 +3,12 @@ import ApplicationSerializer from './application';
 
 export default class JobSummary extends ApplicationSerializer {
   normalize(modelClass, hash) {
-    // Transform the map-based Summary object into an array-based
-    // TaskGroupSummary fragment list
     hash.PlainJobId = hash.JobID;
     hash.ID = JSON.stringify([hash.JobID, hash.Namespace || 'default']);
     hash.JobID = hash.ID;
+
+    // Transform the map-based Summary object into an array-based
+    // TaskGroupSummary fragment list
 
     const fullSummary = hash.Summary || {};
     hash.TaskGroupSummaries = Object.keys(fullSummary).map(key => {

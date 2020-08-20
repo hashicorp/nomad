@@ -8,8 +8,5 @@ export default class ResourcesSerializer extends ApplicationSerializer {
     iops: 'IOPS',
   };
 
-  normalize(typeHash, hash) {
-    hash.Ports = hash.Ports || [];
-    return super.normalize(typeHash, hash);
-  }
+  arrayNullOverrides = ['Ports'];
 }
