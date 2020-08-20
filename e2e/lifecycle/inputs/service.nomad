@@ -8,7 +8,7 @@ job "service-lifecycle" {
 
   datacenters = ["dc1"]
 
-  type = "batch"
+  type = "service"
 
   group "test" {
 
@@ -65,6 +65,7 @@ EOT
       template {
         data = <<EOT
 #!/bin/sh
+trap "rm ${NOMAD_ALLOC_DIR}/sidecar-running" SIGINT SIGTERM
 touch ${NOMAD_ALLOC_DIR}/sidecar-ran
 touch ${NOMAD_ALLOC_DIR}/sidecar-running
 sleep 5
@@ -96,6 +97,7 @@ EOT
       template {
         data = <<EOT
 #!/bin/sh
+trap "rm ${NOMAD_ALLOC_DIR}/main-running" SIGINT SIGTERM
 touch ${NOMAD_ALLOC_DIR}/main-ran
 touch ${NOMAD_ALLOC_DIR}/main-running
 touch ${NOMAD_ALLOC_DIR}/main-started

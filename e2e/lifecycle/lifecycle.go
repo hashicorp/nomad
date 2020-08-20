@@ -1,11 +1,13 @@
 package lifecycle
 
 import (
+	"fmt"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -76,7 +78,25 @@ func (tc *LifecycleE2ETest) TestServiceJob(f *framework.F) {
 	require.Equal(1, len(allocs))
 	allocID := allocs[0].ID
 
-	e2eutil.WaitForAllocRunning(t, nomadClient, allocID)
+	//e2eutil.WaitForAllocRunning(t, nomadClient, allocID)
+	testutil.WaitForResult(func() (bool, error) {
+		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+
+		if alloc.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
+		}
+
+		if alloc.TaskStates["poststart"].StartedAt.IsZero() {
+			return false, fmt.Errorf("poststart task hasn't started")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("failed to wait on alloc: %v", err)
+	})
 
 	alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
 	require.NoError(err)
