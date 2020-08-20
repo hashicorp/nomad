@@ -48,7 +48,6 @@ export default create({
     state: text('[data-test-state]'),
     message: text('[data-test-message]'),
     time: text('[data-test-time]'),
-    ports: text('[data-test-ports]'),
     volumes: text('[data-test-volumes]'),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
