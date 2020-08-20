@@ -26,6 +26,10 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
     };
   });
 
+  hooks.afterEach(function() {
+    this.server.shutdown();
+  });
+
   const commonTemplate = hbs`<ScaleEventsAccordion @events={{this.events}} />`;
 
   test('it shows an accordion with an entry for each event', async function(assert) {

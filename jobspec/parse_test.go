@@ -660,6 +660,37 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"service-check-pass-fail.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("check_pass_fail"),
+				Name: helper.StringToPtr("check_pass_fail"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name:  helper.StringToPtr("group"),
+					Count: helper.IntToPtr(1),
+					Tasks: []*api.Task{{
+						Name: "task",
+						Services: []*api.Service{{
+							Name:      "service",
+							PortLabel: "http",
+							Checks: []api.ServiceCheck{{
+								Name:                   "check-name",
+								Type:                   "http",
+								Path:                   "/",
+								Interval:               10 * time.Second,
+								Timeout:                2 * time.Second,
+								InitialStatus:          capi.HealthPassing,
+								Method:                 "POST",
+								SuccessBeforePassing:   3,
+								FailuresBeforeCritical: 4,
+							}},
+						}},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"service-check-bad-header.hcl",
 			nil,
 			true,

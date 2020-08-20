@@ -1,9 +1,29 @@
-## 0.12.2 (Unreleased)
+## 0.12.4 (Unreleased)
+
+IMPROVEMENTS:
+
+ * api: Added node purge SDK functionality. [[GH-8142](https://github.com/hashicorp/nomad/issues/8142)]
+ * driver/docker: Allow configurable image pull context timeout setting. [[GH-5718](https://github.com/hashicorp/nomad/issues/5718)]
+
+## 0.12.3 (August 13, 2020)
+
+BUG FIXES:
+
+ * csi: Fixed a panic in the API affecting both plugins and volumes. [[GH-8655](https://github.com/hashicorp/nomad/issues/8655)]
+
+## 0.12.2 (August 12, 2020)
 
 FEATURES:
 
  * **Multiple Vault Namespaces (Enterprise)**: Support for multiple Vault Namespaces [[GH-8453](https://github.com/hashicorp/nomad/issues/8453)]
  * **Scaling Observability UI**: View changes in task group scale (both manual and automatic) over time. [[GH-8551](https://github.com/hashicorp/nomad/issues/8551)]
+
+IMPROVEMENTS:
+
+ * cli: Move the `debug` command to `nomad operator debug` [[GH-8602](https://github.com/hashicorp/nomad/pull/8602)]
+ * consul/connect: Added support for bridge networks with Connect Native tasks [[GH-8290](https://github.com/hashicorp/nomad/issues/8290)]
+ * consul: Added support for setting `success_before_passing` and `failures_before_critical` on consul service checks. [[GH-6913](https://github.com/hashicorp/nomad/issues/6913)]
+ * csi: Added a `nomad volume detach` command to manually detach unused volumes. [[GH-8584](https://github.com/hashicorp/nomad/issues/8584)]
 
 BUG FIXES:
 
@@ -11,7 +31,20 @@ BUG FIXES:
  * api: Added missing namespace field to scaling status GET response object [[GH-8530](https://github.com/hashicorp/nomad/issues/8530)]
  * api: Do not allow submission of jobs of type `system` that include task groups with scaling stanzas [[GH-8491](https://github.com/hashicorp/nomad/issues/8491)]
  * build: Updated to Go 1.14.7. Go 1.14.6 contained a CVE that is not believed to impact Nomad [[GH-8601](https://github.com/hashicorp/nomad/issues/8601)]
+ * csi: Fixed a bug where ACL tokens were not used to call internal RPCs. [[GH-8373](https://github.com/hashicorp/nomad/issues/8373)]
+ * csi: Fixed a bug where volumes could not be detached during node drains. [[GH-8580](https://github.com/hashicorp/nomad/issues/8580)]
+ * csi: Fixed a bug where allocations in the API were omitted from plugins and volumes. [[GH-8362](https://github.com/hashicorp/nomad/issues/8362)]
+ * csi: Fixed a bug where controller plugin RPCs would not be retried to a second controller if available. [[GH-8561](https://github.com/hashicorp/nomad/issues/8561)]
+ * csi: Fixed a bug where retries of plugin RPCs would not gracefully resume from checkpoints in the workflow. [[GH-8605](https://github.com/hashicorp/nomad/issues/8605)]
+ * csi: Fixed a bug causing errors during client deregistration if CSI node plugins did not fingerprint after stopping. [[GH-8619](https://github.com/hashicorp/nomad/issues/8619)]
+ * csi: Fixed a bug where the `NodePublish` workflow incorrectly created target paths that should be created by the CSI plugin. [[GH-8505](https://github.com/hashicorp/nomad/issues/8505)]
+ * csi: Fixed a bug in `nomad node status` where volumes attached to a node for an improperly cleaned-up allocation caused a panic in the CLI. [[GH-8525](https://github.com/hashicorp/nomad/issues/8525)]
+ * deployments: Fixed a bug where Nomad Enterprise multi-region deployments would not leave "pending" status if namespaces were also in use.
+ * vault: Fixed a bug where vault integration fails if Vault's /sys/init endpoint is disabled [[GH-8524](https://github.com/hashicorp/nomad/issues/8524)]
  * vault: Fixed a bug where upgrades from pre-0.11.3 that use Vault can lead to memory spikes and write large Raft messages. [[GH-8553](https://github.com/hashicorp/nomad/issues/8553)]
+ * ui: Fixed various accessibility audit failures [[GH-8455](https://github.com/hashicorp/nomad/pull/8455)]
+ * ui: Fixed global search navigation where job name ≠ ID [[GH-8560](https://github.com/hashicorp/nomad/pull/8560)]
+ * ui: Fixed slow global search rendering by truncating results [[GH-8571](https://github.com/hashicorp/nomad/pull/8571)]
 
 ## 0.12.1 (July 23, 2020)
 

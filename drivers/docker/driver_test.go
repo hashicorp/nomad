@@ -452,8 +452,9 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image:   "127.0.0.1:32121/foo", // bad path
-		Command: "echo",
+		Image:            "127.0.0.1:32121/foo", // bad path
+		ImagePullTimeout: "5m",
+		Command:          "echo",
 		Args: []string{
 			"hello",
 		},
@@ -1337,25 +1338,46 @@ func TestDockerDriver_DNS(t *testing.T) {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+	testutil.ExecCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
-	cfg.DNSServers = []string{"8.8.8.8", "8.8.4.4"}
-	cfg.DNSSearchDomains = []string{"example.com", "example.org", "example.net"}
-	cfg.DNSOptions = []string{"ndots:1"}
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
 
-	client, d, handle, cleanup := dockerSetup(t, task, nil)
-	defer cleanup()
+	for _, c := range cases {
+		task, cfg, ports := dockerTask(t)
+		defer freeport.Return(ports)
+		task.DNS = c.cfg
+		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+		_, d, _, cleanup := dockerSetup(t, task, nil)
+		defer cleanup()
 
-	container, err := client.InspectContainer(handle.containerID)
-	require.NoError(t, err)
+		require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+		defer d.DestroyTask(task.ID, true)
 
-	require.Exactly(t, cfg.DNSServers, container.HostConfig.DNS)
-	require.Exactly(t, cfg.DNSSearchDomains, container.HostConfig.DNSSearch)
-	require.Exactly(t, cfg.DNSOptions, container.HostConfig.DNSOptions)
+		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
+	}
+
 }
 
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
@@ -1533,6 +1555,49 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	require.Exactly(t, expectedPortBindings, container.HostConfig.PortBindings)
 }
 
+func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	hostIP := "127.0.0.1"
+	if runtime.GOOS == "windows" {
+		hostIP = ""
+	}
+	portmappings := structs.AllocatedPorts(make([]structs.AllocatedPortMapping, len(ports)))
+	portmappings[0] = structs.AllocatedPortMapping{
+		Label:  "main",
+		Value:  ports[0],
+		HostIP: hostIP,
+		To:     8080,
+	}
+	portmappings[1] = structs.AllocatedPortMapping{
+		Label:  "REDIS",
+		Value:  ports[1],
+		HostIP: hostIP,
+		To:     6379,
+	}
+	task.Resources.Ports = &portmappings
+	cfg.Ports = []string{"main", "REDIS"}
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+
+	// Verify that the correct ports are FORWARDED
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+	}
+	require.Exactly(t, expectedPortBindings, c.HostConfig.PortBindings)
+
+}
 func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
 	t.Parallel()
 

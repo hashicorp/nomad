@@ -84,7 +84,6 @@ export default [
         category: 'alloc',
         content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop']
       },
-      'debug',
       {
         category: 'deployment',
         content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
@@ -127,6 +126,7 @@ export default [
         content: [
           'autopilot-get-config',
           'autopilot-set-config',
+          'debug',
           'keygen',
           'keyring',
           'raft-list-peers',
@@ -148,7 +148,7 @@ export default [
       { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
       'version',
-      { category: 'volume', content: ['register', 'deregister', 'status'] }
+      { category: 'volume', content: ['deregister', 'detach', 'status', 'register'] }
     ]
   },
   '----------',
@@ -249,7 +249,6 @@ export default [
     ]
   },
   { category: 'telemetry', content: ['metrics'] },
-  { category: 'vault-integration' },
   '------------',
   { category: 'enterprise' },
   'faq'

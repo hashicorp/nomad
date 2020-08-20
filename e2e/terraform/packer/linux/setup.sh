@@ -32,12 +32,8 @@ sudo apt-get install -y software-properties-common
 sudo apt-get update
 sudo apt-get install -y dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common
 
-# Numpy (for Spark)
-sudo apt-get install -y python-setuptools python-pip
-sudo pip install numpy
-
 # Install sockaddr
-aws s3 cp "s3://nomad-team-test-binary/tools/sockaddr_linux_amd64" /tmp/sockaddr
+aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
 sudo mv /tmp/sockaddr /usr/local/bin
 sudo chmod +x /usr/local/bin/sockaddr
 sudo chown root:root /usr/local/bin/sockaddr
@@ -97,19 +93,6 @@ sudo apt-get update
 sudo apt-get install -y openjdk-8-jdk
 JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
-echo "Install Spark"
-sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
-sudo tar -xvf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
-sudo chown -R root:root /usr/local/bin/spark
-
-echo "Install HDFS CLI"
-HADOOP_VERSION=2.7.7
-HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
-sudo mkdir -p "$HADOOPCONFIGDIR"
-
-wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/
-
 echo "Install Podman"
 . /etc/os-release
 sudo sh -c "echo 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
@@ -158,18 +141,6 @@ sudo systemctl restart dnsmasq
 sudo sed -i 's/GRUB_CMDLINE_LINUX="[^"]*/& cgroup_enable=memory swapaccount=1/' /etc/default/grub
 sudo update-grub
 
-# note this 'EOF' syntax avoids expansion in the heredoc
-sudo tee "$HADOOPCONFIGDIR/core-site.xml" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-<configuration>
-    <property>
-        <name>fs.defaultFS</name>
-        <value>hdfs://hdfs.service.consul/</value>
-    </property>
-</configuration>
-EOF
-
 echo "Configure user shell"
 sudo tee -a /home/ubuntu/.bashrc << 'EOF'
 IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
@@ -179,6 +150,4 @@ export VAULT_ADDR=http://$IP_ADDRESS:8200
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
 
-# Update PATH
-export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin
 EOF

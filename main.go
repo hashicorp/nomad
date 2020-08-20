@@ -34,6 +34,7 @@ var (
 		"alloc-status",
 		"check",
 		"client-config",
+		"debug",
 		"eval-status",
 		"executor",
 		"keygen",

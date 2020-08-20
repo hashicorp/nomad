@@ -714,7 +714,8 @@ func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image: "https://gcr.io/google_containers/pause:0.8.0",
+		Image:            "https://gcr.io/google_containers/pause:0.8.0",
+		ImagePullTimeout: "5m",
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -746,10 +747,11 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 	}
 
 	return TaskConfig{
-		Image:     image,
-		LoadImage: loadImage,
-		Command:   command[0],
-		Args:      command[1:],
+		Image:            image,
+		ImagePullTimeout: "5m",
+		LoadImage:        loadImage,
+		Command:          command[0],
+		Args:             command[1:],
 	}
 }
 

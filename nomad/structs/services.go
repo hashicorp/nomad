@@ -40,25 +40,27 @@ const (
 
 // ServiceCheck represents the Consul health check.
 type ServiceCheck struct {
-	Name          string              // Name of the check, defaults to id
-	Type          string              // Type of the check - tcp, http, docker and script
-	Command       string              // Command is the command to run for script checks
-	Args          []string            // Args is a list of arguments for script checks
-	Path          string              // path of the health check url for http type check
-	Protocol      string              // Protocol to use if check is http, defaults to http
-	PortLabel     string              // The port to use for tcp/http checks
-	Expose        bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
-	AddressMode   string              // 'host' to use host ip:port or 'driver' to use driver's
-	Interval      time.Duration       // Interval of the check
-	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
-	InitialStatus string              // Initial status of the check
-	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
-	Method        string              // HTTP Method to use (GET by default)
-	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
-	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
-	GRPCService   string              // Service for GRPC checks
-	GRPCUseTLS    bool                // Whether or not to use TLS for GRPC checks
-	TaskName      string              // What task to execute this check in
+	Name                   string              // Name of the check, defaults to id
+	Type                   string              // Type of the check - tcp, http, docker and script
+	Command                string              // Command is the command to run for script checks
+	Args                   []string            // Args is a list of arguments for script checks
+	Path                   string              // path of the health check url for http type check
+	Protocol               string              // Protocol to use if check is http, defaults to http
+	PortLabel              string              // The port to use for tcp/http checks
+	Expose                 bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
+	AddressMode            string              // 'host' to use host ip:port or 'driver' to use driver's
+	Interval               time.Duration       // Interval of the check
+	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus          string              // Initial status of the check
+	TLSSkipVerify          bool                // Skip TLS verification when Protocol=https
+	Method                 string              // HTTP Method to use (GET by default)
+	Header                 map[string][]string // HTTP Headers for Consul to set when making HTTP checks
+	CheckRestart           *CheckRestart       // If and when a task should be restarted based on checks
+	GRPCService            string              // Service for GRPC checks
+	GRPCUseTLS             bool                // Whether or not to use TLS for GRPC checks
+	TaskName               string              // What task to execute this check in
+	SuccessBeforePassing   int                 // Number of consecutive successes required before considered healthy
+	FailuresBeforeCritical int                 // Number of consecutive failures required before considered unhealthy
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -97,6 +99,14 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	}
 
 	if sc.TaskName != o.TaskName {
+		return false
+	}
+
+	if sc.SuccessBeforePassing != o.SuccessBeforePassing {
+		return false
+	}
+
+	if sc.FailuresBeforeCritical != o.FailuresBeforeCritical {
 		return false
 	}
 
@@ -257,6 +267,22 @@ func (sc *ServiceCheck) validate() error {
 		}
 	}
 
+	// passFailCheckTypes are intersection of check types supported by both Consul
+	// and Nomad when using the pass/fail check threshold features.
+	passFailCheckTypes := []string{"tcp", "http", "grpc"}
+
+	if sc.SuccessBeforePassing < 0 {
+		return fmt.Errorf("success_before_passing must be non-negative")
+	} else if sc.SuccessBeforePassing > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+		return fmt.Errorf("success_before_passing not supported for check of type %q", sc.Type)
+	}
+
+	if sc.FailuresBeforeCritical < 0 {
+		return fmt.Errorf("failures_before_critical must be non-negative")
+	} else if sc.FailuresBeforeCritical > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
+	}
+
 	return sc.CheckRestart.Validate()
 }
 
@@ -309,6 +335,10 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.GRPCUseTLS, "true")
 
+	// Only include pass/fail if non-zero to maintain ID stability with Nomad < 0.12
+	hashIntIfNonZero(h, "success", sc.SuccessBeforePassing)
+	hashIntIfNonZero(h, "failures", sc.FailuresBeforeCritical)
+
 	// Hash is used for diffing against the Consul check definition, which does
 	// not have an expose parameter. Instead we rely on implied changes to
 	// other fields if the Expose setting is changed in a nomad service.
@@ -321,6 +351,12 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 func hashStringIfNonEmpty(h hash.Hash, s string) {
 	if len(s) > 0 {
 		hashString(h, s)
+	}
+}
+
+func hashIntIfNonZero(h hash.Hash, name string, i int) {
+	if i != 0 {
+		hashString(h, fmt.Sprintf("%s:%d", name, i))
 	}
 }
 

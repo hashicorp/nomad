@@ -145,13 +145,6 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	if args.Job.Multiregion != nil && args.Job.Region != nil {
-		region := *args.Job.Region
-		if !(region == "global" || region == "") {
-			return nil, CodedError(400, "Job can't have both multiregion and region blocks")
-		}
-	}
-
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	planReq := structs.JobPlanRequest{
 		Job:            sJob,
@@ -383,12 +376,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	}
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
-	}
-	if args.Job.Multiregion != nil && args.Job.Region != nil {
-		region := *args.Job.Region
-		if !(region == "global" || region == "") {
-			return nil, CodedError(400, "Job can't have both multiregion and region blocks")
-		}
 	}
 
 	// GH-8481. Jobs of type system can only have a count of 1 and therefore do
@@ -1045,22 +1032,24 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
 				for j, check := range service.Checks {
 					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:          check.Name,
-						Type:          check.Type,
-						Command:       check.Command,
-						Args:          check.Args,
-						Path:          check.Path,
-						Protocol:      check.Protocol,
-						PortLabel:     check.PortLabel,
-						AddressMode:   check.AddressMode,
-						Interval:      check.Interval,
-						Timeout:       check.Timeout,
-						InitialStatus: check.InitialStatus,
-						TLSSkipVerify: check.TLSSkipVerify,
-						Header:        check.Header,
-						Method:        check.Method,
-						GRPCService:   check.GRPCService,
-						GRPCUseTLS:    check.GRPCUseTLS,
+						Name:                   check.Name,
+						Type:                   check.Type,
+						Command:                check.Command,
+						Args:                   check.Args,
+						Path:                   check.Path,
+						Protocol:               check.Protocol,
+						PortLabel:              check.PortLabel,
+						AddressMode:            check.AddressMode,
+						Interval:               check.Interval,
+						Timeout:                check.Timeout,
+						InitialStatus:          check.InitialStatus,
+						TLSSkipVerify:          check.TLSSkipVerify,
+						Header:                 check.Header,
+						Method:                 check.Method,
+						GRPCService:            check.GRPCService,
+						GRPCUseTLS:             check.GRPCUseTLS,
+						SuccessBeforePassing:   check.SuccessBeforePassing,
+						FailuresBeforeCritical: check.FailuresBeforeCritical,
 					}
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{

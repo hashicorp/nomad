@@ -640,25 +640,31 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			updateEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
 			s.logger.Warn("eval reached delivery limit, marking as failed", "eval", updateEval.GoString())
 
-			// Create a follow-up evaluation that will be used to retry the
-			// scheduling for the job after the cluster is hopefully more stable
-			// due to the fairly large backoff.
-			followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
-				time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
+			// Core job evals that fail or span leader elections will never
+			// succeed because the follow-up doesn't have the leader ACL. We
+			// rely on the leader to schedule new core jobs periodically
+			// instead.
+			if eval.Type != structs.JobTypeCore {
 
-			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
-			updateEval.NextEval = followupEval.ID
-			updateEval.UpdateModifyTime()
+				// Create a follow-up evaluation that will be used to retry the
+				// scheduling for the job after the cluster is hopefully more stable
+				// due to the fairly large backoff.
+				followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
+					time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
 
-			// Update via Raft
-			req := structs.EvalUpdateRequest{
-				Evals: []*structs.Evaluation{updateEval, followupEval},
+				followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
+				updateEval.NextEval = followupEval.ID
+				updateEval.UpdateModifyTime()
+
+				// Update via Raft
+				req := structs.EvalUpdateRequest{
+					Evals: []*structs.Evaluation{updateEval, followupEval},
+				}
+				if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
+					s.logger.Error("failed to update failed eval and create a follow-up", "eval", updateEval.GoString(), "error", err)
+					continue
+				}
 			}
-			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-				s.logger.Error("failed to update failed eval and create a follow-up", "eval", updateEval.GoString(), "error", err)
-				continue
-			}
-
 			// Ack completion
 			s.evalBroker.Ack(eval.ID, token)
 		}

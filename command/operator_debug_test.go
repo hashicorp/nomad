@@ -17,6 +17,19 @@ func TestDebugUtils(t *testing.T) {
 	xs = argNodes("")
 	require.Len(t, xs, 0)
 	require.Empty(t, xs)
+
+	// address calculation honors CONSUL_HTTP_SSL
+	e := &external{addrVal: "http://127.0.0.1:8500", ssl: true}
+	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
+	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
+	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
+	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
 }
 
 func TestDebugFails(t *testing.T) {
@@ -25,7 +38,7 @@ func TestDebugFails(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &DebugCommand{Meta: Meta{Ui: ui}}
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	// Fails incorrect args
 	code := cmd.Run([]string{"some", "bad", "args"})
@@ -63,21 +76,18 @@ func TestDebugCapturedFiles(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := new(cli.MockUi)
-	cmd := &DebugCommand{Meta: Meta{Ui: ui}}
-
-	// Calculate the output name
-	format := "2006-01-02-150405Z"
-	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
-	path := filepath.Join(os.TempDir(), stamped)
-	defer os.Remove(path)
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{
 		"-address", url,
 		"-output", os.TempDir(),
 		"-server-id", "leader",
-		"-duration", "1s",
-		"-interval", "500ms",
+		"-duration", "1300ms",
+		"-interval", "600ms",
 	})
+
+	path := cmd.collectDir
+	defer os.Remove(path)
 
 	require.Empty(t, ui.ErrorWriter.String())
 	require.Equal(t, 0, code)
@@ -86,11 +96,11 @@ func TestDebugCapturedFiles(t *testing.T) {
 	// Version is always captured
 	require.FileExists(t, filepath.Join(path, "version", "agent-self.json"))
 
-	// Consul and Vault are only captured if they exist
+	// Consul and Vault contain results or errors
 	_, err := os.Stat(filepath.Join(path, "version", "consul-agent-self.json"))
-	require.Error(t, err)
+	require.NoError(t, err)
 	_, err = os.Stat(filepath.Join(path, "version", "vault-sys-health.json"))
-	require.Error(t, err)
+	require.NoError(t, err)
 
 	// Monitor files are only created when selected
 	require.FileExists(t, filepath.Join(path, "server", "leader", "monitor.log"))
@@ -99,10 +109,10 @@ func TestDebugCapturedFiles(t *testing.T) {
 	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine.prof"))
 
 	// Multiple snapshots are collected, 00 is always created
-	require.FileExists(t, filepath.Join(path, "nomad", "00", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "00", "nodes.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0000", "jobs.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0000", "nodes.json"))
 
 	// Multiple snapshots are collected, 01 requires two intervals
-	require.FileExists(t, filepath.Join(path, "nomad", "01", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "01", "nodes.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0001", "jobs.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0001", "nodes.json"))
 }

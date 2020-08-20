@@ -24,14 +24,27 @@ func TestStateStore(t testing.T) *StateStore {
 	return state
 }
 
-// CreateTestPlugin is a helper that generates the node + fingerprint results necessary to
-// create a CSIPlugin by directly inserting into the state store. It's exported for use in
-// other test packages
+// CreateTestCSIPlugin is a helper that generates the node + fingerprint results necessary
+// to create a CSIPlugin by directly inserting into the state store. The plugin requires a
+// controller.
 func CreateTestCSIPlugin(s *StateStore, id string) func() {
+	return createTestCSIPlugin(s, id, true)
+}
+
+// CreateTestCSIPluginNodeOnly is a helper that generates the node + fingerprint results
+// necessary to create a CSIPlugin by directly inserting into the state store. The plugin
+// does not require a controller. In tests that exercise volume registration, this prevents
+// an error attempting to RPC the node.
+func CreateTestCSIPluginNodeOnly(s *StateStore, id string) func() {
+	return createTestCSIPlugin(s, id, false)
+}
+
+func createTestCSIPlugin(s *StateStore, id string, requiresController bool) func() {
 	// Create some nodes
 	ns := make([]*structs.Node, 3)
 	for i := range ns {
 		n := mock.Node()
+		n.Attributes["nomad.version"] = "0.11.0"
 		ns[i] = n
 	}
 
@@ -42,7 +55,7 @@ func CreateTestCSIPlugin(s *StateStore, id string) func() {
 			AllocID:                  uuid.Generate(),
 			Healthy:                  true,
 			HealthDescription:        "healthy",
-			RequiresControllerPlugin: true,
+			RequiresControllerPlugin: requiresController,
 			RequiresTopologies:       false,
 			ControllerInfo: &structs.CSIControllerInfo{
 				SupportsReadOnlyAttach:           true,
@@ -61,7 +74,7 @@ func CreateTestCSIPlugin(s *StateStore, id string) func() {
 				AllocID:                  uuid.Generate(),
 				Healthy:                  true,
 				HealthDescription:        "healthy",
-				RequiresControllerPlugin: true,
+				RequiresControllerPlugin: requiresController,
 				RequiresTopologies:       false,
 				NodeInfo: &structs.CSINodeInfo{
 					ID:                      n.ID,
