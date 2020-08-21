@@ -47,6 +47,9 @@ var (
 		"server-members",
 		"syslog",
 		"docker_logger",
+		"operator raft _info",
+		"operator raft _logs",
+		"operator raft _state",
 	}
 
 	// aliases is the list of aliases we want users to be aware of. We hide
