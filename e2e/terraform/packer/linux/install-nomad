@@ -32,7 +32,7 @@ install_from_s3() {
             && echo "$NOMAD_SHA already installed" && exit 0
     fi
 
-    S3_URL="s3://nomad-team-dev-test-binaries/builds-oss/nomad_linux_${NOMAD_SHA}.tar.gz"
+    S3_URL="s3://nomad-team-dev-test-binaries/builds-oss/nomad_${PLATFORM}_${NOMAD_SHA}.tar.gz"
     aws s3 cp --quiet "$S3_URL" nomad.tar.gz
     sudo tar -zxvf nomad.tar.gz -C "$INSTALL_DIR"
     set_ownership
