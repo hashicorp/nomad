@@ -30,6 +30,7 @@ if (!$RunningAsAdmin) {
 
 
 $install_path = "C:\opt\nomad.exe"
+$platform = "windows_amd64"
 
 Set-Location C:\opt
 
@@ -50,7 +51,7 @@ function InstallFromS3 {
     }
 
     Try {
-        $key = "builds-oss/nomad_windows_amd64_${nomad_sha}.zip"
+        $key = "builds-oss/nomad_${platform}_${nomad_sha}.zip"
 		Read-S3Object -BucketName nomad-team-dev-test-binaries -Key $key -File ./nomad.zip
 		Remove-Item -Path $install_path -Force -ErrorAction Ignore
 		Expand-Archive ./nomad.zip ./ -Force
@@ -107,7 +108,7 @@ function InstallFromRelease {
 
     Try {
         $releases = "https://releases.hashicorp.com"
-        $url = "${releases}/nomad/${nomad_version}/nomad_${nomad_version}_windows_amd64.zip"
+        $url = "${releases}/nomad/${nomad_version}/nomad_${nomad_version}_${platform}.zip"
 
         Write-Output "Downloading Nomad from: $url"
         Invoke-WebRequest -Uri $url -Outfile nomad.zip
