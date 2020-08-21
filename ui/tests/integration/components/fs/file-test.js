@@ -3,7 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { find, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
-import { logEncode } from '../../../mirage/data/logs';
+import { logEncode } from '../../../../mirage/data/logs';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const { assign } = Object;

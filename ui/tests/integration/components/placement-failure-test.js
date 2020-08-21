@@ -3,7 +3,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
-import cleanWhitespace from '../utils/clean-whitespace';
+import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | placement failures', function(hooks) {

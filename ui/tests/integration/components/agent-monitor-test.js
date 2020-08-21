@@ -5,8 +5,8 @@ import { find, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
 import sinon from 'sinon';
-import { logEncode } from '../../mirage/data/logs';
-import { selectOpen, selectOpenChoose } from '../utils/ember-power-select-extensions';
+import { logEncode } from '../../../mirage/data/logs';
+import { selectOpen, selectOpenChoose } from '../../utils/ember-power-select-extensions';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | agent-monitor', function(hooks) {
