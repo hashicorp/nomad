@@ -48,27 +48,29 @@ export default Factory.extend({
   afterCreate(plugin, server) {
     let storageNodes;
     let storageControllers;
+    let controllerJob;
+    let nodeJob;
 
     if (plugin.isMonolith) {
-      const pluginJob = server.create('job', { type: 'service', createAllocations: false });
+      nodeJob = server.create('job', { type: 'service', createAllocations: false });
       const count = plugin.nodesExpected;
       storageNodes = server.createList('storage-node', count, {
-        job: pluginJob,
+        job: nodeJob,
         shallow: plugin.shallow,
       });
       storageControllers = server.createList('storage-controller', count, {
-        job: pluginJob,
+        job: nodeJob,
         shallow: plugin.shallow,
       });
     } else {
-      const controllerJob =
+      controllerJob =
         plugin.controllerRequired &&
         server.create('job', {
           type: 'service',
           createAllocations: false,
           shallow: plugin.shallow,
         });
-      const nodeJob = server.create('job', {
+      nodeJob = server.create('job', {
         type: 'service',
         createAllocations: false,
         shallow: plugin.shallow,
@@ -88,6 +90,8 @@ export default Factory.extend({
     plugin.update({
       controllers: storageControllers,
       nodes: storageNodes,
+      controllerJobs: controllerJob ? [controllerJob] : null,
+      nodeJobs: [nodeJob],
     });
 
     if (plugin.createVolumes) {
