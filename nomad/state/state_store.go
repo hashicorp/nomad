@@ -1050,9 +1050,13 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 				return nil
 			}
 			plug = structs.NewCSIPlugin(info.PluginID, index)
-			plug.Provider = info.Provider
-			plug.Version = info.ProviderVersion
 		}
+
+		// the plugin may have been created by the job being updated, in which case
+		// this data will not be configured, it's only available to the fingerprint
+		// system
+		plug.Provider = info.Provider
+		plug.Version = info.ProviderVersion
 
 		err = plug.AddPlugin(node.ID, info)
 		if err != nil {
