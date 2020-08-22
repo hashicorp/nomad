@@ -147,16 +147,16 @@
           <ScaleEventsChart @events={{this.sortedScaleEvents}} />
         </div>
       </div>
-    {{else}}
-      <div data-test-scaling-events class="boxed-section">
-        <div class="boxed-section-head">
-          Recent Scaling Events
-        </div>
-        <div class="boxed-section-body">
-          <ScaleEventsAccordion @events={{this.sortedScaleEvents}} />
-        </div>
-      </div>
     {{/if}}
+
+    <div data-test-scaling-events class="boxed-section">
+      <div class="boxed-section-head">
+        Recent Scaling Events
+      </div>
+      <div class="boxed-section-body">
+        <ScaleEventsAccordion @events={{this.sortedScaleEvents}} />
+      </div>
+    </div>
   {{/if}}
 
   {{#if this.model.volumes.length}}
