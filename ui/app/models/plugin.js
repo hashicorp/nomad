@@ -1,6 +1,7 @@
 import { computed } from '@ember/object';
 import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
+import { hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 
 export default class Plugin extends Model {
@@ -12,6 +13,9 @@ export default class Plugin extends Model {
 
   @fragmentArray('storage-controller', { defaultValue: () => [] }) controllers;
   @fragmentArray('storage-node', { defaultValue: () => [] }) nodes;
+
+  @hasMany('job') controllerJobs;
+  @hasMany('job') nodeJobs;
 
   @attr('boolean') controllerRequired;
   @attr('number') controllersHealthy;

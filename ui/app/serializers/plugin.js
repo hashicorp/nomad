@@ -28,6 +28,13 @@ export default class Plugin extends ApplicationSerializer {
     hash.Nodes = unmap(nodes, 'NodeID');
     hash.Controllers = unmap(controllers, 'NodeID');
 
+    hash.ControllerJobIDs = (hash.ControllerJobs || []).map(job =>
+      JSON.stringify([job.ID, job.Namespace || 'default'])
+    );
+    hash.NodeJobIDs = (hash.NodeJobs || []).map(job =>
+      JSON.stringify([job.ID, job.Namespace || 'default'])
+    );
+
     return super.normalize(typeHash, hash);
   }
 }
