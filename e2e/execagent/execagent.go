@@ -11,6 +11,7 @@ import (
 	"text/template"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/fileperms"
 )
 
 type AgentMode int
@@ -123,7 +124,7 @@ type NomadAgent struct {
 // NewMixedAgent creates a new Nomad agent in mixed server+client mode but does
 // not start the agent process until the Start() method is called.
 func NewMixedAgent(bin string) (*NomadAgent, error) {
-	if err := os.MkdirAll(BaseDir, 755); err != nil {
+	if err := os.MkdirAll(BaseDir, fileperms.Oct755); err != nil {
 		return nil, err
 	}
 	dir, err := ioutil.TempDir(BaseDir, "agent")
@@ -157,7 +158,7 @@ func NewMixedAgent(bin string) (*NomadAgent, error) {
 func NewClientServerPair(bin string, serverOut, clientOut io.Writer) (
 	server *NomadAgent, client *NomadAgent, err error) {
 
-	if err := os.MkdirAll(BaseDir, 755); err != nil {
+	if err := os.MkdirAll(BaseDir, fileperms.Oct755); err != nil {
 		return nil, nil, err
 	}
 

@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/fileperms"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -1854,7 +1855,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
 		logFilePath := filepath.Join(logDir, logFile)
-		err := ioutil.WriteFile(logFilePath, expected[i:i+1], 0777)
+		err := ioutil.WriteFile(logFilePath, expected[i:i+1], fileperms.Oct777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
@@ -1911,7 +1912,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	defer os.RemoveAll(ad.AllocDir)
 
 	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
-	if err := os.MkdirAll(logDir, 0777); err != nil {
+	if err := os.MkdirAll(logDir, fileperms.Oct777); err != nil {
 		t.Fatalf("Failed to make log dir: %v", err)
 	}
 
@@ -1924,7 +1925,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	writeToFile := func(index int, data []byte) {
 		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
 		logFilePath := filepath.Join(logDir, logFile)
-		err := ioutil.WriteFile(logFilePath, data, 0777)
+		err := ioutil.WriteFile(logFilePath, data, fileperms.Oct777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}

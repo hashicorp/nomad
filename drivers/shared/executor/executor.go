@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	fp "github.com/hashicorp/nomad/helper/fileperms"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pty"
 
@@ -655,11 +656,12 @@ func makeExecutable(binPath string) error {
 
 	// If it is not executable, make it so.
 	perm := fi.Mode().Perm()
-	req := os.FileMode(0555)
-	if perm&req != req {
-		if err := os.Chmod(binPath, perm|req); err != nil {
+	minimum := fp.Oct555
+	if !fp.Sufficient(perm, minimum) {
+		if err := os.Chmod(binPath, fp.Escalate(perm, minimum)); err != nil {
 			return fmt.Errorf("error making %q executable: %s", binPath, err)
 		}
 	}
+
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/fileperms"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -110,7 +111,7 @@ func execute() {
 			}
 			msg := popArg()
 			file := popArg()
-			ioutil.WriteFile(file, []byte(msg), 0666)
+			ioutil.WriteFile(file, []byte(msg), fileperms.Oct666)
 
 		case "pgrp":
 			if len(args) < 1 {
@@ -135,7 +136,7 @@ func execute() {
 				os.Exit(1)
 			}
 
-			if err := ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), 777); err != nil {
+			if err := ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), fileperms.Oct777); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to write pid file: %v\n", err)
 				os.Exit(1)
 			}

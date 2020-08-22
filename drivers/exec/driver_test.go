@@ -17,6 +17,7 @@ import (
 	"time"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/fileperms"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
@@ -601,7 +602,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(tmpDir)
 
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), fileperms.Oct600)
 	require.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -637,8 +638,8 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
-	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
+	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, fileperms.Oct660))
+	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, fileperms.Oct660))
 
 	tc := &TaskConfig{
 		Command: "/bin/bash",
