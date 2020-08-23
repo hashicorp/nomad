@@ -355,10 +355,10 @@ github.com/hashicorp/consul-template/signals
 github.com/hashicorp/consul-template/template
 github.com/hashicorp/consul-template/version
 github.com/hashicorp/consul-template/watch
-# github.com/hashicorp/consul/api v1.4.1-0.20200730220852-12f574c9de39
+# github.com/hashicorp/consul/api v1.6.0
 ## explicit
 github.com/hashicorp/consul/api
-# github.com/hashicorp/consul/sdk v0.5.0
+# github.com/hashicorp/consul/sdk v0.6.0
 ## explicit
 github.com/hashicorp/consul/sdk/freeport
 github.com/hashicorp/consul/sdk/testutil
