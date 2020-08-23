@@ -7,10 +7,10 @@ replace (
 	github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
 	github.com/apparentlymart/go-textseg/v12 => github.com/apparentlymart/go-textseg/v12 v12.0.0
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
+	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
 	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 )
 
 require (
@@ -34,9 +34,9 @@ require (
 	github.com/coreos/go-iptables v0.4.3-0.20190724151750-969b135e941d
 	github.com/coreos/go-semver v0.3.0
 	github.com/cyphar/filepath-securejoin v0.2.3-0.20190205144030-7efe413b52e1 // indirect
-	github.com/docker/cli v0.0.0-20200528204125-dd360c7c0de8
+	github.com/docker/cli v0.0.0-20200617172703-0ed913b885c8
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible
+	github.com/docker/docker v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
 	github.com/docker/docker-credential-helpers v0.6.2-0.20180719074751-73e5f5dbfea3 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
