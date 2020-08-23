@@ -7,10 +7,10 @@ replace (
 	github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
 	github.com/apparentlymart/go-textseg/v12 => github.com/apparentlymart/go-textseg/v12 v12.0.0
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
+	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
 	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 )
 
 require (
@@ -108,7 +108,7 @@ require (
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.4.0
 	github.com/prometheus/common v0.9.1
-	github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
+	github.com/rs/cors v1.7.0
 	github.com/ryanuber/columnize v2.1.1-0.20170703205827-abc90934186a+incompatible
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
