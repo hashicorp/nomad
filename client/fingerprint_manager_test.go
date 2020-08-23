@@ -66,8 +66,8 @@ func TestFingerprintManager_Run_InBlacklist(t *testing.T) {
 	require := require.New(t)
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			"fingerprint.whitelist": "  arch,memory,foo,bar	",
-			"fingerprint.blacklist": "  cpu	",
+			"fingerprint.allowlist": "  arch,memory,foo,bar	",
+			"fingerprint.denylist": "  cpu	",
 		}
 	})
 	defer cleanup()
@@ -96,8 +96,8 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
-			"fingerprint.whitelist": "  arch,cpu,memory,foo,bar	",
-			"fingerprint.blacklist": "  memory,host	",
+			"fingerprint.allowlist": "  arch,cpu,memory,foo,bar	",
+			"fingerprint.denylist": "  memory,host	",
 		}
 	})
 	defer cleanup()

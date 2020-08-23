@@ -266,7 +266,7 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 
 	// Set the host environment variables for non-image based drivers
 	if fsi != drivers.FSIsolationImage {
-		filter := strings.Split(conf.ReadDefault("env.blacklist", config.DefaultEnvBlacklist), ",")
+		filter := strings.Split(conf.ReadDefault("env.denylist", config.DefaultEnvDenylist), ",")
 		envBuilder.SetHostEnvvars(filter)
 	}
 }

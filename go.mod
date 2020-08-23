@@ -7,10 +7,10 @@ replace (
 	github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
 	github.com/apparentlymart/go-textseg/v12 => github.com/apparentlymart/go-textseg/v12 v12.0.0
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
+	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
 	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 )
 
 require (
@@ -52,7 +52,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 	github.com/grpc-ecosystem/grpc-gateway v1.9.0 // indirect
 	github.com/hashicorp/consul v1.7.1-0.20200213195527-b137060630b4
-	github.com/hashicorp/consul-template v0.24.1
+	github.com/hashicorp/consul-template v0.25.1
 	github.com/hashicorp/consul/api v1.4.1-0.20200730220852-12f574c9de39
 	github.com/hashicorp/consul/sdk v0.5.0
 	github.com/hashicorp/cronexpr v1.1.0

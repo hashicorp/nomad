@@ -134,8 +134,8 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		config: &config.Config{
 			Region: region,
 			TemplateConfig: &config.ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			}},
 		emitRate: DefaultMaxTemplateEventRate,
 	}

@@ -550,7 +550,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
-	conf.TemplateConfig.FunctionBlacklist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionDenylist
+	if agentConfig.Client.TemplateConfig.FunctionDenylistDeprecated != nil {
+		conf.TemplateConfig.FunctionDenylist = append(conf.TemplateConfig.FunctionDenylist, agentConfig.Client.TemplateConfig.FunctionDenylistDeprecated...)
+	}
 	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))

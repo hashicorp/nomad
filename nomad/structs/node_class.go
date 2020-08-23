@@ -38,7 +38,7 @@ func (n *Node) ComputeClass() error {
 	return nil
 }
 
-// HashInclude is used to blacklist uniquely identifying node fields from being
+// HashInclude is used to denylist uniquely identifying node fields from being
 // included in the computed node class.
 func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 	switch field {
@@ -49,7 +49,7 @@ func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 	}
 }
 
-// HashIncludeMap is used to blacklist uniquely identifying node map keys from being
+// HashIncludeMap is used to denylist uniquely identifying node map keys from being
 // included in the computed node class.
 func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 	key, ok := k.(string)
@@ -65,7 +65,7 @@ func (n Node) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 	}
 }
 
-// HashInclude is used to blacklist uniquely identifying node fields from being
+// HashInclude is used to denylist uniquely identifying node fields from being
 // included in the computed node class.
 func (n NodeResources) HashInclude(field string, v interface{}) (bool, error) {
 	switch field {
@@ -76,7 +76,7 @@ func (n NodeResources) HashInclude(field string, v interface{}) (bool, error) {
 	}
 }
 
-// HashInclude is used to blacklist uniquely identifying node fields from being
+// HashInclude is used to denylist uniquely identifying node fields from being
 // included in the computed node class.
 func (n NodeDeviceResource) HashInclude(field string, v interface{}) (bool, error) {
 	switch field {
@@ -87,7 +87,7 @@ func (n NodeDeviceResource) HashInclude(field string, v interface{}) (bool, erro
 	}
 }
 
-// HashIncludeMap is used to blacklist uniquely identifying node map keys from being
+// HashIncludeMap is used to denylist uniquely identifying node map keys from being
 // included in the computed node class.
 func (n NodeDeviceResource) HashIncludeMap(field string, k, v interface{}) (bool, error) {
 	key, ok := k.(string)
