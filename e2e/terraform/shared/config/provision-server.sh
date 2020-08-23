@@ -33,15 +33,6 @@ sudo systemctl enable vault.service
 sudo systemctl daemon-reload
 sudo systemctl restart vault.service
 
-# Add hostname to /etc/hosts
-echo "127.0.0.1 $(hostname)" | sudo tee --append /etc/hosts
-
-# Add Docker bridge network IP to /etc/resolv.conf (at the top)
-DOCKER_BRIDGE_IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetInterfaceIP "docker0"')
-echo "nameserver $DOCKER_BRIDGE_IP_ADDRESS" | sudo tee /etc/resolv.conf.new
-cat /etc/resolv.conf | sudo tee --append /etc/resolv.conf.new
-sudo mv /etc/resolv.conf.new /etc/resolv.conf
-
 # Nomad
 
 NOMAD_SRC=/ops/shared/nomad

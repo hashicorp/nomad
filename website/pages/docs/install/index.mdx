@@ -7,28 +7,223 @@ description: Learn how to install Nomad.
 
 # Installing Nomad
 
-Installing Nomad is simple. There are two approaches to installing Nomad:
+Nomad is available as a pre-compiled binary or as a package for several
+operating systems. You can also [build Nomad from source](#from-source).
 
-1. Using a [precompiled binary](#precompiled-binaries)
-1. Installing [from source](#from-source)
+-> If you are interested in trialing Nomad without installing it locally, see the
+[Quickstart](/docs/install/quickstart) for options to get started with Nomad.
 
-Downloading a precompiled binary is easiest, and we provide downloads over
-TLS along with SHA-256 sums to verify the binary.
+<Tabs>
+<Tab heading="Manual installation">
 
-## Precompiled Binaries ((#precompiled-binaries))
+You can download a [precompiled binary](https://nomadproject.io/downloads/) and
+run it on your machine locally. You can also verify the binary using the
+available SHA-256 sums. After downloading Nomad, unzip the package. Make sure
+that the `nomad` binary is available on your `PATH` before continuing with the
+other guides.
 
-To install the precompiled binary,
-[download](/downloads) the appropriate package for your system.
-Nomad is currently packaged as a zip file. We do not have any near term
-plans to provide system packages.
+You can check the locations available on your path by running this command.
 
-Once the zip is downloaded, unzip it into any directory. The
-`nomad` (or `nomad.exe` for Windows) binary inside is all that is
-necessary to run Nomad. Any additional files, if any, are not
-required to run Nomad.
+```shell-session
+$ echo $PATH
 
-Copy the binary to anywhere on your system. If you intend to access it
-from the command-line, make sure to place it somewhere on your `PATH`.
+/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+```
+
+The output is a list of locations separated by colons. You can make Nomad
+available by moving the binary to one of the listed locations, or by adding
+Nomad's location to your `PATH`.
+
+-> **Tip (Linux-based or Mac):** Permanently add a new location to your path by
+editing your shell's settings file (usually called something like `~/.bashrc`,
+where the part of the file name after the `.` and before `rc` is the name of
+your shell). In that file you will see a line that starts with `export PATH=`,
+followed by a colon-separated list of locations. Add the location of the Consul
+binary to that list and save the file. Then reload your shell's configuration
+with the command `source ~/.bashrc`, replacing `bash` with the name of your
+shell.
+
+-> **Tip (Windows):** Add a location to your path via the GUI by navigating to
+`Environment Variables` in your system settings, and looking for the variable
+called `PATH`. You will see a semicolon-separated list of locations. Add the
+Nomad binary's location to that list and then launch a new console window.
+
+</Tab>
+<Tab heading="Linux Packages">
+
+HashiCorp officially maintains and signs packages for the following Linux
+distributions.
+
+<Tabs>
+<Tab heading="Ubuntu/Debian">
+
+Add the HashiCorp [GPG key][gpg-key].
+
+```shell-session
+$ curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+```
+
+Add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+```
+
+Update and install.
+
+```shell-session
+$ sudo apt-get update && sudo apt-get install nomad
+```
+
+</Tab>
+<Tab heading="CentOS/RHEL">
+
+Install `yum-config-manager` to manage your repositories.
+
+```shell-session
+$ sudo yum install -y yum-utils
+```
+
+Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo yum -y install nomad
+```
+
+</Tab>
+<Tab heading="Fedora">
+
+Install `dnf config-manager` to manage your repositories.
+
+```shell-session
+$ sudo dnf install -y dnf-plugins-core
+```
+
+Use `dnf config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo dnf -y install nomad
+```
+
+</Tab>
+<Tab heading="Amazon Linux">
+
+Install `yum-config-manager` to manage your repositories.
+
+```shell-session
+$ sudo yum install -y yum-utils
+```
+
+Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo yum -y install nomad
+```
+
+</Tab>
+</Tabs>
+
+-> **TIP:** Now that you have added the HashiCorp repository, you can install
+[Consul](https://learn.hashicorp.com/consul) and
+[Vault](https://learn.hashicorp.com/vault) with the same command.
+
+</Tab>
+<Tab heading="Homebrew (macOS)">
+
+[Homebrew](https://brew.sh) is a free and open-source package management system
+for macOS. Install the [Nomad formula](https://formulae.brew.sh/formula/nomad)
+from the terminal.
+
+```shell-session
+$ brew install nomad
+```
+
+~> **NOTE:** Homebrew and the Nomad formula are **NOT** directly maintained by
+HashiCorp. The latest version of Nomad is always available by manual
+installation.
+
+~> **NOTE**: On macOS, machines without a Java environment installed will be
+prompted to install Java because of a [known issue—#7865][gh-7865]. The linked
+GitHub issue has workarounds for this issue.
+
+</Tab>
+<Tab heading="Chocolatey (Windows)">
+
+[Chocolatey](https://chocolatey.org/) is a free and open-source package
+management system for Windows. Install the [Nomad
+package](https://chocolatey.org/packages/nomad) from the command-line.
+
+```shell-session
+$ choco install nomad
+```
+
+~> **NOTE:** Chocolatey and the Nomad package are **NOT** directly maintained
+by HashiCorp. The latest version of Nomad is always available by manual
+installation.
+
+</Tab>
+</Tabs>
+
+---
+
+## Verify the Installation
+
+To verify Nomad was installed correctly, try the `nomad` command.
+
+```shell-session
+$ nomad
+```
+
+You should see help output, similar to the following.
+
+```plaintext
+Usage: nomad [-version] [-help] [-autocomplete-(un)install] <command> [args]
+
+Common commands:
+    run         Run a new job or update an existing job
+    stop        Stop a running job
+    status      Display the status output for a resource
+    alloc       Interact with allocations
+    job         Interact with jobs
+    node        Interact with nodes
+    agent       Runs a Nomad agent
+
+Other commands:
+    acl             Interact with ACL policies and tokens
+    agent-info      Display status information about the local agent
+    deployment      Interact with deployments
+    eval            Interact with evaluations
+    exec            Execute commands in task
+    monitor         Stream logs from a Nomad agent
+    namespace       Interact with namespaces
+    operator        Provides cluster-level tools for Nomad operators
+    quota           Interact with quotas
+    sentinel        Interact with Sentinel policies
+    server          Interact with servers
+    system          Interact with the system API
+    ui              Open the Nomad Web UI
+    version         Prints the Nomad version
+```
+
+---
 
 ## Compiling from Source ((#from-source))
 
@@ -60,13 +255,8 @@ as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
    $ make dev
    ```
 
-## Verifying the Installation
-
-To verify Nomad is properly installed, run `nomad -v` on your system. You should
-see help output. If you are executing it from the command line, make sure it is
-on your `PATH` or you may get an error about `nomad` not being found.
-
-```shell-session
-$ nomad -v
-
-```
+[consul-dev]: https://learn.hashicorp.com/consul/getting-started/agent#starting-the-agent
+[consul-download]: https://www.consul.io/downloads.html
+[destroy]: https://www.vagrantup.com/docs/cli/destroy.html
+[gh-7865]: https://github.com/hashicorp/nomad/issues/7865
+[gpg-key]: https://apt.releases.hashicorp.com/gpg 'HashiCorp GPG key'

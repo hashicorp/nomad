@@ -44,6 +44,149 @@ func TestJobs_Register(t *testing.T) {
 	}
 }
 
+func TestJobs_Register_PreserveCounts(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	require.Nil(err)
+	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/sleep").
+		Require(&Resources{
+			CPU:      intToPtr(100),
+			MemoryMB: intToPtr(256),
+		}).
+		SetLogConfig(&LogConfig{
+			MaxFiles:      intToPtr(1),
+			MaxFileSizeMB: intToPtr(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	group2 := NewTaskGroup("group2", 2).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1).
+		AddTaskGroup(group2)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotEmpty(resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	group1.Count = nil
+	group2.Count = intToPtr(0)
+	group3 := NewTaskGroup("group3", 3).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	job.AddTaskGroup(group3)
+
+	// Update the job, with PreserveCounts = true
+	_, _, err = jobs.RegisterOpts(job, &RegisterOptions{
+		PreserveCounts: true,
+	}, nil)
+	require.NoError(err)
+
+	// Query the job scale status
+	status, _, err := jobs.ScaleStatus(*job.ID, nil)
+	require.NoError(err)
+	require.Equal(1, status.TaskGroups["group1"].Desired) // present and nil => preserved
+	require.Equal(2, status.TaskGroups["group2"].Desired) // present and specified => preserved
+	require.Equal(3, status.TaskGroups["group3"].Desired) // new => as specific in job spec
+}
+
+func TestJobs_Register_NoPreserveCounts(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	require.Nil(err)
+	require.Emptyf(resp, "expected 0 jobs, got: %d", len(resp))
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/sleep").
+		Require(&Resources{
+			CPU:      intToPtr(100),
+			MemoryMB: intToPtr(256),
+		}).
+		SetLogConfig(&LogConfig{
+			MaxFiles:      intToPtr(1),
+			MaxFileSizeMB: intToPtr(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	group2 := NewTaskGroup("group2", 2).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1).
+		AddTaskGroup(group2)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	require.Nil(err)
+	require.NotNil(resp2)
+	require.NotEmpty(resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	group1.Count = intToPtr(0)
+	group2.Count = nil
+	group3 := NewTaskGroup("group3", 3).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: intToPtr(25),
+		})
+	job.AddTaskGroup(group3)
+
+	// Update the job, with PreserveCounts = default [false]
+	_, _, err = jobs.Register(job, nil)
+	require.NoError(err)
+
+	// Query the job scale status
+	status, _, err := jobs.ScaleStatus(*job.ID, nil)
+	require.NoError(err)
+	require.Equal("default", status.Namespace)
+	require.Equal(0, status.TaskGroups["group1"].Desired) // present => as specified
+	require.Equal(1, status.TaskGroups["group2"].Desired) // nil     => default (1)
+	require.Equal(3, status.TaskGroups["group3"].Desired) // new     => as specified
+}
+
 func TestJobs_Validate(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
@@ -101,6 +244,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
 				Status:            stringToPtr(""),
 				StatusDescription: stringToPtr(""),
 				Stop:              boolToPtr(false),
@@ -190,6 +335,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
 				Status:            stringToPtr(""),
 				StatusDescription: stringToPtr(""),
 				Stop:              boolToPtr(false),
@@ -262,6 +409,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
 				Version:           uint64ToPtr(0),
@@ -427,6 +576,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
 				Version:           uint64ToPtr(0),
@@ -584,6 +735,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
 				Version:           uint64ToPtr(0),
@@ -669,6 +822,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
 				Version:           uint64ToPtr(0),
@@ -833,6 +988,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
 				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
 				Stop:              boolToPtr(false),
 				Stable:            boolToPtr(false),
 				Version:           uint64ToPtr(0),
@@ -951,6 +1108,70 @@ func TestJobs_Canonicalize(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+		},
+
+		{
+			name: "multiregion",
+			input: &Job{
+				Name:     stringToPtr("foo"),
+				ID:       stringToPtr("bar"),
+				ParentID: stringToPtr("lol"),
+				Multiregion: &Multiregion{
+					Regions: []*MultiregionRegion{
+						{
+							Name:  "west",
+							Count: intToPtr(1),
+						},
+					},
+				},
+			},
+			expected: &Job{
+				Multiregion: &Multiregion{
+					Strategy: &MultiregionStrategy{
+						MaxParallel: intToPtr(0),
+						OnFailure:   stringToPtr(""),
+					},
+					Regions: []*MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       intToPtr(1),
+							Datacenters: []string{},
+							Meta:        map[string]string{},
+						},
+					},
+				},
+				Namespace:         stringToPtr(DefaultNamespace),
+				ID:                stringToPtr("bar"),
+				Name:              stringToPtr("foo"),
+				Region:            stringToPtr("global"),
+				Type:              stringToPtr("service"),
+				ParentID:          stringToPtr("lol"),
+				Priority:          intToPtr(50),
+				AllAtOnce:         boolToPtr(false),
+				ConsulToken:       stringToPtr(""),
+				VaultToken:        stringToPtr(""),
+				VaultNamespace:    stringToPtr(""),
+				NomadTokenID:      stringToPtr(""),
+				Stop:              boolToPtr(false),
+				Stable:            boolToPtr(false),
+				Version:           uint64ToPtr(0),
+				Status:            stringToPtr(""),
+				StatusDescription: stringToPtr(""),
+				CreateIndex:       uint64ToPtr(0),
+				ModifyIndex:       uint64ToPtr(0),
+				JobModifyIndex:    uint64ToPtr(0),
+				Update: &UpdateStrategy{
+					Stagger:          timeToPtr(30 * time.Second),
+					MaxParallel:      intToPtr(1),
+					HealthCheck:      stringToPtr("checks"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(5 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(false),
+					Canary:           intToPtr(0),
+					AutoPromote:      boolToPtr(false),
 				},
 			},
 		},
@@ -1776,10 +1997,11 @@ func TestJobs_ScaleAction(t *testing.T) {
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
-	groupCount := *job.TaskGroups[0].Count
+	origCount := *job.TaskGroups[0].Count
+	newCount := origCount + 1
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing", intToPtr(groupCount+1), "this won't work",
+	_, _, err := jobs.Scale(id, "missing", intToPtr(newCount), "this won't work",
 		false, nil, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")
@@ -1790,7 +2012,6 @@ func TestJobs_ScaleAction(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Perform scaling action
-	newCount := groupCount + 1
 	scalingResp, wm, err := jobs.Scale(id, groupName,
 		intToPtr(newCount), "need more instances", false,
 		map[string]interface{}{
@@ -1822,6 +2043,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	require.Greater(scalingEvent.Time, uint64(0))
 	require.NotNil(scalingEvent.EvalID)
 	require.Equal(scalingResp.EvalID, *scalingEvent.EvalID)
+	require.Equal(int64(origCount), scalingEvent.PreviousCount)
 }
 
 func TestJobs_ScaleAction_Error(t *testing.T) {

@@ -52,6 +52,7 @@ type GenericStack struct {
 	taskGroupDevices     *DeviceChecker
 	taskGroupHostVolumes *HostVolumeChecker
 	taskGroupCSIVolumes  *CSIVolumeChecker
+	taskGroupNetwork     *NetworkChecker
 
 	distinctHostsConstraint    *DistinctHostsIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
@@ -135,6 +136,9 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	if len(tg.Networks) > 0 {
+		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
+	}
 	s.distinctHostsConstraint.SetTaskGroup(tg)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.wrappedChecks.SetTaskGroup(tg.Name)
@@ -179,6 +183,7 @@ type SystemStack struct {
 	taskGroupDevices     *DeviceChecker
 	taskGroupHostVolumes *HostVolumeChecker
 	taskGroupCSIVolumes  *CSIVolumeChecker
+	taskGroupNetwork     *NetworkChecker
 
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
@@ -216,6 +221,9 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Filter on task group devices
 	s.taskGroupDevices = NewDeviceChecker(ctx)
 
+	// Filter on available client networks
+	s.taskGroupNetwork = NewNetworkChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
@@ -223,7 +231,8 @@ func NewSystemStack(ctx Context) *SystemStack {
 	jobs := []FeasibilityChecker{s.jobConstraint}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
-		s.taskGroupDevices}
+		s.taskGroupDevices,
+		s.taskGroupNetwork}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
 
@@ -281,6 +290,9 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	if len(tg.Networks) > 0 {
+		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
+	}
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)
@@ -332,6 +344,9 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on available, healthy CSI plugins
 	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)
 
+	// Filter on available client networks
+	s.taskGroupNetwork = NewNetworkChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
@@ -340,7 +355,8 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	tgs := []FeasibilityChecker{s.taskGroupDrivers,
 		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
-		s.taskGroupDevices}
+		s.taskGroupDevices,
+		s.taskGroupNetwork}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
 

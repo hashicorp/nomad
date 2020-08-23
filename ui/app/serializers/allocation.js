@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import { get } from '@ember/object';
 import ApplicationSerializer from './application';
+import classic from 'ember-classic-decorator';
 
 const taskGroupFromJob = (job, taskGroupName) => {
   const taskGroups = job && job.TaskGroups;
@@ -8,13 +9,16 @@ const taskGroupFromJob = (job, taskGroupName) => {
   return taskGroup ? taskGroup : null;
 };
 
-export default ApplicationSerializer.extend({
-  system: service(),
+@classic
+export default class AllocationSerializer extends ApplicationSerializer {
+  @service system;
 
-  attrs: {
+  attrs = {
     taskGroupName: 'TaskGroup',
     states: 'TaskStates',
-  },
+  };
+
+  separateNanos = ['CreateTime', 'ModifyTime'];
 
   normalize(typeHash, hash) {
     // Transform the map-based TaskStates object into an array-based
@@ -38,12 +42,6 @@ export default ApplicationSerializer.extend({
       'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
-    hash.ModifyTimeNanos = hash.ModifyTime % 1000000;
-    hash.ModifyTime = Math.floor(hash.ModifyTime / 1000000);
-
-    hash.CreateTimeNanos = hash.CreateTime % 1000000;
-    hash.CreateTime = Math.floor(hash.CreateTime / 1000000);
-
     hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;
 
     hash.IsMigrating = (hash.DesiredTransition || {}).Migrate;
@@ -63,6 +61,6 @@ export default ApplicationSerializer.extend({
     // The Job definition for an allocation is only included in findRecord responses.
     hash.AllocationTaskGroup = !hash.Job ? null : taskGroupFromJob(hash.Job, hash.TaskGroup);
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

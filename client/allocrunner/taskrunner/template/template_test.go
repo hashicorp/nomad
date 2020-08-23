@@ -1377,6 +1377,41 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
 }
 
+// TestTaskTemplateManager_Config_VaultNamespace asserts the Vault namespace setting is
+// propagated to consul-template's configuration.
+func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	testNS := "test-namespace"
+	c := config.DefaultConfig()
+	c.Node = mock.Node()
+	c.VaultConfig = &sconfig.VaultConfig{
+		Enabled:       helper.BoolToPtr(true),
+		Addr:          "https://localhost/",
+		TLSServerName: "notlocalhost",
+		Namespace:     testNS,
+	}
+
+	alloc := mock.Alloc()
+	overriddenNS := "new-namespace"
+
+	// Set the template manager config vault namespace
+	config := &TaskTemplateManagerConfig{
+		ClientConfig:   c,
+		VaultToken:     "token",
+		VaultNamespace: overriddenNS,
+		EnvBuilder:     taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+	}
+
+	ctmplMapping, err := parseTemplateConfigs(config)
+	assert.Nil(err, "Parsing Templates")
+
+	ctconf, err := newRunnerConfig(config, ctmplMapping)
+	assert.Nil(err, "Building Runner Config")
+	assert.Equal(overriddenNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
+}
+
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	// The tests sets a template that need keys 0, 1, 2, 3, 4,
 	// then subsequently sets 0, 1, 2 keys

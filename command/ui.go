@@ -148,7 +148,7 @@ func (c *UiCommand) Run(args []string) int {
 
 		switch match {
 		case contexts.Nodes:
-			url.Path = fmt.Sprintf("ui/nodes/%s", fullID)
+			url.Path = fmt.Sprintf("ui/clients/%s", fullID)
 		case contexts.Allocs:
 			url.Path = fmt.Sprintf("ui/allocations/%s", fullID)
 		case contexts.Jobs:

@@ -61,6 +61,7 @@ module('Integration | Component | task log', function(hooks) {
   });
 
   hooks.afterEach(function() {
+    window.localStorage.clear();
     this.server.shutdown();
     streamPointer = 0;
     logMode = null;
@@ -147,7 +148,9 @@ module('Integration | Component | task log', function(hooks) {
 
     const { interval } = commonProps;
     this.setProperties(commonProps);
-    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} @interval={{interval}} />`);
+    await render(
+      hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} @interval={{interval}} />`
+    );
 
     run.later(() => {
       click('[data-test-log-action="toggle-stream"]');
@@ -327,5 +330,27 @@ module('Integration | Component | task log', function(hooks) {
     );
 
     assert.notOk(find('[data-test-connection-error]'), 'An error message is not shown');
+  });
+
+  test('The log streaming mode is persisted in localStorage', async function(assert) {
+    window.localStorage.nomadLogMode = JSON.stringify('stderr');
+
+    run.later(run, run.cancelTimers, commonProps.interval);
+
+    this.setProperties(commonProps);
+    await render(hbs`<TaskLog @allocation={{allocation}} @task={{taskState}} />`);
+
+    await settled();
+    assert.ok(this.server.handledRequests.filter(req => req.queryParams.type === 'stderr').length);
+    assert.notOk(
+      this.server.handledRequests.filter(req => req.queryParams.type === 'stdout').length
+    );
+
+    click('[data-test-log-action="stdout"]');
+    run.later(run, run.cancelTimers, commonProps.interval);
+
+    await settled();
+    assert.ok(this.server.handledRequests.filter(req => req.queryParams.type === 'stdout').length);
+    assert.equal(window.localStorage.nomadLogMode, JSON.stringify('stdout'));
   });
 });

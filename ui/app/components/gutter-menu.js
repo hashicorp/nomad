@@ -1,12 +1,15 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  system: service(),
-  router: service(),
+@classic
+export default class GutterMenu extends Component {
+  @service system;
+  @service router;
 
-  sortedNamespaces: computed('system.namespaces.@each.name', function() {
+  @computed('system.namespaces.@each.name')
+  get sortedNamespaces() {
     const namespaces = this.get('system.namespaces').toArray() || [];
 
     return namespaces.sort((a, b) => {
@@ -30,9 +33,9 @@ export default Component.extend({
 
       return 0;
     });
-  }),
+  }
 
-  onHamburgerClick() {},
+  onHamburgerClick() {}
 
   gotoJobsForNamespace(namespace) {
     if (!namespace || !namespace.get('id')) return;
@@ -46,5 +49,5 @@ export default Component.extend({
     this.router.transitionTo(destination, {
       queryParams: { namespace: namespace.get('id') },
     });
-  },
-});
+  }
+}

@@ -108,7 +108,7 @@ func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
 						Device:        "eth0",
 						IP:            "10.0.0.1",
 						MBits:         50,
-						ReservedPorts: []Port{{"main", 8000, 80}},
+						ReservedPorts: []Port{{"main", 8000, 80, ""}},
 					},
 				},
 			},
@@ -160,7 +160,7 @@ func TestAllocsFit_Old(t *testing.T) {
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"main", 80, 0}},
+					ReservedPorts: []Port{{"main", 80, 0, ""}},
 				},
 			},
 		},
@@ -176,7 +176,7 @@ func TestAllocsFit_Old(t *testing.T) {
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"main", 8000, 80}},
+					ReservedPorts: []Port{{"main", 8000, 80, ""}},
 				},
 			},
 		},
@@ -227,7 +227,7 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"main", 80, 0}},
+					ReservedPorts: []Port{{"main", 80, 0, ""}},
 				},
 			},
 		},
@@ -243,7 +243,7 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 					Device:        "eth0",
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"main", 8000, 0}},
+					ReservedPorts: []Port{{"main", 8000, 0, ""}},
 				},
 			},
 		},
@@ -291,6 +291,17 @@ func TestAllocsFit(t *testing.T) {
 					MBits:  100,
 				},
 			},
+			NodeNetworks: []*NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Addresses: []NodeNetworkAddress{
+						{
+							Address: "10.0.0.1",
+						},
+					},
+				},
+			},
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
@@ -318,18 +329,24 @@ func TestAllocsFit(t *testing.T) {
 					Memory: AllocatedMemoryResources{
 						MemoryMB: 1024,
 					},
-					Networks: []*NetworkResource{
-						{
-							Device:        "eth0",
-							IP:            "10.0.0.1",
-							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 0}},
-						},
-					},
 				},
 			},
 			Shared: AllocatedSharedResources{
 				DiskMB: 5000,
+				Networks: Networks{
+					{
+						Mode: "host",
+						IP: "10.0.0.1",
+						ReservedPorts: []Port{{"main", 8000, 0, ""}},
+					},
+				},
+				Ports: AllocatedPorts{
+					{
+						Label:  "main",
+						Value:  8000,
+						HostIP: "10.0.0.1",
+					},
+				},
 			},
 		},
 	}
@@ -407,7 +424,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 							Device:        "eth0",
 							IP:            "10.0.0.1",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80}},
+							ReservedPorts: []Port{{"main", 8000, 80, ""}},
 						},
 					},
 				},

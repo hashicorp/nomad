@@ -339,6 +339,7 @@ func normalizeStoppedAlloc(stoppedAlloc *structs.Allocation, now int64) *structs
 		DesiredDescription: stoppedAlloc.DesiredDescription,
 		ClientStatus:       stoppedAlloc.ClientStatus,
 		ModifyTime:         now,
+		FollowupEvalID:     stoppedAlloc.FollowupEvalID,
 	}
 }
 

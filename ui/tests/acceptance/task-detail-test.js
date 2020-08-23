@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import moment from 'moment';
 
@@ -20,6 +21,11 @@ module('Acceptance | task detail', function(hooks) {
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {
@@ -176,36 +182,6 @@ module('Acceptance | task detail', function(hooks) {
     assert.notOk(Task.hasPrestartTasks);
   });
 
-  test('the addresses table lists all reserved and dynamic ports', async function(assert) {
-    const taskResources = allocation.taskResourceIds
-      .map(id => server.db.taskResources.find(id))
-      .find(resources => resources.name === task.name);
-    const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-    const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
-    const addresses = reservedPorts.concat(dynamicPorts);
-
-    assert.equal(Task.addresses.length, addresses.length, 'All addresses are listed');
-  });
-
-  test('each address row shows the label and value of the address', async function(assert) {
-    const taskResources = allocation.taskResourceIds
-      .map(id => server.db.taskResources.find(id))
-      .findBy('name', task.name);
-    const networkAddress = taskResources.resources.Networks[0].IP;
-    const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-    const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
-    const address = reservedPorts.concat(dynamicPorts).sortBy('Label')[0];
-
-    const addressRow = Task.addresses.objectAt(0);
-    assert.equal(
-      addressRow.isDynamic,
-      reservedPorts.includes(address) ? 'No' : 'Yes',
-      'Dynamic port is denoted as such'
-    );
-    assert.equal(addressRow.name, address.Label, 'Label');
-    assert.equal(addressRow.address, `${networkAddress}:${address.Value}`, 'Value');
-  });
-
   test('the events table lists all recent events', async function(assert) {
     const events = server.db.taskEvents.where({ taskStateId: task.id });
 
@@ -354,10 +330,6 @@ module('Acceptance | task detail (no addresses)', function(hooks) {
     task = server.db.taskStates.where({ allocationId: allocation.id })[0];
 
     await Task.visit({ id: allocation.id, name: task.name });
-  });
-
-  test('when the task has no addresses, the addresses table is not shown', async function(assert) {
-    assert.notOk(Task.hasAddresses, 'No addresses table');
   });
 });
 

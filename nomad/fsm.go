@@ -555,6 +555,15 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 		}
 	}
 
+	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
+	// so this may be nil during server upgrades.
+	if req.Eval != nil {
+		req.Eval.JobModifyIndex = index
+		if err := n.upsertEvals(index, []*structs.Evaluation{req.Eval}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -565,14 +574,32 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	return n.state.WithWriteTransaction(func(tx state.Txn) error {
-		if err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx); err != nil {
+	err := n.state.WithWriteTransaction(func(tx state.Txn) error {
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx)
+
+		if err != nil {
 			n.logger.Error("deregistering job failed", "error", err)
 			return err
 		}
 
 		return nil
 	})
+
+	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
+	// so this may be nil during server upgrades.
+	// always attempt upsert eval even if job deregister fail
+	if req.Eval != nil {
+		req.Eval.JobModifyIndex = index
+		if err := n.upsertEvals(index, []*structs.Evaluation{req.Eval}); err != nil {
+			return err
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
@@ -1154,7 +1181,7 @@ func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_deregister"}, time.Now())
 
-	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs); err != nil {
+	if err := n.state.CSIVolumeDeregister(index, req.RequestNamespace(), req.VolumeIDs, req.Force); err != nil {
 		n.logger.Error("CSIVolumeDeregister failed", "error", err)
 		return err
 	}
@@ -2155,7 +2182,8 @@ func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	// Get the cluster metadata
-	clusterMetadata, err := s.snap.ClusterMetadata()
+	ws := memdb.NewWatchSet()
+	clusterMetadata, err := s.snap.ClusterMetadata(ws)
 	if err != nil {
 		return err
 	}

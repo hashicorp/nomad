@@ -9,9 +9,12 @@ module('Unit | Mixin | Searchable', function(hooks) {
 
   hooks.beforeEach(function() {
     this.subject = function() {
+      // eslint-disable-next-line ember/no-new-mixins
       const SearchableObject = EmberObject.extend(Searchable, {
         source: null,
-        searchProps: computed(() => ['id', 'name']),
+        searchProps: computed(function() {
+          return ['id', 'name'];
+        }),
         listToSearch: alias('source'),
       });
 
@@ -88,6 +91,39 @@ module('Unit | Mixin | Searchable', function(hooks) {
     assert.deepEqual(
       subject.get('listSearched'),
       [{ id: '1', name: 'United States of America', continent: 'North America' }],
+      'America is matched due to fuzzy matching'
+    );
+  });
+
+  test('the fuzzy search can include match results', function(assert) {
+    const subject = this.subject();
+    subject.set('source', [
+      EmberObject.create({ id: '1', name: 'United States of America', continent: 'North America' }),
+      EmberObject.create({ id: '2', name: 'Canada', continent: 'North America' }),
+      EmberObject.create({ id: '3', name: 'Mexico', continent: 'North America' }),
+    ]);
+
+    subject.set('fuzzySearchEnabled', true);
+    subject.set('includeFuzzySearchMatches', true);
+    subject.set('searchTerm', 'Ameerica');
+    assert.deepEqual(
+      subject
+        .get('listSearched')
+        .map(object => object.getProperties('id', 'name', 'continent', 'fuzzySearchMatches')),
+      [
+        {
+          id: '1',
+          name: 'United States of America',
+          continent: 'North America',
+          fuzzySearchMatches: [
+            {
+              indices: [[2, 2], [4, 4], [9, 9], [11, 11], [17, 23]],
+              value: 'United States of America',
+              key: 'name',
+            },
+          ],
+        },
+      ],
       'America is matched due to fuzzy matching'
     );
   });
@@ -193,9 +229,12 @@ module('Unit | Mixin | Searchable (with pagination)', function(hooks) {
 
   hooks.beforeEach(function() {
     this.subject = function() {
+      // eslint-disable-next-line ember/no-new-mixins
       const SearchablePaginatedObject = EmberObject.extend(Searchable, {
         source: null,
-        searchProps: computed(() => ['id', 'name']),
+        searchProps: computed(function() {
+          return ['id', 'name'];
+        }),
         listToSearch: alias('source'),
         currentPage: 1,
       });

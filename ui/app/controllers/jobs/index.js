@@ -1,72 +1,107 @@
+/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller, { inject as controller } from '@ember/controller';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend(Sortable, Searchable, {
-  system: service(),
-  userSettings: service(),
-  jobsController: controller('jobs'),
+@classic
+export default class IndexController extends Controller.extend(Sortable, Searchable) {
+  @service system;
+  @service userSettings;
+  @controller('jobs') jobsController;
 
-  isForbidden: alias('jobsController.isForbidden'),
+  @alias('jobsController.isForbidden') isForbidden;
 
-  queryParams: {
-    currentPage: 'page',
-    searchTerm: 'search',
-    sortProperty: 'sort',
-    sortDescending: 'desc',
-    qpType: 'type',
-    qpStatus: 'status',
-    qpDatacenter: 'dc',
-    qpPrefix: 'prefix',
-  },
+  queryParams = [
+    {
+      currentPage: 'page',
+    },
+    {
+      searchTerm: 'search',
+    },
+    {
+      sortProperty: 'sort',
+    },
+    {
+      sortDescending: 'desc',
+    },
+    {
+      qpType: 'type',
+    },
+    {
+      qpStatus: 'status',
+    },
+    {
+      qpDatacenter: 'dc',
+    },
+    {
+      qpPrefix: 'prefix',
+    },
+  ];
 
-  currentPage: 1,
-  pageSize: readOnly('userSettings.pageSize'),
+  currentPage = 1;
+  @readOnly('userSettings.pageSize') pageSize;
 
-  sortProperty: 'modifyIndex',
-  sortDescending: true,
+  sortProperty = 'modifyIndex';
+  sortDescending = true;
 
-  searchProps: computed(() => ['id', 'name']),
-  fuzzySearchProps: computed(() => ['name']),
-  fuzzySearchEnabled: true,
+  @computed
+  get searchProps() {
+    return ['id', 'name'];
+  }
 
-  qpType: '',
-  qpStatus: '',
-  qpDatacenter: '',
-  qpPrefix: '',
+  @computed
+  get fuzzySearchProps() {
+    return ['name'];
+  }
 
-  selectionType: selection('qpType'),
-  selectionStatus: selection('qpStatus'),
-  selectionDatacenter: selection('qpDatacenter'),
-  selectionPrefix: selection('qpPrefix'),
+  fuzzySearchEnabled = true;
 
-  optionsType: computed(() => [
-    { key: 'batch', label: 'Batch' },
-    { key: 'parameterized', label: 'Parameterized' },
-    { key: 'periodic', label: 'Periodic' },
-    { key: 'service', label: 'Service' },
-    { key: 'system', label: 'System' },
-  ]),
+  qpType = '';
+  qpStatus = '';
+  qpDatacenter = '';
+  qpPrefix = '';
 
-  optionsStatus: computed(() => [
-    { key: 'pending', label: 'Pending' },
-    { key: 'running', label: 'Running' },
-    { key: 'dead', label: 'Dead' },
-  ]),
+  @selection('qpType') selectionType;
+  @selection('qpStatus') selectionStatus;
+  @selection('qpDatacenter') selectionDatacenter;
+  @selection('qpPrefix') selectionPrefix;
 
-  optionsDatacenter: computed('visibleJobs.[]', function() {
+  @computed
+  get optionsType() {
+    return [
+      { key: 'batch', label: 'Batch' },
+      { key: 'parameterized', label: 'Parameterized' },
+      { key: 'periodic', label: 'Periodic' },
+      { key: 'service', label: 'Service' },
+      { key: 'system', label: 'System' },
+    ];
+  }
+
+  @computed
+  get optionsStatus() {
+    return [
+      { key: 'pending', label: 'Pending' },
+      { key: 'running', label: 'Running' },
+      { key: 'dead', label: 'Dead' },
+    ];
+  }
+
+  @computed('visibleJobs.[]')
+  get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
     const allDatacenters = new Set(this.visibleJobs.mapBy('datacenters').reduce(flatten, []));
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
     scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpDatacenter',
         serialize(intersection(availableDatacenters, this.selectionDatacenter))
@@ -74,9 +109,10 @@ export default Controller.extend(Sortable, Searchable, {
     });
 
     return availableDatacenters.sort().map(dc => ({ key: dc, label: dc }));
-  }),
+  }
 
-  optionsPrefix: computed('visibleJobs.[]', function() {
+  @computed('visibleJobs.[]')
+  get optionsPrefix() {
     // A prefix is defined as the start of a job name up to the first - or .
     // ex: mktg-analytics -> mktg, ds.supermodel.classifier -> ds
     const hasPrefix = /.[-._]/;
@@ -103,6 +139,7 @@ export default Controller.extend(Sortable, Searchable, {
     // Remove any invalid prefixes from the query param/selection
     const availablePrefixes = prefixes.mapBy('prefix');
     scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
       this.set('qpPrefix', serialize(intersection(availablePrefixes, this.selectionPrefix)));
     });
 
@@ -111,13 +148,14 @@ export default Controller.extend(Sortable, Searchable, {
       key: name.prefix,
       label: `${name.prefix} (${name.count})`,
     }));
-  }),
+  }
 
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  visibleJobs: computed('model.[]', 'model.@each.parent', function() {
+  @computed('model.{[],@each.parent}')
+  get visibleJobs() {
     // Namespace related properties are ommitted from the dependent keys
     // due to a prop invalidation bug caused by region switching.
     const hasNamespaces = this.get('system.namespaces.length');
@@ -125,62 +163,62 @@ export default Controller.extend(Sortable, Searchable, {
 
     return this.model
       .compact()
+      .filter(job => !job.isNew)
       .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
       .filter(job => !job.get('parent.content'));
-  }),
+  }
 
-  filteredJobs: computed(
+  @computed(
     'visibleJobs.[]',
     'selectionType',
     'selectionStatus',
     'selectionDatacenter',
-    'selectionPrefix',
-    function() {
-      const {
-        selectionType: types,
-        selectionStatus: statuses,
-        selectionDatacenter: datacenters,
-        selectionPrefix: prefixes,
-      } = this;
+    'selectionPrefix'
+  )
+  get filteredJobs() {
+    const {
+      selectionType: types,
+      selectionStatus: statuses,
+      selectionDatacenter: datacenters,
+      selectionPrefix: prefixes,
+    } = this;
 
-      // A job must match ALL filter facets, but it can match ANY selection within a facet
-      // Always return early to prevent unnecessary facet predicates.
-      return this.visibleJobs.filter(job => {
-        if (types.length && !types.includes(job.get('displayType'))) {
-          return false;
-        }
+    // A job must match ALL filter facets, but it can match ANY selection within a facet
+    // Always return early to prevent unnecessary facet predicates.
+    return this.visibleJobs.filter(job => {
+      if (types.length && !types.includes(job.get('displayType'))) {
+        return false;
+      }
 
-        if (statuses.length && !statuses.includes(job.get('status'))) {
-          return false;
-        }
+      if (statuses.length && !statuses.includes(job.get('status'))) {
+        return false;
+      }
 
-        if (datacenters.length && !job.get('datacenters').find(dc => datacenters.includes(dc))) {
-          return false;
-        }
+      if (datacenters.length && !job.get('datacenters').find(dc => datacenters.includes(dc))) {
+        return false;
+      }
 
-        const name = job.get('name');
-        if (prefixes.length && !prefixes.find(prefix => name.startsWith(prefix))) {
-          return false;
-        }
+      const name = job.get('name');
+      if (prefixes.length && !prefixes.find(prefix => name.startsWith(prefix))) {
+        return false;
+      }
 
-        return true;
-      });
-    }
-  ),
+      return true;
+    });
+  }
 
-  listToSort: alias('filteredJobs'),
-  listToSearch: alias('listSorted'),
-  sortedJobs: alias('listSearched'),
+  @alias('filteredJobs') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedJobs;
 
-  isShowingDeploymentDetails: false,
+  isShowingDeploymentDetails = false;
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
-  },
+  }
 
-  actions: {
-    gotoJob(job) {
-      this.transitionToRoute('jobs.job', job.get('plainId'));
-    },
-  },
-});
+  @action
+  gotoJob(job) {
+    this.transitionToRoute('jobs.job', job.get('plainId'));
+  }
+}

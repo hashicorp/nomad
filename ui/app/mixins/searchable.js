@@ -22,9 +22,12 @@ import Fuse from 'fuse.js';
   Properties provided:
     - listSearched: a subset of listToSearch of items that meet the search criteria
 */
+// eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   searchTerm: '',
-  listToSearch: computed(() => []),
+  listToSearch: computed(function() {
+    return [];
+  }),
 
   searchProps: null,
   exactMatchSearchProps: reads('searchProps'),
@@ -34,6 +37,7 @@ export default Mixin.create({
   // Three search modes
   exactMatchEnabled: true,
   fuzzySearchEnabled: false,
+  includeFuzzySearchMatches: false,
   regexEnabled: true,
 
   // Search should reset pagination. Not every instance of
@@ -56,6 +60,7 @@ export default Mixin.create({
       matchAllTokens: true,
       maxPatternLength: 32,
       minMatchCharLength: 1,
+      includeMatches: this.includeFuzzySearchMatches,
       keys: this.fuzzySearchProps || [],
       getFn(item, key) {
         return get(item, key);
@@ -83,22 +88,26 @@ export default Mixin.create({
 
       if (this.exactMatchEnabled) {
         results.push(
-          ...exactMatchSearch(
-            searchTerm,
-            this.listToSearch,
-            this.exactMatchSearchProps
-          )
+          ...exactMatchSearch(searchTerm, this.listToSearch, this.exactMatchSearchProps)
         );
       }
 
       if (this.fuzzySearchEnabled) {
-        results.push(...this.fuse.search(searchTerm));
+        let fuseSearchResults = this.fuse.search(searchTerm);
+
+        if (this.includeFuzzySearchMatches) {
+          fuseSearchResults = fuseSearchResults.map(result => {
+            const item = result.item;
+            item.set('fuzzySearchMatches', result.matches);
+            return item;
+          });
+        }
+
+        results.push(...fuseSearchResults);
       }
 
       if (this.regexEnabled) {
-        results.push(
-          ...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps)
-        );
+        results.push(...regexSearch(searchTerm, this.listToSearch, this.regexSearchProps));
       }
 
       return results.uniq();

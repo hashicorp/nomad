@@ -65,6 +65,7 @@ func taskConfigFromProto(pb *proto.TaskConfig) *TaskConfig {
 		StderrPath:       pb.StderrPath,
 		AllocID:          pb.AllocId,
 		NetworkIsolation: NetworkIsolationSpecFromProto(pb.NetworkIsolationSpec),
+		DNS:              dnsConfigFromProto(pb.Dns),
 	}
 }
 
@@ -89,6 +90,7 @@ func taskConfigToProto(cfg *TaskConfig) *proto.TaskConfig {
 		StderrPath:           cfg.StderrPath,
 		AllocId:              cfg.AllocID,
 		NetworkIsolationSpec: NetworkIsolationSpecToProto(cfg.NetworkIsolation),
+		Dns:                  dnsConfigToProto(cfg.DNS),
 	}
 	return pb
 }
@@ -145,6 +147,19 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 		}
 	}
 
+	if pb.Ports != nil {
+		ports := structs.AllocatedPorts(make([]structs.AllocatedPortMapping, len(pb.Ports)))
+		for i, port := range pb.Ports {
+			ports[i] = structs.AllocatedPortMapping{
+				Label:  port.Label,
+				Value:  int(port.Value),
+				To:     int(port.To),
+				HostIP: port.HostIp,
+			}
+		}
+		r.Ports = &ports
+	}
+
 	return &r
 }
 
@@ -199,6 +214,20 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 			CpusetMems:       r.LinuxResources.CpusetMems,
 			PercentTicks:     r.LinuxResources.PercentTicks,
 		}
+	}
+
+	if r.Ports != nil {
+		ports := make([]*proto.PortMapping, len(*r.Ports))
+		for i, port := range *r.Ports {
+			ports[i] = &proto.PortMapping{
+				Label:  port.Label,
+				Value:  int32(port.Value),
+				To:     int32(port.To),
+				HostIp: port.HostIP,
+			}
+		}
+
+		pb.Ports = ports
 	}
 
 	return &pb
@@ -623,5 +652,29 @@ func NetworkIsolationSpecFromProto(pb *proto.NetworkIsolationSpec) *NetworkIsola
 		Path:   pb.Path,
 		Labels: pb.Labels,
 		Mode:   netIsolationModeFromProto(pb.Mode),
+	}
+}
+
+func dnsConfigToProto(dns *DNSConfig) *proto.DNSConfig {
+	if dns == nil {
+		return nil
+	}
+
+	return &proto.DNSConfig{
+		Servers:  dns.Servers,
+		Searches: dns.Searches,
+		Options:  dns.Options,
+	}
+}
+
+func dnsConfigFromProto(pb *proto.DNSConfig) *DNSConfig {
+	if pb == nil {
+		return nil
+	}
+
+	return &DNSConfig{
+		Servers:  pb.Servers,
+		Searches: pb.Searches,
+		Options:  pb.Options,
 	}
 }

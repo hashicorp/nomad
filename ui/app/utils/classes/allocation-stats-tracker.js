@@ -1,7 +1,8 @@
-import EmberObject, { computed, get } from '@ember/object';
+import EmberObject, { get, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';
 import AbstractStatsTracker from 'nomad-ui/utils/classes/abstract-stats-tracker';
+import classic from 'ember-classic-decorator';
 
 const percent = (numerator, denominator) => {
   if (!numerator || !denominator) {
@@ -12,13 +13,15 @@ const percent = (numerator, denominator) => {
 
 const empty = ts => ({ timestamp: ts, used: null, percent: null });
 
-const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
+@classic
+class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
-  allocation: null,
+  allocation = null;
 
-  url: computed('allocation', function() {
+  @computed('allocation')
+  get url() {
     return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
-  }),
+  }
 
   append(frame) {
     const timestamp = new Date(Math.floor(frame.Timestamp / 1000000));
@@ -61,7 +64,7 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
         percent: percent(taskMemoryUsed / 1024 / 1024, stats.reservedMemory),
       });
     }
-  },
+  }
 
   pause() {
     const ts = new Date();
@@ -71,22 +74,26 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
       task.memory.pushObject(empty(ts));
       task.cpu.pushObject(empty(ts));
     });
-  },
+  }
 
   // Static figures, denominators for stats
-  reservedCPU: alias('allocation.taskGroup.reservedCPU'),
-  reservedMemory: alias('allocation.taskGroup.reservedMemory'),
+  @alias('allocation.taskGroup.reservedCPU') reservedCPU;
+  @alias('allocation.taskGroup.reservedMemory') reservedMemory;
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
-  cpu: computed('allocation', function() {
+  @computed('allocation')
+  get cpu() {
     return RollingArray(this.bufferSize);
-  }),
-  memory: computed('allocation', function() {
-    return RollingArray(this.bufferSize);
-  }),
+  }
 
-  tasks: computed('allocation', function() {
+  @computed('allocation')
+  get memory() {
+    return RollingArray(this.bufferSize);
+  }
+
+  @computed('allocation')
+  get tasks() {
     const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];
     return tasks.map(task => ({
@@ -101,8 +108,8 @@ const AllocationStatsTracker = EmberObject.extend(AbstractStatsTracker, {
       cpu: RollingArray(bufferSize),
       memory: RollingArray(bufferSize),
     }));
-  }),
-});
+  }
+}
 
 export default AllocationStatsTracker;
 

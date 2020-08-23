@@ -117,6 +117,9 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 	case "driver":
 		return drivers.NetIsolationModeTask
 	default:
+		if strings.HasPrefix(strings.ToLower(netMode), "cni/") {
+			return drivers.NetIsolationModeGroup
+		}
 		return drivers.NetIsolationModeHost
 	}
 }
@@ -129,9 +132,17 @@ func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config 
 		return &hostNetworkConfigurator{}, nil
 	}
 
-	switch strings.ToLower(tg.Networks[0].Mode) {
-	case "bridge":
-		return newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
+	netMode := strings.ToLower(tg.Networks[0].Mode)
+	ignorePortMappingHostIP := config.BindWildcardDefaultHostNetwork
+	if len(config.HostNetworks) > 0 {
+		ignorePortMappingHostIP = false
+	}
+
+	switch {
+	case netMode == "bridge":
+		return newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath, ignorePortMappingHostIP)
+	case strings.HasPrefix(netMode, "cni/"):
+		return newCNINetworkConfigurator(log, config.CNIPath, config.CNIInterfacePrefix, config.CNIConfigDir, netMode[4:], ignorePortMappingHostIP)
 	default:
 		return &hostNetworkConfigurator{}, nil
 	}

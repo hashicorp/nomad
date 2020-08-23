@@ -73,6 +73,18 @@ task "example" {
 }
 ```
 
+## Capabilities
+
+The `raw_exec` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature | Implementation |
+| --- | --- |
+| `nomad alloc signal` | true |
+| `nomad alloc exec` | true |
+| filesystem isolation | none |
+| network isolation | host, group |
+| volume mounting | none |
+
 ## Client Requirements
 
 The `raw_exec` driver can run on all supported operating systems. For security

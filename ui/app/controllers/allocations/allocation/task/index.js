@@ -1,47 +1,33 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
+import classic from 'ember-classic-decorator';
 
-export default Controller.extend({
-  otherTaskStates: computed('model.task.taskGroup.tasks.@each.name', function() {
+@classic
+export default class IndexController extends Controller {
+  @computed('model.task.taskGroup.tasks.@each.name')
+  get otherTaskStates() {
     const taskName = this.model.task.name;
     return this.model.allocation.states.rejectBy('name', taskName);
-  }),
+  }
 
-  prestartTaskStates: computed('otherTaskStates.@each.lifecycle', function() {
+  @computed('otherTaskStates.@each.lifecycle')
+  get prestartTaskStates() {
     return this.otherTaskStates.filterBy('task.lifecycle');
-  }),
+  }
 
-  network: alias('model.resources.networks.firstObject'),
-  ports: computed('network.reservedPorts.[]', 'network.dynamicPorts.[]', function() {
-    return (this.get('network.reservedPorts') || [])
-      .map(port => ({
-        name: port.Label,
-        port: port.Value,
-        isDynamic: false,
-      }))
-      .concat(
-        (this.get('network.dynamicPorts') || []).map(port => ({
-          name: port.Label,
-          port: port.Value,
-          isDynamic: true,
-        }))
-      )
-      .sortBy('name');
-  }),
-
-  error: overridable(() => {
+  @overridable(() => {
     // { title, description }
     return null;
-  }),
+  })
+  error;
 
   onDismiss() {
     this.set('error', null);
-  },
+  }
 
-  restartTask: task(function*() {
+  @task(function*() {
     try {
       yield this.model.restart();
     } catch (err) {
@@ -50,5 +36,6 @@ export default Controller.extend({
         description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
-  }),
-});
+  })
+  restartTask;
+}

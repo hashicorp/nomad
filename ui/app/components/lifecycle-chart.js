@@ -1,14 +1,17 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { sort } from '@ember/object/computed';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: '',
+@classic
+@tagName('')
+export default class LifecycleChart extends Component {
+  tasks = null;
+  taskStates = null;
 
-  tasks: null,
-  taskStates: null,
-
-  lifecyclePhases: computed('tasks.@each.lifecycle', 'taskStates.@each.state', function() {
+  @computed('tasks.@each.lifecycle', 'taskStates.@each.state')
+  get lifecyclePhases() {
     const tasksOrStates = this.taskStates || this.tasks;
     const lifecycles = {
       prestarts: [],
@@ -38,16 +41,18 @@ export default Component.extend({
     }
 
     return phases;
-  }),
+  }
 
-  sortedLifecycleTaskStates: sort('taskStates', function(a, b) {
+  @sort('taskStates', function(a, b) {
     return getTaskSortPrefix(a.task).localeCompare(getTaskSortPrefix(b.task));
-  }),
+  })
+  sortedLifecycleTaskStates;
 
-  sortedLifecycleTasks: sort('tasks', function(a, b) {
+  @sort('tasks', function(a, b) {
     return getTaskSortPrefix(a).localeCompare(getTaskSortPrefix(b));
-  }),
-});
+  })
+  sortedLifecycleTasks;
+}
 
 const lifecycleNameSortPrefix = {
   prestart: 0,

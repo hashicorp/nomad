@@ -71,12 +71,15 @@ func (w *prefixStderr) Write(p []byte) (int, error) {
 	}
 
 	// Skip prefix if only writing whitespace
-	if len(bytes.TrimSpace(p)) > 0 {
-		_, err := os.Stderr.Write(w.prefix)
-		if err != nil {
-			return 0, err
-		}
+	if len(bytes.TrimSpace(p)) == 0 {
+		return os.Stderr.Write(p)
 	}
 
-	return os.Stderr.Write(p)
+	// decrease likely hood of partial line writes that may mess up test
+	// indicator success detection
+	buf := make([]byte, 0, len(w.prefix)+len(p))
+	buf = append(buf, w.prefix...)
+	buf = append(buf, p...)
+
+	return os.Stderr.Write(buf)
 }

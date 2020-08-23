@@ -1,6 +1,6 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class Task extends ApplicationSerializer {
   normalize(typeHash, hash) {
     // Lift the reserved resource numbers out of the Resources object
     const resources = hash.Resources;
@@ -11,6 +11,6 @@ export default ApplicationSerializer.extend({
       hash.ReservedEphemeralDisk = hash.EphemeralDisk.SizeMB;
     }
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

@@ -1,8 +1,8 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 
-export default Route.extend({
-  store: service(),
+export default class TaskRoute extends Route {
+  @service store;
 
   model({ task_name }) {
     const allocationQueryParam = this.paramsFor('exec').allocation;
@@ -13,7 +13,7 @@ export default Route.extend({
       taskName: task_name,
       taskGroupName,
     };
-  },
+  }
 
   setupController(controller, { allocationShortId, taskGroupName, taskName }) {
     this.controllerFor('exec').send('setTaskProperties', {
@@ -22,6 +22,6 @@ export default Route.extend({
       taskGroupName,
     });
 
-    this._super(...arguments);
-  },
-});
+    super.setupController(...arguments);
+  }
+}

@@ -814,13 +814,20 @@ func TestTask_UsesConnect(t *testing.T) {
 	t.Run("sidecar proxy", func(t *testing.T) {
 		task := &Task{
 			Name: "connect-proxy-task1",
-			Kind: "connect-proxy:task1",
+			Kind: NewTaskKind(ConnectProxyPrefix, "task1"),
 		}
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
 
-	// todo(shoenig): add native case
+	t.Run("native task", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectNativePrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
@@ -1019,7 +1026,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	tg = &TaskGroup{
 		Networks: []*NetworkResource{
 			{
-				DynamicPorts: []Port{{"http", 0, 80}},
+				DynamicPorts: []Port{{"http", 0, 80, ""}},
 			},
 		},
 		Tasks: []*Task{
@@ -1027,7 +1034,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 				Resources: &Resources{
 					Networks: []*NetworkResource{
 						{
-							DynamicPorts: []Port{{"http", 0, 80}},
+							DynamicPorts: []Port{{"http", 0, 80, ""}},
 						},
 					},
 				},
@@ -1036,7 +1043,6 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	err = tg.Validate(j)
 	require.Contains(t, err.Error(), "Port label http already in use")
-	require.Contains(t, err.Error(), "Port mapped to 80 already in use")
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
@@ -1132,6 +1138,153 @@ func TestTaskGroup_Validate(t *testing.T) {
 	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
 	require.Contains(t, err.Error(), expected)
 
+}
+
+func TestTaskGroupNetwork_Validate(t *testing.T) {
+	cases := []struct {
+		TG          *TaskGroup
+		ErrContains string
+	}{
+		{
+			TG: &TaskGroup{
+				Name: "group-static-value-ok",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "ok",
+								Value: 65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-value-ok",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "ok",
+								Value: 65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-to-ok",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "ok",
+								To:    65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-to-ok",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "ok",
+								To:    65535,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-value-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "too-high",
+								Value: 65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-value-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "too-high",
+								Value: 65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-static-to-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "too-high",
+								To:    65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "group-dynamic-to-too-high",
+				Networks: Networks{
+					&NetworkResource{
+						DynamicPorts: []Port{
+							{
+								Label: "too-high",
+								To:    65536,
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "greater than",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.TG.Name, func(t *testing.T) {
+			err := tc.TG.validateNetworks()
+			t.Logf("%s -> %v", tc.TG.Name, err)
+			if tc.ErrContains == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.ErrContains)
+		})
+	}
 }
 
 func TestTask_Validate(t *testing.T) {
@@ -2325,7 +2478,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         100,
-				ReservedPorts: []Port{{"ssh", 22, 0}},
+				ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 			},
 		},
 	}
@@ -2337,7 +2490,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				IP:            "10.0.0.1",
 				MBits:         50,
-				ReservedPorts: []Port{{"web", 80, 0}},
+				ReservedPorts: []Port{{"web", 80, 0, ""}},
 			},
 		},
 	}
@@ -2355,7 +2508,7 @@ func TestResource_Add(t *testing.T) {
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         150,
-				ReservedPorts: []Port{{"ssh", 22, 0}, {"web", 80, 0}},
+				ReservedPorts: []Port{{"ssh", 22, 0, ""}, {"web", 80, 0, ""}},
 			},
 		},
 	}
@@ -2371,7 +2524,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        50,
-				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}},
+				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}},
 			},
 		},
 	}
@@ -2379,7 +2532,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        25,
-				DynamicPorts: []Port{{"admin", 0, 8080}},
+				DynamicPorts: []Port{{"admin", 0, 8080, ""}},
 			},
 		},
 	}
@@ -2397,7 +2550,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        75,
-				DynamicPorts: []Port{{"http", 0, 80}, {"https", 0, 443}, {"admin", 0, 8080}},
+				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
 			},
 		},
 	}
@@ -2420,7 +2573,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22, 0}},
+					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 				},
 			},
 		},
@@ -2441,7 +2594,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         20,
-					ReservedPorts: []Port{{"ssh", 22, 0}},
+					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 				},
 			},
 		},
@@ -2463,7 +2616,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22, 0}},
+					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
 				},
 			},
 		},
@@ -2708,10 +2861,14 @@ func TestService_Validate(t *testing.T) {
 	// Base service should be valid
 	require.NoError(t, s.Validate())
 
-	// Native Connect should be valid
+	// Native Connect requires task name on service
 	s.Connect = &ConsulConnect{
 		Native: true,
 	}
+	require.Error(t, s.Validate())
+
+	// Native Connect should work with task name on service set
+	s.TaskName = "testtask"
 	require.NoError(t, s.Validate())
 
 	// Native Connect + Sidecar should be invalid
@@ -3563,7 +3720,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 	}
 	stoppedAlloc := MockAlloc()
 	desiredDesc := "Desired desc"
-	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost)
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDesc, AllocClientStatusLost, "followup-eval-id")
 	preemptedAlloc := MockAlloc()
 	preemptingAllocID := uuid.Generate()
 	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
@@ -3575,6 +3732,7 @@ func TestPlan_NormalizeAllocations(t *testing.T) {
 		ID:                 stoppedAlloc.ID,
 		DesiredDescription: desiredDesc,
 		ClientStatus:       AllocClientStatusLost,
+		FollowupEvalID:     "followup-eval-id",
 	}
 	assert.Equal(t, expectedStoppedAlloc, actualStoppedAlloc)
 	actualPreemptedAlloc := plan.NodePreemptions[preemptedAlloc.NodeID][0]
@@ -3593,7 +3751,7 @@ func TestPlan_AppendStoppedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	alloc := MockAlloc()
 	desiredDesc := "Desired desc"
 
-	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost)
+	plan.AppendStoppedAlloc(alloc, desiredDesc, AllocClientStatusLost, "")
 
 	expectedAlloc := new(Allocation)
 	*expectedAlloc = *alloc
@@ -4584,6 +4742,33 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 	}
 }
 
+func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
+	// Setup a system Job with stop_after_client_disconnect set, which is invalid
+	job := testJob()
+	job.Type = JobTypeSystem
+	stop := 1 * time.Minute
+	job.TaskGroups[0].StopAfterClientDisconnect = &stop
+
+	err := job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "stop_after_client_disconnect can only be set in batch and service jobs")
+
+	// Modify the job to a batch job with an invalid stop_after_client_disconnect value
+	job.Type = JobTypeBatch
+	invalid := -1 * time.Minute
+	job.TaskGroups[0].StopAfterClientDisconnect = &invalid
+
+	err = job.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "stop_after_client_disconnect must be a positive value")
+
+	// Modify the job to a batch job with a valid stop_after_client_disconnect value
+	job.Type = JobTypeBatch
+	job.TaskGroups[0].StopAfterClientDisconnect = &stop
+	err = job.Validate()
+	require.NoError(t, err)
+}
+
 func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
 	d := &ParameterizedJobConfig{}
 	d.Canonicalize()
@@ -4806,12 +4991,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 			},
 			true,
@@ -4822,12 +5007,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.0",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4838,12 +5023,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         40,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4854,12 +5039,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}, {"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4870,7 +5055,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
@@ -4886,12 +5071,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0}},
+					ReservedPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"notweb", 80, 0}},
+					ReservedPorts: []Port{{"notweb", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4902,12 +5087,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}, {"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}, {"web", 80, 0, ""}},
 				},
 			},
 			false,
@@ -4918,7 +5103,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:           "10.0.0.1",
@@ -4934,12 +5119,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0}},
+					DynamicPorts: []Port{{"web", 80, 0, ""}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"notweb", 80, 0}},
+					DynamicPorts: []Port{{"notweb", 80, 0, ""}},
 				},
 			},
 			false,
@@ -5237,4 +5422,129 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 
 		require.Equal(out, tc.Parsed)
 	}
+}
+
+func TestMultiregion_CopyCanonicalize(t *testing.T) {
+	require := require.New(t)
+
+	emptyOld := &Multiregion{}
+	expected := &Multiregion{
+		Strategy: &MultiregionStrategy{},
+		Regions:  []*MultiregionRegion{},
+	}
+
+	old := emptyOld.Copy()
+	old.Canonicalize()
+	require.Equal(old, expected)
+	require.False(old.Diff(expected))
+
+	nonEmptyOld := &Multiregion{
+		Strategy: &MultiregionStrategy{
+			MaxParallel: 2,
+			OnFailure:   "fail_all",
+		},
+		Regions: []*MultiregionRegion{
+			{
+				Name:        "west",
+				Count:       2,
+				Datacenters: []string{"west-1", "west-2"},
+				Meta:        map[string]string{},
+			},
+			{
+				Name:        "east",
+				Count:       1,
+				Datacenters: []string{"east-1"},
+				Meta:        map[string]string{},
+			},
+		},
+	}
+
+	old = nonEmptyOld.Copy()
+	old.Canonicalize()
+	require.Equal(old, nonEmptyOld)
+	require.False(old.Diff(nonEmptyOld))
+}
+
+func TestNodeResources_Merge(t *testing.T) {
+	res := &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(64000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+		},
+	}
+
+	res.Merge(&NodeResources{
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Mode: "foo/bar",
+			},
+		},
+	})
+
+	require.Exactly(t, &NodeResources{
+		Cpu: NodeCpuResources{
+			CpuShares: int64(32000),
+		},
+		Memory: NodeMemoryResources{
+			MemoryMB: int64(100000),
+		},
+		Networks: Networks{
+			{
+				Device: "foo",
+			},
+			{
+				Mode: "foo/bar",
+			},
+		},
+	}, res)
+}
+
+func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
+	a := &AllocatedSharedResources{
+		Networks: []*NetworkResource{
+			{
+				IP: "127.0.0.1",
+				DynamicPorts: []Port{
+					{
+						Label: "http",
+						Value: 22222,
+						To:    8080,
+					},
+				},
+				ReservedPorts: []Port{
+					{
+						Label: "redis",
+						Value: 6783,
+						To:    6783,
+					},
+				},
+			},
+		},
+	}
+
+	a.Canonicalize()
+	require.Exactly(t, AllocatedPorts{
+		{
+			Label:  "http",
+			Value:  22222,
+			To:     8080,
+			HostIP: "127.0.0.1",
+		},
+		{
+			Label:  "redis",
+			Value:  6783,
+			To:     6783,
+			HostIP: "127.0.0.1",
+		},
+	}, a.Ports)
 }

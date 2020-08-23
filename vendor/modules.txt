@@ -60,7 +60,7 @@ github.com/apparentlymart/go-textseg/v12/textseg
 # github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 ## explicit
 github.com/armon/circbuf
-# github.com/armon/go-metrics v0.3.3
+# github.com/armon/go-metrics v0.3.4
 ## explicit
 github.com/armon/go-metrics
 github.com/armon/go-metrics/circonus
@@ -127,9 +127,15 @@ github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/checkpoint-restore/go-criu v0.0.0-20190109184317-bdb7599cd87b
-## explicit
-github.com/checkpoint-restore/go-criu/rpc
+# github.com/checkpoint-restore/go-criu/v4 v4.1.0
+github.com/checkpoint-restore/go-criu/v4
+github.com/checkpoint-restore/go-criu/v4/rpc
+# github.com/cilium/ebpf v0.0.0-20200702112145-1c8d4c9ef775
+github.com/cilium/ebpf
+github.com/cilium/ebpf/asm
+github.com/cilium/ebpf/internal
+github.com/cilium/ebpf/internal/btf
+github.com/cilium/ebpf/internal/unix
 # github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible
 github.com/circonus-labs/circonus-gometrics
 github.com/circonus-labs/circonus-gometrics/api
@@ -141,7 +147,6 @@ github.com/circonus-labs/circonusllhist
 ## explicit
 github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/console v1.0.0
-## explicit
 github.com/containerd/console
 # github.com/containerd/containerd v1.3.2
 github.com/containerd/containerd/errdefs
@@ -170,12 +175,8 @@ github.com/coreos/go-iptables/iptables
 # github.com/coreos/go-semver v0.3.0
 ## explicit
 github.com/coreos/go-semver/semver
-# github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
-github.com/coreos/go-systemd/dbus
-github.com/coreos/go-systemd/util
-# github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
-## explicit
-github.com/coreos/pkg/dlopen
+# github.com/coreos/go-systemd/v22 v22.1.0
+github.com/coreos/go-systemd/v22/dbus
 # github.com/cyphar/filepath-securejoin v0.2.3-0.20190205144030-7efe413b52e1
 ## explicit
 github.com/cyphar/filepath-securejoin
@@ -256,6 +257,11 @@ github.com/docker/go-metrics
 # github.com/docker/go-units v0.4.0
 ## explicit
 github.com/docker/go-units
+# github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
+## explicit
+github.com/docker/libnetwork/resolvconf
+github.com/docker/libnetwork/resolvconf/dns
+github.com/docker/libnetwork/types
 # github.com/dustin/go-humanize v1.0.0
 ## explicit
 github.com/dustin/go-humanize
@@ -273,11 +279,11 @@ github.com/fsouza/go-dockerclient
 # github.com/go-ole/go-ole v1.2.1
 github.com/go-ole/go-ole
 github.com/go-ole/go-ole/oleutil
-# github.com/godbus/dbus v4.1.0+incompatible => github.com/godbus/dbus v5.0.1+incompatible
-github.com/godbus/dbus
+# github.com/godbus/dbus/v5 v5.0.3
+github.com/godbus/dbus/v5
 # github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/proto
-# github.com/golang/protobuf v1.3.4
+# github.com/golang/protobuf v1.4.2 => github.com/golang/protobuf v1.3.4
 ## explicit
 github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/proto
@@ -354,10 +360,10 @@ github.com/hashicorp/consul-template/signals
 github.com/hashicorp/consul-template/template
 github.com/hashicorp/consul-template/version
 github.com/hashicorp/consul-template/watch
-# github.com/hashicorp/consul/api v1.4.0
+# github.com/hashicorp/consul/api v1.4.1-0.20200730220852-12f574c9de39
 ## explicit
 github.com/hashicorp/consul/api
-# github.com/hashicorp/consul/sdk v0.4.0
+# github.com/hashicorp/consul/sdk v0.5.0
 ## explicit
 github.com/hashicorp/consul/sdk/freeport
 github.com/hashicorp/consul/sdk/testutil
@@ -412,7 +418,7 @@ github.com/hashicorp/go-memdb
 # github.com/hashicorp/go-msgpack v1.1.5
 ## explicit
 github.com/hashicorp/go-msgpack/codec
-# github.com/hashicorp/go-multierror v1.0.1-0.20191120192120-72917a1559e1
+# github.com/hashicorp/go-multierror v1.1.0
 ## explicit
 github.com/hashicorp/go-multierror
 # github.com/hashicorp/go-plugin v1.0.2-0.20191004171845-809113480b55
@@ -467,7 +473,7 @@ github.com/hashicorp/hcl/v2/json
 github.com/hashicorp/logutils
 # github.com/hashicorp/mdns v1.0.1
 github.com/hashicorp/mdns
-# github.com/hashicorp/memberlist v0.1.6
+# github.com/hashicorp/memberlist v0.2.2
 ## explicit
 github.com/hashicorp/memberlist
 # github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
@@ -483,7 +489,7 @@ github.com/hashicorp/raft
 # github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 ## explicit
 github.com/hashicorp/raft-boltdb
-# github.com/hashicorp/serf v0.8.5
+# github.com/hashicorp/serf v0.9.3
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
@@ -510,6 +516,9 @@ github.com/hpcloud/tail/ratelimiter
 github.com/hpcloud/tail/util
 github.com/hpcloud/tail/watch
 github.com/hpcloud/tail/winfile
+# github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07
+## explicit
+github.com/ishidawataru/sctp
 # github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
 github.com/jmespath/go-jmespath
 # github.com/joyent/triton-go v0.0.0-20190112182421-51ffac552869
@@ -547,7 +556,7 @@ github.com/mattn/go-shellwords
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/miekg/dns v1.1.26
 github.com/miekg/dns
-# github.com/mitchellh/cli v1.0.0
+# github.com/mitchellh/cli v1.1.0
 ## explicit
 github.com/mitchellh/cli
 # github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
@@ -574,10 +583,11 @@ github.com/mitchellh/hashstructure
 github.com/mitchellh/mapstructure
 # github.com/mitchellh/reflectwalk v1.0.1
 github.com/mitchellh/reflectwalk
+# github.com/moby/sys/mountinfo v0.1.3
+github.com/moby/sys/mountinfo
 # github.com/morikuni/aec v1.0.0
 github.com/morikuni/aec
-# github.com/mrunalp/fileutils v0.0.0-20171103030105-7d4729fb3618
-## explicit
+# github.com/mrunalp/fileutils v0.0.0-20200520151820-abd8a0e76976
 github.com/mrunalp/fileutils
 # github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2
 github.com/nicolai86/scaleway-sdk
@@ -625,30 +635,35 @@ github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/opencontainers/runc v1.0.0-rc7
+# github.com/opencontainers/runc v1.0.0-rc92
 ## explicit
 github.com/opencontainers/runc/libcontainer
 github.com/opencontainers/runc/libcontainer/apparmor
 github.com/opencontainers/runc/libcontainer/cgroups
+github.com/opencontainers/runc/libcontainer/cgroups/devices
+github.com/opencontainers/runc/libcontainer/cgroups/ebpf
+github.com/opencontainers/runc/libcontainer/cgroups/ebpf/devicefilter
 github.com/opencontainers/runc/libcontainer/cgroups/fs
+github.com/opencontainers/runc/libcontainer/cgroups/fs2
+github.com/opencontainers/runc/libcontainer/cgroups/fscommon
 github.com/opencontainers/runc/libcontainer/cgroups/systemd
 github.com/opencontainers/runc/libcontainer/configs
 github.com/opencontainers/runc/libcontainer/configs/validate
 github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/intelrdt
 github.com/opencontainers/runc/libcontainer/keys
-github.com/opencontainers/runc/libcontainer/mount
+github.com/opencontainers/runc/libcontainer/logs
 github.com/opencontainers/runc/libcontainer/nsenter
 github.com/opencontainers/runc/libcontainer/seccomp
+github.com/opencontainers/runc/libcontainer/specconv
 github.com/opencontainers/runc/libcontainer/stacktrace
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
 github.com/opencontainers/runc/libcontainer/utils
-# github.com/opencontainers/runtime-spec v1.0.2-0.20200307132014-f49fed0d6290
-## explicit
+github.com/opencontainers/runc/types
+# github.com/opencontainers/runtime-spec v1.0.3-0.20200728170252-4d89ac9fbff6
 github.com/opencontainers/runtime-spec/specs-go
-# github.com/opencontainers/selinux v1.4.1-0.20200311111634-a2f0d9c2aafc
-## explicit
+# github.com/opencontainers/selinux v1.6.0
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalk
@@ -662,12 +677,11 @@ github.com/pierrec/lz4/internal/xxh32
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/posener/complete v1.2.1
+# github.com/posener/complete v1.2.3
 ## explicit
 github.com/posener/complete
 github.com/posener/complete/cmd
 github.com/posener/complete/cmd/install
-github.com/posener/complete/match
 # github.com/prometheus/client_golang v1.4.0
 ## explicit
 github.com/prometheus/client_golang/prometheus
@@ -712,7 +726,6 @@ github.com/shirou/gopsutil/mem
 github.com/shirou/gopsutil/net
 github.com/shirou/gopsutil/process
 # github.com/sirupsen/logrus v1.6.0
-## explicit
 github.com/sirupsen/logrus
 # github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 ## explicit
@@ -732,7 +745,7 @@ github.com/stretchr/objx
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
-# github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8
+# github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 ## explicit
 github.com/syndtr/gocapability/capability
 # github.com/tencentcloud/tencentcloud-sdk-go v3.0.83+incompatible
@@ -749,7 +762,6 @@ github.com/ulikunitz/xz/internal/hash
 github.com/ulikunitz/xz/internal/xlog
 github.com/ulikunitz/xz/lzma
 # github.com/vishvananda/netlink v1.1.0
-## explicit
 github.com/vishvananda/netlink
 github.com/vishvananda/netlink/nl
 # github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df
@@ -774,6 +786,8 @@ github.com/vmware/govmomi/vim25/progress
 github.com/vmware/govmomi/vim25/soap
 github.com/vmware/govmomi/vim25/types
 github.com/vmware/govmomi/vim25/xml
+# github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243
+github.com/willf/bitset
 # github.com/zclconf/go-cty v1.4.1
 ## explicit
 github.com/zclconf/go-cty/cty
@@ -865,7 +879,7 @@ golang.org/x/oauth2/jwt
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20200523222454-059865788121
+# golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1
 ## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
@@ -1064,3 +1078,4 @@ honnef.co/go/tools/version
 # github.com/hashicorp/nomad/api => ./api
 # github.com/kr/pty => github.com/kr/pty v1.1.5
 # github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
+# github.com/golang/protobuf => github.com/golang/protobuf v1.3.4

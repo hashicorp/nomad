@@ -6,7 +6,7 @@
       "source_ami": "ami-7ad76705",
       "instance_type": "t2.medium",
       "ssh_username": "ubuntu",
-      "iam_instance_profile": "packer-builder",
+      "iam_instance_profile": "packer_build",
       "ami_name": "nomad-e2e-{{timestamp}}",
       "tags": {
         "OS": "Ubuntu"
@@ -14,6 +14,11 @@
     }
   ],
   "provisioners": [
+    {
+      "type": "file",
+      "source": "./linux/install-nomad",
+      "destination": "/tmp/install-nomad"
+    },
     {
       "type": "shell",
       "script": "./linux/setup.sh"

@@ -1,15 +1,9 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class ServiceSerializer extends ApplicationSerializer {
+  attrs = {
     connect: 'Connect',
-  },
+  };
 
-  normalize(typeHash, hash) {
-    if (!hash.Tags) {
-      hash.Tags = [];
-    }
-
-    return this._super(typeHash, hash);
-  },
-});
+  arrayNullOverrides = ['Tags'];
+}

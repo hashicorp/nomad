@@ -31,5 +31,9 @@ module.exports = {
     'attribute-indentation': false,
     'block-indentation': false,
     quotes: false,
+
+    // remove when moving from extending `recommended` to `octane`
+    'no-curly-component-invocation': true,
+    'no-implicit-this': true,
   },
 };

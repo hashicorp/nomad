@@ -1,12 +1,12 @@
-  {{#if (gt lifecyclePhases.length 1)}}
+  {{#if (gt this.lifecyclePhases.length 1)}}
     <div class="boxed-section" data-test-lifecycle-chart>
       <div class="boxed-section-head">
-        Task Lifecycle {{if taskStates "Status" "Configuration"}}
+        Task Lifecycle {{if this.taskStates "Status" "Configuration"}}
       </div>
       <div class="boxed-section-body lifecycle-chart">
 
         <div class="lifecycle-phases">
-          {{#each lifecyclePhases as |phase|}}
+          {{#each this.lifecyclePhases as |phase|}}
             <div class="lifecycle-phase {{if phase.isActive "is-active"}} {{if (eq phase.name "Main") "main" "prestart"}}" data-test-lifecycle-phase>
               <div class="name" data-test-name>{{phase.name}}</div>
             </div>
@@ -17,12 +17,12 @@
         </div>
 
         <div class="lifecycle-chart-rows">
-          {{#if tasks}}
-            {{#each sortedLifecycleTasks as |task|}}
+          {{#if this.tasks}}
+            {{#each this.sortedLifecycleTasks as |task|}}
               <LifecycleChartRow @task={{task}} />
             {{/each}}
           {{else}}
-            {{#each sortedLifecycleTaskStates as |state|}}
+            {{#each this.sortedLifecycleTaskStates as |state|}}
               <LifecycleChartRow @taskState={{state}} @task={{state.task}} />
             {{/each}}
           {{/if}}

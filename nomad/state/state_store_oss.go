@@ -7,6 +7,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// enterpriseInit is used to initialize the state store with enterprise
+// objects.
+func (s *StateStore) enterpriseInit() error {
+	return nil
+}
+
 // namespaceExists returns whether a namespace exists
 func (s *StateStore) namespaceExists(txn *memdb.Txn, namespace string) (bool, error) {
 	return namespace == structs.DefaultNamespace, nil

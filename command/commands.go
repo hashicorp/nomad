@@ -201,6 +201,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
+		"debug": func() (cli.Command, error) {
+			return &OperatorDebugCommand{
+				Meta: meta,
+			}, nil
+		},
 		"deployment": func() (cli.Command, error) {
 			return &DeploymentCommand{
 				Meta: meta,
@@ -233,6 +239,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"deployment status": func() (cli.Command, error) {
 			return &DeploymentStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+		"deployment unblock": func() (cli.Command, error) {
+			return &DeploymentUnblockCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -474,6 +485,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator debug": func() (cli.Command, error) {
+			return &OperatorDebugCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator keygen": func() (cli.Command, error) {
 			return &OperatorKeygenCommand{
 				Meta: meta,
@@ -514,6 +530,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator snapshot inspect": func() (cli.Command, error) {
 			return &OperatorSnapshotInspectCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator snapshot restore": func() (cli.Command, error) {
+			return &OperatorSnapshotRestoreCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -708,6 +729,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"volume detach": func() (cli.Command, error) {
+			return &VolumeDetachCommand{
+				Meta: meta,
+			}, nil
+		},
 	}
 
 	deprecated := map[string]cli.CommandFactory{
@@ -781,5 +807,10 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 	for k, v := range deprecated {
 		all[k] = v
 	}
+
+	for k, v := range EntCommands(metaPtr, agentUi) {
+		all[k] = v
+	}
+
 	return all
 }

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+	"net/url"
 	"sort"
 	"time"
 )
@@ -53,8 +55,13 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 	return meta, err
 }
 
-func (v *CSIVolumes) Deregister(id string, w *WriteOptions) error {
-	_, err := v.client.delete("/v1/volume/csi/"+id, nil, w)
+func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
+	return err
+}
+
+func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, w)
 	return err
 }
 

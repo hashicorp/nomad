@@ -2,16 +2,18 @@ import Component from '@ember/component';
 import { task } from 'ember-concurrency';
 import { ForbiddenError } from '@ember-data/adapter/error';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: '',
+@classic
+@tagName('')
+export default class Title extends Component {
+  job = null;
+  title = null;
 
-  job: null,
-  title: null,
+  handleError() {}
 
-  handleError() {},
-
-  stopJob: task(function*() {
+  @task(function*() {
     try {
       const job = this.job;
       yield job.stop();
@@ -23,9 +25,10 @@ export default Component.extend({
         description: 'Your ACL token does not grant permission to stop jobs.',
       });
     }
-  }),
+  })
+  stopJob;
 
-  startJob: task(function*() {
+  @task(function*() {
     const job = this.job;
     const definition = yield job.fetchRawDefinition();
 
@@ -49,5 +52,6 @@ export default Component.extend({
         description: message,
       });
     }
-  }),
-});
+  })
+  startJob;
+}

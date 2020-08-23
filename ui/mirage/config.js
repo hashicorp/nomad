@@ -157,6 +157,14 @@ export default function() {
     return deployment ? this.serialize(deployment) : new Response(200, {}, 'null');
   });
 
+  this.get(
+    '/job/:id/scale',
+    withBlockingSupport(function({ jobScales }, { params }) {
+      const obj = jobScales.findBy({ jobId: params.id });
+      return this.serialize(jobScales.findBy({ jobId: params.id }));
+    })
+  );
+
   this.post('/job/:id/periodic/force', function(schema, { params }) {
     // Create the child job
     const parent = schema.jobs.find(params.id);
@@ -170,6 +178,10 @@ export default function() {
     });
 
     return okEmpty();
+  });
+
+  this.post('/job/:id/scale', function({ jobs }, { params }) {
+    return this.serialize(jobs.find(params.id));
   });
 
   this.delete('/job/:id', function(schema, { params }) {
@@ -309,6 +321,24 @@ export default function() {
       ServerRegion: firstRegion ? firstRegion.id : null,
       Members: this.serialize(agents.all()),
     };
+  });
+
+  this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
+    const serverId = queryParams.server_id;
+    const clientId = queryParams.client_id;
+
+    if (serverId && clientId)
+      return new Response(400, {}, 'specify a client or a server, not both');
+    if (serverId && !agents.findBy({ name: serverId }))
+      return new Response(400, {}, 'specified server does not exist');
+    if (clientId && !nodes.find(clientId))
+      return new Response(400, {}, 'specified client does not exist');
+
+    if (queryParams.plain) {
+      return logFrames.join('');
+    }
+
+    return logEncode(logFrames, logFrames.length - 1);
   });
 
   this.get('/status/leader', function(schema) {

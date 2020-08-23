@@ -1,0 +1,20 @@
+<div class="boxed-section">
+  <div class="boxed-section-head">
+    <PowerSelect
+      data-test-level-switcher
+      @tagName="div"
+      @triggerClass="is-compact pull-left"
+      @options={{this.levels}}
+      @selected={{this.level}}
+      @searchEnabled={{false}}
+      @onChange={{action this.setLevel}} as |level|>
+      <span class="ember-power-select-prefix">Level: </span>{{capitalize level}}
+    </PowerSelect>
+    <button data-test-toggle class="button is-white is-compact pull-right" {{action this.toggleStream}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
+      {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
+    </button>
+  </div>
+  <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">
+    <StreamingFile @logger={{this.logger}} @isStreaming={{this.isStreaming}} />
+  </div>
+</div>

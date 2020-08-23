@@ -3,14 +3,14 @@ import { collect } from '@ember/object/computed';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend(WithWatchers, {
+export default class AllocationsRoute extends Route.extend(WithWatchers) {
   startWatchers(controller, model) {
     if (!model) return;
 
     controller.set('watchers', {
       model: this.watch.perform(model),
     });
-  },
+  }
 
   resetController(controller, isExiting) {
     if (isExiting) {
@@ -20,8 +20,8 @@ export default Route.extend(WithWatchers, {
         qpHealth: '',
       });
     }
-  },
+  }
 
-  watch: watchRecord('plugin'),
-  watchers: collect('watch'),
-});
+  @watchRecord('plugin') watch;
+  @collect('watch') watchers;
+}

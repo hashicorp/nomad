@@ -84,6 +84,9 @@ type TestAgent struct {
 
 	// Enterprise specifies if the agent is enterprise or not
 	Enterprise bool
+
+	// shutdown is set to true if agent has been shutdown
+	shutdown bool
 }
 
 // NewTestAgent returns a started agent with the given name and
@@ -223,7 +226,8 @@ RETRY:
 
 func (a *TestAgent) start() (*Agent, error) {
 	if a.LogOutput == nil {
-		a.LogOutput = testlog.NewWriter(a.T)
+		prefix := fmt.Sprintf("%v:%v ", a.Config.BindAddr, a.Config.Ports.RPC)
+		a.LogOutput = testlog.NewPrefixWriter(a.T, prefix)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
@@ -258,6 +262,11 @@ func (a *TestAgent) start() (*Agent, error) {
 // Shutdown stops the agent and removes the data directory if it is
 // managed by the test agent.
 func (a *TestAgent) Shutdown() error {
+	if a.shutdown {
+		return nil
+	}
+	a.shutdown = true
+
 	defer freeport.Return(a.ports)
 
 	defer func() {

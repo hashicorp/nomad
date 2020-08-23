@@ -3,11 +3,11 @@ import { collect } from '@ember/object/computed';
 import { watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
-export default Route.extend(WithWatchers, {
+export default class IndexRoute extends Route.extend(WithWatchers) {
   startWatchers(controller) {
     controller.set('watcher', this.watch.perform());
-  },
+  }
 
-  watch: watchAll('node'),
-  watchers: collect('watch'),
-});
+  @watchAll('node') watch;
+  @collect('watch') watchers;
+}

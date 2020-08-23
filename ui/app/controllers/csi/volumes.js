@@ -1,11 +1,13 @@
 import Controller from '@ember/controller';
 
-export default Controller.extend({
-  queryParams: {
-    volumeNamespace: 'namespace',
-  },
+export default class VolumesController extends Controller {
+  queryParams = [
+    {
+      volumeNamespace: 'namespace',
+    },
+  ];
 
-  isForbidden: false,
+  isForbidden = false;
 
-  volumeNamespace: 'default',
-});
+  volumeNamespace = 'default';
+}

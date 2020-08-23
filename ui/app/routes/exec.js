@@ -4,14 +4,16 @@ import notifyError from 'nomad-ui/utils/notify-error';
 import { collect } from '@ember/object/computed';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import { watchRecord, watchRelationship } from 'nomad-ui/utils/properties/watch';
+import classic from 'ember-classic-decorator';
 
-export default Route.extend(WithWatchers, {
-  store: service(),
-  token: service(),
+@classic
+export default class ExecRoute extends Route.extend(WithWatchers) {
+  @service store;
+  @service token;
 
   serialize(model) {
     return { job_name: model.get('plainId') };
-  },
+  }
 
   model(params, transition) {
     const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
@@ -28,22 +30,22 @@ export default Route.extend(WithWatchers, {
     const xtermImport = import('xterm').then(module => module.Terminal);
 
     return Promise.all([jobPromise, xtermImport]);
-  },
+  }
 
   setupController(controller, [job, Terminal]) {
-    this._super(controller, job);
+    super.setupController(controller, job);
     controller.setUpTerminal(Terminal);
-  },
+  }
 
   startWatchers(controller, model) {
     if (model) {
       controller.set('watcher', this.watch.perform(model));
       controller.set('watchAllocations', this.watchAllocations.perform(model));
     }
-  },
+  }
 
-  watch: watchRecord('job'),
-  watchAllocations: watchRelationship('allocations'),
+  @watchRecord('job') watch;
+  @watchRelationship('allocations') watchAllocations;
 
-  watchers: collect('watch', 'watchAllocations'),
-});
+  @collect('watch', 'watchAllocations') watchers;
+}

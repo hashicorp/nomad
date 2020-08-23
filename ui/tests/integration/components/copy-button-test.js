@@ -11,7 +11,7 @@ module('Integration | Component | copy-button', function(hooks) {
   setupRenderingTest(hooks);
 
   test('it shows the copy icon by default', async function(assert) {
-    await render(hbs`{{copy-button class='copy-button'}}`);
+    await render(hbs`<CopyButton @class="copy-button" />`);
 
     assert.dom('.copy-button .icon-is-copy-action').exists();
   });
@@ -19,7 +19,7 @@ module('Integration | Component | copy-button', function(hooks) {
   test('it shows the success icon on success and resets afterward', async function(assert) {
     const clock = sinon.useFakeTimers();
 
-    await render(hbs`{{copy-button class='copy-button'}}`);
+    await render(hbs`<CopyButton @class="copy-button" />`);
 
     await click('.copy-button button');
     await triggerCopySuccess('.copy-button button');
@@ -35,7 +35,7 @@ module('Integration | Component | copy-button', function(hooks) {
   });
 
   test('it shows the error icon on error', async function(assert) {
-    await render(hbs`{{copy-button class='copy-button'}}`);
+    await render(hbs`<CopyButton @class="copy-button" />`);
 
     await click('.copy-button button');
     await triggerCopyError('.copy-button button');

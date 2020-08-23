@@ -7,6 +7,7 @@ import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
+import classic from 'ember-classic-decorator';
 
 const STATUS_ORDER = {
   pending: 1,
@@ -16,50 +17,54 @@ const STATUS_ORDER = {
   lost: 5,
 };
 
-export default Model.extend({
-  token: service(),
+@classic
+export default class Allocation extends Model {
+  @service token;
 
-  shortId: shortUUIDProperty('id'),
-  job: belongsTo('job'),
-  node: belongsTo('node'),
-  name: attr('string'),
-  taskGroupName: attr('string'),
-  resources: fragment('resources'),
-  allocatedResources: fragment('resources'),
-  jobVersion: attr('number'),
+  @shortUUIDProperty('id') shortId;
+  @belongsTo('job') job;
+  @belongsTo('node') node;
+  @attr('string') name;
+  @attr('string') taskGroupName;
+  @fragment('resources') resources;
+  @fragment('resources') allocatedResources;
+  @attr('number') jobVersion;
 
-  modifyIndex: attr('number'),
-  modifyTime: attr('date'),
+  @attr('number') modifyIndex;
+  @attr('date') modifyTime;
 
-  createIndex: attr('number'),
-  createTime: attr('date'),
+  @attr('number') createIndex;
+  @attr('date') createTime;
 
-  clientStatus: attr('string'),
-  desiredStatus: attr('string'),
-  statusIndex: computed('clientStatus', function() {
+  @attr('string') clientStatus;
+  @attr('string') desiredStatus;
+
+  @computed('clientStatus')
+  get statusIndex() {
     return STATUS_ORDER[this.clientStatus] || 100;
-  }),
+  }
 
-  isRunning: equal('clientStatus', 'running'),
-  isMigrating: attr('boolean'),
+  @equal('clientStatus', 'running') isRunning;
+  @attr('boolean') isMigrating;
 
   // An allocation model created from any allocation list response will be lacking
   // many properties (some of which can always be null). This is an indicator that
   // the allocation needs to be reloaded to get the complete allocation state.
-  isPartial: none('allocationTaskGroup'),
+  @none('allocationTaskGroup') isPartial;
 
   // When allocations are server-side rescheduled, a paper trail
   // is left linking all reschedule attempts.
-  previousAllocation: belongsTo('allocation', { inverse: 'nextAllocation' }),
-  nextAllocation: belongsTo('allocation', { inverse: 'previousAllocation' }),
+  @belongsTo('allocation', { inverse: 'nextAllocation' }) previousAllocation;
+  @belongsTo('allocation', { inverse: 'previousAllocation' }) nextAllocation;
 
-  preemptedAllocations: hasMany('allocation', { inverse: 'preemptedByAllocation' }),
-  preemptedByAllocation: belongsTo('allocation', { inverse: 'preemptedAllocations' }),
-  wasPreempted: attr('boolean'),
+  @hasMany('allocation', { inverse: 'preemptedByAllocation' }) preemptedAllocations;
+  @belongsTo('allocation', { inverse: 'preemptedAllocations' }) preemptedByAllocation;
+  @attr('boolean') wasPreempted;
 
-  followUpEvaluation: belongsTo('evaluation'),
+  @belongsTo('evaluation') followUpEvaluation;
 
-  statusClass: computed('clientStatus', function() {
+  @computed('clientStatus')
+  get statusClass() {
     const classMap = {
       pending: 'is-pending',
       running: 'is-primary',
@@ -69,25 +74,29 @@ export default Model.extend({
     };
 
     return classMap[this.clientStatus] || 'is-dark';
-  }),
+  }
 
-  isOld: computed('jobVersion', 'job.version', function() {
+  @computed('jobVersion', 'job.version')
+  get isOld() {
     return this.jobVersion !== this.get('job.version');
-  }),
+  }
 
-  taskGroup: computed('isOld', 'jobTaskGroup', 'allocationTaskGroup', function() {
+  @computed('isOld', 'jobTaskGroup', 'allocationTaskGroup')
+  get taskGroup() {
     if (!this.isOld) return this.jobTaskGroup;
     return this.allocationTaskGroup;
-  }),
+  }
 
-  jobTaskGroup: computed('taskGroupName', 'job.taskGroups.[]', function() {
+  @computed('taskGroupName', 'job.taskGroups.[]')
+  get jobTaskGroup() {
     const taskGroups = this.get('job.taskGroups');
     return taskGroups && taskGroups.findBy('name', this.taskGroupName);
-  }),
+  }
 
-  allocationTaskGroup: fragment('task-group', { defaultValue: null }),
+  @fragment('task-group', { defaultValue: null }) allocationTaskGroup;
 
-  unhealthyDrivers: computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]', function() {
+  @computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]')
+  get unhealthyDrivers() {
     const taskGroupUnhealthyDrivers = this.get('taskGroup.drivers');
     const nodeUnhealthyDrivers = this.get('node.unhealthyDriverNames');
 
@@ -96,41 +105,38 @@ export default Model.extend({
     }
 
     return [];
-  }),
+  }
 
-  states: fragmentArray('task-state'),
-  rescheduleEvents: fragmentArray('reschedule-event'),
+  @fragmentArray('task-state') states;
+  @fragmentArray('reschedule-event') rescheduleEvents;
 
-  hasRescheduleEvents: computed('rescheduleEvents.length', 'nextAllocation', function() {
+  @computed('rescheduleEvents.length', 'nextAllocation')
+  get hasRescheduleEvents() {
     return this.get('rescheduleEvents.length') > 0 || this.nextAllocation;
-  }),
+  }
 
-  hasStoppedRescheduling: computed(
-    'nextAllocation',
-    'clientStatus',
-    'followUpEvaluation.content',
-    function() {
-      return (
-        !this.get('nextAllocation.content') &&
-        !this.get('followUpEvaluation.content') &&
-        this.clientStatus === 'failed'
-      );
-    }
-  ),
+  @computed('nextAllocation', 'clientStatus', 'followUpEvaluation.content')
+  get hasStoppedRescheduling() {
+    return (
+      !this.get('nextAllocation.content') &&
+      !this.get('followUpEvaluation.content') &&
+      this.clientStatus === 'failed'
+    );
+  }
 
   stop() {
     return this.store.adapterFor('allocation').stop(this);
-  },
+  }
 
   restart(taskName) {
     return this.store.adapterFor('allocation').restart(this, taskName);
-  },
+  }
 
   ls(path) {
     return this.store.adapterFor('allocation').ls(this, path);
-  },
+  }
 
   stat(path) {
     return this.store.adapterFor('allocation').stat(this, path);
-  },
-});
+  }
+}

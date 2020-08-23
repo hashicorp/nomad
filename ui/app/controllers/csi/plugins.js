@@ -1,5 +1,5 @@
 import Controller from '@ember/controller';
 
-export default Controller.extend({
-  isForbidden: false,
-});
+export default class PluginsController extends Controller {
+  isForbidden = false;
+}

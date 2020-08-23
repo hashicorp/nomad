@@ -5,19 +5,22 @@ import { guidFor } from '@ember/object/internals';
 import { run } from '@ember/runloop';
 import d3Shape from 'd3-shape';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend(WindowResizable, {
-  classNames: ['chart', 'gauge-chart'],
+@classic
+@classNames('chart', 'gauge-chart')
+export default class GaugeChart extends Component.extend(WindowResizable) {
+  value = null;
+  complement = null;
+  total = null;
+  chartClass = 'is-info';
 
-  value: null,
-  complement: null,
-  total: null,
-  chartClass: 'is-info',
+  width = 0;
+  height = 0;
 
-  width: 0,
-  height: 0,
-
-  percent: computed('value', 'complement', 'total', function() {
+  @computed('value', 'complement', 'total')
+  get percent() {
     assert(
       'Provide complement OR total to GaugeChart, not both.',
       this.complement != null || this.total != null
@@ -28,23 +31,27 @@ export default Component.extend(WindowResizable, {
     }
 
     return this.value / this.total;
-  }),
+  }
 
-  fillId: computed(function() {
+  @computed
+  get fillId() {
     return `gauge-chart-fill-${guidFor(this)}`;
-  }),
+  }
 
-  maskId: computed(function() {
+  @computed
+  get maskId() {
     return `gauge-chart-mask-${guidFor(this)}`;
-  }),
+  }
 
-  radius: computed('width', function() {
+  @computed('width')
+  get radius() {
     return this.width / 2;
-  }),
+  }
 
-  weight: 4,
+  weight = 4;
 
-  backgroundArc: computed('radius', 'weight', function() {
+  @computed('radius', 'weight')
+  get backgroundArc() {
     const { radius, weight } = this;
     const arc = d3Shape
       .arc()
@@ -54,9 +61,10 @@ export default Component.extend(WindowResizable, {
       .startAngle(-Math.PI / 2)
       .endAngle(Math.PI / 2);
     return arc();
-  }),
+  }
 
-  valueArc: computed('radius', 'weight', 'percent', function() {
+  @computed('radius', 'weight', 'percent')
+  get valueArc() {
     const { radius, weight, percent } = this;
 
     const arc = d3Shape
@@ -67,18 +75,18 @@ export default Component.extend(WindowResizable, {
       .startAngle(-Math.PI / 2)
       .endAngle(-Math.PI / 2 + Math.PI * percent);
     return arc();
-  }),
+  }
 
   didInsertElement() {
     this.updateDimensions();
-  },
+  }
 
   updateDimensions() {
     const width = this.element.querySelector('svg').clientWidth;
     this.setProperties({ width, height: width / 2 });
-  },
+  }
 
   windowResizeHandler() {
     run.once(this, this.updateDimensions);
-  },
-});
+  }
+}

@@ -3,41 +3,47 @@ import { alias, none, and } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import attr from 'ember-data/attr';
 import { fragment, fragmentOwner, fragmentArray } from 'ember-data-model-fragments/attributes';
+import classic from 'ember-classic-decorator';
 
-export default Fragment.extend({
-  allocation: fragmentOwner(),
+@classic
+export default class TaskState extends Fragment {
+  @fragmentOwner() allocation;
 
-  name: attr('string'),
-  state: attr('string'),
-  startedAt: attr('date'),
-  finishedAt: attr('date'),
-  failed: attr('boolean'),
+  @attr('string') name;
+  @attr('string') state;
+  @attr('date') startedAt;
+  @attr('date') finishedAt;
+  @attr('boolean') failed;
 
-  isActive: none('finishedAt'),
-  isRunning: and('isActive', 'allocation.isRunning'),
+  @none('finishedAt') isActive;
+  @and('isActive', 'allocation.isRunning') isRunning;
 
-  isConnectProxy: computed('task.kind', function() {
+  @computed('task.kind')
+  get isConnectProxy() {
     return (this.get('task.kind') || '').startsWith('connect-proxy:');
-  }),
+  }
 
-  task: computed('name', 'allocation.taskGroup.tasks.[]', function() {
+  @computed('name', 'allocation.taskGroup.tasks.[]')
+  get task() {
     const tasks = this.get('allocation.taskGroup.tasks');
     return tasks && tasks.findBy('name', this.name);
-  }),
+  }
 
-  driver: alias('task.driver'),
+  @alias('task.driver') driver;
 
   // TaskState represents a task running on a node, so in addition to knowing the
   // driver via the task, the health of the driver is also known via the node
-  driverStatus: computed('task.driver', 'allocation.node.drivers.[]', function() {
+  @computed('task.driver', 'allocation.node.drivers.[]')
+  get driverStatus() {
     const nodeDrivers = this.get('allocation.node.drivers') || [];
     return nodeDrivers.findBy('name', this.get('task.driver'));
-  }),
+  }
 
-  resources: fragment('resources'),
-  events: fragmentArray('task-event'),
+  @fragment('resources') resources;
+  @fragmentArray('task-event') events;
 
-  stateClass: computed('state', function() {
+  @computed('state')
+  get stateClass() {
     const classMap = {
       pending: 'is-pending',
       running: 'is-primary',
@@ -46,9 +52,9 @@ export default Fragment.extend({
     };
 
     return classMap[this.state] || 'is-dark';
-  }),
+  }
 
   restart() {
     return this.allocation.restart(this.name);
-  },
-});
+  }
+}

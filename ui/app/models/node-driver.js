@@ -1,26 +1,30 @@
+import classic from 'ember-classic-decorator';
 import Fragment from 'ember-data-model-fragments/fragment';
-import { computed, get } from '@ember/object';
+import { get, computed } from '@ember/object';
 import attr from 'ember-data/attr';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 import { fragment } from 'ember-data-model-fragments/attributes';
 
-export default Fragment.extend({
-  node: fragmentOwner(),
+@classic
+export default class NodeDriver extends Fragment {
+  @fragmentOwner() node;
 
-  attributes: fragment('node-attributes'),
+  @fragment('node-attributes') attributes;
 
-  attributesShort: computed('name', 'attributes.attributesStructured', function() {
+  @computed('name', 'attributes.attributesStructured')
+  get attributesShort() {
     const attributes = this.get('attributes.attributesStructured');
     return get(attributes, `driver.${this.name}`);
-  }),
+  }
 
-  name: attr('string'),
-  detected: attr('boolean', { defaultValue: false }),
-  healthy: attr('boolean', { defaultValue: false }),
-  healthDescription: attr('string'),
-  updateTime: attr('date'),
+  @attr('string') name;
+  @attr('boolean', { defaultValue: false }) detected;
+  @attr('boolean', { defaultValue: false }) healthy;
+  @attr('string') healthDescription;
+  @attr('date') updateTime;
 
-  healthClass: computed('healthy', function() {
+  @computed('healthy')
+  get healthClass() {
     return this.healthy ? 'running' : 'failed';
-  }),
-});
+  }
+}

@@ -239,6 +239,32 @@ func (a *Agent) Health() (*AgentHealthResponse, error) {
 	return nil, fmt.Errorf("unable to unmarshal response with status %d: %v", resp.StatusCode, err)
 }
 
+// Host returns debugging context about the agent's host operating system
+func (a *Agent) Host(serverID, nodeID string, q *QueryOptions) (*HostDataResponse, error) {
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+
+	if serverID != "" {
+		q.Params["server_id"] = serverID
+	}
+
+	if nodeID != "" {
+		q.Params["node_id"] = nodeID
+	}
+
+	var resp HostDataResponse
+	_, err := a.client.query("/v1/agent/host", &resp, q)
+	if err != nil {
+		return nil, err
+	}
+
+	return &resp, nil
+}
+
 // Monitor returns a channel which will receive streaming logs from the agent
 // Providing a non-nil stopCh can be used to close the connection and stop log streaming
 func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
@@ -437,4 +463,23 @@ type AgentHealth struct {
 
 	// Message describes why the agent is unhealthy
 	Message string `json:"message"`
+}
+
+type HostData struct {
+	OS          string
+	Network     []map[string]string
+	ResolvConf  string
+	Hosts       string
+	Environment map[string]string
+	Disk        map[string]DiskUsage
+}
+
+type DiskUsage struct {
+	DiskMB int64
+	UsedMB int64
+}
+
+type HostDataResponse struct {
+	AgentID  string
+	HostData *HostData `json:",omitempty"`
 }

@@ -49,3 +49,21 @@ func TestOperatorSnapshotSave_Works(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, meta.Index)
 }
+
+func TestOperatorSnapshotSave_Fails(t *testing.T) {
+	t.Parallel()
+
+	ui := new(cli.MockUi)
+	cmd := &OperatorSnapshotSaveCommand{Meta: Meta{Ui: ui}}
+
+	// Fails on misuse
+	code := cmd.Run([]string{"some", "bad", "args"})
+	require.Equal(t, 1, code)
+	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
+	ui.ErrorWriter.Reset()
+
+	// Fails when specified file does not exist
+	code = cmd.Run([]string{"/unicorns/leprechauns"})
+	require.Equal(t, 1, code)
+	require.Contains(t, ui.ErrorWriter.String(), "no such file")
+}

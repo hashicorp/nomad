@@ -246,7 +246,7 @@ func getNodeForRpc(snap *state.StateSnapshot, nodeID string) (*structs.Node, err
 	}
 
 	if node == nil {
-		return nil, fmt.Errorf("Unknown node %q", nodeID)
+		return nil, fmt.Errorf("%w %s", structs.ErrUnknownNode, nodeID)
 	}
 
 	if err := nodeSupportsRpc(node); err != nil {

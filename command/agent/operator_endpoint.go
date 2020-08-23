@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/api"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 )
@@ -292,6 +293,8 @@ func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request
 	switch req.Method {
 	case "GET":
 		return s.snapshotSaveRequest(resp, req)
+	case "PUT", "POST":
+		return s.snapshotRestoreRequest(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -331,7 +334,7 @@ func (s *HTTPServer) snapshotSaveRequest(resp http.ResponseWriter, req *http.Req
 		httpPipe.Close()
 	}()
 
-	errCh := make(chan HTTPCodedError, 1)
+	errCh := make(chan HTTPCodedError, 2)
 	go func() {
 		defer cancel()
 
@@ -360,6 +363,94 @@ func (s *HTTPServer) snapshotSaveRequest(resp http.ResponseWriter, req *http.Req
 			!strings.Contains(err.Error(), "closed") &&
 			!strings.Contains(err.Error(), "EOF") {
 			errCh <- CodedError(500, err.Error())
+			return
+		}
+
+		errCh <- nil
+	}()
+
+	handler(handlerPipe)
+	cancel()
+	codedErr := <-errCh
+
+	return nil, codedErr
+}
+
+func (s *HTTPServer) snapshotRestoreRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	args := &structs.SnapshotRestoreRequest{}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var handler structs.StreamingRpcHandler
+	var handlerErr error
+
+	if server := s.agent.Server(); server != nil {
+		handler, handlerErr = server.StreamingRpcHandler("Operator.SnapshotRestore")
+	} else if client := s.agent.Client(); client != nil {
+		handler, handlerErr = client.RemoteStreamingRpcHandler("Operator.SnapshotRestore")
+	} else {
+		handlerErr = fmt.Errorf("misconfigured connection")
+	}
+
+	if handlerErr != nil {
+		return nil, CodedError(500, handlerErr.Error())
+	}
+
+	httpPipe, handlerPipe := net.Pipe()
+	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
+
+	// Create a goroutine that closes the pipe if the connection closes.
+	ctx, cancel := context.WithCancel(req.Context())
+	defer cancel()
+	go func() {
+		<-ctx.Done()
+		httpPipe.Close()
+	}()
+
+	errCh := make(chan HTTPCodedError, 2)
+	go func() {
+		defer cancel()
+
+		// Send the request
+		if err := encoder.Encode(args); err != nil {
+			errCh <- CodedError(500, err.Error())
+			return
+		}
+
+		go func() {
+			var wrapper cstructs.StreamErrWrapper
+			bytes := make([]byte, 1024)
+
+			for {
+				n, err := req.Body.Read(bytes)
+				if n > 0 {
+					wrapper.Payload = bytes[:n]
+					err := encoder.Encode(wrapper)
+					if err != nil {
+						errCh <- CodedError(500, err.Error())
+						return
+					}
+				}
+				if err != nil {
+					wrapper.Payload = nil
+					wrapper.Error = &cstructs.RpcError{Message: err.Error()}
+					err := encoder.Encode(wrapper)
+					if err != nil {
+						errCh <- CodedError(500, err.Error())
+					}
+					return
+				}
+			}
+		}()
+
+		var res structs.SnapshotRestoreResponse
+		if err := decoder.Decode(&res); err != nil {
+			errCh <- CodedError(500, err.Error())
+			return
+		}
+
+		if res.ErrorMsg != "" {
+			errCh <- CodedError(res.ErrorCode, res.ErrorMsg)
 			return
 		}
 

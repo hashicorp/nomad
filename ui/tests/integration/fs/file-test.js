@@ -13,19 +13,26 @@ module('Integration | Component | fs/file', function(hooks) {
 
   hooks.beforeEach(function() {
     this.server = new Pretender(function() {
-      this.get('/v1/regions', () => [200, {}, JSON.stringify(['default'])]);
+      this.get('/v1/agent/members', () => [
+        200,
+        {},
+        JSON.stringify({ ServerRegion: 'default', Members: [] }),
+      ]);
+      this.get('/v1/regions', () => [200, {}, JSON.stringify(['default', 'region-2'])]);
       this.get('/v1/client/fs/stream/:alloc_id', () => [200, {}, logEncode(['Hello World'], 0)]);
       this.get('/v1/client/fs/cat/:alloc_id', () => [200, {}, 'Hello World']);
       this.get('/v1/client/fs/readat/:alloc_id', () => [200, {}, 'Hello World']);
     });
+    this.system = this.owner.lookup('service:system');
   });
 
   hooks.afterEach(function() {
     this.server.shutdown();
+    window.localStorage.clear();
   });
 
   const commonTemplate = hbs`
-    {{fs/file allocation=allocation taskState=taskState file=file stat=stat}}
+    <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}} />
   `;
 
   const fileStat = (type, size = 0) => ({
@@ -145,6 +152,26 @@ module('Integration | Component | fs/file', function(hooks) {
     );
   });
 
+  test('The view raw button respects the active region', async function(assert) {
+    const region = 'region-2';
+    window.localStorage.nomadActiveRegion = region;
+
+    const props = makeProps(fileStat('image/png', 1234));
+    this.setProperties(props);
+
+    await this.system.get('regions');
+    await render(commonTemplate);
+
+    const rawLink = find('[data-test-log-action="raw"]');
+    assert.equal(
+      rawLink.getAttribute('href'),
+      `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
+        `${props.taskState.name}/${props.file}`
+      )}&region=${region}`,
+      'Raw link href includes the active region from local storage'
+    );
+  });
+
   test('The head and tail buttons are not shown when the file is small', async function(assert) {
     const props = makeProps(fileStat('application/json', 5000));
     this.setProperties(props);
@@ -184,9 +211,9 @@ module('Integration | Component | fs/file', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      {{#fs/file allocation=allocation taskState=taskState file=file stat=stat}}
+      <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}}>
         <div data-test-yield-spy>Yielded content</div>
-      {{/fs/file}}
+      </Fs::File>
     `);
 
     assert.ok(

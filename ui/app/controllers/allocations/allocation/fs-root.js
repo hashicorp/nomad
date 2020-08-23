@@ -1,3 +1,3 @@
 import FSController from './fs';
 
-export default FSController.extend();
+export default class FsRootController extends FSController {}

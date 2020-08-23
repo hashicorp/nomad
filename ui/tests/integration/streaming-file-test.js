@@ -1,5 +1,5 @@
 import { run } from '@ember/runloop';
-import { find, settled } from '@ember/test-helpers';
+import { find, settled, triggerKeyEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -9,6 +9,7 @@ import fetch from 'nomad-ui/utils/fetch';
 import Log from 'nomad-ui/utils/classes/log';
 
 const { assign } = Object;
+const A_KEY = 65;
 
 const stringifyValues = obj =>
   Object.keys(obj).reduce((newObj, key) => {
@@ -107,5 +108,44 @@ module('Integration | Component | streaming file', function(hooks) {
     const request = this.server.handledRequests[0];
     assert.equal(request.url.split('?')[0], url, `URL is ${url}`);
     assert.equal(find('[data-test-output]').textContent, 'Hello World');
+  });
+
+  test('the ctrl+a/cmd+a shortcut selects only the text in the output window', async function(assert) {
+    const url = '/file/endpoint';
+    const params = { path: 'hello/world.txt', offset: 0, limit: 50000 };
+    this.setProperties({
+      logger: makeLogger(url, params),
+      mode: 'head',
+      isStreaming: false,
+    });
+
+    await this.render(hbs`
+      Extra text
+      <StreamingFile @logger={{logger}} @mode={{mode}} @isStreaming={{isStreaming}} />
+      On either side
+    `);
+    await settled();
+
+    // Windows and Linux shortcut
+    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, { ctrlKey: true });
+    assert.equal(
+      window
+        .getSelection()
+        .toString()
+        .trim(),
+      find('[data-test-output]').textContent.trim()
+    );
+
+    window.getSelection().removeAllRanges();
+
+    // MacOS shortcut
+    await triggerKeyEvent('[data-test-output]', 'keydown', A_KEY, { metaKey: true });
+    assert.equal(
+      window
+        .getSelection()
+        .toString()
+        .trim(),
+      find('[data-test-output]').textContent.trim()
+    );
   });
 });

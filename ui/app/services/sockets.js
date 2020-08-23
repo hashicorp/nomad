@@ -2,7 +2,7 @@ import Service from '@ember/service';
 import config from 'nomad-ui/config/environment';
 import { getOwner } from '@ember/application';
 
-export default Service.extend({
+export default class SocketsService extends Service {
   getTaskStateSocket(taskState, command) {
     const mirageEnabled =
       config.environment !== 'production' &&
@@ -34,5 +34,5 @@ export default Service.extend({
           `&command=${encodeURIComponent(`["${command}"]`)}`
       );
     }
-  },
-});
+  }
+}

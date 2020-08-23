@@ -1,18 +1,21 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
 const changeTypes = ['Added', 'Deleted', 'Edited'];
 
-export default Component.extend({
-  classNames: ['job-version', 'boxed-section'],
-
-  version: null,
-  isOpen: false,
+@classic
+@classNames('job-version', 'boxed-section')
+export default class JobVersion extends Component {
+  version = null;
+  isOpen = false;
 
   // Passes through to the job-diff component
-  verbose: true,
+  verbose = true;
 
-  changeCount: computed('version.diff', function() {
+  @computed('version.diff')
+  get changeCount() {
     const diff = this.get('version.diff');
     const taskGroups = diff.TaskGroups || [];
 
@@ -25,14 +28,13 @@ export default Component.extend({
       taskGroups.reduce(arrayOfFieldChanges, 0) +
       (taskGroups.mapBy('Tasks') || []).reduce(flatten, []).reduce(arrayOfFieldChanges, 0)
     );
-  }),
+  }
 
-  actions: {
-    toggleDiff() {
-      this.toggleProperty('isOpen');
-    },
-  },
-});
+  @action
+  toggleDiff() {
+    this.toggleProperty('isOpen');
+  }
+}
 
 const flatten = (accumulator, array) => accumulator.concat(array);
 const countChanges = (total, field) => (changeTypes.includes(field.Type) ? total + 1 : total);

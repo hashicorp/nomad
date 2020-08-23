@@ -1,0 +1,149 @@
+---
+layout: docs
+page_title: APM
+sidebar_title: APM
+description: APM plugins provide metric data points describing the resources current state.
+---
+
+# APM Plugins
+
+APMs are used to store metrics about an applications performance and current
+state. The APM (Application Performance Management) plugin is responsible for
+querying the APM and returning a value which will be used to determine if
+scaling should occur.
+
+## Prometheus APM Plugin
+
+Use [Prometheus][prometheus_io] metrics to scale your Nomad job task groups or
+cluster. The query performed on Prometheus should return a single value. You can
+use the [scalar][prometheus_scaler_function] function in your query to achieve
+this.
+
+### Agent Configuration Options
+
+```hcl
+apm "prometheus" {
+  driver = "prometheus"
+
+  config = {
+    address = "http://prometheus.my.endpoint.io:9090"
+  }
+}
+```
+
+- `address` `(string: "http://127.0.0.1:9090")` - The address of the Prometheus
+  endpoint used to perform queries.
+
+### Policy Configuration Options
+
+```hcl
+check {
+  source = "prometheus"
+  query  = "scalar(avg((haproxy_server_current_sessions{backend=\"http_back\"}) and (haproxy_server_up{backend=\"http_back\"} == 1)))"
+  ...
+}
+```
+
+## Nomad APM Plugin
+
+The Nomad APM plugin allows querying the Nomad API for metric data. This provides
+an immediate starting point without addition applications but comes at the price
+of efficiency. When using this APM, it is advised to monitor Nomad carefully
+ensuring it is not put under excessive load pressure.
+
+### Agent Configuration Options
+
+```hcl
+apm "nomad-apm" {
+  driver = "nomad-apm"
+}
+```
+
+When using a Nomad cluster with ACLs enabled, following ACL policy will provide the appropriate
+permissions for obtaining task group metrics:
+
+```hcl
+namespace "default" {
+  policy       = "read"
+  capabilities = ["read-job"]
+}
+```
+
+In order to obtain cluster level metrics, the following ACL policy will be required:
+
+```hcl
+node {
+  policy = "read"
+}
+
+namespace "default" {
+  policy       = "read"
+  capabilities = ["read-job"]
+}
+```
+
+### Policy Configuration Options - Task Groups
+
+The Nomad APM allows querying Nomad to understand the current resource usage of
+a task group.
+
+```hcl
+check {
+  source = "nomad-apm"
+  query  = "avg_cpu"
+  ...
+}
+```
+
+Querying Nomad task group metrics is be done using the `operation_metric` syntax,
+where valid operations are:
+
+- `avg` - returns the average of the metric value across allocations in the task
+  group.
+
+- `min` - returns the lowest metric value among the allocations in the task group.
+
+- `max` - returns the highest metric value among the allocations in the task
+  group.
+
+- `sum` - returns the sum of all the metric values for the allocations in the
+  task group.
+
+The metric value can be:
+
+- `cpu` - CPU usage as reported by the `nomad.client.allocs.cpu.total_percent`
+  metric.
+
+- `memory` - Memory usage as reported by the `nomad.client.allocs.memory.usage`
+  metric.
+
+### Policy Configuration Options - Client Nodes
+
+The Nomad APM allows querying Nomad to understand the current allocated resource
+as a percentage of the total available.
+
+```hcl
+check {
+  source = "nomad-apm"
+  query  = "percentage-allocated_cpu"
+  ...
+}
+```
+
+Querying Nomad client node metrics is be done using the `operation_metric` syntax,
+where valid operations are:
+
+- `percentage-allocated` - returns the allocated percentage of the desired
+  resource.
+
+The metric value can be:
+
+- `cpu` - allocated CPU as reported by calculating total allocatable against the
+  total allocated by the scheduler.
+
+- `memory` - allocated memory as reported by calculating total allocatable against
+  the total allocated by the scheduler.
+
+[prometheus_io]: https://prometheus.io/
+[prometheus_scaler_function]: https://prometheus.io/docs/prometheus/latest/querying/functions/#scalar
+[nomad_telemetry_stanza]: /docs/configuration/telemetry#inlinecode-publish_allocation_metrics

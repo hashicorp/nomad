@@ -44,11 +44,11 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     this.setProperties(props(job));
 
     await this.render(hbs`
-      {{job-page/parts/task-groups
-        job=job
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        gotoTaskGroup=gotoTaskGroup}}
+      <JobPage::Parts::TaskGroups
+        @job={{job}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @gotoTaskGroup={{gotoTaskGroup}} />
     `);
 
     assert.equal(
@@ -76,11 +76,11 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     this.setProperties(props(job));
 
     await this.render(hbs`
-      {{job-page/parts/task-groups
-        job=job
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        gotoTaskGroup=gotoTaskGroup}}
+      <JobPage::Parts::TaskGroups
+        @job={{job}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @gotoTaskGroup={{gotoTaskGroup}} />
     `);
 
     const taskGroupRow = find('[data-test-task-group]');
@@ -141,11 +141,11 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     );
 
     await this.render(hbs`
-      {{job-page/parts/task-groups
-        job=job
-        sortProperty=sortProperty
-        sortDescending=sortDescending
-        gotoTaskGroup=gotoTaskGroup}}
+      <JobPage::Parts::TaskGroups
+        @job={{job}}
+        @sortProperty={{sortProperty}}
+        @sortDescending={{sortDescending}}
+        @gotoTaskGroup={{gotoTaskGroup}} />
     `);
 
     await click('[data-test-task-group]');

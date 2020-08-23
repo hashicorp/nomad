@@ -1,8 +1,13 @@
 .chart.line-chart {
   display: block;
   height: 100%;
+  position: relative;
 
-  svg {
+  &.with-annotations {
+    margin-top: 2em;
+  }
+
+  & > svg {
     display: block;
     height: 100%;
     width: 100%;
@@ -41,6 +46,15 @@
       stroke: lighten($grey-blue, 10%);
       stroke-dasharray: 5 10;
     }
+  }
+
+  .line-chart-annotations {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    left: 0;
+    top: 0;
+    pointer-events: none;
   }
 
   @each $name, $pair in $colors {

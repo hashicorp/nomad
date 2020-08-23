@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/ioutil"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -222,6 +223,17 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 	return cr, nil
 }
 
+// SnapshotRestore is used to restore a running nomad cluster to an original
+// state.
+func (op *Operator) SnapshotRestore(in io.Reader, q *WriteOptions) (*WriteMeta, error) {
+	wm, err := op.c.write("/v1/operator/snapshot", in, nil, q)
+	if err != nil {
+		return nil, err
+	}
+
+	return wm, nil
+}
+
 type License struct {
 	// The unique identifier of the license
 	LicenseID string
@@ -265,10 +277,22 @@ type LicenseReply struct {
 }
 
 func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, error) {
-	wm, err := op.c.write("/v1/operator/license", license, nil, q)
+	r, err := op.c.newRequest("PUT", "/v1/operator/license")
 	if err != nil {
 		return nil, err
 	}
+	r.setWriteOptions(q)
+	r.body = strings.NewReader(license)
+
+	rtt, resp, err := requireOK(op.c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	wm := &WriteMeta{RequestTime: rtt}
+	parseWriteMeta(resp, wm)
+
 	return wm, nil
 }
 

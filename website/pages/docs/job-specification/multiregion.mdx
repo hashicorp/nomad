@@ -1,0 +1,272 @@
+---
+layout: docs
+page_title: multiregion Stanza - Job Specification
+sidebar_title: multiregion <sup>Beta</sup>
+description: |-
+  The "multiregion" stanza specifies that a job will be deployed to multiple federated
+  regions.
+---
+
+# `multiregion` Stanza
+
+<Placement
+  groups={[
+    ['job', 'multiregion'],
+  ]}
+/>
+
+~> **Enterprise Only!** This functionality only exists in Nomad
+Enterprise. This is not present in the open source version of Nomad.
+
+The `multiregion` stanza specifies that a job will be deployed to multiple
+[federated regions]. If omitted, the job will be deployed to a single region
+— the one specified by the `region` field or the `-region` command line
+flag to `nomad job run`.
+
+Federated Nomad clusters are members of the same gossip cluster but not the
+same raft cluster; they don't share their data stores. Each region in a
+multiregion deployment gets an independent copy of the job, parameterized with
+the values of the `region` stanza. Nomad regions coordinate to rollout each
+region's deployment using rules determined by the `strategy` stanza.
+
+```hcl
+job "docs" {
+  multiregion {
+
+    strategy {
+      max_parallel = 1
+      on_failure   = "fail_all"
+    }
+
+    region "west" {
+      count = 2
+      datacenters = ["west-1"]
+      meta {
+        my-key = "my-value-west"
+      }
+    }
+
+    region "east" {
+      count = 5
+      datacenters = ["east-1", "east-2"]
+      meta {
+        my-key = "my-value-east"
+      }
+    }
+  }
+}
+```
+
+## Multiregion Deployment States
+
+A single region deployment using one of the various [upgrade strategies]
+begins in the `running` state, and ends in the `successful` state, the
+`canceled` state (if another deployment supersedes it before it it's
+complete), or the `failed` state. A failed single region deployment may
+automatically revert to the previous version of the job if its `update`
+stanza has the [`auto_revert`][update-auto-revert] setting.
+
+In a multiregion deployment, regions begin in the `pending` state. This allows
+Nomad to determine that all regions have accepted the job before
+continuing. At this point up to `max_parallel` regions will enter `running` at
+a time. When each region completes its local deployment, it enters a `blocked`
+state where it waits until the last region has completed the deployment. The
+final region will unblock the regions to mark them as `successful`.
+
+## `multiregion` Parameters
+
+- `strategy` <code>([Strategy](#strategy-parameters): nil)</code> - Specifies
+  a rollout strategy for the regions.
+
+- `region` <code>([Region](#region-parameters): nil)</code> - Specifies the
+  parameters for a specific region. This can be specified multiple times to
+  define the set of regions for the multiregion deployment. Regions are
+  ordered; depending on the rollout strategy Nomad may roll out to each region
+  in order or to several at a time.
+
+~> **Note:** Regions can be added, but regions that are removed will not be
+stopped and will be ignored by the deployment. This behavior may change before
+multiregion deployments are considered GA.
+
+### `strategy` Parameters
+
+- `max_parallel` `(int: <optional>)` - Specifies the maximum number
+  of region deployments that a multiregion will have in a running state at a
+  time. By default, Nomad will deploy all regions simultaneously.
+
+- `on_failure` `(string: <optional>)` - Specifies the behavior when a region
+  deployment fails. Available options are `"fail_all"`, `"fail_local"`, or
+  the default (empty `""`). This field and its interactions with the job's
+  [`update` stanza] is described in the [examples] below.
+
+  Each region within a multiregion deployment follows the `auto_revert`
+  strategy of its own `update` stanza (if any). The multiregion `on_failure`
+  field tells Nomad how many other regions should be marked as failed when one
+  region's deployment fails:
+
+  - The default behavior is that the failed region and all regions that come
+    after it in order are marked as failed.
+
+  - If `on_failure: "fail_all"` is set, all regions will be marked as
+    failed. If all regions have already completed their deployments, it's
+    possible that a region may transition from `blocked` to `successful` while
+    another region is failing. This successful region cannot be rolled back.
+
+  - If `on_failure: "fail_local"` is set, only the failed region will be marked
+    as failed. The remaining regions will move on to `blocked` status. At this
+    point, you'll need to manually unblock regions to mark them successful
+    with the [`nomad deployment unblock`] command or correct the conditions
+    that led to the failure and resubmit the job.
+
+~> For `system` jobs, only [`max_parallel`](#max_parallel) is enforced. The
+`system` scheduler will be updated to support `on_failure` when the the
+[`update` stanza] is fully supported for system jobs in a future release.
+
+### `region` Parameters
+
+The name of a region must match the name of one of the [federated regions].
+
+- `count` `(int: <optional>)` - Specifies a count override for task groups in
+  the region. If a task group specifies a `count = 0`, its count will be
+  replaced with this value. If a task group specifies its own `count` or omits
+  the `count` field, this value will be ignored. This value must be
+  non-negative.
+
+- `datacenters` `(array<string>: <optional>)` - A list of
+  datacenters in the region which are eligible for task placement. If not
+  provided, the `datacenters` field of the job will be used.
+
+- `meta` - `Meta: nil` - The meta stanza allows for user-defined arbitrary
+  key-value pairs. The meta specified for each region will be merged with the
+  meta stanza at the job level.
+
+As described above, the parameters for each region replace the default values
+for the field with the same name for each region.
+
+## `multiregion` Examples
+
+The following examples only show the `multiregion` stanza and the other
+stanzas it might be interacting with.
+
+### Max Parallel
+
+This example shows the use of `max_parallel`. This job will deploy first to
+the "north" and "south" regions. If either "north" finishes and enters the
+`blocked` state, then "east" will be next. At most 2 regions will be in a
+`running` state at any given time.
+
+```hcl
+multiregion {
+
+  strategy {
+    max_parallel = 2
+  }
+
+  region "north" {}
+  region "south" {}
+  region "east" {}
+  region "west" {}
+}
+```
+
+### Rollback Regions
+
+This example shows the default value of `on_failure`. Because `max_parallel = 1`,
+the "north" region will deploy first, followed by "south", and so on. But
+supposing the "east" region failed, both the "east" region and the "west"
+region would be marked `failed`. Because the job has an `update` stanza with
+`auto_revert=true`, both regions would then rollback to the previous job
+version. The "north" and "south" regions would remain `blocked` until an
+operator intervenes.
+
+```hcl
+multiregion {
+
+  strategy {
+    on_failure = ""
+    max_parallel = 1
+  }
+
+  region "north" {}
+  region "south" {}
+  region "east" {}
+  region "west" {}
+}
+
+update {
+  auto_revert = true
+}
+```
+
+### Override Counts
+
+This example shows how the `count` field override the default `count` of the
+task group. The job the deploys 2 "worker" and 1 "controller" allocations to
+the "west" region, and 5 "worker" and 1 "controller" task groups to the "east"
+region.
+
+```hcl
+multiregion {
+
+    region "west" {
+      count = 2
+    }
+
+    region "east" {
+      count = 5
+    }
+  }
+}
+
+group "worker" {
+  count = 0
+}
+
+group "controller" {
+  count = 1
+}
+```
+
+### Merging Meta
+
+This example shows how the `meta` is merged with the `meta` field of the job,
+group, and task. A task in "west" will have the values
+`first-key="regional-west"`, `second-key="group-level"`, whereas a task in
+"east" will have the values `first-key="job-level"`,
+`second-key="group-level"`.
+
+```hcl
+multiregion {
+
+    region "west" {
+      meta {
+        first-key = "regional-west"
+        second-key = "regional-west"
+      }
+    }
+
+    region "east" {
+      meta {
+        second-key = "regional-east"
+      }
+    }
+  }
+}
+
+meta {
+  first-key = "job-level"
+}
+
+group "worker" {
+  meta {
+    second-key = "group-level"
+  }
+}
+```
+
+[federated regions]: https://learn.hashicorp.com/nomad/operating-nomad/federation
+[`update` stanza]: /docs/job-specification/update
+[update-auto-revert]: /docs/job-specification/update#auto_revert
+[examples]: #multiregion-examples
+[upgrade strategies]: https://learn.hashicorp.com/nomad?track=update-strategies#update-strategies
+[`nomad deployment unblock`]: /docs/commands/deployment/unblock

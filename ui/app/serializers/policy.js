@@ -1,8 +1,8 @@
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
+export default class Policy extends ApplicationSerializer {
   normalize(typeHash, hash) {
     hash.ID = hash.Name;
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

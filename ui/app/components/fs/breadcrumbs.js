@@ -1,18 +1,21 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { isEmpty } from '@ember/utils';
+import { classNames, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  tagName: 'nav',
-  classNames: ['breadcrumb'],
+@classic
+@tagName('nav')
+@classNames('breadcrumb')
+export default class Breadcrumbs extends Component {
+  'data-test-fs-breadcrumbs' = true;
 
-  'data-test-fs-breadcrumbs': true,
+  allocation = null;
+  taskState = null;
+  path = null;
 
-  allocation: null,
-  taskState: null,
-  path: null,
-
-  breadcrumbs: computed('path', function() {
+  @computed('path')
+  get breadcrumbs() {
     const breadcrumbs = this.path
       .split('/')
       .reject(isEmpty)
@@ -39,5 +42,5 @@ export default Component.extend({
     }
 
     return breadcrumbs;
-  }),
-});
+  }
+}

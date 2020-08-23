@@ -4,9 +4,9 @@
   </div>
   <div class="boxed-section-body is-full-bleed">
     <ListTable
-      @source={{sortedTaskGroups}}
-      @sortProperty={{sortProperty}}
-      @sortDescending={{sortDescending}} as |t|>
+      @source={{this.sortedTaskGroups}}
+      @sortProperty={{this.sortProperty}}
+      @sortDescending={{this.sortDescending}} as |t|>
       <t.head>
         <t.sort-by @prop="name">Name</t.sort-by>
         <t.sort-by @prop="count">Count</t.sort-by>
@@ -19,7 +19,7 @@
       <t.body as |row|>
         <TaskGroupRow data-test-task-group
           @taskGroup={{row.model}}
-          @onClick={{action gotoTaskGroup row.model}} />
+          @onClick={{action this.gotoTaskGroup row.model}} />
       </t.body>
     </ListTable>
   </div>

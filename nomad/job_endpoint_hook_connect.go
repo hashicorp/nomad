@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -20,13 +21,15 @@ var (
 
 	// connectDriverConfig is the driver configuration used by the injected
 	// connect proxy sidecar task
-	connectDriverConfig = map[string]interface{}{
-		"image": "${meta.connect.sidecar_image}",
-		"args": []interface{}{
-			"-c", structs.EnvoyBootstrapPath,
-			"-l", "${meta.connect.log_level}",
-			"--disable-hot-restart",
-		},
+	connectDriverConfig = func() map[string]interface{} {
+		return map[string]interface{}{
+			"image": "${meta.connect.sidecar_image}",
+			"args": []interface{}{
+				"-c", structs.EnvoyBootstrapPath,
+				"-l", "${meta.connect.log_level}",
+				"--disable-hot-restart",
+			},
+		}
 	}
 
 	// connectVersionConstraint is used when building the sidecar task to ensure
@@ -97,6 +100,25 @@ func isSidecarForService(t *structs.Task, svc string) bool {
 	return t.Kind == structs.TaskKind(fmt.Sprintf("%s:%s", structs.ConnectProxyPrefix, svc))
 }
 
+// getNamedTaskForNativeService retrieves the Task with the name specified in the
+// group service definition. If the task name is empty and there is only one task
+// in the group, infer the name from the only option.
+func getNamedTaskForNativeService(tg *structs.TaskGroup, serviceName, taskName string) (*structs.Task, error) {
+	if taskName == "" {
+		if len(tg.Tasks) == 1 {
+			return tg.Tasks[0], nil
+		}
+		return nil, errors.Errorf("task for Consul Connect Native service %s->%s is ambiguous and must be set", tg.Name, serviceName)
+	}
+
+	for _, t := range tg.Tasks {
+		if t.Name == taskName {
+			return t, nil
+		}
+	}
+	return nil, errors.Errorf("task %s named by Consul Connect Native service %s->%s does not exist", taskName, tg.Name, serviceName)
+}
+
 // probably need to hack this up to look for checks on the service, and if they
 // qualify, configure a port for envoy to use to expose their paths.
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
@@ -145,10 +167,20 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 			// create a port for the sidecar task's proxy port
 			makePort(fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name))
-			// todo(shoenig) magic port for 'expose.checks'
+		} else if service.Connect.IsNative() {
+			// find the task backing this connect native service and set the kind
+			nativeTaskName := service.TaskName
+			if t, err := getNamedTaskForNativeService(g, service.Name, nativeTaskName); err != nil {
+				return err
+			} else {
+				t.Kind = structs.NewTaskKind(structs.ConnectNativePrefix, service.Name)
+				service.TaskName = t.Name // in case the task was inferred
+			}
 		}
 	}
 
+	// re-canonicalize group network since this hook runs after canonicalizaton
+	g.Networks[0].Canonicalize()
 	return nil
 }
 
@@ -158,7 +190,7 @@ func newConnectTask(serviceName string) *structs.Task {
 		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, serviceName),
 		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, serviceName),
 		Driver:        "docker",
-		Config:        connectDriverConfig,
+		Config:        connectDriverConfig(),
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{
 			MaxFiles:      2,
@@ -180,18 +212,34 @@ func newConnectTask(serviceName string) *structs.Task {
 func groupConnectValidate(g *structs.TaskGroup) (warnings []error, err error) {
 	for _, s := range g.Services {
 		if s.Connect.HasSidecar() {
-			if n := len(g.Networks); n != 1 {
-				return nil, fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
+			if err := groupConnectSidecarValidate(g); err != nil {
+				return nil, err
 			}
-
-			if g.Networks[0].Mode != "bridge" {
-				return nil, fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
+		} else if s.Connect.IsNative() {
+			if err := groupConnectNativeValidate(g, s); err != nil {
+				return nil, err
 			}
-
-			// Stopping loop, only need to do the validation once
-			break
 		}
 	}
-
 	return nil, nil
+}
+
+func groupConnectSidecarValidate(g *structs.TaskGroup) error {
+	if n := len(g.Networks); n != 1 {
+		return fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
+	}
+
+	if g.Networks[0].Mode != "bridge" {
+		return fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
+	}
+	return nil
+}
+
+func groupConnectNativeValidate(g *structs.TaskGroup, s *structs.Service) error {
+	// note that network mode is not enforced for connect native services
+
+	if _, err := getNamedTaskForNativeService(g, s.Name, s.TaskName); err != nil {
+		return err
+	}
+	return nil
 }

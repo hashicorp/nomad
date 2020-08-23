@@ -21,6 +21,7 @@ import (
 var (
 	// DefaultEnvBlacklist is the default set of environment variables that are
 	// filtered when passing the environment variables of the host to a task.
+	// duplicated in command/agent/host, update that if this changes.
 	DefaultEnvBlacklist = strings.Join([]string{
 		"CONSUL_TOKEN",
 		"CONSUL_HTTP_TOKEN",
@@ -234,6 +235,15 @@ type Config struct {
 	// be specified with colon delimited
 	CNIPath string
 
+	// CNIConfigDir is the directory where CNI network configuration is located. The
+	// client will use this path when fingerprinting CNI networks.
+	CNIConfigDir string
+
+	// CNIInterfacePrefix is the prefix to use when creating CNI network interfaces. This
+	// defaults to 'eth', therefore the first interface created by CNI inside the alloc
+	// network will be 'eth0'.
+	CNIInterfacePrefix string
+
 	// BridgeNetworkName is the name to use for the bridge created in bridge
 	// networking mode. This defaults to 'nomad' if not set
 	BridgeNetworkName string
@@ -245,6 +255,19 @@ type Config struct {
 
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
+
+	// HostNetworks is a map of the conigured host networks by name.
+	HostNetworks map[string]*structs.ClientHostNetworkConfig
+
+	// BindWildcardDefaultHostNetwork toggles if the default host network should accept all
+	// destinations (true) or only filter on the IP of the default host network (false) when
+	// port mapping. This allows Nomad clients with no defined host networks to accept and
+	// port forward traffic only matching on the destination port. An example use of this
+	// is when a network loadbalancer is utilizing direct server return and the destination
+	// address of incomming packets does not match the IP address of the host interface.
+	//
+	// This configuration is only considered if no host networks are defined.
+	BindWildcardDefaultHostNetwork bool
 }
 
 type ClientTemplateConfig struct {
@@ -301,6 +324,10 @@ func DefaultConfig() *Config {
 		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
+		CNIPath:                    "/opt/cni/bin",
+		CNIConfigDir:               "/opt/cni/config",
+		CNIInterfacePrefix:         "eth",
+		HostNetworks:               map[string]*structs.ClientHostNetworkConfig{},
 	}
 }
 

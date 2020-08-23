@@ -92,6 +92,8 @@ export let LiveData = () => {
     context: {
       controller: EmberObject.extend({
         startTimer: on('init', function() {
+          this.lineChartLive = [];
+
           this.set(
             'timer',
             setInterval(() => {
@@ -109,8 +111,6 @@ export let LiveData = () => {
         willDestroy() {
           clearInterval(this.timer);
         },
-
-        lineChartLive: [],
 
         secondsFormat() {
           return date => moment(date).format('HH:mm:ss');
@@ -141,6 +141,121 @@ export let Gaps = () => {
         { year: 2016, value: null },
         { year: 2017, value: 210 },
         { year: 2018, value: 340 },
+      ]),
+    },
+  };
+};
+
+export let Annotations = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Line Chart data with annotations</h5>
+      <div class="block" style="height:250px">
+        {{#if (and this.data this.annotations)}}
+          <LineChart
+            @timeseries={{true}}
+            @xProp="x"
+            @yProp="y"
+            @data={{this.data}}
+            @annotations={{this.annotations}}
+            @onAnnotationClick={{action (mut this.activeAnnotation)}}/>
+        {{/if}}
+      </div>
+      <p style="margin:2em 0; padding: 1em; background:#FFEEAC">{{this.activeAnnotation.info}}</p>
+      <h5 class="title is-5">Line Chart data with staggered annotations</h5>
+      <div class="block" style="height:150px; width:450px">
+        {{#if (and this.data this.annotations)}}
+          <LineChart
+            @timeseries={{true}}
+            @xProp="x"
+            @yProp="y"
+            @data={{this.data}}
+            @annotations={{this.annotations}}
+            @onAnnotationClick={{action (mut this.activeAnnotation)}}/>
+        {{/if}}
+      </div>
+    `,
+    context: {
+      data: DelayedArray.create(
+        new Array(180).fill(null).map((_, idx) => ({
+          y: Math.sin((idx * 4 * Math.PI) / 180) * 100 + 200,
+          x: moment()
+            .add(idx, 'd')
+            .toDate(),
+        }))
+      ),
+      annotations: [
+        {
+          x: moment().toDate(),
+          type: 'info',
+          info: 'Far left',
+        },
+        {
+          x: moment()
+            .add(90 / 4, 'd')
+            .toDate(),
+          type: 'error',
+          info: 'This is the max of the sine curve',
+        },
+        {
+          x: moment()
+            .add(89, 'd')
+            .toDate(),
+          type: 'info',
+          info: 'This is the end of the first period',
+        },
+        {
+          x: moment()
+            .add(96, 'd')
+            .toDate(),
+          type: 'info',
+          info: 'A close annotation for staggering purposes',
+        },
+        {
+          x: moment()
+            .add((90 / 4) * 3, 'd')
+            .toDate(),
+          type: 'error',
+          info: 'This is the min of the sine curve',
+        },
+        {
+          x: moment()
+            .add(179, 'd')
+            .toDate(),
+          type: 'info',
+          info: 'Far right',
+        },
+      ],
+    },
+  };
+};
+
+export let StepLine = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Line Chart with a Step Line</h5>
+      <div class="block" style="height:250px">
+        {{#if this.data}}
+          <LineChart
+            @xProp="x"
+            @yProp="y"
+            @curve="stepAfter"
+            @data={{this.data}} />
+          <p>{{this.activeAnnotation.info}}</p>
+        {{/if}}
+      </div>
+    `,
+    context: {
+      data: DelayedArray.create([
+        { x: 1, y: 5 },
+        { x: 2, y: 1 },
+        { x: 3, y: 2 },
+        { x: 4, y: 2 },
+        { x: 5, y: 9 },
+        { x: 6, y: 3 },
+        { x: 7, y: 4 },
+        { x: 8, y: 1 },
+        { x: 9, y: 5 },
       ]),
     },
   };

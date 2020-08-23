@@ -714,7 +714,8 @@ func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image: "https://gcr.io/google_containers/pause:0.8.0",
+		Image:            "https://gcr.io/google_containers/pause:0.8.0",
+		ImagePullTimeout: "5m",
 	}
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -746,10 +747,11 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 	}
 
 	return TaskConfig{
-		Image:     image,
-		LoadImage: loadImage,
-		Command:   command[0],
-		Args:      command[1:],
+		Image:            image,
+		ImagePullTimeout: "5m",
+		LoadImage:        loadImage,
+		Command:          command[0],
+		Args:             command[1:],
 	}
 }
 
@@ -808,5 +810,61 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	defer d.DestroyTask(task.ID, true)
 
 	dtestutil.ExecTaskStreamingConformanceTests(t, d, task.ID)
+
+}
+
+// Tests that a given DNSConfig properly configures dns
+func Test_dnsConfig(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	require := require.New(t)
+	harness := dockerDriverHarness(t, nil)
+	defer harness.Kill()
+
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		taskCfg := newTaskConfig("", []string{"/bin/sleep", "1000"})
+		task := &drivers.TaskConfig{
+			ID:        uuid.Generate(),
+			Name:      "nc-demo",
+			AllocID:   uuid.Generate(),
+			Resources: basicResources,
+			DNS:       c.cfg,
+		}
+		require.NoError(task.EncodeConcreteDriverConfig(&taskCfg))
+
+		cleanup := harness.MkAllocDir(task, false)
+		defer cleanup()
+
+		_, _, err := harness.StartTask(task)
+		require.NoError(err)
+		defer harness.DestroyTask(task.ID, true)
+
+		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+	}
 
 }

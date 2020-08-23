@@ -1,15 +1,15 @@
 {{title "Jobs"}}
 <section class="section">
-  {{#if isForbidden}}
-    {{partial "partials/forbidden-message"}}
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
   {{else}}
     <div class="toolbar">
       <div class="toolbar-item">
-        {{#if visibleJobs.length}}
+        {{#if this.visibleJobs.length}}
           <SearchBox
             data-test-jobs-search
-            @searchTerm={{mut searchTerm}}
-            @onChange={{action resetPagination}}
+            @searchTerm={{mut this.searchTerm}}
+            @onChange={{action this.resetPagination}}
             @placeholder="Search jobs..." />
         {{/if}}
       </div>
@@ -23,6 +23,7 @@
               class="button is-primary is-disabled tooltip is-right-aligned"
               aria-label="You don’t have permission to run jobs"
               disabled
+              type="button"
             >Run Job</button>
           {{/if}}
         </div>
@@ -32,27 +33,27 @@
           <MultiSelectDropdown
             data-test-type-facet
             @label="Type"
-            @options={{optionsType}}
-            @selection={{selectionType}}
-            @onSelect={{action setFacetQueryParam "qpType"}} />
+            @options={{this.optionsType}}
+            @selection={{this.selectionType}}
+            @onSelect={{action this.setFacetQueryParam "qpType"}} />
           <MultiSelectDropdown
             data-test-status-facet
             @label="Status"
-            @options={{optionsStatus}}
-            @selection={{selectionStatus}}
-            @onSelect={{action setFacetQueryParam "qpStatus"}} />
+            @options={{this.optionsStatus}}
+            @selection={{this.selectionStatus}}
+            @onSelect={{action this.setFacetQueryParam "qpStatus"}} />
           <MultiSelectDropdown
             data-test-datacenter-facet
             @label="Datacenter"
-            @options={{optionsDatacenter}}
-            @selection={{selectionDatacenter}}
-            @onSelect={{action setFacetQueryParam "qpDatacenter"}} />
+            @options={{this.optionsDatacenter}}
+            @selection={{this.selectionDatacenter}}
+            @onSelect={{action this.setFacetQueryParam "qpDatacenter"}} />
           <MultiSelectDropdown
             data-test-prefix-facet
             @label="Prefix"
-            @options={{optionsPrefix}}
-            @selection={{selectionPrefix}}
-            @onSelect={{action setFacetQueryParam "qpPrefix"}} />
+            @options={{this.optionsPrefix}}
+            @selection={{this.selectionPrefix}}
+            @onSelect={{action this.setFacetQueryParam "qpPrefix"}} />
         </div>
       </div>
       {{#if (not (media "isMobile"))}}
@@ -65,20 +66,21 @@
               class="button is-primary is-disabled tooltip is-right-aligned"
               aria-label="You don’t have permission to run jobs"
               disabled
+              type="button"
             >Run Job</button>
           {{/if}}
         </div>
       {{/if}}
     </div>
-    {{#if sortedJobs}}
+    {{#if this.sortedJobs}}
       <ListPagination
-        @source={{sortedJobs}}
-        @size={{pageSize}}
-        @page={{currentPage}} as |p|>
+        @source={{this.sortedJobs}}
+        @size={{this.pageSize}}
+        @page={{this.currentPage}} as |p|>
         <ListTable
           @source={{p.list}}
-          @sortProperty={{sortProperty}}
-          @sortDescending={{sortDescending}}
+          @sortProperty={{this.sortProperty}}
+          @sortDescending={{this.sortDescending}}
           @class="with-foot" as |t|>
           <t.head>
             <t.sort-by @prop="name">Name</t.sort-by>
@@ -93,12 +95,12 @@
           </t.body>
         </ListTable>
         <div class="table-foot">
-          <PageSizeSelect @onChange={{action resetPagination}} />
+          <PageSizeSelect @onChange={{action this.resetPagination}} />
           <nav class="pagination">
             <div class="pagination-numbers">
-              {{p.startsAt}}&ndash;{{p.endsAt}} of {{sortedJobs.length}}
-              {{#if searchTerm}}
-                <em>({{dec sortedJobs.length filteredJobs.length}} hidden by search term)</em>
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedJobs.length}}
+              {{#if this.searchTerm}}
+                <em>({{dec this.sortedJobs.length this.filteredJobs.length}} hidden by search term)</em>
               {{/if}}
             </div>
             <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
@@ -109,19 +111,19 @@
       </ListPagination>
     {{else}}
       <div data-test-empty-jobs-list class="empty-message">
-        {{#if (eq visibleJobs.length 0)}}
+        {{#if (eq this.visibleJobs.length 0)}}
           <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Jobs</h3>
           <p class="empty-message-body">
             The cluster is currently empty.
           </p>
-        {{else if (eq filteredJobs.length 0)}}
+        {{else if (eq this.filteredJobs.length 0)}}
           <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>
           <p class="empty-message-body">
             No jobs match your current filter selection.
           </p>
-        {{else if searchTerm}}
+        {{else if this.searchTerm}}
           <h3 data-test-empty-jobs-list-headline class="empty-message-headline">No Matches</h3>
-          <p class="empty-message-body">No jobs match the term <strong>{{searchTerm}}</strong></p>
+          <p class="empty-message-body">No jobs match the term <strong>{{this.searchTerm}}</strong></p>
         {{/if}}
       </div>
     {{/if}}

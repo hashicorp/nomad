@@ -71,6 +71,10 @@ with Vault as well.
 - `env` `(bool: true)` - Specifies if the `VAULT_TOKEN` and `VAULT_NAMESPACE`
   environment variables should be set when starting the task.
 
+- `namespace` `(string: "")` <EnterpriseAlert inline/> - Specifies the Vault Namespace
+  to use for the task. The Nomad client will retrieve a Vault token that is scoped to
+  this particular namespace.
+
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
   the task requires. The Nomad client will retrieve a Vault token that is
   limited to those policies.
@@ -100,6 +104,22 @@ This example shows signaling the task instead of restarting it.
 ```hcl
 vault {
   policies = ["frontend"]
+
+  change_mode   = "signal"
+  change_signal = "SIGINT"
+}
+```
+
+### Vault Namespace
+
+This example shows specifying a particular Vault namespace for a given task.
+
+<EnterpriseAlert />
+
+```hcl
+vault {
+  policies = ["frontend"]
+  namespace = "engineering/frontend"
 
   change_mode   = "signal"
   change_signal = "SIGINT"

@@ -240,7 +240,7 @@ export let SortableColumns = () => {
         })
       ),
 
-      sortedShortList: computed('controller.sortProperty', 'controller.sortDescending', function() {
+      sortedShortList: computed('controller.{sortProperty,sortDescending}', function() {
         let sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
         return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
       }),
@@ -278,7 +278,7 @@ export let MultiRow = () => {
         })
       ),
 
-      sortedShortList: computed('controller.sortProperty', 'controller.sortDescending', function() {
+      sortedShortList: computed('controller.{sortProperty,sortDescending}', function() {
         let sorted = productMetadata.sortBy(this.get('controller.sortProperty') || 'name');
         return this.get('controller.sortDescending') ? sorted.reverse() : sorted;
       }),

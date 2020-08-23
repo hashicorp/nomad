@@ -1798,12 +1798,12 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	if plan.Deployment == nil {
 		t.Fatalf("bad: %#v", plan)
 	}
-	state, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
+	dstate, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
 	if !ok {
 		t.Fatalf("bad: %#v", plan)
 	}
-	if state.DesiredTotal != 10 && state.DesiredCanaries != 0 {
-		t.Fatalf("bad: %#v", state)
+	if dstate.DesiredTotal != 10 && dstate.DesiredCanaries != 0 {
+		t.Fatalf("bad: %#v", dstate)
 	}
 }
 
@@ -1922,12 +1922,12 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	if plan.Deployment == nil {
 		t.Fatalf("bad: %#v", plan)
 	}
-	state, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
+	dstate, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
 	if !ok {
 		t.Fatalf("bad: %#v", plan)
 	}
-	if state.DesiredTotal != 5 || state.DesiredCanaries != 0 {
-		t.Fatalf("bad: %#v", state)
+	if dstate.DesiredTotal != 5 || dstate.DesiredCanaries != 0 {
+		t.Fatalf("bad: %#v", dstate)
 	}
 }
 
@@ -2032,10 +2032,10 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	}
 
 	// Ensure local state was not altered in scheduler
-	staleState, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
+	staleDState, ok := plan.Deployment.TaskGroups[job.TaskGroups[0].Name]
 	require.True(t, ok)
 
-	require.Equal(t, 0, len(staleState.PlacedCanaries))
+	require.Equal(t, 0, len(staleDState.PlacedCanaries))
 
 	ws := memdb.NewWatchSet()
 
@@ -5204,6 +5204,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 		},
 		Networks: []*structs.NetworkResource{
 			{
+				Mode:   "host",
 				Device: "eth0",
 				CIDR:   "192.168.0.100/32",
 				MBits:  1000,

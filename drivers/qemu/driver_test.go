@@ -424,3 +424,32 @@ config {
 
 	require.EqualValues(t, expected, tc)
 }
+
+func TestIsAllowedImagePath(t *testing.T) {
+	allowedPaths := []string{"/tmp", "/opt/qemu"}
+	allocDir := "/opt/nomad/some-alloc-dir"
+
+	validPaths := []string{
+		"local/path",
+		"/tmp/subdir/qemu-image",
+		"/opt/qemu/image",
+		"/opt/qemu/subdir/image",
+		"/opt/nomad/some-alloc-dir/local/image.img",
+	}
+
+	invalidPaths := []string{
+		"/image.img",
+		"../image.img",
+		"/tmpimage.img",
+		"/opt/other/image.img",
+		"/opt/nomad-submatch.img",
+	}
+
+	for _, p := range validPaths {
+		require.Truef(t, isAllowedImagePath(allowedPaths, allocDir, p), "path should be allowed: %v", p)
+	}
+
+	for _, p := range invalidPaths {
+		require.Falsef(t, isAllowedImagePath(allowedPaths, allocDir, p), "path should be not allowed: %v", p)
+	}
+}

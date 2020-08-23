@@ -44,6 +44,10 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+- `image_pull_timeout` - (Optional) A time duration that controls how long Nomad
+  will wait before cancelling an in-progress pull of the Docker image as specified
+  in `image`. Defaults to `"5m"`.
+
 - `args` - (Optional) A list of arguments to the optional `command`. If no
   `command` is specified, the arguments are passed directly to the container.
   References to environment variables or any [interpretable Nomad
@@ -218,7 +222,9 @@ The `docker` driver supports the following configuration in the job spec. Only
   to be configured to allow privileged containers.
   See below for more details.
 
-- `port_map` - (Optional) A key-value map of port labels (see below).
+- `ports` - (Optional) A list of port labels to map into the container (see below).
+
+- `port_map` - (Optional) *Deprecated* A key-value map of port labels (see below).
 
 - `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
@@ -409,7 +415,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's
   IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
-  See [IPv6 Docker containers](/docs/job-specification/service#IPv6 Docker containers) for details.
+  See [IPv6 Docker containers](/docs/job-specification/service#ipv6-docker-containers) for details.
 
 - `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
@@ -536,13 +542,15 @@ You can allocate ports to your task using the port syntax described on the
 [networking page](/docs/job-specification/network). Here is a recap:
 
 ```hcl
-task "example" {
-  driver = "docker"
-
-  resources {
-    network {
-      port "http" {}
-      port "https" {}
+group {
+  network {
+    port "http" {}
+    port "https {}
+  }
+  task "example" {
+    driver = "docker"
+    config {
+      ports = ["http", "https"]
     }
   }
 }
@@ -554,16 +562,25 @@ A Docker container typically specifies which port a service will listen on by
 specifying the `EXPOSE` directive in the `Dockerfile`.
 
 Because dynamic ports will not match the ports exposed in your Dockerfile,
-Nomad will automatically expose all of the ports it allocates to your
-container.
+Nomad will automatically expose any ports specified in the `ports` field.
 
 These ports will be identified via environment variables. For example:
 
 ```hcl
-port "http" {}
+group {
+  network {
+    port "http" {}
+  }
+  task "api" {
+    driver = "docker"
+    config {
+      ports = ["http"]
+    }
+  }
+}
 ```
 
-If Nomad allocates port `23332` to your task for `http`, `23332` will be
+If Nomad allocates port `23332` to your api task for `http`, `23332` will be
 automatically exposed and forwarded to your container, and the driver will set
 an environment variable `NOMAD_PORT_http` with the value `23332` that you can
 read inside your container.
@@ -574,36 +591,41 @@ performance.
 ### Using the Port Map
 
 If you prefer to use the traditional port-mapping method, you can specify the
-`port_map` option in your job specification. It looks like this:
+the `to` field in the port configuration. It looks like this:
 
 ```hcl
-task "example" {
-  driver = "docker"
-
-  config {
-    image = "redis"
-
-    port_map {
-      redis = 6379
-    }
+group "example" {
+  network {
+    port "redis" { to = 6379 }
   }
+  task "example" {
+    driver = "docker"
 
-  resources {
-    network {
-      mbits = 20
-      port "redis" {}
+    config {
+      image = "redis"
+      ports = ["redis"]
     }
   }
 }
 ```
 
-If Nomad allocates port `23332` to your task, the Docker driver will
+If Nomad allocates port `23332` to your allocation, the Docker driver will
 automatically setup the port mapping from `23332` on the host to `6379` in your
 container, so it will just work!
 
 Note that by default this only works with `bridged` networking mode. It may
 also work with custom networking plugins which implement the same API for
 expose and port forwarding.
+
+#### Deprecated `port_map` Syntax
+
+Up until Nomad 0.12, ports could be specified in a task's resource stanza and set using the docker
+`port_map` field. As more features have been added to the group network resource allocation, task based
+network resources are deprecated. With it the `port_map` field is also deprecated and can only be used
+with task network resources.
+
+Users should migrate their jobs to define ports in the group network stanza and specified which ports
+a task maps with the `ports` field.
 
 ### Advertising Container IPs
 
@@ -627,6 +649,18 @@ Some networking modes like `container` or `none` will require coordination
 outside of Nomad. First-class support for these options may be improved later
 through Nomad plugins or dynamic job configuration.
 
+## Capabilities
+
+The `docker` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature | Implementation |
+| --- | --- |
+| `nomad alloc signal` | true |
+| `nomad alloc exec` | true |
+| filesystem isolation | image |
+| network isolation | host, group, task |
+| volume mounting | all |
+
 ## Client Requirements
 
 Nomad requires Docker to be installed and running on the host alongside the
@@ -637,11 +671,11 @@ socket. Nomad will need to be able to read/write to this socket. If you do not
 run Nomad as root, make sure you add the Nomad user to the Docker group so
 Nomad can communicate with the Docker daemon.
 
-For example, on Ubuntu you can use the `usermod` command to add the `vagrant`
+For example, on Ubuntu you can use the `usermod` command to add the `nomad`
 user to the `docker` group so you can run Nomad without root:
 
 ```shell-session
-$ sudo usermod -G docker -a vagrant
+$ sudo usermod -G docker -a nomad
 ```
 
 For the best performance and security features you should use recent versions
@@ -697,10 +731,10 @@ plugin "docker" {
 
 - `endpoint` - If using a non-standard socket, HTTP or another location, or if
   TLS is being used, docker.endpoint must be set. If unset, Nomad will attempt
-  to instantiate a Docker client using the DOCKER_HOST environment variable and
+  to instantiate a Docker client using the `DOCKER_HOST` environment variable and
   then fall back to the default listen address for the given operating system.
-  Defaults to unix:///var/run/docker.sock on Unix platforms and
-  npipe:////./pipe/docker_engine for Windows.
+  Defaults to `unix:///var/run/docker.sock` on Unix platforms and
+  `npipe:////./pipe/docker_engine` for Windows.
 
 - `allow_privileged` - Defaults to `false`. Changing this to true will allow
   containers to use privileged mode, which gives the containers full access to
@@ -713,8 +747,8 @@ plugin "docker" {
 
 - `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities.
   Defaults to
-  "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
-  NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE", which is the list of
+  `CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
+  NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE` which is the list of
   capabilities allowed by docker by default, as defined here. Allows the
   operator to control which capabilities can be obtained by tasks using cap_add
   and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting
@@ -731,7 +765,7 @@ plugin "docker" {
     `credHelpers` or `credsStore`.
   - `helper`<a id="plugin_auth_helper"></a> - Allows an operator to specify a
     [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
-    -like script on \$PATH to lookup authentication information from external
+    like script on `$PATH` to lookup authentication information from external
     sources. The script's name must begin with `docker-credential-` and this
     option should include only the basename of the script, not the path.
 
@@ -780,7 +814,7 @@ plugin "docker" {
 
 - `volumes` stanza:
 
-  - `enabled` - Defaults to `true`. Allows tasks to bind host paths
+  - `enabled` - Defaults to `false`. Allows tasks to bind host paths
     (`volumes`) inside their container and use volume drivers
     (`volume_driver`). Binding relative paths is always allowed and will be
     resolved relative to the allocation's directory.
@@ -792,6 +826,10 @@ plugin "docker" {
 - `infra_image` - This is the Docker image to use when creating the parent
   container necessary when sharing network namespaces between tasks. Defaults
   to "gcr.io/google_containers/pause-amd64:3.0".
+
+- `infra_image_pull_timeout` - A time duration that controls how long Nomad will
+  wait before cancelling an in-progress pull of the Docker image as specified in
+  `infra_image`. Defaults to `"5m"`.
 
 ## Client Configuration
 
@@ -844,7 +882,7 @@ options](/docs/configuration/client#options):
   deleting it. If a tasks is received that uses the same image within the delay,
   the image will be reused.
 
-- `docker.volumes.enabled`: Defaults to `true`. Allows tasks to bind host paths
+- `docker.volumes.enabled`: Defaults to `false`. Allows tasks to bind host paths
   (`volumes`) inside their container and use volume drivers (`volume_driver`).
   Binding relative paths is always allowed and will be resolved relative to the
   allocation's directory.

@@ -8,8 +8,8 @@ import (
 )
 
 func (s *HTTPServer) DeploymentsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.DeploymentListRequest{}
@@ -47,6 +47,9 @@ func (s *HTTPServer) DeploymentSpecificRequest(resp http.ResponseWriter, req *ht
 	case strings.HasPrefix(path, "allocation-health/"):
 		deploymentID := strings.TrimPrefix(path, "allocation-health/")
 		return s.deploymentSetAllocHealth(resp, req, deploymentID)
+	case strings.HasPrefix(path, "unblock/"):
+		deploymentID := strings.TrimPrefix(path, "unblock/")
+		return s.deploymentUnblock(resp, req, deploymentID)
 	default:
 		return s.deploymentQuery(resp, req, path)
 	}
@@ -54,8 +57,8 @@ func (s *HTTPServer) DeploymentSpecificRequest(resp http.ResponseWriter, req *ht
 
 // TODO test and api
 func (s *HTTPServer) deploymentFail(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 	args := structs.DeploymentFailRequest{
 		DeploymentID: deploymentID,
@@ -71,19 +74,19 @@ func (s *HTTPServer) deploymentFail(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) deploymentPause(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	var pauseRequest structs.DeploymentPauseRequest
 	if err := decodeBody(req, &pauseRequest); err != nil {
-		return nil, CodedError(400, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 	if pauseRequest.DeploymentID == "" {
-		return nil, CodedError(400, "DeploymentID must be specified")
+		return nil, CodedError(http.StatusBadRequest, "DeploymentID must be specified")
 	}
 	if pauseRequest.DeploymentID != deploymentID {
-		return nil, CodedError(400, "Deployment ID does not match")
+		return nil, CodedError(http.StatusBadRequest, "Deployment ID does not match")
 	}
 	s.parseWriteRequest(req, &pauseRequest.WriteRequest)
 
@@ -96,19 +99,19 @@ func (s *HTTPServer) deploymentPause(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) deploymentPromote(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	var promoteRequest structs.DeploymentPromoteRequest
 	if err := decodeBody(req, &promoteRequest); err != nil {
-		return nil, CodedError(400, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 	if promoteRequest.DeploymentID == "" {
-		return nil, CodedError(400, "DeploymentID must be specified")
+		return nil, CodedError(http.StatusBadRequest, "DeploymentID must be specified")
 	}
 	if promoteRequest.DeploymentID != deploymentID {
-		return nil, CodedError(400, "Deployment ID does not match")
+		return nil, CodedError(http.StatusBadRequest, "Deployment ID does not match")
 	}
 	s.parseWriteRequest(req, &promoteRequest.WriteRequest)
 
@@ -120,20 +123,45 @@ func (s *HTTPServer) deploymentPromote(resp http.ResponseWriter, req *http.Reque
 	return out, nil
 }
 
+func (s *HTTPServer) deploymentUnblock(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	var unblockRequest structs.DeploymentUnblockRequest
+	if err := decodeBody(req, &unblockRequest); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+	if unblockRequest.DeploymentID == "" {
+		return nil, CodedError(http.StatusBadRequest, "DeploymentID must be specified")
+	}
+	if unblockRequest.DeploymentID != deploymentID {
+		return nil, CodedError(http.StatusBadRequest, "Deployment ID does not match")
+	}
+	s.parseWriteRequest(req, &unblockRequest.WriteRequest)
+
+	var out structs.DeploymentUpdateResponse
+	if err := s.agent.RPC("Deployment.Unblock", &unblockRequest, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
 func (s *HTTPServer) deploymentSetAllocHealth(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	var healthRequest structs.DeploymentAllocHealthRequest
 	if err := decodeBody(req, &healthRequest); err != nil {
-		return nil, CodedError(400, err.Error())
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 	if healthRequest.DeploymentID == "" {
-		return nil, CodedError(400, "DeploymentID must be specified")
+		return nil, CodedError(http.StatusBadRequest, "DeploymentID must be specified")
 	}
 	if healthRequest.DeploymentID != deploymentID {
-		return nil, CodedError(400, "Deployment ID does not match")
+		return nil, CodedError(http.StatusBadRequest, "Deployment ID does not match")
 	}
 	s.parseWriteRequest(req, &healthRequest.WriteRequest)
 
@@ -146,8 +174,8 @@ func (s *HTTPServer) deploymentSetAllocHealth(resp http.ResponseWriter, req *htt
 }
 
 func (s *HTTPServer) deploymentAllocations(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
-	if req.Method != "GET" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.DeploymentSpecificRequest{
@@ -173,8 +201,8 @@ func (s *HTTPServer) deploymentAllocations(resp http.ResponseWriter, req *http.R
 }
 
 func (s *HTTPServer) deploymentQuery(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
-	if req.Method != "GET" {
-		return nil, CodedError(405, ErrInvalidMethod)
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.DeploymentSpecificRequest{
@@ -191,7 +219,7 @@ func (s *HTTPServer) deploymentQuery(resp http.ResponseWriter, req *http.Request
 
 	setMeta(resp, &out.QueryMeta)
 	if out.Deployment == nil {
-		return nil, CodedError(404, "deployment not found")
+		return nil, CodedError(http.StatusNotFound, "deployment not found")
 	}
 	return out.Deployment, nil
 }

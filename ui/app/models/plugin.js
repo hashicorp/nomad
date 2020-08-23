@@ -3,28 +3,30 @@ import Model from 'ember-data/model';
 import attr from 'ember-data/attr';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 
-export default Model.extend({
-  plainId: attr('string'),
+export default class Plugin extends Model {
+  @attr('string') plainId;
 
-  topologies: attr(),
-  provider: attr('string'),
-  version: attr('string'),
+  @attr() topologies;
+  @attr('string') provider;
+  @attr('string') version;
 
-  controllers: fragmentArray('storage-controller', { defaultValue: () => [] }),
-  nodes: fragmentArray('storage-node', { defaultValue: () => [] }),
+  @fragmentArray('storage-controller', { defaultValue: () => [] }) controllers;
+  @fragmentArray('storage-node', { defaultValue: () => [] }) nodes;
 
-  controllerRequired: attr('boolean'),
-  controllersHealthy: attr('number'),
-  controllersExpected: attr('number'),
+  @attr('boolean') controllerRequired;
+  @attr('number') controllersHealthy;
+  @attr('number') controllersExpected;
 
-  controllersHealthyProportion: computed('controllersHealthy', 'controllersExpected', function() {
+  @computed('controllersHealthy', 'controllersExpected')
+  get controllersHealthyProportion() {
     return this.controllersHealthy / this.controllersExpected;
-  }),
+  }
 
-  nodesHealthy: attr('number'),
-  nodesExpected: attr('number'),
+  @attr('number') nodesHealthy;
+  @attr('number') nodesExpected;
 
-  nodesHealthyProportion: computed('nodesHealthy', 'nodesExpected', function() {
+  @computed('nodesHealthy', 'nodesExpected')
+  get nodesHealthyProportion() {
     return this.nodesHealthy / this.nodesExpected;
-  }),
-});
+  }
+}

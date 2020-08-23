@@ -132,6 +132,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
 			RaftProtocol:           1,
+			RaftMultiplier:         helper.IntToPtr(5),
 			NumSchedulers:          helper.IntToPtr(1),
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
@@ -317,6 +318,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
 			RaftProtocol:           2,
+			RaftMultiplier:         helper.IntToPtr(6),
 			NumSchedulers:          helper.IntToPtr(2),
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
@@ -425,9 +427,7 @@ func TestConfig_Merge(t *testing.T) {
 	result := c0.Merge(c1)
 	result = result.Merge(c2)
 	result = result.Merge(c3)
-	if !reflect.DeepEqual(result, c3) {
-		t.Fatalf("bad:\n%#v\n%#v", result, c3)
-	}
+	require.Equal(t, c3, result)
 }
 
 func TestConfig_ParseConfigFile(t *testing.T) {

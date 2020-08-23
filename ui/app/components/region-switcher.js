@@ -1,21 +1,24 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  system: service(),
-  router: service(),
-  store: service(),
+@classic
+export default class RegionSwitcher extends Component {
+  @service system;
+  @service router;
+  @service store;
 
-  sortedRegions: computed('system.regions', function() {
+  @computed('system.regions')
+  get sortedRegions() {
     return this.get('system.regions')
       .toArray()
       .sort();
-  }),
+  }
 
   gotoRegion(region) {
     this.router.transitionTo('jobs', {
       queryParams: { region },
     });
-  },
-});
+  }
+}

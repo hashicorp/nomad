@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -380,6 +381,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 		Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
 	}}
 	err = state.CSIVolumeRegister(1003, vols)
+	require.NoError(t, err)
 
 	alloc := mock.BatchAlloc()
 	alloc.NodeID = node.ID
@@ -402,6 +404,139 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	// Because the node is not registered
 	require.EqualError(t, err, "controller publish: attach volume: No path to node")
+
+	// The node SecretID is authorized for all policies
+	claimReq.AuthToken = node.SecretID
+	claimReq.Namespace = ""
+	claimResp = &structs.CSIVolumeClaimResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	require.EqualError(t, err, "controller publish: attach volume: No path to node")
+}
+
+func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	var err error
+	index := uint64(1000)
+	ns := structs.DefaultNamespace
+	state := srv.fsm.State()
+	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+
+	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
+		mock.PluginPolicy("read")
+	index++
+	accessToken := mock.CreatePolicyAndToken(t, state, index, "claim", policy)
+
+	codec := rpcClient(t, srv)
+
+	// setup: create a client node with a controller and node plugin
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.11.0"
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {PluginID: "minnie",
+			Healthy:                  true,
+			ControllerInfo:           &structs.CSIControllerInfo{SupportsAttachDetach: true},
+			RequiresControllerPlugin: true,
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(index, node))
+
+	type tc struct {
+		name           string
+		startingState  structs.CSIVolumeClaimState
+		expectedErrMsg string
+	}
+	testCases := []tc{
+		{
+			name:          "success",
+			startingState: structs.CSIVolumeClaimStateControllerDetached,
+		},
+		{
+			name:           "unpublish previously detached node",
+			startingState:  structs.CSIVolumeClaimStateNodeDetached,
+			expectedErrMsg: "could not detach from controller: No path to node",
+		},
+		{
+			name:           "first unpublish",
+			startingState:  structs.CSIVolumeClaimStateTaken,
+			expectedErrMsg: "could not detach from node: No path to node",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// setup: register a volume
+			volID := uuid.Generate()
+			vol := &structs.CSIVolume{
+				ID:                 volID,
+				Namespace:          ns,
+				AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+				AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
+				PluginID:           "minnie",
+				Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
+				ControllerRequired: true,
+			}
+
+			index++
+			err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+			require.NoError(t, err)
+
+			// setup: create an alloc that will claim our volume
+			alloc := mock.BatchAlloc()
+			alloc.NodeID = node.ID
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+
+			index++
+			require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc}))
+
+			// setup: claim the volume for our alloc
+			claim := &structs.CSIVolumeClaim{
+				AllocationID:   alloc.ID,
+				NodeID:         node.ID,
+				ExternalNodeID: "i-example",
+				Mode:           structs.CSIVolumeClaimRead,
+			}
+
+			index++
+			claim.State = structs.CSIVolumeClaimStateTaken
+			err = state.CSIVolumeClaim(index, ns, volID, claim)
+			require.NoError(t, err)
+
+			// test: unpublish and check the results
+			claim.State = tc.startingState
+			req := &structs.CSIVolumeUnpublishRequest{
+				VolumeID: volID,
+				Claim:    claim,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: ns,
+					AuthToken: accessToken.SecretID,
+				},
+			}
+
+			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
+				&structs.CSIVolumeUnpublishResponse{})
+
+			if tc.expectedErrMsg == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
+					"error message %q did not contain %q", err.Error(), tc.expectedErrMsg)
+			}
+		})
+	}
+
 }
 
 func TestCSIVolumeEndpoint_List(t *testing.T) {

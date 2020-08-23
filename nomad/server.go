@@ -108,6 +108,14 @@ type Server struct {
 	raftInmem     *raft.InmemStore
 	raftTransport *raft.NetworkTransport
 
+	// reassertLeaderCh is used to signal that the leader loop must
+	// re-establish leadership.
+	//
+	// This might be relevant in snapshot restores, where leader in-memory
+	// state changed significantly such that leader state (e.g. periodic
+	// jobs, eval brokers) need to be recomputed.
+	reassertLeaderCh chan chan error
+
 	// autopilot is the Autopilot instance for this server.
 	autopilot *autopilot.Autopilot
 
@@ -312,22 +320,23 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 
 	// Create the server
 	s := &Server{
-		config:        config,
-		consulCatalog: consulCatalog,
-		connPool:      pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
-		logger:        logger,
-		tlsWrap:       tlsWrap,
-		rpcServer:     rpc.NewServer(),
-		streamingRpcs: structs.NewStreamingRpcRegistry(),
-		nodeConns:     make(map[string][]*nodeConnState),
-		peers:         make(map[string][]*serverParts),
-		localPeers:    make(map[raft.ServerAddress]*serverParts),
-		reconcileCh:   make(chan serf.Member, 32),
-		eventCh:       make(chan serf.Event, 256),
-		evalBroker:    evalBroker,
-		blockedEvals:  NewBlockedEvals(evalBroker, logger),
-		rpcTLS:        incomingTLS,
-		aclCache:      aclCache,
+		config:           config,
+		consulCatalog:    consulCatalog,
+		connPool:         pool.NewPool(logger, serverRPCCache, serverMaxStreams, tlsWrap),
+		logger:           logger,
+		tlsWrap:          tlsWrap,
+		rpcServer:        rpc.NewServer(),
+		streamingRpcs:    structs.NewStreamingRpcRegistry(),
+		nodeConns:        make(map[string][]*nodeConnState),
+		peers:            make(map[string][]*serverParts),
+		localPeers:       make(map[raft.ServerAddress]*serverParts),
+		reassertLeaderCh: make(chan chan error),
+		reconcileCh:      make(chan serf.Member, 32),
+		eventCh:          make(chan serf.Event, 256),
+		evalBroker:       evalBroker,
+		blockedEvals:     NewBlockedEvals(evalBroker, logger),
+		rpcTLS:           incomingTLS,
+		aclCache:         aclCache,
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
@@ -996,30 +1005,21 @@ func (s *Server) setupDeploymentWatcher() error {
 
 	// Create the deployment watcher
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
-		s.logger, raftShim,
+		s.logger,
+		raftShim,
+		s.staticEndpoints.Deployment,
+		s.staticEndpoints.Job,
 		deploymentwatcher.LimitStateQueriesPerSecond,
-		deploymentwatcher.CrossDeploymentUpdateBatchDuration)
+		deploymentwatcher.CrossDeploymentUpdateBatchDuration,
+	)
 
 	return nil
 }
 
-// setupVolumeWatcher creates a volume watcher that consumes the RPC
-// endpoints for state information and makes transitions via Raft through a
-// shim that provides the appropriate methods.
+// setupVolumeWatcher creates a volume watcher that sends CSI RPCs
 func (s *Server) setupVolumeWatcher() error {
-
-	// Create the raft shim type to restrict the set of raft methods that can be
-	// made
-	raftShim := &volumeWatcherRaftShim{
-		apply: s.raftApply,
-	}
-
-	// Create the volume watcher
 	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
-		s.logger, raftShim,
-		s.staticEndpoints.ClientCSI,
-		volumewatcher.LimitStateQueriesPerSecond,
-		volumewatcher.CrossVolumeUpdateBatchDuration)
+		s.logger, s.staticEndpoints.CSIVolume, s.getLeaderAcl())
 
 	return nil
 }
@@ -1048,7 +1048,8 @@ func (s *Server) setupConsul(consulACLs consul.ACLsAPI) {
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors)
+	delegate := s.entVaultDelegate()
+	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors, delegate)
 	if err != nil {
 		return err
 	}
@@ -1637,7 +1638,7 @@ func (s *Server) ClusterID() (string, error) {
 
 	// try to load the cluster ID from state store
 	fsmState := s.fsm.State()
-	existingMeta, err := fsmState.ClusterMetadata()
+	existingMeta, err := fsmState.ClusterMetadata(nil)
 	if err != nil {
 		s.logger.Named("core").Error("failed to get cluster ID", "error", err)
 		return "", err

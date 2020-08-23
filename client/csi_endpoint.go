@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -10,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/structs"
+	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
 
@@ -46,7 +48,9 @@ func (c *CSI) ControllerValidateVolume(req *structs.ClientCSIControllerValidateV
 
 	plugin, err := c.findControllerPlugin(req.PluginID)
 	if err != nil {
-		return err
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
@@ -78,7 +82,9 @@ func (c *CSI) ControllerAttachVolume(req *structs.ClientCSIControllerAttachVolum
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "publish_volume"}, time.Now())
 	plugin, err := c.findControllerPlugin(req.PluginID)
 	if err != nil {
-		return err
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
@@ -123,7 +129,9 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "unpublish_volume"}, time.Now())
 	plugin, err := c.findControllerPlugin(req.PluginID)
 	if err != nil {
-		return err
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
@@ -152,9 +160,14 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 	if err != nil {
+		if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+			// if the controller detach previously happened but the server failed to
+			// checkpoint, we'll get an error from the plugin but can safely ignore it.
+			c.c.logger.Debug("could not unpublish volume: %v", err)
+			return nil
+		}
 		return err
 	}
-
 	return nil
 }
 
@@ -191,7 +204,10 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 	}
 
 	err = mounter.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
-	if err != nil {
+	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		// if the unmounting previously happened but the server failed to
+		// checkpoint, we'll get an error from Unmount but can safely
+		// ignore it.
 		return err
 	}
 	return nil

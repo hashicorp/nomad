@@ -7,46 +7,53 @@ import { belongsTo, hasMany } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import sumAggregation from '../utils/properties/sum-aggregation';
+import classic from 'ember-classic-decorator';
 
-export default Model.extend({
-  shortId: shortUUIDProperty('id'),
+@classic
+export default class Deployment extends Model {
+  @shortUUIDProperty('id') shortId;
 
-  job: belongsTo('job', { inverse: 'deployments' }),
-  jobForLatest: belongsTo('job', { inverse: 'latestDeployment' }),
-  versionNumber: attr('number'),
+  @belongsTo('job', { inverse: 'deployments' }) job;
+  @belongsTo('job', { inverse: 'latestDeployment' }) jobForLatest;
+  @attr('number') versionNumber;
 
   // If any task group is not promoted yet requires promotion and the deployment
   // is still running, the deployment needs promotion.
-  requiresPromotion: computed('taskGroupSummaries.@each.promoted', function() {
-    return this.status === 'running' &&
-    this.taskGroupSummaries
-      .toArray()
-      .some(summary => summary.get('requiresPromotion') && !summary.get('promoted'));
-  }),
+  @computed('taskGroupSummaries.@each.promoted')
+  get requiresPromotion() {
+    return (
+      this.status === 'running' &&
+      this.taskGroupSummaries
+        .toArray()
+        .some(summary => summary.get('requiresPromotion') && !summary.get('promoted'))
+    );
+  }
 
-  status: attr('string'),
-  statusDescription: attr('string'),
+  @attr('string') status;
+  @attr('string') statusDescription;
 
-  isRunning: equal('status', 'running'),
+  @equal('status', 'running') isRunning;
 
-  taskGroupSummaries: fragmentArray('task-group-deployment-summary'),
-  allocations: hasMany('allocations'),
+  @fragmentArray('task-group-deployment-summary') taskGroupSummaries;
+  @hasMany('allocations') allocations;
 
-  version: computed('versionNumber', 'job.versions.content.@each.number', function() {
+  @computed('versionNumber', 'job.versions.content.@each.number')
+  get version() {
     return (this.get('job.versions') || []).findBy('number', this.versionNumber);
-  }),
+  }
 
   // Dependent keys can only go one level past an @each so an alias is needed
-  versionSubmitTime: alias('version.submitTime'),
+  @alias('version.submitTime') versionSubmitTime;
 
-  placedCanaries: sumAggregation('taskGroupSummaries', 'placedCanaries'),
-  desiredCanaries: sumAggregation('taskGroupSummaries', 'desiredCanaries'),
-  desiredTotal: sumAggregation('taskGroupSummaries', 'desiredTotal'),
-  placedAllocs: sumAggregation('taskGroupSummaries', 'placedAllocs'),
-  healthyAllocs: sumAggregation('taskGroupSummaries', 'healthyAllocs'),
-  unhealthyAllocs: sumAggregation('taskGroupSummaries', 'unhealthyAllocs'),
+  @sumAggregation('taskGroupSummaries', 'placedCanaries') placedCanaries;
+  @sumAggregation('taskGroupSummaries', 'desiredCanaries') desiredCanaries;
+  @sumAggregation('taskGroupSummaries', 'desiredTotal') desiredTotal;
+  @sumAggregation('taskGroupSummaries', 'placedAllocs') placedAllocs;
+  @sumAggregation('taskGroupSummaries', 'healthyAllocs') healthyAllocs;
+  @sumAggregation('taskGroupSummaries', 'unhealthyAllocs') unhealthyAllocs;
 
-  statusClass: computed('status', function() {
+  @computed('status')
+  get statusClass() {
     const classMap = {
       running: 'is-running',
       successful: 'is-primary',
@@ -56,10 +63,10 @@ export default Model.extend({
     };
 
     return classMap[this.status] || 'is-dark';
-  }),
+  }
 
   promote() {
     assert('A deployment needs to requirePromotion to be promoted', this.requiresPromotion);
     return this.store.adapterFor('deployment').promote(this);
-  },
-});
+  }
+}

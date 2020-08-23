@@ -2,9 +2,11 @@ package e2eutil
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
@@ -92,6 +94,8 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 	return allocs
 }
 
+// RegisterAndWaitForAllocs wraps RegisterAllocs but blocks until Evals
+// successfully create Allocs.
 func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
 	jobs := nomadClient.Jobs()
 
@@ -162,6 +166,18 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 	})
 }
 
+// WaitForJobStopped stops a job and waits for all of its allocs to terminate.
+func WaitForJobStopped(t *testing.T, nomadClient *api.Client, job string) {
+	allocs, _, err := nomadClient.Jobs().Allocations(job, true, nil)
+	require.NoError(t, err, "error getting allocations for job %q", job)
+	ids := AllocIDsFromAllocationListStubs(allocs)
+	_, _, err = nomadClient.Jobs().Deregister(job, true, nil)
+	require.NoError(t, err, "error deregistering job %q", job)
+	for _, id := range ids {
+		WaitForAllocStopped(t, nomadClient, id)
+	}
+}
+
 func WaitForAllocStopped(t *testing.T, nomadClient *api.Client, allocID string) {
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
@@ -228,4 +244,51 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 	}, func(err error) {
 		t.Fatalf("failed to wait on deployment: %v", err)
 	})
+}
+
+// CheckServicesPassing scans for passing agent checks via the given agent API
+// client.
+//
+// Deprecated: not useful in e2e, where more than one node exists and Nomad jobs
+// are placed non-deterministically. The Consul agentAPI only knows about what
+// is registered on its node, and cannot be used to query for cluster wide state.
+func CheckServicesPassing(t *testing.T, agentAPI *consulapi.Agent, allocIDs []string) {
+	failing := map[string]*consulapi.AgentCheck{}
+	for i := 0; i < 60; i++ {
+		checks, err := agentAPI.Checks()
+		require.NoError(t, err)
+
+		// Filter out checks for other services
+		for cid, check := range checks {
+			found := false
+			for _, allocID := range allocIDs {
+				if strings.Contains(check.ServiceID, allocID) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				delete(checks, cid)
+			}
+		}
+
+		// Ensure checks are all passing
+		failing = map[string]*consulapi.AgentCheck{}
+		for _, check := range checks {
+			if check.Status != "passing" {
+				failing[check.CheckID] = check
+				break
+			}
+		}
+
+		if len(failing) == 0 {
+			break
+		}
+
+		t.Logf("still %d checks not passing", len(failing))
+
+		time.Sleep(time.Second)
+	}
+	require.Len(t, failing, 0, pretty.Sprint(failing))
 }

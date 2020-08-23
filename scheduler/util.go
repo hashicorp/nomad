@@ -445,6 +445,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 			return true
 		}
 
+		if !reflect.DeepEqual(an.DNS, bn.DNS) {
+			return true
+		}
+
 		aPorts, bPorts := networkPortMap(an), networkPortMap(bn)
 		if !reflect.DeepEqual(aPorts, bPorts) {
 			return true
@@ -601,7 +605,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
@@ -670,7 +674,7 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]
-		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "")
+		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 		diff.place = append(diff.place, a)
 	}
 	if n <= *limit {
@@ -831,7 +835,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
-			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost)
+			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost, "")
 		}
 	}
 }
@@ -881,7 +885,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions

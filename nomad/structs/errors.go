@@ -28,6 +28,16 @@ const (
 	ErrUnknownDeploymentPrefix = "Unknown deployment"
 
 	errRPCCodedErrorPrefix = "RPC Error:: "
+
+	errDeploymentTerminalNoCancel    = "can't cancel terminal deployment"
+	errDeploymentTerminalNoFail      = "can't fail terminal deployment"
+	errDeploymentTerminalNoPause     = "can't pause terminal deployment"
+	errDeploymentTerminalNoPromote   = "can't promote terminal deployment"
+	errDeploymentTerminalNoResume    = "can't resume terminal deployment"
+	errDeploymentTerminalNoUnblock   = "can't unblock terminal deployment"
+	errDeploymentTerminalNoRun       = "can't run terminal deployment"
+	errDeploymentTerminalNoSetHealth = "can't set health of allocations for a terminal deployment"
+	errDeploymentRunningNoUnblock    = "can't unblock running deployment"
 )
 
 var (
@@ -41,6 +51,21 @@ var (
 	ErrUnknownNomadVersion        = errors.New(errUnknownNomadVersion)
 	ErrNodeLacksRpc               = errors.New(errNodeLacksRpc)
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
+
+	ErrUnknownNode = errors.New(ErrUnknownNodePrefix)
+
+	ErrDeploymentTerminalNoCancel    = errors.New(errDeploymentTerminalNoCancel)
+	ErrDeploymentTerminalNoFail      = errors.New(errDeploymentTerminalNoFail)
+	ErrDeploymentTerminalNoPause     = errors.New(errDeploymentTerminalNoPause)
+	ErrDeploymentTerminalNoPromote   = errors.New(errDeploymentTerminalNoPromote)
+	ErrDeploymentTerminalNoResume    = errors.New(errDeploymentTerminalNoResume)
+	ErrDeploymentTerminalNoUnblock   = errors.New(errDeploymentTerminalNoUnblock)
+	ErrDeploymentTerminalNoRun       = errors.New(errDeploymentTerminalNoRun)
+	ErrDeploymentTerminalNoSetHealth = errors.New(errDeploymentTerminalNoSetHealth)
+	ErrDeploymentRunningNoUnblock    = errors.New(errDeploymentRunningNoUnblock)
+
+	ErrCSIClientRPCIgnorable = errors.New("CSI client error (ignorable)")
+	ErrCSIClientRPCRetryable = errors.New("CSI client error (retryable)")
 )
 
 // IsErrNoLeader returns whether the error is due to there being no leader.

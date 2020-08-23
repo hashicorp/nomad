@@ -15,6 +15,75 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.12.0
+
+### Enterprise Licensing
+
+Enterprise binaries for Nomad are now publicly available via
+[releases.hashicorp.com](https://releases.hashicorp.com/nomad/). By default all
+enterprise features are enabled for 6 hours. During that time enterprise users
+should apply their license with the [`nomad license put
+...`](https://www.nomadproject.io/docs/commands/license/put) command.
+
+Once the 6 hour demonstration period expires, Nomad will shutdown. If restarted
+Nomad will shutdown in a very short amount of time unless a valid license is
+applied.
+
+~> **Warning:** Due to a [bug][gh-8457] in Nomad v0.12.0, existing clusters
+   that are upgraded will **not** have 6 hours to apply a license. The minimal
+   grace period should be sufficient to apply a valid license, but enterprise
+   users are encouraged to delay upgrading until Nomad v0.12.1 is released and
+   fixes the issue.
+
+### Docker access host filesystem
+
+Nomad 0.12.0 disables Docker tasks access to the host filesystem, by default.
+Prior to Nomad 0.12, Docker tasks may mount and then manipulate any host file
+and may pose a security risk.
+
+Operators now must explicitly allow tasks to access host filesystem. [Host
+Volumes](/docs/configuration/client#host_volume-stanza) provide a fine tune
+access to individual paths.
+
+To restore pre-0.12.0 behavior, you can enable [Docker
+`volume`](/docs/drivers/docker#enabled-1) to allow binding host paths, by adding
+the following to the nomad client config file:
+
+```hcl
+plugin "docker" {
+  config {
+    volumes {
+      enabled = true
+    }
+  }
+}
+```
+
+### Qemu images
+
+Nomad 0.12.0 restricts the paths the Qemu tasks can load an image from. A Qemu
+task may download an image to the allocation directory to load. But images
+outside the allocation directories must be explicitly allowed by operators in
+the client agent configuration file.
+
+For example, you may allow loading Qemu images from `/mnt/qemu-images` by
+adding the following to the agent configuration file:
+
+```hcl
+plugin "qemu" {
+  config {
+    image_paths = ["/mnt/qemu-images"]
+  }
+}
+```
+
+## Nomad 0.11.3
+
+Nomad 0.11.3 fixes a critical bug causing the nomad agent to become
+unresponsive. The issue is due to a [Go 1.14.1 runtime
+bug](https://github.com/golang/go/issues/38023) and affects Nomad 0.11.1 and
+0.11.2.
+
 ## Nomad 0.11.2
 
 ### Scheduler Scoring Changes
@@ -270,6 +339,23 @@ Due to the large refactor of the Nomad client in 0.9, downgrading to a
 previous version of the client after upgrading it to Nomad 0.9 is not supported.
 To downgrade safely, users should erase the Nomad client's data directory.
 
+### `port_map` Environment Variable Changes
+
+Before Nomad 0.9.0 ports mapped via a task driver's `port_map` stanza could be
+interpolated via the `NOMAD_PORT_<label>` environment variables.
+
+However, in Nomad 0.9.0 no parameters in a driver's `config` stanza, including
+its `port_map`, are available for interpolation. This means `{{ env
+NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT =
+"${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the *host* ports,
+not the container's.
+
+Nomad 0.10 introduced Task Group Networking which natively supports port
+mapping without relying on task driver specific `port_map` fields. The
+[`to`](/docs/job-specification/network/#to) field on group network port stanzas
+will be interpolated properly. Please see the
+[`network`](/docs/job-specification/network/) stanza documentation for details.
+
 ## Nomad 0.8.0
 
 ### Raft Protocol Version Compatibility
@@ -499,6 +585,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [drain-cli]: /docs/commands/node/drain
 [dst]: /docs/job-specification/periodic#daylight-saving-time
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
+[gh-8457]: https://github.com/hashicorp/nomad/issues/8457
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits
 [lxc]: /docs/drivers/external/lxc

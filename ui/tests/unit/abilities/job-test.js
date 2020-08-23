@@ -1,3 +1,4 @@
+/* eslint-disable ember/avoid-leaking-state-in-ember-objects */
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import Service from '@ember/service';
@@ -123,6 +124,49 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:token', mockToken);
 
     assert.notOk(this.ability.canRun);
+  });
+
+  test('job scale requires a client token with the submit-job or scale-job capability', function(assert) {
+    const makePolicies = (namespace, ...capabilities) => [
+      {
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: namespace,
+              Capabilities: capabilities,
+            },
+          ],
+        },
+      },
+    ];
+
+    const mockSystem = Service.extend({
+      aclEnabled: true,
+      activeNamespace: {
+        name: 'aNamespace',
+      },
+    });
+
+    const mockToken = Service.extend({
+      aclEnabled: true,
+      selfToken: { type: 'client' },
+      selfTokenPolicies: makePolicies('aNamespace'),
+    });
+
+    this.owner.register('service:system', mockSystem);
+    this.owner.register('service:token', mockToken);
+    const tokenService = this.owner.lookup('service:token');
+
+    assert.notOk(this.ability.canScale);
+
+    tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'scale-job'));
+    assert.ok(this.ability.canScale);
+
+    tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'submit-job'));
+    assert.ok(this.ability.canScale);
+
+    tokenService.set('selfTokenPolicies', makePolicies('bNamespace', 'scale-job'));
+    assert.notOk(this.ability.canScale);
   });
 
   test('it handles globs in namespace names', function(assert) {

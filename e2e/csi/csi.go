@@ -70,7 +70,7 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 		if err != nil {
 			return false
 		}
-		if plugin.ControllersHealthy != 1 || plugin.NodesHealthy < 2 {
+		if plugin.ControllersHealthy < 2 || plugin.NodesHealthy < 2 {
 			return false
 		}
 		return true
@@ -221,7 +221,7 @@ func (tc *CSIVolumesTest) AfterEach(f *framework.F) {
 	}
 	// Deregister all volumes in test
 	for _, id := range tc.volumeIDs {
-		nomadClient.CSIVolumes().Deregister(id, nil)
+		nomadClient.CSIVolumes().Deregister(id, true, nil)
 	}
 	// Deregister all plugin jobs in test
 	for _, id := range tc.pluginJobIDs {

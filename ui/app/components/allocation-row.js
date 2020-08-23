@@ -8,46 +8,48 @@ import { run } from '@ember/runloop';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
 import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
+import classic from 'ember-classic-decorator';
+import { classNames, tagName } from '@ember-decorators/component';
 
-export default Component.extend({
-  store: service(),
-  token: service(),
+@classic
+@tagName('tr')
+@classNames('allocation-row', 'is-interactive')
+export default class AllocationRow extends Component {
+  @service store;
+  @service token;
 
-  tagName: 'tr',
-
-  classNames: ['allocation-row', 'is-interactive'],
-
-  allocation: null,
+  allocation = null;
 
   // Used to determine whether the row should mention the node or the job
-  context: null,
+  context = null;
 
   // Internal state
-  statsError: false,
+  statsError = false;
 
-  enablePolling: overridable(() => !Ember.testing),
+  @overridable(() => !Ember.testing) enablePolling;
 
-  stats: computed('allocation', 'allocation.isRunning', function() {
-    if (!this.get('allocation.isRunning')) return;
+  @computed('allocation', 'allocation.isRunning')
+  get stats() {
+    if (!this.get('allocation.isRunning')) return undefined;
 
     return AllocationStatsTracker.create({
       fetch: url => this.token.authorizedRequest(url),
       allocation: this.allocation,
     });
-  }),
+  }
 
-  cpu: alias('stats.cpu.lastObject'),
-  memory: alias('stats.memory.lastObject'),
+  @alias('stats.cpu.lastObject') cpu;
+  @alias('stats.memory.lastObject') memory;
 
-  onClick() {},
+  onClick() {}
 
   click(event) {
     lazyClick([this.onClick, event]);
-  },
+  }
 
   didReceiveAttrs() {
     this.updateStatsTracker();
-  },
+  }
 
   updateStatsTracker() {
     const allocation = this.allocation;
@@ -57,9 +59,9 @@ export default Component.extend({
     } else {
       this.fetchStats.cancelAll();
     }
-  },
+  }
 
-  fetchStats: task(function*() {
+  @(task(function*() {
     do {
       if (this.stats) {
         try {
@@ -72,8 +74,9 @@ export default Component.extend({
 
       yield timeout(500);
     } while (this.enablePolling);
-  }).drop(),
-});
+  }).drop())
+  fetchStats;
+}
 
 async function qualifyAllocation() {
   const allocation = this.allocation;

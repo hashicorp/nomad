@@ -2991,7 +2991,12 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Error(t, err, fmt.Sprintf("volume exists: %s", vol0))
 	// as is deregistration
 	index++
-	err = state.CSIVolumeDeregister(index, ns, []string{vol0})
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, false)
+	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))
+
+	// even if forced, because we have a non-terminal claim
+	index++
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, true)
 	require.Error(t, err, fmt.Sprintf("volume in use: %s", vol0))
 
 	// release claims to unblock deregister
@@ -3006,7 +3011,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 
 	index++
-	err = state.CSIVolumeDeregister(index, ns, []string{vol0})
+	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, false)
 	require.NoError(t, err)
 
 	// List, now omitting the deregistered volume
@@ -8481,7 +8486,7 @@ func TestStateStore_ClusterMetadata(t *testing.T) {
 	err := state.ClusterSetMetadata(100, meta)
 	require.NoError(err)
 
-	result, err := state.ClusterMetadata()
+	result, err := state.ClusterMetadata(nil)
 	require.NoError(err)
 	require.Equal(clusterID, result.ClusterID)
 	require.Equal(now, result.CreateTime)
@@ -8503,7 +8508,7 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 
 	restore.Commit()
 
-	out, err := state.ClusterMetadata()
+	out, err := state.ClusterMetadata(nil)
 	require.NoError(err)
 	require.Equal(clusterID, out.ClusterID)
 	require.Equal(now, out.CreateTime)
@@ -8662,6 +8667,7 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 	require.Equal(newIndex, out.ModifyIndex)
 
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(newIndex, index)
 }
 
@@ -8688,6 +8694,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	require.Equal(newIndex, p1.ModifyIndex)
 
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(newIndex, index)
 	require.NotEmpty(p1.ID)
 
@@ -8706,6 +8713,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	require.Equal(p1.ModifyIndex, p2.ModifyIndex)
 
 	index, err = state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(index, p1.CreateIndex, "table index should not have changed")
 }
 
@@ -8731,6 +8739,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	prevId := p1.ID
 
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.Equal(oldIndex, index)
 	require.NotEmpty(p1.ID)
 
@@ -8750,6 +8759,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	require.Greater(p2.ModifyIndex, oldIndex, "ModifyIndex should have advanced")
 
 	index, err = state.Index("scaling_policy")
+	require.NoError(err)
 	require.Greater(index, oldIndex, "table index should have advanced")
 }
 
@@ -8851,6 +8861,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 	require.NoError(err)
 	require.Nil(out)
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.GreaterOrEqual(index, uint64(1200))
 }
 
@@ -8894,6 +8905,7 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(out)
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.GreaterOrEqual(index, uint64(1100))
 }
 
@@ -8924,6 +8936,7 @@ func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
 	require.NoError(err)
 	require.Nil(out)
 	index, err := state.Index("scaling_policy")
+	require.NoError(err)
 	require.True(index > 1001)
 }
 

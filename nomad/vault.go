@@ -160,12 +160,13 @@ type PurgeVaultAccessorFn func(accessors []*structs.VaultAccessor) error
 // tokenData holds the relevant information about the Vault token passed to the
 // client.
 type tokenData struct {
-	CreationTTL int      `mapstructure:"creation_ttl"`
-	TTL         int      `mapstructure:"ttl"`
-	Renewable   bool     `mapstructure:"renewable"`
-	Policies    []string `mapstructure:"policies"`
-	Role        string   `mapstructure:"role"`
-	Root        bool
+	CreationTTL   int      `mapstructure:"creation_ttl"`
+	TTL           int      `mapstructure:"ttl"`
+	Renewable     bool     `mapstructure:"renewable"`
+	Policies      []string `mapstructure:"policies"`
+	Role          string   `mapstructure:"role"`
+	NamespacePath string   `mapstructure:"namespace_path"`
+	Root          bool
 }
 
 // vaultClient is the Servers implementation of the VaultClient interface. The
@@ -240,11 +241,21 @@ type vaultClient struct {
 
 	// setConfigLock serializes access to the SetConfig method
 	setConfigLock sync.Mutex
+
+	// consts as struct fields for overriding in tests
+	maxRevokeBatchSize int
+	revocationIntv     time.Duration
+
+	entHandler taskClientHandler
+}
+
+type taskClientHandler interface {
+	clientForTask(v *vaultClient, namespace string) (*vapi.Client, error)
 }
 
 // NewVaultClient returns a Vault client from the given config. If the client
 // couldn't be made an error is returned.
-func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVaultAccessorFn) (*vaultClient, error) {
+func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVaultAccessorFn, delegate taskClientHandler) (*vaultClient, error) {
 	if c == nil {
 		return nil, fmt.Errorf("must pass valid VaultConfig")
 	}
@@ -255,14 +266,20 @@ func NewVaultClient(c *config.VaultConfig, logger log.Logger, purgeFn PurgeVault
 	if purgeFn == nil {
 		purgeFn = func(accessors []*structs.VaultAccessor) error { return nil }
 	}
+	if delegate == nil {
+		delegate = &VaultNoopDelegate{}
+	}
 
 	v := &vaultClient{
-		config:   c,
-		logger:   logger.Named("vault"),
-		limiter:  rate.NewLimiter(requestRateLimit, int(requestRateLimit)),
-		revoking: make(map[*structs.VaultAccessor]time.Time),
-		purgeFn:  purgeFn,
-		tomb:     &tomb.Tomb{},
+		config:             c,
+		logger:             logger.Named("vault"),
+		limiter:            rate.NewLimiter(requestRateLimit, int(requestRateLimit)),
+		revoking:           make(map[*structs.VaultAccessor]time.Time),
+		purgeFn:            purgeFn,
+		tomb:               &tomb.Tomb{},
+		maxRevokeBatchSize: maxVaultRevokeBatchSize,
+		revocationIntv:     vaultRevocationIntv,
+		entHandler:         delegate,
 	}
 
 	if v.config.IsEnabled() {
@@ -465,17 +482,18 @@ OUTER:
 		case <-v.tomb.Dying():
 			return
 		case <-retryTimer.C:
-			// Ensure the API is reachable
-			if !initStatus {
-				if _, err := v.clientSys.Sys().InitStatus(); err != nil {
-					v.logger.Warn("failed to contact Vault API", "retry", v.config.ConnectionRetryIntv, "error", err)
-					retryTimer.Reset(v.config.ConnectionRetryIntv)
-					continue OUTER
-				}
-				initStatus = true
-			}
 			// Retry validating the token till success
 			if err := v.parseSelfToken(); err != nil {
+				// if parsing token fails, try to distinguish legitimate token error from transient Vault initialization/connection issue
+				if !initStatus {
+					if _, err := v.clientSys.Sys().Health(); err != nil {
+						v.logger.Warn("failed to contact Vault API", "retry", v.config.ConnectionRetryIntv, "error", err)
+						retryTimer.Reset(v.config.ConnectionRetryIntv)
+						continue OUTER
+					}
+					initStatus = true
+				}
+
 				v.logger.Error("failed to validate self token/role", "retry", v.config.ConnectionRetryIntv, "error", err)
 				retryTimer.Reset(v.config.ConnectionRetryIntv)
 				v.l.Lock()
@@ -484,6 +502,7 @@ OUTER:
 				v.l.Unlock()
 				continue OUTER
 			}
+
 			break OUTER
 		}
 	}
@@ -945,7 +964,6 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	if !v.Active() {
 		return nil, structs.NewRecoverableError(fmt.Errorf("Vault client not active"), true)
 	}
-
 	// Check if we have established a connection with Vault
 	if established, err := v.ConnectionEstablished(); !established && err == nil {
 		return nil, structs.NewRecoverableError(fmt.Errorf("Connection to Vault has not been established"), true)
@@ -970,6 +988,12 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, fmt.Errorf("Task does not require Vault policies")
 	}
 
+	// Set namespace for task
+	namespaceForTask := v.config.Namespace
+	if taskVault.Namespace != "" {
+		namespaceForTask = taskVault.Namespace
+	}
+
 	// Build the creation request
 	req := &vapi.TokenCreateRequest{
 		Policies: taskVault.Policies,
@@ -977,6 +1001,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 			"AllocationID": a.ID,
 			"Task":         task,
 			"NodeID":       a.NodeID,
+			"Namespace":    namespaceForTask,
 		},
 		TTL:         v.childTTL,
 		DisplayName: fmt.Sprintf("%s-%s", a.ID, task),
@@ -992,12 +1017,19 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 	var secret *vapi.Secret
 	var err error
 	role := v.getRole()
+
+	// Fetch client for task
+	taskClient, err := v.entHandler.clientForTask(v, namespaceForTask)
+	if err != nil {
+		return nil, err
+	}
+
 	if v.tokenData.Root && role == "" {
 		req.Period = v.childTTL
-		secret, err = v.auth.Create(req)
+		secret, err = taskClient.Auth().Token().Create(req)
 	} else {
 		// Make the token using the role
-		secret, err = v.auth.CreateWithRole(req, v.getRole())
+		secret, err = taskClient.Auth().Token().CreateWithRole(req, v.getRole())
 	}
 
 	// Determine whether it is unrecoverable
@@ -1061,15 +1093,23 @@ func (v *vaultClient) LookupToken(ctx context.Context, token string) (*vapi.Secr
 
 // PoliciesFrom parses the set of policies returned by a token lookup.
 func PoliciesFrom(s *vapi.Secret) ([]string, error) {
+	return s.TokenPolicies()
+}
+
+// PolicyDataFrom parses the Data returned by a token lookup.
+// It should not be used to parse TokenPolicies as the list will not be
+// exhaustive.
+func PolicyDataFrom(s *vapi.Secret) (tokenData, error) {
 	if s == nil {
-		return nil, fmt.Errorf("cannot parse nil Vault secret")
+		return tokenData{}, fmt.Errorf("cannot parse nil Vault secret")
 	}
 	var data tokenData
+
 	if err := mapstructure.WeakDecode(s.Data, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse Vault token's data block: %v", err)
+		return tokenData{}, fmt.Errorf("failed to parse Vault token's data block: %v", err)
 	}
 
-	return data.Policies, nil
+	return data, nil
 }
 
 // RevokeTokens revokes the passed set of accessors. If committed is set, the
@@ -1227,19 +1267,22 @@ func (v *vaultClient) parallelRevoke(ctx context.Context, accessors []*structs.V
 }
 
 // maxVaultRevokeBatchSize is the maximum tokens a revokeDaemon should revoke
-// at any given time.
+// and purge at any given time.
 //
 // Limiting the revocation batch size is beneficial for few reasons:
 // * A single revocation failure of any entry in batch result into retrying the whole batch;
 //   the larger the batch is the higher likelihood of such failure
 // * Smaller batch sizes result into more co-operativeness: provides hooks for
 //   reconsidering token TTL and leadership steps down.
+// * Batches limit the size of the Raft message purging tokens. Due to bugs
+//   pre-0.11.3, expired tokens were not properly purged, so users upgrading from
+//   older versions may have huge numbers (millions) of expired tokens to purge.
 const maxVaultRevokeBatchSize = 1000
 
 // revokeDaemon should be called in a goroutine and is used to periodically
 // revoke Vault accessors that failed the original revocation
 func (v *vaultClient) revokeDaemon() {
-	ticker := time.NewTicker(vaultRevocationIntv)
+	ticker := time.NewTicker(v.revocationIntv)
 	defer ticker.Stop()
 
 	for {
@@ -1247,7 +1290,7 @@ func (v *vaultClient) revokeDaemon() {
 		case <-v.tomb.Dying():
 			return
 		case now := <-ticker.C:
-			if established, _ := v.ConnectionEstablished(); !established {
+			if established, err := v.ConnectionEstablished(); !established || err != nil {
 				continue
 			}
 
@@ -1261,8 +1304,11 @@ func (v *vaultClient) revokeDaemon() {
 
 			// Build the list of accessors that need to be revoked while pruning any TTL'd checks
 			toRevoke := len(v.revoking)
-			if toRevoke > maxVaultRevokeBatchSize {
-				toRevoke = maxVaultRevokeBatchSize
+			if toRevoke > v.maxRevokeBatchSize {
+				v.logger.Info("batching tokens to be revoked",
+					"to_revoke", toRevoke, "batch_size", v.maxRevokeBatchSize,
+					"batch_interval", v.revocationIntv)
+				toRevoke = v.maxRevokeBatchSize
 			}
 			revoking := make([]*structs.VaultAccessor, 0, toRevoke)
 			ttlExpired := []*structs.VaultAccessor{}
@@ -1273,7 +1319,10 @@ func (v *vaultClient) revokeDaemon() {
 					revoking = append(revoking, va)
 				}
 
-				if len(revoking) >= toRevoke {
+				// Batches should consider tokens to be revoked
+				// as well as expired tokens to ensure the Raft
+				// message is reasonably sized.
+				if len(revoking)+len(ttlExpired) >= toRevoke {
 					break
 				}
 			}
@@ -1392,4 +1441,11 @@ func (v *vaultClient) extendExpiration(ttlSeconds int) {
 	v.currentExpirationLock.Lock()
 	v.currentExpiration = time.Now().Add(time.Duration(ttlSeconds) * time.Second)
 	v.currentExpirationLock.Unlock()
+}
+
+// VaultVaultNoopDelegate returns the default vault api auth token handler
+type VaultNoopDelegate struct{}
+
+func (e *VaultNoopDelegate) clientForTask(v *vaultClient, namespace string) (*vapi.Client, error) {
+	return v.client, nil
 }

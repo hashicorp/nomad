@@ -1,36 +1,39 @@
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
-import { computed } from '@ember/object';
-import { gt } from '@ember/object/computed';
-import { equal } from '@ember/object/computed';
+import { action, computed } from '@ember/object';
+import { equal, gt } from '@ember/object/computed';
 import RSVP from 'rsvp';
 import Log from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  token: service(),
+@classic
+@classNames('boxed-section', 'task-log')
+export default class File extends Component {
+  @service token;
+  @service system;
 
-  classNames: ['boxed-section', 'task-log'],
+  'data-test-file-viewer' = true;
 
-  'data-test-file-viewer': true,
-
-  allocation: null,
-  taskState: null,
-  file: null,
-  stat: null, // { Name, IsDir, Size, FileMode, ModTime, ContentType }
+  allocation = null;
+  taskState = null;
+  file = null;
+  stat = null; // { Name, IsDir, Size, FileMode, ModTime, ContentType }
 
   // When true, request logs from the server agent
-  useServer: false,
+  useServer = false;
 
   // When true, logs cannot be fetched from either the client or the server
-  noConnection: false,
+  noConnection = false;
 
-  clientTimeout: 1000,
-  serverTimeout: 5000,
+  clientTimeout = 1000;
+  serverTimeout = 5000;
 
-  mode: 'head',
+  mode = 'head';
 
-  fileComponent: computed('stat.ContentType', function() {
+  @computed('stat.ContentType')
+  get fileComponent() {
     const contentType = this.stat.ContentType || '';
 
     if (contentType.startsWith('image/')) {
@@ -40,21 +43,27 @@ export default Component.extend({
     } else {
       return 'unknown';
     }
-  }),
+  }
 
-  isLarge: gt('stat.Size', 50000),
+  @gt('stat.Size', 50000) isLarge;
 
-  fileTypeIsUnknown: equal('fileComponent', 'unknown'),
-  isStreamable: equal('fileComponent', 'stream'),
-  isStreaming: false,
+  @equal('fileComponent', 'unknown') fileTypeIsUnknown;
+  @equal('fileComponent', 'stream') isStreamable;
+  isStreaming = false;
 
-  catUrl: computed('allocation.id', 'taskState.name', 'file', function() {
+  @computed('allocation.id', 'taskState.name', 'file')
+  get catUrl() {
     const taskUrlPrefix = this.taskState ? `${this.taskState.name}/` : '';
     const encodedPath = encodeURIComponent(`${taskUrlPrefix}${this.file}`);
-    return `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
-  }),
+    let apiPath = `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
+    if (this.system.shouldIncludeRegion) {
+      apiPath += `&region=${this.system.activeRegion}`;
+    }
+    return apiPath;
+  }
 
-  fetchMode: computed('isLarge', 'mode', function() {
+  @computed('isLarge', 'mode')
+  get fetchMode() {
     if (this.mode === 'streaming') {
       return 'stream';
     }
@@ -64,21 +73,19 @@ export default Component.extend({
     } else if (this.mode === 'head' || this.mode === 'tail') {
       return 'readat';
     }
-  }),
 
-  fileUrl: computed(
-    'allocation.id',
-    'allocation.node.httpAddr',
-    'fetchMode',
-    'useServer',
-    function() {
-      const address = this.get('allocation.node.httpAddr');
-      const url = `/v1/client/fs/${this.fetchMode}/${this.allocation.id}`;
-      return this.useServer ? url : `//${address}${url}`;
-    }
-  ),
+    return undefined;
+  }
 
-  fileParams: computed('taskState.name', 'file', 'mode', function() {
+  @computed('allocation.{id,node.httpAddr}', 'fetchMode', 'useServer')
+  get fileUrl() {
+    const address = this.get('allocation.node.httpAddr');
+    const url = `/v1/client/fs/${this.fetchMode}/${this.allocation.id}`;
+    return this.useServer ? url : `//${address}${url}`;
+  }
+
+  @computed('taskState.name', 'file', 'mode')
+  get fileParams() {
     // The Log class handles encoding query params
     const taskUrlPrefix = this.taskState ? `${this.taskState.name}/` : '';
     const path = `${taskUrlPrefix}${this.file}`;
@@ -93,9 +100,10 @@ export default Component.extend({
       default:
         return { path };
     }
-  }),
+  }
 
-  logger: computed('fileUrl', 'fileParams', 'mode', function() {
+  @computed('fileUrl', 'fileParams', 'mode')
+  get logger() {
     // The cat and readat APIs are in plainText while the stream API is always encoded.
     const plainText = this.mode === 'head' || this.mode === 'tail';
 
@@ -119,7 +127,7 @@ export default Component.extend({
       params: this.fileParams,
       url: this.fileUrl,
     });
-  }),
+  }
 
   nextErrorState(error) {
     if (this.useServer) {
@@ -128,23 +136,28 @@ export default Component.extend({
       this.send('failoverToServer');
     }
     throw error;
-  },
+  }
 
-  actions: {
-    toggleStream() {
-      this.set('mode', 'streaming');
-      this.toggleProperty('isStreaming');
-    },
-    gotoHead() {
-      this.set('mode', 'head');
-      this.set('isStreaming', false);
-    },
-    gotoTail() {
-      this.set('mode', 'tail');
-      this.set('isStreaming', false);
-    },
-    failoverToServer() {
-      this.set('useServer', true);
-    },
-  },
-});
+  @action
+  toggleStream() {
+    this.set('mode', 'streaming');
+    this.toggleProperty('isStreaming');
+  }
+
+  @action
+  gotoHead() {
+    this.set('mode', 'head');
+    this.set('isStreaming', false);
+  }
+
+  @action
+  gotoTail() {
+    this.set('mode', 'tail');
+    this.set('isStreaming', false);
+  }
+
+  @action
+  failoverToServer() {
+    this.set('useServer', true);
+  }
+}

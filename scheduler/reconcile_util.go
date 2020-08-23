@@ -41,6 +41,7 @@ type allocStopResult struct {
 	alloc             *structs.Allocation
 	clientStatus      string
 	statusDescription string
+	followupEvalID    string
 }
 
 // allocPlaceResult contains the information required to place a single

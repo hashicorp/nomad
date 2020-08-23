@@ -47,13 +47,21 @@ job "countdash" {
 
 ## `connect` Parameters
 
+- `native` - `(bool: false)` - This is used to configure the service as supporting
+  [Connect Native](https://www.consul.io/docs/connect/native) applications. If set,
+  the service definition must provide the name of the implementing task in the
+  [task][service_task] field.
+  Incompatible with `sidecar_service` and `sidecar_task`.
+
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to configure the sidecar
-  service injected by Nomad for Consul Connect.
+  service injected by Nomad for Consul Connect. Incompatible with `native`.
 
 - `sidecar_task` - <code>([sidecar_task][]:nil)</code> - This modifies the configuration of the Envoy
-  proxy task.
+  proxy task. Incompatible with `native`.
 
 ## `connect` Examples
+
+### Using Sidecar Service
 
 The following example is a minimal connect stanza with defaults and is
 sufficient to start an Envoy proxy sidecar for allowing incoming connections
@@ -161,11 +169,29 @@ job "countdash" {
 }
 ```
 
+### Using Connect Native
+
+The following example is a minimal service stanza for a
+[Consul Connect Native](https://www.consul.io/docs/connect/native)
+application implemented by a task named `generate`.
+
+```hcl
+service {
+  name = "uuid-api"
+  port = "${NOMAD_PORT_api}"
+  task = "generate"
+
+  connect {
+    native = true
+  }
+}
+```
+
 ### Limitations
 
-[Consul Connect Native services][native] and [Nomad variable
-interpolation][interpolation] are _not_ yet supported.
+[Nomad variable interpolation][interpolation] is _not_ yet supported ([gh-7221]).
 
+[gh-7221]: https://github.com/hashicorp/nomad/issues/7221
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [group]: /docs/job-specification/group 'Nomad group Job Specification'
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
@@ -174,3 +200,4 @@ interpolation][interpolation] are _not_ yet supported.
 [sidecar_task]: /docs/job-specification/sidecar_task 'Nomad sidecar task config Specification'
 [upstreams]: /docs/job-specification/upstreams 'Nomad sidecar service upstreams Specification'
 [native]: https://www.consul.io/docs/connect/native.html
+[service_task]: /docs/job-specification/service#task-1 'Nomad service task'

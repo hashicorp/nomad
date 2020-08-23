@@ -9,7 +9,7 @@ import Helper from '@ember/component/helper';
  * that should be handled instead.
  */
 export function lazyClick([onClick, event]) {
-  if (event.target.tagName.toLowerCase() !== 'a') {
+  if (!['a', 'button'].includes(event.target.tagName.toLowerCase())) {
     onClick(event);
   }
 }

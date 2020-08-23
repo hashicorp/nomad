@@ -31,8 +31,12 @@ module('Integration | Component | primary metric', function(hooks) {
         yield trackerSignalPauseSpy();
       }),
 
-      cpu: computed(() => []),
-      memory: computed(() => []),
+      cpu: computed(function() {
+        return [];
+      }),
+      memory: computed(function() {
+        return [];
+      }),
     });
 
     const mockStatsTrackersRegistry = Service.extend({

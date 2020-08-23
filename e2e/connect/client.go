@@ -35,6 +35,7 @@ func (tc *ConnectClientStateE2ETest) AfterEach(f *framework.F) {
 func (tc *ConnectClientStateE2ETest) TestClientRestart(f *framework.F) {
 	t := f.T()
 	require := require.New(t)
+
 	jobID := "connect" + uuid.Generate()[0:8]
 	tc.jobIds = append(tc.jobIds, jobID)
 	client := tc.Nomad()

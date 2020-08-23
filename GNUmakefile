@@ -183,6 +183,7 @@ lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
 	GO111MODULE=on cd tools && go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
 	GO111MODULE=on cd tools && go get github.com/client9/misspell/cmd/misspell@v0.3.4
+	GO111MODULE=on cd tools && go get github.com/hashicorp/go-hclog/hclogvet@v0.1.3
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -195,6 +196,9 @@ $(git-dir)/hooks/%: dev/hooks/%
 check: ## Lint the source code
 	@echo "==> Linting source code..."
 	@golangci-lint run -j 1
+	
+	@echo "==> Linting hclog statements..."
+	@hclogvet .
 
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/pages/
@@ -268,7 +272,7 @@ dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: tidy changelogfmt hclfmt ## Build for the current development platform
+dev: changelogfmt hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad

@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -561,7 +562,12 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		},
 	})
 
-	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), d.config.pullActivityTimeoutDuration)
+	pullDur, err := time.ParseDuration(driverConfig.ImagePullTimeout)
+	if err != nil {
+		return "", fmt.Errorf("Failed to parse image_pull_timeout: %v", err)
+	}
+
+	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), pullDur, d.config.pullActivityTimeoutDuration)
 }
 
 func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {
@@ -838,7 +844,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.MemorySwap = 0
 		hostConfig.MemorySwappiness = nil
 	} else {
-		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+		hostConfig.MemorySwap = memory
 
 		// disable swap explicitly in non-Windows environments
 		var swapiness int64 = 0
@@ -915,15 +921,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.ShmSize = driverConfig.ShmSize
 	}
 
-	// set DNS servers
-	for _, ip := range driverConfig.DNSServers {
-		if net.ParseIP(ip) != nil {
-			hostConfig.DNS = append(hostConfig.DNS, ip)
-		} else {
-			logger.Error("invalid ip address for container dns server", "ip", ip)
-		}
-	}
-
 	// Setup devices
 	for _, device := range driverConfig.Devices {
 		dd, err := device.toDockerDevice()
@@ -959,6 +956,40 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
+	// Setup DNS
+	// If task DNS options are configured Nomad will manage the resolv.conf file
+	// Docker driver dns options are not compatible with task dns options
+	if task.DNS != nil {
+		dnsMount, err := resolvconf.GenerateDNSMount(task.TaskDir().Dir, task.DNS)
+		if err != nil {
+			return c, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
+		}
+		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+			Target:   dnsMount.TaskPath,
+			Source:   dnsMount.HostPath,
+			Type:     "bind",
+			ReadOnly: dnsMount.Readonly,
+			BindOptions: &docker.BindOptions{
+				Propagation: dnsMount.PropagationMode,
+			},
+		})
+	} else {
+		if len(driverConfig.DNSSearchDomains) > 0 {
+			hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+		}
+		if len(driverConfig.DNSOptions) > 0 {
+			hostConfig.DNSOptions = driverConfig.DNSOptions
+		}
+		// set DNS servers
+		for _, ip := range driverConfig.DNSServers {
+			if net.ParseIP(ip) != nil {
+				hostConfig.DNS = append(hostConfig.DNS, ip)
+			} else {
+				logger.Error("invalid ip address for container dns server", "ip", ip)
+			}
+		}
+	}
+
 	for _, m := range task.Mounts {
 		hm := docker.HostMount{
 			Type:     "bind",
@@ -978,9 +1009,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
-	// set DNS search domains and extra hosts
-	hostConfig.DNSSearch = driverConfig.DNSSearchDomains
-	hostConfig.DNSOptions = driverConfig.DNSOptions
 	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 
 	hostConfig.IpcMode = driverConfig.IPCMode
@@ -1022,61 +1050,39 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	// Setup port mapping and exposed ports
-	if len(task.Resources.NomadResources.Networks) == 0 {
-		if len(driverConfig.PortMap) > 0 {
-			return c, fmt.Errorf("Trying to map ports but no network interface is available")
+	ports := newPublishedPorts(logger)
+	switch {
+	case task.Resources.Ports != nil && len(driverConfig.Ports) > 0:
+		// Do not set up docker port mapping if shared alloc networking is used
+		if strings.HasPrefix(hostConfig.NetworkMode, "container:") {
+			break
 		}
-	} else {
-		// TODO add support for more than one network
+
+		for _, port := range driverConfig.Ports {
+			if mapping, ok := task.Resources.Ports.Get(port); ok {
+				ports.add(mapping.Label, mapping.HostIP, mapping.Value, mapping.To)
+			} else {
+				return c, fmt.Errorf("Port %q not found, check network stanza", port)
+			}
+		}
+	case len(task.Resources.NomadResources.Networks) > 0:
 		network := task.Resources.NomadResources.Networks[0]
-		publishedPorts := map[docker.Port][]docker.PortBinding{}
-		exposedPorts := map[docker.Port]struct{}{}
 
 		for _, port := range network.ReservedPorts {
-			// By default we will map the allocated port 1:1 to the container
-			containerPortInt := port.Value
-
-			// If the user has mapped a port using port_map we'll change it here
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPortInt = mapped
-			}
-
-			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(strconv.Itoa(containerPortInt))
-
-			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
-			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
-			logger.Debug("allocated static port", "ip", network.IP, "port", port.Value)
-
-			exposedPorts[containerPort+"/tcp"] = struct{}{}
-			exposedPorts[containerPort+"/udp"] = struct{}{}
-			logger.Debug("exposed port", "port", port.Value)
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
 		}
 
 		for _, port := range network.DynamicPorts {
-			// By default we will map the allocated port 1:1 to the container
-			containerPortInt := port.Value
-
-			// If the user has mapped a port using port_map we'll change it here
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPortInt = mapped
-			}
-
-			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(strconv.Itoa(containerPortInt))
-
-			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
-			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
-			logger.Debug("allocated mapped port", "ip", network.IP, "port", port.Value)
-
-			exposedPorts[containerPort+"/tcp"] = struct{}{}
-			exposedPorts[containerPort+"/udp"] = struct{}{}
-			logger.Debug("exposed port", "port", containerPort)
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
 		}
 
-		hostConfig.PortBindings = publishedPorts
-		config.ExposedPorts = exposedPorts
+	default:
+		if len(driverConfig.PortMap) > 0 {
+			return c, fmt.Errorf("Trying to map ports but no network interface is available")
+		}
 	}
+	hostConfig.PortBindings = ports.publishedPorts
+	config.ExposedPorts = ports.exposedPorts
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if driverConfig.Command != "" {

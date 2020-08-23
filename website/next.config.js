@@ -1,12 +1,21 @@
 const withHashicorp = require('@hashicorp/nextjs-scripts')
 const path = require('path')
+const dotenv = require('dotenv')
+
+dotenv.config()
 
 module.exports = withHashicorp({
   defaultLayout: true,
   transpileModules: ['is-absolute-url', '@hashicorp/react-mega-nav'],
   mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') },
 })({
-  exportTrailingSlash: true,
+  svgo: {
+    plugins: [
+      {
+        removeViewBox: false,
+      },
+    ],
+  },
   experimental: {
     modern: true,
     rewrites: () => [

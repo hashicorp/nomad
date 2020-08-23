@@ -936,9 +936,22 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	alloc := tr.Alloc()
 	invocationid := uuid.Generate()[:8]
 	taskResources := tr.taskResources
+	ports := tr.Alloc().AllocatedResources.Shared.Ports
 	env := tr.envBuilder.Build()
 	tr.networkIsolationLock.Lock()
 	defer tr.networkIsolationLock.Unlock()
+
+	var dns *drivers.DNSConfig
+	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 {
+		allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
+		if allocDNS != nil {
+			dns = &drivers.DNSConfig{
+				Servers:  allocDNS.Servers,
+				Searches: allocDNS.Searches,
+				Options:  allocDNS.Options,
+			}
+		}
+	}
 
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
@@ -952,6 +965,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				CPUShares:        taskResources.Cpu.CpuShares,
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
+			Ports: &ports,
 		},
 		Devices:          tr.hookResources.getDevices(),
 		Mounts:           tr.hookResources.getMounts(),
@@ -963,6 +977,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		StderrPath:       tr.logmonHookConfig.stderrFifo,
 		AllocID:          tr.allocID,
 		NetworkIsolation: tr.networkIsolationSpec,
+		DNS:              dns,
 	}
 }
 

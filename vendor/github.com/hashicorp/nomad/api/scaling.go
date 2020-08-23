@@ -56,7 +56,7 @@ type ScalingPolicy struct {
 	Namespace   string
 	Target      map[string]string
 	Min         *int64
-	Max         int64
+	Max         *int64
 	Policy      map[string]interface{}
 	Enabled     *bool
 	CreateIndex uint64
@@ -76,6 +76,7 @@ type ScalingPolicyListStub struct {
 // JobScaleStatusResponse is used to return information about job scaling status
 type JobScaleStatusResponse struct {
 	JobID          string
+	Namespace      string
 	JobCreateIndex uint64
 	JobModifyIndex uint64
 	JobStopped     bool
@@ -92,11 +93,12 @@ type TaskGroupScaleStatus struct {
 }
 
 type ScalingEvent struct {
-	Count       *int64
-	Error       bool
-	Message     string
-	Meta        map[string]interface{}
-	EvalID      *string
-	Time        uint64
-	CreateIndex uint64
+	Count         *int64
+	PreviousCount int64
+	Error         bool
+	Message       string
+	Meta          map[string]interface{}
+	EvalID        *string
+	Time          uint64
+	CreateIndex   uint64
 }

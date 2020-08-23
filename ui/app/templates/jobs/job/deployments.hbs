@@ -1,5 +1,5 @@
-{{title "Job " job.name " deployments"}}
-{{partial "jobs/job/subnav"}}
+{{title "Job " this.job.name " deployments"}}
+<JobSubnav @job={{this.job}} />
 <section class="section">
-  <JobDeploymentsStream @deployments={{model.deployments}} />
+  <JobDeploymentsStream @deployments={{this.model.deployments}} />
 </section>

@@ -385,35 +385,35 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 }
 
 // setupLoggers is used to setup the logGate, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) {
+func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
 	logGate := &gatedwriter.Writer{
-		Writer: &cli.UiWriter{Ui: c.Ui},
+		Writer: &cli.UiWriter{Ui: ui},
 	}
 
-	c.logFilter = LevelFilter()
-	c.logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
-	c.logFilter.Writer = logGate
-	if !ValidateLevelFilter(c.logFilter.MinLevel, c.logFilter) {
-		c.Ui.Error(fmt.Sprintf(
+	logFilter := LevelFilter()
+	logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
+	logFilter.Writer = logGate
+	if !ValidateLevelFilter(logFilter.MinLevel, logFilter) {
+		ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
-			c.logFilter.MinLevel, c.logFilter.Levels))
-		return nil, nil
+			logFilter.MinLevel, logFilter.Levels))
+		return nil, nil, nil
 	}
 
 	// Create a log writer, and wrap a logOutput around it
-	writers := []io.Writer{c.logFilter}
+	writers := []io.Writer{logFilter}
 
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil
+			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
+			return nil, nil, nil
 		}
-		writers = append(writers, &SyslogWrapper{l, c.logFilter})
+		writers = append(writers, &SyslogWrapper{l, logFilter})
 	}
 
 	// Check if file logging is enabled
@@ -430,8 +430,8 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		if config.LogRotateDuration != "" {
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil
+				ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
+				return nil, nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -440,7 +440,7 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		}
 
 		logFile := &logFile{
-			logFilter: c.logFilter,
+			logFilter: logFilter,
 			fileName:  fileName,
 			logPath:   dir,
 			duration:  logRotateDuration,
@@ -451,9 +451,9 @@ func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, io.Writer) 
 		writers = append(writers, logFile)
 	}
 
-	c.logOutput = io.MultiWriter(writers...)
-	log.SetOutput(c.logOutput)
-	return logGate, c.logOutput
+	logOutput := io.MultiWriter(writers...)
+	log.SetOutput(logOutput)
+	return logFilter, logGate, logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
@@ -607,7 +607,9 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Setup the log outputs
-	logGate, logOutput := c.setupLoggers(config)
+	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
+	c.logFilter = logFilter
+	c.logOutput = logOutput
 	if logGate == nil {
 		return 1
 	}

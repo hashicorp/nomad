@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginAllocations from 'nomad-ui/tests/pages/storage/plugins/plugin/allocations';
 
@@ -14,6 +15,19 @@ module('Acceptance | plugin allocations', function(hooks) {
   hooks.beforeEach(function() {
     server.create('node');
     window.localStorage.clear();
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    plugin = server.create('csi-plugin', {
+      shallow: true,
+      controllerRequired: true,
+      controllersExpected: 3,
+      nodesExpected: 3,
+    });
+
+    await PluginAllocations.visit({ id: plugin.id });
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
   });
 
   test('/csi/plugins/:id/allocations shows all allocations in a single table', async function(assert) {

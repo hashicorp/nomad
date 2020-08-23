@@ -3,20 +3,24 @@ import { alias } from '@ember/object/computed';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { lazyClick } from '../helpers/lazy-click';
+import { classNames, classNameBindings, tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
+@classic
+@tagName('tr')
+@classNames('server-agent-row', 'is-interactive')
+@classNameBindings('isActive:is-active')
+export default class ServerAgentRow extends Component {
   // TODO Switch back to the router service once the service behaves more like Route
   // https://github.com/emberjs/ember.js/issues/15801
   // router: inject.service('router'),
-  _router: service('-routing'),
-  router: alias('_router.router'),
+  @service('-routing') _router;
+  @alias('_router.router') router;
 
-  tagName: 'tr',
-  classNames: ['server-agent-row', 'is-interactive'],
-  classNameBindings: ['isActive:is-active'],
+  agent = null;
 
-  agent: null,
-  isActive: computed('agent', 'router.currentURL', function() {
+  @computed('agent', 'router.currentURL')
+  get isActive() {
     // TODO Switch back to the router service once the service behaves more like Route
     // https://github.com/emberjs/ember.js/issues/15801
     // const targetURL = this.get('router').urlFor('servers.server', this.get('agent'));
@@ -30,10 +34,10 @@ export default Component.extend({
 
     // Account for potential URI encoding
     return currentURL.replace(/%40/g, '@') === targetURL.replace(/%40/g, '@');
-  }),
+  }
 
   click() {
     const transition = () => this.router.transitionTo('servers.server', this.agent);
     lazyClick([transition, event]);
-  },
-});
+  }
+}

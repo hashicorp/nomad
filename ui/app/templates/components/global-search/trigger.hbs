@@ -1,0 +1,7 @@
+{{x-icon "search" class="is-small"}}
+{{#unless this.select.isOpen}}
+  <span class='placeholder'>Jump to</span>
+{{/unless}}
+{{#if (not (or this.select.isActive this.select.isOpen))}}
+  <span class='shortcut' title="Type '/' to search">/</span>
+{{/if}}

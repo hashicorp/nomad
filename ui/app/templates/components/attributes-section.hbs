@@ -1,15 +1,15 @@
-{{#each-in attributes as |key value|}}
+{{#each-in this.attributes as |key value|}}
   {{#if (is-object value)}}
     <tr data-test-attributes-section>
       <td data-test-heading class="is-subheading" colspan="2">
-        {{#if prefix}}<span class="is-faded" data-test-prefix>{{prefix}}.</span>{{/if}}{{key}}
+        {{#if this.prefix}}<span class="is-faded" data-test-prefix>{{this.prefix}}.</span>{{/if}}{{key}}
       </td>
     </tr>
-    <AttributesSection @prefix={{if prefix (concat prefix "." key) key}} @attributes={{value}} />
+    <AttributesSection @prefix={{if this.prefix (concat this.prefix "." key) key}} @attributes={{value}} />
   {{else}}
     <tr data-test-attributes-section>
       <td data-test-key>
-        {{#if prefix}}<span class="is-faded" data-test-prefix>{{prefix}}.</span>{{/if}}
+        {{#if this.prefix}}<span class="is-faded" data-test-prefix>{{this.prefix}}.</span>{{/if}}
         {{~key}}
       </td>
       <td data-test-value title="{{value}}">{{value}}</td>

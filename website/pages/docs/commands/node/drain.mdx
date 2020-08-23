@@ -18,10 +18,12 @@ all allocations have terminated. Canceling the `node drain` command _will not_
 cancel the drain. Drains may be canceled by using the `-disable` parameter
 below.
 
-When draining more than one node at a time, it is recommended you first disable
-[scheduling eligibility][eligibility] on all nodes that will be drained. For
-example if you are decommissioning an entire class of nodes, first run `node eligibility -disable` on all of their node IDs, and then run `node drain -enable`. This will ensure allocations drained from the first node are not
-placed on another node about to be drained.
+When draining more than one node at a time, it is recommended you first
+disable [scheduling eligibility][eligibility] on all nodes that will be
+drained. For example if you are decommissioning an entire class of nodes,
+first run `node eligibility -disable` on all of their node IDs, and then run
+`node drain -enable`. This will ensure allocations drained from the first node
+are not placed on another node about to be drained.
 
 The [node status] command compliments this nicely by providing the current drain
 status of a given node.
@@ -65,8 +67,10 @@ operation is desired.
 - `-no-deadline`: No deadline allows the allocations to drain off the node
   without being force stopped after a certain deadline.
 
-- `-ignore-system`: Ignore system allows the drain to complete without stopping
-  system job allocations. By default system jobs are stopped last.
+- `-ignore-system`: Ignore system allows the drain to complete without
+  stopping system job allocations. By default system jobs are stopped
+  last. You should always use this flag when draining a node running
+  [CSI node plugins][internals-csi].
 
 - `-keep-ineligible`: Keep ineligible will maintain the node's scheduling
   ineligibility even if the drain is being disabled. This is useful when an
@@ -135,3 +139,4 @@ $ nomad node drain -self -monitor
 [migrate]: /docs/job-specification/migrate
 [node status]: /docs/commands/node/status
 [workload migration guide]: https://learn.hashicorp.com/nomad/operating-nomad/node-draining
+[internals-csi]: /docs/internals/plugins/csi

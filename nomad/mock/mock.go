@@ -65,9 +65,17 @@ func Node() *structs.Node {
 			},
 			Networks: []*structs.NetworkResource{
 				{
+					Mode:   "host",
 					Device: "eth0",
 					CIDR:   "192.168.0.100/32",
 					MBits:  1000,
+				},
+			},
+			NodeNetworks: []*structs.NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Speed:  1000,
 				},
 			},
 		},
@@ -628,22 +636,34 @@ func MaxParallelJob() *structs.Job {
 func ConnectJob() *structs.Job {
 	job := Job()
 	tg := job.TaskGroups[0]
-	tg.Networks = []*structs.NetworkResource{
-		{
-			Mode: "bridge",
+	tg.Services = []*structs.Service{{
+		Name:      "testconnect",
+		PortLabel: "9999",
+		Connect: &structs.ConsulConnect{
+			SidecarService: new(structs.ConsulSidecarService),
 		},
-	}
-	tg.Services = []*structs.Service{
-		{
-			Name:      "testconnect",
-			PortLabel: "9999",
-			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
-			},
-		},
-	}
+	}}
 	tg.Networks = structs.Networks{{
 		Mode: "bridge", // always bridge ... for now?
+	}}
+	return job
+}
+
+func ConnectNativeJob(mode string) *structs.Job {
+	job := Job()
+	tg := job.TaskGroups[0]
+	tg.Networks = []*structs.NetworkResource{{
+		Mode: mode,
+	}}
+	tg.Services = []*structs.Service{{
+		Name:      "test_connect_native",
+		PortLabel: "9999",
+		Connect: &structs.ConsulConnect{
+			Native: true,
+		},
+	}}
+	tg.Tasks = []*structs.Task{{
+		Name: "native_task",
 	}}
 	return job
 }
@@ -909,6 +929,16 @@ func ConnectAlloc() *structs.Allocation {
 			},
 		},
 	}
+	return alloc
+}
+
+func ConnectNativeAlloc(mode string) *structs.Allocation {
+	alloc := Alloc()
+	alloc.Job = ConnectNativeJob(mode)
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{{
+		Mode: mode,
+		IP:   "10.0.0.1",
+	}}
 	return alloc
 }
 
@@ -1285,6 +1315,34 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 	policy.TargetTaskGroup(job, job.TaskGroups[0])
 	job.TaskGroups[0].Scaling = policy
 	return job, policy
+}
+
+func MultiregionJob() *structs.Job {
+	job := Job()
+	update := *structs.DefaultUpdateStrategy
+	job.Update = update
+	job.TaskGroups[0].Update = &update
+	job.Multiregion = &structs.Multiregion{
+		Strategy: &structs.MultiregionStrategy{
+			MaxParallel: 1,
+			OnFailure:   "fail_all",
+		},
+		Regions: []*structs.MultiregionRegion{
+			{
+				Name:        "west",
+				Count:       2,
+				Datacenters: []string{"west-1", "west-2"},
+				Meta:        map[string]string{"region_code": "W"},
+			},
+			{
+				Name:        "east",
+				Count:       1,
+				Datacenters: []string{"east-1"},
+				Meta:        map[string]string{"region_code": "E"},
+			},
+		},
+	}
+	return job
 }
 
 func CSIPlugin() *structs.CSIPlugin {

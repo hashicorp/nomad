@@ -1,8 +1,8 @@
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
 
-export default Watchable.extend({
-  stop: adapterAction('/stop'),
+export default class AllocationAdapter extends Watchable {
+  stop = adapterAction('/stop');
 
   restart(allocation, taskName) {
     const prefix = `${this.host || '/'}${this.urlPrefix()}`;
@@ -10,22 +10,20 @@ export default Watchable.extend({
     return this.ajax(url, 'PUT', {
       data: taskName && { TaskName: taskName },
     });
-  },
+  }
 
   ls(model, path) {
     return this.token
       .authorizedRequest(`/v1/client/fs/ls/${model.id}?path=${encodeURIComponent(path)}`)
       .then(handleFSResponse);
-  },
+  }
 
   stat(model, path) {
     return this.token
-      .authorizedRequest(
-        `/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`
-      )
+      .authorizedRequest(`/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`)
       .then(handleFSResponse);
-  },
-});
+  }
+}
 
 async function handleFSResponse(response) {
   if (response.ok) {

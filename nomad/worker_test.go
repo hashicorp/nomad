@@ -437,7 +437,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 		NodePreemptions: make(map[string][]*structs.Allocation),
 	}
 	desiredDescription := "desired desc"
-	plan.AppendStoppedAlloc(stoppedAlloc, desiredDescription, structs.AllocClientStatusLost)
+	plan.AppendStoppedAlloc(stoppedAlloc, desiredDescription, structs.AllocClientStatusLost, "")
 	preemptingAllocID := uuid.Generate()
 	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
 

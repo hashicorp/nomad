@@ -7,6 +7,7 @@ import queryString from 'query-string';
 
 const MAX_OUTPUT_LENGTH = 50000;
 
+// eslint-disable-next-line ember/no-new-mixins
 export default Mixin.create({
   url: '',
   params: overridable(() => ({})),

@@ -15,6 +15,11 @@ const (
 	DeviceTypeGPU = "gpu"
 )
 
+var (
+	// ErrPluginDisabled indicates that the device plugin is disabled
+	ErrPluginDisabled = fmt.Errorf("device is not enabled")
+)
+
 // DevicePlugin is the interface for a plugin that can expose detected devices
 // to Nomad and inform it how to mount them.
 type DevicePlugin interface {

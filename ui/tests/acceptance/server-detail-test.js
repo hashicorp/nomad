@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ServerDetail from 'nomad-ui/tests/pages/servers/detail';
 
 let agent;
@@ -16,9 +17,25 @@ module('Acceptance | server detail', function(hooks) {
     await ServerDetail.visit({ name: agent.name });
   });
 
+  test('it passes an accessibility audit', async function(assert) {
+    await a11yAudit();
+    assert.ok(true, 'a11y audit passes');
+  });
+
   test('visiting /servers/:server_name', async function(assert) {
     assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
     assert.equal(document.title, `Server ${agent.name} - Nomad`);
+  });
+
+  test('when the server is the leader, the title shows a leader badge', async function(assert) {
+    assert.ok(ServerDetail.title.includes(agent.name));
+    assert.ok(ServerDetail.hasLeaderBadge);
+  });
+
+  test('the details ribbon displays basic information about the server', async function(assert) {
+    assert.ok(ServerDetail.serverStatus.includes(agent.status));
+    assert.ok(ServerDetail.address.includes(`${agent.address}:${agent.tags.port}`));
+    assert.ok(ServerDetail.datacenter.includes(agent.tags.dc));
   });
 
   test('the server detail page should list all tags for the server', async function(assert) {
@@ -34,15 +51,9 @@ module('Acceptance | server detail', function(hooks) {
     });
   });
 
-  test('the list of servers from /servers should still be present', async function(assert) {
-    assert.equal(ServerDetail.servers.length, server.db.agents.length, '# of servers');
-  });
-
-  test('the active server should be denoted in the table', async function(assert) {
-    const activeServers = ServerDetail.servers.filter(server => server.isActive);
-
-    assert.equal(activeServers.length, 1, 'Only one active server');
-    assert.equal(ServerDetail.activeServer.name, agent.name, 'Active server matches current route');
+  test('when the server is not the leader, there is no leader badge', async function(assert) {
+    await ServerDetail.visit({ name: server.db.agents[1].name });
+    assert.notOk(ServerDetail.hasLeaderBadge);
   });
 
   test('when the server is not found, an error message is shown, but the URL persists', async function(assert) {

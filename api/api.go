@@ -28,6 +28,12 @@ var (
 	ClientConnTimeout = 1 * time.Second
 )
 
+const (
+	// AllNamespacesNamespace is a sentinel Namespace value to indicate that api should search for
+	// jobs and allocations in all the namespaces the requester can access.
+	AllNamespacesNamespace = "*"
+)
+
 // QueryOptions are used to parametrize a query
 type QueryOptions struct {
 	// Providing a datacenter overwrites the region provided
@@ -943,8 +949,15 @@ func decodeBody(resp *http.Response, out interface{}) error {
 	}
 }
 
-// encodeBody is used to encode a request body
+// encodeBody prepares the reader to serve as the request body.
+//
+// Returns the `obj` input if it is a raw io.Reader object; otherwise
+// returns a reader of the json format of the passed argument.
 func encodeBody(obj interface{}) (io.Reader, error) {
+	if reader, ok := obj.(io.Reader); ok {
+		return reader, nil
+	}
+
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
 	if err := enc.Encode(obj); err != nil {

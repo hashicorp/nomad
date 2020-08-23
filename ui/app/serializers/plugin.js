@@ -12,7 +12,7 @@ const unmap = (hash, propKey) =>
     return record;
   });
 
-export default ApplicationSerializer.extend({
+export default class Plugin extends ApplicationSerializer {
   normalize(typeHash, hash) {
     hash.PlainId = hash.ID;
 
@@ -28,6 +28,6 @@ export default ApplicationSerializer.extend({
     hash.Nodes = unmap(nodes, 'NodeID');
     hash.Controllers = unmap(controllers, 'NodeID');
 
-    return this._super(typeHash, hash);
-  },
-});
+    return super.normalize(typeHash, hash);
+  }
+}

@@ -70,6 +70,9 @@ precedence, going from highest to lowest: the `-vault-token` flag, the
 - `-policy-override`: Sets the flag to force override any soft mandatory
   Sentinel policies.
 
+- `-preserve-counts`: If set, the existing task group counts will be preserved
+  when updating a job.
+
 - `-consul-token`: If set, the passed Consul token is stored in the job before
   sending to the Nomad servers. This allows passing the Consul token without
   storing it in the job file. This overrides the token found in the \$CONSUL_HTTP_TOKEN

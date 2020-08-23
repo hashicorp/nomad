@@ -518,7 +518,6 @@ func (c *NodeStatusCommand) outputTruncatedNodeDriverInfo(node *api.Node) string
 }
 
 func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
-	c.Ui.Output(c.Colorize().Color("\n[bold]Host Volumes"))
 
 	names := make([]string, 0, len(node.HostVolumes))
 	for name := range node.HostVolumes {
@@ -529,15 +528,17 @@ func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
 	output := make([]string, 0, len(names)+1)
 	output = append(output, "Name|ReadOnly|Source")
 
-	for _, volName := range names {
-		info := node.HostVolumes[volName]
-		output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
+	if len(names) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Host Volumes"))
+		for _, volName := range names {
+			info := node.HostVolumes[volName]
+			output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
+		}
+		c.Ui.Output(formatList(output))
 	}
-	c.Ui.Output(formatList(output))
 }
 
 func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *api.Node, runningAllocs []*api.Allocation) {
-	c.Ui.Output(c.Colorize().Color("\n[bold]CSI Volumes"))
 
 	// Duplicate nodeCSIVolumeNames to sort by name but also index volume names to ids
 	var names []string
@@ -563,27 +564,33 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 	volumes := map[string]*api.CSIVolumeListStub{}
 	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
 	for _, v := range vs {
-		n := requests[v.ID].Name
-		volumes[n] = v
+		n, ok := requests[v.ID]
+		if ok {
+			volumes[n.Name] = v
+		}
 	}
 
-	// Output the volumes in name order
-	output := make([]string, 0, len(names)+1)
-	output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
-	for _, name := range names {
-		v := volumes[name]
-		output = append(output, fmt.Sprintf(
-			"%s|%s|%s|%t|%s|%s",
-			v.ID,
-			name,
-			v.PluginID,
-			v.Schedulable,
-			v.Provider,
-			v.AccessMode,
-		))
-	}
+	if len(names) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]CSI Volumes"))
 
-	c.Ui.Output(formatList(output))
+		// Output the volumes in name order
+		output := make([]string, 0, len(names)+1)
+		output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
+		for _, name := range names {
+			v := volumes[name]
+			output = append(output, fmt.Sprintf(
+				"%s|%s|%s|%t|%s|%s",
+				v.ID,
+				name,
+				v.PluginID,
+				v.Schedulable,
+				v.Provider,
+				v.AccessMode,
+			))
+		}
+
+		c.Ui.Output(formatList(output))
+	}
 }
 
 func (c *NodeStatusCommand) outputNodeDriverInfo(node *api.Node) {

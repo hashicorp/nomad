@@ -40,25 +40,27 @@ const (
 
 // ServiceCheck represents the Consul health check.
 type ServiceCheck struct {
-	Name          string              // Name of the check, defaults to id
-	Type          string              // Type of the check - tcp, http, docker and script
-	Command       string              // Command is the command to run for script checks
-	Args          []string            // Args is a list of arguments for script checks
-	Path          string              // path of the health check url for http type check
-	Protocol      string              // Protocol to use if check is http, defaults to http
-	PortLabel     string              // The port to use for tcp/http checks
-	Expose        bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
-	AddressMode   string              // 'host' to use host ip:port or 'driver' to use driver's
-	Interval      time.Duration       // Interval of the check
-	Timeout       time.Duration       // Timeout of the response from the check before consul fails the check
-	InitialStatus string              // Initial status of the check
-	TLSSkipVerify bool                // Skip TLS verification when Protocol=https
-	Method        string              // HTTP Method to use (GET by default)
-	Header        map[string][]string // HTTP Headers for Consul to set when making HTTP checks
-	CheckRestart  *CheckRestart       // If and when a task should be restarted based on checks
-	GRPCService   string              // Service for GRPC checks
-	GRPCUseTLS    bool                // Whether or not to use TLS for GRPC checks
-	TaskName      string              // What task to execute this check in
+	Name                   string              // Name of the check, defaults to id
+	Type                   string              // Type of the check - tcp, http, docker and script
+	Command                string              // Command is the command to run for script checks
+	Args                   []string            // Args is a list of arguments for script checks
+	Path                   string              // path of the health check url for http type check
+	Protocol               string              // Protocol to use if check is http, defaults to http
+	PortLabel              string              // The port to use for tcp/http checks
+	Expose                 bool                // Whether to have Envoy expose the check path (connect-enabled group-services only)
+	AddressMode            string              // 'host' to use host ip:port or 'driver' to use driver's
+	Interval               time.Duration       // Interval of the check
+	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
+	InitialStatus          string              // Initial status of the check
+	TLSSkipVerify          bool                // Skip TLS verification when Protocol=https
+	Method                 string              // HTTP Method to use (GET by default)
+	Header                 map[string][]string // HTTP Headers for Consul to set when making HTTP checks
+	CheckRestart           *CheckRestart       // If and when a task should be restarted based on checks
+	GRPCService            string              // Service for GRPC checks
+	GRPCUseTLS             bool                // Whether or not to use TLS for GRPC checks
+	TaskName               string              // What task to execute this check in
+	SuccessBeforePassing   int                 // Number of consecutive successes required before considered healthy
+	FailuresBeforeCritical int                 // Number of consecutive failures required before considered unhealthy
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -97,6 +99,14 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	}
 
 	if sc.TaskName != o.TaskName {
+		return false
+	}
+
+	if sc.SuccessBeforePassing != o.SuccessBeforePassing {
+		return false
+	}
+
+	if sc.FailuresBeforeCritical != o.FailuresBeforeCritical {
 		return false
 	}
 
@@ -257,6 +267,22 @@ func (sc *ServiceCheck) validate() error {
 		}
 	}
 
+	// passFailCheckTypes are intersection of check types supported by both Consul
+	// and Nomad when using the pass/fail check threshold features.
+	passFailCheckTypes := []string{"tcp", "http", "grpc"}
+
+	if sc.SuccessBeforePassing < 0 {
+		return fmt.Errorf("success_before_passing must be non-negative")
+	} else if sc.SuccessBeforePassing > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+		return fmt.Errorf("success_before_passing not supported for check of type %q", sc.Type)
+	}
+
+	if sc.FailuresBeforeCritical < 0 {
+		return fmt.Errorf("failures_before_critical must be non-negative")
+	} else if sc.FailuresBeforeCritical > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
+		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
+	}
+
 	return sc.CheckRestart.Validate()
 }
 
@@ -309,6 +335,10 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.GRPCUseTLS, "true")
 
+	// Only include pass/fail if non-zero to maintain ID stability with Nomad < 0.12
+	hashIntIfNonZero(h, "success", sc.SuccessBeforePassing)
+	hashIntIfNonZero(h, "failures", sc.FailuresBeforeCritical)
+
 	// Hash is used for diffing against the Consul check definition, which does
 	// not have an expose parameter. Instead we rely on implied changes to
 	// other fields if the Expose setting is changed in a nomad service.
@@ -321,6 +351,12 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 func hashStringIfNonEmpty(h hash.Hash, s string) {
 	if len(s) > 0 {
 		hashString(h, s)
+	}
+}
+
+func hashIntIfNonZero(h hash.Hash, name string, i int) {
+	if i != 0 {
+		hashString(h, fmt.Sprintf("%s:%d", name, i))
 	}
 }
 
@@ -350,6 +386,12 @@ type Service struct {
 	// Name to ServiceID if not specified.  The Name if specified is used
 	// as one of the seed values when generating a Consul ServiceID.
 	Name string
+
+	// Name of the Task associated with this service.
+	//
+	// Currently only used to identify the implementing task of a Consul
+	// Connect Native enabled service.
+	TaskName string
 
 	// PortLabel is either the numeric port number or the `host:port`.
 	// To specify the port number using the host's Consul Advertise
@@ -422,8 +464,7 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 		"TASKGROUP": taskGroup,
 		"TASK":      task,
 		"BASE":      fmt.Sprintf("%s-%s-%s", job, taskGroup, task),
-	},
-	)
+	})
 
 	for _, check := range s.Checks {
 		check.Canonicalize(s.Name)
@@ -450,6 +491,7 @@ func (s *Service) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
+	// check checks
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: check requires a port but neither check nor service %+q have a port", c.Name, s.Name))
@@ -469,9 +511,16 @@ func (s *Service) Validate() error {
 		}
 	}
 
+	// check connect
 	if s.Connect != nil {
 		if err := s.Connect.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		// if service is connect native, service task must be set (which may
+		// happen implicitly in a job mutation if there is only one task)
+		if s.Connect.IsNative() && len(s.TaskName) == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is Connect Native and requires setting the task", s.Name))
 		}
 	}
 
@@ -620,8 +669,7 @@ OUTER:
 
 // ConsulConnect represents a Consul Connect jobspec stanza.
 type ConsulConnect struct {
-	// Native is true if a service implements Connect directly and does not
-	// need a sidecar.
+	// Native indicates whether the service is Consul Connect Native enabled.
 	Native bool
 
 	// SidecarService is non-nil if a service requires a sidecar.
@@ -662,17 +710,21 @@ func (c *ConsulConnect) HasSidecar() bool {
 	return c != nil && c.SidecarService != nil
 }
 
+func (c *ConsulConnect) IsNative() bool {
+	return c != nil && c.Native
+}
+
 // Validate that the Connect stanza has exactly one of Native or sidecar.
 func (c *ConsulConnect) Validate() error {
 	if c == nil {
 		return nil
 	}
 
-	if c.Native && c.SidecarService != nil {
+	if c.IsNative() && c.HasSidecar() {
 		return fmt.Errorf("Consul Connect must be native or use a sidecar service; not both")
 	}
 
-	if !c.Native && c.SidecarService == nil {
+	if !c.IsNative() && !c.HasSidecar() {
 		return fmt.Errorf("Consul Connect must be native or use a sidecar service")
 	}
 

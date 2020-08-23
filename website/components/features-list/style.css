@@ -3,7 +3,7 @@
   padding-bottom: 24px;
   & h2 {
     text-align: center;
-    margin-top: 0px;
+    margin-top: 0;
     margin-bottom: 64px;
   }
 
@@ -72,11 +72,11 @@
         }
 
         &:nth-child(odd) {
-          margin-right: 0px;
+          margin-right: 0;
         }
 
         &:nth-child(even) {
-          margin-left: 0px;
+          margin-left: 0;
         }
       }
     }

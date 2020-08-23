@@ -1,7 +1,6 @@
 package command
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -28,13 +27,11 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	cmd := &ACLTokenCreateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Request to create a new token without providing a valid management token
-	os.Setenv("NOMAD_TOKEN", "foo")
-	code := cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
+	code := cmd.Run([]string{"-address=" + url, "-token=foo", "-policy=foo", "-type=client"})
 	assert.Equal(1, code)
 
 	// Request to create a new token with a valid management token
-	os.Setenv("NOMAD_TOKEN", token.SecretID)
-	code = cmd.Run([]string{"-address=" + url, "-policy=foo", "-type=client"})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-policy=foo", "-type=client"})
 	assert.Equal(0, code)
 
 	// Check the output

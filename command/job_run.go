@@ -86,6 +86,9 @@ Run Options:
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
+  -preserve-counts
+    If set, the existing task group counts will be preserved when updating a job.
+ 
   -consul-token
     If set, the passed Consul token is stored in the job before sending to the
     Nomad servers. This allows passing the Consul token without storing it in
@@ -97,6 +100,10 @@ Run Options:
     Nomad servers. This allows passing the Vault token without storing it in
     the job file. This overrides the token found in $VAULT_TOKEN environment
     variable and that found in the job.
+
+  -vault-namespace
+    If set, the passed Vault namespace is stored in the job before sending to the
+    Nomad servers.
 
   -verbose
     Display full information.
@@ -116,8 +123,10 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-verbose":         complete.PredictNothing,
 			"-consul-token":    complete.PredictNothing,
 			"-vault-token":     complete.PredictAnything,
+			"-vault-namespace": complete.PredictAnything,
 			"-output":          complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
+			"-preserve-counts": complete.PredictNothing,
 		})
 }
 
@@ -128,8 +137,8 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
-	var detach, verbose, output, override bool
-	var checkIndexStr, consulToken, vaultToken string
+	var detach, verbose, output, override, preserveCounts bool
+	var checkIndexStr, consulToken, vaultToken, vaultNamespace string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -137,9 +146,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&output, "output", false, "")
 	flags.BoolVar(&override, "policy-override", false, "")
+	flags.BoolVar(&preserveCounts, "preserve-counts", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
+	flags.StringVar(&vaultNamespace, "vault-namespace", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -186,6 +197,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	// Check if the job is periodic or is a parameterized job
 	periodic := job.IsPeriodic()
 	paramjob := job.IsParameterized()
+	multiregion := job.IsMultiregion()
 
 	// Parse the Consul token
 	if consulToken == "" {
@@ -207,8 +219,16 @@ func (c *JobRunCommand) Run(args []string) int {
 		job.VaultToken = helper.StringToPtr(vaultToken)
 	}
 
+	if vaultNamespace != "" {
+		job.VaultNamespace = helper.StringToPtr(vaultNamespace)
+	}
+
 	if output {
-		req := api.RegisterJobRequest{Job: job}
+		req := struct {
+			Job *api.Job
+		}{
+			Job: job,
+		}
 		buf, err := json.MarshalIndent(req, "", "    ")
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error converting job: %s", err))
@@ -232,9 +252,8 @@ func (c *JobRunCommand) Run(args []string) int {
 		opts.EnforceIndex = true
 		opts.ModifyIndex = checkIndex
 	}
-	if override {
-		opts.PolicyOverride = true
-	}
+	opts.PolicyOverride = override
+	opts.PreserveCounts = preserveCounts
 
 	// Submit the job
 	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)
@@ -263,7 +282,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	evalID := resp.EvalID
 
 	// Check if we should enter monitor mode
-	if detach || periodic || paramjob {
+	if detach || periodic || paramjob || multiregion {
 		c.Ui.Output("Job registration successful")
 		if periodic && !paramjob {
 			loc, err := job.Periodic.GetLocation()

@@ -80,6 +80,12 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		config:    config,
 		abandonCh: make(chan struct{}),
 	}
+
+	// Initialize the state store with required enterprise objects
+	if err := s.enterpriseInit(); err != nil {
+		return nil, fmt.Errorf("enterprise state store initialization failed: %v", err)
+	}
+
 	return s, nil
 }
 
@@ -1093,7 +1099,11 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 		if raw == nil {
 			break
 		}
-		plug := raw.(*structs.CSIPlugin)
+		plug, ok := raw.(*structs.CSIPlugin)
+		if !ok {
+			continue
+		}
+		plug = plug.Copy()
 
 		var hadDelete bool
 		if _, ok := inUseController[plug.ID]; !ok {
@@ -1152,7 +1162,9 @@ func deleteNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 			return fmt.Errorf("csi_plugins lookup error %s: %v", id, err)
 		}
 		if raw == nil {
-			return fmt.Errorf("csi_plugins missing plugin %s", id)
+			// plugin may have been deregistered but we didn't
+			// update the fingerprint yet
+			continue
 		}
 
 		plug := raw.(*structs.CSIPlugin).Copy()
@@ -1351,12 +1363,16 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
 
+		existingJob := existing.(*structs.Job)
+
 		// Bump the version unless asked to keep it. This should only be done
 		// when changing an internal field such as Stable. A spec change should
 		// always come with a version bump
 		if !keepVersion {
 			job.JobModifyIndex = index
-			job.Version = existing.(*structs.Job).Version + 1
+			if job.Version <= existingJob.Version {
+				job.Version = existingJob.Version + 1
+			}
 		}
 
 		// Compute the job status
@@ -2114,7 +2130,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 }
 
 // CSIVolumeDeregister removes the volume from the server
-func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []string) error {
+func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []string, force bool) error {
 	txn := s.db.Txn(true)
 	defer txn.Abort()
 
@@ -2133,8 +2149,14 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 			return fmt.Errorf("volume row conversion error: %s", id)
 		}
 
+		// The common case for a volume deregister is when the volume is
+		// unused, but we can also let an operator intervene in the case where
+		// allocations have been stopped but claims can't be freed because
+		// ex. the plugins have all been removed.
 		if vol.InUse() {
-			return fmt.Errorf("volume in use: %s", id)
+			if !force || !s.volSafeToForce(vol) {
+				return fmt.Errorf("volume in use: %s", id)
+			}
 		}
 
 		if err = txn.Delete("csi_volumes", existing); err != nil {
@@ -2148,6 +2170,28 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 
 	txn.Commit()
 	return nil
+}
+
+// volSafeToForce checks if the any of the remaining allocations
+// are in a non-terminal state.
+func (s *StateStore) volSafeToForce(v *structs.CSIVolume) bool {
+	ws := memdb.NewWatchSet()
+	vol, err := s.CSIVolumeDenormalize(ws, v)
+	if err != nil {
+		return false
+	}
+
+	for _, alloc := range vol.ReadAllocs {
+		if alloc != nil && !alloc.TerminalStatus() {
+			return false
+		}
+	}
+	for _, alloc := range vol.WriteAllocs {
+		if alloc != nil && !alloc.TerminalStatus() {
+			return false
+		}
+	}
+	return true
 }
 
 // CSIVolumeDenormalizePlugins returns a CSIVolume with current health and plugins, but
@@ -3146,6 +3190,38 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 	}
 }
 
+// AllocsByIDPrefix is used to lookup allocs by prefix
+func (s *StateStore) AllocsByIDPrefixInNSes(ws memdb.WatchSet, namespaces map[string]bool, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.Txn(false)
+
+	var iter memdb.ResultIterator
+	var err error
+	if prefix != "" {
+		iter, err = txn.Get("allocs", "id_prefix", prefix)
+	} else {
+		iter, err = txn.Get("allocs", "id")
+
+	}
+	if err != nil {
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+
+	// Wrap the iterator in a filter
+	nsesFilter := func(raw interface{}) bool {
+		alloc, ok := raw.(*structs.Allocation)
+		if !ok {
+			return true
+		}
+
+		return namespaces[alloc.Namespace]
+	}
+
+	wrap := memdb.NewFilterIterator(iter, nsesFilter)
+	return wrap, nil
+}
+
 // AllocsByNode returns all the allocations by node
 func (s *StateStore) AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error) {
 	txn := s.db.Txn(false)
@@ -3704,8 +3780,8 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 	// canaryIndex is the set of placed canaries in the deployment
 	canaryIndex := make(map[string]struct{}, len(deployment.TaskGroups))
-	for _, state := range deployment.TaskGroups {
-		for _, c := range state.PlacedCanaries {
+	for _, dstate := range deployment.TaskGroups {
+		for _, c := range dstate.PlacedCanaries {
 			canaryIndex[c] = struct{}{}
 		}
 	}
@@ -3746,12 +3822,12 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 	// Determine if we have enough healthy allocations
 	var unhealthyErr multierror.Error
-	for tg, state := range deployment.TaskGroups {
+	for tg, dstate := range deployment.TaskGroups {
 		if _, ok := groupIndex[tg]; !req.All && !ok {
 			continue
 		}
 
-		need := state.DesiredCanaries
+		need := dstate.DesiredCanaries
 		if need == 0 {
 			continue
 		}
@@ -4488,35 +4564,35 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
 
-	state := deploymentCopy.TaskGroups[alloc.TaskGroup]
-	state.PlacedAllocs += placed
-	state.HealthyAllocs += healthy
-	state.UnhealthyAllocs += unhealthy
+	dstate := deploymentCopy.TaskGroups[alloc.TaskGroup]
+	dstate.PlacedAllocs += placed
+	dstate.HealthyAllocs += healthy
+	dstate.UnhealthyAllocs += unhealthy
 
 	// Ensure PlacedCanaries accurately reflects the alloc canary status
 	if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
 		found := false
-		for _, canary := range state.PlacedCanaries {
+		for _, canary := range dstate.PlacedCanaries {
 			if alloc.ID == canary {
 				found = true
 				break
 			}
 		}
 		if !found {
-			state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
+			dstate.PlacedCanaries = append(dstate.PlacedCanaries, alloc.ID)
 		}
 	}
 
 	// Update the progress deadline
-	if pd := state.ProgressDeadline; pd != 0 {
+	if pd := dstate.ProgressDeadline; pd != 0 {
 		// If we are the first placed allocation for the deployment start the progress deadline.
-		if placed != 0 && state.RequireProgressBy.IsZero() {
+		if placed != 0 && dstate.RequireProgressBy.IsZero() {
 			// Use modify time instead of create time because we may in-place
 			// update the allocation to be part of a new deployment.
-			state.RequireProgressBy = time.Unix(0, alloc.ModifyTime).Add(pd)
+			dstate.RequireProgressBy = time.Unix(0, alloc.ModifyTime).Add(pd)
 		} else if healthy != 0 {
-			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(state.RequireProgressBy) {
-				state.RequireProgressBy = d
+			if d := alloc.DeploymentStatus.Timestamp.Add(pd); d.After(dstate.RequireProgressBy) {
+				dstate.RequireProgressBy = d
 			}
 		}
 	}
@@ -4668,6 +4744,7 @@ func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocati
 				// became healthy, just move on
 				return nil
 			}
+			plug = plug.Copy()
 			err = plug.DeleteAlloc(alloc.ID, alloc.NodeID)
 			if err != nil {
 				return err
@@ -5014,15 +5091,16 @@ func (s *StateStore) SchedulerSetConfig(idx uint64, config *structs.SchedulerCon
 	return nil
 }
 
-func (s *StateStore) ClusterMetadata() (*structs.ClusterMetadata, error) {
+func (s *StateStore) ClusterMetadata(ws memdb.WatchSet) (*structs.ClusterMetadata, error) {
 	txn := s.db.Txn(false)
 	defer txn.Abort()
 
 	// Get the cluster metadata
-	m, err := txn.First("cluster_meta", "id")
+	watchCh, m, err := txn.FirstWatch("cluster_meta", "id")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed cluster metadata lookup")
 	}
+	ws.Add(watchCh)
 
 	if m != nil {
 		return m.(*structs.ClusterMetadata), nil
@@ -5378,6 +5456,9 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
 			if allocDiff.ClientStatus != "" {
 				allocCopy.ClientStatus = allocDiff.ClientStatus
+			}
+			if allocDiff.FollowupEvalID != "" {
+				allocCopy.FollowupEvalID = allocDiff.FollowupEvalID
 			}
 		}
 		if allocDiff.ModifyTime != 0 {

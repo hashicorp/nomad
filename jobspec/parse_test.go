@@ -332,6 +332,7 @@ func TestParse(t *testing.T) {
 									},
 								},
 								Vault: &api.Vault{
+									Namespace:  helper.StringToPtr("ns1"),
 									Policies:   []string{"foo", "bar"},
 									Env:        helper.BoolToPtr(true),
 									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
@@ -655,6 +656,37 @@ func TestParse(t *testing.T) {
 						},
 					},
 				},
+			},
+			false,
+		},
+		{
+			"service-check-pass-fail.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("check_pass_fail"),
+				Name: helper.StringToPtr("check_pass_fail"),
+				Type: helper.StringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name:  helper.StringToPtr("group"),
+					Count: helper.IntToPtr(1),
+					Tasks: []*api.Task{{
+						Name: "task",
+						Services: []*api.Service{{
+							Name:      "service",
+							PortLabel: "http",
+							Checks: []api.ServiceCheck{{
+								Name:                   "check-name",
+								Type:                   "http",
+								Path:                   "/",
+								Interval:               10 * time.Second,
+								Timeout:                2 * time.Second,
+								InitialStatus:          capi.HealthPassing,
+								Method:                 "POST",
+								SuccessBeforePassing:   3,
+								FailuresBeforeCritical: 4,
+							}},
+						}},
+					}},
+				}},
 			},
 			false,
 		},
@@ -1013,10 +1045,15 @@ func TestParse(t *testing.T) {
 								Mode: "bridge",
 								ReservedPorts: []api.Port{
 									{
-										Label: "http",
-										Value: 80,
-										To:    8080,
+										Label:       "http",
+										Value:       80,
+										To:          8080,
+										HostNetwork: "public",
 									},
+								},
+								DNS: &api.DNSConfig{
+									Servers: []string{"8.8.8.8"},
+									Options: []string{"ndots:2", "edns0"},
 								},
 							},
 						},
@@ -1272,6 +1309,24 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-native.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("connect_native_service"),
+				Name: helper.StringToPtr("connect_native_service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: helper.StringToPtr("group"),
+					Services: []*api.Service{{
+						Name:     "example",
+						TaskName: "task1",
+						Connect: &api.ConsulConnect{
+							Native: true,
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-enable-tag-override.hcl",
 			&api.Job{
 				ID:   helper.StringToPtr("group_service_eto"),
@@ -1297,7 +1352,7 @@ func TestParse(t *testing.T) {
 						Name: helper.StringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
 							Min: helper.Int64ToPtr(5),
-							Max: 100,
+							Max: helper.Int64ToPtr(100),
 							Policy: map[string]interface{}{
 								"foo": "bar",
 								"b":   true,
@@ -1322,7 +1377,7 @@ func TestParse(t *testing.T) {
 						Name: helper.StringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
 							Min:     nil,
-							Max:     0,
+							Max:     helper.Int64ToPtr(10),
 							Policy:  nil,
 							Enabled: nil,
 						},
@@ -1333,9 +1388,44 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"tg-scaling-policy-missing-max.hcl",
+			nil,
+			true,
+		},
+
+		{
 			"tg-scaling-policy-multi-policy.hcl",
 			nil,
 			true,
+		},
+
+		{
+			"multiregion.hcl",
+			&api.Job{
+				ID:   helper.StringToPtr("multiregion_job"),
+				Name: helper.StringToPtr("multiregion_job"),
+				Multiregion: &api.Multiregion{
+					Strategy: &api.MultiregionStrategy{
+						MaxParallel: helper.IntToPtr(1),
+						OnFailure:   helper.StringToPtr("fail_all"),
+					},
+					Regions: []*api.MultiregionRegion{
+						{
+							Name:        "west",
+							Count:       helper.IntToPtr(2),
+							Datacenters: []string{"west-1"},
+							Meta:        map[string]string{"region_code": "W"},
+						},
+						{
+							Name:        "east",
+							Count:       helper.IntToPtr(1),
+							Datacenters: []string{"east-1", "east-2"},
+							Meta:        map[string]string{"region_code": "E"},
+						},
+					},
+				},
+			},
+			false,
 		},
 	}
 

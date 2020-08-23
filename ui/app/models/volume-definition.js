@@ -3,15 +3,15 @@ import attr from 'ember-data/attr';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 
-export default Fragment.extend({
-  taskGroup: fragmentOwner(),
+export default class VolumeDefinition extends Fragment {
+  @fragmentOwner() taskGroup;
 
-  name: attr('string'),
+  @attr('string') name;
 
-  source: attr('string'),
-  type: attr('string'),
-  readOnly: attr('boolean'),
+  @attr('string') source;
+  @attr('string') type;
+  @attr('boolean') readOnly;
 
-  isCSI: equal('type', 'csi'),
-  namespace: alias('taskGroup.job.namespace'),
-});
+  @equal('type', 'csi') isCSI;
+  @alias('taskGroup.job.namespace') namespace;
+}

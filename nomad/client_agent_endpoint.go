@@ -12,6 +12,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -313,46 +314,18 @@ func (a *Agent) forwardFor(serverID, region string) (*serverParts, error) {
 }
 
 func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
-	nodeID := args.NodeID
+	// Get the Connection to the client either by fowarding to another server
+	// or creating direct stream
 
-	snap, err := a.srv.State().Snapshot()
-	if err != nil {
-		handleStreamResultError(err, nil, encoder)
-		return
-	}
-
-	node, err := snap.NodeByID(nil, nodeID)
+	state, srv, err := a.findClientConn(args.NodeID)
 	if err != nil {
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
 	}
 
-	if node == nil {
-		err := fmt.Errorf("Unknown node %q", nodeID)
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
-		return
-	}
-
-	if err := nodeSupportsRpc(node); err != nil {
-		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
-		return
-	}
-
-	// Get the Connection to the client either by fowarding to another server
-	// or creating direct stream
 	var clientConn net.Conn
-	state, ok := a.srv.getNodeConn(nodeID)
-	if !ok {
-		// Determine the server that has a connection to the node
-		srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
-		if err != nil {
-			var code *int64
-			if structs.IsErrNoNodeConn(err) {
-				code = helper.Int64ToPtr(404)
-			}
-			handleStreamResultError(err, code, encoder)
-			return
-		}
+
+	if state == nil {
 		conn, err := a.srv.streamingRpc(srv, "Agent.Monitor")
 		if err != nil {
 			handleStreamResultError(err, nil, encoder)
@@ -402,54 +375,128 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverPart
 	structs.Bridge(conn, serverConn)
 	return
 }
-
 func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
-	nodeID := args.NodeID
+	state, srv, err := a.findClientConn(args.NodeID)
 
+	if err != nil {
+		return err
+	}
+
+	if srv != nil {
+		return a.srv.forwardServer(srv, "Agent.Profile", args, reply)
+	}
+
+	// NodeRpc
+	rpcErr := NodeRpc(state.Session, "Agent.Profile", args, reply)
+	if rpcErr != nil {
+		return rpcErr
+	}
+
+	return nil
+}
+
+// Host returns data about the agent's host system for the `debug` command.
+func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataResponse) error {
+
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
+		(aclObj == nil && !a.srv.config.EnableDebug) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Forward to different region if necessary
+	// this would typically be done in a.srv.forward() but since
+	// we are targeting a specific server, not just the leader
+	// we must manually handle region forwarding here.
+	region := args.RequestRegion()
+	if region == "" {
+		return fmt.Errorf("missing target RPC")
+	}
+
+	if region != a.srv.config.Region {
+		// Mark that we are forwarding
+		args.SetForwarded()
+		return a.srv.forwardRegion(region, "Agent.Host", args, reply)
+	}
+
+	// Targeting a client node, forward request to node
+	if args.NodeID != "" {
+		client, srv, err := a.findClientConn(args.NodeID)
+
+		if err != nil {
+			return err
+		}
+
+		if srv != nil {
+			return a.srv.forwardServer(srv, "Agent.Host", args, reply)
+		}
+
+		return NodeRpc(client.Session, "Agent.Host", args, reply)
+	}
+
+	// Handle serverID not equal to ours
+	if args.ServerID != "" {
+		srv, err := a.forwardFor(args.ServerID, region)
+		if err != nil {
+			return err
+		}
+		if srv != nil {
+			return a.srv.forwardServer(srv, "Agent.Host", args, reply)
+		}
+	}
+
+	data, err := host.MakeHostData()
+	if err != nil {
+		return err
+	}
+
+	reply.AgentID = a.srv.serf.LocalMember().Name
+	reply.HostData = data
+	return nil
+}
+
+// findClientConn is a helper that returns a connection to the client node or, if the client
+// is connected to a different server, a serverParts describing the server to which the
+// client bound RPC should be forwarded.
+func (a *Agent) findClientConn(nodeID string) (*nodeConnState, *serverParts, error) {
 	snap, err := a.srv.State().Snapshot()
 	if err != nil {
-		return structs.NewErrRPCCoded(500, err.Error())
+		return nil, nil, structs.NewErrRPCCoded(500, err.Error())
 	}
 
 	node, err := snap.NodeByID(nil, nodeID)
 	if err != nil {
-		return structs.NewErrRPCCoded(500, err.Error())
+		return nil, nil, structs.NewErrRPCCoded(500, err.Error())
 	}
 
 	if node == nil {
 		err := fmt.Errorf("Unknown node %q", nodeID)
-		return structs.NewErrRPCCoded(404, err.Error())
+		return nil, nil, structs.NewErrRPCCoded(404, err.Error())
 	}
 
 	if err := nodeSupportsRpc(node); err != nil {
-		return structs.NewErrRPCCoded(400, err.Error())
+		return nil, nil, structs.NewErrRPCCoded(400, err.Error())
 	}
 
 	// Get the Connection to the client either by fowarding to another server
 	// or creating direct stream
 	state, ok := a.srv.getNodeConn(nodeID)
-	if !ok {
-		// Determine the server that has a connection to the node
-		srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
-		if err != nil {
-			code := 500
-			if structs.IsErrNoNodeConn(err) {
-				code = 404
-			}
-			return structs.NewErrRPCCoded(code, err.Error())
-		}
-
-		rpcErr := a.srv.forwardServer(srv, "Agent.Profile", args, reply)
-		if rpcErr != nil {
-			return rpcErr
-		}
-	} else {
-		// NodeRpc
-		rpcErr := NodeRpc(state.Session, "Agent.Profile", args, reply)
-		if rpcErr != nil {
-			return rpcErr
-		}
+	if ok {
+		return state, nil, nil
 	}
 
-	return nil
+	// Determine the server that has a connection to the node
+	srv, err := a.srv.serverWithNodeConn(nodeID, a.srv.Region())
+	if err != nil {
+		code := 500
+		if structs.IsErrNoNodeConn(err) {
+			code = 404
+		}
+		return nil, nil, structs.NewErrRPCCoded(code, err.Error())
+	}
+
+	return nil, srv, nil
 }

@@ -1,0 +1,198 @@
+---
+layout: docs
+page_title: 'Drivers: nomad-driver-containerd'
+sidebar_title: Containerd
+description: >-
+  The containerd driver is used
+  for launching containers using containerd.
+---
+
+# Containerd Task Driver
+
+Name: `containerd-driver`
+
+Homepage: https://github.com/Roblox/nomad-driver-containerd
+
+Containerd ([`containerd.io`](https://containerd.io)) is a lightweight container daemon
+for running and managing container lifecycle. Docker daemon also uses containerd.
+
+```hcl
+dockerd (docker daemon) --> containerd --> containerd-shim --> runc
+```
+
+`nomad-driver-containerd` enables Nomad clients to launch containers directly using containerd, without Docker!
+The Docker daemon is therefore not required on the host system.
+
+See the project's [`homepage`](https://github.com/Roblox/nomad-driver-containerd) for more details.
+
+## Client Requirements
+
+The containerd task driver is not built into Nomad. It must be [`downloaded`](https://github.com/Roblox/nomad-driver-containerd/releases/)
+onto the client host in the configured plugin directory.
+
+- Linux (Ubuntu >=16.04) with [`containerd`](https://containerd.io/downloads/) (>=1.3) installed.
+- [`containerd-driver`](https://github.com/Roblox/nomad-driver-containerd/releases/) binary in Nomad's [plugin_dir][plugin_dir].
+
+## Capabilities
+
+The `containerd-driver` implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature | Implementation |
+| --- | --- |
+| send signals | true |
+| exec | true |
+| filesystem isolation | none |
+| volume mounting | true |
+
+For sending signals, one can use `nomad alloc signal` command.<br/>
+For exec'ing into the container, one can use `nomad alloc exec` command.
+
+## Task Configuration
+
+Since docker also relies on containerd for managing container lifecycle, the example job created by [`nomad init -short`][nomad-init] can easily be adapted to use `containerd-driver` instead:
+
+```hcl
+job "redis" {
+  datacenters = ["dc1"]
+
+  group "redis-group" {
+    task "redis-task" {
+      driver = "containerd-driver"
+
+      config {
+        image = "docker.io/library/redis:alpine"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 256
+        network {
+          mbits = 10
+        }
+      }
+    }
+  }
+}
+```
+
+The containerd task driver supports the following parameters:
+
+- `image` - (Required) OCI image (Docker is also OCI compatible) for your container.
+
+```hcl
+config {
+  image = "docker.io/library/redis:alpine"
+}
+```
+- `command` - (Optional) Command to override command defined in the image.
+
+```hcl
+config {
+  command = "some-command"
+}
+```
+- `args` - (Optional) Arguments to the command.
+
+```hcl
+config {
+  args = [
+    "arg1",
+    "arg2",
+  ]
+}
+```
+- `privileged` - (Optional) `true` or `false` (default) Run container in privileged mode.
+Your container will have all linux capabilities when running in privileged mode.
+
+```hcl
+config {
+  privileged = true
+}
+```
+- `readonly_rootfs` - (Optional) `true` or `false` (default) Container root filesystem will be read-only.
+```hcl
+config {
+  readonly_rootfs = true
+}
+```
+- `cap_add` - (Optional) Add individual capabilities.
+```hcl
+config {
+  cap_add = [
+    "CAP_SYS_ADMIN",
+    "CAP_CHOWN",
+    "CAP_SYS_CHROOT"
+  ]
+}
+```
+- `cap_drop` - (Optional) Drop individual capabilities.
+```hcl
+config {
+  cap_drop = [
+    "CAP_SYS_ADMIN",
+    "CAP_CHOWN",
+    "CAP_SYS_CHROOT"
+  ]
+}
+```
+- `devices` - (Optional) A list of devices to be exposed to the container.
+```hcl
+config {
+  devices = [
+    "/dev/loop0",
+    "/dev/loop1"
+  ]
+}
+```
+- `mounts` - (Optional) A list of mounts to be mounted in the container.
+Volume, bind and tmpfs type mounts are supported. fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211) are supported.
+   - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`. **Default:** `volume`.
+   - `target` - (Required) Target path in the container.
+   - `source` - (Optional) Source path on the host.
+   - `options` - (Optional) fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211). **NOTE:** For bind mounts, atleast `rbind` and `ro` are required.
+```hcl
+config {
+  mounts = [
+    {
+      type = "bind"
+      target = "/tmp/t1"
+      source = "/tmp/s1"
+      options = ["rbind", "ro"]
+    }
+  ]
+}
+```
+
+## Networking
+
+Networking is [`out-of-scope`](https://kubernetes.io/blog/2017/11/containerd-container-runtime-options-kubernetes/#containerd) for containerd. An external CNI plugin might be needed to support networking.
+
+## Plugin Options ((#plugin_options))
+
+- `enabled` - (Optional) The `containerd` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
+
+- `containerd_runtime` - (Required) Runtime for `containerd` e.g. `io.containerd.runc.v1` or `io.containerd.runc.v2`
+
+- `stats_interval` - (Optional) This value defines how frequently you want to send `TaskStats` to nomad client. (defaults to `1 second`).
+
+
+An example of using these plugin options with the new [plugin
+syntax][plugin] is shown below:
+
+```hcl
+plugin "containerd-driver" {
+  config {
+    enabled = true
+    containerd_runtime = "io.containerd.runc.v2"
+    stats_interval = "5s"
+  }
+}
+```
+
+Please note the plugin name should match whatever name you have specified for the external driver in the [plugin_dir][plugin_dir] directory.
+
+[nomad-driver-containerd]: https://github.com/Roblox/nomad-driver-containerd
+[nomad-init]: /docs/commands/job/init
+[plugin]: /docs/configuration/plugin
+[plugin_dir]: /docs/configuration#plugin_dir
+[plugin-options]: #plugin_options

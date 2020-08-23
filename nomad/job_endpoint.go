@@ -96,6 +96,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 	args.Job = job
 
+	// Attach the Nomad token's accessor ID so that deploymentwatcher
+	// can reference the token later
+	tokenID, err := j.srv.ResolveSecretToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if tokenID != nil {
+		args.Job.NomadTokenID = tokenID.AccessorID
+	}
+
 	// Set the warning message
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
@@ -222,6 +232,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 				return err
 			}
 
+			// Check Namespaces
+			namespaceErr := j.multiVaultNamespaceValidation(policies, s)
+			if namespaceErr != nil {
+				return namespaceErr
+			}
+
 			// If we are given a root token it can access all policies
 			if !lib.StrContains(allowedPolicies, "root") {
 				flatPolicies := structs.VaultPoliciesSet(policies)
@@ -278,10 +294,63 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Clear the Consul token
 	args.Job.ConsulToken = ""
 
+	// Preserve the existing task group counts, if so requested
+	if existingJob != nil && args.PreserveCounts {
+		prevCounts := make(map[string]int)
+		for _, tg := range existingJob.TaskGroups {
+			prevCounts[tg.Name] = tg.Count
+		}
+		for _, tg := range args.Job.TaskGroups {
+			if count, ok := prevCounts[tg.Name]; ok {
+				tg.Count = count
+			}
+		}
+	}
+
+	// Submit a multiregion job to other regions (enterprise only).
+	// The job will have its region interpolated.
+	var existingVersion uint64
+	if existingJob != nil {
+		existingVersion = existingJob.Version
+	}
+	isRunner, err := j.multiregionRegister(args, reply, existingVersion)
+	if err != nil {
+		return err
+	}
+
+	// Create a new evaluation
+	now := time.Now().UnixNano()
+	submittedEval := false
+	var eval *structs.Evaluation
+
+	// Set the submit time
+	args.Job.SubmitTime = now
+
+	// If the job is periodic or parameterized, we don't create an eval.
+	if !(args.Job.IsPeriodic() || args.Job.IsParameterized()) {
+		eval = &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   args.RequestNamespace(),
+			Priority:    args.Job.Priority,
+			Type:        args.Job.Type,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       args.Job.ID,
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now,
+			ModifyTime:  now,
+		}
+		reply.EvalID = eval.ID
+	}
+
 	// Check if the job has changed at all
 	if existingJob == nil || existingJob.SpecChanged(args.Job) {
-		// Set the submit time
-		args.Job.SetSubmitTime()
+
+		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
+		// 0.12.1 introduced atomic eval job registration
+		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+			args.Eval = eval
+			submittedEval = true
+		}
 
 		// Commit this update via Raft
 		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
@@ -296,47 +365,51 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 		// Populate the reply with job information
 		reply.JobModifyIndex = index
+		reply.Index = index
+
+		if submittedEval {
+			reply.EvalCreateIndex = index
+		}
+
 	} else {
 		reply.JobModifyIndex = existingJob.JobModifyIndex
 	}
 
-	// If the job is periodic or parameterized, we don't create an eval.
-	if args.Job.IsPeriodic() || args.Job.IsParameterized() {
+	// used for multiregion start
+	args.Job.JobModifyIndex = reply.JobModifyIndex
+
+	if eval == nil {
 		return nil
 	}
 
-	// Create a new evaluation
-	now := time.Now().UTC().UnixNano()
-	eval := &structs.Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      args.RequestNamespace(),
-		Priority:       args.Job.Priority,
-		Type:           args.Job.Type,
-		TriggeredBy:    structs.EvalTriggerJobRegister,
-		JobID:          args.Job.ID,
-		JobModifyIndex: reply.JobModifyIndex,
-		Status:         structs.EvalStatusPending,
-		CreateTime:     now,
-		ModifyTime:     now,
-	}
-	update := &structs.EvalUpdateRequest{
-		Evals:        []*structs.Evaluation{eval},
-		WriteRequest: structs.WriteRequest{Region: args.Region},
+	if eval != nil && !submittedEval {
+		eval.JobModifyIndex = reply.JobModifyIndex
+		update := &structs.EvalUpdateRequest{
+			Evals:        []*structs.Evaluation{eval},
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
+
+		// Commit this evaluation via Raft
+		// There is a risk of partial failure where the JobRegister succeeds
+		// but that the EvalUpdate does not, before 0.12.1
+		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			j.logger.Error("eval create failed", "error", err, "method", "register")
+			return err
+		}
+
+		reply.EvalCreateIndex = evalIndex
+		reply.Index = evalIndex
 	}
 
-	// Commit this evaluation via Raft
-	// XXX: There is a risk of partial failure where the JobRegister succeeds
-	// but that the EvalUpdate does not.
-	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-	if err != nil {
-		j.logger.Error("eval create failed", "error", err, "method", "register")
-		return err
+	// Kick off a multiregion deployment (enterprise only).
+	if isRunner {
+		err = j.multiregionStart(args, reply)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Populate the reply with eval information
-	reply.EvalID = eval.ID
-	reply.EvalCreateIndex = evalIndex
-	reply.Index = evalIndex
 	return nil
 }
 
@@ -643,7 +716,7 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 
 	// Create a new evaluation
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -707,17 +780,31 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		return err
 	}
 
-	// For a job with volumes, find its volumes before deleting the job.
-	// Later we'll apply this raft.
-	volumesToGC := newCSIBatchRelease(j.srv, j.logger, 100)
-	if job != nil {
-		for _, tg := range job.TaskGroups {
-			for _, vol := range tg.Volumes {
-				if vol.Type == structs.VolumeTypeCSI {
-					volumesToGC.add(vol.Source, job.Namespace)
-				}
-			}
+	var eval *structs.Evaluation
+
+	// The job priority / type is strange for this, since it's not a high
+	// priority even if the job was.
+	now := time.Now().UnixNano()
+
+	// If the job is periodic or parameterized, we don't create an eval.
+	if job == nil || !(job.IsPeriodic() || job.IsParameterized()) {
+		eval = &structs.Evaluation{
+			ID:          uuid.Generate(),
+			Namespace:   args.RequestNamespace(),
+			Priority:    structs.JobDefaultPriority,
+			Type:        structs.JobTypeService,
+			TriggeredBy: structs.EvalTriggerJobDeregister,
+			JobID:       args.JobID,
+			Status:      structs.EvalStatusPending,
+			CreateTime:  now,
+			ModifyTime:  now,
 		}
+		reply.EvalID = eval.ID
+	}
+
+	// COMPAT(1.1.0): remove conditional and always set args.Eval
+	if ServersMeetMinimumVersion(j.srv.Members(), minJobRegisterAtomicEvalVersion, false) {
+		args.Eval = eval
 	}
 
 	// Commit the job update via Raft
@@ -729,53 +816,31 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
+	reply.EvalCreateIndex = index
+	reply.Index = index
 
-	// Make a raft apply to release the CSI volume claims of terminal allocs.
-	var result *multierror.Error
-	err = volumesToGC.apply()
-	if err != nil {
-		result = multierror.Append(result, err)
+	// COMPAT(1.1.0) - Remove entire conditional block
+	// 0.12.1 introduced atomic job deregistration eval
+	if eval != nil && args.Eval == nil {
+		// Create a new evaluation
+		eval.JobModifyIndex = index
+		update := &structs.EvalUpdateRequest{
+			Evals:        []*structs.Evaluation{eval},
+			WriteRequest: structs.WriteRequest{Region: args.Region},
+		}
+
+		// Commit this evaluation via Raft
+		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			j.logger.Error("eval create failed", "error", err, "method", "deregister")
+			return err
+		}
+
+		reply.EvalCreateIndex = evalIndex
+		reply.Index = evalIndex
 	}
 
-	// If the job is periodic or parameterized, we don't create an eval.
-	if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
-		return nil
-	}
-
-	// Create a new evaluation
-	// XXX: The job priority / type is strange for this, since it's not a high
-	// priority even if the job was.
-	now := time.Now().UTC().UnixNano()
-	eval := &structs.Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      args.RequestNamespace(),
-		Priority:       structs.JobDefaultPriority,
-		Type:           structs.JobTypeService,
-		TriggeredBy:    structs.EvalTriggerJobDeregister,
-		JobID:          args.JobID,
-		JobModifyIndex: index,
-		Status:         structs.EvalStatusPending,
-		CreateTime:     now,
-		ModifyTime:     now,
-	}
-	update := &structs.EvalUpdateRequest{
-		Evals:        []*structs.Evaluation{eval},
-		WriteRequest: structs.WriteRequest{Region: args.Region},
-	}
-
-	// Commit this evaluation via Raft
-	_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-	if err != nil {
-		result = multierror.Append(result, err)
-		j.logger.Error("eval create failed", "error", err, "method", "deregister")
-		return result.ErrorOrNil()
-	}
-
-	// Populate the reply with eval information
-	reply.EvalID = eval.ID
-	reply.EvalCreateIndex = evalIndex
-	reply.Index = evalIndex
-	return result.ErrorOrNil()
+	return nil
 }
 
 // BatchDeregister is used to remove a set of jobs from the cluster.
@@ -837,7 +902,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		}
 
 		// Create a new evaluation
-		now := time.Now().UTC().UnixNano()
+		now := time.Now().UnixNano()
 		eval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   jobNS.Namespace,
@@ -911,6 +976,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	ws := memdb.NewWatchSet()
 	job, err := snap.JobByID(ws, namespace, args.JobID)
 	if err != nil {
+		j.logger.Error("unable to lookup job", "error", err)
 		return err
 	}
 	if job == nil {
@@ -929,16 +995,52 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
 
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 
 	// If the count is present, commit the job update via Raft
 	// for now, we'll do this even if count didn't change
+	prevCount := found.Count
 	if args.Count != nil {
+
+		// Lookup the latest deployment, to see whether this scaling event should be blocked
+		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
+		if err != nil {
+			j.logger.Error("unable to lookup latest deployment", "error", err)
+			return err
+		}
+		// explicitly filter deployment by JobCreateIndex to be safe, because LatestDeploymentByJobID doesn't
+		if d != nil && d.JobCreateIndex == job.CreateIndex && d.Active() {
+			// attempt to register the scaling event
+			JobScalingBlockedByActiveDeployment := "job scaling blocked due to active deployment"
+			event := &structs.ScalingEventRequest{
+				Namespace: job.Namespace,
+				JobID:     job.ID,
+				TaskGroup: groupName,
+				ScalingEvent: &structs.ScalingEvent{
+					Time:          now,
+					PreviousCount: int64(prevCount),
+					Message:       JobScalingBlockedByActiveDeployment,
+					Error:         true,
+					Meta: map[string]interface{}{
+						"OriginalMessage": args.Message,
+						"OriginalCount":   *args.Count,
+						"OriginalMeta":    args.Meta,
+					},
+				},
+			}
+			if _, _, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event); err != nil {
+				// just log the error, this was a best-effort attempt
+				j.logger.Error("scaling event create failed during block scaling action", "error", err)
+			}
+			return structs.NewErrRPCCoded(400, JobScalingBlockedByActiveDeployment)
+		}
+
 		truncCount := int(*args.Count)
 		if int64(truncCount) != *args.Count {
 			return structs.NewErrRPCCoded(400,
 				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", args.Count))
 		}
+		// update the task group count
 		found.Count = truncCount
 
 		registerReq := structs.JobRegisterRequest{
@@ -997,11 +1099,12 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		JobID:     job.ID,
 		TaskGroup: groupName,
 		ScalingEvent: &structs.ScalingEvent{
-			Time:    now,
-			Count:   args.Count,
-			Message: args.Message,
-			Error:   args.Error,
-			Meta:    args.Meta,
+			Time:          now,
+			PreviousCount: int64(prevCount),
+			Count:         args.Count,
+			Message:       args.Message,
+			Error:         args.Error,
+			Meta:          args.Meta,
 		},
 	}
 	if reply.EvalID != "" {
@@ -1125,7 +1228,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 // allowedNSes returns a set (as map of ns->true) of the namespaces a token has access to.
 // Returns `nil` set if the token has access to all namespaces
 // and ErrPermissionDenied if the token has no capabilities on any namespace.
-func (j *Job) allowedNSes(aclObj *acl.ACL, state *state.StateStore) (map[string]bool, error) {
+func allowedNSes(aclObj *acl.ACL, state *state.StateStore) (map[string]bool, error) {
 	if aclObj == nil || aclObj.IsManagement() {
 		return nil, nil
 	}
@@ -1158,7 +1261,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "list"}, time.Now())
 
-	if args.AllNamespaces {
+	if args.RequestNamespace() == structs.AllNamespacesSentinel {
 		return j.listAllNamespaces(args, reply)
 	}
 
@@ -1234,7 +1337,7 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// check if user has permission to all namespaces
-			allowedNSes, err := j.allowedNSes(aclObj, state)
+			allowedNSes, err := allowedNSes(aclObj, state)
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
 				// namespace, matching other endpoints
@@ -1535,10 +1638,21 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
+	// Interpolate the job for this region
+	err = j.interpolateMultiregionFields(args)
+	if err != nil {
+		return err
+	}
+
 	// Get the original job
 	ws := memdb.NewWatchSet()
 	oldJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
+		return err
+	}
+
+	// Ensure that all scaling policies have an appropriate ID
+	if err := propagateScalingPolicyIDs(oldJob, args.Job); err != nil {
 		return err
 	}
 
@@ -1553,15 +1667,20 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if oldJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
 			updatedIndex = oldJob.JobModifyIndex + 1
-			snap.UpsertJob(updatedIndex, args.Job)
+			if err := snap.UpsertJob(updatedIndex, args.Job); err != nil {
+				return err
+			}
 		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
-		snap.UpsertJob(100, args.Job)
+		err := snap.UpsertJob(100, args.Job)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Create an eval and mark it as requiring annotations and insert that as well
-	now := time.Now().UTC().UnixNano()
+	now := time.Now().UnixNano()
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
 		Namespace:      args.RequestNamespace(),
@@ -1759,7 +1878,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// If the job is periodic, we don't create an eval.
 	if !dispatchJob.IsPeriodic() {
 		// Create a new evaluation
-		now := time.Now().UTC().UnixNano()
+		now := time.Now().UnixNano()
 		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
 			Namespace:      args.RequestNamespace(),
@@ -1913,6 +2032,7 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 			// Setup the output
 			reply.JobScaleStatus = &structs.JobScaleStatus{
 				JobID:          job.ID,
+				Namespace:      job.Namespace,
 				JobCreateIndex: job.CreateIndex,
 				JobModifyIndex: job.ModifyIndex,
 				JobStopped:     job.Stop,

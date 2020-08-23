@@ -7,6 +7,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestService_Check_PassFail(t *testing.T) {
+	t.Parallel()
+
+	job := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
+	task := &Task{Name: "task"}
+
+	t.Run("enforce minimums", func(t *testing.T) {
+		s := &Service{
+			Checks: []ServiceCheck{{
+				SuccessBeforePassing:   -1,
+				FailuresBeforeCritical: -2,
+			}},
+		}
+
+		s.Canonicalize(task, tg, job)
+		require.Zero(t, s.Checks[0].SuccessBeforePassing)
+		require.Zero(t, s.Checks[0].FailuresBeforeCritical)
+	})
+
+	t.Run("normal", func(t *testing.T) {
+		s := &Service{
+			Checks: []ServiceCheck{{
+				SuccessBeforePassing:   3,
+				FailuresBeforeCritical: 4,
+			}},
+		}
+
+		s.Canonicalize(task, tg, job)
+		require.Equal(t, 3, s.Checks[0].SuccessBeforePassing)
+		require.Equal(t, 4, s.Checks[0].FailuresBeforeCritical)
+	})
+}
+
 // TestService_CheckRestart asserts Service.CheckRestart settings are properly
 // inherited by Checks.
 func TestService_CheckRestart(t *testing.T) {
@@ -69,7 +103,7 @@ func TestService_Connect_Canonicalize(t *testing.T) {
 	t.Run("empty connect", func(t *testing.T) {
 		cc := new(ConsulConnect)
 		cc.Canonicalize()
-		require.False(t, cc.Native)
+		require.Empty(t, cc.Native)
 		require.Nil(t, cc.SidecarService)
 		require.Nil(t, cc.SidecarTask)
 	})

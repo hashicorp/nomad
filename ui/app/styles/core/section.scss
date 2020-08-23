@@ -5,8 +5,8 @@
   &.with-headspace {
     margin-top: 1.5rem;
   }
-}
 
-.full-width-section {
-  max-width: 100%;
+  &.is-full-width {
+    max-width: 100%;
+  }
 }

@@ -31,7 +31,6 @@ func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request)
 		return nil, nil
 	}
 
-	args.AllNamespaces, _ = strconv.ParseBool(req.URL.Query().Get("all_namespaces"))
 	var out structs.JobListResponse
 	if err := s.agent.RPC("Job.List", &args, &out); err != nil {
 		return nil, err
@@ -146,30 +145,13 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	// Region in http request query param takes precedence over region in job hcl config
-	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
-	}
-	// If 'global' region is specified or if no region is given,
-	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
-	}
-
-	sJob := ApiJobToStructJob(args.Job)
-
+	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	planReq := structs.JobPlanRequest{
 		Job:            sJob,
 		Diff:           args.Diff,
 		PolicyOverride: args.PolicyOverride,
-		WriteRequest: structs.WriteRequest{
-			Region: sJob.Region,
-		},
+		WriteRequest:   *writeReq,
 	}
-	// parseWriteRequest overrides Namespace, Region and AuthToken
-	// based on values from the original http request
-	s.parseWriteRequest(req, &planReq.WriteRequest)
-	planReq.Namespace = sJob.Namespace
 
 	var out structs.JobPlanResponse
 	if err := s.agent.RPC("Job.Plan", &planReq, &out); err != nil {
@@ -396,32 +378,27 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match name")
 	}
 
-	// Region in http request query param takes precedence over region in job hcl config
-	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
-	}
-	// If 'global' region is specified or if no region is given,
-	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
+	// GH-8481. Jobs of type system can only have a count of 1 and therefore do
+	// not support scaling. Even though this returns an error on the first
+	// occurrence, the error is generic but detailed enough that an operator
+	// can fix the problem across multiple task groups.
+	if args.Job.Type != nil && *args.Job.Type == api.JobTypeSystem {
+		for _, tg := range args.Job.TaskGroups {
+			if tg.Scaling != nil {
+				return nil, CodedError(400, "Task groups with job type system do not support scaling stanzas")
+			}
+		}
 	}
 
-	sJob := ApiJobToStructJob(args.Job)
-
+	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
-		WriteRequest: structs.WriteRequest{
-			Region:    sJob.Region,
-			AuthToken: args.WriteRequest.SecretID,
-		},
+		PreserveCounts: args.PreserveCounts,
+		WriteRequest:   *writeReq,
 	}
-	// parseWriteRequest overrides Namespace, Region and AuthToken
-	// based on values from the original http request
-	s.parseWriteRequest(req, &regReq.WriteRequest)
-	regReq.Namespace = sJob.Namespace
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
@@ -698,26 +675,108 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	return jobStruct, nil
 }
 
+// apiJobAndRequestToStructs parses the query params from the incoming
+// request and converts to a structs.Job and WriteRequest with the
+func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, apiReq api.WriteRequest) (*structs.Job, *structs.WriteRequest) {
+
+	// parseWriteRequest gets the Namespace, Region, and AuthToken from
+	// the original HTTP request's query params and headers and overrides
+	// those values set in the request body
+	writeReq := &structs.WriteRequest{
+		Namespace: apiReq.Namespace,
+		Region:    apiReq.Region,
+		AuthToken: apiReq.SecretID,
+	}
+
+	queryRegion := req.URL.Query().Get("region")
+	s.parseToken(req, &writeReq.AuthToken)
+	parseNamespace(req, &writeReq.Namespace)
+
+	requestRegion, jobRegion := regionForJob(
+		job, queryRegion, writeReq.Region, s.agent.config.Region,
+	)
+
+	sJob := ApiJobToStructJob(job)
+	sJob.Region = jobRegion
+	writeReq.Region = requestRegion
+	writeReq.Namespace = sJob.Namespace
+
+	return sJob, writeReq
+}
+
+func regionForJob(job *api.Job, queryRegion, apiRegion, agentRegion string) (string, string) {
+	var requestRegion string
+	var jobRegion string
+
+	// Region in query param (-region flag) takes precedence.
+	if queryRegion != "" {
+		requestRegion = queryRegion
+		jobRegion = queryRegion
+	}
+
+	// Next the request body...
+	if apiRegion != "" {
+		requestRegion = apiRegion
+		jobRegion = apiRegion
+	}
+
+	// If no query param was passed, we forward to the job's region
+	// if one is available
+	if requestRegion == "" && job.Region != nil {
+		requestRegion = *job.Region
+		jobRegion = *job.Region
+	}
+
+	// otherwise we default to the region of this node
+	if requestRegion == "" || requestRegion == api.GlobalRegion {
+		requestRegion = agentRegion
+		jobRegion = agentRegion
+	}
+
+	// Multiregion jobs have their job region set to the global region,
+	// and enforce that we forward to a region where they will be deployed
+	if job.Multiregion != nil {
+		jobRegion = api.GlobalRegion
+
+		// multiregion jobs with 0 regions won't pass validation,
+		// but this protects us from NPE
+		if len(job.Multiregion.Regions) > 0 {
+			found := false
+			for _, region := range job.Multiregion.Regions {
+				if region.Name == requestRegion {
+					found = true
+				}
+			}
+			if !found {
+				requestRegion = job.Multiregion.Regions[0].Name
+			}
+		}
+	}
+
+	return requestRegion, jobRegion
+}
+
 func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
 	j := &structs.Job{
-		Stop:        *job.Stop,
-		Region:      *job.Region,
-		Namespace:   *job.Namespace,
-		ID:          *job.ID,
-		ParentID:    *job.ParentID,
-		Name:        *job.Name,
-		Type:        *job.Type,
-		Priority:    *job.Priority,
-		AllAtOnce:   *job.AllAtOnce,
-		Datacenters: job.Datacenters,
-		Payload:     job.Payload,
-		Meta:        job.Meta,
-		ConsulToken: *job.ConsulToken,
-		VaultToken:  *job.VaultToken,
-		Constraints: ApiConstraintsToStructs(job.Constraints),
-		Affinities:  ApiAffinitiesToStructs(job.Affinities),
+		Stop:           *job.Stop,
+		Region:         *job.Region,
+		Namespace:      *job.Namespace,
+		ID:             *job.ID,
+		ParentID:       *job.ParentID,
+		Name:           *job.Name,
+		Type:           *job.Type,
+		Priority:       *job.Priority,
+		AllAtOnce:      *job.AllAtOnce,
+		Datacenters:    job.Datacenters,
+		Payload:        job.Payload,
+		Meta:           job.Meta,
+		ConsulToken:    *job.ConsulToken,
+		VaultToken:     *job.VaultToken,
+		VaultNamespace: *job.VaultNamespace,
+		Constraints:    ApiConstraintsToStructs(job.Constraints),
+		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -759,6 +818,23 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 			Payload:      job.ParameterizedJob.Payload,
 			MetaRequired: job.ParameterizedJob.MetaRequired,
 			MetaOptional: job.ParameterizedJob.MetaOptional,
+		}
+	}
+
+	if job.Multiregion != nil {
+		j.Multiregion = &structs.Multiregion{}
+		j.Multiregion.Strategy = &structs.MultiregionStrategy{
+			MaxParallel: *job.Multiregion.Strategy.MaxParallel,
+			OnFailure:   *job.Multiregion.Strategy.OnFailure,
+		}
+		j.Multiregion.Regions = []*structs.MultiregionRegion{}
+		for _, region := range job.Multiregion.Regions {
+			r := &structs.MultiregionRegion{}
+			r.Name = region.Name
+			r.Count = *region.Count
+			r.Datacenters = region.Datacenters
+			r.Meta = region.Meta
+			j.Multiregion.Regions = append(j.Multiregion.Regions, r)
 		}
 	}
 
@@ -888,6 +964,12 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		for l, task := range taskGroup.Tasks {
 			t := &structs.Task{}
 			ApiTaskToStructsTask(task, t)
+
+			// Set the tasks vault namespace from Job if it was not
+			// specified by the task or group
+			if t.Vault != nil && t.Vault.Namespace == "" && job.VaultNamespace != "" {
+				t.Vault.Namespace = job.VaultNamespace
+			}
 			tg.Tasks[l] = t
 		}
 	}
@@ -950,22 +1032,24 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
 				for j, check := range service.Checks {
 					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:          check.Name,
-						Type:          check.Type,
-						Command:       check.Command,
-						Args:          check.Args,
-						Path:          check.Path,
-						Protocol:      check.Protocol,
-						PortLabel:     check.PortLabel,
-						AddressMode:   check.AddressMode,
-						Interval:      check.Interval,
-						Timeout:       check.Timeout,
-						InitialStatus: check.InitialStatus,
-						TLSSkipVerify: check.TLSSkipVerify,
-						Header:        check.Header,
-						Method:        check.Method,
-						GRPCService:   check.GRPCService,
-						GRPCUseTLS:    check.GRPCUseTLS,
+						Name:                   check.Name,
+						Type:                   check.Type,
+						Command:                check.Command,
+						Args:                   check.Args,
+						Path:                   check.Path,
+						Protocol:               check.Protocol,
+						PortLabel:              check.PortLabel,
+						AddressMode:            check.AddressMode,
+						Interval:               check.Interval,
+						Timeout:                check.Timeout,
+						InitialStatus:          check.InitialStatus,
+						TLSSkipVerify:          check.TLSSkipVerify,
+						Header:                 check.Header,
+						Method:                 check.Method,
+						GRPCService:            check.GRPCService,
+						GRPCUseTLS:             check.GRPCUseTLS,
+						SuccessBeforePassing:   check.SuccessBeforePassing,
+						FailuresBeforeCritical: check.FailuresBeforeCritical,
 					}
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
@@ -1001,6 +1085,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
 			Policies:     apiTask.Vault.Policies,
+			Namespace:    *apiTask.Vault.Namespace,
 			Env:          *apiTask.Vault.Env,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
@@ -1100,30 +1185,39 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			MBits: *nw.MBits,
 		}
 
+		if nw.DNS != nil {
+			out[i].DNS = &structs.DNSConfig{
+				Servers:  nw.DNS.Servers,
+				Searches: nw.DNS.Searches,
+				Options:  nw.DNS.Options,
+			}
+		}
+
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
 			for j, dp := range nw.DynamicPorts {
-				out[i].DynamicPorts[j] = structs.Port{
-					Label: dp.Label,
-					Value: dp.Value,
-					To:    dp.To,
-				}
+				out[i].DynamicPorts[j] = ApiPortToStructs(dp)
 			}
 		}
 
 		if l := len(nw.ReservedPorts); l != 0 {
 			out[i].ReservedPorts = make([]structs.Port, l)
 			for j, rp := range nw.ReservedPorts {
-				out[i].ReservedPorts[j] = structs.Port{
-					Label: rp.Label,
-					Value: rp.Value,
-					To:    rp.To,
-				}
+				out[i].ReservedPorts[j] = ApiPortToStructs(rp)
 			}
 		}
 	}
 
 	return out
+}
+
+func ApiPortToStructs(in api.Port) structs.Port {
+	return structs.Port{
+		Label:       in.Label,
+		Value:       in.Value,
+		To:          in.To,
+		HostNetwork: in.HostNetwork,
+	}
 }
 
 //TODO(schmichael) refactor and reuse in service parsing above
@@ -1137,6 +1231,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 		out[i] = &structs.Service{
 			Name:              s.Name,
 			PortLabel:         s.PortLabel,
+			TaskName:          s.TaskName,
 			Tags:              s.Tags,
 			CanaryTags:        s.CanaryTags,
 			EnableTagOverride: s.EnableTagOverride,

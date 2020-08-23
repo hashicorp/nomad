@@ -10,7 +10,15 @@ description: |-
 # `expose` Stanza
 
 <Placement
-  groups={['job', 'group', 'service', 'connect', 'sidecar_service', 'proxy', 'expose']}
+  groups={[
+    'job',
+    'group',
+    'service',
+    'connect',
+    'sidecar_service',
+    'proxy',
+    'expose',
+  ]}
 />
 
 The `expose` stanza allows configuration of additional listeners for the default Envoy sidecar
@@ -126,7 +134,7 @@ job "expose-example" {
 
 ## `expose` Parameters
 
-- `path` <code>([Path]: nil)</code> - A list of [Envoy Expose Path Configurations](/docs/job-specification/path)
+- `path` <code>([Path]: nil)</code> - A list of [Envoy Expose Path Configurations](/docs/job-specification/expose/#path-1)
   to expose through Envoy.
 
 ### `path` Parameters
@@ -136,13 +144,12 @@ job "expose-example" {
 - `protocol` `(string: required)` - Sets the protocol of the listener. Must be
   `http` or `http2`. For gRPC use `http2`.
 - `local_path_port` `(int: required)` - The port the service is listening to for connections to
-   the configured `path`. Typically this will be the same as the `service.port` value, but
-   could be different if for example the exposed path is intended to resolve to another task
-   in the task group.
+  the configured `path`. Typically this will be the same as the `service.port` value, but
+  could be different if for example the exposed path is intended to resolve to another task
+  in the task group.
 - `listener_port` <code>([Port]: required)</code> - The name of the port to use
-   for the exposed listener. The port should be configured to [map inside](/docs/job-specification/network#to)
-   the task's network namespace.
-
+  for the exposed listener. The port should be configured to [map inside](/docs/job-specification/network#to)
+  the task's network namespace.
 
 ## `expose` Examples
 

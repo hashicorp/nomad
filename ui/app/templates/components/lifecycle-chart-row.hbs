@@ -1,16 +1,16 @@
 <div
-  class="lifecycle-chart-row {{task.lifecycleName}} {{activeClass}} {{finishedClass}}"
+  class="lifecycle-chart-row {{this.task.lifecycleName}} {{this.activeClass}} {{this.finishedClass}}"
   data-test-lifecycle-task>
   <div class="task">
     <div class="name" data-test-name>
-      {{#if taskState}}
-        <LinkTo @route="allocations.allocation.task" @models={{array taskState.allocation taskState}}>
-          {{task.name}}
+      {{#if this.taskState}}
+        <LinkTo @route="allocations.allocation.task" @models={{array this.taskState.allocation this.taskState}}>
+          {{this.task.name}}
         </LinkTo>
       {{else}}
-        {{task.name}}
+        {{this.task.name}}
       {{/if}}
     </div>
-    <div class="lifecycle" data-test-lifecycle>{{capitalize task.lifecycleName}} Task</div>
+    <div class="lifecycle" data-test-lifecycle>{{capitalize this.task.lifecycleName}} Task</div>
   </div>
 </div>

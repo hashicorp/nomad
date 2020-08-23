@@ -1,11 +1,11 @@
-{{title "Job " job.name " evaluations"}}
-{{partial "jobs/job/subnav"}}
+{{title "Job " this.job.name " evaluations"}}
+<JobSubnav @job={{this.job}} />
 <section class="section">
-  {{#if sortedEvaluations.length}}
+  {{#if this.sortedEvaluations.length}}
     <ListTable
-      @source={{sortedEvaluations}}
-      @sortProperty={{sortProperty}}
-      @sortDescending={{sortDescending}} as |t|>
+      @source={{this.sortedEvaluations}}
+      @sortProperty={{this.sortProperty}}
+      @sortDescending={{this.sortDescending}} as |t|>
       <t.head>
         <th>ID</th>
         <t.sort-by @prop="priority">Priority</t.sort-by>

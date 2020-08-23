@@ -86,7 +86,7 @@ func TestCSIVolumes_CRUD(t *testing.T) {
 	require.Equal(t, "bar", vol.Topologies[0].Segments["foo"])
 
 	// Deregister the volume
-	err = v.Deregister(id, wpts)
+	err = v.Deregister(id, true, wpts)
 	require.NoError(t, err)
 
 	// Successful empty result

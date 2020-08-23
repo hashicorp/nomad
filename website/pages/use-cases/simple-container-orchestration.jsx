@@ -1,7 +1,7 @@
-import UseCasesLayout from '../../layouts/use-cases'
+import UseCasesLayout from 'layouts/use-cases'
 import TextSplitWithCode from '@hashicorp/react-text-split-with-code'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from '../../components/featured-slider-section'
+import FeaturedSliderSection from 'components/featured-slider-section'
 
 export default function SimpleContainerOrchestrationPage() {
   return (
@@ -18,10 +18,11 @@ export default function SimpleContainerOrchestrationPage() {
           links: [
             {
               text: 'Read More',
-              url: 'https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs',
-              type: 'outbound'
-            }
-          ]
+              url:
+                'https://learn.hashicorp.com/nomad?track=managing-jobs#managing-jobs',
+              type: 'outbound',
+            },
+          ],
         }}
         codeBlock={{
           code: `task "webservice" {
@@ -34,20 +35,20 @@ export default function SimpleContainerOrchestrationPage() {
     }
   }
 }`,
-          language: 'hcl'
+          language: 'hcl',
         }}
       />
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Run on-premise with ease',
+          heading: 'Run On-Premise with Ease',
           textSide: 'left',
           content:
-            'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.'
+            'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.',
         }}
         image={{
           url: require('./img/on-prem-with-ease.svg'),
-          alt: ''
+          alt: '',
         }}
       />
 
@@ -62,9 +63,9 @@ export default function SimpleContainerOrchestrationPage() {
               text: 'Watch Jet.com use case',
               url:
                 'https://www.hashicorp.com/resources/running-windows-microservices-on-nomad-at-jet-com',
-              type: 'outbound'
-            }
-          ]
+              type: 'outbound',
+            },
+          ],
         }}
         codeBlock={{
           code: `sc.exe start "Nomad"
@@ -78,7 +79,7 @@ SERVICE_NAME: Nomad
       CHECKPOINT         : 0x0
       WAIT_HINT          : 0x0
       PID                : 8008
-      FLAGS              :`
+      FLAGS              :`,
         }}
       />
 
@@ -91,14 +92,15 @@ SERVICE_NAME: Nomad
           links: [
             {
               text: 'Read more',
-              url: 'https://learn.hashicorp.com/nomad/operating-nomad/federation',
-              type: 'outbound'
-            }
-          ]
+              url:
+                'https://learn.hashicorp.com/nomad/operating-nomad/federation',
+              type: 'outbound',
+            },
+          ],
         }}
         codeBlock={{
           code: 'nomad server join 1.2.3.4:4648',
-          prefix: 'dollar'
+          prefix: 'dollar',
         }}
       />
 
@@ -108,11 +110,11 @@ SERVICE_NAME: Nomad
             heading: 'Edge Deployment with Simple Topology',
             content:
               'Deploy Nomad with a simple cluster topology on hybrid infrastructure to place workloads to the cloud or at the edge.',
-            textSide: 'right'
+            textSide: 'right',
           }}
           image={{
             url: require('./img/edge-deployment.svg'),
-            alt: ''
+            alt: '',
           }}
         />
       </div>
@@ -127,13 +129,13 @@ SERVICE_NAME: Nomad
             {
               text: 'Read more',
               url: 'https://learn.hashicorp.com/nomad/update-strategies',
-              type: 'outbound'
-            }
-          ]
+              type: 'outbound',
+            },
+          ],
         }}
         image={{
           url: require('./img/zero-downtime-deployments.png'),
-          alt: 'Zero Downtime Deployments'
+          alt: 'Zero Downtime Deployments',
         }}
       />
 
@@ -149,13 +151,13 @@ SERVICE_NAME: Nomad
                 text: 'Watch tech presentation from Citadel',
                 url:
                   'https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel',
-                type: 'outbound'
-              }
-            ]
+                type: 'outbound',
+              },
+            ],
           }}
           image={{
             url: require('./img/high-performance-batch-workloads.png'),
-            alt: ''
+            alt: '',
           }}
         />
       </div>
@@ -170,26 +172,38 @@ SERVICE_NAME: Nomad
             {
               text: 'Read more',
               url: '/docs/devices',
-              type: 'inbound'
-            }
-          ]
+              type: 'inbound',
+            },
+          ],
         }}
         image={{
           url: require('./img/specialized-hardware.png'),
-          alt: 'Specialized Hardware'
+          alt: 'Specialized Hardware',
         }}
       />
 
       <TextSplitWithImage
         textSplit={{
-          heading: 'Run stateful workloads',
+          heading: 'Run Stateful Workloads',
           content:
             'Natively connect and run stateful services with storage volumes from third-party providers via the Container Storage Interface plugin system.',
-          textSide: 'right'
+          textSide: 'right',
         }}
         image={{
           url: require('./img/csi.svg'),
-          alt: 'Stateful Workloads'
+          alt: 'Stateful Workloads',
+        }}
+      />
+
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Flexible Networking Capabilities',
+          content:
+            'Deploy containerized applications with customized network configurations from third-party vendors via Container Network Interface plugin system',
+        }}
+        image={{
+          url: require('./img/cni.svg'),
+          alt: 'Flexible Networking Capabilities',
         }}
       />
 
@@ -200,12 +214,12 @@ SERVICE_NAME: Nomad
             logo: {
               url:
                 'https://www.datocms-assets.com/2885/1582097215-roblox-white.svg',
-              alt: 'Roblox'
+              alt: 'Roblox',
             },
             image: {
               url:
                 'https://www.datocms-assets.com/2885/1582096961-roblox-case-study.jpg',
-              alt: 'Roblox Nomad Case Study'
+              alt: 'Roblox Nomad Case Study',
             },
             heading: 'Roblox',
             content:
@@ -213,19 +227,19 @@ SERVICE_NAME: Nomad
             link: {
               text: 'Read Case Study',
               url: 'https://www.hashicorp.com/case-studies/roblox',
-              type: 'outbound'
-            }
+              type: 'outbound',
+            },
           },
           {
             logo: {
               url:
                 'https://www.datocms-assets.com/2885/1529339316-logocitadelwhite-knockout.svg',
-              alt: 'Citadel'
+              alt: 'Citadel',
             },
             image: {
               url:
                 'https://www.datocms-assets.com/2885/1509052483-hashiconf2017-end-to-end-production-nomad-at-citadel.jpg',
-              alt: 'Citadel Presentation'
+              alt: 'Citadel Presentation',
             },
             heading: 'Citadel',
             content:
@@ -234,29 +248,30 @@ SERVICE_NAME: Nomad
               text: 'Learn More',
               url:
                 'https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel',
-              type: 'outbound'
-            }
+              type: 'outbound',
+            },
           },
           {
             logo: {
               url:
-                'https://www.datocms-assets.com/2885/1522341147-jet-white.svg',
-              alt: 'Jet'
+                'https://www.datocms-assets.com/2885/1594247944-better-help-white.png',
+              alt: 'BetterHelp',
             },
             image: {
               url:
-                'https://www.datocms-assets.com/2885/1523635589-mohitarora.jpg',
-              alt: 'Jet Presentation'
+                'https://www.datocms-assets.com/2885/1594247996-betterhelp-case-study-screen.png',
+              alt: 'BetterHelp Presentation',
             },
-            heading: 'Jet.com',
-            content: 'Running Windows Microservices on Nomad',
+            heading: 'BetterHelp',
+            content:
+              'From 6 dedicated servers in a colocation facility to a cloud-based deployment workflow with Nomad',
             link: {
               text: 'Learn More',
               url:
-                'https://www.hashicorp.com/resources/running-windows-microservices-on-nomad-at-jet-com',
-              type: 'outbound'
-            }
-          }
+                'https://www.hashicorp.com/resources/betterhelp-s-hashicorp-nomad-use-case/',
+              type: 'outbound',
+            },
+          },
         ]}
       />
     </UseCasesLayout>

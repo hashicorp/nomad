@@ -97,6 +97,18 @@ task "web" {
 }
 ```
 
+## Capabilities
+
+The `java` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature | Implementation |
+| --- | --- |
+| `nomad alloc signal` | false |
+| `nomad alloc exec` | false |
+| filesystem isolation | none, chroot (only for linux) |
+| network isolation | host, group |
+| volume mounting | none, all (only for linux) |
+
 ## Client Requirements
 
 The `java` driver requires Java to be installed and in your system's `$PATH`. On
