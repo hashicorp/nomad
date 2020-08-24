@@ -3522,9 +3522,6 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 
 func TestStateStore_CSIPluginJobs(t *testing.T) {
 	s := testStateStore(t)
-	// deleteNodes := CreateTestCSIPlugin(s, "foo")
-	// defer deleteNodes()
-
 	index := uint64(1001)
 
 	controllerJob := mock.Job()

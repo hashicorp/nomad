@@ -4530,7 +4530,7 @@ func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, t
 				if !ok {
 					p, err := s.CSIPluginByID(ws, t.CSIPluginConfig.ID)
 					if err != nil {
-						return fmt.Errorf("%v", err)
+						return err
 					}
 					if p == nil {
 						plugIn = structs.NewCSIPlugin(t.CSIPluginConfig.ID, index)
@@ -4555,13 +4555,13 @@ func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, t
 	if prev != nil {
 		err := loop(prev, true)
 		if err != nil {
-			return fmt.Errorf("%v", err)
+			return err
 		}
 	}
 
 	err := loop(job, false)
 	if err != nil {
-		return fmt.Errorf("%v", err)
+		return err
 	}
 
 	for _, plugIn := range plugIns {
