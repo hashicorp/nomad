@@ -15,9 +15,11 @@ replace (
 
 require (
 	cloud.google.com/go/storage v1.0.0 // indirect
-	contrib.go.opencensus.io/exporter/ocagent v0.4.12 // indirect
 	github.com/Azure/azure-sdk-for-go v29.0.0+incompatible // indirect
-	github.com/Azure/go-autorest v11.7.1+incompatible // indirect
+	github.com/Azure/go-autorest/autorest v0.11.4 // indirect
+	github.com/Azure/go-autorest/autorest/azure/auth v0.5.1 // indirect
+	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
+	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873
 	github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1 // indirect
@@ -50,11 +52,10 @@ require (
 	github.com/google/go-cmp v0.4.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
-	github.com/grpc-ecosystem/grpc-gateway v1.9.0 // indirect
-	github.com/hashicorp/consul v1.7.1-0.20200213195527-b137060630b4
+	github.com/hashicorp/consul v1.7.7
 	github.com/hashicorp/consul-template v0.25.1
-	github.com/hashicorp/consul/api v1.4.1-0.20200730220852-12f574c9de39
-	github.com/hashicorp/consul/sdk v0.5.0
+	github.com/hashicorp/consul/api v1.6.0
+	github.com/hashicorp/consul/sdk v0.6.0
 	github.com/hashicorp/cronexpr v1.1.0
 	github.com/hashicorp/go-checkpoint v0.0.0-20171009173528-1545e56e46de
 	github.com/hashicorp/go-cleanhttp v0.5.1
@@ -96,7 +97,7 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.0.0
 	github.com/mitchellh/go-ps v0.0.0-20190716172923-621e5597135b
-	github.com/mitchellh/go-testing-interface v1.0.0
+	github.com/mitchellh/go-testing-interface v1.0.3
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/mitchellh/mapstructure v1.3.1
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
@@ -108,7 +109,7 @@ require (
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.4.0
 	github.com/prometheus/common v0.9.1
-	github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
+	github.com/rs/cors v1.7.0
 	github.com/ryanuber/columnize v2.1.1-0.20170703205827-abc90934186a+incompatible
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
@@ -120,7 +121,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	github.com/zclconf/go-cty v1.4.1
 	go.opencensus.io v0.22.1-0.20190713072201-b4a14686f0a9 // indirect
-	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/exp v0.0.0-20191030013958-a1ab85dbe136 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/mod v0.3.0 // indirect
