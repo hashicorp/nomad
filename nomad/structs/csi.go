@@ -903,11 +903,12 @@ func (p *CSIPlugin) DeleteJob(job *Job, summary *JobSummary) {
 // UpdateExpectedWithJob maintains the expected instance count
 // we use the summary to add non-allocation expected counts
 func (p *CSIPlugin) UpdateExpectedWithJob(job *Job, summary *JobSummary, terminal bool) {
+	var count int
+
 	for _, tg := range job.TaskGroups {
-		count := tg.Count
 		if job.Type == JobTypeSystem {
 			if summary == nil {
-				count = 0
+				continue
 			}
 
 			s, ok := summary.Summary[tg.Name]
@@ -916,6 +917,8 @@ func (p *CSIPlugin) UpdateExpectedWithJob(job *Job, summary *JobSummary, termina
 			}
 
 			count = s.Running + s.Queued + s.Starting
+		} else {
+			count = tg.Count
 		}
 
 		for _, t := range tg.Tasks {
