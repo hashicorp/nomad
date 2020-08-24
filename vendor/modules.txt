@@ -696,7 +696,7 @@ github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/renier/xmlrpc v0.0.0-20170708154548-ce4a1a486c03
 github.com/renier/xmlrpc
-# github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
+# github.com/rs/cors v1.7.0
 ## explicit
 github.com/rs/cors
 # github.com/ryanuber/columnize v2.1.1-0.20170703205827-abc90934186a+incompatible
