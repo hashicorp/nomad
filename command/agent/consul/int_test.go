@@ -39,10 +39,10 @@ func TestConsul_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("-short set; skipping")
 	}
-	require := require.New(t)
+	r := require.New(t)
 
 	// Create an embedded Consul server
-	testconsul, err := testutil.NewTestServerConfig(func(c *testutil.TestServerConfig) {
+	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = ioutil.Discard
@@ -133,7 +133,7 @@ func TestConsul_Integration(t *testing.T) {
 	taskDir := allocDir.NewTaskDir(task.Name)
 	vclient := vaultclient.NewMockVaultClient()
 	consulClient, err := consulapi.NewClient(consulConfig)
-	require.Nil(err)
+	r.Nil(err)
 
 	serviceClient := consul.NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
 	defer serviceClient.Shutdown() // just-in-case cleanup
@@ -165,7 +165,7 @@ func TestConsul_Integration(t *testing.T) {
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)
-	require.NoError(err)
+	r.NoError(err)
 	go tr.Run()
 	defer func() {
 		// Make sure we always shutdown task runner when the test exits
@@ -180,7 +180,7 @@ func TestConsul_Integration(t *testing.T) {
 	// Block waiting for the service to appear
 	catalog := consulClient.Catalog()
 	res, meta, err := catalog.Service("httpd2", "test", nil)
-	require.Nil(err)
+	r.Nil(err)
 
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		//Expected initial request to fail, do a blocking query
@@ -189,7 +189,7 @@ func TestConsul_Integration(t *testing.T) {
 			t.Fatalf("error querying for service: %v", err)
 		}
 	}
-	require.Len(res, 1)
+	r.Len(res, 1)
 
 	// Truncate results
 	res = res[:]
@@ -197,16 +197,16 @@ func TestConsul_Integration(t *testing.T) {
 	// Assert the service with the checks exists
 	for i := 0; len(res) == 0 && i < 10; i++ {
 		res, meta, err = catalog.Service("httpd", "http", &consulapi.QueryOptions{WaitIndex: meta.LastIndex + 1, WaitTime: 3 * time.Second})
-		require.Nil(err)
+		r.Nil(err)
 	}
-	require.Len(res, 1)
+	r.Len(res, 1)
 
 	// Assert the script check passes (mock_driver script checks always
 	// pass) after having time to run once
 	time.Sleep(2 * time.Second)
 	checks, _, err := consulClient.Health().Checks("httpd", nil)
-	require.Nil(err)
-	require.Len(checks, 2)
+	r.Nil(err)
+	r.Len(checks, 2)
 
 	for _, check := range checks {
 		if expected := "httpd"; check.ServiceName != expected {
@@ -261,7 +261,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Ensure Consul is clean
 	services, _, err := catalog.Services(nil)
-	require.Nil(err)
-	require.Len(services, 1)
-	require.Contains(services, "consul")
+	r.Nil(err)
+	r.Len(services, 1)
+	r.Contains(services, "consul")
 }

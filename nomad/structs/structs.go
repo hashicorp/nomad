@@ -2518,16 +2518,13 @@ func (ns Networks) Copy() Networks {
 
 // Port assignment and IP for the given label or empty values.
 func (ns Networks) Port(label string) (string, int) {
-	fmt.Println("NS port label:", label)
 	for _, n := range ns {
 		for _, p := range n.ReservedPorts {
-			fmt.Println("reserved port, p:", p)
 			if p.Label == label {
 				return n.IP, p.Value
 			}
 		}
 		for _, p := range n.DynamicPorts {
-			fmt.Println("dynamic port, p:", p)
 			if p.Label == label {
 				return n.IP, p.Value
 			}
