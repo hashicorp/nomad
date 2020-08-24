@@ -903,13 +903,13 @@ func (p *CSIPlugin) DeleteJob(job *Job, summary *JobSummary) {
 // UpdateExpectedWithJob maintains the expected instance count
 // we use the summary to add non-allocation expected counts
 func (p *CSIPlugin) UpdateExpectedWithJob(job *Job, summary *JobSummary, terminal bool) {
-	if summary == nil {
-		return
-	}
-
 	for _, tg := range job.TaskGroups {
 		count := tg.Count
 		if job.Type == JobTypeSystem {
+			if summary == nil {
+				count = 0
+			}
+
 			s, ok := summary.Summary[tg.Name]
 			if !ok {
 				continue
@@ -1035,8 +1035,8 @@ func (p *CSIPlugin) Stub() *CSIPluginListStub {
 func (p *CSIPlugin) IsEmpty() bool {
 	return len(p.Controllers) == 0 &&
 		len(p.Nodes) == 0 &&
-		len(p.ControllerJobs) == 0 &&
-		len(p.NodeJobs) == 0
+		p.ControllerJobs.Count() == 0 &&
+		p.NodeJobs.Count() == 0
 }
 
 type CSIPluginListRequest struct {
