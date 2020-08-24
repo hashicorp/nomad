@@ -1227,16 +1227,36 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn *memdb.Txn, job *str
 	}
 
 	plugAllocs := []*pair{}
+	found := map[string]struct{}{}
 
+	// Find plugins for allocs that belong to this job
 	for _, a := range allocs {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		found[tg.Name] = struct{}{}
 		for _, t := range tg.Tasks {
-			if t.CSIPluginConfig != nil {
-				plugAllocs = append(plugAllocs, &pair{
-					pluginID: t.CSIPluginConfig.ID,
-					alloc:    a,
-				})
+			if t.CSIPluginConfig == nil {
+				continue
 			}
+			plugAllocs = append(plugAllocs, &pair{
+				pluginID: t.CSIPluginConfig.ID,
+				alloc:    a,
+			})
+		}
+	}
+
+	// Find any plugins that do not yet have allocs for this job
+	for _, tg := range job.TaskGroups {
+		if _, ok := found[tg.Name]; ok {
+			continue
+		}
+
+		for _, t := range tg.Tasks {
+			if t.CSIPluginConfig == nil {
+				continue
+			}
+			plugAllocs = append(plugAllocs, &pair{
+				pluginID: t.CSIPluginConfig.ID,
+			})
 		}
 	}
 
@@ -1258,6 +1278,9 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn *memdb.Txn, job *str
 			plug = plugins[x.pluginID]
 		}
 
+		if x.alloc == nil {
+			continue
+		}
 		err := plug.DeleteAlloc(x.alloc.ID, x.alloc.NodeID)
 		if err != nil {
 			return err
