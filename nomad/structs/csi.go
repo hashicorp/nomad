@@ -949,6 +949,7 @@ func (p *CSIPlugin) UpdateExpectedWithJob(job *Job, summary *JobSummary, termina
 	p.NodesExpected = p.NodeJobs.Count()
 }
 
+// JobDescription records Job identification and the count of expected plugin instances
 type JobDescription struct {
 	Namespace string
 	ID        string
@@ -956,7 +957,10 @@ type JobDescription struct {
 	Expected  int
 }
 
+// JobNamespacedDescriptions maps Job.ID to JobDescription
 type JobNamespacedDescriptions map[string]JobDescription
+
+// JobDescriptions maps Namespace to a mapping of Job.ID to JobDescription
 type JobDescriptions map[string]JobNamespacedDescriptions
 
 func (j JobDescriptions) Add(job *Job, expected int) {
