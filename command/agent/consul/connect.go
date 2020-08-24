@@ -65,10 +65,6 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 		envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
 	}
 
-	if proxy.EnvoyDNSDiscoveryType != "" {
-		envoyConfig["envoy_dns_discovery_type"] = proxy.EnvoyDNSDiscoveryType
-	}
-
 	if len(proxy.Config) > 0 {
 		for k, v := range proxy.Config {
 			envoyConfig[k] = v

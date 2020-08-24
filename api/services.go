@@ -332,10 +332,6 @@ type ConsulGatewayBindAddress struct {
 	Port    int    `mapstructure:"port"`
 }
 
-const (
-	defaultDNSDiscoveryType = "LOGICAL_DNS"
-)
-
 var (
 	defaultGatewayConnectTimeout = 5 * time.Second
 )
@@ -349,7 +345,6 @@ type ConsulGatewayProxy struct {
 	EnvoyGatewayBindTaggedAddresses bool                                 `mapstructure:"envoy_gateway_bind_tagged_addresses"`
 	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses"`
 	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind"`
-	EnvoyDNSDiscoveryType           string                               `mapstructure:"envoy_dns_discovery_type"`
 	Config                          map[string]interface{}               // escape hatch envoy config
 }
 
@@ -361,11 +356,6 @@ func (p *ConsulGatewayProxy) Canonicalize() {
 	if p.ConnectTimeout == nil {
 		// same as the default from consul
 		p.ConnectTimeout = timeToPtr(defaultGatewayConnectTimeout)
-	}
-
-	if p.EnvoyDNSDiscoveryType == "" {
-		// same as default from consul
-		p.EnvoyDNSDiscoveryType = defaultDNSDiscoveryType
 	}
 
 	if len(p.EnvoyGatewayBindAddresses) == 0 {
@@ -403,7 +393,6 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       binds,
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
-		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
 		Config:                          config,
 	}
 }

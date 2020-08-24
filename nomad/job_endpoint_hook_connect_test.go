@@ -300,9 +300,8 @@ func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
 
 	t.Run("unrelated fields set", func(t *testing.T) {
 		result := gatewayProxyIsDefault(&structs.ConsulGatewayProxy{
-			ConnectTimeout:        helper.TimeToPtr(2 * time.Second),
-			EnvoyDNSDiscoveryType: "STRICT_DNS",
-			Config:                map[string]interface{}{"foo": 1},
+			ConnectTimeout: helper.TimeToPtr(2 * time.Second),
+			Config:         map[string]interface{}{"foo": 1},
 		})
 		require.True(t, result)
 	})
@@ -430,9 +429,8 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 	t.Run("fill in defaults", func(t *testing.T) {
 		result := gatewayProxyForBridge(&structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				ConnectTimeout:        helper.TimeToPtr(2 * time.Second),
-				EnvoyDNSDiscoveryType: "STRICT_DNS",
-				Config:                map[string]interface{}{"foo": 1},
+				ConnectTimeout: helper.TimeToPtr(2 * time.Second),
+				Config:         map[string]interface{}{"foo": 1},
 			},
 			Ingress: &structs.ConsulIngressConfigEntry{
 				Listeners: []*structs.ConsulIngressListener{{
@@ -446,7 +444,6 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 		})
 		require.Equal(t, &structs.ConsulGatewayProxy{
 			ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
-			EnvoyDNSDiscoveryType:           "STRICT_DNS",
 			Config:                          map[string]interface{}{"foo": 1},
 			EnvoyGatewayNoDefaultBind:       true,
 			EnvoyGatewayBindTaggedAddresses: false,

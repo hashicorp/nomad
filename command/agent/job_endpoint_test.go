@@ -3004,7 +3004,7 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 	require.Equal(t, &structs.ConsulProxy{
 		LocalServiceAddress: "192.168.30.1",
 		LocalServicePort:    9000,
-		Config:              config,
+		Config:              nil,
 		Upstreams: []structs.ConsulUpstream{{
 			DestinationName: "upstream",
 		}},

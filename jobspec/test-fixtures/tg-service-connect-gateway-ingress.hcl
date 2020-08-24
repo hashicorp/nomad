@@ -17,7 +17,6 @@ job "connect_gateway_ingress" {
               port    = 8889
             }
             envoy_gateway_no_default_bind = true
-            envoy_dns_discovery_type      = "LOGICAL_DNS"
             config {
               foo = "bar"
             }

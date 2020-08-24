@@ -278,7 +278,6 @@ func TestService_ConsulGateway_Canonicalize(t *testing.T) {
 				EnvoyGatewayBindTaggedAddresses: true,
 				EnvoyGatewayBindAddresses:       make(map[string]*ConsulGatewayBindAddress, 0),
 				EnvoyGatewayNoDefaultBind:       true,
-				EnvoyDNSDiscoveryType:           "",
 				Config:                          make(map[string]interface{}, 0),
 			},
 			Ingress: &ConsulIngressConfigEntry{
@@ -290,7 +289,6 @@ func TestService_ConsulGateway_Canonicalize(t *testing.T) {
 		}
 		cg.Canonicalize()
 		require.Equal(t, timeToPtr(5*time.Second), cg.Proxy.ConnectTimeout)
-		require.Equal(t, "LOGICAL_DNS", cg.Proxy.EnvoyDNSDiscoveryType)
 		require.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
 		require.Nil(t, cg.Proxy.Config)
 		require.Nil(t, cg.Ingress.Listeners)
@@ -314,7 +312,6 @@ func TestService_ConsulGateway_Copy(t *testing.T) {
 				"listener2": {Address: "10.0.0.1", Port: 2001},
 			},
 			EnvoyGatewayNoDefaultBind: true,
-			EnvoyDNSDiscoveryType:     "BAD_TYPE",
 			Config: map[string]interface{}{
 				"foo": "bar",
 				"baz": 3,

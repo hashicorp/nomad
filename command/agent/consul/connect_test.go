@@ -416,15 +416,13 @@ func TestConnect_newConnectGateway(t *testing.T) {
 					EnvoyGatewayBindTaggedAddresses: false,
 					EnvoyGatewayBindAddresses:       nil,
 					EnvoyGatewayNoDefaultBind:       false,
-					EnvoyDNSDiscoveryType:           "LOGICAL_DNS",
 					Config:                          nil,
 				},
 			},
 		})
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
 			Config: map[string]interface{}{
-				"connect_timeout_ms":       int64(1000),
-				"envoy_dns_discovery_type": "LOGICAL_DNS",
+				"connect_timeout_ms": int64(1000),
 			},
 		}, result)
 	})
@@ -442,7 +440,6 @@ func TestConnect_newConnectGateway(t *testing.T) {
 						},
 					},
 					EnvoyGatewayNoDefaultBind: true,
-					EnvoyDNSDiscoveryType:     "STRICT_DNS",
 					Config: map[string]interface{}{
 						"foo": 1,
 					},
@@ -452,7 +449,6 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
 			Config: map[string]interface{}{
 				"connect_timeout_ms":                  int64(1000),
-				"envoy_dns_discovery_type":            "STRICT_DNS",
 				"envoy_gateway_bind_tagged_addresses": true,
 				"envoy_gateway_bind_addresses": map[string]*structs.ConsulGatewayBindAddress{
 					"service1": &structs.ConsulGatewayBindAddress{

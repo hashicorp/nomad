@@ -485,7 +485,6 @@ var (
 				"listener2": &ConsulGatewayBindAddress{Address: "10.0.0.1", Port: 2002},
 			},
 			EnvoyGatewayNoDefaultBind: true,
-			EnvoyDNSDiscoveryType:     "STRICT_DNS",
 			Config: map[string]interface{}{
 				"foo": 1,
 			},
@@ -580,10 +579,6 @@ func TestConsulGateway_Equals_ingress(t *testing.T) {
 
 	t.Run("mod gateway envoy_gateway_no_default_bind", func(t *testing.T) {
 		try(t, func(g *gway) { g.Proxy.EnvoyGatewayNoDefaultBind = false })
-	})
-
-	t.Run("mod gateway envoy_dns_discovery_type", func(t *testing.T) {
-		try(t, func(g *gway) { g.Proxy.EnvoyDNSDiscoveryType = "LOGICAL_DNS" })
 	})
 
 	t.Run("mod gateway config", func(t *testing.T) {
@@ -733,16 +728,14 @@ func TestConsulGatewayBindAddress_Validate(t *testing.T) {
 func TestConsulGatewayProxy_Validate(t *testing.T) {
 	t.Run("no timeout", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout:        nil,
-			EnvoyDNSDiscoveryType: "LOGICAL_DNS",
+			ConnectTimeout: nil,
 		}).Validate()
 		require.EqualError(t, err, "Consul Gateway Proxy connection_timeout must be set")
 	})
 
 	t.Run("invalid bind address", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout:        helper.TimeToPtr(1 * time.Second),
-			EnvoyDNSDiscoveryType: "LOGICAL_DNS",
+			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"service1": {
 					Address: "10.0.0.1",
@@ -752,18 +745,9 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 		require.EqualError(t, err, "Consul Gateway Bind Address must set valid Port")
 	})
 
-	t.Run("invalid dns discovery type", func(t *testing.T) {
-		err := (&ConsulGatewayProxy{
-			ConnectTimeout:        helper.TimeToPtr(1 * time.Second),
-			EnvoyDNSDiscoveryType: "INVALID_DNS",
-		}).Validate()
-		require.EqualError(t, err, `Consul Gateway Proxy does not support DNS discovery type "INVALID_DNS"`)
-	})
-
 	t.Run("ok with nothing set", func(t *testing.T) {
 		err := (&ConsulGatewayProxy{
-			ConnectTimeout:        helper.TimeToPtr(1 * time.Second),
-			EnvoyDNSDiscoveryType: "LOGICAL_DNS",
+			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
 		}).Validate()
 		require.NoError(t, err)
 	})
@@ -778,7 +762,6 @@ func TestConsulGatewayProxy_Validate(t *testing.T) {
 				}},
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayNoDefaultBind:       true,
-			EnvoyDNSDiscoveryType:           "STRICT_DNS",
 		}).Validate()
 		require.NoError(t, err)
 	})

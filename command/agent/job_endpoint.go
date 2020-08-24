@@ -1326,7 +1326,6 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		EnvoyGatewayBindTaggedAddresses: in.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
-		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
 		Config:                          helper.CopyMapStringInterface(in.Config),
 	}
 }

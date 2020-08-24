@@ -341,7 +341,6 @@ func TestJobEndpoint_Register_ConnectIngressGateway_full(t *testing.T) {
 					},
 				},
 				EnvoyGatewayNoDefaultBind: true,
-				EnvoyDNSDiscoveryType:     "STRICT_DNS",
 				Config: map[string]interface{}{
 					"foo": 1,
 					"bar": "baz",

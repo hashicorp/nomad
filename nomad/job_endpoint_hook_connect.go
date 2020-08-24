@@ -293,7 +293,6 @@ func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewa
 	proxy := new(structs.ConsulGatewayProxy)
 	if gateway.Proxy != nil {
 		proxy.ConnectTimeout = gateway.Proxy.ConnectTimeout
-		proxy.EnvoyDNSDiscoveryType = gateway.Proxy.EnvoyDNSDiscoveryType
 		proxy.Config = gateway.Proxy.Config
 	}
 

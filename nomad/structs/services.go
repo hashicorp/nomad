@@ -1282,7 +1282,6 @@ type ConsulGatewayProxy struct {
 	EnvoyGatewayBindTaggedAddresses bool
 	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress
 	EnvoyGatewayNoDefaultBind       bool
-	EnvoyDNSDiscoveryType           string
 	Config                          map[string]interface{}
 }
 
@@ -1301,7 +1300,6 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
-		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
 		Config:                          helper.CopyMapStringInterface(p.Config),
 	}
 }
@@ -1341,10 +1339,6 @@ func (p *ConsulGatewayProxy) Equals(o *ConsulGatewayProxy) bool {
 		return false
 	}
 
-	if p.EnvoyDNSDiscoveryType != o.EnvoyDNSDiscoveryType {
-		return false
-	}
-
 	if !opaqueMapsEqual(p.Config, o.Config) {
 		return false
 	}
@@ -1359,11 +1353,6 @@ func (p *ConsulGatewayProxy) Validate() error {
 
 	if p.ConnectTimeout == nil {
 		return fmt.Errorf("Consul Gateway Proxy connection_timeout must be set")
-	}
-
-	dnsTypes := []string{"STRICT_DNS", "LOGICAL_DNS"}
-	if !helper.SliceStringContains(dnsTypes, p.EnvoyDNSDiscoveryType) {
-		return fmt.Errorf("Consul Gateway Proxy does not support DNS discovery type %q", p.EnvoyDNSDiscoveryType)
 	}
 
 	for _, bindAddr := range p.EnvoyGatewayBindAddresses {

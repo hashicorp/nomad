@@ -1416,7 +1416,6 @@ func TestParse(t *testing.T) {
 										"listener2": {Address: "10.0.0.2", Port: 8889},
 									},
 									EnvoyGatewayNoDefaultBind: true,
-									EnvoyDNSDiscoveryType:     "LOGICAL_DNS",
 									Config:                    map[string]interface{}{"foo": "bar"},
 								},
 								Ingress: &api.ConsulIngressConfigEntry{

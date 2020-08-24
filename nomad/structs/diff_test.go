@@ -2629,7 +2629,6 @@ func TestTaskGroupDiff(t *testing.T) {
 										},
 									},
 									EnvoyGatewayNoDefaultBind: false,
-									EnvoyDNSDiscoveryType:     "LOGICAL_DNS",
 									Config: map[string]interface{}{
 										"foo": 1,
 									},
@@ -2704,7 +2703,6 @@ func TestTaskGroupDiff(t *testing.T) {
 										},
 									},
 									EnvoyGatewayNoDefaultBind: true,
-									EnvoyDNSDiscoveryType:     "STRICT_DNS",
 									Config: map[string]interface{}{
 										"foo": 2,
 									},
@@ -3023,12 +3021,6 @@ func TestTaskGroupDiff(t *testing.T) {
 														Name: "ConnectTimeout",
 														Old:  "1s",
 														New:  "2s",
-													},
-													{
-														Type: DiffTypeEdited,
-														Name: "EnvoyDNSDiscoveryType",
-														Old:  "LOGICAL_DNS",
-														New:  "STRICT_DNS",
 													},
 													{
 														Type: DiffTypeEdited,
