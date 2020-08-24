@@ -71,9 +71,9 @@ func (fm *FingerprintManager) getNode() *structs.Node {
 func (fp *FingerprintManager) Run() error {
 	// First, set up all fingerprints
 	cfg := fp.getConfig()
-	allowlistFingerprints := cfg.ReadStringListToMap("fingerprint.allowlist")
+	allowlistFingerprints := cfg.ReadStringListToMap("fingerprint.allowlist", "fingerprint.whitelist")
 	allowlistFingerprintsEnabled := len(allowlistFingerprints) > 0
-	denylistFingerprints := cfg.ReadStringListToMap("fingerprint.denylist")
+	denylistFingerprints := cfg.ReadStringListToMap("fingerprint.denylist", "fingerprint.blacklist")
 
 	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprint.BuiltinFingerprints())
 
