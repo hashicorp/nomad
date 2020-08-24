@@ -5,5 +5,19 @@
       <h3 class="empty-message-headline">Cluster topology visualization goes here</h3>
       <p class="empty-message-body">:D</p>
     </div>
+
+    <h3>Clients</h3>
+    <ol>
+      {{#each model.nodes as |node|}}
+        <li><strong>{{node.name}}</strong> {{!node.allocations.length}} {{node.resources.cpu}} MHz {{node.resources.memory}} MiB</li>
+      {{/each}}
+    </ol>
+
+    <h3>Allocations</h3>
+    <ol>
+      {{#each model.allocations as |allocation|}}
+      <li><strong>{{allocation.shortId}}</strong> {{allocation.node.name}} {{allocation.job.name}}/{{allocation.taskGroup.name}} {{allocation.resources.cpu}} MHz {{allocation.resources.memory}} MiB</li>
+      {{/each}}
+    </ol>
   </section>
 </PageLayout>
