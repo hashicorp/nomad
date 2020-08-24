@@ -4514,7 +4514,7 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 	return nil
 }
 
-// updateJobCSIPlugins runs on job update indexes the job in the plugin
+// updateJobCSIPlugins runs on job update, and indexes the job in the plugin
 func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, txn *memdb.Txn) error {
 	ws := memdb.NewWatchSet()
 	plugIns := make(map[string]*structs.CSIPlugin)
