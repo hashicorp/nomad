@@ -20,6 +20,21 @@
       "destination": "/tmp/install-nomad"
     },
     {
+      "type": "file",
+      "source": "./linux/nomad.service",
+      "destination": "/tmp/nomad.service"
+    },
+    {
+      "type": "file",
+      "source": "./linux/consul_aws.service",
+      "destination": "/tmp/consul.service"
+    },
+    {
+      "type": "file",
+      "source": "./linux/vault.service",
+      "destination": "/tmp/vault.service"
+    },
+    {
       "type": "shell",
       "script": "./linux/setup.sh"
     }
