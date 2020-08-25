@@ -29,14 +29,14 @@ features for multi-tenant deployments are offered exclusively in the enterprise
 version. This documentation may need to be adapted to your deployment situation,
 but the general mechanisms for a secure Nomad deployment revolve around:
 
-* **[mTLS](/guides/security/securing-nomad.html)** -
-    Mutual authorization of both the TLS server and client x509 certificates
-    prevents internal abuse by preventing unauthorized access to network
+* **[mTLS](https://learn.hashicorp.com/tutorials/nomad/security-enable-tls)** -
+    Mutual authentication of both the TLS server and client x509 certificates
+    prevents internal abuse by preventing unauthenticated access to network
     components within the cluster.
 
-* **[ACLs](/guides/security/acl.html)** - Allow for
-    roles to be applied to authorized connections by granting capabilities for a
-    token.
+* **[ACLs](https://learn.hashicorp.com/collections/nomad/access-control)** - Enables
+    authorization for authenticated connections by granting capabilities to ACL
+    tokens.
 
 * **[Namespaces](/docs/enterprise/index.html#namespaces)**
     (**Enterprise Only**) - Access to read and write to a Namepsace can be
@@ -55,7 +55,7 @@ granularity may change depending on your team's use case where rigorous roles
 can be accurately defined and managed using the [Nomad backend secret engine for
 Vault](https://www.vaultproject.io/docs/secrets/nomad/index.html). This is
 described further with getting started steps using a development server
-[here](/guides/security/acl.html#vault-integration).
+[here](https://learn.hashicorp.com/collections/nomad/access-control).
 
 It's important to note that there's no traditional concept of a user
 within Nomad itself.
@@ -96,7 +96,7 @@ recommendations accordingly.
 
 #### Requirements
 
-* **[mTLS enabled](/guides/security/securing-nomad.html)**
+* **[mTLS enabled](https://learn.hashicorp.com/tutorials/nomad/security-enable-tls)**
     - Mutual TLS (mTLS) enables [mutual
     authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
     security properties to prevent the following problems:
@@ -115,7 +115,7 @@ recommendations accordingly.
     certificates to ensure mTLS is actually enabled. This requires appropriate
     certificates to be distributed to servers, clients, machines, or operators
     for things like CLI usage. It is recommended to use
-    [Vault](/guides/security/vault-pki-integration.html)
+    [Vault](https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad)
     to securely manage the certificate creation and rotation for nodes.
 
   * Agent role misconfiguration is prevented using the X.509
@@ -129,28 +129,28 @@ recommendations accordingly.
     the same CA. This also avoids any potential pitfalls with certificates using
     the IP or Hostname of nodes within a cluster.
 
-* **[ACLs enabled](/guides/security/acl.html)** - The
+* **[ACLs enabled](https://learn.hashicorp.com/collections/nomad/access-control)** - The
     access control list (ACL) system provides a capability-based control
     mechanism for Nomad administrators allowing for custom roles (typically
     within Vault) to be tied to an individual human or machine operator
     identity. This allows for access to capabilities within the cluster to be
     restricted to specific users.
 
-* **[Sentinel Policies](/guides/governance-and-policy/sentinel/sentinel-policy.html)**
+* **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
     (**Enterprise Only**) - [Sentinel](https://www.hashicorp.com/sentinel/) is
     a feature which enables
     [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code/)
     to enforce further restrictions on operators. This is used to augment the
     built-in ACL system for fine-grained control over jobs.
 
-* **[Namespaces](/guides/governance-and-policy/namespaces.html)**
+* **[Namespaces](https://learn.hashicorp.com/tutorials/nomad/namespaces)**
     (**Enterprise Only**) - This feature allows for a cluster to be shared by
     multiple teams within a company. Using this logical separation is important
     for multi-tenant clusters to prevent users without access to that namespace
     from conflicting with each other. This requires ACLs to be enabled in order
     to be enforced.
 
-* **[Resource Quotas](/guides/governance-and-policy/quotas.html)**
+* **[Resource Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas)**
     (**Enterprise Only**) - Can limit a namespace's access to the underlying
     compute resources in the cluster by setting upper-limits for operators.
     Access to these resource quotas can be managed via ACLs to ensure read-only
@@ -174,7 +174,7 @@ environment.
       on disk on an operator's local machine.
 
     * Rotate credentials used by the Nomad agent; e.g. [integrate with Vault's
-      PKI secret engine](/guides/security/vault-pki-integration.html) to
+      PKI secret engine](https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad) to
       automatically generate and renew dynamic, unique X.509 certificates for each
       Nomad node with a short [TTL](https://en.wikipedia.org/wiki/Time_to_live).
 
@@ -321,6 +321,6 @@ There are two main components to consider to for external threats in a Nomad clu
 
 | **Port / Protocol**  | Agents  | Description |
 |----------------------|---------|-------------|
-| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](/guides/web-ui/access.html) and [API](/api-docs) access to agents. |
+| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](https://learn.hashicorp.com/collections/nomad/web-ui) and [API](/api-docs) access to agents. |
 | **4647** / TCP       | Servers | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents. |
 | **4648** / TCP + UDP | Servers | [gossip](/docs/internals/gossip.html) protocol to manage server membership using [Serf](https://www.serf.io/). |
