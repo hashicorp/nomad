@@ -497,15 +497,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					tg = job.LookupTaskGroup(tg.Name)
 					downgradedJob = job
 					deploymentID = jobDeploymentID
-
-					// ensure we are operating on the correct job
-					s.stack.SetJob(job)
 				} else {
 					jobVersion := -1
 					if job != nil {
 						jobVersion = int(job.Version)
 					}
-					s.logger.Warn("failed to find appropriate job; using the latest", "expected_version", missing.MinJobVersion, "found_version", jobVersion)
+					s.logger.Debug("failed to find appropriate job; using the latest", "expected_version", missing.MinJobVersion, "found_version", jobVersion)
 				}
 			}
 
@@ -513,6 +510,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
 				metric.CoalescedFailures += 1
 				continue
+			}
+
+			// Use downgraded job in scheduling stack to honor
+			// old job resources and constraints
+			if downgradedJob != nil {
+				s.stack.SetJob(downgradedJob)
 			}
 
 			// Find the preferred node
@@ -541,7 +544,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
 
-			// restore stack to use the latest job version again
+			// Restore stack job now that placement is done, to use plan job version
 			if downgradedJob != nil {
 				s.stack.SetJob(s.job)
 			}
