@@ -162,8 +162,9 @@ v0.12.9. To work around the bug, use a relative path.
 ### `mbits` and Task Network Resource deprecation
 
 Starting in Nomad 0.12.0 the `mbits` field of the network resource block has
-been deprecated. This is in part because we felt that `mbits` didn't
-accurately account network bandwidth as a resource.
+been deprecated and is no longer considered when making scheduling decisions.
+This is in part because we felt that `mbits` didn't accurately account network
+bandwidth as a resource.
 
 Additionally the use of the `network` block inside of a task's `resource` block is
 also deprecated. Users are advised to move their `network` block to the `group`
