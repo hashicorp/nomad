@@ -19,8 +19,11 @@ export default {
     isFinished: hasClass('is-finished'),
 
     isMain: hasClass('main'),
-    isPrestart: hasClass('prestart'),
-    isSidecar: hasClass('sidecar'),
+    isPrestartEphemeral: hasClass('prestart-ephemeral'),
+    isPrestartSidecar: hasClass('prestart-sidecar'),
+    isPoststartEphemeral: hasClass('poststart-ephemeral'),
+    isPoststartSidecar: hasClass('poststart-sidecar'),
+    isPoststop: hasClass('poststop'),
 
     visit: clickable('a'),
   }),

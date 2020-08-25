@@ -82,7 +82,7 @@ module('Acceptance | allocation detail', function(hooks) {
   test('/allocation/:id should present task lifecycles', async function(assert) {
     const job = server.create('job', {
       groupsCount: 1,
-      groupTaskCount: 3,
+      groupTaskCount: 6,
       withGroupServices: true,
       createAllocations: false,
     });
@@ -92,96 +92,23 @@ module('Acceptance | allocation detail', function(hooks) {
       jobId: job.id,
     });
 
-    const taskStatePhases = server.db.taskStates.where({ allocationId: allocation.id }).reduce(
-      (phases, state) => {
-        const lifecycle = server.db.tasks.findBy({ name: state.name }).Lifecycle;
-
-        if (lifecycle) {
-          if (lifecycle.Sidecar) {
-            phases.sidecars.push(state);
-            state.lifecycleString = 'Sidecar';
-          } else {
-            phases.prestarts.push(state);
-            state.lifecycleString = 'Prestart';
-          }
-        } else {
-          phases.mains.push(state);
-          state.lifecycleString = 'Main';
-        }
-
-        return phases;
-      },
-      {
-        prestarts: [],
-        sidecars: [],
-        mains: [],
-      }
-    );
-
-    taskStatePhases.prestarts = taskStatePhases.prestarts.sortBy('name');
-    taskStatePhases.sidecars = taskStatePhases.sidecars.sortBy('name');
-    taskStatePhases.mains = taskStatePhases.mains.sortBy('name');
-
-    const sortedServerStates = taskStatePhases.prestarts.concat(
-      taskStatePhases.sidecars,
-      taskStatePhases.mains
-    );
-
     await Allocation.visit({ id: allocation.id });
 
     assert.ok(Allocation.lifecycleChart.isPresent);
     assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
-    assert.equal(Allocation.lifecycleChart.phases.length, 2);
-    assert.equal(Allocation.lifecycleChart.tasks.length, sortedServerStates.length);
-
-    const stateActiveIterator = state => state.state === 'running';
-    const anyPrestartsActive = taskStatePhases.prestarts.some(stateActiveIterator);
-
-    if (anyPrestartsActive) {
-      assert.ok(Allocation.lifecycleChart.phases[0].isActive);
-    } else {
-      assert.notOk(Allocation.lifecycleChart.phases[0].isActive);
-    }
-
-    const anyMainsActive = taskStatePhases.mains.some(stateActiveIterator);
-
-    if (anyMainsActive) {
-      assert.ok(Allocation.lifecycleChart.phases[1].isActive);
-    } else {
-      assert.notOk(Allocation.lifecycleChart.phases[1].isActive);
-    }
-
-    Allocation.lifecycleChart.tasks.forEach((Task, index) => {
-      const serverState = sortedServerStates[index];
-
-      assert.equal(Task.name, serverState.name);
-
-      if (serverState.lifecycleString === 'Sidecar') {
-        assert.ok(Task.isSidecar);
-      } else if (serverState.lifecycleString === 'Prestart') {
-        assert.ok(Task.isPrestart);
-      } else {
-        assert.ok(Task.isMain);
-      }
-
-      assert.equal(Task.lifecycle, `${serverState.lifecycleString} Task`);
-
-      if (serverState.state === 'running') {
-        assert.ok(Task.isActive);
-      } else {
-        assert.notOk(Task.isActive);
-      }
-
-      // Task state factory uses invalid dates for tasks that aren’t finished
-      if (isNaN(serverState.finishedAt)) {
-        assert.notOk(Task.isFinished);
-      } else {
-        assert.ok(Task.isFinished);
-      }
-    });
+    assert.equal(Allocation.lifecycleChart.phases.length, 4);
+    assert.equal(Allocation.lifecycleChart.tasks.length, 6);
 
     await Allocation.lifecycleChart.tasks[0].visit();
-    assert.equal(currentURL(), `/allocations/${allocation.id}/${sortedServerStates[0].name}`);
+
+    const prestartEphemeralTask = server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .find(taskState => {
+        const task = server.db.tasks.findBy({ name: taskState.name });
+        return task.Lifecycle && task.Lifecycle.Hook === 'prestart' && !task.Lifecycle.Sidecar;
+      });
+
+    assert.equal(currentURL(), `/allocations/${allocation.id}/${prestartEphemeralTask.name}`);
   });
 
   test('/allocation/:id should list all tasks for the allocation', async function(assert) {
@@ -295,7 +222,9 @@ module('Acceptance | allocation detail', function(hooks) {
 
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.to, serverPort.To);
-      const expectedAddr = isIp.v6(serverPort.HostIP) ? `[${serverPort.HostIP}]:${serverPort.Value}` : `${serverPort.HostIP}:${serverPort.Value}`;
+      const expectedAddr = isIp.v6(serverPort.HostIP)
+        ? `[${serverPort.HostIP}]:${serverPort.Value}`
+        : `${serverPort.HostIP}:${serverPort.Value}`;
       assert.equal(renderedPort.address, expectedAddr);
     });
   });
