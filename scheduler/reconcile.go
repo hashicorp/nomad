@@ -426,7 +426,8 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 	// desired means we need to create canaries
 	strategy := tg.Update
 	canariesPromoted := dstate != nil && dstate.Promoted
-	requireCanary := (len(destructive) != 0 || (len(untainted) == 0 && len(migrate)+len(lost) != 0)) &&
+	replaceAllAllocs := len(untainted) == 0 && len(migrate)+len(lost) != 0
+	requireCanary := (len(destructive) != 0 || replaceAllAllocs) &&
 		strategy != nil && len(canaries) < strategy.Canary && !canariesPromoted
 	if requireCanary {
 		dstate.DesiredCanaries = strategy.Canary
