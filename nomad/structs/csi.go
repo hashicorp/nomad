@@ -982,6 +982,9 @@ func (j JobDescriptions) Add(job *Job, expected int) {
 }
 
 func (j JobDescriptions) Count() int {
+	if j == nil {
+		return 0
+	}
 	count := 0
 	for _, jnd := range j {
 		for _, jd := range jnd {
@@ -1036,10 +1039,11 @@ func (p *CSIPlugin) Stub() *CSIPluginListStub {
 }
 
 func (p *CSIPlugin) IsEmpty() bool {
-	return len(p.Controllers) == 0 &&
-		len(p.Nodes) == 0 &&
-		p.ControllerJobs.Count() == 0 &&
-		p.NodeJobs.Count() == 0
+	return p == nil ||
+		len(p.Controllers) == 0 &&
+			len(p.Nodes) == 0 &&
+			p.ControllerJobs.Count() == 0 &&
+			p.NodeJobs.Count() == 0
 }
 
 type CSIPluginListRequest struct {
