@@ -388,12 +388,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			update.DeploymentID = s.deployment.GetID()
 			update.DeploymentStatus = nil
 		}
-		s.ctx.Plan().AppendAlloc(update, false)
+		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
 	// Handle the annotation updates
 	for _, update := range results.attributeUpdates {
-		s.ctx.Plan().AppendAlloc(update, false)
+		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
 	// Nothing remaining to do if placement is not required
@@ -601,14 +601,10 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					}
 				}
 
-				if downgradedJob != nil {
-					alloc.Job = downgradedJob
-				}
-
 				s.handlePreemptions(option, alloc, missing)
 
 				// Track the placement
-				s.plan.AppendAlloc(alloc, downgradedJob != nil)
+				s.plan.AppendAlloc(alloc, downgradedJob)
 
 			} else {
 				// Lazy initialize the failed map

@@ -9831,17 +9831,13 @@ func (p *Plan) PopUpdate(alloc *Allocation) {
 }
 
 // AppendAlloc appends the alloc to the plan allocations.
-// To save space, it clears the Job field so it can be derived from the plan Job.
-// If keepJob is true, the normalizatin skipped to accommodate cases where a plan
-// needs to support multiple versions of the same job.
-func (p *Plan) AppendAlloc(alloc *Allocation, keepJob bool) {
+// Uses the passed job if explicitly passed, otherwise
+// it is assumed the alloc will use the plan Job version.
+func (p *Plan) AppendAlloc(alloc *Allocation, job *Job) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
 
-	// Normalize the job
-	if !keepJob {
-		alloc.Job = nil
-	}
+	alloc.Job = job
 
 	p.NodeAllocation[node] = append(existing, alloc)
 }
