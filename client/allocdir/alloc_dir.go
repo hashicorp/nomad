@@ -430,6 +430,7 @@ func detectContentType(fileInfo os.FileInfo, path string) string {
 			if err == nil {
 				contentType = http.DetectContentType(fileBytes)
 			}
+			f.Close()
 		}
 	}
 	// Special case json files
