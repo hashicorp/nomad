@@ -1930,7 +1930,7 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 
 	// Check if the metadata is a set
 	keys := make(map[string]struct{}, len(req.Meta))
-	for k := range keys {
+	for k := range req.Meta {
 		if _, ok := keys[k]; ok {
 			return fmt.Errorf("Duplicate key %q in passed metadata", k)
 		}
