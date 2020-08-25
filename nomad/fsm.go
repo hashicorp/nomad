@@ -578,7 +578,8 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx)
 
 		if err != nil {
-			n.logger.Error("deregistering job failed", "error", err)
+			n.logger.Error("deregistering job failed",
+				"error", err, "job", req.JobID, "namespace", req.Namespace)
 			return err
 		}
 
@@ -615,7 +616,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 	err := n.state.WithWriteTransaction(index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
 			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
-				n.logger.Error("deregistering job failed", "job", jobNS, "error", err)
+				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
 		}
@@ -637,18 +638,17 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 	return nil
 }
 
-// handleJobDeregister is used to deregister a job.
+// handleJobDeregister is used to deregister a job. Leaves error logging up to
+// caller.
 func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
-		n.logger.Error("periodicDispatcher.Remove failed", "error", err)
-		return err
+		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
 	}
 
 	if purge {
 		if err := n.state.DeleteJobTxn(index, namespace, jobID, tx); err != nil {
-			n.logger.Error("DeleteJob failed", "error", err)
-			return err
+			return fmt.Errorf("DeleteJob failed: %w", err)
 		}
 
 		// We always delete from the periodic launch table because it is possible that
@@ -660,8 +660,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		ws := memdb.NewWatchSet()
 		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
 		if err != nil {
-			n.logger.Error("JobByID lookup failed", "error", err)
-			return err
+			return fmt.Errorf("JobByID lookup failed: %w", err)
 		}
 
 		if current == nil {
@@ -672,8 +671,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped.Stop = true
 
 		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
-			n.logger.Error("UpsertJob failed", "error", err)
-			return err
+			return fmt.Errorf("UpsertJob failed: %w", err)
 		}
 	}
 
