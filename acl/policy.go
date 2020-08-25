@@ -321,6 +321,5 @@ func hclDecode(p *Policy, rules string) (err error) {
 		}
 	}()
 
-	err = hcl.Decode(p, rules)
-	return err
+	return hcl.Decode(p, rules)
 }
