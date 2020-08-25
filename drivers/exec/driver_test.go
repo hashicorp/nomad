@@ -601,7 +601,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	require.NoError(err)
 	defer os.RemoveAll(tmpDir)
 
-	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 0600)
 	require.NoError(err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -637,8 +637,8 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 		},
 	}
 
-	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
-	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
+	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 0660))
+	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 0660))
 
 	tc := &TaskConfig{
 		Command: "/bin/bash",

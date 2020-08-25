@@ -220,11 +220,8 @@ func createBinDir(binDir string) error {
 	}
 
 	// Create the directory
-	if err := os.Mkdir(binDir, 075); err != nil {
+	if err := os.Mkdir(binDir, 0755); err != nil {
 		return fmt.Errorf("failed to make directory: %v", err)
-	}
-	if err := os.Chmod(binDir, 0755); err != nil {
-		return fmt.Errorf("failed to chmod: %v", err)
 	}
 
 	return nil
