@@ -17,8 +17,8 @@ This data can be accessed via an HTTP endpoint, via sending a signal to the
 Nomad Autoscaler process or via a number of integrations.
 
 To view this data via sending a signal to the Nomad Autoscaler process: on Unix,
-this is `USR1` while on Windows it is `BREAK`. Once Nomad receives the signal,
-it will dump the current telemetry information to the agent's `stderr`.
+this is `USR1` while on Windows it is `BREAK`. Once Nomad Autoscaler receives 
+the signal, it will dump the current telemetry information to the agent's `stderr`.
 
 This telemetry information can be used for debugging or otherwise
 getting a better view of what Nomad is doing.
