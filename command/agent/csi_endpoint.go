@@ -296,7 +296,9 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 	}
 
 	for _, a := range plug.Allocations {
-		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a))
+		if a != nil {
+			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a))
+		}
 	}
 
 	return out
