@@ -7455,9 +7455,12 @@ func (ta *TaskArtifact) Hash() string {
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation
-// directory. The prefix allows adding a prefix if the path will be joined, for
-// example a "task/local" prefix may be provided if the path will be joined
-// against that prefix.
+// directory.
+//
+// The prefix is to joined to the path (e.g. "task/local"), and this function
+// checks if path escapes the alloc dir, NOT the prefix directory within the alloc dir.
+// With prefix="task/local", it will return false for "../secret", but
+// true for "../../../../../../root" path; only the latter escapes the alloc dir
 func PathEscapesAllocDir(prefix, path string) (bool, error) {
 	// Verify the destination doesn't escape the tasks directory
 	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
