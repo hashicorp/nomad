@@ -24,8 +24,7 @@ module('Acceptance | task detail', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {

@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
@@ -56,6 +57,8 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
       assert.notOk(task.isActive);
       assert.notOk(task.isFinished);
     });
+
+    await componentA11yAudit(this.element, assert);
   });
 
   test('it doesn’t render when there’s only one phase', async function(assert) {
@@ -92,6 +95,7 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
 
     assert.ok(Chart.phases[1].isActive);
     assert.ok(Chart.tasks[3].isActive);
+    await componentA11yAudit(this.element, assert);
 
     this.set('taskStates.firstObject.finishedAt', new Date());
     await settled();

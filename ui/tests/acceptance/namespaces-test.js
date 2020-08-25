@@ -50,8 +50,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await JobsList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('the namespace switcher lists all namespaces', async function(assert) {

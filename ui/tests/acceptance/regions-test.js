@@ -21,8 +21,7 @@ module('Acceptance | regions (only one)', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await JobsList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('when there is only one region, the region switcher is not shown in the nav bar and the region is not in the page title', async function(assert) {
