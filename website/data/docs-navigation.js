@@ -232,6 +232,7 @@ export default [
       'api',
       'cli',
       'policy',
+      'telemetry',
       {
         category: 'plugins',
         content: [
