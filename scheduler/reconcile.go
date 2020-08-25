@@ -723,7 +723,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			reschedule:    true,
 			canary:        alloc.DeploymentStatus.IsCanary(),
 
-			downgradeNonCanary: canaryState && (alloc.DeploymentStatus == nil || !alloc.DeploymentStatus.IsCanary()),
+			downgradeNonCanary: canaryState && !alloc.DeploymentStatus.IsCanary(),
 			minJobVersion:      alloc.Job.Version,
 		})
 	}
