@@ -15,8 +15,9 @@ function appendRuleOverrides(overriddenRules) {
   return rules;
 }
 
-export default async function defaultA11yAudit(...overriddenRules) {
+export default async function defaultA11yAudit(assert, ...overriddenRules) {
   await a11yAudit({ rules: appendRuleOverrides(overriddenRules) });
+  assert.ok(true, 'a11y audit passes');
 }
 
 export async function componentA11yAudit(element, assert, ...overriddenRules) {

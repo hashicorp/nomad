@@ -27,8 +27,7 @@ module('Acceptance | servers list', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     minimumSetup();
     await ServersList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/servers should list all servers', async function(assert) {

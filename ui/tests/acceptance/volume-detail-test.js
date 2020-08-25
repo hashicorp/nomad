@@ -31,8 +31,7 @@ module('Acceptance | volume detail', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await VolumeDetail.visit({ id: volume.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {

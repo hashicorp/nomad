@@ -26,8 +26,7 @@ module('Acceptance | jobs list', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await JobsList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('visiting /jobs', async function(assert) {

@@ -70,8 +70,7 @@ module('Acceptance | task group detail', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
