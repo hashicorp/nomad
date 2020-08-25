@@ -296,7 +296,9 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 	}
 
 	for _, a := range plug.Allocations {
-		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a))
+		if a != nil {
+			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a))
+		}
 	}
 
 	return out
@@ -341,11 +343,15 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 	}
 
 	for _, a := range vol.WriteAllocs {
-		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
+		if a != nil {
+			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
+		}
 	}
 
 	for _, a := range vol.ReadAllocs {
-		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
+		if a != nil {
+			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
+		}
 	}
 
 	return out
