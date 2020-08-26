@@ -1100,7 +1100,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 func TestLeader_Reelection(t *testing.T) {
 	raftProtocols := []int{1, 2, 3}
 	for _, p := range raftProtocols {
-		t.Run("Leader Election - Protocol version "+string(p), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Leader Election - Protocol version %d", p), func(t *testing.T) {
 			leaderElectionTest(t, raft.ProtocolVersion(p))
 		})
 	}

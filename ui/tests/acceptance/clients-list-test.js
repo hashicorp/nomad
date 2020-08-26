@@ -21,8 +21,7 @@ module('Acceptance | clients list', function(hooks) {
     server.createList('agent', 1);
 
     await ClientsList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/clients should list one page of clients', async function(assert) {

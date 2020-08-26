@@ -49,8 +49,7 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/allocation/:id should name the allocation and link to the corresponding job and node', async function(assert) {

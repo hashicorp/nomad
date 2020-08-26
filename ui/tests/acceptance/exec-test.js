@@ -36,8 +36,7 @@ module('Acceptance | exec', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await Exec.visitJob({ job: this.job.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {
