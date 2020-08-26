@@ -1213,7 +1213,7 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn *memdb.Txn, job *str
 	ws := memdb.NewWatchSet()
 	summary, err := s.JobSummaryByID(ws, job.Namespace, job.ID)
 	if err != nil {
-		return fmt.Errorf("error gettting job summary: %v", err)
+		return fmt.Errorf("error getting job summary: %v", err)
 	}
 
 	allocs, err := s.AllocsByJob(ws, job.Namespace, job.ID, false)
@@ -4850,7 +4850,6 @@ func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocati
 				return nil
 			}
 			plug = plug.Copy()
-
 			err = plug.DeleteAlloc(alloc.ID, alloc.NodeID)
 			if err != nil {
 				return err
