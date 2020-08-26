@@ -956,7 +956,6 @@ func (p *CSIPlugin) UpdateExpectedWithJob(job *Job, summary *JobSummary, termina
 type JobDescription struct {
 	Namespace string
 	ID        string
-	Version   uint64
 	Expected  int
 }
 
@@ -976,7 +975,6 @@ func (j JobDescriptions) Add(job *Job, expected int) {
 	j[job.Namespace][job.ID] = JobDescription{
 		Namespace: job.Namespace,
 		ID:        job.ID,
-		Version:   job.Version,
 		Expected:  expected,
 	}
 }
