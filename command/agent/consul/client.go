@@ -105,6 +105,15 @@ type AgentAPI interface {
 	UpdateTTL(id, output, status string) error
 }
 
+// ConfigAPI is the consul/api.ConfigEntries API subset used by Nomad Server.
+//
+// ACL requirements
+// - operator:write (server only)
+type ConfigAPI interface {
+	Set(entry api.ConfigEntry, w *api.WriteOptions) (bool, *api.WriteMeta, error)
+	// Delete(kind, name string, w *api.WriteOptions) (*api.WriteMeta, error) (not used)
+}
+
 // ACLsAPI is the consul/api.ACL API subset used by Nomad Server.
 //
 // ACL requirements
@@ -835,6 +844,9 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
+	// newConnectGateway returns nil if there's no Connect gateway.
+	gateway := newConnectGateway(service.Name, service.Connect)
+
 	// Determine whether to use meta or canary_meta
 	var meta map[string]string
 	if workload.Canary && len(service.CanaryMeta) > 0 {
@@ -852,8 +864,15 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	// This enables the consul UI to show that Nomad registered this service
 	meta["external-source"] = "nomad"
 
+	// Explicitly set the service kind in case this service represents a Connect gateway.
+	kind := api.ServiceKindTypical
+	if service.Connect.IsGateway() {
+		kind = api.ServiceKindIngressGateway
+	}
+
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
+		Kind:              kind,
 		ID:                id,
 		Name:              service.Name,
 		Tags:              tags,
@@ -862,6 +881,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		Port:              port,
 		Meta:              meta,
 		Connect:           connect, // will be nil if no Connect stanza
+		Proxy:             gateway, // will be nil if no Connect Gateway stanza
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 

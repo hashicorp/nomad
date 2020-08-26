@@ -2618,6 +2618,34 @@ func TestTaskGroupDiff(t *testing.T) {
 									"foo": "baz",
 								},
 							},
+							Gateway: &ConsulGateway{
+								Proxy: &ConsulGatewayProxy{
+									ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+									EnvoyGatewayBindTaggedAddresses: false,
+									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+										"service1": {
+											Address: "10.0.0.1",
+											Port:    2001,
+										},
+									},
+									EnvoyGatewayNoDefaultBind: false,
+									Config: map[string]interface{}{
+										"foo": 1,
+									},
+								},
+								Ingress: &ConsulIngressConfigEntry{
+									TLS: &ConsulGatewayTLSConfig{
+										Enabled: false,
+									},
+									Listeners: []*ConsulIngressListener{{
+										Port:     3001,
+										Protocol: "tcp",
+										Services: []*ConsulIngressService{{
+											Name: "listener1",
+										}},
+									}},
+								},
+							},
 						},
 					},
 				},
@@ -2662,6 +2690,35 @@ func TestTaskGroupDiff(t *testing.T) {
 									Config: map[string]interface{}{
 										"foo": "qux",
 									},
+								},
+							},
+							Gateway: &ConsulGateway{
+								Proxy: &ConsulGatewayProxy{
+									ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
+									EnvoyGatewayBindTaggedAddresses: true,
+									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+										"service1": {
+											Address: "10.0.0.2",
+											Port:    2002,
+										},
+									},
+									EnvoyGatewayNoDefaultBind: true,
+									Config: map[string]interface{}{
+										"foo": 2,
+									},
+								},
+								Ingress: &ConsulIngressConfigEntry{
+									TLS: &ConsulGatewayTLSConfig{
+										Enabled: true,
+									},
+									Listeners: []*ConsulIngressListener{{
+										Port:     3002,
+										Protocol: "http",
+										Services: []*ConsulIngressService{{
+											Name:  "listener2",
+											Hosts: []string{"127.0.0.1", "127.0.0.1:3002"},
+										}},
+									}},
 								},
 							},
 						},
@@ -2836,7 +2893,6 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 								},
 							},
-
 							{
 								Type: DiffTypeEdited,
 								Name: "ConsulConnect",
@@ -2947,6 +3003,164 @@ func TestTaskGroupDiff(t *testing.T) {
 														Name: "foo",
 														Old:  "baz",
 														New:  "",
+													},
+												},
+											},
+										},
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Gateway",
+										Objects: []*ObjectDiff{
+											{
+												Type: DiffTypeEdited,
+												Name: "Proxy",
+												Fields: []*FieldDiff{
+													{
+														Type: DiffTypeEdited,
+														Name: "ConnectTimeout",
+														Old:  "1s",
+														New:  "2s",
+													},
+													{
+														Type: DiffTypeEdited,
+														Name: "EnvoyGatewayBindTaggedAddresses",
+														Old:  "false",
+														New:  "true",
+													},
+													{
+														Type: DiffTypeEdited,
+														Name: "EnvoyGatewayNoDefaultBind",
+														Old:  "false",
+														New:  "true",
+													},
+												},
+												Objects: []*ObjectDiff{
+													{
+														Type: DiffTypeEdited,
+														Name: "EnvoyGatewayBindAddresses",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeEdited,
+																Name: "service1",
+																Old:  "10.0.0.1:2001",
+																New:  "10.0.0.2:2002",
+															},
+														},
+													},
+													{
+														Type: DiffTypeEdited,
+														Name: "Config",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeEdited,
+																Name: "foo",
+																Old:  "1",
+																New:  "2",
+															},
+														},
+													},
+												},
+											},
+											{
+												Type: DiffTypeEdited,
+												Name: "Ingress",
+												Objects: []*ObjectDiff{
+													{
+														Type: DiffTypeEdited,
+														Name: "TLS",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeEdited,
+																Name: "Enabled",
+																Old:  "false",
+																New:  "true",
+															},
+														},
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "Listener",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "Port",
+																Old:  "",
+																New:  "3002",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "Protocol",
+																Old:  "",
+																New:  "http",
+															},
+														},
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "ConsulIngressService",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Name",
+																		Old:  "",
+																		New:  "listener2",
+																	},
+																},
+																Objects: []*ObjectDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Hosts",
+																		Fields: []*FieldDiff{
+																			{
+																				Type: DiffTypeAdded,
+																				Name: "Hosts",
+																				Old:  "",
+																				New:  "127.0.0.1",
+																			},
+																			{
+																				Type: DiffTypeAdded,
+																				Name: "Hosts",
+																				Old:  "",
+																				New:  "127.0.0.1:3002",
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+													{
+														Type: DiffTypeDeleted,
+														Name: "Listener",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeDeleted,
+																Name: "Port",
+																Old:  "3001",
+																New:  "",
+															},
+															{
+																Type: DiffTypeDeleted,
+																Name: "Protocol",
+																Old:  "tcp",
+																New:  "",
+															},
+														},
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeDeleted,
+																Name: "ConsulIngressService",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeDeleted,
+																		Name: "Name",
+																		Old:  "listener1",
+																		New:  "",
+																	},
+																},
+															},
+														},
 													},
 												},
 											},
