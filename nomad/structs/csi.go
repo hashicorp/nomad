@@ -965,6 +965,7 @@ type JobNamespacedDescriptions map[string]JobDescription
 // JobDescriptions maps Namespace to a mapping of Job.ID to JobDescription
 type JobDescriptions map[string]JobNamespacedDescriptions
 
+// Add the Job to the JobDescriptions, creating maps as necessary
 func (j JobDescriptions) Add(job *Job, expected int) {
 	if j == nil {
 		j = make(JobDescriptions)
@@ -979,6 +980,7 @@ func (j JobDescriptions) Add(job *Job, expected int) {
 	}
 }
 
+// Count the Expected instances for all JobDescriptions
 func (j JobDescriptions) Count() int {
 	if j == nil {
 		return 0
@@ -992,17 +994,7 @@ func (j JobDescriptions) Count() int {
 	return count
 }
 
-func (j JobDescriptions) AsSlice() []JobDescription {
-	var out []JobDescription
-	for _, jnd := range j {
-		for _, jd := range jnd {
-			out = append(out, jd)
-		}
-	}
-
-	return out
-}
-
+// Delete the Job from the JobDescriptions
 func (j JobDescriptions) Delete(job *Job) {
 	if j != nil &&
 		j[job.Namespace] != nil {
