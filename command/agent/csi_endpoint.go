@@ -280,11 +280,9 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 		ControllersHealthy:  plug.ControllersHealthy,
 		ControllersExpected: plug.ControllersExpected,
 		Controllers:         make(map[string]*api.CSIInfo, len(plug.Controllers)),
-		ControllerJobs:      make([]api.JobDescription, 0, plug.ControllersExpected),
 		NodesHealthy:        plug.NodesHealthy,
 		NodesExpected:       plug.NodesExpected,
 		Nodes:               make(map[string]*api.CSIInfo, len(plug.Nodes)),
-		NodeJobs:            make([]api.JobDescription, 0, plug.NodesExpected),
 		CreateIndex:         plug.CreateIndex,
 		ModifyIndex:         plug.ModifyIndex,
 	}
@@ -301,24 +299,7 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 		out.Allocations = append(out.Allocations, structsAllocListStubToApi(a))
 	}
 
-	for _, jd := range plug.ControllerJobs.AsSlice() {
-		out.ControllerJobs = append(out.ControllerJobs, structsJobDescriptionToApi(jd))
-	}
-
-	for _, jd := range plug.NodeJobs.AsSlice() {
-		out.NodeJobs = append(out.NodeJobs, structsJobDescriptionToApi(jd))
-	}
-
 	return out
-}
-
-// structsJobDescriptionToApi converts the struct
-func structsJobDescriptionToApi(desc structs.JobDescription) api.JobDescription {
-	return api.JobDescription{
-		Namespace: desc.Namespace,
-		ID:        desc.ID,
-		Version:   desc.Version,
-	}
 }
 
 // structsCSIVolumeToApi converts CSIVolume, creating the allocation array
