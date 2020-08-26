@@ -655,9 +655,6 @@ func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	var consulACLsAPI mockConsulACLsAPI
 	s1.consulACLs = &consulACLsAPI
 
-	// replace consul Config API with a mock for tracking calls in tests
-	// var consulConfigsAPI mock
-
 	// Insert a SI token accessor that should be revoked
 	fsmState := s1.fsm.State()
 	accessor := mock.SITokenAccessor()

@@ -1024,7 +1024,7 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 }
 
 // opaqueMapsEqual compares map[string]interface{} commonly used for opaque
-//// config blocks. Interprets nil and {} as the same.
+// config blocks. Interprets nil and {} as the same.
 func opaqueMapsEqual(a, b map[string]interface{}) bool {
 	if len(a) == 0 && len(b) == 0 {
 		return true

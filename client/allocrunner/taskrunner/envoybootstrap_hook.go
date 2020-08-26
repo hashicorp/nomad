@@ -388,7 +388,7 @@ func (e envoyBootstrapArgs) args() []string {
 		"envoy",
 		"-grpc-addr", e.grpcAddr,
 		"-http-addr", e.consulConfig.HTTPAddr,
-		"-admin-bind", e.envoyAdminBind, // bleh
+		"-admin-bind", e.envoyAdminBind,
 		"-bootstrap",
 	}
 
