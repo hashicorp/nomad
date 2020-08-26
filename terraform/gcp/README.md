@@ -23,7 +23,7 @@ Includes:
 Download the latest version of [Nomad](https://www.nomadproject.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/nomad/0.12.0/nomad_0.12.0_linux_amd64.zip" -o nomad.zip
+curl "https://releases.hashicorp.com/nomad/0.12.3/nomad_0.12.3_linux_amd64.zip" -o nomad.zip
 unzip nomad.zip
 sudo mv nomad /usr/local/bin
 nomad --version
@@ -34,7 +34,7 @@ nomad --version
 Download the latest version of [Consul](https://www.consul.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/consul/1.8.0/consul_1.8.0_linux_amd64.zip" -o consul.zip
+curl "https://releases.hashicorp.com/consul/1.8.3/consul_1.8.3_linux_amd64.zip" -o consul.zip
 unzip consul.zip
 sudo mv consul /usr/local/bin
 consul --version
@@ -45,7 +45,7 @@ consul --version
 Download the latest version of [Vault](https://www.vaultproject.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/vault/1.4.3/vault_1.4.3_linux_amd64.zip" -o vault.zip
+curl "https://releases.hashicorp.com/vault/1.5.2/vault_1.5.2_linux_amd64.zip" -o vault.zip
 unzip vault.zip
 sudo mv vault /usr/local/bin
 vault --version
@@ -56,7 +56,7 @@ vault --version
 Download the latest version of [Packer](https://www.packer.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip" -o packer.zip
+curl "https://releases.hashicorp.com/packer/1.6.1/packer_1.6.1_linux_amd64.zip" -o packer.zip
 unzip packer.zip
 sudo mv packer /usr/local/bin
 packer --version
@@ -67,7 +67,7 @@ packer --version
 Download the latest version of [Terraform](https://www.terraform.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/terraform/0.12.28/terraform_0.12.28_linux_amd64.zip" -o terraform.zip
+curl "https://releases.hashicorp.com/terraform/0.13.0/terraform_0.13.0_linux_amd64.zip" -o terraform.zip
 unzip terraform.zip
 sudo mv terraform /usr/local/bin
 terraform --version
