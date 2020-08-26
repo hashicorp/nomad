@@ -285,12 +285,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// submitted if the configuration entries cannot be set in Consul.
 	//
 	// Every job update will re-write the Configuration Entry into Consul.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	for service, entry := range args.Job.ConfigEntries() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := j.srv.consulConfigEntries.SetIngressGatewayConfigEntry(ctx, service, entry); err != nil {
 			return err
 		}
-		cancel()
 	}
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
