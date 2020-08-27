@@ -8,6 +8,7 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * core: Fixed a bug where unpromoted job versions are used when rescheduling failed allocations [[GH-8691](https://github.com/hashicorp/nomad/issues/8691)]
+ * core: Fixed bugs where scaling policies could be matched against incorrect jobs with a similar prefix [[GH-8753](https://github.com/hashicorp/nomad/issues/8753)]
 
 ## 0.12.3 (August 13, 2020)
 
