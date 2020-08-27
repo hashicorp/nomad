@@ -8640,6 +8640,59 @@ func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
 	require.ElementsMatch([]string{policy2.ID}, policiesInOtherNamespace)
 }
 
+func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	ns1 := "name"
+	ns2 := "name2" // matches prefix "name"
+	state := testStateStore(t)
+	policy1 := mock.ScalingPolicy()
+	policy1.Target[structs.ScalingTargetNamespace] = ns1
+	policy2 := mock.ScalingPolicy()
+	policy2.Target[structs.ScalingTargetNamespace] = ns2
+
+	ws1 := memdb.NewWatchSet()
+	iter, err := state.ScalingPoliciesByNamespace(ws1, ns1)
+	require.NoError(err)
+	require.Nil(iter.Next())
+
+	ws2 := memdb.NewWatchSet()
+	iter, err = state.ScalingPoliciesByNamespace(ws2, ns2)
+	require.NoError(err)
+	require.Nil(iter.Next())
+
+	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy1, policy2})
+	require.NoError(err)
+	require.True(watchFired(ws1))
+	require.True(watchFired(ws2))
+
+	iter, err = state.ScalingPoliciesByNamespace(nil, ns1)
+	require.NoError(err)
+	policiesInNS1 := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policiesInNS1 = append(policiesInNS1, raw.(*structs.ScalingPolicy).ID)
+	}
+	require.ElementsMatch([]string{policy1.ID}, policiesInNS1)
+
+	iter, err = state.ScalingPoliciesByNamespace(nil, ns2)
+	require.NoError(err)
+	policiesInNS2 := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		policiesInNS2 = append(policiesInNS2, raw.(*structs.ScalingPolicy).ID)
+	}
+	require.ElementsMatch([]string{policy2.ID}, policiesInNS2)
+}
+
+
 func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 	t.Parallel()
 
@@ -8940,6 +8993,37 @@ func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
 	require.True(index > 1001)
 }
 
+func TestStateStore_DeleteJob_DeleteScalingPoliciesPrefixBug(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	job := mock.Job()
+	require.NoError(state.UpsertJob(1000, job))
+	job2 := job.Copy()
+	job2.ID = job.ID + "-but-longer"
+	require.NoError(state.UpsertJob(1001, job2))
+
+	policy := mock.ScalingPolicy()
+	policy.Target[structs.ScalingTargetJob] = job.ID
+	policy2 := mock.ScalingPolicy()
+	policy2.Target[structs.ScalingTargetJob] = job2.ID
+	require.NoError(state.UpsertScalingPolicies(1002, []*structs.ScalingPolicy{policy, policy2}))
+
+	// Delete job with the shorter prefix-ID
+	require.NoError(state.DeleteJob(1003, job.Namespace, job.ID))
+
+	// Ensure only the associated scaling policy was deleted, not the one matching the job with the longer ID
+	out, err := state.ScalingPolicyByID(nil, policy.ID)
+	require.NoError(err)
+	require.Nil(out)
+	out, err = state.ScalingPolicyByID(nil, policy2.ID)
+	require.NoError(err)
+	require.NotNil(out)
+}
+
 // This test ensures that deleting a job that doesn't have any scaling policies
 // will not cause the scaling_policy table index to increase, on either job
 // registration or deletion.
@@ -9032,6 +9116,45 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 		policyB2.Target[structs.ScalingTargetGroup],
 	}
 	sort.Strings(expect)
+	require.Equal(expect, found)
+}
+
+func TestStateStore_ScalingPoliciesByJob_PrefixBug(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	jobPrefix := "job-name-" + uuid.Generate()
+
+	state := testStateStore(t)
+	policy1 := mock.ScalingPolicy()
+	policy1.Target[structs.ScalingTargetJob] = jobPrefix
+	policy2 := mock.ScalingPolicy()
+	policy2.Target[structs.ScalingTargetJob] = jobPrefix + "-more"
+
+	// Create the policies
+	var baseIndex uint64 = 1000
+	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{policy1, policy2})
+	require.NoError(err)
+
+	iter, err := state.ScalingPoliciesByJob(nil,
+		policy1.Target[structs.ScalingTargetNamespace],
+		jobPrefix)
+	require.NoError(err)
+
+	// Ensure we see expected policies
+	count := 0
+	found := []string{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		count++
+		found = append(found, raw.(*structs.ScalingPolicy).ID)
+	}
+	require.Equal(1, count)
+	expect := []string{policy1.ID}
 	require.Equal(expect, found)
 }
 
