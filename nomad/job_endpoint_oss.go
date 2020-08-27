@@ -25,6 +25,12 @@ func (j *Job) multiregionStart(args *structs.JobRegisterRequest, reply *structs.
 	return nil
 }
 
+// multiregionDrop is used to deregister regions from a previous version of the
+// job that are no longer in use
+func (j *Job) multiregionDrop(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
+	return nil
+}
+
 // interpolateMultiregionFields interpolates a job for a specific region
 func (j *Job) interpolateMultiregionFields(args *structs.JobPlanRequest) error {
 	return nil
