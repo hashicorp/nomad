@@ -2,14 +2,14 @@
   .label {
     text-transform: uppercase;
     display: inline;
-    color: darken($grey-blue, 20%);
+    color: darken($grey-blue, 30%);
     margin-right: 2rem;
     font-size: inherit;
     font-weight: $weight-semibold;
   }
 
   &.is-faded {
-    color: darken($grey-blue, 20%);
+    color: darken($grey-blue, 30%);
   }
 
   .pair {
@@ -22,7 +22,7 @@
     }
 
     &.is-faded {
-      color: darken($grey-blue, 20%);
+      color: darken($grey-blue, 30%);
     }
 
     .has-emphasis {

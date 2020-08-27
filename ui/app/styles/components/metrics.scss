@@ -30,22 +30,22 @@
 
       &.is-#{$name} {
         border-color: $color;
-        color: $color;
-        background: lighten($color, 40%);
+        color: darken($color, 20%);
+        background: lighten($color, 50%);
 
         .label {
-          color: $color;
+          color: darken($color, 20%);
         }
       }
     }
 
     &.is-faded {
-      color: $grey-blue;
-      border-color: $grey-blue;
+      color: darken($grey-blue, 30%);
+      border-color: darken($grey-blue, 30%);
       background: $white;
 
       .label {
-        color: $grey-blue;
+        color: darken($grey-blue, 30%);
       }
     }
 

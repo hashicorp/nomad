@@ -61,8 +61,8 @@
     $color-invert: nth($pair, 2);
 
     &.is-#{$name} {
-      border-color: darken($color, 10%);
-      background: $color;
+      border-color: darken($color, 25%);
+      background: darken($color, 15%);
       color: $color-invert;
 
       .stepper-input-input,

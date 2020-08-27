@@ -15,14 +15,14 @@
   }
 
   &.is-error {
-    background: lighten($danger, 40%);
+    background: lighten($danger, 50%);
     color: $danger;
     border-color: $danger;
   }
 
   &.is-cancelled {
-    background: lighten($orange, 40%);
-    color: $orange;
+    background: darken($orange, 20%);
+    color: white;
     border-color: $orange;
   }
 
@@ -30,15 +30,15 @@
     $color: nth($pair, 1);
 
     &.is-#{$name} {
-      background: lighten($color, 40%);
-      color: $color;
-      border-color: $color;
+      background: lighten($color, 50%);
+      color: darken($color, 20%);
+      border-color: darken($color, 20%);
     }
   }
 
   &.is-light {
     background: lighten($white-ter, 5%);
-    color: darken($grey-blue, 20%);
-    border-color: $grey-blue;
+    color: black;
+    border-color: black;
   }
 }

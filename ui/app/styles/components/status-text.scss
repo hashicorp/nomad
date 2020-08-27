@@ -2,7 +2,7 @@
   font-weight: $weight-semibold;
 
   &.node-ready {
-    color: $nomad-green-dark;
+    color: $nomad-green-darker;
   }
 
   &.node-down {
@@ -10,7 +10,7 @@
   }
 
   &.node-initializing {
-    color: $grey;
+    color: $grey-dark;
   }
 
   @each $name, $pair in $colors {
@@ -20,5 +20,9 @@
     &.is-#{$name} {
       color: $color;
     }
+  }
+
+  &.is-warning {
+    color: darken($warning, 20%);
   }
 }

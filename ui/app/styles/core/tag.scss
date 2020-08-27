@@ -10,17 +10,17 @@
 
   &.is-pending,
   &.is-light {
-    background: $grey-blue;
-    color: findColorInvert(darken($grey-blue, 10%));
+    background: darken($grey-blue, 35%);
+    color: white;
   }
 
   &.is-running {
     background: $blue;
-    color: $blue-invert;
+    color: white;
   }
 
   &.is-primary {
-    background: $primary;
+    background: darken($primary, 15%);
     color: $primary-invert;
   }
 
@@ -35,13 +35,13 @@
   }
 
   &.is-cancelled {
-    background: $orange;
-    color: $orange-invert;
+    background: darken($orange, 25%);
+    color: white;
   }
 
   &.is-hollow {
     font-weight: $weight-semibold;
-    color: darken($grey-blue, 20%);
+    color: darken($grey-blue, 30%);
     background: transparent;
   }
 
