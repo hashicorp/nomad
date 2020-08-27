@@ -164,12 +164,7 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
     },
   ].forEach(async ({ testName, runningTaskNames, activePhaseNames }) => {
     test(testName, async function(assert) {
-      this.set(
-        'taskStates',
-        tasks.map(task => {
-          return { task };
-        })
-      );
+      this.set('taskStates', tasks.map(task => ({ task })));
 
       await render(hbs`<LifecycleChart @taskStates={{taskStates}} />`);
 
