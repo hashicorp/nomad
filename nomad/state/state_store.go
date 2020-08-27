@@ -1050,9 +1050,13 @@ func upsertNodeCSIPlugins(txn *memdb.Txn, node *structs.Node, index uint64) erro
 				return nil
 			}
 			plug = structs.NewCSIPlugin(info.PluginID, index)
-			plug.Provider = info.Provider
-			plug.Version = info.ProviderVersion
 		}
+
+		// the plugin may have been created by the job being updated, in which case
+		// this data will not be configured, it's only available to the fingerprint
+		// system
+		plug.Provider = info.Provider
+		plug.Version = info.ProviderVersion
 
 		err = plug.AddPlugin(node.ID, info)
 		if err != nil {
@@ -1203,10 +1207,15 @@ func updateOrGCPlugin(index uint64, txn *memdb.Txn, plug *structs.CSIPlugin) err
 	return nil
 }
 
-// deleteJobFromPlugin removes the allocations of this job from any plugins the job is
+// deleteJobFromPlugins removes the allocations of this job from any plugins the job is
 // running, possibly deleting the plugin if it's no longer in use. It's called in DeleteJobTxn
-func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *structs.Job) error {
+func (s *StateStore) deleteJobFromPlugins(index uint64, txn *memdb.Txn, job *structs.Job) error {
 	ws := memdb.NewWatchSet()
+	summary, err := s.JobSummaryByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		return fmt.Errorf("error getting job summary: %v", err)
+	}
+
 	allocs, err := s.AllocsByJob(ws, job.Namespace, job.ID, false)
 	if err != nil {
 		return fmt.Errorf("error getting allocations: %v", err)
@@ -1218,19 +1227,40 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	plugAllocs := []*pair{}
-	plugins := map[string]*structs.CSIPlugin{}
+	found := map[string]struct{}{}
 
+	// Find plugins for allocs that belong to this job
 	for _, a := range allocs {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
+		found[tg.Name] = struct{}{}
 		for _, t := range tg.Tasks {
-			if t.CSIPluginConfig != nil {
-				plugAllocs = append(plugAllocs, &pair{
-					pluginID: t.CSIPluginConfig.ID,
-					alloc:    a,
-				})
+			if t.CSIPluginConfig == nil {
+				continue
 			}
+			plugAllocs = append(plugAllocs, &pair{
+				pluginID: t.CSIPluginConfig.ID,
+				alloc:    a,
+			})
 		}
 	}
+
+	// Find any plugins that do not yet have allocs for this job
+	for _, tg := range job.TaskGroups {
+		if _, ok := found[tg.Name]; ok {
+			continue
+		}
+
+		for _, t := range tg.Tasks {
+			if t.CSIPluginConfig == nil {
+				continue
+			}
+			plugAllocs = append(plugAllocs, &pair{
+				pluginID: t.CSIPluginConfig.ID,
+			})
+		}
+	}
+
+	plugins := map[string]*structs.CSIPlugin{}
 
 	for _, x := range plugAllocs {
 		plug, ok := plugins[x.pluginID]
@@ -1248,6 +1278,9 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 			plug = plugins[x.pluginID]
 		}
 
+		if x.alloc == nil {
+			continue
+		}
 		err := plug.DeleteAlloc(x.alloc.ID, x.alloc.NodeID)
 		if err != nil {
 			return err
@@ -1255,6 +1288,7 @@ func (s *StateStore) deleteJobFromPlugin(index uint64, txn *memdb.Txn, job *stru
 	}
 
 	for _, plug := range plugins {
+		plug.DeleteJob(job, summary)
 		err = updateOrGCPlugin(index, txn, plug)
 		if err != nil {
 			return err
@@ -1354,6 +1388,7 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
+	var existingJob *structs.Job
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
 	}
@@ -1363,7 +1398,7 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		job.CreateIndex = existing.(*structs.Job).CreateIndex
 		job.ModifyIndex = index
 
-		existingJob := existing.(*structs.Job)
+		existingJob = existing.(*structs.Job)
 
 		// Bump the version unless asked to keep it. This should only be done
 		// when changing an internal field such as Stable. A spec change should
@@ -1410,6 +1445,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 	}
 
 	if err := s.updateJobScalingPolicies(index, job, txn); err != nil {
+		return fmt.Errorf("unable to update job scaling policies: %v", err)
+	}
+
+	if err := s.updateJobCSIPlugins(index, job, existingJob, txn); err != nil {
 		return fmt.Errorf("unable to update job scaling policies: %v", err)
 	}
 
@@ -1507,6 +1546,12 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return err
 	}
 
+	// Cleanup plugins registered by this job, before we delete the summary
+	err = s.deleteJobFromPlugins(index, txn, job)
+	if err != nil {
+		return fmt.Errorf("deleting job from plugin: %v", err)
+	}
+
 	// Delete the job summary
 	if _, err = txn.DeleteAll("job_summary", "id", namespace, jobID); err != nil {
 		return fmt.Errorf("deleting job summary failed: %v", err)
@@ -1526,12 +1571,6 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	}
 	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	// Cleanup plugins registered by this job
-	err = s.deleteJobFromPlugin(index, txn, job)
-	if err != nil {
-		return fmt.Errorf("deleting job from plugin: %v", err)
 	}
 
 	return nil
@@ -2241,10 +2280,10 @@ func (s *StateStore) CSIVolumeDenormalizePlugins(ws memdb.WatchSet, vol *structs
 	vol.ControllerRequired = plug.ControllerRequired
 	vol.ControllersHealthy = plug.ControllersHealthy
 	vol.NodesHealthy = plug.NodesHealthy
-	// This number is incorrect! The expected number of node plugins is actually this +
-	// the number of blocked evaluations for the jobs controlling these plugins
-	vol.ControllersExpected = len(plug.Controllers)
-	vol.NodesExpected = len(plug.Nodes)
+
+	// This value may be stale, but stale is ok
+	vol.ControllersExpected = plug.ControllersExpected
+	vol.NodesExpected = plug.NodesExpected
 
 	vol.Schedulable = vol.NodesHealthy > 0
 	if vol.ControllerRequired {
@@ -2346,7 +2385,7 @@ func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPl
 	return plug, nil
 }
 
-// CSIPluginDenormalize returns a CSIPlugin with allocation details
+// CSIPluginDenormalize returns a CSIPlugin with allocation details. Always called on a copy of the plugin.
 func (s *StateStore) CSIPluginDenormalize(ws memdb.WatchSet, plug *structs.CSIPlugin) (*structs.CSIPlugin, error) {
 	if plug == nil {
 		return nil, nil
@@ -4517,6 +4556,70 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 	return nil
 }
 
+// updateJobCSIPlugins runs on job update, and indexes the job in the plugin
+func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, txn *memdb.Txn) error {
+	ws := memdb.NewWatchSet()
+	plugIns := make(map[string]*structs.CSIPlugin)
+
+	loop := func(job *structs.Job, delete bool) error {
+		for _, tg := range job.TaskGroups {
+			for _, t := range tg.Tasks {
+				if t.CSIPluginConfig == nil {
+					continue
+				}
+
+				plugIn, ok := plugIns[t.CSIPluginConfig.ID]
+				if !ok {
+					p, err := s.CSIPluginByID(ws, t.CSIPluginConfig.ID)
+					if err != nil {
+						return err
+					}
+					if p == nil {
+						plugIn = structs.NewCSIPlugin(t.CSIPluginConfig.ID, index)
+					} else {
+						plugIn = p.Copy()
+						plugIn.ModifyIndex = index
+					}
+					plugIns[plugIn.ID] = plugIn
+				}
+
+				if delete {
+					plugIn.DeleteJob(job, nil)
+				} else {
+					plugIn.AddJob(job, nil)
+				}
+			}
+		}
+
+		return nil
+	}
+
+	if prev != nil {
+		err := loop(prev, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := loop(job, false)
+	if err != nil {
+		return err
+	}
+
+	for _, plugIn := range plugIns {
+		err = txn.Insert("csi_plugins", plugIn)
+		if err != nil {
+			return fmt.Errorf("csi_plugins insert error: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	return nil
+}
+
 // updateDeploymentWithAlloc is used to update the deployment state associated
 // with the given allocation. The passed alloc may be updated if the deployment
 // status has changed to capture the modify index at which it has changed.
@@ -4728,6 +4831,8 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 	if summaryChanged {
 		jobSummary.ModifyIndex = index
 
+		s.updatePluginWithJobSummary(index, jobSummary, alloc, txn)
+
 		// Update the indexes table for job summary
 		if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
@@ -4768,6 +4873,41 @@ func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocati
 			if err != nil {
 				return err
 			}
+			err = updateOrGCPlugin(index, txn, plug)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// updatePluginWithJobSummary updates the CSI plugins for a job when the
+// job summary is updated by an alloc
+func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.JobSummary, alloc *structs.Allocation,
+	txn *memdb.Txn) error {
+
+	ws := memdb.NewWatchSet()
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+
+	for _, t := range tg.Tasks {
+		if t.CSIPluginConfig != nil {
+			pluginID := t.CSIPluginConfig.ID
+			plug, err := s.CSIPluginByID(ws, pluginID)
+			if err != nil {
+				return err
+			}
+			if plug == nil {
+				plug = structs.NewCSIPlugin(pluginID, index)
+			} else {
+				plug = plug.Copy()
+			}
+
+			plug.UpdateExpectedWithJob(alloc.Job, summary, alloc.ServerTerminalStatus())
 			err = updateOrGCPlugin(index, txn, plug)
 			if err != nil {
 				return err
