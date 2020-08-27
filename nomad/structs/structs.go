@@ -4230,25 +4230,24 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	return policies
 }
 
-// Connect tasks returns the set of Consul Connect enabled tasks that will
-// require a Service Identity token, if Consul ACLs are enabled.
+// ConnectTasks returns the set of Consul Connect enabled tasks defined on the
+// job that will require a Service Identity token in the case that Consul ACLs
+// are enabled. The TaskKind.Value is the name of the Consul service.
 //
 // This method is meaningful only after the Job has passed through the job
 // submission Mutator functions.
-//
-// task group -> []task
-func (j *Job) ConnectTasks() map[string][]string {
-	m := make(map[string][]string)
+func (j *Job) ConnectTasks() []TaskKind {
+	var kinds []TaskKind
 	for _, tg := range j.TaskGroups {
 		for _, task := range tg.Tasks {
 			if task.Kind.IsConnectProxy() ||
 				task.Kind.IsConnectNative() ||
 				task.Kind.IsAnyConnectGateway() {
-				m[tg.Name] = append(m[tg.Name], task.Name)
+				kinds = append(kinds, task.Kind)
 			}
 		}
 	}
-	return m
+	return kinds
 }
 
 // ConfigEntries accumulates the Consul Configuration Entries defined in task groups
