@@ -69,7 +69,7 @@
   }
 
   &.is-secondary {
-    background-color: $nomad-green-dark;
+    background-color: darken($nomad-green-dark, 15%);
     padding: 1.25rem 20px 1.25rem 0;
     height: 4.5rem;
     font-weight: $weight-semibold;
@@ -81,7 +81,7 @@
   }
 
   &.is-popup {
-    background-color: $nomad-green-dark;
+    background-color: darken($nomad-green-dark, 15%);
     height: 3.5rem;
     color: $primary-invert;
     padding-left: 20px;

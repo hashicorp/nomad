@@ -153,6 +153,14 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     }
   }
 
+  &.is-primary {
+    background-color: darken($nomad-green, 15%);
+  }
+
+  &.is-warning {
+    background-color: darken($warning, 20%);
+  }
+
   // When an icon in a button should be treated like text,
   // override the default Bulma behavior
   .icon.is-text {

@@ -140,7 +140,7 @@
 
     td,
     th {
-      color: $grey-light;
+      color: $grey-dark;
       font-weight: $weight-normal;
       vertical-align: bottom;
       border-bottom: 1px solid $grey-blue;
@@ -163,7 +163,7 @@
           &::after {
             position: absolute;
             pointer-events: none;
-            color: $grey-light;
+            color: $grey-darker;
           }
 
           &::after {
@@ -201,7 +201,7 @@
       }
 
       a {
-        color: $grey;
+        color: $grey-darker;
       }
     }
   }
@@ -251,7 +251,7 @@
   }
 
   .is-faded {
-    color: $grey-light;
+    color: $grey-dark;
   }
 }
 
@@ -270,6 +270,7 @@
   .pagination {
     padding: 0;
     margin: 0;
+    color: $grey-dark;
   }
 
   // Field overrides specifically for use of Field within a table foot.
@@ -288,7 +289,7 @@
 
     .label,
     .field-label {
-      color: $grey;
+      color: $grey-dark;
       flex-basis: 0;
       flex-grow: 1;
       flex-shrink: 0;
