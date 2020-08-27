@@ -1,11 +1,11 @@
-import DocsPage from '@hashicorp/react-docs-page'
-import order from 'data/intro-navigation.js'
-import { frontMatter as data } from '../pages/intro/**/*.mdx'
 import Head from 'next/head'
 import Link from 'next/link'
+import DocsPage from '@hashicorp/react-docs-page'
+import { SearchProvider } from '@hashicorp/react-search'
 import { createMdxProvider } from '@hashicorp/nextjs-scripts/lib/providers/docs'
-import Search from '../components/search'
-import SearchProvider from '../components/search/provider'
+import { frontMatter as data } from '../pages/intro/**/*.mdx'
+import SearchBar from '../components/search-bar'
+import order from 'data/intro-navigation.js'
 
 const MDXProvider = createMdxProvider({ product: 'nomad' })
 
@@ -34,7 +34,7 @@ export default function IntroLayoutWrapper(pageMeta) {
           resourceURL={`https://github.com/hashicorp/nomad/blob/master/website/pages/${pageMeta.__resourcePath}`}
         >
           <SearchProvider>
-            <Search placeholder="Search Nomad documentation" />
+            <SearchBar />
             {children}
           </SearchProvider>
         </DocsPage>
