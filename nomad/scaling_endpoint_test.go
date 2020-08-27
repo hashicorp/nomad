@@ -136,6 +136,7 @@ func TestScalingEndpoint_ListPolicies(t *testing.T) {
 	get := &structs.ScalingPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region: "global",
+			Namespace: "default",
 		},
 	}
 	var resp structs.ACLPolicyListResponse
@@ -170,6 +171,7 @@ func TestScalingEndpoint_ListPolicies_ACL(t *testing.T) {
 	get := &structs.ScalingPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region: "global",
+			Namespace: "default",
 		},
 	}
 
@@ -261,6 +263,7 @@ func TestScalingEndpoint_ListPolicies_Blocking(t *testing.T) {
 	req := &structs.ScalingPolicyListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
+			Namespace: "default",
 			MinQueryIndex: 150,
 		},
 	}
