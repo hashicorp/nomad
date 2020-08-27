@@ -196,7 +196,7 @@ $(git-dir)/hooks/%: dev/hooks/%
 check: ## Lint the source code
 	@echo "==> Linting source code..."
 	@golangci-lint run -j 1
-	
+
 	@echo "==> Linting hclog statements..."
 	@hclogvet .
 
@@ -213,6 +213,14 @@ check: ## Lint the source code
 
 	@echo "==> Check API package is isolated from rest"
 	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+
+	@echo "==> Checking Go mod.."
+	@GO111MODULE=on go mod tidy
+	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
+		echo go.mod or go.sum needs updating; \
+		git --no-pager diff go.mod; \
+		git --no-pager diff go.sum; \
+		exit 1; fi
 
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
