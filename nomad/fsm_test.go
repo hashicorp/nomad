@@ -2866,22 +2866,22 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	state.UpsertNode(800, node)
+	require.NoError(t, state.UpsertNode(800, node))
 
 	// Make a job so that none of the tasks can be placed
 	job1 := mock.Job()
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
-	state.UpsertJob(1000, job1)
+	require.NoError(t, state.UpsertJob(1000, job1))
 
 	// make a job which can make partial progress
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	state.UpsertJob(1010, alloc.Job)
-	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+	require.NoError(t, state.UpsertJob(1010, alloc.Job))
+	require.NoError(t, state.UpsertAllocs(1011, []*structs.Allocation{alloc}))
 
 	// Delete the summaries
-	state.DeleteJobSummary(1030, job1.Namespace, job1.ID)
-	state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID)
+	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
+	require.NoError(t, state.DeleteJobSummary(1040, alloc.Namespace, alloc.Job.ID))
 
 	req := structs.GenericRequest{}
 	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
@@ -2895,7 +2895,9 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	out1, err := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	require.NoError(t, err)
+
 	expected := structs.JobSummary{
 		JobID:     job1.ID,
 		Namespace: job1.Namespace,
@@ -2914,7 +2916,9 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// This exercises the code path which adds the allocations made by the
 	// planner and the number of unplaced allocations in the reconcile summaries
 	// codepath
-	out2, _ := state.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
+	out2, err := state.JobSummaryByID(ws, alloc.Namespace, alloc.Job.ID)
+	require.NoError(t, err)
+
 	expected = structs.JobSummary{
 		JobID:     alloc.Job.ID,
 		Namespace: alloc.Job.Namespace,
