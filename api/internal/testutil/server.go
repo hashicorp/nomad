@@ -97,10 +97,16 @@ type ServerConfigCallback func(c *TestServerConfig)
 // with all of the listen ports incremented by one.
 func defaultServerConfig(t testing.T) *TestServerConfig {
 	ports := freeport.GetT(t, 3)
+
+	logLevel := "DEBUG"
+	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
+		logLevel = envLogLevel
+	}
+
 	return &TestServerConfig{
 		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
-		LogLevel:          "DEBUG",
+		LogLevel:          logLevel,
 		Ports: &PortsConfig{
 			HTTP: ports[0],
 			RPC:  ports[1],
