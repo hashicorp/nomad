@@ -395,6 +395,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	args.Job.JobModifyIndex = reply.JobModifyIndex
 
 	if eval == nil {
+		// For dispatch jobs we return early, so we need to drop regions
+		// here rather than after eval for deployments is kicked off
+		err = j.multiregionDrop(args, reply)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -421,6 +427,14 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Kick off a multiregion deployment (enterprise only).
 	if isRunner {
 		err = j.multiregionStart(args, reply)
+		if err != nil {
+			return err
+		}
+		// We drop any unwanted regions only once we know all jobs have
+		// been registered and we've kicked off the deployment. This keeps
+		// dropping regions close in semantics to dropping task groups in
+		// single-region deployments
+		err = j.multiregionDrop(args, reply)
 		if err != nil {
 			return err
 		}
