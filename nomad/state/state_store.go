@@ -5499,7 +5499,18 @@ func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace str
 	}
 
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	filter := func(raw interface{}) bool {
+		d, ok := raw.(*structs.ScalingPolicy)
+		if !ok {
+			return true
+		}
+
+		return d.Target[structs.ScalingTargetNamespace] != namespace
+	}
+
+	// Wrap the iterator in a filter
+	wrap := memdb.NewFilterIterator(iter, filter)
+	return wrap, nil
 }
 
 func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID string) (memdb.ResultIterator, error) {
