@@ -185,26 +185,10 @@ func (c *JobStopCommand) Run(args []string) int {
 		}
 	}
 
-	// Scatter-gather job stop for multi-region jobs
-	if global && job.IsMultiregion() {
-		for _, region := range job.Multiregion.Regions {
-			// Invoke the stop
-			wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace, Region: region.Name}
-			evalID, _, err := client.Jobs().Deregister(*job.ID, purge, wq)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error deregistering job in %q: %s", region.Name, err))
-				return 1
-			}
-			if evalID != "" {
-				c.Ui.Output(evalID)
-			}
-		}
-		return 0
-	}
-
 	// Invoke the stop
+	opts := &api.DeregisterOptions{Purge: purge, Global: global}
 	wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
-	evalID, _, err := client.Jobs().Deregister(*job.ID, purge, wq)
+	evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
 		return 1

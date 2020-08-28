@@ -869,6 +869,11 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		reply.Index = evalIndex
 	}
 
+	err = j.multiregionStop(job, args, reply)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

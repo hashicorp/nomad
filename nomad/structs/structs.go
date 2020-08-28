@@ -579,6 +579,10 @@ type JobDeregisterRequest struct {
 	// garbage collector
 	Purge bool
 
+	// Global controls whether all regions of a multi-region job are
+	// deregistered. It is ignored for single-region jobs.
+	Global bool
+
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
 
