@@ -18,7 +18,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
     this.server.create('node');
     this.taskGroupWithEvents = async function(events) {
       const job = this.server.create('job', { createAllocations: false });
-      const group = job.task_groups.models[0];
+      const group = job.taskGroups.models[0];
       job.jobScale.taskGroupScales.models.findBy('name', group.name).update({ events });
 
       const jobModel = await this.store.find('job', JSON.stringify([job.id, 'default']));

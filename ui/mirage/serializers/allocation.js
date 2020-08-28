@@ -3,7 +3,7 @@ import { arrToObj } from '../utils';
 
 export default ApplicationSerializer.extend({
   embed: true,
-  include: ['task_states', 'task_resources'],
+  include: ['taskStates', 'taskResources'],
 
   serialize() {
     var json = ApplicationSerializer.prototype.serialize.apply(this, arguments);

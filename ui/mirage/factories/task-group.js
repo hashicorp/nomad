@@ -85,7 +85,6 @@ export default Factory.extend({
 
     group.update({
       taskIds: taskIds,
-      task_ids: taskIds,
     });
 
     if (group.createAllocations) {
@@ -116,7 +115,7 @@ export default Factory.extend({
         .fill(null)
         .forEach(() => {
           server.create('service', {
-            task_group: group,
+            taskGroup: group,
           });
         });
     }
