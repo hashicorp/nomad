@@ -278,10 +278,10 @@ func structsCSIPluginToApi(plug *structs.CSIPlugin) *api.CSIPlugin {
 		Allocations:         make([]*api.AllocationListStub, 0, len(plug.Allocations)),
 		ControllerRequired:  plug.ControllerRequired,
 		ControllersHealthy:  plug.ControllersHealthy,
-		ControllersExpected: len(plug.Controllers),
+		ControllersExpected: plug.ControllersExpected,
 		Controllers:         make(map[string]*api.CSIInfo, len(plug.Controllers)),
 		NodesHealthy:        plug.NodesHealthy,
-		NodesExpected:       len(plug.Nodes),
+		NodesExpected:       plug.NodesExpected,
 		Nodes:               make(map[string]*api.CSIInfo, len(plug.Nodes)),
 		CreateIndex:         plug.CreateIndex,
 		ModifyIndex:         plug.ModifyIndex,
@@ -364,6 +364,7 @@ func structsCSIInfoToApi(info *structs.CSIInfo) *api.CSIInfo {
 	}
 	out := &api.CSIInfo{
 		PluginID:                 info.PluginID,
+		AllocID:                  info.AllocID,
 		Healthy:                  info.Healthy,
 		HealthDescription:        info.HealthDescription,
 		UpdateTime:               info.UpdateTime,

@@ -15,7 +15,6 @@ sed "s/SERVER_COUNT/$SERVER_COUNT/g" "$CONSUL_SRC/server.json" > /tmp/server.jso
 sudo mv /tmp/server.json "$CONSUL_DEST/server.json"
 sudo cp "$CONSUL_SRC/base.json" "$CONSUL_DEST/"
 sudo cp "$CONSUL_SRC/retry_$CLOUD.json" "$CONSUL_DEST/"
-sudo cp "$CONSUL_SRC/consul_$CLOUD.service" /etc/systemd/system/consul.service
 
 sudo systemctl enable consul.service
 sudo systemctl daemon-reload
@@ -27,7 +26,6 @@ VAULT_SRC=/ops/shared/vault
 VAULT_DEST=/etc/vault.d
 
 sudo cp "$VAULT_SRC/vault.hcl" "$VAULT_DEST"
-sudo cp "$VAULT_SRC/vault.service" /etc/systemd/system/vault.service
 
 sudo systemctl enable vault.service
 sudo systemctl daemon-reload
@@ -50,9 +48,6 @@ sudo cp "$NOMAD_SRC/base.hcl" "$NOMAD_DEST/"
 sed "s/3 # SERVER_COUNT/$SERVER_COUNT/g" "$NOMAD_SRC/$NOMAD_CONFIG" \
     > "/tmp/$NOMAD_CONFIG_FILENAME"
 sudo mv "/tmp/$NOMAD_CONFIG_FILENAME" "$NOMAD_DEST/$NOMAD_CONFIG_FILENAME"
-
-# enable as a systemd service
-sudo cp "$NOMAD_SRC/nomad.service" /etc/systemd/system/nomad.service
 
 sudo systemctl enable nomad.service
 sudo systemctl daemon-reload

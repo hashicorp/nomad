@@ -1,14 +1,5 @@
 # outputs used for E2E testing and provisioning
 
-output "environment" {
-  description = "get connection config by running: $(terraform output environment)"
-  value       = <<EOM
-export NOMAD_ADDR=http://${aws_instance.server[0].public_ip}:4646
-export CONSUL_HTTP_ADDR=http://${aws_instance.server[0].public_ip}:8500
-export NOMAD_E2E=1
-EOM
-}
-
 output "provisioning" {
   description = "output to a file to be use w/ E2E framework -provision.terraform"
   value = jsonencode(

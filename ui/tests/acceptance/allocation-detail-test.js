@@ -192,7 +192,7 @@ module('Acceptance | allocation detail', function(hooks) {
       jobId: job.id,
     });
 
-    const taskState = allocation.task_states.models.sortBy('name')[0];
+    const taskState = allocation.taskStates.models.sortBy('name')[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();

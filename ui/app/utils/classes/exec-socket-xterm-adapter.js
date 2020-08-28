@@ -3,6 +3,8 @@ const ANSI_UI_GRAY_400 = '\x1b[38;2;142;150;163m';
 import base64js from 'base64-js';
 import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
 
+export const HEARTBEAT_INTERVAL = 10000; // ten seconds
+
 export default class ExecSocketXtermAdapter {
   constructor(terminal, socket, token) {
     this.terminal = terminal;
@@ -12,6 +14,7 @@ export default class ExecSocketXtermAdapter {
     socket.onopen = () => {
       this.sendWsHandshake();
       this.sendTtySize();
+      this.startHeartbeat();
 
       terminal.onData(data => {
         this.handleData(data);
@@ -28,6 +31,7 @@ export default class ExecSocketXtermAdapter {
     };
 
     socket.onclose = () => {
+      this.stopHeartbeat();
       this.terminal.writeln('');
       this.terminal.write(ANSI_UI_GRAY_400);
       this.terminal.writeln('The connection has closed.');
@@ -47,6 +51,16 @@ export default class ExecSocketXtermAdapter {
 
   sendWsHandshake() {
     this.socket.send(JSON.stringify({ version: 1, auth_token: this.token || '' }));
+  }
+
+  startHeartbeat() {
+    this.heartbeatTimer = setInterval(() => {
+      this.socket.send(JSON.stringify({}));
+    }, HEARTBEAT_INTERVAL);
+  }
+
+  stopHeartbeat() {
+    clearInterval(this.heartbeatTimer);
   }
 
   handleData(data) {

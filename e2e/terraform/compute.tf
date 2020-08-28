@@ -73,3 +73,33 @@ resource "aws_instance" "client_windows" {
     delete_on_termination = "true"
   }
 }
+
+data "aws_ami" "linux" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["nomad-e2e-*"]
+  }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Ubuntu"]
+  }
+}
+
+data "aws_ami" "windows" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["nomad-e2e-windows-2016*"]
+  }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Windows2016"]
+  }
+}

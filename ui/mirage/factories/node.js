@@ -17,7 +17,7 @@ export default Factory.extend({
   nodeClass: () => faker.helpers.randomize(NODE_CLASSES),
   drain: faker.random.boolean,
   status: () => faker.helpers.randomize(NODE_STATUSES),
-  tls_enabled: faker.random.boolean,
+  tlsEnabled: faker.random.boolean,
   schedulingEligibility: () => (faker.random.boolean() ? 'eligible' : 'ineligible'),
 
   createIndex: i => i,

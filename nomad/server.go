@@ -216,6 +216,9 @@ type Server struct {
 	// consulCatalog is used for discovering other Nomad Servers via Consul
 	consulCatalog consul.CatalogAPI
 
+	// consulConfigEntries is used for managing Consul Configuration Entries.
+	consulConfigEntries ConsulConfigsAPI
+
 	// consulACLs is used for managing Consul Service Identity tokens.
 	consulACLs ConsulACLsAPI
 
@@ -283,7 +286,7 @@ type endpoints struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consul.ACLsAPI) (*Server, error) {
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
 	// Check the protocol version
 	if err := config.CheckVersion(); err != nil {
 		return nil, err
@@ -362,7 +365,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulACLs consu
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
 	// Setup Consul (more)
-	s.setupConsul(consulACLs)
+	s.setupConsul(consulConfigEntries, consulACLs)
 
 	// Setup Vault
 	if err := s.setupVaultClient(); err != nil {
@@ -661,6 +664,9 @@ func (s *Server) Shutdown() error {
 
 	// Stop the Consul ACLs token revocations
 	s.consulACLs.Stop()
+
+	// Stop being able to set Configuration Entries
+	s.consulConfigEntries.Stop()
 
 	return nil
 }
@@ -1042,7 +1048,8 @@ func (s *Server) setupNodeDrainer() {
 }
 
 // setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulACLs consul.ACLsAPI) {
+func (s *Server) setupConsul(consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) {
+	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigEntries, s.logger)
 	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
 }
 

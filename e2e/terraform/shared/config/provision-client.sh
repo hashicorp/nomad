@@ -12,7 +12,6 @@ CONSUL_DEST=/etc/consul.d
 
 sudo cp "$CONSUL_SRC/base.json" "$CONSUL_DEST/"
 sudo cp "$CONSUL_SRC/retry_$CLOUD.json" "$CONSUL_DEST/"
-sudo cp "$CONSUL_SRC/consul_$CLOUD.service" /etc/systemd/system/consul.service
 
 sudo systemctl enable consul.service
 sudo systemctl daemon-reload
@@ -36,9 +35,6 @@ sudo cp "$NOMAD_SRC/$NOMAD_CONFIG" "$NOMAD_DEST/$NOMAD_CONFIG_FILENAME"
 
 # Setup Host Volumes
 sudo mkdir -p /tmp/data
-
-# enable as a systemd service
-sudo cp "$NOMAD_SRC/nomad.service" /etc/systemd/system/nomad.service
 
 sudo systemctl enable nomad.service
 sudo systemctl daemon-reload

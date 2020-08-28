@@ -68,7 +68,7 @@ func (h *consulGRPCSocketHook) shouldRun() bool {
 	}
 
 	for _, s := range tg.Services {
-		if s.Connect.HasSidecar() {
+		if s.Connect.HasSidecar() || s.Connect.IsGateway() {
 			return true
 		}
 	}
