@@ -6,7 +6,7 @@ export default function FeaturesList({ title, items }) {
         {items.map(({ title, content, icon }) => (
           <div key={title} className="item">
             <div className="item-icon">
-              <img src={icon} alt={title} />
+              <img src={icon} alt="" />
             </div>
             <div className="content">
               <h4 className="g-type-display-4">{title}</h4>

@@ -20,7 +20,7 @@ export default function LearnNomad({ items }) {
               />
             </div>
           </div>
-          {items.map(item => {
+          {items.map((item) => {
             return (
               <a
                 key={item.title}
@@ -31,7 +31,7 @@ export default function LearnNomad({ items }) {
                 <div className="course">
                   <div className="image">
                     <div className="g-type-label-strong time">{item.time}</div>
-                    <img src={item.image} alt={item.title} />
+                    <img src={item.image} alt="" />
                   </div>
                   <div className="content">
                     <div>
