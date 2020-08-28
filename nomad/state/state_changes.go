@@ -36,6 +36,12 @@ type eventPublisher interface {
 	Publish(events []event.Event)
 }
 
+// noOpPublisher satisfies the eventPublisher interface and does nothing
+type noOpPublisher struct{}
+
+func (n *noOpPublisher) Publish(events []event.Event)            {}
+func noOpProcessChanges(ReadTxn, Changes) ([]event.Event, error) { return []event.Event{}, nil }
+
 // Txn exists to maintain backwards compatibility with memdb.DB.Txn. Preexisting
 // code may use it to create a read-only transaction, but it will panic if called
 // with write=true.

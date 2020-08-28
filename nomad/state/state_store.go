@@ -7,7 +7,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
@@ -104,17 +103,17 @@ func (s *StateStore) Config() *StateStoreConfig {
 // we use MemDB, we just need to snapshot the state of the underlying
 // database.
 func (s *StateStore) Snapshot() (*StateSnapshot, error) {
-	memDB := s.db.db
-	memDBSnap := memDB.Snapshot()
+	memDBSnap := s.db.db.Snapshot()
 
 	store := StateStore{
 		logger: s.logger,
 		config: s.config,
 	}
+	// create a changeTrackerDB that doesn't process changes
 	store.db = &changeTrackerDB{
 		db:             memDBSnap,
-		publisher:      event.NewPublisher(), // TODO nil publishelklr
-		processChanges: processDBChanges,     // nil
+		publisher:      &noOpPublisher{},
+		processChanges: noOpProcessChanges,
 	}
 	snap := &StateSnapshot{
 		StateStore: store,
@@ -4789,7 +4788,6 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		}
 		switch alloc.ClientStatus {
 		case structs.AllocClientStatusPending:
-			spew.Dump("STARTING +=  1")
 			tgSummary.Starting += 1
 			if tgSummary.Queued > 0 {
 				tgSummary.Queued -= 1
