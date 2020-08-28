@@ -209,13 +209,13 @@ export default [
         content: [
           'containerd',
           'firecracker-task-driver',
-          'iis',
           'jail-task-driver',
           'lxc',
-          'nspawn',
           'pot',
           'rkt',
-          'singularity'
+          'singularity',
+          'nspawn',
+          'iis'
         ]
       }
     ]
