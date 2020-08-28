@@ -5,6 +5,7 @@ IMPROVEMENTS:
  * api: Added node purge SDK functionality. [[GH-8142](https://github.com/hashicorp/nomad/issues/8142)]
  * csi: Improved the accuracy of plugin `Expected` allocation counts. [[GH-8699](https://github.com/hashicorp/nomad/pull/8699)]
  * driver/docker: Allow configurable image pull context timeout setting. [[GH-5718](https://github.com/hashicorp/nomad/issues/5718)]
+ * ui: Added exec keepalive heartbeat. [[GH-8759](https://github.com/hashicorp/nomad/pull/8759)]
 
 BUG FIXES:
 
