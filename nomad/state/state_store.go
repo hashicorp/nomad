@@ -830,7 +830,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, updat
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	if err := s.updateNodeStatusTxn(txn, index, nodeID, status, updatedAt, event); err != nil {
+	if err := s.updateNodeStatusTxn(txn, nodeID, status, updatedAt, event); err != nil {
 		return err
 	}
 
@@ -838,7 +838,7 @@ func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, updat
 	return nil
 }
 
-func (s *StateStore) updateNodeStatusTxn(txn *txn, index uint64, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -856,12 +856,12 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, index uint64, nodeID, status 
 
 	// Add the event if given
 	if event != nil {
-		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+		appendNodeEvents(txn.Index, copyNode, []*structs.NodeEvent{event})
 	}
 
 	// Update the status in the copy
 	copyNode.Status = status
-	copyNode.ModifyIndex = index
+	copyNode.ModifyIndex = txn.Index
 
 	// Insert the node
 	if err := txn.Insert("nodes", copyNode); err != nil {
@@ -1230,7 +1230,7 @@ func updateOrGCPlugin(index uint64, txn *txn, plug *structs.CSIPlugin) error {
 
 // deleteJobFromPlugins removes the allocations of this job from any plugins the job is
 // running, possibly deleting the plugin if it's no longer in use. It's called in DeleteJobTxn
-func (s *StateStore) deleteJobFromPlugin(index uint64, txn *txn, job *structs.Job) error {
+func (s *StateStore) deleteJobFromPlugins(index uint64, txn *txn, job *structs.Job) error {
 	ws := memdb.NewWatchSet()
 	summary, err := s.JobSummaryByID(ws, job.Namespace, job.ID)
 	if err != nil {
@@ -4565,7 +4565,7 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 }
 
 // updateJobCSIPlugins runs on job update, and indexes the job in the plugin
-func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, txn *memdb.Txn) error {
+func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, txn *txn) error {
 	ws := memdb.NewWatchSet()
 	plugIns := make(map[string]*structs.CSIPlugin)
 
@@ -4894,7 +4894,7 @@ func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocati
 // updatePluginWithJobSummary updates the CSI plugins for a job when the
 // job summary is updated by an alloc
 func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.JobSummary, alloc *structs.Allocation,
-	txn *memdb.Txn) error {
+	txn *txn) error {
 
 	ws := memdb.NewWatchSet()
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
