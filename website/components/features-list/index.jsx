@@ -9,7 +9,7 @@ export default function FeaturesList({ title, items }) {
               <img src={icon} alt="" />
             </div>
             <div className="content">
-              <h4 className="g-type-display-4">{title}</h4>
+              <h3 className="g-type-display-4">{title}</h3>
               <p className="g-type-body-small">{content}</p>
             </div>
           </div>
