@@ -207,15 +207,15 @@ export default [
       {
         category: 'external',
         content: [
+          'containerd',
+          'firecracker-task-driver',
+          'jail-task-driver',
           'lxc',
+          'pot',
           'rkt',
           'singularity',
-          'jail-task-driver',
-          'pot',
-          'firecracker-task-driver',
           'nspawn',
-          'iis',
-          'containerd'
+          'iis'
         ]
       }
     ]
