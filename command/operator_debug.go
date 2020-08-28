@@ -454,6 +454,7 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	}
 
 	path = filepath.Join(path, id)
+	c.mkdir(path)
 
 	c.writeJSON(path, "agent-host.json", host, err)
 }
