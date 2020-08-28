@@ -3,6 +3,7 @@
 IMPROVEMENTS:
 
  * api: Added node purge SDK functionality. [[GH-8142](https://github.com/hashicorp/nomad/issues/8142)]
+ * api: Added an option to stop multiregion jobs globally. [[GH-8776](https://github.com/hashicorp/nomad/issues/8776)]
  * csi: Improved the accuracy of plugin `Expected` allocation counts. [[GH-8699](https://github.com/hashicorp/nomad/pull/8699)]
  * driver/docker: Allow configurable image pull context timeout setting. [[GH-5718](https://github.com/hashicorp/nomad/issues/5718)]
  * ui: Added exec keepalive heartbeat. [[GH-8759](https://github.com/hashicorp/nomad/pull/8759)]
@@ -16,6 +17,7 @@ BUG FIXES:
  * csi: Fixed a bug where querying CSI volumes would cause a panic if an allocation that claimed the volume had been garbage collected but the claim was not yet dropped. [[GH-8735](https://github.com/hashicorp/nomad/issues/8735)]
  * deployments (Enterprise): Fixed a bug where counts could not be changed in the web UI for multiregion jobs. [[GH-8685](https://github.com/hashicorp/nomad/issues/8685)]
  * deployments (Enterprise): Fixed a bug in multi-region deployments where a region that was dropped from the jobspec was not deregistered. [[GH-8763](https://github.com/hashicorp/nomad/issues/8763)]
+ * plan: Fixed a bug where plans always included a change for the `NomadTokenID`. [[GH-8559](https://github.com/hashicorp/nomad/issues/8559)]
 
 ## 0.12.3 (August 13, 2020)
 
