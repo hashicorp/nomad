@@ -421,9 +421,20 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 		}
 	}
 
+	globalStr := req.URL.Query().Get("global")
+	var globalBool bool
+	if globalStr != "" {
+		var err error
+		globalBool, err = strconv.ParseBool(globalStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "global", globalStr, err)
+		}
+	}
+
 	args := structs.JobDeregisterRequest{
-		JobID: jobName,
-		Purge: purgeBool,
+		JobID:  jobName,
+		Purge:  purgeBool,
+		Global: globalBool,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 

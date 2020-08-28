@@ -31,6 +31,12 @@ func (j *Job) multiregionDrop(args *structs.JobRegisterRequest, reply *structs.J
 	return nil
 }
 
+// multiregionStop is used to fan-out Job.Deregister RPCs to all regions if
+// the global flag is passed to Job.Deregister
+func (j *Job) multiregionStop(job *structs.Job, args *structs.JobDeregisterRequest, reply *structs.JobDeregisterResponse) error {
+	return nil
+}
+
 // interpolateMultiregionFields interpolates a job for a specific region
 func (j *Job) interpolateMultiregionFields(args *structs.JobPlanRequest) error {
 	return nil
