@@ -265,7 +265,7 @@ module('Acceptance | allocation detail', function(hooks) {
       jobId: job.id,
     });
 
-    const taskState = allocation.task_states.models.sortBy('name')[0];
+    const taskState = allocation.taskStates.models.sortBy('name')[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();
@@ -295,7 +295,9 @@ module('Acceptance | allocation detail', function(hooks) {
 
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.to, serverPort.To);
-      const expectedAddr = isIp.v6(serverPort.HostIP) ? `[${serverPort.HostIP}]:${serverPort.Value}` : `${serverPort.HostIP}:${serverPort.Value}`;
+      const expectedAddr = isIp.v6(serverPort.HostIP)
+        ? `[${serverPort.HostIP}]:${serverPort.Value}`
+        : `${serverPort.HostIP}:${serverPort.Value}`;
       assert.equal(renderedPort.address, expectedAddr);
     });
   });
