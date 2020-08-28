@@ -25,7 +25,7 @@ export default Factory.extend({
   region: () => 'global',
   type: () => faker.helpers.randomize(JOB_TYPES),
   priority: () => faker.random.number(100),
-  all_at_once: faker.random.boolean,
+  allAtOnce: faker.random.boolean,
   status: () => faker.helpers.randomize(JOB_STATUSES),
   datacenters: () =>
     faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
@@ -141,21 +141,17 @@ export default Factory.extend({
 
     job.update({
       taskGroupIds: groups.mapBy('id'),
-      task_group_ids: groups.mapBy('id'),
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
     const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
+      jobId: job.id,
       groupNames: groups.mapBy('name'),
-      job,
-      job_id: job.id,
-      JobID: job.id,
       namespace: job.namespace,
     });
 
     job.update({
       jobSummaryId: jobSummary.id,
-      job_summary_id: jobSummary.id,
     });
 
     const jobScale = server.create('job-scale', {

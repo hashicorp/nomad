@@ -689,6 +689,83 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	require.Nil(t, resp2.Plugin)
 }
 
+func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, nil)
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	codec := rpcClient(t, srv)
+
+	// Register a job that creates the plugin
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeNode,
+	}
+
+	req1 := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	resp1 := &structs.JobRegisterResponse{}
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req1, resp1)
+	require.NoError(t, err)
+
+	// Verify that the plugin exists and is unhealthy
+	req2 := &structs.CSIPluginGetRequest{
+		ID:           "foo",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	resp2 := &structs.CSIPluginGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2.Plugin)
+	require.Zero(t, resp2.Plugin.ControllersHealthy)
+	require.Zero(t, resp2.Plugin.NodesHealthy)
+	require.Equal(t, job.ID, resp2.Plugin.NodeJobs[structs.DefaultNamespace][job.ID].ID)
+
+	// Health depends on node fingerprints
+	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
+	defer deleteNodes()
+
+	resp2.Plugin = nil
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2.Plugin)
+	require.NotZero(t, resp2.Plugin.ControllersHealthy)
+	require.NotZero(t, resp2.Plugin.NodesHealthy)
+	require.Equal(t, job.ID, resp2.Plugin.NodeJobs[structs.DefaultNamespace][job.ID].ID)
+
+	// All fingerprints failing makes the plugin unhealthy, but does not delete it
+	deleteNodes()
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2.Plugin)
+	require.Zero(t, resp2.Plugin.ControllersHealthy)
+	require.Zero(t, resp2.Plugin.NodesHealthy)
+	require.Equal(t, job.ID, resp2.Plugin.NodeJobs[structs.DefaultNamespace][job.ID].ID)
+
+	// Job deregistration is necessary to gc the plugin
+	req3 := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	resp3 := &structs.JobDeregisterResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req3, resp3)
+	require.NoError(t, err)
+
+	// Plugin has been gc'ed
+	resp2.Plugin = nil
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.Nil(t, resp2.Plugin)
+}
+
 func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {

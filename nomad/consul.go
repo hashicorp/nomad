@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -33,6 +34,13 @@ const (
 	// siTokenRevocationInterval is the interval at which SI tokens that failed
 	// initial revocation are retried.
 	siTokenRevocationInterval = 5 * time.Minute
+)
+
+const (
+	// configEntriesRequestRateLimit is the maximum number of requests per second
+	// Nomad will make against Consul for operations on global Configuration Entry
+	// objects.
+	configEntriesRequestRateLimit rate.Limit = 10
 )
 
 const (
@@ -434,4 +442,108 @@ func (s *Server) purgeSITokenAccessors(accessors []*structs.SITokenAccessor) err
 	request := structs.SITokenAccessorsRequest{Accessors: accessors}
 	_, _, err := s.raftApply(structs.ServiceIdentityAccessorDeregisterRequestType, request)
 	return err
+}
+
+// ConsulConfigsAPI is an abstraction over the consul/api.ConfigEntries API used by
+// Nomad Server.
+//
+// Nomad will only perform write operations on Consul Ingress Gateway Configuration Entries.
+// Removing the entries is not particularly safe, given that multiple Nomad clusters
+// may be writing to the same config entries, which are global in the Consul scope.
+type ConsulConfigsAPI interface {
+	// SetIngressGatewayConfigEntry adds the given ConfigEntry to Consul, overwriting
+	// the previous entry if set.
+	SetIngressGatewayConfigEntry(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error
+
+	// Stop is used to stop additional creations of Configuration Entries. Intended to
+	// be used on Nomad Server shutdown.
+	Stop()
+}
+
+type consulConfigsAPI struct {
+	// configsClient is the API subset of the real Consul client we need for
+	// managing Configuration Entries.
+	configsClient consul.ConfigAPI
+
+	// limiter is used to rate limit requests to Consul
+	limiter *rate.Limiter
+
+	// logger is used to log messages
+	logger hclog.Logger
+
+	// lock protects the stopped flag, which prevents use of the consul configs API
+	// client after shutdown.
+	lock    sync.Mutex
+	stopped bool
+}
+
+func NewConsulConfigsAPI(configsClient consul.ConfigAPI, logger hclog.Logger) *consulConfigsAPI {
+	return &consulConfigsAPI{
+		configsClient: configsClient,
+		limiter:       rate.NewLimiter(configEntriesRequestRateLimit, int(configEntriesRequestRateLimit)),
+		logger:        logger,
+	}
+}
+
+func (c *consulConfigsAPI) Stop() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.stopped = true
+}
+
+func (c *consulConfigsAPI) SetIngressGatewayConfigEntry(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error {
+	configEntry := convertIngressGatewayConfig(service, entry)
+	return c.setConfigEntry(ctx, configEntry)
+}
+
+// setConfigEntry will set the Configuration Entry of any type Consul supports.
+func (c *consulConfigsAPI) setConfigEntry(ctx context.Context, entry api.ConfigEntry) error {
+	defer metrics.MeasureSince([]string{"nomad", "consul", "create_config_entry"}, time.Now())
+
+	// make sure the background deletion goroutine has not been stopped
+	c.lock.Lock()
+	stopped := c.stopped
+	c.lock.Unlock()
+
+	if stopped {
+		return errors.New("client stopped and may not longer create config entries")
+	}
+
+	// ensure we are under our wait limit
+	if err := c.limiter.Wait(ctx); err != nil {
+		return err
+	}
+
+	_, _, err := c.configsClient.Set(entry, nil)
+	return err
+}
+
+func convertIngressGatewayConfig(service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
+	var listeners []api.IngressListener = nil
+	for _, listener := range entry.Listeners {
+		var services []api.IngressService = nil
+		for _, service := range listener.Services {
+			services = append(services, api.IngressService{
+				Name:  service.Name,
+				Hosts: helper.CopySliceString(service.Hosts),
+			})
+		}
+		listeners = append(listeners, api.IngressListener{
+			Port:     listener.Port,
+			Protocol: listener.Protocol,
+			Services: services,
+		})
+	}
+
+	tlsEnabled := false
+	if entry.TLS != nil && entry.TLS.Enabled {
+		tlsEnabled = true
+	}
+
+	return &api.IngressGatewayConfigEntry{
+		Kind:      api.IngressGateway,
+		Name:      service,
+		TLS:       api.GatewayTLSConfig{Enabled: tlsEnabled},
+		Listeners: listeners,
+	}
 }

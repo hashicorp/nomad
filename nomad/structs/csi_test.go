@@ -38,6 +38,56 @@ func TestCSIVolumeClaim(t *testing.T) {
 	require.True(t, vol.WriteFreeClaims())
 }
 
+func TestCSIPluginJobs(t *testing.T) {
+	plug := NewCSIPlugin("foo", 1000)
+	controller := &Job{
+		ID:   "job",
+		Type: "service",
+		TaskGroups: []*TaskGroup{{
+			Name:  "foo",
+			Count: 11,
+			Tasks: []*Task{{
+				CSIPluginConfig: &TaskCSIPluginConfig{
+					ID:   "foo",
+					Type: CSIPluginTypeController,
+				},
+			}},
+		}},
+	}
+
+	summary := &JobSummary{}
+
+	plug.AddJob(controller, summary)
+	require.Equal(t, 11, plug.ControllersExpected)
+
+	// New job id & make it a system node plugin job
+	node := controller.Copy()
+	node.ID = "bar"
+	node.Type = "system"
+	node.TaskGroups[0].Tasks[0].CSIPluginConfig.Type = CSIPluginTypeNode
+
+	summary = &JobSummary{
+		Summary: map[string]TaskGroupSummary{
+			"foo": {
+				Queued:   1,
+				Running:  1,
+				Starting: 1,
+			},
+		},
+	}
+
+	plug.AddJob(node, summary)
+	require.Equal(t, 3, plug.NodesExpected)
+
+	plug.DeleteJob(node, summary)
+	require.Equal(t, 0, plug.NodesExpected)
+	require.Empty(t, plug.NodeJobs[""])
+
+	plug.DeleteJob(controller, nil)
+	require.Equal(t, 0, plug.ControllersExpected)
+	require.Empty(t, plug.ControllerJobs[""])
+}
+
 func TestCSIPluginCleanup(t *testing.T) {
 	plug := NewCSIPlugin("foo", 1000)
 	plug.AddPlugin("n0", &CSIInfo{

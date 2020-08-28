@@ -88,6 +88,12 @@ type State interface {
 	// GetJobByID is used to lookup a job by ID
 	JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error)
 
+	// DeploymentsByJobID returns the deployments associated with the job
+	DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Deployment, error)
+
+	// JobByIDAndVersion returns the job associated with id and specific version
+	JobByIDAndVersion(ws memdb.WatchSet, namespace, id string, version uint64) (*structs.Job, error)
+
 	// LatestDeploymentByJobID returns the latest deployment matching the given
 	// job ID
 	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)

@@ -4,6 +4,8 @@ import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { Terminal } from 'xterm';
+import { HEARTBEAT_INTERVAL } from 'nomad-ui/utils/classes/exec-socket-xterm-adapter';
+import sinon from 'sinon';
 
 module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
   setupRenderingTest(hooks);
@@ -26,6 +28,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
         if (firstMessage) {
           firstMessage = false;
           assert.deepEqual(message, JSON.stringify({ version: 1, auth_token: 'mysecrettoken' }));
+          mockSocket.onclose();
           done();
         }
       },
@@ -56,6 +59,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
         if (firstMessage) {
           firstMessage = false;
           assert.deepEqual(message, JSON.stringify({ version: 1, auth_token: '' }));
+          mockSocket.onclose();
           done();
         }
       },
@@ -66,6 +70,40 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     mockSocket.onopen();
 
     await settled();
+  });
+
+  test('a heartbeat is sent periodically', async function(assert) {
+    let done = assert.async();
+
+    const clock = sinon.useFakeTimers({
+      now: new Date(),
+      shouldAdvanceTime: true,
+    });
+
+    let terminal = new Terminal();
+    this.set('terminal', terminal);
+
+    await render(hbs`
+      <ExecTerminal @terminal={{terminal}} />
+    `);
+
+    await settled();
+
+    let mockSocket = new Object({
+      send(message) {
+        if (!message.includes('version') && !message.includes('tty_size')) {
+          assert.deepEqual(message, JSON.stringify({}));
+          clock.restore();
+          mockSocket.onclose();
+          done();
+        }
+      },
+    });
+
+    new ExecSocketXtermAdapter(terminal, mockSocket, null);
+    mockSocket.onopen();
+    await settled();
+    clock.tick(HEARTBEAT_INTERVAL);
   });
 
   test('resizing the window passes a resize message through the socket', async function(assert) {
@@ -86,6 +124,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
           message,
           JSON.stringify({ tty_size: { width: terminal.cols, height: terminal.rows } })
         );
+        mockSocket.onclose();
         done();
       },
     });
@@ -120,6 +159,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
     });
 
     await settled();
+    mockSocket.onclose();
   });
 
   test('stderr frames are ignored', async function(assert) {
@@ -155,5 +195,7 @@ module('Integration | Utility | exec-socket-xterm-adapter', function(hooks) {
         .trim(),
       'sh-3.2 🥳$'
     );
+
+    mockSocket.onclose();
   });
 });

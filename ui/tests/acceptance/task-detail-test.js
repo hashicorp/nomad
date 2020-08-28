@@ -341,7 +341,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
 
-    const taskState = allocation.task_states.models[0];
+    const taskState = allocation.taskStates.models[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();

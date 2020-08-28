@@ -1290,6 +1290,111 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 		Native:         in.Native,
 		SidecarService: apiConnectSidecarServiceToStructs(in.SidecarService),
 		SidecarTask:    apiConnectSidecarTaskToStructs(in.SidecarTask),
+		Gateway:        apiConnectGatewayToStructs(in.Gateway),
+	}
+}
+
+func apiConnectGatewayToStructs(in *api.ConsulGateway) *structs.ConsulGateway {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulGateway{
+		Proxy:   apiConnectGatewayProxyToStructs(in.Proxy),
+		Ingress: apiConnectIngressGatewayToStructs(in.Ingress),
+	}
+}
+
+func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.ConsulGatewayProxy {
+	if in == nil {
+		return nil
+	}
+
+	var bindAddresses map[string]*structs.ConsulGatewayBindAddress
+	if in.EnvoyGatewayBindAddresses != nil {
+		bindAddresses = make(map[string]*structs.ConsulGatewayBindAddress)
+		for k, v := range in.EnvoyGatewayBindAddresses {
+			bindAddresses[k] = &structs.ConsulGatewayBindAddress{
+				Address: v.Address,
+				Port:    v.Port,
+			}
+		}
+	}
+
+	return &structs.ConsulGatewayProxy{
+		ConnectTimeout:                  in.ConnectTimeout,
+		EnvoyGatewayBindTaggedAddresses: in.EnvoyGatewayBindTaggedAddresses,
+		EnvoyGatewayBindAddresses:       bindAddresses,
+		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
+		Config:                          helper.CopyMapStringInterface(in.Config),
+	}
+}
+
+func apiConnectIngressGatewayToStructs(in *api.ConsulIngressConfigEntry) *structs.ConsulIngressConfigEntry {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulIngressConfigEntry{
+		TLS:       apiConnectGatewayTLSConfig(in.TLS),
+		Listeners: apiConnectIngressListenersToStructs(in.Listeners),
+	}
+}
+
+func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulGatewayTLSConfig {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulGatewayTLSConfig{
+		Enabled: in.Enabled,
+	}
+}
+
+func apiConnectIngressListenersToStructs(in []*api.ConsulIngressListener) []*structs.ConsulIngressListener {
+	if len(in) == 0 {
+		return nil
+	}
+
+	listeners := make([]*structs.ConsulIngressListener, len(in))
+	for i, listener := range in {
+		listeners[i] = apiConnectIngressListenerToStructs(listener)
+	}
+	return listeners
+}
+
+func apiConnectIngressListenerToStructs(in *api.ConsulIngressListener) *structs.ConsulIngressListener {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulIngressListener{
+		Port:     in.Port,
+		Protocol: in.Protocol,
+		Services: apiConnectIngressServicesToStructs(in.Services),
+	}
+}
+
+func apiConnectIngressServicesToStructs(in []*api.ConsulIngressService) []*structs.ConsulIngressService {
+	if len(in) == 0 {
+		return nil
+	}
+
+	services := make([]*structs.ConsulIngressService, len(in))
+	for i, service := range in {
+		services[i] = apiConnectIngressServiceToStructs(service)
+	}
+	return services
+}
+
+func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.ConsulIngressService {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulIngressService{
+		Name:  in.Name,
+		Hosts: helper.CopySliceString(in.Hosts),
 	}
 }
 
@@ -1313,7 +1418,7 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 		LocalServicePort:    in.LocalServicePort,
 		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
 		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
-		Config:              in.Config,
+		Config:              helper.CopyMapStringInterface(in.Config),
 	}
 }
 

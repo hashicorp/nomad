@@ -608,9 +608,6 @@ func TestJob_ConnectTasks(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
 
-	// todo(shoenig): this will need some updates when we support connect native
-	//  tasks, which will have a different Kind format, probably.
-
 	j0 := &Job{
 		TaskGroups: []*TaskGroup{{
 			Name: "tg1",
@@ -633,15 +630,35 @@ func TestJob_ConnectTasks(t *testing.T) {
 				Name: "connect-proxy-task2",
 				Kind: "connect-proxy:task2",
 			}},
+		}, {
+			Name: "tg3",
+			Tasks: []*Task{{
+				Name: "ingress",
+				Kind: "connect-ingress:ingress",
+			}},
+		}, {
+			Name: "tg4",
+			Tasks: []*Task{{
+				Name: "frontend",
+				Kind: "connect-native:uuid-fe",
+			}, {
+				Name: "generator",
+				Kind: "connect-native:uuid-api",
+			}},
 		}},
 	}
 
 	connectTasks := j0.ConnectTasks()
 
-	exp := map[string][]string{
-		"tg1": {"connect-proxy-task1", "connect-proxy-task3"},
-		"tg2": {"connect-proxy-task2"},
+	exp := []TaskKind{
+		NewTaskKind(ConnectProxyPrefix, "task1"),
+		NewTaskKind(ConnectProxyPrefix, "task3"),
+		NewTaskKind(ConnectProxyPrefix, "task2"),
+		NewTaskKind(ConnectIngressPrefix, "ingress"),
+		NewTaskKind(ConnectNativePrefix, "uuid-fe"),
+		NewTaskKind(ConnectNativePrefix, "uuid-api"),
 	}
+
 	r.Equal(exp, connectTasks)
 }
 
@@ -828,6 +845,15 @@ func TestTask_UsesConnect(t *testing.T) {
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
+
+	t.Run("ingress gateway", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectIngressPrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
@@ -854,6 +880,16 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 					SidecarService: &ConsulSidecarService{
 						Port: "9090",
 					},
+				},
+			}},
+		}, true)
+	})
+
+	t.Run("tg uses gateway", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{{
+				Connect: &ConsulConnect{
+					Gateway: consulIngressGateway1,
 				},
 			}},
 		}, true)
