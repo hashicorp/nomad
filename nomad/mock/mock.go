@@ -77,6 +77,13 @@ func Node() *structs.Node {
 					Mode:   "host",
 					Device: "eth0",
 					Speed:  1000,
+					Addresses: []structs.NodeNetworkAddress{
+						{
+							Alias:   "default",
+							Address: "192.168.0.100",
+							Family:  structs.NodeNetworkAF_IPv4,
+						},
+					},
 				},
 			},
 		},
@@ -211,6 +218,7 @@ func Job() *structs.Job {
 				Migrate: structs.DefaultMigrateStrategy(),
 				Networks: []*structs.NetworkResource{
 					{
+						Mode: "host",
 						DynamicPorts: []structs.Port{
 							{Label: "http"},
 							{Label: "admin"},
