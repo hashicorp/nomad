@@ -6143,7 +6143,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			}
 		}
 
-		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services); err != nil {
+		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services, tg.Networks); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -6718,7 +6718,7 @@ func (t *Task) GoString() string {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service) error {
+func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service, tgNetworks Networks) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -6781,7 +6781,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	}
 
 	// Validate Services
-	if err := validateServices(t); err != nil {
+	if err := validateServices(t, tgNetworks); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
@@ -6879,7 +6879,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 
 // validateServices takes a task and validates the services within it are valid
 // and reference ports that exist.
-func validateServices(t *Task) error {
+func validateServices(t *Task, tgNetworks Networks) error {
 	var mErr multierror.Error
 
 	// Ensure that services don't ask for nonexistent ports and their names are
@@ -6976,12 +6976,10 @@ func validateServices(t *Task) error {
 
 	// Get the set of port labels.
 	portLabels := make(map[string]struct{})
-	if t.Resources != nil {
-		for _, network := range t.Resources.Networks {
-			ports := network.PortLabels()
-			for portLabel := range ports {
-				portLabels[portLabel] = struct{}{}
-			}
+	if len(tgNetworks) > 0 {
+		ports := tgNetworks[0].PortLabels()
+		for portLabel := range ports {
+			portLabels[portLabel] = struct{}{}
 		}
 	}
 
