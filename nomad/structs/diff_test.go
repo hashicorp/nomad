@@ -1185,6 +1185,7 @@ func TestJobDiff(t *testing.T) {
 		{
 			// Multiregion: region added
 			Old: &Job{
+				NomadTokenID: "abcdef",
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
 						MaxParallel: 1,
@@ -1202,6 +1203,7 @@ func TestJobDiff(t *testing.T) {
 			},
 
 			New: &Job{
+				NomadTokenID: "12345",
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
 						MaxParallel: 2,
