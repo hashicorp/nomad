@@ -100,11 +100,9 @@ func (v *VolumeRequest) Copy() *VolumeRequest {
 	nv := new(VolumeRequest)
 	*nv = *v
 
-	if v.MountOptions == nil {
-		return nv
+	if v.MountOptions != nil {
+		nv.MountOptions = v.MountOptions.Copy()
 	}
-
-	nv.MountOptions = &(*v.MountOptions)
 
 	return nv
 }

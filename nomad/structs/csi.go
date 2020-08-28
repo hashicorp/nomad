@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 // CSISocketName is the filename that Nomad expects plugins to create inside the
@@ -152,7 +154,10 @@ func (o *CSIMountOptions) Copy() *CSIMountOptions {
 	if o == nil {
 		return nil
 	}
-	return &(*o)
+
+	no := *o
+	no.MountFlags = helper.CopySliceString(o.MountFlags)
+	return &no
 }
 
 func (o *CSIMountOptions) Merge(p *CSIMountOptions) {

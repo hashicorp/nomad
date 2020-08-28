@@ -139,11 +139,11 @@ func TestJobExposeCheckHook_tgValidateUseOfCheckExpose(t *testing.T) {
 	})
 
 	t.Run("group-service uses custom proxy but no expose", func(t *testing.T) {
-		withCustomProxyTaskNoExpose := &(*withCustomProxyTask)
+		withCustomProxyTaskNoExpose := *withCustomProxyTask
 		withCustomProxyTask.Checks[0].Expose = false
 		require.Nil(t, tgValidateUseOfCheckExpose(&structs.TaskGroup{
 			Name:     "g1",
-			Services: []*structs.Service{withCustomProxyTaskNoExpose},
+			Services: []*structs.Service{&withCustomProxyTaskNoExpose},
 		}))
 	})
 
