@@ -10,8 +10,8 @@
 
   &.is-running {
     background: lighten($blue, 40%);
-    color: $blue;
-    border-color: $blue;
+    color: darken($blue, 10%);
+    border-color: darken($blue, 10%);
   }
 
   &.is-error {
