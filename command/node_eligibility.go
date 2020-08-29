@@ -69,7 +69,7 @@ func (c *NodeEligibilityCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *NodeEligibilityCommand) Name() string { return "node-eligibility" }
+func (c *NodeEligibilityCommand) Name() string { return "node eligibility" }
 
 func (c *NodeEligibilityCommand) Run(args []string) int {
 	var enable, disable, self bool
