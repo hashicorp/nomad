@@ -89,18 +89,16 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	// Ensure different ports were used.
 	used := make(map[int]map[string]struct{})
 	for _, alloc := range out {
-		for _, resource := range alloc.TaskResources {
-			for _, port := range resource.Networks[0].DynamicPorts {
-				nodeMap, ok := used[port.Value]
-				if !ok {
-					nodeMap = make(map[string]struct{})
-					used[port.Value] = nodeMap
-				}
-				if _, ok := nodeMap[alloc.NodeID]; ok {
-					t.Fatalf("Port collision on node %q %v", alloc.NodeID, port.Value)
-				}
-				nodeMap[alloc.NodeID] = struct{}{}
+		for _, port := range alloc.AllocatedResources.Shared.Ports {
+			nodeMap, ok := used[port.Value]
+			if !ok {
+				nodeMap = make(map[string]struct{})
+				used[port.Value] = nodeMap
 			}
+			if _, ok := nodeMap[alloc.NodeID]; ok {
+				t.Fatalf("Port collision on node %q %v", alloc.NodeID, port.Value)
+			}
+			nodeMap[alloc.NodeID] = struct{}{}
 		}
 	}
 
@@ -5230,20 +5228,20 @@ func TestServiceSched_Preemption(t *testing.T) {
 	// Create a couple of jobs and schedule them
 	job1 := mock.Job()
 	job1.TaskGroups[0].Count = 1
+	job1.TaskGroups[0].Networks = nil
 	job1.Priority = 30
 	r1 := job1.TaskGroups[0].Tasks[0].Resources
 	r1.CPU = 500
 	r1.MemoryMB = 1024
-	r1.Networks = nil
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job1))
 
 	job2 := mock.Job()
 	job2.TaskGroups[0].Count = 1
+	job2.TaskGroups[0].Networks = nil
 	job2.Priority = 50
 	r2 := job2.TaskGroups[0].Tasks[0].Resources
 	r2.CPU = 350
 	r2.MemoryMB = 512
-	r2.Networks = nil
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
 
 	// Create a mock evaluation to register the jobs
@@ -5294,10 +5292,10 @@ func TestServiceSched_Preemption(t *testing.T) {
 	job3 := mock.Job()
 	job3.Priority = 100
 	job3.TaskGroups[0].Count = 1
+	job3.TaskGroups[0].Networks = nil
 	r3 := job3.TaskGroups[0].Tasks[0].Resources
 	r3.CPU = 900
 	r3.MemoryMB = 1700
-	r3.Networks = nil
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job3))
 
 	// Create a mock evaluation to register the job

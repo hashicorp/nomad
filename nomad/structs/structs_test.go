@@ -357,6 +357,19 @@ func testJob() *Job {
 					Delay:         5 * time.Second,
 					DelayFunction: "constant",
 				},
+				Networks: []*NetworkResource{
+					{
+						DynamicPorts: []Port{
+							{Label: "http"},
+						},
+					},
+				},
+				Services: []*Service{
+					{
+						Name:      "${TASK}-frontend",
+						PortLabel: "http",
+					},
+				},
 				Tasks: []*Task{
 					{
 						Name:   "web",
@@ -372,21 +385,9 @@ func testJob() *Job {
 								GetterSource: "http://foo.com",
 							},
 						},
-						Services: []*Service{
-							{
-								Name:      "${TASK}-frontend",
-								PortLabel: "http",
-							},
-						},
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*NetworkResource{
-								{
-									MBits:        50,
-									DynamicPorts: []Port{{Label: "http"}},
-								},
-							},
 						},
 						LogConfig: &LogConfig{
 							MaxFiles:      10,

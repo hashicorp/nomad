@@ -3,9 +3,7 @@ job "example" {
 
   group "cache" {
     network {
-      port "db" {
-        to = 6379
-      }
+      port "db" {}
     }
 
     task "redis" {

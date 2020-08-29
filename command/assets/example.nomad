@@ -151,9 +151,7 @@ job "example" {
     #     https://www.nomadproject.io/docs/job-specification/network
     #
     network {
-      port "db" {
-        to = 6379
-      }
+      port "db" {}
     }
 
     # The "service" stanza instructs Nomad to register this task as a service
