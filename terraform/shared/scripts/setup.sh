@@ -14,7 +14,7 @@ CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${C
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=1.5.2
+VAULTVERSION=1.5.3
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
