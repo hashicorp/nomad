@@ -247,16 +247,16 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
 
 	// Create four tasks in the task group
-	sidecar := alloc.Job.TaskGroups[0].Tasks[0].Copy()
-	sidecar.Name = "prestart-sidecar"
-	sidecar.Driver = "mock_driver"
-	sidecar.KillTimeout = 10 * time.Millisecond
-	sidecar.Lifecycle = &structs.TaskLifecycleConfig{
+	prestart := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	prestart.Name = "prestart-sidecar"
+	prestart.Driver = "mock_driver"
+	prestart.KillTimeout = 10 * time.Millisecond
+	prestart.Lifecycle = &structs.TaskLifecycleConfig{
 		Hook:    structs.TaskLifecycleHookPrestart,
 		Sidecar: true,
 	}
 
-	sidecar.Config = map[string]interface{}{
+	prestart.Config = map[string]interface{}{
 		"run_for": "100s",
 	}
 
@@ -288,9 +288,9 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		"run_for": "2s",
 	}
 
-	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{sidecar, main1, main2}
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{prestart, poststart, main1, main2}
 	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
-		sidecar.Name:   tr,
+		prestart.Name:  tr,
 		poststart.Name: tr,
 		main1.Name:     tr,
 		main2.Name:     tr,
@@ -327,7 +327,10 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		var state *structs.TaskState
 
 		// both sidecars should be killed because Task2 exited
-		state = last.TaskStates[sidecar.Name]
+		state = last.TaskStates[prestart.Name]
+		if state == nil {
+			return false, fmt.Errorf("could not find state for task %s", prestart.Name)
+		}
 		if state.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
 		}
@@ -344,6 +347,9 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		}
 
 		state = last.TaskStates[poststart.Name]
+		if state == nil {
+			return false, fmt.Errorf("could not find state for task %s", poststart.Name)
+		}
 		if state.State != structs.TaskStateDead {
 			return false, fmt.Errorf("got state %v; want %v", state.State, structs.TaskStateDead)
 		}

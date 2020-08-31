@@ -4905,7 +4905,7 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 const (
-	TaskLifecycleHookPrestart = "prestart"
+	TaskLifecycleHookPrestart  = "prestart"
 	TaskLifecycleHookPoststart = "poststart"
 )
 

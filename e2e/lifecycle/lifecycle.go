@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
@@ -18,8 +19,7 @@ type LifecycleE2ETest struct {
 
 func init() {
 	framework.AddSuites(&framework.TestSuite{
-		Component: "Lifecycle",
-		// YOU COULD RUN THIS LOCALLY BC DIS FLAG
+		Component:   "Lifecycle",
 		CanRunLocal: true,
 		Cases:       []framework.TestCase{new(LifecycleE2ETest)},
 	})
@@ -60,10 +60,6 @@ func (tc *LifecycleE2ETest) TestBatchJob(f *framework.F) {
 	got := checkFiles(expected, afi)
 	require.Equal(expected, got)
 }
-
-// TODO: cleanup == poststop
-//       q: what is a good example for a poststart?
-//       a: notify(-slack)
 
 // TestServiceJob runs a service job with prestart and poststop hooks
 func (tc *LifecycleE2ETest) TestServiceJob(f *framework.F) {
