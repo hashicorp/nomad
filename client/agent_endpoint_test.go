@@ -369,7 +369,7 @@ func TestAgentHost(t *testing.T) {
 	})
 	defer cleanupC()
 
-	req := structs.QueryOptions{}
+	req := structs.HostDataRequest{}
 	var resp structs.HostDataResponse
 
 	err := c.ClientRPC("Agent.Host", &req, &resp)
@@ -420,8 +420,10 @@ func TestAgentHost_ACL(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			req := structs.QueryOptions{
-				AuthToken: tc.Token,
+			req := structs.HostDataRequest{
+				QueryOptions: structs.QueryOptions{
+					AuthToken: tc.Token,
+				},
 			}
 			var resp structs.HostDataResponse
 
