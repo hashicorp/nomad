@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/event"
+	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -64,6 +64,10 @@ type StateStore struct {
 	// abandonCh is used to signal watchers that this state store has been
 	// abandoned (usually during a restore). This is only ever closed.
 	abandonCh chan struct{}
+
+	// TODO: refactor abondonCh to use a context so that both can use the same
+	// cancel mechanism.
+	stopEventPublisher func()
 }
 
 // NewStateStore is used to create a new state store
@@ -75,12 +79,18 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	}
 
 	// Create the state store
+	ctx, cancel := context.WithCancel(context.TODO())
 	s := &StateStore{
-		logger:    config.Logger.Named("state_store"),
-		config:    config,
-		abandonCh: make(chan struct{}),
+		logger:             config.Logger.Named("state_store"),
+		config:             config,
+		abandonCh:          make(chan struct{}),
+		stopEventPublisher: cancel,
 	}
-	s.db = NewChangeTrackerDB(db, event.NewPublisher(), processDBChanges)
+	publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
+		EventBufferTTL:  1 * time.Hour,
+		EventBufferSize: 250,
+	})
+	s.db = NewChangeTrackerDB(db, publisher, processDBChanges)
 
 	// Initialize the state store with required enterprise objects
 	if err := s.enterpriseInit(); err != nil {
@@ -189,6 +199,7 @@ func (s *StateStore) AbandonCh() <-chan struct{} {
 // Abandon is used to signal that the given state store has been abandoned.
 // Calling this more than one time will panic.
 func (s *StateStore) Abandon() {
+	s.stopEventPublisher()
 	close(s.abandonCh)
 }
 
