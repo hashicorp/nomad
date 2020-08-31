@@ -549,6 +549,9 @@ func (c *OperatorDebugCommand) collectOperator(dir string, client *api.Client) {
 
 	ah, _, err := client.Operator().AutopilotServerHealth(nil)
 	c.writeJSON(dir, "operator-autopilot-health.json", ah, err)
+
+	lic, _, err := client.Operator().LicenseGet(nil)
+	c.writeJSON(dir, "license.json", lic, err)
 }
 
 // collectNomad captures the nomad cluster state
