@@ -23,7 +23,7 @@ Usage: nomad operator raft _state <path to nomad data dir>
 
 Options:
 
-  --last-index=<last_index>
+  -last-index=<last_index>
     Set the last log index to be applied, to drop spurious log entries not
     properly committed. If passed last_index is zero or negative, it's perceived
     as an offset from the last index seen in raft.
@@ -73,7 +73,7 @@ func (c *OperatorRaftStateCommand) Run(args []string) int {
 	} else if _, err := os.Stat(filepath.Join(args[0], "raft.db")); err == nil {
 		p = args[0]
 	} else {
-		c.Ui.Error("path needs to be a data dir path with raft.db file")
+		c.Ui.Error(fmt.Sprintf("path needs to be a data dir path with raft.db file: %v", err))
 		return 1
 	}
 
