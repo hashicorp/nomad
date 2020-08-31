@@ -19,7 +19,10 @@ func (c *OperatorRaftLogsCommand) Help() string {
 	helpText := `
 Usage: nomad operator raft _logs <path to nomad data dir>
 
-  Display the log entries persisted in data dir in json form
+  Display the log entries persisted in data dir in json form.
+
+  This is a low-level debugging tool and not subject to Nomad's usual backward
+  compatibility guarantees.
 `
 	return strings.TrimSpace(helpText)
 }
