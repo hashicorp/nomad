@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/nomad/event"
+	"github.com/hashicorp/nomad/nomad/stream"
 )
 
 // ReadTxn is implemented by memdb.Txn to perform read operations.
@@ -29,28 +29,28 @@ type Changes struct {
 type changeTrackerDB struct {
 	db             *memdb.MemDB
 	publisher      eventPublisher
-	processChanges func(ReadTxn, Changes) ([]event.Event, error)
+	processChanges func(ReadTxn, Changes) ([]stream.Event, error)
 }
 
 func NewChangeTrackerDB(db *memdb.MemDB, publisher eventPublisher, changesFn changeProcessor) *changeTrackerDB {
 	return &changeTrackerDB{
 		db:             db,
-		publisher:      event.NewPublisher(),
+		publisher:      publisher,
 		processChanges: changesFn,
 	}
 }
 
-type changeProcessor func(ReadTxn, Changes) ([]event.Event, error)
+type changeProcessor func(ReadTxn, Changes) ([]stream.Event, error)
 
 type eventPublisher interface {
-	Publish(events []event.Event)
+	Publish(index uint64, events []stream.Event)
 }
 
 // noOpPublisher satisfies the eventPublisher interface and does nothing
 type noOpPublisher struct{}
 
-func (n *noOpPublisher) Publish(events []event.Event)            {}
-func noOpProcessChanges(ReadTxn, Changes) ([]event.Event, error) { return []event.Event{}, nil }
+func (n *noOpPublisher) Publish(index uint64, events []stream.Event) {}
+func noOpProcessChanges(ReadTxn, Changes) ([]stream.Event, error)    { return []stream.Event{}, nil }
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn
@@ -89,7 +89,7 @@ func (c *changeTrackerDB) publish(changes Changes) error {
 	if err != nil {
 		return fmt.Errorf("failed generating events from changes: %v", err)
 	}
-	c.publisher.Publish(events)
+	c.publisher.Publish(changes.Index, events)
 	return nil
 }
 
@@ -146,7 +146,7 @@ func (tx *txn) Commit() error {
 	return nil
 }
 
-func processDBChanges(tx ReadTxn, changes Changes) ([]event.Event, error) {
+func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 	// TODO: add  handlers here.
-	return []event.Event{}, nil
+	return []stream.Event{}, nil
 }
