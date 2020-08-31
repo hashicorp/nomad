@@ -222,6 +222,10 @@ check: ## Lint the source code
 		git --no-pager diff go.sum; \
 		exit 1; fi
 
+	@echo "==> Check raft util msg type mapping are in-sync..."
+	@go generate ./helper/raftutil/
+	@if (git status -s ./helper/raftutil| grep -q .go); then echo "raftutil helper message type mapping is out of sync. Run go generate ./... and push."; exit 1; fi
+
 .PHONY: checkscripts
 checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
