@@ -1,5 +1,9 @@
 ## 0.12.4 (Unreleased)
 
+FEATURES:
+
+ * **Consul Ingress Gateways**: Support for Consul Connect Ingress Gateways [[GH-8709](https://github.com/hashicorp/nomad/pull/8709)]
+
 IMPROVEMENTS:
 
  * api: Added node purge SDK functionality. [[GH-8142](https://github.com/hashicorp/nomad/issues/8142)]
