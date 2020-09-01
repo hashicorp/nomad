@@ -19,7 +19,7 @@ BUG FIXES:
  * core: Fixed bugs where scaling policies could be matched against incorrect jobs with a similar prefix [[GH-8753](https://github.com/hashicorp/nomad/issues/8753)]
  * core: Fixed a bug where garbage collection evaluations that failed or spanned leader elections would be re-enqueued forever. [[GH-8682](https://github.com/hashicorp/nomad/issues/8682)]
  * core (Enterprise): Fixed a bug where enterprise servers may self-terminate as licenses are ignored after a Raft snapshot restore. [[GH-8737](https://github.com/hashicorp/nomad/issues/8737)]
- * cli (Enterprise): Fixed a panic in `nomad operator snapshot agent` if local path is not set
+ * cli (Enterprise): Fixed a panic in `nomad operator snapshot agent` if local path is not set [[GH-8809](https://github.com/hashicorp/nomad/issues/8809)]
  * client: Fixed a bug where `nomad operator debug` could cause a client agent to panic when the `-node-id` flag was used. [[GH-8794](https://github.com/hashicorp/nomad/issues/8794)]
  * csi: Fixed a bug where querying CSI volumes would cause a panic if an allocation that claimed the volume had been garbage collected but the claim was not yet dropped. [[GH-8735](https://github.com/hashicorp/nomad/issues/8735)]
  * deployments (Enterprise): Fixed a bug where counts could not be changed in the web UI for multiregion jobs. [[GH-8685](https://github.com/hashicorp/nomad/issues/8685)]
