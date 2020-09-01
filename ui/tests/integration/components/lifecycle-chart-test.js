@@ -105,7 +105,7 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
     this.set('tasks', [tasks[0], tasks[6]]);
 
     await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
-    assert.ok(Chart.phases.length, 4);
+    assert.equal(Chart.phases.length, 4);
   });
 
   test('it reflects phase and task states when states are passed in', async function(assert) {

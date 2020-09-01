@@ -103,6 +103,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     const prestartEphemeralTask = server.db.taskStates
       .where({ allocationId: allocation.id })
+      .sortBy('name')
       .find(taskState => {
         const task = server.db.tasks.findBy({ name: taskState.name });
         return task.Lifecycle && task.Lifecycle.Hook === 'prestart' && !task.Lifecycle.Sidecar;
