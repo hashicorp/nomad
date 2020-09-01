@@ -42,6 +42,7 @@ func TestEscapingReader_Static(t *testing.T) {
 		{"\n~.", "\n", "."},
 		{"~", "~", ""},
 		{"\r~.", "\r", "."},
+		{"b\n~\n~.q", "b\n~\nq", "."},
 	}
 
 	for _, c := range cases {
