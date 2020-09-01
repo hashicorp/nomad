@@ -96,14 +96,13 @@ module('Acceptance | allocation detail', function(hooks) {
 
     assert.ok(Allocation.lifecycleChart.isPresent);
     assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
-    assert.equal(Allocation.lifecycleChart.phases.length, 3);
+    assert.equal(Allocation.lifecycleChart.phases.length, 4);
     assert.equal(Allocation.lifecycleChart.tasks.length, 6);
 
     await Allocation.lifecycleChart.tasks[0].visit();
 
     const prestartEphemeralTask = server.db.taskStates
       .where({ allocationId: allocation.id })
-      .sortBy('name')
       .find(taskState => {
         const task = server.db.tasks.findBy({ name: taskState.name });
         return task.Lifecycle && task.Lifecycle.Hook === 'prestart' && !task.Lifecycle.Sidecar;

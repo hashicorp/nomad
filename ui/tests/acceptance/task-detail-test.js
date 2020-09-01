@@ -37,13 +37,8 @@ module('Acceptance | task detail', function(hooks) {
     );
 
     const lifecycle = server.db.tasks.where({ name: task.name })[0].Lifecycle;
-
-    let lifecycleName = 'main';
-    if (lifecycle && (lifecycle.Hook === 'prestart' || lifecycle.Hook === 'poststart')) {
-      lifecycleName = `${lifecycle.Hook}-${lifecycle.Sidecar ? 'sidecar' : 'ephemeral'}`;
-    }
-
-    assert.equal(Task.lifecycle, lifecycleName);
+    const prestartString = lifecycle && lifecycle.Sidecar ? 'sidecar' : 'prestart';
+    assert.equal(Task.lifecycle, lifecycle ? prestartString : 'main');
 
     assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
