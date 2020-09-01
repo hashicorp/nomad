@@ -34,10 +34,6 @@ const tasks = [
     lifecycleName: 'poststart-sidecar',
     name: 'poststart sidecar: 4',
   },
-  {
-    lifecycleName: 'poststop',
-    name: 'poststop: 6',
-  },
 ];
 
 module('Integration | Component | lifecycle-chart', function(hooks) {
@@ -52,7 +48,6 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
     assert.equal(Chart.phases[0].name, 'Prestart');
     assert.equal(Chart.phases[1].name, 'Main');
     assert.equal(Chart.phases[2].name, 'Poststart');
-    assert.equal(Chart.phases[3].name, 'Poststop');
 
     Chart.phases.forEach(phase => assert.notOk(phase.isActive));
 
@@ -63,7 +58,6 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
       'main two: 3',
       'poststart sidecar: 4',
       'poststart ephemeral: 5',
-      'poststop: 6',
     ]);
     assert.deepEqual(Chart.tasks.mapBy('lifecycle'), [
       'Prestart Task',
@@ -72,7 +66,6 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
       'Main Task',
       'Sidecar Task',
       'Poststart Task',
-      'Poststop Task',
     ]);
 
     assert.ok(Chart.tasks[0].isPrestartEphemeral);
@@ -80,7 +73,6 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
     assert.ok(Chart.tasks[2].isMain);
     assert.ok(Chart.tasks[4].isPoststartSidecar);
     assert.ok(Chart.tasks[5].isPoststartEphemeral);
-    assert.ok(Chart.tasks[6].isPoststop);
 
     Chart.tasks.forEach(task => {
       assert.notOk(task.isActive);
@@ -102,10 +94,10 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
   });
 
   test('it renders all phases when there are any non-main tasks', async function(assert) {
-    this.set('tasks', [tasks[0], tasks[6]]);
+    this.set('tasks', [tasks[0], tasks[2]]);
 
     await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
-    assert.ok(Chart.phases.length, 4);
+    assert.equal(Chart.phases.length, 3);
   });
 
   test('it reflects phase and task states when states are passed in', async function(assert) {
@@ -149,8 +141,8 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
   [
     {
       testName: 'expected active phases',
-      runningTaskNames: ['prestart ephemeral', 'main one', 'poststop'],
-      activePhaseNames: ['Prestart', 'Main', 'Poststop'],
+      runningTaskNames: ['prestart ephemeral', 'main one'],
+      activePhaseNames: ['Prestart', 'Main'],
     },
     {
       testName: 'sidecar task states don’t affect phase active states',
