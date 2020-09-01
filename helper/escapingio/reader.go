@@ -93,6 +93,9 @@ func (r *reader) pipe() {
 						bw.WriteByte(r.escapeChar)
 						bw.WriteByte(rb[0])
 						bw.Flush()
+						if rb[0] == '\n' || rb[0] == '\r' {
+							state = sLookEscapeChar
+						}
 					}
 				}
 			}
@@ -137,6 +140,10 @@ START:
 			bw.Write(buf[wi:i])
 			i = i + 2
 			wi = i
+		} else if nc == '\n' || nc == '\r' {
+			i = i + 2
+			s = sLookEscapeChar
+			goto START
 		} else {
 			i = i + 2
 			// need to write everything keep going
