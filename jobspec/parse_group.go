@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -58,7 +57,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"scaling",
 			"stop_after_client_disconnect",
 		}
-		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
 		}
 
@@ -84,7 +83,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
-		g.Name = helper.StringToPtr(n)
+		g.Name = stringToPtr(n)
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 			WeaklyTypedInput: true,
@@ -201,8 +200,8 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		// If we have a vault block, then parse that
 		if o := listVal.Filter("vault"); len(o.Items) > 0 {
 			tgVault := &api.Vault{
-				Env:        helper.BoolToPtr(true),
-				ChangeMode: helper.StringToPtr("restart"),
+				Env:        boolToPtr(true),
+				ChangeMode: stringToPtr("restart"),
 			}
 
 			if err := parseVault(tgVault, o); err != nil {
@@ -244,7 +243,7 @@ func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error 
 		"size",
 		"migrate",
 	}
-	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -278,7 +277,7 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 		"delay",
 		"mode",
 	}
-	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -308,7 +307,7 @@ func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) erro
 	hcl.DecodeObject(out, list)
 
 	for k, v := range *out {
-		err := helper.UnusedKeys(v)
+		err := unusedKeys(v)
 		if err != nil {
 			return err
 		}
@@ -343,7 +342,7 @@ func parseScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
 		"policy",
 		"enabled",
 	}
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
