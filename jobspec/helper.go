@@ -1,6 +1,6 @@
 package jobspec
 
-// This functions are copied from helper/funcs.go
+// These functions are copied from helper/funcs.go
 // added here to avoid jobspec depending on any other package
 
 import (
@@ -18,11 +18,6 @@ func stringToPtr(str string) *string {
 	return &str
 }
 
-// intToPtr returns the pointer to an int
-func intToPtr(i int) *int {
-	return &i
-}
-
 // timeToPtr returns the pointer to a time.Duration.
 func timeToPtr(t time.Duration) *time.Duration {
 	return &t
@@ -31,21 +26,6 @@ func timeToPtr(t time.Duration) *time.Duration {
 // boolToPtr returns the pointer to a boolean
 func boolToPtr(b bool) *bool {
 	return &b
-}
-
-// int8ToPtr returns the pointer to an int8
-func int8ToPtr(i int8) *int8 {
-	return &i
-}
-
-// int64ToPtr returns the pointer to an int
-func int64ToPtr(i int64) *int64 {
-	return &i
-}
-
-// Uint64ToPtr returns the pointer to an uint64
-func uint64ToPtr(u uint64) *uint64 {
-	return &u
 }
 
 func checkHCLKeys(node ast.Node, valid []string) error {
