@@ -12,6 +12,18 @@ import (
 	"github.com/kr/pretty"
 )
 
+// consts copied from nomad/structs package to keep jobspec isolated from rest of nomad
+const (
+	// vaultChangeModeRestart restarts the task when a new token is retrieved.
+	vaultChangeModeRestart = "restart"
+
+	// vaultChangeModeSignal signals the task when a new token is retrieved.
+	vaultChangeModeSignal = "signal"
+
+	// templateChangeModeRestart marks that the task should be restarted if the
+	templateChangeModeRestart = "restart"
+)
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		File   string
@@ -333,7 +345,7 @@ func TestParse(t *testing.T) {
 									Namespace:  stringToPtr("ns1"),
 									Policies:   []string{"foo", "bar"},
 									Env:        boolToPtr(true),
-									ChangeMode: stringToPtr(api.VaultChangeModeRestart),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 								Templates: []*api.Template{
 									{
@@ -349,7 +361,7 @@ func TestParse(t *testing.T) {
 									{
 										SourcePath: stringToPtr("bar"),
 										DestPath:   stringToPtr("bar"),
-										ChangeMode: stringToPtr(api.TemplateChangeModeRestart),
+										ChangeMode: stringToPtr(templateChangeModeRestart),
 										Splay:      timeToPtr(5 * time.Second),
 										Perms:      stringToPtr("777"),
 										LeftDelim:  stringToPtr("--"),
@@ -384,7 +396,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:     []string{"foo", "bar"},
 									Env:          boolToPtr(false),
-									ChangeMode:   stringToPtr(api.VaultChangeModeSignal),
+									ChangeMode:   stringToPtr(vaultChangeModeSignal),
 									ChangeSignal: stringToPtr("SIGUSR1"),
 								},
 							},
@@ -744,7 +756,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:   []string{"group"},
 									Env:        boolToPtr(true),
-									ChangeMode: stringToPtr(api.VaultChangeModeRestart),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 							{
@@ -752,7 +764,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:   []string{"task"},
 									Env:        boolToPtr(false),
-									ChangeMode: stringToPtr(api.VaultChangeModeRestart),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 						},
@@ -765,7 +777,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:   []string{"job"},
 									Env:        boolToPtr(true),
-									ChangeMode: stringToPtr(api.VaultChangeModeRestart),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 						},
