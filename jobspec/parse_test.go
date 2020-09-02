@@ -10,7 +10,6 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 )
 
@@ -335,7 +334,7 @@ func TestParse(t *testing.T) {
 									Namespace:  helper.StringToPtr("ns1"),
 									Policies:   []string{"foo", "bar"},
 									Env:        helper.BoolToPtr(true),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									ChangeMode: helper.StringToPtr(api.VaultChangeModeRestart),
 								},
 								Templates: []*api.Template{
 									{
@@ -351,7 +350,7 @@ func TestParse(t *testing.T) {
 									{
 										SourcePath: helper.StringToPtr("bar"),
 										DestPath:   helper.StringToPtr("bar"),
-										ChangeMode: helper.StringToPtr(structs.TemplateChangeModeRestart),
+										ChangeMode: helper.StringToPtr(api.TemplateChangeModeRestart),
 										Splay:      helper.TimeToPtr(5 * time.Second),
 										Perms:      helper.StringToPtr("777"),
 										LeftDelim:  helper.StringToPtr("--"),
@@ -386,7 +385,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:     []string{"foo", "bar"},
 									Env:          helper.BoolToPtr(false),
-									ChangeMode:   helper.StringToPtr(structs.VaultChangeModeSignal),
+									ChangeMode:   helper.StringToPtr(api.VaultChangeModeSignal),
 									ChangeSignal: helper.StringToPtr("SIGUSR1"),
 								},
 							},
@@ -433,7 +432,7 @@ func TestParse(t *testing.T) {
 					{
 						LTarget: "$attr.kernel.version",
 						RTarget: "~> 3.2",
-						Operand: structs.ConstraintVersion,
+						Operand: api.ConstraintVersion,
 					},
 				},
 			},
@@ -449,7 +448,7 @@ func TestParse(t *testing.T) {
 					{
 						LTarget: "$attr.kernel.version",
 						RTarget: "[0-9.]+",
-						Operand: structs.ConstraintRegex,
+						Operand: api.ConstraintRegex,
 					},
 				},
 			},
@@ -465,7 +464,7 @@ func TestParse(t *testing.T) {
 					{
 						LTarget: "$meta.data",
 						RTarget: "foo,bar,baz",
-						Operand: structs.ConstraintSetContains,
+						Operand: api.ConstraintSetContains,
 					},
 				},
 			},
@@ -479,7 +478,7 @@ func TestParse(t *testing.T) {
 				Name: helper.StringToPtr("foo"),
 				Constraints: []*api.Constraint{
 					{
-						Operand: structs.ConstraintDistinctHosts,
+						Operand: api.ConstraintDistinctHosts,
 					},
 				},
 			},
@@ -493,7 +492,7 @@ func TestParse(t *testing.T) {
 				Name: helper.StringToPtr("foo"),
 				Constraints: []*api.Constraint{
 					{
-						Operand: structs.ConstraintDistinctProperty,
+						Operand: api.ConstraintDistinctProperty,
 						LTarget: "${meta.rack}",
 					},
 				},
@@ -746,7 +745,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:   []string{"group"},
 									Env:        helper.BoolToPtr(true),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									ChangeMode: helper.StringToPtr(api.VaultChangeModeRestart),
 								},
 							},
 							{
@@ -754,7 +753,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:   []string{"task"},
 									Env:        helper.BoolToPtr(false),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									ChangeMode: helper.StringToPtr(api.VaultChangeModeRestart),
 								},
 							},
 						},
@@ -767,7 +766,7 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:   []string{"job"},
 									Env:        helper.BoolToPtr(true),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									ChangeMode: helper.StringToPtr(api.VaultChangeModeRestart),
 								},
 							},
 						},
