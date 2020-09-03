@@ -134,20 +134,14 @@ sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
 sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
 sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
 
+echo "Configuring dnsmasq"
+
 # disable systemd-resolved and configure dnsmasq to forward local requests to
 # consul. the resolver files need to dynamic configuration based on the VPC
 # address and docker bridge IP, so those will be rewritten at boot time.
 sudo systemctl disable systemd-resolved.service
-echo '
-port=53
-resolv-file=/var/run/dnsmasq/resolv.conf
-bind-interfaces
-interface=docker0
-interface=lo
-interface=eth0
-listen-address=127.0.0.1
-server=/consul/127.0.0.1#8600
-' | sudo tee /etc/dnsmasq.d/default
+sudo mv /tmp/linux/dnsmasq /etc/dnsmasq.d/default
+sudo chown root:root /etc/dnsmasq.d/default
 
 # this is going to be overwritten at provisioning time, but we need something
 # here or we can't fetch binaries to do the provisioning
