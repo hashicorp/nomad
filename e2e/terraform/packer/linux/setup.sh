@@ -118,10 +118,9 @@ echo "Installing latest podman task driver"
 # install nomad-podman-driver and move to plugin dir
 latest_podman=$(curl -s https://releases.hashicorp.com/nomad-driver-podman/index.json | jq --raw-output '.versions |= with_entries(select(.key|match("^\\d+\\.\\d+\\.\\d+$"))) | .versions | keys[]' | sort -rV | head -n1)
 
-wget -q -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip
-sudo unzip -q /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
-sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
-
+wget -q -P /tmp "https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip"
+sudo unzip -q "/tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip" -d "$NOMAD_PLUGIN_DIR"
+sudo chmod +x "${NOMAD_PLUGIN_DIR}/nomad-driver-podman"
 
 # enable varlink socket (not included in ubuntu package)
 sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
