@@ -53,7 +53,7 @@ sudo mkdir -p $CONSULCONFIGDIR
 sudo chmod 755 $CONSULCONFIGDIR
 sudo mkdir -p $CONSULDIR
 sudo chmod 755 $CONSULDIR
-sudo mv /tmp/consul.service /etc/systemd/system/consul.service
+sudo mv /tmp/linux/consul.service /etc/systemd/system/consul.service
 
 echo "Install Vault"
 curl -fsL -o /tmp/vault.zip $VAULTDOWNLOAD
@@ -66,7 +66,7 @@ sudo mkdir -p $VAULTCONFIGDIR
 sudo chmod 755 $VAULTCONFIGDIR
 sudo mkdir -p $VAULTDIR
 sudo chmod 755 $VAULTDIR
-sudo mv /tmp/vault.service /etc/systemd/system/vault.service
+sudo mv /tmp/linux/vault.service /etc/systemd/system/vault.service
 
 echo "Configure Nomad"
 sudo mkdir -p $NOMADCONFIGDIR
@@ -75,10 +75,10 @@ sudo mkdir -p $NOMADDIR
 sudo chmod 755 $NOMADDIR
 sudo mkdir -p $NOMADPLUGINDIR
 sudo chmod 755 $NOMADPLUGINDIR
-sudo mv /tmp/nomad.service /etc/systemd/system/nomad.service
+sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
 echo "Install Nomad"
-sudo mv /tmp/install-nomad /opt/install-nomad
+sudo mv /tmp/linux/install-nomad /opt/install-nomad
 sudo chmod +x /opt/install-nomad
 /opt/install-nomad --nomad_version $NOMADVERSION --nostart
 
@@ -129,37 +129,10 @@ wget -q -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podm
 sudo unzip -q /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
 sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
 
+
 # enable varlink socket (not included in ubuntu package)
-sudo tee /etc/systemd/system/io.podman.service << EOF
-[Unit]
-Description=Podman Remote API Service
-Requires=io.podman.socket
-After=io.podman.socket
-Documentation=man:podman-varlink(1)
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/podman varlink unix:%t/podman/io.podman --timeout=60000
-TimeoutStopSec=30
-KillMode=process
-
-[Install]
-WantedBy=multi-user.target
-Also=io.podman.socket
-EOF
-
-sudo tee /etc/systemd/system/io.podman.socket << EOF
-[Unit]
-Description=Podman Remote API Socket
-Documentation=man:podman-varlink(1) https://podman.io/blogs/2019/01/16/podman-varlink.html
-
-[Socket]
-ListenStream=%t/podman/io.podman
-SocketMode=0600
-
-[Install]
-WantedBy=sockets.target
-EOF
+sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
+sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
 
 # disable systemd-resolved and configure dnsmasq to forward local requests to
 # consul. the resolver files need to dynamic configuration based on the VPC
