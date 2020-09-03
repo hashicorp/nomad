@@ -1,0 +1,11 @@
+<div class="topo-viz-node">
+  <strong>Node! {{@node.name}}</strong> ({{this.count}} allocs) ({{@node.resources.memory}} MiB, {{@node.resources.cpu}} Mhz)
+  <ul>
+    {{#each @node.allocations as |allocation|}}
+      <li>
+        <LinkTo @route="allocations.allocation" @model={{allocation}}>{{allocation.name}} {{allocation.shortId}}</LinkTo>
+        ({{allocation.resources.memory}} MiB, {{allocation.resources.cpu}} Mhz)
+      </li>
+    {{/each}}
+  </ul>
+</div>

@@ -1,0 +1,8 @@
+<div class="boxed-section topo-viz-datacenter">
+  <div class="boxed-section-head is-hollow">{{@datacenter}}</div>
+  <div class="boxed-section-body">
+    {{#each @nodes as |node|}}
+      <TopoViz::Node @node={{node}} />
+    {{/each}}
+  </div>
+</div>

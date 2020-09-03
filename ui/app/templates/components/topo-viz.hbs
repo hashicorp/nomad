@@ -1,0 +1,5 @@
+<div class="topo-viz">
+  {{#each this.datacenters as |dc|}}
+    <TopoViz::Datacenter @datacenter={{dc.name}} @nodes={{dc.nodes}} />
+  {{/each}}
+</div>
