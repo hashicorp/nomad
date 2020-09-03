@@ -72,9 +72,9 @@ mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
 echo "Install Nomad"
-sudo mv /tmp/linux/install-nomad /opt/install-nomad
-sudo chmod +x /opt/install-nomad
-/opt/install-nomad --nomad_version $NOMADVERSION --nostart
+sudo mv /tmp/linux/provision.sh /opt/provision.sh
+sudo chmod +x /opt/provision.sh
+/opt/provision.sh --nomad_version $NOMADVERSION --nostart
 
 echo "Installing third-party apt repositories"
 
