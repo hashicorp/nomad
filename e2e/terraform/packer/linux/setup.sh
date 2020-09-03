@@ -1,30 +1,29 @@
 #!/bin/bash
+# setup script for Ubuntu Linux 18.04. Assumes that Packer has placed
+# build-time config files at /tmp/linux
 
 set -e
+
+# Will be overwritten at test time with the version specified
+NOMADVERSION=0.9.1
+CONSULVERSION=1.7.3
+VAULTVERSION=1.1.1
+
+NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
+
+mkdir_for_root() {
+    sudo mkdir -p "$1"
+    sudo chmod 755 "$1"
+}
 
 # Disable interactive apt prompts
 export DEBIAN_FRONTEND=noninteractive
 echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
-
 sudo mkdir -p /ops/shared
 sudo chown -R ubuntu:ubuntu /ops/shared
-cd /ops
 
-CONSULVERSION=1.7.3
-CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
-CONSULCONFIGDIR=/etc/consul.d
-CONSULDIR=/opt/consul
-VAULTVERSION=1.1.1
-VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
-VAULTCONFIGDIR=/etc/vault.d
-VAULTDIR=/opt/vault
-
-# Will be overwritten by sha specified
-NOMADVERSION=0.9.1
-NOMADCONFIGDIR=/etc/nomad.d
-NOMADDIR=/opt/nomad
-NOMADPLUGINDIR=/opt/nomad/plugins
+mkdir_for_root /opt
 
 # Dependencies
 sudo apt-get update
@@ -43,38 +42,33 @@ sudo chown root:root /usr/local/bin/sockaddr
 sudo ufw disable || echo "ufw not installed"
 
 echo "Install Consul"
-curl -fsL -o /tmp/consul.zip $CONSULDOWNLOAD
+curl -fsL -o /tmp/consul.zip \
+     "https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip"
 sudo unzip -q /tmp/consul.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/consul
 sudo chown root:root /usr/local/bin/consul
 
 echo "Configure Consul"
-sudo mkdir -p $CONSULCONFIGDIR
-sudo chmod 755 $CONSULCONFIGDIR
-sudo mkdir -p $CONSULDIR
-sudo chmod 755 $CONSULDIR
+mkdir_for_root /etc/consul.d
+mkdir_for_root /opt/consul
 sudo mv /tmp/linux/consul.service /etc/systemd/system/consul.service
 
 echo "Install Vault"
-curl -fsL -o /tmp/vault.zip $VAULTDOWNLOAD
+curl -fsL -o /tmp/vault.zip \
+     "https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip"
 sudo unzip -q /tmp/vault.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/vault
 sudo chown root:root /usr/local/bin/vault
 
 echo "Configure Vault"
-sudo mkdir -p $VAULTCONFIGDIR
-sudo chmod 755 $VAULTCONFIGDIR
-sudo mkdir -p $VAULTDIR
-sudo chmod 755 $VAULTDIR
+mkdir_for_root /etc/vault.d
+mkdir_for_root /opt/vault
 sudo mv /tmp/linux/vault.service /etc/systemd/system/vault.service
 
 echo "Configure Nomad"
-sudo mkdir -p $NOMADCONFIGDIR
-sudo chmod 755 $NOMADCONFIGDIR
-sudo mkdir -p $NOMADDIR
-sudo chmod 755 $NOMADDIR
-sudo mkdir -p $NOMADPLUGINDIR
-sudo chmod 755 $NOMADPLUGINDIR
+mkdir_for_root /etc/nomad.d
+mkdir_for_root /opt/nomad
+mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
 echo "Install Nomad"
@@ -104,7 +98,6 @@ sudo apt-get install -y docker-ce
 
 echo "Installing Java"
 sudo apt-get install -y openjdk-8-jdk
-JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
 echo "Installing CNI plugins"
 sudo mkdir -p /opt/cni/bin
@@ -150,11 +143,13 @@ sudo mv /tmp/resolv.conf /etc/resolv.conf
 
 sudo systemctl restart dnsmasq
 
+echo "Updating boot parameters"
+
 # enable cgroup_memory and swap
 sudo sed -i 's/GRUB_CMDLINE_LINUX="[^"]*/& cgroup_enable=memory swapaccount=1/' /etc/default/grub
 sudo update-grub
 
-echo "Configure user shell"
+echo "Configuring user shell"
 sudo tee -a /home/ubuntu/.bashrc << 'EOF'
 IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
