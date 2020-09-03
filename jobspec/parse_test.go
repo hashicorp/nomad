@@ -9,9 +9,19 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
+)
+
+// consts copied from nomad/structs package to keep jobspec isolated from rest of nomad
+const (
+	// vaultChangeModeRestart restarts the task when a new token is retrieved.
+	vaultChangeModeRestart = "restart"
+
+	// vaultChangeModeSignal signals the task when a new token is retrieved.
+	vaultChangeModeSignal = "signal"
+
+	// templateChangeModeRestart marks that the task should be restarted if the
+	templateChangeModeRestart = "restart"
 )
 
 func TestParse(t *testing.T) {
@@ -23,16 +33,16 @@ func TestParse(t *testing.T) {
 		{
 			"basic.hcl",
 			&api.Job{
-				ID:          helper.StringToPtr("binstore-storagelocker"),
-				Name:        helper.StringToPtr("binstore-storagelocker"),
-				Type:        helper.StringToPtr("batch"),
-				Priority:    helper.IntToPtr(52),
-				AllAtOnce:   helper.BoolToPtr(true),
+				ID:          stringToPtr("binstore-storagelocker"),
+				Name:        stringToPtr("binstore-storagelocker"),
+				Type:        stringToPtr("batch"),
+				Priority:    intToPtr(52),
+				AllAtOnce:   boolToPtr(true),
 				Datacenters: []string{"us2", "eu1"},
-				Region:      helper.StringToPtr("fooregion"),
-				Namespace:   helper.StringToPtr("foonamespace"),
-				ConsulToken: helper.StringToPtr("abc"),
-				VaultToken:  helper.StringToPtr("foo"),
+				Region:      stringToPtr("fooregion"),
+				Namespace:   stringToPtr("foonamespace"),
+				ConsulToken: stringToPtr("abc"),
+				VaultToken:  stringToPtr("foo"),
 
 				Meta: map[string]string{
 					"foo": "bar",
@@ -56,14 +66,14 @@ func TestParse(t *testing.T) {
 						LTarget: "${meta.team}",
 						RTarget: "mobile",
 						Operand: "=",
-						Weight:  helper.Int8ToPtr(50),
+						Weight:  int8ToPtr(50),
 					},
 				},
 
 				Spreads: []*api.Spread{
 					{
 						Attribute: "${meta.rack}",
-						Weight:    helper.Int8ToPtr(100),
+						Weight:    int8ToPtr(100),
 						SpreadTarget: []*api.SpreadTarget{
 							{
 								Value:   "r1",
@@ -78,20 +88,20 @@ func TestParse(t *testing.T) {
 				},
 
 				Update: &api.UpdateStrategy{
-					Stagger:          helper.TimeToPtr(60 * time.Second),
-					MaxParallel:      helper.IntToPtr(2),
-					HealthCheck:      helper.StringToPtr("manual"),
-					MinHealthyTime:   helper.TimeToPtr(10 * time.Second),
-					HealthyDeadline:  helper.TimeToPtr(10 * time.Minute),
-					ProgressDeadline: helper.TimeToPtr(10 * time.Minute),
-					AutoRevert:       helper.BoolToPtr(true),
-					AutoPromote:      helper.BoolToPtr(true),
-					Canary:           helper.IntToPtr(1),
+					Stagger:          timeToPtr(60 * time.Second),
+					MaxParallel:      intToPtr(2),
+					HealthCheck:      stringToPtr("manual"),
+					MinHealthyTime:   timeToPtr(10 * time.Second),
+					HealthyDeadline:  timeToPtr(10 * time.Minute),
+					ProgressDeadline: timeToPtr(10 * time.Minute),
+					AutoRevert:       boolToPtr(true),
+					AutoPromote:      boolToPtr(true),
+					Canary:           intToPtr(1),
 				},
 
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("outside"),
+						Name: stringToPtr("outside"),
 
 						Tasks: []*api.Task{
 							{
@@ -108,8 +118,8 @@ func TestParse(t *testing.T) {
 					},
 
 					{
-						Name:  helper.StringToPtr("binsl"),
-						Count: helper.IntToPtr(5),
+						Name:  stringToPtr("binsl"),
+						Count: intToPtr(5),
 						Constraints: []*api.Constraint{
 							{
 								LTarget: "kernel.os",
@@ -150,7 +160,7 @@ func TestParse(t *testing.T) {
 								LTarget: "${node.datacenter}",
 								RTarget: "dc2",
 								Operand: "=",
-								Weight:  helper.Int8ToPtr(100),
+								Weight:  int8ToPtr(100),
 							},
 						},
 						Meta: map[string]string{
@@ -159,15 +169,15 @@ func TestParse(t *testing.T) {
 							"elb_checks":   "3",
 						},
 						RestartPolicy: &api.RestartPolicy{
-							Interval: helper.TimeToPtr(10 * time.Minute),
-							Attempts: helper.IntToPtr(5),
-							Delay:    helper.TimeToPtr(15 * time.Second),
-							Mode:     helper.StringToPtr("delay"),
+							Interval: timeToPtr(10 * time.Minute),
+							Attempts: intToPtr(5),
+							Delay:    timeToPtr(15 * time.Second),
+							Mode:     stringToPtr("delay"),
 						},
 						Spreads: []*api.Spread{
 							{
 								Attribute: "${node.datacenter}",
-								Weight:    helper.Int8ToPtr(50),
+								Weight:    int8ToPtr(50),
 								SpreadTarget: []*api.SpreadTarget{
 									{
 										Value:   "dc1",
@@ -184,30 +194,30 @@ func TestParse(t *testing.T) {
 								},
 							},
 						},
-						StopAfterClientDisconnect: helper.TimeToPtr(120 * time.Second),
+						StopAfterClientDisconnect: timeToPtr(120 * time.Second),
 						ReschedulePolicy: &api.ReschedulePolicy{
-							Interval: helper.TimeToPtr(12 * time.Hour),
-							Attempts: helper.IntToPtr(5),
+							Interval: timeToPtr(12 * time.Hour),
+							Attempts: intToPtr(5),
 						},
 						EphemeralDisk: &api.EphemeralDisk{
-							Sticky: helper.BoolToPtr(true),
-							SizeMB: helper.IntToPtr(150),
+							Sticky: boolToPtr(true),
+							SizeMB: intToPtr(150),
 						},
 						Update: &api.UpdateStrategy{
-							MaxParallel:      helper.IntToPtr(3),
-							HealthCheck:      helper.StringToPtr("checks"),
-							MinHealthyTime:   helper.TimeToPtr(1 * time.Second),
-							HealthyDeadline:  helper.TimeToPtr(1 * time.Minute),
-							ProgressDeadline: helper.TimeToPtr(1 * time.Minute),
-							AutoRevert:       helper.BoolToPtr(false),
-							AutoPromote:      helper.BoolToPtr(false),
-							Canary:           helper.IntToPtr(2),
+							MaxParallel:      intToPtr(3),
+							HealthCheck:      stringToPtr("checks"),
+							MinHealthyTime:   timeToPtr(1 * time.Second),
+							HealthyDeadline:  timeToPtr(1 * time.Minute),
+							ProgressDeadline: timeToPtr(1 * time.Minute),
+							AutoRevert:       boolToPtr(false),
+							AutoPromote:      boolToPtr(false),
+							Canary:           intToPtr(2),
 						},
 						Migrate: &api.MigrateStrategy{
-							MaxParallel:     helper.IntToPtr(2),
-							HealthCheck:     helper.StringToPtr("task_states"),
-							MinHealthyTime:  helper.TimeToPtr(11 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(11 * time.Minute),
+							MaxParallel:     intToPtr(2),
+							HealthCheck:     stringToPtr("task_states"),
+							MinHealthyTime:  timeToPtr(11 * time.Second),
+							HealthyDeadline: timeToPtr(11 * time.Minute),
 						},
 						Tasks: []*api.Task{
 							{
@@ -225,8 +235,8 @@ func TestParse(t *testing.T) {
 								},
 								VolumeMounts: []*api.VolumeMount{
 									{
-										Volume:      helper.StringToPtr("foo"),
-										Destination: helper.StringToPtr("/mnt/foo"),
+										Volume:      stringToPtr("foo"),
+										Destination: stringToPtr("/mnt/foo"),
 									},
 								},
 								Affinities: []*api.Affinity{
@@ -234,11 +244,11 @@ func TestParse(t *testing.T) {
 										LTarget: "${meta.foo}",
 										RTarget: "a,b,c",
 										Operand: "set_contains",
-										Weight:  helper.Int8ToPtr(25),
+										Weight:  int8ToPtr(25),
 									},
 								},
 								RestartPolicy: &api.RestartPolicy{
-									Attempts: helper.IntToPtr(10),
+									Attempts: intToPtr(10),
 								},
 								Services: []*api.Service{
 									{
@@ -262,7 +272,7 @@ func TestParse(t *testing.T) {
 												GRPCUseTLS:  true,
 												CheckRestart: &api.CheckRestart{
 													Limit:          3,
-													Grace:          helper.TimeToPtr(10 * time.Second),
+													Grace:          timeToPtr(10 * time.Second),
 													IgnoreWarnings: true,
 												},
 											},
@@ -274,11 +284,11 @@ func TestParse(t *testing.T) {
 									"LOREM": "ipsum",
 								},
 								Resources: &api.Resources{
-									CPU:      helper.IntToPtr(500),
-									MemoryMB: helper.IntToPtr(128),
+									CPU:      intToPtr(500),
+									MemoryMB: intToPtr(128),
 									Networks: []*api.NetworkResource{
 										{
-											MBits:         helper.IntToPtr(100),
+											MBits:         intToPtr(100),
 											ReservedPorts: []api.Port{{Label: "one", Value: 1}, {Label: "two", Value: 2}, {Label: "three", Value: 3}},
 											DynamicPorts:  []api.Port{{Label: "http", Value: 0}, {Label: "https", Value: 0}, {Label: "admin", Value: 0}},
 										},
@@ -286,7 +296,7 @@ func TestParse(t *testing.T) {
 									Devices: []*api.RequestedDevice{
 										{
 											Name:  "nvidia/gpu",
-											Count: helper.Uint64ToPtr(10),
+											Count: uint64ToPtr(10),
 											Constraints: []*api.Constraint{
 												{
 													LTarget: "${device.attr.memory}",
@@ -299,7 +309,7 @@ func TestParse(t *testing.T) {
 													LTarget: "${device.model}",
 													RTarget: "1080ti",
 													Operand: "=",
-													Weight:  helper.Int8ToPtr(50),
+													Weight:  int8ToPtr(50),
 												},
 											},
 										},
@@ -309,53 +319,53 @@ func TestParse(t *testing.T) {
 										},
 									},
 								},
-								KillTimeout:   helper.TimeToPtr(22 * time.Second),
+								KillTimeout:   timeToPtr(22 * time.Second),
 								ShutdownDelay: 11 * time.Second,
 								LogConfig: &api.LogConfig{
-									MaxFiles:      helper.IntToPtr(14),
-									MaxFileSizeMB: helper.IntToPtr(101),
+									MaxFiles:      intToPtr(14),
+									MaxFileSizeMB: intToPtr(101),
 								},
 								Artifacts: []*api.TaskArtifact{
 									{
-										GetterSource: helper.StringToPtr("http://foo.com/artifact"),
+										GetterSource: stringToPtr("http://foo.com/artifact"),
 										GetterOptions: map[string]string{
 											"checksum": "md5:b8a4f3f72ecab0510a6a31e997461c5f",
 										},
 									},
 									{
-										GetterSource: helper.StringToPtr("http://bar.com/artifact"),
-										RelativeDest: helper.StringToPtr("test/foo/"),
+										GetterSource: stringToPtr("http://bar.com/artifact"),
+										RelativeDest: stringToPtr("test/foo/"),
 										GetterOptions: map[string]string{
 											"checksum": "md5:ff1cc0d3432dad54d607c1505fb7245c",
 										},
-										GetterMode: helper.StringToPtr("file"),
+										GetterMode: stringToPtr("file"),
 									},
 								},
 								Vault: &api.Vault{
-									Namespace:  helper.StringToPtr("ns1"),
+									Namespace:  stringToPtr("ns1"),
 									Policies:   []string{"foo", "bar"},
-									Env:        helper.BoolToPtr(true),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									Env:        boolToPtr(true),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 								Templates: []*api.Template{
 									{
-										SourcePath:   helper.StringToPtr("foo"),
-										DestPath:     helper.StringToPtr("foo"),
-										ChangeMode:   helper.StringToPtr("foo"),
-										ChangeSignal: helper.StringToPtr("foo"),
-										Splay:        helper.TimeToPtr(10 * time.Second),
-										Perms:        helper.StringToPtr("0644"),
-										Envvars:      helper.BoolToPtr(true),
-										VaultGrace:   helper.TimeToPtr(33 * time.Second),
+										SourcePath:   stringToPtr("foo"),
+										DestPath:     stringToPtr("foo"),
+										ChangeMode:   stringToPtr("foo"),
+										ChangeSignal: stringToPtr("foo"),
+										Splay:        timeToPtr(10 * time.Second),
+										Perms:        stringToPtr("0644"),
+										Envvars:      boolToPtr(true),
+										VaultGrace:   timeToPtr(33 * time.Second),
 									},
 									{
-										SourcePath: helper.StringToPtr("bar"),
-										DestPath:   helper.StringToPtr("bar"),
-										ChangeMode: helper.StringToPtr(structs.TemplateChangeModeRestart),
-										Splay:      helper.TimeToPtr(5 * time.Second),
-										Perms:      helper.StringToPtr("777"),
-										LeftDelim:  helper.StringToPtr("--"),
-										RightDelim: helper.StringToPtr("__"),
+										SourcePath: stringToPtr("bar"),
+										DestPath:   stringToPtr("bar"),
+										ChangeMode: stringToPtr(templateChangeModeRestart),
+										Splay:      timeToPtr(5 * time.Second),
+										Perms:      stringToPtr("777"),
+										LeftDelim:  stringToPtr("--"),
+										RightDelim: stringToPtr("__"),
 									},
 								},
 								Leader:     true,
@@ -373,8 +383,8 @@ func TestParse(t *testing.T) {
 									"image": "hashicorp/storagelocker",
 								},
 								Resources: &api.Resources{
-									CPU:      helper.IntToPtr(500),
-									MemoryMB: helper.IntToPtr(128),
+									CPU:      intToPtr(500),
+									MemoryMB: intToPtr(128),
 								},
 								Constraints: []*api.Constraint{
 									{
@@ -385,9 +395,9 @@ func TestParse(t *testing.T) {
 								},
 								Vault: &api.Vault{
 									Policies:     []string{"foo", "bar"},
-									Env:          helper.BoolToPtr(false),
-									ChangeMode:   helper.StringToPtr(structs.VaultChangeModeSignal),
-									ChangeSignal: helper.StringToPtr("SIGUSR1"),
+									Env:          boolToPtr(false),
+									ChangeMode:   stringToPtr(vaultChangeModeSignal),
+									ChangeSignal: stringToPtr("SIGUSR1"),
 								},
 							},
 						},
@@ -418,8 +428,8 @@ func TestParse(t *testing.T) {
 		{
 			"default-job.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 			},
 			false,
 		},
@@ -427,13 +437,13 @@ func TestParse(t *testing.T) {
 		{
 			"version-constraint.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				Constraints: []*api.Constraint{
 					{
 						LTarget: "$attr.kernel.version",
 						RTarget: "~> 3.2",
-						Operand: structs.ConstraintVersion,
+						Operand: api.ConstraintVersion,
 					},
 				},
 			},
@@ -443,13 +453,13 @@ func TestParse(t *testing.T) {
 		{
 			"regexp-constraint.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				Constraints: []*api.Constraint{
 					{
 						LTarget: "$attr.kernel.version",
 						RTarget: "[0-9.]+",
-						Operand: structs.ConstraintRegex,
+						Operand: api.ConstraintRegex,
 					},
 				},
 			},
@@ -459,13 +469,13 @@ func TestParse(t *testing.T) {
 		{
 			"set-contains-constraint.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				Constraints: []*api.Constraint{
 					{
 						LTarget: "$meta.data",
 						RTarget: "foo,bar,baz",
-						Operand: structs.ConstraintSetContains,
+						Operand: api.ConstraintSetContains,
 					},
 				},
 			},
@@ -475,11 +485,11 @@ func TestParse(t *testing.T) {
 		{
 			"distinctHosts-constraint.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				Constraints: []*api.Constraint{
 					{
-						Operand: structs.ConstraintDistinctHosts,
+						Operand: api.ConstraintDistinctHosts,
 					},
 				},
 			},
@@ -489,11 +499,11 @@ func TestParse(t *testing.T) {
 		{
 			"distinctProperty-constraint.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				Constraints: []*api.Constraint{
 					{
-						Operand: structs.ConstraintDistinctProperty,
+						Operand: api.ConstraintDistinctProperty,
 						LTarget: "${meta.rack}",
 					},
 				},
@@ -504,13 +514,13 @@ func TestParse(t *testing.T) {
 		{
 			"periodic-cron.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				Periodic: &api.PeriodicConfig{
-					SpecType:        helper.StringToPtr(api.PeriodicSpecCron),
-					Spec:            helper.StringToPtr("*/5 * * *"),
-					ProhibitOverlap: helper.BoolToPtr(true),
-					TimeZone:        helper.StringToPtr("Europe/Minsk"),
+					SpecType:        stringToPtr(api.PeriodicSpecCron),
+					Spec:            stringToPtr("*/5 * * *"),
+					ProhibitOverlap: boolToPtr(true),
+					TimeZone:        stringToPtr("Europe/Minsk"),
 				},
 			},
 			false,
@@ -519,8 +529,8 @@ func TestParse(t *testing.T) {
 		{
 			"specify-job.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("job1"),
-				Name: helper.StringToPtr("My Job"),
+				ID:   stringToPtr("job1"),
+				Name: stringToPtr("My Job"),
 			},
 			false,
 		},
@@ -528,11 +538,11 @@ func TestParse(t *testing.T) {
 		{
 			"task-nested-config.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("bar"),
+						Name: stringToPtr("bar"),
 						Tasks: []*api.Task{
 							{
 								Name:   "bar",
@@ -562,30 +572,30 @@ func TestParse(t *testing.T) {
 		{
 			"artifacts.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("binstore-storagelocker"),
-				Name: helper.StringToPtr("binstore-storagelocker"),
+				ID:   stringToPtr("binstore-storagelocker"),
+				Name: stringToPtr("binstore-storagelocker"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("binsl"),
+						Name: stringToPtr("binsl"),
 						Tasks: []*api.Task{
 							{
 								Name:   "binstore",
 								Driver: "docker",
 								Artifacts: []*api.TaskArtifact{
 									{
-										GetterSource:  helper.StringToPtr("http://foo.com/bar"),
+										GetterSource:  stringToPtr("http://foo.com/bar"),
 										GetterOptions: map[string]string{"foo": "bar"},
-										RelativeDest:  helper.StringToPtr(""),
+										RelativeDest:  stringToPtr(""),
 									},
 									{
-										GetterSource:  helper.StringToPtr("http://foo.com/baz"),
+										GetterSource:  stringToPtr("http://foo.com/baz"),
 										GetterOptions: nil,
 										RelativeDest:  nil,
 									},
 									{
-										GetterSource:  helper.StringToPtr("http://foo.com/bam"),
+										GetterSource:  stringToPtr("http://foo.com/bam"),
 										GetterOptions: nil,
-										RelativeDest:  helper.StringToPtr("var/foo"),
+										RelativeDest:  stringToPtr("var/foo"),
 									},
 								},
 							},
@@ -598,11 +608,11 @@ func TestParse(t *testing.T) {
 		{
 			"csi-plugin.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("binstore-storagelocker"),
-				Name: helper.StringToPtr("binstore-storagelocker"),
+				ID:   stringToPtr("binstore-storagelocker"),
+				Name: stringToPtr("binstore-storagelocker"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("binsl"),
+						Name: stringToPtr("binsl"),
 						Tasks: []*api.Task{
 							{
 								Name:   "binstore",
@@ -622,13 +632,13 @@ func TestParse(t *testing.T) {
 		{
 			"service-check-initial-status.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("check_initial_status"),
-				Name: helper.StringToPtr("check_initial_status"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("check_initial_status"),
+				Name: stringToPtr("check_initial_status"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  helper.StringToPtr("group"),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr("group"),
+						Count: intToPtr(1),
 						Tasks: []*api.Task{
 							{
 								Name: "task",
@@ -662,12 +672,12 @@ func TestParse(t *testing.T) {
 		{
 			"service-check-pass-fail.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("check_pass_fail"),
-				Name: helper.StringToPtr("check_pass_fail"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("check_pass_fail"),
+				Name: stringToPtr("check_pass_fail"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{{
-					Name:  helper.StringToPtr("group"),
-					Count: helper.IntToPtr(1),
+					Name:  stringToPtr("group"),
+					Count: intToPtr(1),
 					Tasks: []*api.Task{{
 						Name: "task",
 						Services: []*api.Service{{
@@ -693,12 +703,12 @@ func TestParse(t *testing.T) {
 		{
 			"service-check-pass-fail.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("check_pass_fail"),
-				Name: helper.StringToPtr("check_pass_fail"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("check_pass_fail"),
+				Name: stringToPtr("check_pass_fail"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{{
-					Name:  helper.StringToPtr("group"),
-					Count: helper.IntToPtr(1),
+					Name:  stringToPtr("group"),
+					Count: intToPtr(1),
 					Tasks: []*api.Task{{
 						Name: "task",
 						Services: []*api.Service{{
@@ -735,39 +745,39 @@ func TestParse(t *testing.T) {
 			// TODO This should be pushed into the API
 			"vault_inheritance.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("example"),
-				Name: helper.StringToPtr("example"),
+				ID:   stringToPtr("example"),
+				Name: stringToPtr("example"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("cache"),
+						Name: stringToPtr("cache"),
 						Tasks: []*api.Task{
 							{
 								Name: "redis",
 								Vault: &api.Vault{
 									Policies:   []string{"group"},
-									Env:        helper.BoolToPtr(true),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									Env:        boolToPtr(true),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 							{
 								Name: "redis2",
 								Vault: &api.Vault{
 									Policies:   []string{"task"},
-									Env:        helper.BoolToPtr(false),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									Env:        boolToPtr(false),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 						},
 					},
 					{
-						Name: helper.StringToPtr("cache2"),
+						Name: stringToPtr("cache2"),
 						Tasks: []*api.Task{
 							{
 								Name: "redis",
 								Vault: &api.Vault{
 									Policies:   []string{"job"},
-									Env:        helper.BoolToPtr(true),
-									ChangeMode: helper.StringToPtr(structs.VaultChangeModeRestart),
+									Env:        boolToPtr(true),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 						},
@@ -779,8 +789,8 @@ func TestParse(t *testing.T) {
 		{
 			"parameterized_job.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("parameterized_job"),
-				Name: helper.StringToPtr("parameterized_job"),
+				ID:   stringToPtr("parameterized_job"),
+				Name: stringToPtr("parameterized_job"),
 
 				ParameterizedJob: &api.ParameterizedJobConfig{
 					Payload:      "required",
@@ -790,7 +800,7 @@ func TestParse(t *testing.T) {
 
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("foo"),
+						Name: stringToPtr("foo"),
 						Tasks: []*api.Task{
 							{
 								Name:   "bar",
@@ -808,11 +818,11 @@ func TestParse(t *testing.T) {
 		{
 			"job-with-kill-signal.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("foo"),
-				Name: helper.StringToPtr("foo"),
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("bar"),
+						Name: stringToPtr("bar"),
 						Tasks: []*api.Task{
 							{
 								Name:       "bar",
@@ -831,12 +841,12 @@ func TestParse(t *testing.T) {
 		{
 			"service-check-driver-address.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("address_mode_driver"),
-				Name: helper.StringToPtr("address_mode_driver"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("address_mode_driver"),
+				Name: stringToPtr("address_mode_driver"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("group"),
+						Name: stringToPtr("group"),
 						Tasks: []*api.Task{
 							{
 								Name: "task",
@@ -879,12 +889,12 @@ func TestParse(t *testing.T) {
 		{
 			"service-check-restart.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("service_check_restart"),
-				Name: helper.StringToPtr("service_check_restart"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("service_check_restart"),
+				Name: stringToPtr("service_check_restart"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("group"),
+						Name: stringToPtr("group"),
 						Tasks: []*api.Task{
 							{
 								Name: "task",
@@ -893,7 +903,7 @@ func TestParse(t *testing.T) {
 										Name: "http-service",
 										CheckRestart: &api.CheckRestart{
 											Limit:          3,
-											Grace:          helper.TimeToPtr(10 * time.Second),
+											Grace:          timeToPtr(10 * time.Second),
 											IgnoreWarnings: true,
 										},
 										Checks: []api.ServiceCheck{
@@ -915,12 +925,12 @@ func TestParse(t *testing.T) {
 		{
 			"service-meta.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("service_meta"),
-				Name: helper.StringToPtr("service_meta"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("service_meta"),
+				Name: stringToPtr("service_meta"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("group"),
+						Name: stringToPtr("group"),
 						Tasks: []*api.Task{
 							{
 								Name: "task",
@@ -942,11 +952,11 @@ func TestParse(t *testing.T) {
 		{
 			"service-enable-tag-override.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("service_eto"),
-				Name: helper.StringToPtr("service_eto"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("service_eto"),
+				Name: stringToPtr("service_eto"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Tasks: []*api.Task{{
 						Name: "task",
 						Services: []*api.Service{{
@@ -961,20 +971,20 @@ func TestParse(t *testing.T) {
 		{
 			"reschedule-job.hcl",
 			&api.Job{
-				ID:          helper.StringToPtr("foo"),
-				Name:        helper.StringToPtr("foo"),
-				Type:        helper.StringToPtr("batch"),
+				ID:          stringToPtr("foo"),
+				Name:        stringToPtr("foo"),
+				Type:        stringToPtr("batch"),
 				Datacenters: []string{"dc1"},
 				Reschedule: &api.ReschedulePolicy{
-					Attempts:      helper.IntToPtr(15),
-					Interval:      helper.TimeToPtr(30 * time.Minute),
-					DelayFunction: helper.StringToPtr("constant"),
-					Delay:         helper.TimeToPtr(10 * time.Second),
+					Attempts:      intToPtr(15),
+					Interval:      timeToPtr(30 * time.Minute),
+					DelayFunction: stringToPtr("constant"),
+					Delay:         timeToPtr(10 * time.Second),
 				},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  helper.StringToPtr("bar"),
-						Count: helper.IntToPtr(3),
+						Name:  stringToPtr("bar"),
+						Count: intToPtr(3),
 						Tasks: []*api.Task{
 							{
 								Name:   "bar",
@@ -993,20 +1003,20 @@ func TestParse(t *testing.T) {
 		{
 			"reschedule-job-unlimited.hcl",
 			&api.Job{
-				ID:          helper.StringToPtr("foo"),
-				Name:        helper.StringToPtr("foo"),
-				Type:        helper.StringToPtr("batch"),
+				ID:          stringToPtr("foo"),
+				Name:        stringToPtr("foo"),
+				Type:        stringToPtr("batch"),
 				Datacenters: []string{"dc1"},
 				Reschedule: &api.ReschedulePolicy{
-					DelayFunction: helper.StringToPtr("exponential"),
-					Delay:         helper.TimeToPtr(10 * time.Second),
-					MaxDelay:      helper.TimeToPtr(120 * time.Second),
-					Unlimited:     helper.BoolToPtr(true),
+					DelayFunction: stringToPtr("exponential"),
+					Delay:         timeToPtr(10 * time.Second),
+					MaxDelay:      timeToPtr(120 * time.Second),
+					Unlimited:     boolToPtr(true),
 				},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  helper.StringToPtr("bar"),
-						Count: helper.IntToPtr(3),
+						Name:  stringToPtr("bar"),
+						Count: intToPtr(3),
 						Tasks: []*api.Task{
 							{
 								Name:   "bar",
@@ -1025,25 +1035,25 @@ func TestParse(t *testing.T) {
 		{
 			"migrate-job.hcl",
 			&api.Job{
-				ID:          helper.StringToPtr("foo"),
-				Name:        helper.StringToPtr("foo"),
-				Type:        helper.StringToPtr("batch"),
+				ID:          stringToPtr("foo"),
+				Name:        stringToPtr("foo"),
+				Type:        stringToPtr("batch"),
 				Datacenters: []string{"dc1"},
 				Migrate: &api.MigrateStrategy{
-					MaxParallel:     helper.IntToPtr(2),
-					HealthCheck:     helper.StringToPtr("task_states"),
-					MinHealthyTime:  helper.TimeToPtr(11 * time.Second),
-					HealthyDeadline: helper.TimeToPtr(11 * time.Minute),
+					MaxParallel:     intToPtr(2),
+					HealthCheck:     stringToPtr("task_states"),
+					MinHealthyTime:  timeToPtr(11 * time.Second),
+					HealthyDeadline: timeToPtr(11 * time.Minute),
 				},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  helper.StringToPtr("bar"),
-						Count: helper.IntToPtr(3),
+						Name:  stringToPtr("bar"),
+						Count: intToPtr(3),
 						Migrate: &api.MigrateStrategy{
-							MaxParallel:     helper.IntToPtr(3),
-							HealthCheck:     helper.StringToPtr("checks"),
-							MinHealthyTime:  helper.TimeToPtr(1 * time.Second),
-							HealthyDeadline: helper.TimeToPtr(1 * time.Minute),
+							MaxParallel:     intToPtr(3),
+							HealthCheck:     stringToPtr("checks"),
+							MinHealthyTime:  timeToPtr(1 * time.Second),
+							HealthyDeadline: timeToPtr(1 * time.Minute),
 						},
 						Tasks: []*api.Task{
 							{
@@ -1063,14 +1073,14 @@ func TestParse(t *testing.T) {
 		{
 			"tg-network.hcl",
 			&api.Job{
-				ID:          helper.StringToPtr("foo"),
-				Name:        helper.StringToPtr("foo"),
+				ID:          stringToPtr("foo"),
+				Name:        stringToPtr("foo"),
 				Datacenters: []string{"dc1"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:          helper.StringToPtr("bar"),
-						ShutdownDelay: helper.TimeToPtr(14 * time.Second),
-						Count:         helper.IntToPtr(3),
+						Name:          stringToPtr("bar"),
+						ShutdownDelay: timeToPtr(14 * time.Second),
+						Count:         intToPtr(3),
 						Networks: []*api.NetworkResource{
 							{
 								Mode: "bridge",
@@ -1109,13 +1119,13 @@ func TestParse(t *testing.T) {
 									},
 									SidecarTask: &api.SidecarTask{
 										Resources: &api.Resources{
-											CPU:      helper.IntToPtr(500),
-											MemoryMB: helper.IntToPtr(1024),
+											CPU:      intToPtr(500),
+											MemoryMB: intToPtr(1024),
 										},
 										Env: map[string]string{
 											"FOO": "abc",
 										},
-										ShutdownDelay: helper.TimeToPtr(5 * time.Second),
+										ShutdownDelay: timeToPtr(5 * time.Second),
 									},
 								},
 							},
@@ -1131,7 +1141,7 @@ func TestParse(t *testing.T) {
 								Resources: &api.Resources{
 									Networks: []*api.NetworkResource{
 										{
-											MBits: helper.IntToPtr(10),
+											MBits: intToPtr(10),
 										},
 									},
 								},
@@ -1146,12 +1156,12 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-check.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("group_service_check_script"),
-				Name: helper.StringToPtr("group_service_check_script"),
+				ID:   stringToPtr("group_service_check_script"),
+				Name: stringToPtr("group_service_check_script"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  helper.StringToPtr("group"),
-						Count: helper.IntToPtr(1),
+						Name:  stringToPtr("group"),
+						Count: intToPtr(1),
 						Networks: []*api.NetworkResource{
 							{
 								Mode: "bridge",
@@ -1190,10 +1200,10 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-proxy-expose.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("group_service_proxy_expose"),
-				Name: helper.StringToPtr("group_service_proxy_expose"),
+				ID:   stringToPtr("group_service_proxy_expose"),
+				Name: stringToPtr("group_service_proxy_expose"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
@@ -1223,11 +1233,11 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-connect-sidecar_task-name.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("sidecar_task_name"),
-				Name: helper.StringToPtr("sidecar_task_name"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("sidecar_task_name"),
+				Name: stringToPtr("sidecar_task_name"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
@@ -1245,11 +1255,11 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-connect-proxy.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("service-connect-proxy"),
-				Name: helper.StringToPtr("service-connect-proxy"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("service-connect-proxy"),
+				Name: stringToPtr("service-connect-proxy"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
@@ -1292,11 +1302,11 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-connect-local-service.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("connect-proxy-local-service"),
-				Name: helper.StringToPtr("connect-proxy-local-service"),
-				Type: helper.StringToPtr("service"),
+				ID:   stringToPtr("connect-proxy-local-service"),
+				Name: stringToPtr("connect-proxy-local-service"),
+				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
@@ -1316,10 +1326,10 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-check-expose.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("group_service_proxy_expose"),
-				Name: helper.StringToPtr("group_service_proxy_expose"),
+				ID:   stringToPtr("group_service_proxy_expose"),
+				Name: stringToPtr("group_service_proxy_expose"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name: "example",
 						Connect: &api.ConsulConnect{
@@ -1342,10 +1352,10 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-connect-native.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("connect_native_service"),
-				Name: helper.StringToPtr("connect_native_service"),
+				ID:   stringToPtr("connect_native_service"),
+				Name: stringToPtr("connect_native_service"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name:     "example",
 						TaskName: "task1",
@@ -1360,10 +1370,10 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-enable-tag-override.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("group_service_eto"),
-				Name: helper.StringToPtr("group_service_eto"),
+				ID:   stringToPtr("group_service_eto"),
+				Name: stringToPtr("group_service_eto"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name:              "example",
 						EnableTagOverride: true,
@@ -1376,21 +1386,21 @@ func TestParse(t *testing.T) {
 		{
 			"tg-scaling-policy.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("elastic"),
-				Name: helper.StringToPtr("elastic"),
+				ID:   stringToPtr("elastic"),
+				Name: stringToPtr("elastic"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("group"),
+						Name: stringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
-							Min: helper.Int64ToPtr(5),
-							Max: helper.Int64ToPtr(100),
+							Min: int64ToPtr(5),
+							Max: int64ToPtr(100),
 							Policy: map[string]interface{}{
 								"foo": "bar",
 								"b":   true,
 								"val": 5,
 								"f":   .1,
 							},
-							Enabled: helper.BoolToPtr(false),
+							Enabled: boolToPtr(false),
 						},
 					},
 				},
@@ -1400,16 +1410,16 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-connect-gateway-ingress.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("connect_gateway_ingress"),
-				Name: helper.StringToPtr("connect_gateway_ingress"),
+				ID:   stringToPtr("connect_gateway_ingress"),
+				Name: stringToPtr("connect_gateway_ingress"),
 				TaskGroups: []*api.TaskGroup{{
-					Name: helper.StringToPtr("group"),
+					Name: stringToPtr("group"),
 					Services: []*api.Service{{
 						Name: "ingress-gateway-service",
 						Connect: &api.ConsulConnect{
 							Gateway: &api.ConsulGateway{
 								Proxy: &api.ConsulGatewayProxy{
-									ConnectTimeout:                  helper.TimeToPtr(3 * time.Second),
+									ConnectTimeout:                  timeToPtr(3 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: true,
 									EnvoyGatewayBindAddresses: map[string]*api.ConsulGatewayBindAddress{
 										"listener1": {Address: "10.0.0.1", Port: 8888},
@@ -1457,14 +1467,14 @@ func TestParse(t *testing.T) {
 		{
 			"tg-scaling-policy-minimal.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("elastic"),
-				Name: helper.StringToPtr("elastic"),
+				ID:   stringToPtr("elastic"),
+				Name: stringToPtr("elastic"),
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name: helper.StringToPtr("group"),
+						Name: stringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
 							Min:     nil,
-							Max:     helper.Int64ToPtr(10),
+							Max:     int64ToPtr(10),
 							Policy:  nil,
 							Enabled: nil,
 						},
@@ -1489,23 +1499,23 @@ func TestParse(t *testing.T) {
 		{
 			"multiregion.hcl",
 			&api.Job{
-				ID:   helper.StringToPtr("multiregion_job"),
-				Name: helper.StringToPtr("multiregion_job"),
+				ID:   stringToPtr("multiregion_job"),
+				Name: stringToPtr("multiregion_job"),
 				Multiregion: &api.Multiregion{
 					Strategy: &api.MultiregionStrategy{
-						MaxParallel: helper.IntToPtr(1),
-						OnFailure:   helper.StringToPtr("fail_all"),
+						MaxParallel: intToPtr(1),
+						OnFailure:   stringToPtr("fail_all"),
 					},
 					Regions: []*api.MultiregionRegion{
 						{
 							Name:        "west",
-							Count:       helper.IntToPtr(2),
+							Count:       intToPtr(2),
 							Datacenters: []string{"west-1"},
 							Meta:        map[string]string{"region_code": "W"},
 						},
 						{
 							Name:        "east",
-							Count:       helper.IntToPtr(1),
+							Count:       intToPtr(1),
 							Datacenters: []string{"east-1", "east-2"},
 							Meta:        map[string]string{"region_code": "E"},
 						},
