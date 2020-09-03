@@ -1,3 +1,4 @@
 {
+  "recursors": ["168.63.129.16"],
   "retry_join": ["provider=azure tag_key=ConsulAutoJoin tag_value=auto-join"]
 }

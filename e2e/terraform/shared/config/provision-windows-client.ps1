@@ -11,8 +11,8 @@ Copy-Item -Force `
   -Path "C:\ops\shared\consul\base.json" `
   -Destination "C:\opt\consul.d\base.json"
 Copy-Item -Force `
-  -Path "C:\ops\shared\consul\retry_$Cloud.json" `
-  -Destination "C:\opt\consul.d\retry_$Cloud.json"
+  -Path "C:\ops\shared\consul\$Cloud.json" `
+  -Destination "C:\opt\consul.d\$Cloud.json"
 New-Service `
   -Name "Consul" `
   -BinaryPathName "C:\opt\consul.exe agent -config-dir C:\opt\consul.d -log-file C:\opt\consul\consul.log" `

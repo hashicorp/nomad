@@ -14,7 +14,7 @@ CONSUL_DEST=/etc/consul.d
 sed "s/SERVER_COUNT/$SERVER_COUNT/g" "$CONSUL_SRC/server.json" > /tmp/server.json
 sudo mv /tmp/server.json "$CONSUL_DEST/server.json"
 sudo cp "$CONSUL_SRC/base.json" "$CONSUL_DEST/"
-sudo cp "$CONSUL_SRC/retry_$CLOUD.json" "$CONSUL_DEST/"
+sudo cp "$CONSUL_SRC/$CLOUD.json" "$CONSUL_DEST/"
 
 sudo systemctl enable consul.service
 sudo systemctl daemon-reload
