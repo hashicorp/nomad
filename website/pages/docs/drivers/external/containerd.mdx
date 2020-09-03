@@ -42,6 +42,7 @@ The `containerd-driver` implements the following [capabilities](/docs/internals/
 | send signals | true |
 | exec | true |
 | filesystem isolation | none |
+| network isolation | host, group, task, none |
 | volume mounting | true |
 
 For sending signals, one can use `nomad alloc signal` command.<br/>
@@ -115,6 +116,13 @@ config {
   readonly_rootfs = true
 }
 ```
+- `host_network` ((#host_network)) - (Optional) `true` or `false` (default) Enable host network.
+This is equivalent to `--net=host` in docker.
+```hcl
+config {
+  host_network = true
+}
+```
 - `cap_add` - (Optional) Add individual capabilities.
 ```hcl
 config {
@@ -165,7 +173,27 @@ config {
 
 ## Networking
 
-Networking is [`out-of-scope`](https://kubernetes.io/blog/2017/11/containerd-container-runtime-options-kubernetes/#containerd) for containerd. An external CNI plugin might be needed to support networking.
+`nomad-driver-containerd` supports **host** and **bridge** networks.
+
+**NOTE:** `host` and `bridge` are mutually exclusive options, and only one of them should be used at a time.
+
+1. **Host** network can be enabled by setting `host_network` to `true` in task config
+of the job spec (see [host_network][host-network] under Task Configuration).
+
+2. **Bridge** network can be enabled by setting the `network` stanza in the task group section of the job spec.
+```hcl
+network {
+  mode = "bridge"
+}
+```
+You need to install CNI plugins on Nomad client nodes under `/opt/cni/bin` before you can use `bridge` networks.
+
+**Instructions for installing CNI plugins.**
+```hcl
+ $ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz
+ $ sudo mkdir -p /opt/cni/bin
+ $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+```
 
 ## Plugin Options ((#plugin_options))
 
@@ -196,3 +224,4 @@ Please note the plugin name should match whatever name you have specified for th
 [plugin]: /docs/configuration/plugin
 [plugin_dir]: /docs/configuration#plugin_dir
 [plugin-options]: #plugin_options
+[host-network]: #host_network
