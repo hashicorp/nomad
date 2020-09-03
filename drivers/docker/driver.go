@@ -1095,6 +1095,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	default:
 		if len(driverConfig.PortMap) > 0 {
+			if task.Resources.Ports != nil {
+				return c, fmt.Errorf("'port_map' cannot map group network ports, use 'ports' instead")
+			}
 			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
 	}
