@@ -474,3 +474,6 @@
 # Guide Catch-all Redirects
 /guides    https://learn.hashicorp.com/nomad  301!
 /guides/*  https://learn.hashicorp.com/nomad  301!
+
+# Vault Integration
+/docs/vault-integration /docs/integrations/vault-integration

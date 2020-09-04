@@ -36,8 +36,7 @@ module('Acceptance | job deployments', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await Deployments.visit({ id: job.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/jobs/:id/deployments should list all job deployments', async function(assert) {

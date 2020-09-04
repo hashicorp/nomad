@@ -70,8 +70,7 @@ module('Acceptance | task group detail', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
@@ -410,7 +409,6 @@ module('Acceptance | task group detail', function(hooks) {
   test('when a task group has no scaling events, there is no recent scaling events section', async function(assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
     taskGroupScale.update({ events: [] });
-    taskGroupScale.save();
 
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
@@ -419,16 +417,30 @@ module('Acceptance | task group detail', function(hooks) {
 
   test('the recent scaling events section shows all recent scaling events in reverse chronological order', async function(assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
+    taskGroupScale.update({
+      events: [
+        server.create('scale-event', { error: true }),
+        server.create('scale-event', { error: true }),
+        server.create('scale-event', { error: true }),
+        server.create('scale-event', { error: true }),
+        server.create('scale-event', { count: 3, error: false }),
+        server.create('scale-event', { count: 1, error: false }),
+      ],
+    });
     const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasScaleEvents);
+    assert.notOk(TaskGroup.hasScalingTimeline);
 
     scaleEvents.forEach((scaleEvent, idx) => {
       const ScaleEvent = TaskGroup.scaleEvents[idx];
       assert.equal(ScaleEvent.time, moment(scaleEvent.time / 1000000).format('MMM DD HH:mm:ss ZZ'));
       assert.equal(ScaleEvent.message, scaleEvent.message);
-      assert.equal(ScaleEvent.count, scaleEvent.count);
+
+      if (scaleEvent.count != null) {
+        assert.equal(ScaleEvent.count, scaleEvent.count);
+      }
 
       if (scaleEvent.error) {
         assert.ok(ScaleEvent.error);
@@ -440,5 +452,32 @@ module('Acceptance | task group detail', function(hooks) {
         assert.notOk(ScaleEvent.isToggleable);
       }
     });
+  });
+
+  test('when a task group has at least two count scaling events and the count scaling events outnumber the non-count scaling events, a timeline is shown in addition to the accordion', async function(assert) {
+    const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
+    taskGroupScale.update({
+      events: [
+        server.create('scale-event', { error: true }),
+        server.create('scale-event', { error: true }),
+        server.create('scale-event', { count: 7, error: false }),
+        server.create('scale-event', { count: 10, error: false }),
+        server.create('scale-event', { count: 2, error: false }),
+        server.create('scale-event', { count: 3, error: false }),
+        server.create('scale-event', { count: 2, error: false }),
+        server.create('scale-event', { count: 9, error: false }),
+        server.create('scale-event', { count: 1, error: false }),
+      ],
+    });
+    const scaleEvents = taskGroupScale.events.models.sortBy('time').reverse();
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
+    assert.ok(TaskGroup.hasScaleEvents);
+    assert.ok(TaskGroup.hasScalingTimeline);
+
+    assert.equal(
+      TaskGroup.scalingAnnotations.length,
+      scaleEvents.filter(ev => ev.count == null).length
+    );
   });
 });

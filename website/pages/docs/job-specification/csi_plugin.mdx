@@ -51,10 +51,11 @@ host. With the Docker task driver, you can use the `privileged = true`
 configuration, but no other default task drivers currently have this
 option.
 
-~> **Note:** During node drains, jobs that claim volumes should be
-moved before the `node` or `monolith` plugin for those
-volumes. Because [`system`][system] jobs are moved last during node drains, you
-should run `node` or `monolith` plugins as `system` jobs.
+~> **Note:** During node drains, jobs that claim volumes must be moved before
+the `node` or `monolith` plugin for those volumes. You should run `node` or
+`monolith` plugins as [`system`][system] jobs and use the `-ignore-system`
+flag on `nomad node drain` to ensure that the plugins are running while the
+node is being drained.
 
 ## `csi_plugin` Examples
 

@@ -142,6 +142,25 @@ module('Acceptance | search', function(hooks) {
     });
   });
 
+  test('results are truncated at 10 per group', async function(assert) {
+    server.create('node', { name: 'xyz' });
+
+    for (let i = 0; i < 15; i++) {
+      server.create('job', { id: `job-${i}`, namespaceId: 'default' });
+    }
+
+    await visit('/');
+
+    await selectSearch(PageLayout.navbar.search.scope, 'job');
+
+    PageLayout.navbar.search.as(search => {
+      search.groups[0].as(jobs => {
+        assert.equal(jobs.name, 'Jobs (showing 10 of 15)');
+        assert.equal(jobs.options.length, 10);
+      });
+    });
+  });
+
   test('clicking the search field starts search immediately', async function(assert) {
     await visit('/');
 

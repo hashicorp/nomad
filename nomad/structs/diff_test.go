@@ -1185,6 +1185,7 @@ func TestJobDiff(t *testing.T) {
 		{
 			// Multiregion: region added
 			Old: &Job{
+				NomadTokenID: "abcdef",
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
 						MaxParallel: 1,
@@ -1202,6 +1203,7 @@ func TestJobDiff(t *testing.T) {
 			},
 
 			New: &Job{
+				NomadTokenID: "12345",
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
 						MaxParallel: 2,
@@ -2593,15 +2595,17 @@ func TestTaskGroupDiff(t *testing.T) {
 						EnableTagOverride: false,
 						Checks: []*ServiceCheck{
 							{
-								Name:     "foo",
-								Type:     "http",
-								Command:  "foo",
-								Args:     []string{"foo"},
-								Path:     "foo",
-								Protocol: "http",
-								Expose:   true,
-								Interval: 1 * time.Second,
-								Timeout:  1 * time.Second,
+								Name:                   "foo",
+								Type:                   "http",
+								Command:                "foo",
+								Args:                   []string{"foo"},
+								Path:                   "foo",
+								Protocol:               "http",
+								Expose:                 true,
+								Interval:               1 * time.Second,
+								Timeout:                1 * time.Second,
+								SuccessBeforePassing:   3,
+								FailuresBeforeCritical: 4,
 							},
 						},
 						Connect: &ConsulConnect{
@@ -2614,6 +2618,34 @@ func TestTaskGroupDiff(t *testing.T) {
 								},
 								Config: map[string]interface{}{
 									"foo": "baz",
+								},
+							},
+							Gateway: &ConsulGateway{
+								Proxy: &ConsulGatewayProxy{
+									ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+									EnvoyGatewayBindTaggedAddresses: false,
+									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+										"service1": {
+											Address: "10.0.0.1",
+											Port:    2001,
+										},
+									},
+									EnvoyGatewayNoDefaultBind: false,
+									Config: map[string]interface{}{
+										"foo": 1,
+									},
+								},
+								Ingress: &ConsulIngressConfigEntry{
+									TLS: &ConsulGatewayTLSConfig{
+										Enabled: false,
+									},
+									Listeners: []*ConsulIngressListener{{
+										Port:     3001,
+										Protocol: "tcp",
+										Services: []*ConsulIngressService{{
+											Name: "listener1",
+										}},
+									}},
 								},
 							},
 						},
@@ -2640,6 +2672,8 @@ func TestTaskGroupDiff(t *testing.T) {
 								Header: map[string][]string{
 									"Foo": {"baz"},
 								},
+								SuccessBeforePassing:   5,
+								FailuresBeforeCritical: 6,
 							},
 						},
 						Connect: &ConsulConnect{
@@ -2658,6 +2692,35 @@ func TestTaskGroupDiff(t *testing.T) {
 									Config: map[string]interface{}{
 										"foo": "qux",
 									},
+								},
+							},
+							Gateway: &ConsulGateway{
+								Proxy: &ConsulGatewayProxy{
+									ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
+									EnvoyGatewayBindTaggedAddresses: true,
+									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+										"service1": {
+											Address: "10.0.0.2",
+											Port:    2002,
+										},
+									},
+									EnvoyGatewayNoDefaultBind: true,
+									Config: map[string]interface{}{
+										"foo": 2,
+									},
+								},
+								Ingress: &ConsulIngressConfigEntry{
+									TLS: &ConsulGatewayTLSConfig{
+										Enabled: true,
+									},
+									Listeners: []*ConsulIngressListener{{
+										Port:     3002,
+										Protocol: "http",
+										Services: []*ConsulIngressService{{
+											Name:  "listener2",
+											Hosts: []string{"127.0.0.1", "127.0.0.1:3002"},
+										}},
+									}},
 								},
 							},
 						},
@@ -2727,6 +2790,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										New:  "false",
 									},
 									{
+										Type: DiffTypeEdited,
+										Name: "FailuresBeforeCritical",
+										Old:  "4",
+										New:  "6",
+									},
+									{
 										Type: DiffTypeNone,
 										Name: "GRPCService",
 										Old:  "",
@@ -2780,7 +2849,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										Old:  "http",
 										New:  "tcp",
 									},
-
+									{
+										Type: DiffTypeEdited,
+										Name: "SuccessBeforePassing",
+										Old:  "3",
+										New:  "5",
+									},
 									{
 										Type: DiffTypeNone,
 										Name: "TLSSkipVerify",
@@ -2821,7 +2895,6 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 								},
 							},
-
 							{
 								Type: DiffTypeEdited,
 								Name: "ConsulConnect",
@@ -2932,6 +3005,164 @@ func TestTaskGroupDiff(t *testing.T) {
 														Name: "foo",
 														Old:  "baz",
 														New:  "",
+													},
+												},
+											},
+										},
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "Gateway",
+										Objects: []*ObjectDiff{
+											{
+												Type: DiffTypeEdited,
+												Name: "Proxy",
+												Fields: []*FieldDiff{
+													{
+														Type: DiffTypeEdited,
+														Name: "ConnectTimeout",
+														Old:  "1s",
+														New:  "2s",
+													},
+													{
+														Type: DiffTypeEdited,
+														Name: "EnvoyGatewayBindTaggedAddresses",
+														Old:  "false",
+														New:  "true",
+													},
+													{
+														Type: DiffTypeEdited,
+														Name: "EnvoyGatewayNoDefaultBind",
+														Old:  "false",
+														New:  "true",
+													},
+												},
+												Objects: []*ObjectDiff{
+													{
+														Type: DiffTypeEdited,
+														Name: "EnvoyGatewayBindAddresses",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeEdited,
+																Name: "service1",
+																Old:  "10.0.0.1:2001",
+																New:  "10.0.0.2:2002",
+															},
+														},
+													},
+													{
+														Type: DiffTypeEdited,
+														Name: "Config",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeEdited,
+																Name: "foo",
+																Old:  "1",
+																New:  "2",
+															},
+														},
+													},
+												},
+											},
+											{
+												Type: DiffTypeEdited,
+												Name: "Ingress",
+												Objects: []*ObjectDiff{
+													{
+														Type: DiffTypeEdited,
+														Name: "TLS",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeEdited,
+																Name: "Enabled",
+																Old:  "false",
+																New:  "true",
+															},
+														},
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "Listener",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "Port",
+																Old:  "",
+																New:  "3002",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "Protocol",
+																Old:  "",
+																New:  "http",
+															},
+														},
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "ConsulIngressService",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Name",
+																		Old:  "",
+																		New:  "listener2",
+																	},
+																},
+																Objects: []*ObjectDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Hosts",
+																		Fields: []*FieldDiff{
+																			{
+																				Type: DiffTypeAdded,
+																				Name: "Hosts",
+																				Old:  "",
+																				New:  "127.0.0.1",
+																			},
+																			{
+																				Type: DiffTypeAdded,
+																				Name: "Hosts",
+																				Old:  "",
+																				New:  "127.0.0.1:3002",
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+													{
+														Type: DiffTypeDeleted,
+														Name: "Listener",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeDeleted,
+																Name: "Port",
+																Old:  "3001",
+																New:  "",
+															},
+															{
+																Type: DiffTypeDeleted,
+																Name: "Protocol",
+																Old:  "tcp",
+																New:  "",
+															},
+														},
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeDeleted,
+																Name: "ConsulIngressService",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeDeleted,
+																		Name: "Name",
+																		Old:  "listener1",
+																		New:  "",
+																	},
+																},
+															},
+														},
 													},
 												},
 											},
@@ -5070,16 +5301,20 @@ func TestTaskDiff(t *testing.T) {
 								Header: map[string][]string{
 									"Foo": {"bar"},
 								},
+								SuccessBeforePassing:   1,
+								FailuresBeforeCritical: 1,
 							},
 							{
-								Name:     "bar",
-								Type:     "http",
-								Command:  "foo",
-								Args:     []string{"foo"},
-								Path:     "foo",
-								Protocol: "http",
-								Interval: 1 * time.Second,
-								Timeout:  1 * time.Second,
+								Name:                   "bar",
+								Type:                   "http",
+								Command:                "foo",
+								Args:                   []string{"foo"},
+								Path:                   "foo",
+								Protocol:               "http",
+								Interval:               1 * time.Second,
+								Timeout:                1 * time.Second,
+								SuccessBeforePassing:   7,
+								FailuresBeforeCritical: 7,
 							},
 							{
 								Name:     "baz",
@@ -5101,14 +5336,16 @@ func TestTaskDiff(t *testing.T) {
 						Name: "foo",
 						Checks: []*ServiceCheck{
 							{
-								Name:     "bar",
-								Type:     "http",
-								Command:  "foo",
-								Args:     []string{"foo"},
-								Path:     "foo",
-								Protocol: "http",
-								Interval: 1 * time.Second,
-								Timeout:  1 * time.Second,
+								Name:                   "bar",
+								Type:                   "http",
+								Command:                "foo",
+								Args:                   []string{"foo"},
+								Path:                   "foo",
+								Protocol:               "http",
+								Interval:               1 * time.Second,
+								Timeout:                1 * time.Second,
+								SuccessBeforePassing:   7,
+								FailuresBeforeCritical: 7,
 							},
 							{
 								Name:     "baz",
@@ -5124,14 +5361,16 @@ func TestTaskDiff(t *testing.T) {
 								},
 							},
 							{
-								Name:     "bam",
-								Type:     "http",
-								Command:  "foo",
-								Args:     []string{"foo"},
-								Path:     "foo",
-								Protocol: "http",
-								Interval: 1 * time.Second,
-								Timeout:  1 * time.Second,
+								Name:                   "bam",
+								Type:                   "http",
+								Command:                "foo",
+								Args:                   []string{"foo"},
+								Path:                   "foo",
+								Protocol:               "http",
+								Interval:               1 * time.Second,
+								Timeout:                1 * time.Second,
+								SuccessBeforePassing:   2,
+								FailuresBeforeCritical: 2,
 							},
 						},
 					},
@@ -5188,6 +5427,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeAdded,
+										Name: "FailuresBeforeCritical",
+										Old:  "",
+										New:  "2",
+									},
+									{
+										Type: DiffTypeAdded,
 										Name: "GRPCUseTLS",
 										Old:  "",
 										New:  "false",
@@ -5215,6 +5460,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Protocol",
 										Old:  "",
 										New:  "http",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "SuccessBeforePassing",
+										Old:  "",
+										New:  "2",
 									},
 									{
 										Type: DiffTypeAdded,
@@ -5254,6 +5505,12 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeDeleted,
+										Name: "FailuresBeforeCritical",
+										Old:  "1",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
 										Name: "GRPCUseTLS",
 										Old:  "false",
 										New:  "",
@@ -5280,6 +5537,12 @@ func TestTaskDiff(t *testing.T) {
 										Type: DiffTypeDeleted,
 										Name: "Protocol",
 										Old:  "http",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "SuccessBeforePassing",
+										Old:  "1",
 										New:  "",
 									},
 									{
@@ -5341,6 +5604,8 @@ func TestTaskDiff(t *testing.T) {
 								Header: map[string][]string{
 									"Foo": {"bar"},
 								},
+								SuccessBeforePassing:   4,
+								FailuresBeforeCritical: 5,
 							},
 						},
 					},
@@ -5366,6 +5631,7 @@ func TestTaskDiff(t *testing.T) {
 									"Foo":  {"bar", "baz"},
 									"Eggs": {"spam"},
 								},
+								SuccessBeforePassing: 4,
 							},
 						},
 					},
@@ -5433,6 +5699,12 @@ func TestTaskDiff(t *testing.T) {
 										New:  "false",
 									},
 									{
+										Type: DiffTypeEdited,
+										Name: "FailuresBeforeCritical",
+										Old:  "5",
+										New:  "0",
+									},
+									{
 										Type: DiffTypeNone,
 										Name: "GRPCService",
 										Old:  "",
@@ -5485,6 +5757,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Protocol",
 										Old:  "http",
 										New:  "http",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "SuccessBeforePassing",
+										Old:  "4",
+										New:  "4",
 									},
 									{
 										Type: DiffTypeNone,

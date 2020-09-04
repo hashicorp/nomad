@@ -9,6 +9,7 @@ import Searchable from 'nomad-ui/mixins/searchable';
 import classic from 'ember-classic-decorator';
 
 const SLASH_KEY = 191;
+const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
 export default class GlobalSearchControl extends Component {
@@ -60,16 +61,16 @@ export default class GlobalSearchControl extends Component {
       set(this, 'jobs', jobs.toArray());
       set(this, 'nodes', nodes.toArray());
 
-      const jobResults = this.jobSearch.listSearched;
-      const nodeResults = this.nodeSearch.listSearched;
+      const jobResults = this.jobSearch.listSearched.slice(0, MAXIMUM_RESULTS);
+      const nodeResults = this.nodeSearch.listSearched.slice(0, MAXIMUM_RESULTS);
 
       return [
         {
-          groupName: `Jobs (${jobResults.length})`,
+          groupName: resultsGroupLabel('Jobs', jobResults, this.jobSearch.listSearched),
           options: jobResults,
         },
         {
-          groupName: `Clients (${nodeResults.length})`,
+          groupName: resultsGroupLabel('Clients', nodeResults, this.nodeSearch.listSearched),
           options: nodeResults,
         },
       ];
@@ -178,4 +179,16 @@ class NodeSearch extends EmberObject.extend(Searchable) {
 
   fuzzySearchEnabled = true;
   includeFuzzySearchMatches = true;
+}
+
+function resultsGroupLabel(type, renderedResults, allResults) {
+  let countString;
+
+  if (renderedResults.length < allResults.length) {
+    countString = `showing ${renderedResults.length} of ${allResults.length}`;
+  } else {
+    countString = renderedResults.length;
+  }
+
+  return `${type} (${countString})`;
 }

@@ -4,9 +4,47 @@ import { makeArray } from '@ember/array';
 import JSONSerializer from 'ember-data/serializers/json';
 import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
+import { assign } from '@ember/polyfills';
 
 export default class Application extends JSONSerializer {
   primaryKey = 'ID';
+
+  /**
+    A list of keys that are converted to empty arrays if their value is null.
+
+    arrayNullOverrides = ['Array'];
+    { Array: null } => { Array: [] }
+
+    @property arrayNullOverrides
+    @type String[]
+   */
+  arrayNullOverrides = null;
+
+  /**
+    A list of keys or objects to convert a map into an array of maps with the original map keys as Name properties.
+
+    mapToArray = ['Map'];
+    { Map: { a: { x: 1 } } } => { Map: [ { Name: 'a', x: 1 }] }
+
+    mapToArray = [{ beforeName: 'M', afterName: 'Map' }];
+    { M: { a: { x: 1 } } } => { Map: [ { Name: 'a', x: 1 }] }
+
+    @property mapToArray
+    @type (String|Object)[]
+   */
+  mapToArray = null;
+
+  /**
+    A list of keys for nanosecond timestamps that will be split into two properties: `separateNanos = ['Time']` will
+    produce a `Time` property with a millisecond timestamp and `TimeNanos` with the nanoseconds alone.
+
+    separateNanos = ['Time'];
+    { Time: 1607839992000100000 } => { Time: 1607839992000, TimeNanos: 100096 }
+
+    @property separateNanos
+    @type String[]
+   */
+  separateNanos = null;
 
   keyForAttribute(attr) {
     return attr.camelize().capitalize();
@@ -41,6 +79,53 @@ export default class Application extends JSONSerializer {
     });
 
     store.push(documentHash);
+  }
+
+  normalize(modelClass, hash) {
+    if (hash) {
+      if (this.arrayNullOverrides) {
+        this.arrayNullOverrides.forEach(key => {
+          if (!hash[key]) {
+            hash[key] = [];
+          }
+        });
+      }
+
+      if (this.mapToArray) {
+        this.mapToArray.forEach(conversion => {
+          let apiKey, uiKey;
+
+          if (conversion.beforeName) {
+            apiKey = conversion.beforeName;
+            uiKey = conversion.afterName;
+          } else {
+            apiKey = conversion;
+            uiKey = conversion;
+          }
+
+          const map = hash[apiKey] || {};
+
+          hash[uiKey] = Object.keys(map).map(mapKey => {
+            const propertiesForKey = map[mapKey] || {};
+            const convertedMap = { Name: mapKey };
+
+            assign(convertedMap, propertiesForKey);
+
+            return convertedMap;
+          });
+        });
+      }
+
+      if (this.separateNanos) {
+        this.separateNanos.forEach(key => {
+          const timeWithNanos = hash[key];
+          hash[`${key}Nanos`] = timeWithNanos % 1000000;
+          hash[key] = Math.floor(timeWithNanos / 1000000);
+        });
+      }
+    }
+
+    return super.normalize(modelClass, hash);
   }
 
   normalizeFindAllResponse(store, modelClass) {

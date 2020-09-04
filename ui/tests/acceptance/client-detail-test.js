@@ -44,8 +44,7 @@ module('Acceptance | client detail', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await ClientDetail.visit({ id: node.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function(assert) {

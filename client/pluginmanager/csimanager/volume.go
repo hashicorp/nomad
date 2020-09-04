@@ -2,6 +2,7 @@ package csimanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -317,7 +318,7 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, volID, remoteID, al
 			// host target path was already destroyed, nothing to do here.
 			// this helps us in the case that a previous GC attempt cleaned
 			// up the volume on the node but the controller RPCs failed
-			return nil
+			rpcErr = fmt.Errorf("%w: %v", structs.ErrCSIClientRPCIgnorable, rpcErr)
 		}
 		return rpcErr
 	}
@@ -332,9 +333,8 @@ func (v *volumeManager) unpublishVolume(ctx context.Context, volID, remoteID, al
 
 	// We successfully removed the directory, return any rpcErrors that were
 	// encountered, but because we got here, they were probably flaky or was
-	// cleaned up externally. We might want to just return `nil` here in the
-	// future.
-	return rpcErr
+	// cleaned up externally.
+	return fmt.Errorf("%w: %v", structs.ErrCSIClientRPCIgnorable, rpcErr)
 }
 
 func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usage *UsageOptions) (err error) {
@@ -343,7 +343,7 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allo
 
 	err = v.unpublishVolume(ctx, volID, remoteID, allocID, usage)
 
-	if err == nil {
+	if err == nil || errors.Is(err, structs.ErrCSIClientRPCIgnorable) {
 		canRelease := v.usageTracker.Free(allocID, volID, usage)
 		if v.requiresStaging && canRelease {
 			err = v.unstageVolume(ctx, volID, remoteID, usage)
@@ -354,7 +354,7 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allo
 		SetSubsystem(structs.NodeEventSubsystemStorage).
 		SetMessage("Unmount volume").
 		AddDetail("volume_id", volID)
-	if err == nil {
+	if err == nil || errors.Is(err, structs.ErrCSIClientRPCIgnorable) {
 		event.AddDetail("success", "true")
 	} else {
 		event.AddDetail("success", "false")

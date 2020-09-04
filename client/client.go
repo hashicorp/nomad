@@ -101,6 +101,10 @@ const (
 	// Update sidecar_task.html when updating this.
 	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
 
+	// defaultConnectGatewayImage is the image set in the node meta by default
+	// to be used by Consul Connect Gateway tasks.
+	defaultConnectGatewayImage = defaultConnectSidecarImage
+
 	// defaultConnectLogLevel is the log level set in the node meta by default
 	// to be used by Consul Connect sidecar tasks
 	defaultConnectLogLevel = "info"
@@ -1385,6 +1389,9 @@ func (c *Client) setupNode() error {
 	// Setup default meta
 	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
 		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
+	}
+	if _, ok := node.Meta["connect.gateway_image"]; !ok {
+		node.Meta["connect.gateway_image"] = defaultConnectGatewayImage
 	}
 	if _, ok := node.Meta["connect.log_level"]; !ok {
 		node.Meta["connect.log_level"] = defaultConnectLogLevel

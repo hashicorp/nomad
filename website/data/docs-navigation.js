@@ -84,7 +84,6 @@ export default [
         category: 'alloc',
         content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop']
       },
-      'debug',
       {
         category: 'deployment',
         content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
@@ -127,6 +126,7 @@ export default [
         content: [
           'autopilot-get-config',
           'autopilot-set-config',
+          'debug',
           'keygen',
           'keyring',
           'raft-list-peers',
@@ -148,7 +148,7 @@ export default [
       { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
       'version',
-      { category: 'volume', content: ['register', 'deregister', 'status'] }
+      { category: 'volume', content: ['deregister', 'detach', 'status', 'register'] }
     ]
   },
   '----------',
@@ -166,6 +166,7 @@ export default [
       'env',
       'ephemeral_disk',
       'expose',
+      'gateway',
       'group',
       'job',
       'lifecycle',
@@ -206,12 +207,13 @@ export default [
       {
         category: 'external',
         content: [
+          'containerd',
+          'firecracker-task-driver',
+          'jail-task-driver',
           'lxc',
+          'pot',
           'rkt',
           'singularity',
-          'jail-task-driver',
-          'pot',
-          'firecracker-task-driver',
           'nspawn',
           'iis'
         ]
@@ -248,7 +250,6 @@ export default [
     ]
   },
   { category: 'telemetry', content: ['metrics'] },
-  { category: 'vault-integration' },
   '------------',
   { category: 'enterprise' },
   'faq'

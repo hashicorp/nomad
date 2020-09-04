@@ -41,6 +41,8 @@ Get started with Nomad quickly in a sandbox environment on the public cloud or o
   * [Via Terraform](https://github.com/hashicorp/nomad/tree/master/terraform/aws)
 * Azure
   * [Via Terraform](https://github.com/hashicorp/nomad/tree/master/terraform/azure)
+* GCP
+  * [Via Terraform](https://github.com/hashicorp/nomad/tree/master/terraform/gcp)
 
 These methods are not meant for production.
 
@@ -119,7 +121,7 @@ Who Uses Nomad
 Contributing to Nomad
 --------------------
 
-If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.14.6+ is *required*, and `gcc-go` is not supported).
+If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.14.7+ is *required*, and `gcc-go` is not supported).
 
 See the [`contributing`](contributing/) directory for more developer documentation.
 

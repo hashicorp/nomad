@@ -14,9 +14,10 @@ func newTaskConfig(variant string, command []string) TaskConfig {
 	busyboxImageID := "hashicorpnomad/busybox-windows:server2016-0.1"
 
 	return TaskConfig{
-		Image:   busyboxImageID,
-		Command: command[0],
-		Args:    command[1:],
+		Image:            busyboxImageID,
+		ImagePullTimeout: "5m",
+		Command:          command[0],
+		Args:             command[1:],
 	}
 }
 

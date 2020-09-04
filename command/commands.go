@@ -201,8 +201,9 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
 		"debug": func() (cli.Command, error) {
-			return &DebugCommand{
+			return &OperatorDebugCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -484,6 +485,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator debug": func() (cli.Command, error) {
+			return &OperatorDebugCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator keygen": func() (cli.Command, error) {
 			return &OperatorKeygenCommand{
 				Meta: meta,
@@ -508,6 +514,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 
 		"operator raft remove-peer": func() (cli.Command, error) {
 			return &OperatorRaftRemoveCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft _info": func() (cli.Command, error) {
+			return &OperatorRaftInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft _logs": func() (cli.Command, error) {
+			return &OperatorRaftLogsCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft _state": func() (cli.Command, error) {
+			return &OperatorRaftStateCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -720,6 +741,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"volume deregister": func() (cli.Command, error) {
 			return &VolumeDeregisterCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume detach": func() (cli.Command, error) {
+			return &VolumeDetachCommand{
 				Meta: meta,
 			}, nil
 		},

@@ -14,8 +14,18 @@ export default class Task extends Fragment {
 
   @computed('lifecycle', 'lifecycle.sidecar')
   get lifecycleName() {
-    if (this.lifecycle && this.lifecycle.sidecar) return 'sidecar';
-    if (this.lifecycle && this.lifecycle.hook === 'prestart') return 'prestart';
+    if (this.lifecycle) {
+      const { hook, sidecar } = this.lifecycle;
+
+      if (hook === 'prestart') {
+        return sidecar ? 'prestart-sidecar' : 'prestart-ephemeral';
+      } else if (hook === 'poststart') {
+        return sidecar ? 'poststart-sidecar' : 'poststart-ephemeral';
+      } else if (hook === 'poststop') {
+        return 'poststop';
+      }
+    }
+
     return 'main';
   }
 

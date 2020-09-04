@@ -19,6 +19,8 @@ export default RestSerializer.extend({
     }
   },
 
+  keyForModel: keyCase,
+  keyForForeignKey: str => `${keyCase(str)}ID`,
   keyForCollection: keyCase,
   keyForAttribute: keyCase,
   keyForRelationship: keyCase,

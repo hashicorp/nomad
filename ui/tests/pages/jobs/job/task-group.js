@@ -69,6 +69,11 @@ export default create({
     meta: text(),
   }),
 
+  hasScalingTimeline: isPresent('[data-test-scaling-timeline]'),
+  scalingAnnotations: collection('[data-test-scaling-timeline] [data-test-annotation]', {
+    open: clickable('button'),
+  }),
+
   error: error(),
 
   emptyState: {

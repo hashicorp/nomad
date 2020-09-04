@@ -57,13 +57,6 @@ export default create({
     isBlocking: isPresent('.icon-is-warning'),
   }),
 
-  hasAddresses: isPresent('[data-test-task-addresses]'),
-  addresses: collection('[data-test-task-address]', {
-    name: text('[data-test-task-address-name]'),
-    isDynamic: text('[data-test-task-address-is-dynamic]'),
-    address: text('[data-test-task-address-address]'),
-  }),
-
   hasVolumes: isPresent('[data-test-volumes]'),
   volumes: collection('[data-test-volume]', {
     name: text('[data-test-volume-name]'),

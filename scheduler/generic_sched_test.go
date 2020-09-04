@@ -5342,3 +5342,162 @@ func TestServiceSched_Preemption(t *testing.T) {
 	}
 	require.Equal(expectedPreemptedAllocs, actualPreemptedAllocs)
 }
+
+// TestServiceSched_Migrate_CanaryStatus asserts that migrations/rescheduling
+// of allocations use the proper versions of allocs rather than latest:
+// Canaries should be replaced by canaries, and non-canaries should be replaced
+// with the latest promoted version.
+func TestServiceSched_Migrate_CanaryStatus(t *testing.T) {
+	h := NewHarness(t)
+
+	node1 := mock.Node()
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node1))
+
+	totalCount := 3
+	desiredCanaries := 1
+
+	job := mock.Job()
+	job.Stable = true
+	job.TaskGroups[0].Count = totalCount
+	job.TaskGroups[0].Update = &structs.UpdateStrategy{
+		MaxParallel: 1,
+		Canary:      desiredCanaries,
+	}
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job))
+
+	deployment := &structs.Deployment{
+		ID:             uuid.Generate(),
+		JobID:          job.ID,
+		Namespace:      job.Namespace,
+		JobVersion:     job.Version,
+		JobModifyIndex: job.JobModifyIndex,
+		JobCreateIndex: job.CreateIndex,
+		TaskGroups: map[string]*structs.DeploymentState{
+			"web": {DesiredTotal: totalCount},
+		},
+		Status:            structs.DeploymentStatusSuccessful,
+		StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+	}
+	require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), deployment))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node1.ID
+		alloc.DeploymentID = deployment.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+
+	// new update with new task group
+	job2 := job.Copy()
+	job2.Stable = false
+	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job2))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+
+	// Ensure a single plan
+	require.Len(t, h.Plans, 1)
+	plan := h.Plans[0]
+
+	// Ensure a deployment was created
+	require.NotNil(t, plan.Deployment)
+	updateDeployment := plan.Deployment.ID
+
+	// Check status first - should be 4 allocs, only one is canary
+	{
+		ws := memdb.NewWatchSet()
+		allocs, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, true)
+		require.NoError(t, err)
+		require.Len(t, allocs, 4)
+
+		sort.Slice(allocs, func(i, j int) bool { return allocs[i].CreateIndex < allocs[j].CreateIndex })
+
+		for _, a := range allocs[:3] {
+			require.Equal(t, structs.AllocDesiredStatusRun, a.DesiredStatus)
+			require.Equal(t, uint64(0), a.Job.Version)
+			require.False(t, a.DeploymentStatus.IsCanary())
+			require.Equal(t, node1.ID, a.NodeID)
+			require.Equal(t, deployment.ID, a.DeploymentID)
+		}
+		require.Equal(t, structs.AllocDesiredStatusRun, allocs[3].DesiredStatus)
+		require.Equal(t, uint64(1), allocs[3].Job.Version)
+		require.True(t, allocs[3].DeploymentStatus.Canary)
+		require.Equal(t, node1.ID, allocs[3].NodeID)
+		require.Equal(t, updateDeployment, allocs[3].DeploymentID)
+	}
+
+	// now, drain node1 and ensure all are migrated to node2
+	node1 = node1.Copy()
+	node1.Status = structs.NodeStatusDown
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node1))
+
+	node2 := mock.Node()
+	require.NoError(t, h.State.UpsertNode(h.NextIndex(), node2))
+
+	neval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		NodeID:      node1.ID,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(h.NextIndex(), []*structs.Evaluation{neval}))
+
+	// Process the evaluation
+	err = h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+
+	// Now test that all node1 allocs are migrated while preserving Version and Canary info
+	{
+		ws := memdb.NewWatchSet()
+		allocs, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, true)
+		require.NoError(t, err)
+		require.Len(t, allocs, 8)
+
+		nodeAllocs := map[string][]*structs.Allocation{}
+		for _, a := range allocs {
+			nodeAllocs[a.NodeID] = append(nodeAllocs[a.NodeID], a)
+		}
+
+		require.Len(t, nodeAllocs[node1.ID], 4)
+		for _, a := range nodeAllocs[node1.ID] {
+			require.Equal(t, structs.AllocDesiredStatusStop, a.DesiredStatus)
+			require.Equal(t, node1.ID, a.NodeID)
+		}
+
+		node2Allocs := nodeAllocs[node2.ID]
+		require.Len(t, node2Allocs, 4)
+		sort.Slice(node2Allocs, func(i, j int) bool { return node2Allocs[i].Job.Version < node2Allocs[j].Job.Version })
+
+		for _, a := range node2Allocs[:3] {
+			require.Equal(t, structs.AllocDesiredStatusRun, a.DesiredStatus)
+			require.Equal(t, uint64(0), a.Job.Version)
+			require.Equal(t, node2.ID, a.NodeID)
+			require.Equal(t, deployment.ID, a.DeploymentID)
+		}
+		require.Equal(t, structs.AllocDesiredStatusRun, node2Allocs[3].DesiredStatus)
+		require.Equal(t, uint64(1), node2Allocs[3].Job.Version)
+		require.Equal(t, node2.ID, node2Allocs[3].NodeID)
+		require.Equal(t, updateDeployment, node2Allocs[3].DeploymentID)
+	}
+}

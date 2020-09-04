@@ -1,3 +1,3 @@
 module.exports = {
-  ...require('@hashicorp/nextjs-scripts/prettier.config.js')
+  ...require('@hashicorp/nextjs-scripts/prettier.config.js'),
 }

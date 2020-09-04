@@ -45,13 +45,23 @@
       "type": "windows-restart"
     },
     {
+      "type": "file",
+      "source": "./windows/install-nomad.ps1",
+      "destination": "/opt/install-nomad.ps1"
+    },
+    {
+      "type": "powershell",
+      "elevated_user": "Administrator",
+      "elevated_password": "{{.WinRMPassword}}",
+      "inline": ["/opt/install-nomad.ps1 -nomad_version 0.9.6 -nostart"]
+    },
+    {
       "type": "powershell",
       "elevated_user": "Administrator",
       "elevated_password": "{{.WinRMPassword}}",
       "scripts": [
         "windows/install-consul.ps1",
-        "windows/install-vault.ps1",
-        "windows/install-nomad.ps1"
+        "windows/install-vault.ps1"
       ]
     },
     {

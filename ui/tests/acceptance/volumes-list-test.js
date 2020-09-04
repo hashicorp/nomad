@@ -29,8 +29,7 @@ module('Acceptance | volumes list', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await VolumesList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('visiting /csi redirects to /csi/volumes', async function(assert) {

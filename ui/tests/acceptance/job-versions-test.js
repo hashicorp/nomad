@@ -21,8 +21,7 @@ module('Acceptance | job versions', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/jobs/:id/versions should list all job versions', async function(assert) {

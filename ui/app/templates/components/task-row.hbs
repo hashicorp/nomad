@@ -38,18 +38,6 @@
     {{/each}}
   </ul>
 </td>
-<td data-test-ports>
-  <ul>
-    {{#let this.task.resources.networks.firstObject as |network|}}
-      {{#each network.ports as |port|}}
-        <li data-test-port>
-          <strong>{{port.name}}:</strong>
-          <a href="http://{{network.ip}}:{{port.port}}" target="_blank" rel="noopener noreferrer">{{network.ip}}:{{port.port}}</a>
-        </li>
-      {{/each}}
-    {{/let}}
-  </ul>
-</td>
 <td data-test-cpu class="is-1 has-text-centered">
   {{#if this.task.isRunning}}
     {{#if (and (not this.cpu) this.fetchStats.isRunning)}}

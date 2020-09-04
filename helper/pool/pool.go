@@ -446,7 +446,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 	// Get a usable client
 	conn, sc, err := p.getRPCClient(region, addr, version)
 	if err != nil {
-		return fmt.Errorf("rpc error: %v", err)
+		return fmt.Errorf("rpc error: %w", err)
 	}
 
 	// Make the RPC call
@@ -470,7 +470,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 		}
 
 		// TODO wrap with RPCCoded error instead
-		return fmt.Errorf("rpc error: %v", err)
+		return fmt.Errorf("rpc error: %w", err)
 	}
 
 	// Done with the connection

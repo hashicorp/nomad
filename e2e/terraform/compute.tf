@@ -4,7 +4,10 @@ resource "aws_instance" "server" {
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
+
+  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
 
   # Instance tags
   tags = {
@@ -13,8 +16,6 @@ resource "aws_instance" "server" {
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
-
-  iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
 resource "aws_instance" "client_linux" {
@@ -24,7 +25,10 @@ resource "aws_instance" "client_linux" {
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
   depends_on             = [aws_instance.server]
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
+
+  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
 
   # Instance tags
   tags = {
@@ -40,8 +44,6 @@ resource "aws_instance" "client_linux" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
-
-  iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 }
 
 resource "aws_instance" "client_windows" {
@@ -51,8 +53,10 @@ resource "aws_instance" "client_windows" {
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.windows_client_count
   depends_on             = [aws_instance.server]
-  iam_instance_profile   = aws_iam_instance_profile.instance_profile.name
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
+
+  user_data = file("${path.root}/userdata/windows-2016.ps1")
 
   # Instance tags
   tags = {
@@ -68,9 +72,34 @@ resource "aws_instance" "client_windows" {
     volume_size           = "50"
     delete_on_termination = "true"
   }
+}
 
-  # We need this userdata script because Windows machines don't
-  # configure ssh with cloud-init by default.
-  user_data = file("${path.root}/shared/config/userdata-windows.ps1")
+data "aws_ami" "linux" {
+  most_recent = true
+  owners      = ["self"]
 
+  filter {
+    name   = "name"
+    values = ["nomad-e2e-*"]
+  }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Ubuntu"]
+  }
+}
+
+data "aws_ami" "windows" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["nomad-e2e-windows-2016*"]
+  }
+
+  filter {
+    name   = "tag:OS"
+    values = ["Windows2016"]
+  }
 }

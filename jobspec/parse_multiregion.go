@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -41,7 +40,7 @@ func parseMultiregion(result *api.Multiregion, list *ast.ObjectList) error {
 		"strategy",
 		"region",
 	}
-	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -76,7 +75,7 @@ func parseMultiregionStrategy(final **api.MultiregionStrategy, list *ast.ObjectL
 		"max_parallel",
 		"on_failure",
 	}
-	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -133,7 +132,7 @@ func parseMultiregionRegions(result *api.Multiregion, list *ast.ObjectList) erro
 			"datacenters",
 			"meta",
 		}
-		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
 		}
 
