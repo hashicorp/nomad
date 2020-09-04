@@ -499,7 +499,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), req, &resp))
 
-	// Assert the hook is done
+	// Assert the hook is Done
 	require.True(t, resp.Done)
 	require.NotNil(t, resp.Env)
 

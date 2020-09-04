@@ -17,6 +17,9 @@ import (
 // - Bootstrap this Nomad Client with the list of Nomad Servers registered
 //   with Consul
 //
+// - Establish how this Nomad Client will resolve Envoy Connect Sidecar
+//   images.
+//
 // Both the Agent and the executor need to be able to import ConsulConfig.
 type ConsulConfig struct {
 	// ServerServiceName is the name of the service that Nomad uses to register

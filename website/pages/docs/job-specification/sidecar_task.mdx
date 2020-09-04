@@ -97,9 +97,19 @@ The default sidecar task is equivalent to:
 The `meta.connect.sidecar_image` and `meta.connect.log_level` are [_client_
 configurable][nodemeta] variables with the following defaults:
 
-- `sidecar_image` - `"envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"` - The official upstream Envoy Docker image.
-- `log_level` - `"info"` - Envoy sidecar log level. "`debug`" is useful for
+- `sidecar_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
+   upstream Envoy Docker image, where `${NOMAD_envoy_version}` is resolved automatically
+   by a query to Consul.
+- `log_level` - `(string: "info")` - Envoy sidecar log level. "`debug`" is useful for
   debugging Connect related issues.
+
+`meta.connect.sidecar_image` can be configured at the job, group, or task level.
+Custom images can make use of Consul's preferred Envoy version by making use of
+Nomad's version interpolation, e.g.
+
+```hcl
+meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
+```
 
 ## `sidecar_task` Parameters
 

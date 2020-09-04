@@ -158,7 +158,12 @@ type TaskRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulClient consul.ConsulServiceAPI
+	consulServiceClient consul.ConsulServiceAPI
+
+	// consulProxiesClient is the client used by the envoy version hook for
+	// asking consul what version of envoy nomad should inject into the connect
+	// sidecar or gateway task.
+	consulProxiesClient consul.SupportedProxiesAPI
 
 	// sidsClient is the client used by the service identity hook for managing
 	// service identity tokens
@@ -234,6 +239,10 @@ type Config struct {
 	// Consul is the client to use for managing Consul service registrations
 	Consul consul.ConsulServiceAPI
 
+	// ConsulProxies is the client to use for looking up supported envoy versions
+	// from Consul.
+	ConsulProxies consul.SupportedProxiesAPI
+
 	// ConsulSI is the client to use for managing Consul SI tokens
 	ConsulSI consul.ServiceIdentityAPI
 
@@ -302,7 +311,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskLeader:           config.Task.Leader,
 		envBuilder:           envBuilder,
 		dynamicRegistry:      config.DynamicRegistry,
-		consulClient:         config.Consul,
+		consulServiceClient:  config.Consul,
+		consulProxiesClient:  config.ConsulProxies,
 		siClient:             config.ConsulSI,
 		vaultClient:          config.Vault,
 		state:                tstate,

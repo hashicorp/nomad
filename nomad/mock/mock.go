@@ -721,6 +721,23 @@ func ConnectIngressGatewayJob(mode string, inject bool) *structs.Job {
 	return job
 }
 
+func ConnectSidecarTask() *structs.Task {
+	return &structs.Task{
+		Name:   "mysidecar-sidecar-task",
+		Driver: "docker",
+		User:   "nobody",
+		Config: map[string]interface{}{
+			"image": structs.EnvoyImageFormat,
+		},
+		Env: nil,
+		Resources: &structs.Resources{
+			CPU:      150,
+			MemoryMB: 350,
+		},
+		Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "mysidecar"),
+	}
+}
+
 func BatchJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",

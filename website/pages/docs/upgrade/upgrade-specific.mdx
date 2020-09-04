@@ -60,6 +60,30 @@ Nomad. The specific configuration values replaced are:
 * Client `template.function_blacklist` is replaced with `template.function_denylist`.
 * Docker driver `docker.caps.whitelist` is replaced with `docker.caps.allowlist`.
 
+### Envoy proxy versions
+
+Nomad 0.13.0 changes the behavior around the selection of Envoy version used
+for Connect sidecar proxies. Previously, Nomad always defaulted to Envoy v1.11.2
+if neither the `meta.connect.sidecar_image` parameter or `sidecar_task` stanza
+were explicitly configured. Likewise the same version of Envoy would be used for
+Connect ingress gateways if `meta.connect.gateway_image` was unset. Starting with
+Nomad 0.13.0, each Nomad Client will query Consul for a list of supported Envoy
+versions. Nomad will make use of the latest version of Envoy supported by the
+Consul agent when launching Envoy as a Connect sidecar proxy. If the version of
+the Consul agent is older than v1.7.8, v1.8.4, or v1.9.0, Nomad will fallback to
+the v1.11.2 version of Envoy. As before, if the `meta.connect.sidecar_image`,
+ `meta.connect.gateway_image`, or `sidecar_task` stanza are set, those settings
+take precedence.
+
+When upgrading Nomad Clients from a previous version to v0.13.0 and above, it is
+recommended to also upgrade the Consul agents to v1.7.8, 1.8.4, or v1.9.0 or newer.
+Upgrading Nomad and Consul to versions that support the new behaviour while also doing a
+full [node drain](https://www.nomadproject.io/docs/upgrade#5-upgrade-clients) at
+the time of the upgrade for each node will ensure Connect workloads are properly
+rescheduled onto nodes in such a way that the Nomad Clients, Consul agents, and
+Envoy sidecar tasks maintain compatibility with one another.
+
+
 ## Nomad 0.12.0
 
 ### `mbits` and Task Network Resource deprecation
