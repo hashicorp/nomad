@@ -22,6 +22,7 @@ BUG FIXES:
  * core (Enterprise): Fixed a bug where enterprise servers may self-terminate as licenses are ignored after a Raft snapshot restore. [[GH-8737](https://github.com/hashicorp/nomad/issues/8737)]
  * cli (Enterprise): Fixed a panic in `nomad operator snapshot agent` if local path is not set [[GH-8809](https://github.com/hashicorp/nomad/issues/8809)]
  * client: Fixed a bug where `nomad operator debug` could cause a client agent to panic when the `-node-id` flag was used. [[GH-8795](https://github.com/hashicorp/nomad/issues/8795)]
+ * csi: Fixed a bug where errors while connecting to plugins could cause a panic in the Nomad client. [[GH-8825](https://github.com/hashicorp/nomad/issues/8825)]
  * csi: Fixed a bug where querying CSI volumes would cause a panic if an allocation that claimed the volume had been garbage collected but the claim was not yet dropped. [[GH-8735](https://github.com/hashicorp/nomad/issues/8735)]
  * deployments (Enterprise): Fixed a bug where counts could not be changed in the web UI for multiregion jobs. [[GH-8685](https://github.com/hashicorp/nomad/issues/8685)]
  * deployments (Enterprise): Fixed a bug in multi-region deployments where a region that was dropped from the jobspec was not deregistered. [[GH-8763](https://github.com/hashicorp/nomad/issues/8763)]
