@@ -40,16 +40,18 @@ export default Factory.extend({
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
-      const resources = taskGroup.taskIds.map(id =>
-        server.create(
+      const resources = taskGroup.taskIds.map(id => {
+        const task = server.db.tasks.find(id);
+        return server.create(
           'task-resource',
           {
             allocation,
-            name: server.db.tasks.find(id).name,
+            name: task.name,
+            resources: task.Resources,
           },
           'withReservedPorts'
-        )
-      );
+        );
+      });
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
     },
@@ -58,16 +60,18 @@ export default Factory.extend({
   withoutTaskWithPorts: trait({
     afterCreate(allocation, server) {
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
-      const resources = taskGroup.taskIds.map(id =>
-        server.create(
+      const resources = taskGroup.taskIds.map(id => {
+        const task = server.db.tasks.find(id);
+        return server.create(
           'task-resource',
           {
             allocation,
-            name: server.db.tasks.find(id).name,
+            name: task.name,
+            resources: task.Resources,
           },
           'withoutReservedPorts'
-        )
-      );
+        );
+      });
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
     },
@@ -191,12 +195,14 @@ export default Factory.extend({
         })
       );
 
-      const resources = taskGroup.taskIds.map(id =>
-        server.create('task-resource', {
+      const resources = taskGroup.taskIds.map(id => {
+        const task = server.db.tasks.find(id);
+        return server.create('task-resource', {
           allocation,
-          name: server.db.tasks.find(id).name,
-        })
-      );
+          name: task.name,
+          resources: task.Resources,
+        });
+      });
 
       allocation.update({
         taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),

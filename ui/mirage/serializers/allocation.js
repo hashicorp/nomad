@@ -18,5 +18,14 @@ export default ApplicationSerializer.extend({
 
 function serializeAllocation(allocation) {
   allocation.TaskStates = allocation.TaskStates.reduce(arrToObj('Name'), {});
+  allocation.Resources = allocation.TaskResources.mapBy('Resources').reduce(
+    (hash, resources) => {
+      ['CPU', 'DiskMB', 'IOPS', 'MemoryMB'].forEach(key => (hash[key] += resources[key]));
+      hash.Networks = resources.Networks;
+      hash.Ports = resources.Ports;
+      return hash;
+    },
+    { CPU: 0, DiskMB: 0, IOPS: 0, MemoryMB: 0 }
+  );
   allocation.TaskResources = allocation.TaskResources.reduce(arrToObj('Name', 'Resources'), {});
 }
