@@ -1,0 +1,46 @@
+.chart.topo-viz-node {
+  display: block;
+
+  svg {
+    display: inline-block;
+    height: 100%;
+    width: 100%;
+    overflow: visible;
+
+    .node-background {
+      fill: $white-ter;
+      stroke-width: 1;
+      stroke: $grey-lighter;
+    }
+
+    .dimension-background {
+      fill: lighten($grey-lighter, 5%);
+    }
+
+    .dimensions.is-active {
+      .bar {
+        opacity: 0.2;
+
+        &.is-active {
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  & + .topo-viz-node {
+    margin-top: 1em;
+  }
+
+  &.is-empty {
+    .node-background {
+      stroke: $red;
+      stroke-width: 2;
+      fill: $white;
+    }
+
+    .dimension-background {
+      fill: none;
+    }
+  }
+}

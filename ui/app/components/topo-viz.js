@@ -1,6 +1,14 @@
 import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
+import { action } from '@ember/object';
+import { scaleLinear } from 'd3-scale';
+import { max } from 'd3-array';
+import RSVP from 'rsvp';
 
 export default class TopoViz extends Component {
+  @tracked heightScale = null;
+  @tracked isLoaded = false;
+
   get datacenters() {
     const datacentersMap = this.args.nodes.reduce((datacenters, node) => {
       if (!datacenters[node.datacenter]) datacenters[node.datacenter] = [];
@@ -11,5 +19,16 @@ export default class TopoViz extends Component {
     return Object.keys(datacentersMap)
       .map(key => ({ name: key, nodes: datacentersMap[key] }))
       .sortBy('name');
+  }
+
+  @action
+  async loadNodes() {
+    await RSVP.all(this.args.nodes.map(node => node.reload()));
+
+    // TODO: Make the range dynamic based on the extent of the domain
+    this.heightScale = scaleLinear()
+      .range([15, 50])
+      .domain([0, max(this.args.nodes.map(node => node.resources.memory))]);
+    this.isLoaded = true;
   }
 }

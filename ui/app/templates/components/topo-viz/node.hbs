@@ -1,11 +1,61 @@
-<div class="topo-viz-node">
-  <strong>Node! {{@node.name}}</strong> ({{this.count}} allocs) ({{@node.resources.memory}} MiB, {{@node.resources.cpu}} Mhz)
-  <ul>
-    {{#each @node.allocations as |allocation|}}
-      <li>
-        <LinkTo @route="allocations.allocation" @model={{allocation}}>{{allocation.name}} {{allocation.shortId}}</LinkTo>
-        ({{allocation.resources.memory}} MiB, {{allocation.resources.cpu}} Mhz)
-      </li>
-    {{/each}}
-  </ul>
+<div class="chart topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
+  <p><strong>{{@node.name}}</strong> ({{this.count}} allocs) ({{@node.resources.memory}} MiB, {{@node.resources.cpu}} Mhz) (% reserved would be nice)</p>
+  <svg class="chart" height="{{this.totalHeight}}px" {{did-insert this.render}} {{window-resize this.render}}>
+    <defs>
+      <clipPath id="{{this.maskId}}">
+        <rect class="mask" x="0" y="0" width="{{this.dimensionsWidth}}px" height="{{this.maskHeight}}px" rx="2px" ry="2px" />
+      </clipPath>
+    </defs>
+    <rect class="node-background" width="100%" height="{{this.totalHeight}}px" rx="2px" ry="2px" />
+    <g
+      class="dimensions {{if this.activeAllocation "is-active"}}"
+      transform="translate({{this.padding}},{{this.padding}})"
+      width="{{this.dimensionsWidth}}px"
+      height="{{this.maskHeight}}px"
+      clip-path="url(#{{this.maskId}})"
+      pointer-events="all"
+      {{on "mouseout" this.clearHighlight}}
+    >
+      <g class="memory">
+        {{#if this.data.memoryRemainder}}
+          <rect
+            class="dimension-background"
+            x="{{this.data.memoryRemainder.x}}px"
+            width="{{this.data.memoryRemainder.width}}px"
+            height="{{this.height}}px" />
+        {{/if}}
+        {{#each this.data.memory as |memory|}}
+        <g class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}}" {{on "mouseenter" (fn this.highlightAllocation memory.allocation)}} >
+            <rect width="{{memory.width}}px" x="{{memory.x}}px" height="{{this.height}}px" class="layer-0" />
+            {{#if (or (eq memory.className "starting") (eq memory.className "pending"))}}
+              <rect width="{{memory.width}}px" x="{{memory.x}}px" height="{{this.height}}px" class="layer-1" />
+            {{/if}}
+          </g>
+        {{/each}}
+      </g>
+      <g class="cpu">
+        {{#if this.data.cpuRemainder}}
+          <rect
+            class="dimension-background"
+            x="{{this.data.cpuRemainder.x}}px"
+            y="{{this.yOffset}}px"
+            width="{{this.data.cpuRemainder.width}}px"
+            height="{{this.height}}px" />
+        {{/if}}
+        {{#each this.data.cpu as |cpu|}}
+          <g class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}}" {{on "mouseenter" (fn this.highlightAllocation cpu.allocation)}}>
+            <rect width="{{cpu.width}}px" x="{{cpu.x}}px" height="{{this.height}}px" y="{{this.yOffset}}px" class="layer-0" />
+            {{#if (or (eq cpu.className "starting") (eq cpu.className "pending"))}}
+              <rect width="{{cpu.width}}px" x="{{cpu.x}}px" height="{{this.height}}px" y="{{this.yOffset}}px" class="layer-1" />
+            {{/if}}
+          </g>
+        {{/each}}
+      </g>
+    </g>
+  </svg>
+  <div class="chart-tooltip {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
+    <LinkTo @route="allocations.allocation" @model={{this.activeAllocation}}>{{this.activeAllocation.name}} {{this.activeAllocation.shortId}}</LinkTo>
+    ({{this.activeAllocation.resources.memory}} MiB, {{this.activeAllocation.resources.cpu}} Mhz)
+  </div>
 </div>
+
