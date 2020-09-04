@@ -24,7 +24,6 @@ resource "aws_instance" "client_linux" {
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count
-  depends_on             = [aws_instance.server]
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
@@ -37,13 +36,6 @@ resource "aws_instance" "client_linux" {
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
-
-  ebs_block_device {
-    device_name           = "/dev/xvdd"
-    volume_type           = "gp2"
-    volume_size           = "50"
-    delete_on_termination = "true"
-  }
 }
 
 resource "aws_instance" "client_windows" {
@@ -52,7 +44,6 @@ resource "aws_instance" "client_windows" {
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.windows_client_count
-  depends_on             = [aws_instance.server]
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
@@ -64,13 +55,6 @@ resource "aws_instance" "client_windows" {
     ConsulAutoJoin = "auto-join"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
-  }
-
-  ebs_block_device {
-    device_name           = "xvdd"
-    volume_type           = "gp2"
-    volume_size           = "50"
-    delete_on_termination = "true"
   }
 }
 
