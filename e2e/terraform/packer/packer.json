@@ -20,6 +20,11 @@
       "destination": "/tmp/linux"
     },
     {
+      "type": "file",
+      "source": "../config",
+      "destination": "/tmp/config"
+    },
+    {
       "type": "shell",
       "script": "./linux/setup.sh"
     }
