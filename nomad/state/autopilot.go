@@ -27,7 +27,7 @@ func autopilotConfigTableSchema() *memdb.TableSchema {
 
 // AutopilotConfig is used to get the current Autopilot configuration.
 func (s *StateStore) AutopilotConfig() (uint64, *structs.AutopilotConfig, error) {
-	tx := s.db.Txn(false)
+	tx := s.db.ReadTxn()
 	defer tx.Abort()
 
 	// Get the autopilot config

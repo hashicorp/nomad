@@ -32,6 +32,16 @@ type changeTrackerDB struct {
 	processChanges func(ReadTxn, Changes) ([]event.Event, error)
 }
 
+func NewChangeTrackerDB(db *memdb.MemDB, publisher eventPublisher, changesFn changeProcessor) *changeTrackerDB {
+	return &changeTrackerDB{
+		db:             db,
+		publisher:      event.NewPublisher(),
+		processChanges: changesFn,
+	}
+}
+
+type changeProcessor func(ReadTxn, Changes) ([]event.Event, error)
+
 type eventPublisher interface {
 	Publish(events []event.Event)
 }
@@ -41,18 +51,6 @@ type noOpPublisher struct{}
 
 func (n *noOpPublisher) Publish(events []event.Event)            {}
 func noOpProcessChanges(ReadTxn, Changes) ([]event.Event, error) { return []event.Event{}, nil }
-
-// Txn exists to maintain backwards compatibility with memdb.DB.Txn. Preexisting
-// code may use it to create a read-only transaction, but it will panic if called
-// with write=true.
-//
-// Deprecated: use either ReadTxn, or WriteTxn.
-func (c *changeTrackerDB) Txn(write bool) *txn {
-	if write {
-		panic("don't use db.Txn(true), use db.WriteTxn(idx uin64)")
-	}
-	return c.ReadTxn()
-}
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn
