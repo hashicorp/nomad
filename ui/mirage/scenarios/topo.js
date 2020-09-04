@@ -7,8 +7,8 @@ export function topoSmall(server) {
     datacenter: 'dc1',
     status: 'ready',
     resources: {
-      CPU: 4000,
-      MemoryMB: 8192,
+      CPU: 3000,
+      MemoryMB: 5192,
       DiskMB: 10000,
       IOPS: 100000,
       Networks: generateNetworks(),
@@ -39,9 +39,10 @@ export function topoSmall(server) {
     });
   });
 
-  server.createList('allocation', 35, {
+  server.createList('allocation', 25, {
     forceRunningClientStatus: true,
   });
+  //server.createList('allocation', 15, { clientStatus: 'pending' });
 }
 
 export function topoSmallProblems(server) {}
