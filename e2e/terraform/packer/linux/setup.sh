@@ -51,7 +51,7 @@ sudo chown root:root /usr/local/bin/consul
 echo "Configure Consul"
 mkdir_for_root /etc/consul.d
 mkdir_for_root /opt/consul
-sudo mv /tmp/linux/consul_aws.service /etc/systemd/system/consul.service
+sudo mv /tmp/linux/consul.service /etc/systemd/system/consul.service
 
 echo "Install Vault"
 curl -fsL -o /tmp/vault.zip \
