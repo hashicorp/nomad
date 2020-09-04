@@ -9,6 +9,8 @@ export default class TopoViz extends Component {
   @tracked heightScale = null;
   @tracked isLoaded = false;
 
+  @tracked activeTaskGroup = null;
+
   get datacenters() {
     const datacentersMap = this.args.nodes.reduce((datacenters, node) => {
       if (!datacenters[node.datacenter]) datacenters[node.datacenter] = [];
@@ -27,8 +29,13 @@ export default class TopoViz extends Component {
 
     // TODO: Make the range dynamic based on the extent of the domain
     this.heightScale = scaleLinear()
-      .range([15, 50])
+      .range([15, 30])
       .domain([0, max(this.args.nodes.map(node => node.resources.memory))]);
     this.isLoaded = true;
+  }
+
+  @action
+  associateAllocations(allocation) {
+    this.activeTaskGroup = allocation.taskGroup;
   }
 }

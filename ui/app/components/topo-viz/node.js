@@ -62,6 +62,11 @@ export default class TopoVizNode extends Component {
     this.activeAllocation = null;
   }
 
+  @action
+  selectAllocation(allocation) {
+    if (this.args.onAllocationSelect) this.args.onAllocationSelect(allocation);
+  }
+
   computeData(width) {
     // TODO: differentiate reserved and resources
     if (!this.args.node.resources) return;

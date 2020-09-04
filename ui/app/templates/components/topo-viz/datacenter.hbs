@@ -9,7 +9,7 @@
   <div class="boxed-section-body">
     {{#if this.isLoaded}}
       {{#each @nodes as |node|}}
-        <TopoViz::Node @node={{node}} @heightScale={{@heightScale}} />
+        <TopoViz::Node @node={{node}} @heightScale={{@heightScale}} @onAllocationSelect={{@onAllocationSelect}} />
       {{/each}}
     {{/if}}
   </div>

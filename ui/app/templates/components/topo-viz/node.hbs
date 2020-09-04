@@ -25,7 +25,10 @@
             height="{{this.height}}px" />
         {{/if}}
         {{#each this.data.memory as |memory|}}
-        <g class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}}" {{on "mouseenter" (fn this.highlightAllocation memory.allocation)}} >
+        <g
+          class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}}"
+          {{on "mouseenter" (fn this.highlightAllocation memory.allocation)}}
+          {{on "click" (fn this.selectAllocation memory.allocation)}}>
             <rect width="{{memory.width}}px" x="{{memory.x}}px" height="{{this.height}}px" class="layer-0" />
             {{#if (or (eq memory.className "starting") (eq memory.className "pending"))}}
               <rect width="{{memory.width}}px" x="{{memory.x}}px" height="{{this.height}}px" class="layer-1" />
@@ -43,7 +46,10 @@
             height="{{this.height}}px" />
         {{/if}}
         {{#each this.data.cpu as |cpu|}}
-          <g class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}}" {{on "mouseenter" (fn this.highlightAllocation cpu.allocation)}}>
+          <g
+            class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}}"
+            {{on "mouseenter" (fn this.highlightAllocation cpu.allocation)}}
+            {{on "click" (fn this.selectAllocation cpu.allocation)}}>
             <rect width="{{cpu.width}}px" x="{{cpu.x}}px" height="{{this.height}}px" y="{{this.yOffset}}px" class="layer-0" />
             {{#if (or (eq cpu.className "starting") (eq cpu.className "pending"))}}
               <rect width="{{cpu.width}}px" x="{{cpu.x}}px" height="{{this.height}}px" y="{{this.yOffset}}px" class="layer-1" />
