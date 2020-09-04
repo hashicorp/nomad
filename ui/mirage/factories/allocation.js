@@ -206,7 +206,7 @@ export default Factory.extend({
 
       allocation.update({
         taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),
-        taskResourceIds: allocation.clientStatus === 'pending' ? [] : resources.mapBy('id'),
+        taskResourceIds: resources.mapBy('id'),
       });
 
       // Each allocation has a corresponding allocation stats running on some client.
