@@ -18,13 +18,17 @@ output "provisioning" {
             "remote_binary_path" : "/usr/local/bin/nomad",
             "bundles" : [
               {
+                "source" : abspath("./config"),
+                "destination" : "/opt/config"
+              },
+              {
                 "source" : abspath("./shared"),
                 "destination" : "/ops/shared"
               }
             ],
             "steps" : [
               "sudo chmod +x /ops/shared/config/provision-server.sh",
-              "sudo /ops/shared/config/provision-server.sh aws ${var.server_count} 'indexed/server-${index(aws_instance.server, server)}.hcl'"
+              "sudo /ops/shared/config/provision-server.sh"
             ],
           }
         }
@@ -43,13 +47,17 @@ output "provisioning" {
             "remote_binary_path" : "/usr/local/bin/nomad",
             "bundles" : [
               {
+                "source" : abspath("./config"),
+                "destination" : "/opt/config"
+              },
+              {
                 "source" : abspath("./shared"),
                 "destination" : "/ops/shared"
               }
             ],
             "steps" : [
               "sudo chmod +x /ops/shared/config/provision-client.sh",
-              "sudo /ops/shared/config/provision-client.sh aws 'indexed/client-${index(aws_instance.client_linux, client)}.hcl'"
+              "sudo /ops/shared/config/provision-client.sh 'indexed/client-${index(aws_instance.client_linux, client)}.hcl'"
             ],
           }
         }
@@ -70,12 +78,16 @@ output "provisioning" {
               "remote_binary_path" : "C:/opt/nomad.exe",
               "bundles" : [
                 {
+                  "source" : abspath("./config"),
+                  "destination" : "/opt/config"
+                },
+                {
                   "source" : abspath("./shared"),
                   "destination" : "C:/ops/shared"
                 }
               ],
               "steps" : [
-                "& C:\\ops\\shared\\config\\provision-windows-client.ps1 -Cloud aws -Index 1"
+                "& C:\\ops\\shared\\config\\provision-windows-client.ps1"
               ]
             }
           }

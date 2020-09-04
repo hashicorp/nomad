@@ -1,8 +1,6 @@
 server {
-  enabled = true
-
-  # this value will be overwritten during provisioning
-  bootstrap_expect = 3 # SERVER_COUNT
+  enabled          = true
+  bootstrap_expect = 3
 }
 
 vault {
