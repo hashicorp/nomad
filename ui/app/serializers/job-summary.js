@@ -11,16 +11,18 @@ export default class JobSummary extends ApplicationSerializer {
     // TaskGroupSummary fragment list
 
     const fullSummary = hash.Summary || {};
-    hash.TaskGroupSummaries = Object.keys(fullSummary).map(key => {
-      const allocStats = fullSummary[key] || {};
-      const summary = { Name: key };
+    hash.TaskGroupSummaries = Object.keys(fullSummary)
+      .sort()
+      .map(key => {
+        const allocStats = fullSummary[key] || {};
+        const summary = { Name: key };
 
-      Object.keys(allocStats).forEach(
-        allocKey => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
-      );
+        Object.keys(allocStats).forEach(
+          allocKey => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
+        );
 
-      return summary;
-    });
+        return summary;
+      });
 
     // Lift the children stats out of the Children object
     const childrenStats = get(hash, 'Children');
