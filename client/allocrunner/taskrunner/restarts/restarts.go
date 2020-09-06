@@ -21,8 +21,16 @@ const (
 )
 
 func NewRestartTracker(policy *structs.RestartPolicy, jobType string, tlc *structs.TaskLifecycleConfig) *RestartTracker {
+	// Batch jobs should not restart if they exit successfully
 	onSuccess := jobType != structs.JobTypeBatch
+
+	// Prestart sidecars should get restarted on success
 	if tlc != nil && tlc.Hook == structs.TaskLifecycleHookPrestart {
+		onSuccess = tlc.Sidecar
+	}
+
+	// Poststart sidecars should get restarted on success
+	if tlc != nil && tlc.Hook == structs.TaskLifecycleHookPoststart {
 		onSuccess = tlc.Sidecar
 	}
 

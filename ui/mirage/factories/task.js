@@ -19,14 +19,18 @@ export default Factory.extend({
   Resources: generateResources,
 
   Lifecycle: i => {
-    const cycle = i % 3;
+    const cycle = i % 5;
 
     if (cycle === 0) {
       return null;
     } else if (cycle === 1) {
       return { Hook: 'prestart', Sidecar: false };
-    } else {
+    } else if (cycle === 2) {
       return { Hook: 'prestart', Sidecar: true };
+    } else if (cycle === 3) {
+      return { Hook: 'poststart', Sidecar: false };
+    } else if (cycle === 4) {
+      return { Hook: 'poststart', Sidecar: true };
     }
   },
 });

@@ -34,8 +34,7 @@ module('Acceptance | job allocations', function(hooks) {
     allocations = server.schema.allocations.where({ jobId: job.id }).models;
 
     await Allocations.visit({ id: job.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('lists all allocations for the job', async function(assert) {

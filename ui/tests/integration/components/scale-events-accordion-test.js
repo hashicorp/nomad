@@ -5,6 +5,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
+import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | scale-events-accordion', function(hooks) {
   setupRenderingTest(hooks);
@@ -17,7 +18,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
     this.server.create('node');
     this.taskGroupWithEvents = async function(events) {
       const job = this.server.create('job', { createAllocations: false });
-      const group = job.task_groups.models[0];
+      const group = job.taskGroups.models[0];
       job.jobScale.taskGroupScales.models.findBy('name', group.name).update({ events });
 
       const jobModel = await this.store.find('job', JSON.stringify([job.id, 'default']));
@@ -40,6 +41,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
     await render(commonTemplate);
 
     assert.equal(findAll('[data-test-scale-events] [data-test-accordion-head]').length, eventCount);
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when an event is an error, an error icon is shown', async function(assert) {
@@ -51,6 +53,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
     await render(commonTemplate);
 
     assert.ok(find('[data-test-error]'));
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when an event has a count higher than previous count, a danger up arrow is shown', async function(assert) {
@@ -69,6 +72,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
         .querySelector('.icon')
         .classList.contains('is-danger')
     );
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when an event has a count lower than previous count, a primary down arrow is shown', async function(assert) {
@@ -110,6 +114,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
     await render(commonTemplate);
 
     assert.ok(find('[data-test-accordion-toggle]').classList.contains('is-invisible'));
+    await componentA11yAudit(this.element, assert);
   });
 
   test('when an event has meta properties, the accordion entry is expanding, presenting the meta properties in a json viewer', async function(assert) {
@@ -134,5 +139,6 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
       getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
       JSON.stringify(meta, null, 2)
     );
+    await componentA11yAudit(this.element, assert);
   });
 });

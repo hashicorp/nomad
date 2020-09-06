@@ -213,7 +213,7 @@ OUTER:
 }
 
 // Host collects data about the host evironment running the agent
-func (a *Agent) Host(args *structs.QueryOptions, reply *structs.HostDataResponse) error {
+func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataResponse) error {
 	aclObj, err := a.c.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err

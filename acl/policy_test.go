@@ -327,3 +327,16 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_BadInput(t *testing.T) {
+	inputs := []string{
+		`namespace "\500" {}`,
+	}
+
+	for i, c := range inputs {
+		t.Run(fmt.Sprintf("%d: %v", i, c), func(t *testing.T) {
+			_, err := Parse(c)
+			assert.Error(t, err)
+		})
+	}
+}

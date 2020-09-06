@@ -26,8 +26,7 @@ module('Acceptance | plugin allocations', function(hooks) {
     });
 
     await PluginAllocations.visit({ id: plugin.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/csi/plugins/:id/allocations shows all allocations in a single table', async function(assert) {

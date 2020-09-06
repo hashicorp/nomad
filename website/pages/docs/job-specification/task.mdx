@@ -107,6 +107,9 @@ job "docs" {
   required by the task. This overrides any `vault` block set at the `group` or
   `job` level.
 
+- `volume_mount` <code>([VolumeMount][]: nil)</code> - Specifies where a group
+  volume should be mounted.
+
 - `kind` `(string: <varies>)` - Used internally to manage tasks according to
   the value of this field. Initial use case is for Consul Connect.
 
@@ -202,6 +205,7 @@ task "server" {
 [logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
 [service]: /docs/job-specification/service 'Nomad service Job Specification'
 [vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
+[volumemount]: /docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
 [exec]: /docs/drivers/exec 'Nomad exec Driver'
 [java]: /docs/drivers/java 'Nomad Java Driver'
 [docker]: /docs/drivers/docker 'Nomad Docker Driver'

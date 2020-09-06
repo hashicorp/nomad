@@ -20,12 +20,24 @@ export default Factory.extend({
 
   version: 1,
 
-  groupsCount: () => faker.random.number({ min: 1, max: 2 }),
+  // When provided, the resourceSpec will inform how many task groups to create
+  // and how much of each resource that task group reserves.
+  //
+  // One task group, 256 MiB memory and 500 Mhz cpu
+  // resourceSpec: ['M: 256, C: 500']
+  //
+  // Two task groups
+  // resourceSpec: ['M: 256, C: 500', 'M: 1024, C: 1200']
+  resourceSpec: null,
+
+  groupsCount() {
+    return this.resourceSpec ? this.resourceSpec.length : faker.random.number({ min: 1, max: 2 });
+  },
 
   region: () => 'global',
   type: () => faker.helpers.randomize(JOB_TYPES),
   priority: () => faker.random.number(100),
-  all_at_once: faker.random.boolean,
+  allAtOnce: faker.random.boolean,
   status: () => faker.helpers.randomize(JOB_STATUSES),
   datacenters: () =>
     faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
@@ -135,27 +147,36 @@ export default Factory.extend({
       groupProps.count = job.groupTaskCount;
     }
 
-    const groups = job.noHostVolumes
-      ? server.createList('task-group', job.groupsCount, 'noHostVolumes', groupProps)
-      : server.createList('task-group', job.groupsCount, groupProps);
+    let groups;
+    if (job.noHostVolumes) {
+      groups = provide(job.groupsCount, (_, idx) =>
+        server.create('task-group', 'noHostVolumes', {
+          ...groupProps,
+          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
+        })
+      );
+    } else {
+      groups = provide(job.groupsCount, (_, idx) =>
+        server.create('task-group', {
+          ...groupProps,
+          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
+        })
+      );
+    }
 
     job.update({
       taskGroupIds: groups.mapBy('id'),
-      task_group_ids: groups.mapBy('id'),
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
     const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
+      jobId: job.id,
       groupNames: groups.mapBy('name'),
-      job,
-      job_id: job.id,
-      JobID: job.id,
       namespace: job.namespace,
     });
 
     job.update({
       jobSummaryId: jobSummary.id,
-      job_summary_id: jobSummary.id,
     });
 
     const jobScale = server.create('job-scale', {

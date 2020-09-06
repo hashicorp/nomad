@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,11 +32,13 @@ func TestHTTP_CSIEndpointPlugin(t *testing.T) {
 		out, ok := obj.(*api.CSIPlugin)
 		require.True(t, ok)
 
-		require.Equal(t, 1, out.ControllersExpected)
+		// ControllersExpected is 0 because this plugin was created without a job,
+		// which sets expected
+		require.Equal(t, 0, out.ControllersExpected)
 		require.Equal(t, 1, out.ControllersHealthy)
 		require.Len(t, out.Controllers, 1)
 
-		require.Equal(t, 2, out.NodesExpected)
+		require.Equal(t, 0, out.NodesExpected)
 		require.Equal(t, 2, out.NodesHealthy)
 		require.Len(t, out.Nodes, 2)
 	})
@@ -92,11 +93,7 @@ func TestHTTP_CSIEndpointVolume(t *testing.T) {
 		out, ok := raw.(*api.CSIVolume)
 		require.True(t, ok)
 
-		pretty.Log(out)
-
-		require.Equal(t, 1, out.ControllersExpected)
 		require.Equal(t, 1, out.ControllersHealthy)
-		require.Equal(t, 2, out.NodesExpected)
 		require.Equal(t, 2, out.NodesHealthy)
 	})
 }

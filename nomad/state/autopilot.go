@@ -27,7 +27,7 @@ func autopilotConfigTableSchema() *memdb.TableSchema {
 
 // AutopilotConfig is used to get the current Autopilot configuration.
 func (s *StateStore) AutopilotConfig() (uint64, *structs.AutopilotConfig, error) {
-	tx := s.db.Txn(false)
+	tx := s.db.ReadTxn()
 	defer tx.Abort()
 
 	// Get the autopilot config
@@ -45,11 +45,11 @@ func (s *StateStore) AutopilotConfig() (uint64, *structs.AutopilotConfig, error)
 }
 
 // AutopilotSetConfig is used to set the current Autopilot configuration.
-func (s *StateStore) AutopilotSetConfig(idx uint64, config *structs.AutopilotConfig) error {
-	tx := s.db.Txn(true)
+func (s *StateStore) AutopilotSetConfig(index uint64, config *structs.AutopilotConfig) error {
+	tx := s.db.WriteTxn(index)
 	defer tx.Abort()
 
-	s.autopilotSetConfigTxn(idx, tx, config)
+	s.autopilotSetConfigTxn(index, tx, config)
 
 	tx.Commit()
 	return nil
@@ -58,8 +58,8 @@ func (s *StateStore) AutopilotSetConfig(idx uint64, config *structs.AutopilotCon
 // AutopilotCASConfig is used to try updating the Autopilot configuration with a
 // given Raft index. If the CAS index specified is not equal to the last observed index
 // for the config, then the call is a noop,
-func (s *StateStore) AutopilotCASConfig(idx, cidx uint64, config *structs.AutopilotConfig) (bool, error) {
-	tx := s.db.Txn(true)
+func (s *StateStore) AutopilotCASConfig(index, cidx uint64, config *structs.AutopilotConfig) (bool, error) {
+	tx := s.db.WriteTxn(index)
 	defer tx.Abort()
 
 	// Check for an existing config
@@ -76,13 +76,13 @@ func (s *StateStore) AutopilotCASConfig(idx, cidx uint64, config *structs.Autopi
 		return false, nil
 	}
 
-	s.autopilotSetConfigTxn(idx, tx, config)
+	s.autopilotSetConfigTxn(index, tx, config)
 
 	tx.Commit()
 	return true, nil
 }
 
-func (s *StateStore) autopilotSetConfigTxn(idx uint64, tx *memdb.Txn, config *structs.AutopilotConfig) error {
+func (s *StateStore) autopilotSetConfigTxn(idx uint64, tx *txn, config *structs.AutopilotConfig) error {
 	// Check for an existing config
 	existing, err := tx.First("autopilot-config", "id")
 	if err != nil {

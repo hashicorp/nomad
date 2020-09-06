@@ -579,6 +579,10 @@ type JobDeregisterRequest struct {
 	// garbage collector
 	Purge bool
 
+	// Global controls whether all regions of a multi-region job are
+	// deregistered. It is ignored for single-region jobs.
+	Global bool
+
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
 
@@ -4230,25 +4234,43 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	return policies
 }
 
-// Connect tasks returns the set of Consul Connect enabled tasks that will
-// require a Service Identity token, if Consul ACLs are enabled.
+// ConnectTasks returns the set of Consul Connect enabled tasks defined on the
+// job that will require a Service Identity token in the case that Consul ACLs
+// are enabled. The TaskKind.Value is the name of the Consul service.
 //
 // This method is meaningful only after the Job has passed through the job
 // submission Mutator functions.
-//
-// task group -> []task
-func (j *Job) ConnectTasks() map[string][]string {
-	m := make(map[string][]string)
+func (j *Job) ConnectTasks() []TaskKind {
+	var kinds []TaskKind
 	for _, tg := range j.TaskGroups {
 		for _, task := range tg.Tasks {
-			if task.Kind.IsConnectProxy() {
-				// todo(shoenig): when we support native, probably need to check
-				//  an additional TBD TaskKind as well.
-				m[tg.Name] = append(m[tg.Name], task.Name)
+			if task.Kind.IsConnectProxy() ||
+				task.Kind.IsConnectNative() ||
+				task.Kind.IsAnyConnectGateway() {
+				kinds = append(kinds, task.Kind)
 			}
 		}
 	}
-	return m
+	return kinds
+}
+
+// ConfigEntries accumulates the Consul Configuration Entries defined in task groups
+// of j.
+//
+// Currently Nomad only supports entries for connect ingress gateways.
+func (j *Job) ConfigEntries() map[string]*ConsulIngressConfigEntry {
+	igEntries := make(map[string]*ConsulIngressConfigEntry)
+	for _, tg := range j.TaskGroups {
+		for _, service := range tg.Services {
+			if service.Connect.IsGateway() {
+				if ig := service.Connect.Gateway.Ingress; ig != nil {
+					igEntries[service.Name] = ig
+				}
+				// imagine also accumulating other entry types in the future
+			}
+		}
+	}
+	return igEntries
 }
 
 // RequiredSignals returns a mapping of task groups to tasks to their required
@@ -4878,7 +4900,8 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 const (
-	TaskLifecycleHookPrestart = "prestart"
+	TaskLifecycleHookPrestart  = "prestart"
+	TaskLifecycleHookPoststart = "poststart"
 )
 
 type TaskLifecycleConfig struct {
@@ -4902,6 +4925,7 @@ func (d *TaskLifecycleConfig) Validate() error {
 
 	switch d.Hook {
 	case TaskLifecycleHookPrestart:
+	case TaskLifecycleHookPoststart:
 	case "":
 		return fmt.Errorf("no lifecycle hook provided")
 	default:
@@ -5627,8 +5651,10 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, errors.New("Task group count can't be negative"))
 	}
 	if len(tg.Tasks) == 0 {
+		// could be a lone consul gateway inserted by the connect mutator
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
 	}
+
 	for idx, constr := range tg.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
@@ -5979,10 +6005,28 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 	return nil
 }
 
+// UsesConnect for convenience returns true if the TaskGroup contains at least
+// one service that makes use of Consul Connect features.
+//
+// Currently used for validating that the task group contains one or more connect
+// aware services before generating a service identity token.
 func (tg *TaskGroup) UsesConnect() bool {
 	for _, service := range tg.Services {
 		if service.Connect != nil {
-			if service.Connect.IsNative() || service.Connect.HasSidecar() {
+			if service.Connect.IsNative() || service.Connect.HasSidecar() || service.Connect.IsGateway() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// UsesConnectGateway for convenience returns true if the TaskGroup contains at
+// least one service that makes use of Consul Connect Gateway features.
+func (tg *TaskGroup) UsesConnectGateway() bool {
+	for _, service := range tg.Services {
+		if service.Connect != nil {
+			if service.Connect.IsGateway() {
 				return true
 			}
 		}
@@ -6183,9 +6227,9 @@ type Task struct {
 // UsesConnect is for conveniently detecting if the Task is able to make use
 // of Consul Connect features. This will be indicated in the TaskKind of the
 // Task, which exports known types of Tasks. UsesConnect will be true if the
-// task is a connect proxy, or if the task is connect native.
+// task is a connect proxy, connect native, or is a connect gateway.
 func (t *Task) UsesConnect() bool {
-	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative()
+	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative() || t.Kind.IsAnyConnectGateway()
 }
 
 func (t *Task) Copy() *Task {
@@ -6621,13 +6665,31 @@ func (k TaskKind) Value() string {
 	return ""
 }
 
-// IsConnectProxy returns true if the TaskKind is connect-proxy
-func (k TaskKind) IsConnectProxy() bool {
-	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
+func (k TaskKind) hasPrefix(prefix string) bool {
+	return strings.HasPrefix(string(k), prefix+":") && len(k) > len(prefix)+1
 }
 
+// IsConnectProxy returns true if the TaskKind is connect-proxy.
+func (k TaskKind) IsConnectProxy() bool {
+	return k.hasPrefix(ConnectProxyPrefix)
+}
+
+// IsConnectNative returns true if the TaskKind is connect-native.
 func (k TaskKind) IsConnectNative() bool {
-	return strings.HasPrefix(string(k), ConnectNativePrefix+":") && len(k) > len(ConnectNativePrefix)+1
+	return k.hasPrefix(ConnectNativePrefix)
+}
+
+func (k TaskKind) IsConnectIngress() bool {
+	return k.hasPrefix(ConnectIngressPrefix)
+}
+
+func (k TaskKind) IsAnyConnectGateway() bool {
+	switch {
+	case k.IsConnectIngress():
+		return true
+	default:
+		return false
+	}
 }
 
 const (
@@ -6638,6 +6700,22 @@ const (
 	// ConnectNativePrefix is the prefix used for fields referencing a Connect
 	// Native Task
 	ConnectNativePrefix = "connect-native"
+
+	// ConnectIngressPrefix is the prefix used for fields referencing a Consul
+	// Connect Ingress Gateway Proxy.
+	ConnectIngressPrefix = "connect-ingress"
+
+	// ConnectTerminatingPrefix is the prefix used for fields referencing a Consul
+	// Connect Terminating Gateway Proxy.
+	//
+	// Not yet supported.
+	// ConnectTerminatingPrefix = "connect-terminating"
+
+	// ConnectMeshPrefix is the prefix used for fields referencing a Consul Connect
+	// Mesh Gateway Proxy.
+	//
+	// Not yet supported.
+	// ConnectMeshPrefix = "connect-mesh"
 )
 
 // ValidateConnectProxyService checks that the service that is being
@@ -7455,9 +7533,12 @@ func (ta *TaskArtifact) Hash() string {
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation
-// directory. The prefix allows adding a prefix if the path will be joined, for
-// example a "task/local" prefix may be provided if the path will be joined
-// against that prefix.
+// directory.
+//
+// The prefix is to joined to the path (e.g. "task/local"), and this function
+// checks if path escapes the alloc dir, NOT the prefix directory within the alloc dir.
+// With prefix="task/local", it will return false for "../secret", but
+// true for "../../../../../../root" path; only the latter escapes the alloc dir
 func PathEscapesAllocDir(prefix, path string) (bool, error) {
 	// Verify the destination doesn't escape the tasks directory
 	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
@@ -9847,12 +9928,14 @@ func (p *Plan) PopUpdate(alloc *Allocation) {
 	}
 }
 
-func (p *Plan) AppendAlloc(alloc *Allocation) {
+// AppendAlloc appends the alloc to the plan allocations.
+// Uses the passed job if explicitly passed, otherwise
+// it is assumed the alloc will use the plan Job version.
+func (p *Plan) AppendAlloc(alloc *Allocation, job *Job) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
 
-	// Normalize the job
-	alloc.Job = nil
+	alloc.Job = job
 
 	p.NodeAllocation[node] = append(existing, alloc)
 }
