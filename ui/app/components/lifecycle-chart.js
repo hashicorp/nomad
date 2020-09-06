@@ -14,8 +14,11 @@ export default class LifecycleChart extends Component {
   get lifecyclePhases() {
     const tasksOrStates = this.taskStates || this.tasks;
     const lifecycles = {
-      prestarts: [],
-      sidecars: [],
+      'prestart-ephemerals': [],
+      'prestart-sidecars': [],
+      'poststart-ephemerals': [],
+      'poststart-sidecars': [],
+      poststops: [],
       mains: [],
     };
 
@@ -25,18 +28,24 @@ export default class LifecycleChart extends Component {
     });
 
     const phases = [];
+    const stateActiveIterator = state => state.state === 'running';
 
-    if (lifecycles.prestarts.length || lifecycles.sidecars.length) {
+    if (lifecycles.mains.length < tasksOrStates.length) {
       phases.push({
         name: 'Prestart',
-        isActive: lifecycles.prestarts.some(state => state.state === 'running'),
+        isActive: lifecycles['prestart-ephemerals'].some(stateActiveIterator),
       });
-    }
 
-    if (lifecycles.sidecars.length || lifecycles.mains.length) {
       phases.push({
         name: 'Main',
-        isActive: lifecycles.mains.some(state => state.state === 'running'),
+        isActive:
+          lifecycles.mains.some(stateActiveIterator) ||
+          lifecycles['poststart-ephemerals'].some(stateActiveIterator),
+      });
+
+      // Poststart is rendered as a subphase of main and therefore has no independent active state
+      phases.push({
+        name: 'Poststart',
       });
     }
 
@@ -55,12 +64,14 @@ export default class LifecycleChart extends Component {
 }
 
 const lifecycleNameSortPrefix = {
-  prestart: 0,
-  sidecar: 1,
+  'prestart-ephemeral': 0,
+  'prestart-sidecar': 1,
   main: 2,
+  'poststart-sidecar': 3,
+  'poststart-ephemeral': 4,
+  poststop: 5,
 };
 
 function getTaskSortPrefix(task) {
-  // Prestarts first, then sidecars, then mains
   return `${lifecycleNameSortPrefix[task.lifecycleName]}-${task.name}`;
 }

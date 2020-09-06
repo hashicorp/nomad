@@ -651,7 +651,7 @@ func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// replace consul ACLs api with a mock for tracking calls
+	// replace consul ACLs API with a mock for tracking calls in tests
 	var consulACLsAPI mockConsulACLsAPI
 	s1.consulACLs = &consulACLsAPI
 
@@ -1100,7 +1100,7 @@ func TestLeader_UpgradeRaftVersion(t *testing.T) {
 func TestLeader_Reelection(t *testing.T) {
 	raftProtocols := []int{1, 2, 3}
 	for _, p := range raftProtocols {
-		t.Run("Leader Election - Protocol version "+string(p), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Leader Election - Protocol version %d", p), func(t *testing.T) {
 			leaderElectionTest(t, raft.ProtocolVersion(p))
 		})
 	}

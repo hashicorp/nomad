@@ -23,7 +23,7 @@ Includes:
 Download the latest version of [Nomad](https://www.nomadproject.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/nomad/0.12.0/nomad_0.12.0_linux_amd64.zip" -o nomad.zip
+curl "https://releases.hashicorp.com/nomad/0.12.3/nomad_0.12.3_linux_amd64.zip" -o nomad.zip
 unzip nomad.zip
 sudo mv nomad /usr/local/bin
 nomad --version
@@ -34,7 +34,7 @@ nomad --version
 Download the latest version of [Consul](https://www.consul.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/consul/1.8.0/consul_1.8.0_linux_amd64.zip" -o consul.zip
+curl "https://releases.hashicorp.com/consul/1.8.3/consul_1.8.3_linux_amd64.zip" -o consul.zip
 unzip consul.zip
 sudo mv consul /usr/local/bin
 consul --version
@@ -45,7 +45,7 @@ consul --version
 Download the latest version of [Vault](https://www.vaultproject.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/vault/1.4.3/vault_1.4.3_linux_amd64.zip" -o vault.zip
+curl "https://releases.hashicorp.com/vault/1.5.3/vault_1.5.3_linux_amd64.zip" -o vault.zip
 unzip vault.zip
 sudo mv vault /usr/local/bin
 vault --version
@@ -56,7 +56,7 @@ vault --version
 Download the latest version of [Packer](https://www.packer.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip" -o packer.zip
+curl "https://releases.hashicorp.com/packer/1.6.2/packer_1.6.2_linux_amd64.zip" -o packer.zip
 unzip packer.zip
 sudo mv packer /usr/local/bin
 packer --version
@@ -67,7 +67,7 @@ packer --version
 Download the latest version of [Terraform](https://www.terraform.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/terraform/0.12.28/terraform_0.12.28_linux_amd64.zip" -o terraform.zip
+curl "https://releases.hashicorp.com/terraform/0.13.1/terraform_0.13.1_linux_amd64.zip" -o terraform.zip
 unzip terraform.zip
 sudo mv terraform /usr/local/bin
 terraform --version
@@ -75,7 +75,7 @@ terraform --version
 
 ### Install and Authenticate the GCP SDK Command Line Tools
 
-**If you are using [Google Cloud](https://cloud.google.com/shell), you already have `gcloud` setup. So, you can safely skip this step.**
+**If you are using [Google Cloud](https://cloud.google.com/shell), you already have `gcloud` set up, and you can safely skip this step.**
 
 To install the GCP SDK Command Line Tools, follow the installation instructions for your specific operating system: 
 
@@ -233,19 +233,39 @@ If you're **not** using Cloud Shell, you can use any of these links:
 * [Vault](http://127.0.0.1:8200)
 * [Consul](http://127.0.0.1:8500)
 
+In case you want to try out any of the optional steps with the Vault CLI later on, set this helper variable: 
+
+```
+export VAULT_ADDR=http://localhost:8200
+```
 
 ## Next Steps
 
+You have deployed a Nomad cluster to GCP! 🎉
+
 Click [here](https://github.com/hashicorp/nomad/blob/master/terraform/README.md#test) for next steps.
+
+> ### After You Finish
+> Come back here when you're done exploring Nomad and the HashiCorp stack. In the next section, you'll learn how to clean up, and will destroy the demo infrastructure you've created. 
 
 ## Conclusion
 
-You have deployed a Nomad cluster to GCP!
+You have deployed a Nomad cluster to GCP! 
 
-### Destroy Infrastrucure
+### Destroy Infrastructure
 
-To destroy all the demo infrastrucure: 
+To destroy all the demo infrastructure: 
 
 ```console
 terraform destroy -force -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}" 
 ```
+### Delete the Project
+
+Finally, to completely delete the project: 
+
+gcloud projects delete $GOOGLE_PROJECT
+
+> ### Alternative: Use the GUI
+> 
+> If you prefer to delete the project using GCP's Cloud Console, follow this link to GCP's [Cloud Resource Manager](https://console.cloud.google.com/cloud-resource-manager).
+

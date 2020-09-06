@@ -25,10 +25,10 @@ module('Acceptance | exec', function(hooks) {
       status: 'running',
     });
 
-    this.job.task_group_ids.forEach(taskGroupId => {
+    this.job.taskGroups.models.forEach(taskGroup => {
       server.create('allocation', {
         jobId: this.job.id,
-        taskGroup: server.db.taskGroups.find(taskGroupId).name,
+        taskGroup: taskGroup.name,
         forceRunningClientStatus: true,
       });
     });
@@ -36,8 +36,7 @@ module('Acceptance | exec', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await Exec.visitJob({ job: this.job.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {
@@ -72,10 +71,10 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('/exec/:job should show the task groups collapsed by default and allow the tasks to be shown', async function(assert) {
-    const firstTaskGroup = this.job.task_groups.models.sortBy('name')[0];
+    const firstTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     await Exec.visitJob({ job: this.job.id });
 
-    assert.equal(Exec.taskGroups.length, this.job.task_groups.length);
+    assert.equal(Exec.taskGroups.length, this.job.taskGroups.length);
 
     assert.equal(Exec.taskGroups[0].name, firstTaskGroup.name);
     assert.equal(Exec.taskGroups[0].tasks.length, 0);
@@ -104,7 +103,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('a task group with a pending allocation shows a loading spinner', async function(assert) {
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'pending' });
 
     await Exec.visitJob({ job: this.job.id });
@@ -112,7 +111,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('a task group with no running task states or pending allocations should not be shown', async function(assert) {
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update({ taskGroup: taskGroup.name }, { clientStatus: 'failed' });
 
     await Exec.visitJob({ job: this.job.id });
@@ -120,13 +119,13 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('an inactive task should not be shown', async function(assert) {
-    let notRunningTaskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let notRunningTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
       { clientStatus: 'failed' }
     );
 
-    let runningTaskGroup = this.job.task_groups.models.sortBy('name')[1];
+    let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
     runningTaskGroup.tasks.models.forEach((task, index) => {
       if (index > 0) {
         this.server.db.taskStates.update({ name: task.name }, { finishedAt: new Date() });
@@ -140,13 +139,13 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('a task that becomes active should appear', async function(assert) {
-    let notRunningTaskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let notRunningTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
       { clientStatus: 'failed' }
     );
 
-    let runningTaskGroup = this.job.task_groups.models.sortBy('name')[1];
+    let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
     let changingTaskStateName;
     runningTaskGroup.tasks.models.sortBy('name').forEach((task, index) => {
       if (index > 0) {
@@ -185,7 +184,7 @@ module('Acceptance | exec', function(hooks) {
     this.job.status = 'dead';
     this.job.save();
 
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     let task = taskGroup.tasks.models.sortBy('name')[0];
 
     this.server.db.taskStates.update({ finishedAt: new Date() });
@@ -218,7 +217,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('visiting a path with a task group should open the group by default', async function(assert) {
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     await Exec.visitTaskGroup({ job: this.job.id, task_group: taskGroup.name });
 
     assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
@@ -236,7 +235,7 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     let task = taskGroup.tasks.models.sortBy('name')[0];
 
     let taskStates = this.server.db.taskStates.where({
@@ -275,7 +274,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   test('an allocation can be specified', async function(assert) {
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
@@ -323,7 +322,7 @@ module('Acceptance | exec', function(hooks) {
 
     this.owner.register('service:sockets', mockSockets);
 
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
@@ -394,7 +393,7 @@ module('Acceptance | exec', function(hooks) {
 
     this.owner.register('service:sockets', mockSockets);
 
-    let taskGroup = this.job.task_groups.models[0];
+    let taskGroup = this.job.taskGroups.models[0];
     let task = taskGroup.tasks.models[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
@@ -464,7 +463,7 @@ module('Acceptance | exec', function(hooks) {
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     let task = taskGroup.tasks.models.sortBy('name')[0];
     let allocation = this.server.db.allocations.findBy({
       jobId: this.job.id,
@@ -510,7 +509,7 @@ module('Acceptance | exec', function(hooks) {
   test('a persisted customised command is recalled', async function(assert) {
     window.localStorage.setItem('nomadExecCommand', JSON.stringify('/bin/sh'));
 
-    let taskGroup = this.job.task_groups.models[0];
+    let taskGroup = this.job.taskGroups.models[0];
     let task = taskGroup.tasks.models[0];
     let allocations = this.server.db.allocations.where({
       jobId: this.job.id,
@@ -537,7 +536,7 @@ module('Acceptance | exec', function(hooks) {
   });
 
   skip('when a task state finishes submitting a command displays an error', async function(assert) {
-    let taskGroup = this.job.task_groups.models.sortBy('name')[0];
+    let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     let task = taskGroup.tasks.models.sortBy('name')[0];
 
     await Exec.visitTask({

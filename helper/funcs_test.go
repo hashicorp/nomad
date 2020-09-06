@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -30,6 +31,25 @@ func TestSliceStringContains(t *testing.T) {
 	require.True(t, SliceStringContains(list, "b"))
 	require.True(t, SliceStringContains(list, "c"))
 	require.False(t, SliceStringContains(list, "d"))
+}
+
+func TestCompareTimePtrs(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		a := (*time.Duration)(nil)
+		b := (*time.Duration)(nil)
+		require.True(t, CompareTimePtrs(a, b))
+		c := TimeToPtr(3 * time.Second)
+		require.False(t, CompareTimePtrs(a, c))
+		require.False(t, CompareTimePtrs(c, a))
+	})
+
+	t.Run("not nil", func(t *testing.T) {
+		a := TimeToPtr(1 * time.Second)
+		b := TimeToPtr(1 * time.Second)
+		c := TimeToPtr(2 * time.Second)
+		require.True(t, CompareTimePtrs(a, b))
+		require.False(t, CompareTimePtrs(a, c))
+	})
 }
 
 func TestCompareSliceSetString(t *testing.T) {
@@ -132,6 +152,19 @@ func TestCopyMapStringSliceString(t *testing.T) {
 	if reflect.DeepEqual(c, m) {
 		t.Fatalf("Shared slices: %#v == %#v", m["x"], c["x"])
 	}
+}
+
+func TestCopyMapSliceInterface(t *testing.T) {
+	m := map[string]interface{}{
+		"foo": "bar",
+		"baz": 2,
+	}
+
+	c := CopyMapStringInterface(m)
+	require.True(t, reflect.DeepEqual(m, c))
+
+	m["foo"] = "zzz"
+	require.False(t, reflect.DeepEqual(m, c))
 }
 
 func TestClearEnvVar(t *testing.T) {

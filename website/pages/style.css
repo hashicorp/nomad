@@ -25,6 +25,7 @@
 @import '~@hashicorp/react-logo-grid/dist/style.css';
 @import '~@hashicorp/react-mega-nav/style.css';
 @import '~@hashicorp/react-product-downloader/dist/style.css';
+@import '~@hashicorp/react-search/dist/style.css';
 @import '~@hashicorp/react-section-header/dist/style.css';
 @import '~@hashicorp/react-subnav/dist/style.css';
 @import '~@hashicorp/react-tabs/dist/style.css';
@@ -33,7 +34,6 @@
 @import '~@hashicorp/react-text-split-with-code/dist/style.css';
 @import '~@hashicorp/react-text-split/dist/style.css';
 @import '~@hashicorp/react-toggle/dist/style.css';
-@import '~@hashicorp/react-use-cases/dist/style.css';
 @import '~@hashicorp/react-use-cases/dist/style.css';
 @import '~@hashicorp/react-vertical-text-block-list/dist/style.css';
 
@@ -49,7 +49,7 @@
 @import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
 @import '../components/footer/style.css';
-@import '../components/search/style.css';
+@import '../components/search-bar/style.css';
 
 /* Local Pages */
 @import './home/style.css';

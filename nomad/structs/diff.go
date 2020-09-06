@@ -61,7 +61,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "CreateIndex",
-		"ModifyIndex", "JobModifyIndex", "Update", "SubmitTime"}
+		"ModifyIndex", "JobModifyIndex", "Update", "SubmitTime", "NomadTokenID"}
 
 	if j == nil && other == nil {
 		return diff, nil
@@ -777,17 +777,344 @@ func connectDiffs(old, new *ConsulConnect, contextual bool) *ObjectDiff {
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
-	sidecarSvcDiff := connectSidecarServiceDiff(
-		old.SidecarService, new.SidecarService, contextual)
+	// Diff the object field SidecarService.
+	sidecarSvcDiff := connectSidecarServiceDiff(old.SidecarService, new.SidecarService, contextual)
 	if sidecarSvcDiff != nil {
 		diff.Objects = append(diff.Objects, sidecarSvcDiff)
 	}
 
+	// Diff the object field SidecarTask.
 	sidecarTaskDiff := sidecarTaskDiff(old.SidecarTask, new.SidecarTask, contextual)
 	if sidecarTaskDiff != nil {
 		diff.Objects = append(diff.Objects, sidecarTaskDiff)
 	}
 
+	// Diff the object field ConsulGateway.
+	gatewayDiff := connectGatewayDiff(old.Gateway, new.Gateway, contextual)
+	if gatewayDiff != nil {
+		diff.Objects = append(diff.Objects, gatewayDiff)
+	}
+
+	return diff
+}
+
+func connectGatewayDiff(prev, next *ConsulGateway, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Gateway"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulGateway)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulGateway)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the ConsulGatewayProxy fields.
+	gatewayProxyDiff := connectGatewayProxyDiff(prev.Proxy, next.Proxy, contextual)
+	if gatewayProxyDiff != nil {
+		diff.Objects = append(diff.Objects, gatewayProxyDiff)
+	}
+
+	// Diff the ConsulGatewayIngress fields.
+	gatewayIngressDiff := connectGatewayIngressDiff(prev.Ingress, next.Ingress, contextual)
+	if gatewayIngressDiff != nil {
+		diff.Objects = append(diff.Objects, gatewayIngressDiff)
+	}
+
+	return diff
+}
+
+func connectGatewayIngressDiff(prev, next *ConsulIngressConfigEntry, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Ingress"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulIngressConfigEntry)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulIngressConfigEntry)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the ConsulGatewayTLSConfig objects.
+	tlsConfigDiff := connectGatewayTLSConfigDiff(prev.TLS, next.TLS, contextual)
+	if tlsConfigDiff != nil {
+		diff.Objects = append(diff.Objects, tlsConfigDiff)
+	}
+
+	// Diff the Listeners lists.
+	gatewayIngressListenersDiff := connectGatewayIngressListenersDiff(prev.Listeners, next.Listeners, contextual)
+	if gatewayIngressListenersDiff != nil {
+		diff.Objects = append(diff.Objects, gatewayIngressListenersDiff...)
+	}
+
+	return diff
+}
+
+func connectGatewayTLSConfigDiff(prev, next *ConsulGatewayTLSConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "TLS"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive field.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	return diff
+}
+
+// connectGatewayIngressListenersDiff diffs are a set of listeners keyed by "protocol/port", which is
+// a nifty workaround having slices instead of maps. Presumably such a key will be unique, because if
+// it is not the config entry is not going to work anyway.
+func connectGatewayIngressListenersDiff(prev, next []*ConsulIngressListener, contextual bool) []*ObjectDiff {
+	//  create maps, diff the maps, keys are fields, keys are (port+protocol)
+
+	key := func(l *ConsulIngressListener) string {
+		return fmt.Sprintf("%s/%d", l.Protocol, l.Port)
+	}
+
+	prevMap := make(map[string]*ConsulIngressListener, len(prev))
+	nextMap := make(map[string]*ConsulIngressListener, len(next))
+
+	for _, l := range prev {
+		prevMap[key(l)] = l
+	}
+	for _, l := range next {
+		nextMap[key(l)] = l
+	}
+
+	var diffs []*ObjectDiff
+	for k, prevL := range prevMap {
+		// Diff the same, deleted, and edited
+		if diff := connectGatewayIngressListenerDiff(prevL, nextMap[k], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+	for k, nextL := range nextMap {
+		// Diff the added
+		if old, ok := prevMap[k]; !ok {
+			if diff := connectGatewayIngressListenerDiff(old, nextL, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+func connectGatewayIngressListenerDiff(prev, next *ConsulIngressListener, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Listener"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulIngressListener)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulIngressListener)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the Ingress Service objects.
+	if diffs := connectGatewayIngressServicesDiff(prev.Services, next.Services, contextual); diffs != nil {
+		diff.Objects = append(diff.Objects, diffs...)
+	}
+
+	return diff
+}
+
+// connectGatewayIngressServicesDiff diffs are a set of ingress services keyed by their service name, which
+// is a workaround for having slices instead of maps. Presumably the service name is a unique key, because if
+// no the config entry is not going to make sense anyway.
+func connectGatewayIngressServicesDiff(prev, next []*ConsulIngressService, contextual bool) []*ObjectDiff {
+
+	prevMap := make(map[string]*ConsulIngressService, len(prev))
+	nextMap := make(map[string]*ConsulIngressService, len(next))
+
+	for _, s := range prev {
+		prevMap[s.Name] = s
+	}
+	for _, s := range next {
+		nextMap[s.Name] = s
+	}
+
+	var diffs []*ObjectDiff
+	for name, oldIS := range prevMap {
+		// Diff the same, deleted, and edited
+		if diff := connectGatewayIngressServiceDiff(oldIS, nextMap[name], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+	for name, newIS := range nextMap {
+		// Diff the added
+		if old, ok := prevMap[name]; !ok {
+			if diff := connectGatewayIngressServiceDiff(old, newIS, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+func connectGatewayIngressServiceDiff(prev, next *ConsulIngressService, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ConsulIngressService"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulIngressService)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulIngressService)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the hosts.
+	if hDiffs := stringSetDiff(prev.Hosts, next.Hosts, "Hosts", contextual); hDiffs != nil {
+		diff.Objects = append(diff.Objects, hDiffs)
+	}
+
+	return diff
+}
+
+func connectGatewayProxyDiff(prev, next *ConsulGatewayProxy, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Proxy"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulGatewayProxy)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulGatewayProxy)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the ConnectTimeout field (dur ptr). (i.e. convert to string for comparison)
+	if oldPrimitiveFlat != nil && newPrimitiveFlat != nil {
+		if prev.ConnectTimeout == nil {
+			oldPrimitiveFlat["ConnectTimeout"] = ""
+		} else {
+			oldPrimitiveFlat["ConnectTimeout"] = fmt.Sprintf("%s", *prev.ConnectTimeout)
+		}
+		if next.ConnectTimeout == nil {
+			newPrimitiveFlat["ConnectTimeout"] = ""
+		} else {
+			newPrimitiveFlat["ConnectTimeout"] = fmt.Sprintf("%s", *next.ConnectTimeout)
+		}
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the EnvoyGatewayBindAddresses map.
+	bindAddrsDiff := connectGatewayProxyEnvoyBindAddrsDiff(prev.EnvoyGatewayBindAddresses, next.EnvoyGatewayBindAddresses, contextual)
+	if bindAddrsDiff != nil {
+		diff.Objects = append(diff.Objects, bindAddrsDiff)
+	}
+
+	// Diff the opaque Config map.
+	if cDiff := configDiff(prev.Config, next.Config, contextual); cDiff != nil {
+		diff.Objects = append(diff.Objects, cDiff)
+	}
+
+	return diff
+}
+
+// connectGatewayProxyEnvoyBindAddrsDiff returns the diff of two maps. If contextual
+// diff is enabled, all fields will be returned, even if no diff occurred.
+func connectGatewayProxyEnvoyBindAddrsDiff(prev, next map[string]*ConsulGatewayBindAddress, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "EnvoyGatewayBindAddresses"}
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if len(prev) == 0 {
+		diff.Type = DiffTypeAdded
+	} else if len(next) == 0 {
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	// convert to string representation
+	prevMap := make(map[string]string, len(prev))
+	nextMap := make(map[string]string, len(next))
+
+	for k, v := range prev {
+		prevMap[k] = fmt.Sprintf("%s:%d", v.Address, v.Port)
+	}
+
+	for k, v := range next {
+		nextMap[k] = fmt.Sprintf("%s:%d", v.Address, v.Port)
+	}
+
+	oldPrimitiveFlat := flatmap.Flatten(prevMap, nil, false)
+	newPrimitiveFlat := flatmap.Flatten(nextMap, nil, false)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 	return diff
 }
 

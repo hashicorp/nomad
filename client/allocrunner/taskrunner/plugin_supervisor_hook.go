@@ -260,10 +260,10 @@ func (h *csiPluginSupervisorHook) registerPlugin(socketPath string) (func(), err
 	// At this point we know the plugin is ready and we can fingerprint it
 	// to get its vendor name and version
 	client, err := csi.NewClient(socketPath, h.logger.Named("csi_client").With("plugin.name", h.task.CSIPluginConfig.ID, "plugin.type", h.task.CSIPluginConfig.Type))
-	defer client.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create csi client: %v", err)
 	}
+	defer client.Close()
 
 	info, err := client.PluginInfo()
 	if err != nil {

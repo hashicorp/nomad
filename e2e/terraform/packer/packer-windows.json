@@ -38,7 +38,9 @@
         "windows/install-tools.ps1",
         "windows/install-docker.ps1",
         "windows/setup-directories.ps1",
-        "windows/install-openssh.ps1"
+        "windows/install-openssh.ps1",
+        "windows/install-consul.ps1",
+        "windows/install-vault.ps1"
       ]
     },
     {
@@ -46,23 +48,14 @@
     },
     {
       "type": "file",
-      "source": "./windows/install-nomad.ps1",
-      "destination": "/opt/install-nomad.ps1"
+      "source": "./windows/provision.ps1",
+      "destination": "/opt/provision.ps1"
     },
     {
       "type": "powershell",
       "elevated_user": "Administrator",
       "elevated_password": "{{.WinRMPassword}}",
-      "inline": ["/opt/install-nomad.ps1 -nomad_version 0.9.6 -nostart"]
-    },
-    {
-      "type": "powershell",
-      "elevated_user": "Administrator",
-      "elevated_password": "{{.WinRMPassword}}",
-      "scripts": [
-        "windows/install-consul.ps1",
-        "windows/install-vault.ps1"
-      ]
+      "inline": ["/opt/provision.ps1 -nomad_version 0.9.6 -nostart"]
     },
     {
       "type": "powershell",

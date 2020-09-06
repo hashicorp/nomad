@@ -267,10 +267,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	c.Ui.Output("Starting debugger and capturing cluster data...")
 
-	if len(c.nodeIDs) > 0 || len(c.serverIDs) > 0 {
-		c.Ui.Output(fmt.Sprintf("    Interval: '%s'", interval))
-		c.Ui.Output(fmt.Sprintf("    Duration: '%s'", duration))
-	}
+	c.Ui.Output(fmt.Sprintf("    Interval: '%s'", interval))
+	c.Ui.Output(fmt.Sprintf("    Duration: '%s'", duration))
 
 	// Create the output path
 	var tmp string
@@ -454,6 +452,7 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	}
 
 	path = filepath.Join(path, id)
+	c.mkdir(path)
 
 	c.writeJSON(path, "agent-host.json", host, err)
 }
@@ -504,13 +503,6 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
 // the monitor requests
 func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
-	// Not monitoring any logs, just capture the nomad context before exit
-	if len(c.nodeIDs) == 0 && len(c.serverIDs) == 0 {
-		dir := filepath.Join("nomad", "0000")
-		c.collectNomad(dir, client)
-		return
-	}
-
 	duration := time.After(c.duration)
 	// Set interval to 0 so that we immediately execute, wait the interval next time
 	interval := time.After(0 * time.Second)
@@ -548,6 +540,9 @@ func (c *OperatorDebugCommand) collectOperator(dir string, client *api.Client) {
 
 	ah, _, err := client.Operator().AutopilotServerHealth(nil)
 	c.writeJSON(dir, "operator-autopilot-health.json", ah, err)
+
+	lic, _, err := client.Operator().LicenseGet(nil)
+	c.writeJSON(dir, "license.json", lic, err)
 }
 
 // collectNomad captures the nomad cluster state

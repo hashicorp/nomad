@@ -224,6 +224,52 @@ func TestTaskHookCoordinator_SidecarNeverStarts(t *testing.T) {
 	require.Falsef(t, isChannelClosed(mainCh), "%s channel was closed, should be open", mainTask.Name)
 }
 
+func TestTaskHookCoordinator_PoststartStartsAfterMain(t *testing.T) {
+	logger := testlog.HCLogger(t)
+
+	alloc := mock.LifecycleAlloc()
+	tasks := alloc.Job.TaskGroups[0].Tasks
+
+	mainTask := tasks[0]
+	sideTask := tasks[1]
+	postTask := tasks[2]
+
+	// Make the the third task a poststart hook
+	postTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+
+	coord := newTaskHookCoordinator(logger, tasks)
+	postCh := coord.startConditionForTask(postTask)
+	sideCh := coord.startConditionForTask(sideTask)
+	mainCh := coord.startConditionForTask(mainTask)
+
+	require.Truef(t, isChannelClosed(sideCh), "%s channel was open, should be closed", sideTask.Name)
+	require.Falsef(t, isChannelClosed(mainCh), "%s channel was closed, should be open", mainTask.Name)
+	require.Falsef(t, isChannelClosed(mainCh), "%s channel was closed, should be open", postTask.Name)
+
+	states := map[string]*structs.TaskState{
+		postTask.Name: {
+			State:  structs.TaskStatePending,
+			Failed: false,
+		},
+		mainTask.Name: {
+			State:     structs.TaskStateRunning,
+			Failed:    false,
+			StartedAt: time.Now(),
+		},
+		sideTask.Name: {
+			State:     structs.TaskStateRunning,
+			Failed:    false,
+			StartedAt: time.Now(),
+		},
+	}
+
+	coord.taskStateUpdated(states)
+
+	require.Truef(t, isChannelClosed(postCh), "%s channel was open, should be closed", postTask.Name)
+	require.Truef(t, isChannelClosed(sideCh), "%s channel was open, should be closed", sideTask.Name)
+	require.Truef(t, isChannelClosed(mainCh), "%s channel was open, should be closed", mainTask.Name)
+}
+
 func isChannelClosed(ch <-chan struct{}) bool {
 	select {
 	case <-ch:

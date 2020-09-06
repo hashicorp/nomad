@@ -16,8 +16,8 @@
   "provisioners": [
     {
       "type": "file",
-      "source": "./linux/install-nomad",
-      "destination": "/tmp/install-nomad"
+      "source": "./linux",
+      "destination": "/tmp/linux"
     },
     {
       "type": "shell",

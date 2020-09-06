@@ -26,8 +26,7 @@ module('Acceptance | task logs', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/allocation/:id/:task_name/logs should have a log component', async function(assert) {

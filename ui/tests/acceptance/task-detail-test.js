@@ -24,8 +24,7 @@ module('Acceptance | task detail', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/allocation/:id/:task_name should name the task and list high-level task information', async function(assert) {
@@ -38,8 +37,13 @@ module('Acceptance | task detail', function(hooks) {
     );
 
     const lifecycle = server.db.tasks.where({ name: task.name })[0].Lifecycle;
-    const prestartString = lifecycle && lifecycle.Sidecar ? 'sidecar' : 'prestart';
-    assert.equal(Task.lifecycle, lifecycle ? prestartString : 'main');
+
+    let lifecycleName = 'main';
+    if (lifecycle && (lifecycle.Hook === 'prestart' || lifecycle.Hook === 'poststart')) {
+      lifecycleName = `${lifecycle.Hook}-${lifecycle.Sidecar ? 'sidecar' : 'ephemeral'}`;
+    }
+
+    assert.equal(Task.lifecycle, lifecycleName);
 
     assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
@@ -100,86 +104,6 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(Task.resourceCharts.length, 2, 'Two resource utilization graphs');
     assert.equal(Task.resourceCharts.objectAt(0).name, 'CPU', 'First chart is CPU');
     assert.equal(Task.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
-  });
-
-  test('/allocation/:id/:task_name lists related prestart tasks for a main task when they exist', async function(assert) {
-    const job = server.create('job', {
-      groupsCount: 2,
-      groupTaskCount: 3,
-      createAllocations: false,
-      status: 'running',
-    });
-
-    job.task_group_ids.forEach(taskGroupId => {
-      server.create('allocation', {
-        jobId: job.id,
-        taskGroup: server.db.taskGroups.find(taskGroupId).name,
-        forceRunningClientStatus: true,
-      });
-    });
-
-    const taskGroup = job.task_groups.models[0];
-    const [mainTask, sidecarTask, prestartTask] = taskGroup.tasks.models;
-
-    mainTask.attrs.Lifecycle = null;
-    mainTask.save();
-
-    sidecarTask.attrs.Lifecycle = { Sidecar: true, Hook: 'prestart' };
-    sidecarTask.save();
-
-    prestartTask.attrs.Lifecycle = { Sidecar: false, Hook: 'prestart' };
-    prestartTask.save();
-
-    taskGroup.save();
-
-    const noPrestartTasksTaskGroup = job.task_groups.models[1];
-    noPrestartTasksTaskGroup.tasks.models.forEach(task => {
-      task.attrs.Lifecycle = null;
-      task.save();
-    });
-
-    const mainTaskState = server.schema.taskStates.findBy({ name: mainTask.name });
-    const sidecarTaskState = server.schema.taskStates.findBy({ name: sidecarTask.name });
-    const prestartTaskState = server.schema.taskStates.findBy({ name: prestartTask.name });
-
-    prestartTaskState.attrs.state = 'running';
-    prestartTaskState.attrs.finishedAt = null;
-    prestartTaskState.save();
-
-    await Task.visit({ id: mainTaskState.allocationId, name: mainTask.name });
-
-    assert.ok(Task.hasPrestartTasks);
-    assert.equal(Task.prestartTasks.length, 2);
-
-    Task.prestartTasks[0].as(SidecarTask => {
-      assert.equal(SidecarTask.name, sidecarTask.name);
-      assert.equal(SidecarTask.state, sidecarTaskState.state);
-      assert.equal(SidecarTask.lifecycle, 'sidecar');
-      assert.notOk(SidecarTask.isBlocking);
-    });
-
-    Task.prestartTasks[1].as(PrestartTask => {
-      assert.equal(PrestartTask.name, prestartTask.name);
-      assert.equal(PrestartTask.state, prestartTaskState.state);
-      assert.equal(PrestartTask.lifecycle, 'prestart');
-      assert.ok(PrestartTask.isBlocking);
-    });
-
-    await Task.visit({ id: sidecarTaskState.allocationId, name: sidecarTask.name });
-
-    assert.notOk(Task.hasPrestartTasks);
-
-    const noPrestartTasksTask = noPrestartTasksTaskGroup.tasks.models[0];
-    const noPrestartTasksTaskState = server.db.taskStates.findBy({
-      name: noPrestartTasksTask.name,
-    });
-
-    await Task.visit({
-      id: noPrestartTasksTaskState.allocationId,
-      name: noPrestartTasksTaskState.name,
-    });
-
-    assert.notOk(Task.hasPrestartTasks);
   });
 
   test('the events table lists all recent events', async function(assert) {
@@ -422,7 +346,7 @@ module('Acceptance | proxy task detail', function(hooks) {
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', { clientStatus: 'running' });
 
-    const taskState = allocation.task_states.models[0];
+    const taskState = allocation.taskStates.models[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();

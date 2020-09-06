@@ -38,14 +38,14 @@ func deployLinux(t *testing.T, target *ProvisioningTarget) error {
 		}
 	} else if deployment.NomadSha != "" {
 		script := fmt.Sprintf(
-			`/opt/install-nomad --nomad_sha %s --nostart`, deployment.NomadSha)
+			`/opt/provision.sh --nomad_sha %s --nostart`, deployment.NomadSha)
 		err = runner.Run(script)
 		if err != nil {
 			return err
 		}
 	} else if deployment.NomadVersion != "" {
 		script := fmt.Sprintf(
-			`/opt/install-nomad --nomad_version %s --nostart`, deployment.NomadVersion)
+			`/opt/provision.sh --nomad_version %s --nostart`, deployment.NomadVersion)
 		err = runner.Run(script)
 		if err != nil {
 			return err
@@ -96,14 +96,14 @@ func deployWindows(t *testing.T, target *ProvisioningTarget) error {
 		}
 	} else if deployment.NomadSha != "" {
 		script := fmt.Sprintf(
-			`C:/opt/install-nomad.ps1 -nomad_sha %s -nostart`, deployment.NomadSha)
+			`C:/opt/provision.ps1 -nomad_sha %s -nostart`, deployment.NomadSha)
 		err = runner.Run(script)
 		if err != nil {
 			return err
 		}
 	} else if deployment.NomadVersion != "" {
 		script := fmt.Sprintf(
-			`C:/opt/install-nomad.ps1 -nomad_version %s -nostart`, deployment.NomadVersion)
+			`C:/opt/provision.ps1 -nomad_version %s -nostart`, deployment.NomadVersion)
 		err = runner.Run(script)
 		if err != nil {
 			return err

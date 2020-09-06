@@ -6,7 +6,6 @@ export default Factory.extend({
   // Hidden property used to compute the Summary hash
   groupNames: [],
 
-  JobID: '',
   namespace: null,
 
   withSummary: trait({

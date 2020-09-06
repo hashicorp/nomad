@@ -20,9 +20,7 @@ module('Acceptance | application errors ', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     server.pretender.get('/v1/nodes', () => [500, {}, null]);
     await ClientsList.visit();
-    await a11yAudit();
-
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('transitioning away from an error page resets the global error', async function(assert) {

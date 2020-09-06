@@ -75,6 +75,11 @@ const (
 	envoyAdminBindEnvPrefix = "NOMAD_ENVOY_ADMIN_ADDR_"
 )
 
+const (
+	grpcConsulVariable = "CONSUL_GRPC_ADDR"
+	grpcDefaultAddress = "127.0.0.1:8502"
+)
+
 // envoyBootstrapHook writes the bootstrap config for the Connect Envoy proxy
 // sidecar.
 type envoyBootstrapHook struct {
@@ -103,41 +108,73 @@ func (envoyBootstrapHook) Name() string {
 	return envoyBootstrapHookName
 }
 
-func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	if !req.Task.Kind.IsConnectProxy() {
-		// Not a Connect proxy sidecar
-		resp.Done = true
-		return nil
+func (_ *envoyBootstrapHook) extractNameAndKind(kind structs.TaskKind) (string, string, error) {
+	serviceKind := kind.Name()
+	serviceName := kind.Value()
+
+	switch serviceKind {
+	case structs.ConnectProxyPrefix, structs.ConnectIngressPrefix:
+	default:
+		return "", "", errors.New("envoy must be used as connect sidecar or gateway")
 	}
 
-	serviceName := req.Task.Kind.Value()
 	if serviceName == "" {
-		return errors.New("connect proxy sidecar does not specify service name")
+		return "", "", errors.New("envoy must be configured with a service name")
 	}
 
+	return serviceKind, serviceName, nil
+}
+
+func (h *envoyBootstrapHook) lookupService(svcKind, svcName, tgName string) (*structs.Service, error) {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 
 	var service *structs.Service
 	for _, s := range tg.Services {
-		if s.Name == serviceName {
+		if s.Name == svcName {
 			service = s
 			break
 		}
 	}
 
 	if service == nil {
-		return errors.New("connect proxy sidecar task exists but no services configured with a sidecar")
+		if svcKind == structs.ConnectProxyPrefix {
+			return nil, errors.New("connect proxy sidecar task exists but no services configured with a sidecar")
+		} else {
+			return nil, errors.New("connect gateway task exists but no service associated")
+		}
 	}
 
-	h.logger.Debug("bootstrapping Connect proxy sidecar", "task", req.Task.Name, "service", serviceName)
+	return service, nil
+}
 
-	//TODO Should connect directly to Consul if the sidecar is running on the host netns.
-	grpcAddr := "unix://" + allocdir.AllocGRPCSocket
+// Prestart creates an envoy bootstrap config file.
+//
+// Must be aware of both launching envoy as a sidecar proxy, as well as a connect gateway.
+func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	if !req.Task.Kind.IsConnectProxy() && !req.Task.Kind.IsAnyConnectGateway() {
+		// Not a Connect proxy sidecar
+		resp.Done = true
+		return nil
+	}
 
-	// Envoy runs an administrative API on the loopback interface. If multiple sidecars
-	// are running, the bind addresses need to have unique ports.
-	// TODO: support running in host netns, using freeport to find available port
-	envoyAdminBind := buildEnvoyAdminBind(h.alloc, req.Task.Name)
+	serviceKind, serviceName, err := h.extractNameAndKind(req.Task.Kind)
+	if err != nil {
+		return err
+	}
+
+	service, err := h.lookupService(serviceKind, serviceName, h.alloc.TaskGroup)
+	if err != nil {
+		return err
+	}
+
+	grpcAddr := h.grpcAddress(req.TaskEnv.EnvMap)
+
+	h.logger.Debug("bootstrapping Consul "+serviceKind, "task", req.Task.Name, "service", serviceName)
+
+	// Envoy runs an administrative API on the loopback interface. There is no
+	// way to turn this feature off.
+	// https://github.com/envoyproxy/envoy/issues/1297
+	envoyAdminBind := buildEnvoyAdminBind(h.alloc, serviceName, req.Task.Name)
 	resp.Env = map[string]string{
 		helper.CleanEnvVar(envoyAdminBindEnvPrefix+serviceName, '_'): envoyAdminBind,
 	}
@@ -146,10 +183,6 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	// it to the secrets directory like Vault tokens.
 	bootstrapFilePath := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
 
-	id := agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+tg.Name, service)
-
-	h.logger.Debug("bootstrapping envoy", "sidecar_for", service.Name, "bootstrap_file", bootstrapFilePath, "sidecar_for_id", id, "grpc_addr", grpcAddr, "admin_bind", envoyAdminBind)
-
 	siToken, err := h.maybeLoadSIToken(req.Task.Name, req.TaskDir.SecretsDir)
 	if err != nil {
 		h.logger.Error("failed to generate envoy bootstrap config", "sidecar_for", service.Name)
@@ -157,16 +190,9 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	}
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
-	bootstrapBuilder := envoyBootstrapArgs{
-		consulConfig:   h.consulConfig,
-		sidecarFor:     id,
-		grpcAddr:       grpcAddr,
-		envoyAdminBind: envoyAdminBind,
-		siToken:        siToken,
-	}
-
-	bootstrapArgs := bootstrapBuilder.args()
-	bootstrapEnv := bootstrapBuilder.env(os.Environ())
+	bootstrap := h.newEnvoyBootstrapArgs(h.alloc.TaskGroup, service, grpcAddr, envoyAdminBind, siToken, bootstrapFilePath)
+	bootstrapArgs := bootstrap.args()
+	bootstrapEnv := bootstrap.env(os.Environ())
 
 	// Since Consul services are registered asynchronously with this task
 	// hook running, retry a small number of times with backoff.
@@ -231,12 +257,32 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskP
 	return nil
 }
 
-func buildEnvoyAdminBind(alloc *structs.Allocation, taskName string) string {
+// buildEnvoyAdminBind determines a unique port for use by the envoy admin
+// listener.
+//
+// In bridge mode, if multiple sidecars are running, the bind addresses need
+// to be unique within the namespace, so we simply start at 19000 and increment
+// by the index of the task.
+//
+// In host mode, use the port provided through the service definition, which can
+// be a port chosen by Nomad.
+func buildEnvoyAdminBind(alloc *structs.Allocation, serviceName, taskName string) string {
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	port := envoyBaseAdminPort
-	for idx, task := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
-		if task.Name == taskName {
-			port += idx
-			break
+	switch tg.Networks[0].Mode {
+	case "host":
+		for _, service := range tg.Services {
+			if service.Name == serviceName {
+				_, port = tg.Networks.Port(service.PortLabel)
+				break
+			}
+		}
+	default:
+		for idx, task := range tg.Tasks {
+			if task.Name == taskName {
+				port += idx
+				break
+			}
 		}
 	}
 	return fmt.Sprintf("localhost:%d", port)
@@ -269,15 +315,69 @@ func (h *envoyBootstrapHook) execute(cmd *exec.Cmd) (string, error) {
 	return stdout.String(), nil
 }
 
+// grpcAddress determines the Consul gRPC endpoint address to use.
+//
+// In host networking this will default to 127.0.0.1:8502.
+// In bridge/cni networking this will default to unix://<socket>.
+// In either case, CONSUL_GRPC_ADDR will override the default.
+func (h *envoyBootstrapHook) grpcAddress(env map[string]string) string {
+	if address := env[grpcConsulVariable]; address != "" {
+		return address
+	}
+
+	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+	switch tg.Networks[0].Mode {
+	case "host":
+		return grpcDefaultAddress
+	default:
+		return "unix://" + allocdir.AllocGRPCSocket
+	}
+}
+
+func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
+	tgName string,
+	service *structs.Service,
+	grpcAddr, envoyAdminBind, siToken, filepath string,
+) envoyBootstrapArgs {
+	var (
+		sidecarForID string // sidecar only
+		gateway      string // gateway only
+	)
+
+	if service.Connect.HasSidecar() {
+		sidecarForID = agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+tgName, service)
+	}
+
+	if service.Connect.IsGateway() {
+		gateway = "ingress" // more types in the future
+	}
+
+	h.logger.Debug("bootstrapping envoy",
+		"sidecar_for", service.Name, "bootstrap_file", filepath,
+		"sidecar_for_id", sidecarForID, "grpc_addr", grpcAddr,
+		"admin_bind", envoyAdminBind, "gateway", gateway,
+	)
+
+	return envoyBootstrapArgs{
+		consulConfig:   h.consulConfig,
+		sidecarFor:     sidecarForID,
+		grpcAddr:       grpcAddr,
+		envoyAdminBind: envoyAdminBind,
+		siToken:        siToken,
+		gateway:        gateway,
+	}
+}
+
 // envoyBootstrapArgs is used to accumulate CLI arguments that will be passed
 // along to the exec invocation of consul which will then generate the bootstrap
 // configuration file for envoy.
 type envoyBootstrapArgs struct {
 	consulConfig   consulTransportConfig
-	sidecarFor     string
+	sidecarFor     string // sidecars only
 	grpcAddr       string
 	envoyAdminBind string
 	siToken        string
+	gateway        string // gateways only
 }
 
 // args returns the CLI arguments consul needs in the correct order, with the
@@ -290,7 +390,14 @@ func (e envoyBootstrapArgs) args() []string {
 		"-http-addr", e.consulConfig.HTTPAddr,
 		"-admin-bind", e.envoyAdminBind,
 		"-bootstrap",
-		"-sidecar-for", e.sidecarFor,
+	}
+
+	if v := e.sidecarFor; v != "" {
+		arguments = append(arguments, "-sidecar-for", e.sidecarFor)
+	}
+
+	if v := e.gateway; v != "" {
+		arguments = append(arguments, "-gateway", e.gateway)
 	}
 
 	if v := e.siToken; v != "" {

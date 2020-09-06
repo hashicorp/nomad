@@ -95,9 +95,9 @@ func (c *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) (string, erro
 		fmt.Sprintf("Provider|%s", plug.Provider),
 		fmt.Sprintf("Version|%s", plug.Version),
 		fmt.Sprintf("Controllers Healthy|%d", plug.ControllersHealthy),
-		fmt.Sprintf("Controllers Expected|%d", len(plug.Controllers)),
+		fmt.Sprintf("Controllers Expected|%d", plug.ControllersExpected),
 		fmt.Sprintf("Nodes Healthy|%d", plug.NodesHealthy),
-		fmt.Sprintf("Nodes Expected|%d", len(plug.Nodes)),
+		fmt.Sprintf("Nodes Expected|%d", plug.NodesExpected),
 	}
 
 	// Exit early

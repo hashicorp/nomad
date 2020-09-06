@@ -9,37 +9,31 @@ cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.6.0
+CONSULVERSION=1.8.3
 CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=1.0.3
+VAULTVERSION=1.5.3
 VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.9.0
+NOMADVERSION=0.12.3
 NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-CONSULTEMPLATEVERSION=0.20.0
+CONSULTEMPLATEVERSION=0.25.1
 CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTEMPLATEVERSION}/consul-template_${CONSULTEMPLATEVERSION}_linux_amd64.zip
 CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 CONSULTEMPLATEDIR=/opt/consul-template
-
-HADOOP_VERSION=2.7.7
 
 # Dependencies
 sudo apt-get install -y software-properties-common
 sudo apt-get update
 sudo apt-get install -y unzip tree redis-tools jq curl tmux
 
-# Numpy (for Spark)
-sudo apt-get install -y python-setuptools
-sudo easy_install pip
-sudo pip install numpy
 
 # Disable the firewall
 
@@ -105,6 +99,7 @@ sudo chmod 755 $CONSULTEMPLATECONFIGDIR
 sudo mkdir -p $CONSULTEMPLATEDIR
 sudo chmod 755 $CONSULTEMPLATEDIR
 
+
 # Docker
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
 sudo apt-get install -y apt-transport-https ca-certificates gnupg2 
@@ -113,6 +108,7 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${di
 sudo apt-get update
 sudo apt-get install -y docker-ce
 
+# Needs testing, updating and fixing
 if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then 
   # Install official NVIDIA driver package
   sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
@@ -133,7 +129,9 @@ if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then
 fi
 
 # rkt
-VERSION=1.29.0
+# Note: rkt has been ended and archived. This should likely be removed. 
+# See https://github.com/rkt/rkt/issues/4024
+VERSION=1.30.0
 DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
 
 function install_rkt() {
@@ -171,12 +169,3 @@ sudo add-apt-repository -y ppa:openjdk-r/ppa
 sudo apt-get update 
 sudo apt-get install -y openjdk-8-jdk
 JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
-
-# Spark
-sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
-sudo tar -xf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
-sudo chown -R root:root /usr/local/bin/spark
-
-# Hadoop (to enable the HDFS CLI)
-wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/

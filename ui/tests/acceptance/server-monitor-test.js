@@ -27,8 +27,7 @@ module('Acceptance | server monitor', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await ServerMonitor.visit({ name: agent.name });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/servers/:id/monitor should have a breadcrumb trail linking back to servers', async function(assert) {
