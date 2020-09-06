@@ -11,8 +11,8 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 )
 
-// MultipleNamespacesErr is send when multiple namespaces are used in the OSS setup
-var MultipleNamespacesErr = errors.New("multiple vault namespaces requires Nomad Enterprise")
+// ErrMultipleNamespaces is send when multiple namespaces are used in the OSS setup
+var ErrMultipleNamespaces = errors.New("multiple vault namespaces requires Nomad Enterprise")
 
 // enforceSubmitJob is used to check any Sentinel policies for the submit-job scope
 func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
@@ -55,7 +55,7 @@ func (j *Job) multiVaultNamespaceValidation(
 ) error {
 	requestedNamespaces := structs.VaultNamespaceSet(policies)
 	if len(requestedNamespaces) > 0 {
-		return fmt.Errorf("%w, Namespaces: %s", MultipleNamespacesErr, strings.Join(requestedNamespaces, ", "))
+		return fmt.Errorf("%w, Namespaces: %s", ErrMultipleNamespaces, strings.Join(requestedNamespaces, ", "))
 	}
 	return nil
 }

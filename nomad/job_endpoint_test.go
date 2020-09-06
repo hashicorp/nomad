@@ -1737,7 +1737,7 @@ func TestJobEndpoint_Register_Vault_MultiNamespaces(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 	// OSS or Ent check
 	if s1.EnterpriseState.Features() == 0 {
-		require.True(t, errors.Is(err, MultipleNamespacesErr))
+		require.True(t, errors.Is(err, ErrMultipleNamespaces))
 	} else {
 		require.NoError(t, err)
 	}
