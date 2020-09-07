@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -195,6 +197,24 @@ func TestSetQueryOptions(t *testing.T) {
 	}
 	if r.token != "foobar" {
 		t.Fatalf("bad: %v", r.token)
+	}
+}
+
+func TestContext(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	q := (&QueryOptions{
+		WaitIndex: 10000,
+	}).WithContext(ctx)
+	// check if eq
+	go func() {
+		cancel()
+	}()
+	_, _, err := c.Jobs().List(q)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Expected job wait to fail with canceled, got %s", err)
 	}
 }
 
