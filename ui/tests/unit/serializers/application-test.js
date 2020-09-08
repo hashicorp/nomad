@@ -68,8 +68,8 @@ module('Unit | Serializer | Application', function(hooks) {
         ID: 'test-test',
         Things: [1, 2, 3],
         ArrayableMap: {
-          a: { Order: 1 },
           b: { Order: 2 },
+          a: { Order: 1 },
           'c.d': { Order: 3 },
         },
         OriginalNameArrayableMap: {
