@@ -303,6 +303,78 @@ module('Unit | Serializer | Allocation', function(hooks) {
         },
       },
     },
+
+    {
+      name: 'TaskStates are sorted for stable fragments',
+      in: {
+        ID: 'test-allocation',
+        JobID: 'test-summary',
+        Name: 'test-summary[1]',
+        Namespace: 'test-namespace',
+        TaskGroup: 'test-group',
+        CreateTime: +sampleDate * 1000000,
+        ModifyTime: +sampleDate * 1000000,
+        TaskStates: {
+          xyz: {
+            State: 'running',
+            Failed: false,
+          },
+          abc: {
+            State: 'running',
+            Failed: false,
+          },
+        },
+      },
+      out: {
+        data: {
+          id: 'test-allocation',
+          type: 'allocation',
+          attributes: {
+            taskGroupName: 'test-group',
+            name: 'test-summary[1]',
+            modifyTime: sampleDate,
+            createTime: sampleDate,
+            states: [
+              {
+                name: 'abc',
+                state: 'running',
+                failed: false,
+              },
+              {
+                name: 'xyz',
+                state: 'running',
+                failed: false,
+              },
+            ],
+            wasPreempted: false,
+            allocationTaskGroup: null,
+          },
+          relationships: {
+            followUpEvaluation: {
+              data: null,
+            },
+            nextAllocation: {
+              data: null,
+            },
+            previousAllocation: {
+              data: null,
+            },
+            preemptedAllocations: {
+              data: [],
+            },
+            preemptedByAllocation: {
+              data: null,
+            },
+            job: {
+              data: {
+                id: '["test-summary","test-namespace"]',
+                type: 'job',
+              },
+            },
+          },
+        },
+      },
+    },
   ];
 
   normalizationTestCases.forEach(testCase => {
