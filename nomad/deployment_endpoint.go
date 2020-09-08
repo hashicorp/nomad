@@ -54,7 +54,7 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 
 			// Re-check namespace in case it differs from request.
 			if out != nil && !allowNsOp(aclObj, out.Namespace) {
-				// 404
+				// hide this deployment, caller is not authorized to view it
 				out = nil
 			}
 
