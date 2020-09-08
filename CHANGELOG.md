@@ -28,6 +28,7 @@ BUG FIXES:
  * deployments (Enterprise): Fixed a bug in multi-region deployments where a region that was dropped from the jobspec was not deregistered. [[GH-8763](https://github.com/hashicorp/nomad/issues/8763)]
  * exec: Fixed a bug causing escape characters to be missed in special cases [[GH-8798](https://github.com/hashicorp/nomad/issues/8798)]
  * plan: Fixed a bug where plans always included a change for the `NomadTokenID`. [[GH-8687](https://github.com/hashicorp/nomad/issues/8687)]
+ * ui: Task log streaming will no longer suddenly flip to a different task's logs. [[GH-8833](https://github.com/hashicorp/nomad/issues/8833)]
 
 ## 0.12.3 (August 13, 2020)
 
