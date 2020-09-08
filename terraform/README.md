@@ -10,7 +10,7 @@ a production ready environment.
 
 ## Setup
 
-Clone the repo and optionally use [Vagrant](https://www.vagrantup.com/intro/index.html) 
+Clone the repo and optionally use [Vagrant](https://www.vagrantup.com/intro) 
 to bootstrap a local staging environment:
 
 ```bash
