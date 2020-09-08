@@ -624,6 +624,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	if cc.ConsulConfig != nil {
 		conf.Consul.Address = &cc.ConsulConfig.Addr
 		conf.Consul.Token = &cc.ConsulConfig.Token
+		conf.Consul.Namespace = &cc.ConsulConfig.Namespace
 
 		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
 			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL

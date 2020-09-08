@@ -87,6 +87,10 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
 
+- `namespace` `(string: "")` - Specifies the [Consul namespace](https://www.consul.io/docs/enterprise/namespaces)
+  used by the Consul integration. If non-empty, this namespace will be used on
+  all Consul API calls and for Consul Connect configurations.
+
 - `server_service_name` `(string: "nomad")` - Specifies the name of the service
   in Consul for the Nomad servers.
 

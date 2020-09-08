@@ -118,6 +118,10 @@ type ConsulConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// Namespace sets the Consul namespace used for all calls against the
+	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
+	Namespace string `hcl:"namespace"`
 }
 
 // DefaultConsulConfig() returns the canonical defaults for the Nomad
@@ -144,6 +148,7 @@ func DefaultConsulConfig() *ConsulConfig {
 		EnableSSL: helper.BoolToPtr(def.Scheme == "https"),
 		VerifySSL: helper.BoolToPtr(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
+		Namespace: def.Namespace,
 	}
 }
 
@@ -230,6 +235,9 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.AllowUnauthenticated != nil {
 		result.AllowUnauthenticated = helper.BoolToPtr(*b.AllowUnauthenticated)
 	}
+	if b.Namespace != "" {
+		result.Namespace = b.Namespace
+	}
 	return result
 }
 
@@ -284,6 +292,9 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 			return nil, err
 		}
 		config.Transport.TLSClientConfig = tlsConfig
+	}
+	if c.Namespace != "" {
+		config.Namespace = c.Namespace
 	}
 	return config, nil
 }

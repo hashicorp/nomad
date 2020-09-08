@@ -30,6 +30,7 @@ type consulTransportConfig struct {
 	CAFile    string // optional, arg -ca-file
 	CertFile  string // optional, arg -client-cert
 	KeyFile   string // optional, arg -client-key
+	Namespace string // optional, only consul Enterprise, env CONSUL_NAMESPACE
 	// CAPath (dir) not supported by Nomad's config object
 }
 
@@ -42,6 +43,7 @@ func newConsulTransportConfig(consul *config.ConsulConfig) consulTransportConfig
 		CAFile:    consul.CAFile,
 		CertFile:  consul.CertFile,
 		KeyFile:   consul.KeyFile,
+		Namespace: consul.Namespace,
 	}
 }
 
@@ -416,6 +418,10 @@ func (e envoyBootstrapArgs) args() []string {
 		arguments = append(arguments, "-client-key", v)
 	}
 
+	if v := e.consulConfig.Namespace; v != "" {
+		arguments = append(arguments, "-namespace", v)
+	}
+
 	return arguments
 }
 
@@ -434,6 +440,9 @@ func (e envoyBootstrapArgs) env(env []string) []string {
 	}
 	if v := e.consulConfig.VerifySSL; v != "" {
 		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_HTTP_SSL_VERIFY", v))
+	}
+	if v := e.consulConfig.Namespace; v != "" {
+		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_NAMESPACE", v))
 	}
 	return env
 }
