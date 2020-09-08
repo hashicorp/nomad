@@ -66,7 +66,7 @@ apm "datadog" {
 - `dd_app_key` `(string: "")` - The Datadog APP key to use for authentication.
 
 The Datadog plugin can also read its configuration options via environment
-variables. The accepted keys are `DD_API_KEY` and `DD_APP_KEY`. The agent datadog
+variables. The accepted keys are `DD_API_KEY` and `DD_APP_KEY`. The agent
 configuration parameters take precedence over the environment variables.
 
 ### Policy Configuration Options
@@ -82,9 +82,9 @@ check {
 The query consists of three sections, each separated using a `;` delimiter. More
 information on the arguments can be found on the [Datadog site][datadog_timeseries].
 
-- `FROM` - A time duration which indicates the start of the queried time period.
+- `FROM` - A time offset which indicates the start of the queried time period.
 
-- `TO` - A time duration which indicates the end of the queried time period.
+- `TO` - A time offset which indicates the end of the queried time period.
 
 - `QUERY` - The query string to execute.
 
