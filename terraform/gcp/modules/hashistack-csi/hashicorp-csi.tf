@@ -40,8 +40,7 @@ variable "csi_disk_type" {
 }
 
 data "google_compute_default_service_account" "default" {
-#    project = var.project
-     project = "nomad-gcp-73b9ef035e"
+    project = var.project
 }
 
 locals {
