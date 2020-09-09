@@ -81,6 +81,10 @@ type WriteOptions struct {
 
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
+
+	// ctx is an optional context pass through to the underlying HTTP
+	// request layer. Use Context() and WithContext() to manage this.
+	ctx context.Context
 }
 
 // QueryMeta is used to return meta data about a query
@@ -578,6 +582,7 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	if q.AuthToken != "" {
 		r.token = q.AuthToken
 	}
+	r.ctx = q.Context()
 }
 
 // toHTTP converts the request to an HTTP request
@@ -1008,6 +1013,24 @@ func (o *QueryOptions) Context() context.Context {
 // WithContext creates a copy of the query options using the provided context to cancel related HTTP requests
 func (o *QueryOptions) WithContext(ctx context.Context) *QueryOptions {
 	o2 := new(QueryOptions)
+	if o != nil {
+		*o2 = *o
+	}
+	o2.ctx = ctx
+	return o2
+}
+
+// Context returns the context used for canceling HTTP requests related to this write
+func (o *WriteOptions) Context() context.Context {
+	if o != nil && o.ctx != nil {
+		return o.ctx
+	}
+	return context.Background()
+}
+
+// WithContext creates a copy of the write options using the provided context to cancel related HTTP requests
+func (o *WriteOptions) WithContext(ctx context.Context) *WriteOptions {
+	o2 := new(WriteOptions)
 	if o != nil {
 		*o2 = *o
 	}
