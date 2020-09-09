@@ -23,7 +23,7 @@ Includes:
 Download the latest version of [Nomad](https://www.nomadproject.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
-curl "https://releases.hashicorp.com/nomad/0.12.3/nomad_0.12.3_linux_amd64.zip" -o nomad.zip
+curl "https://releases.hashicorp.com/nomad/0.12.4/nomad_0.12.4_linux_amd64.zip" -o nomad.zip
 unzip nomad.zip
 sudo mv nomad /usr/local/bin
 nomad --version
