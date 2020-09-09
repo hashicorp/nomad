@@ -24,7 +24,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: golang:1.14.7
+      - image: golang:1.15.1
     environment:
       <<: *common_envs
       GOPATH: /go
@@ -36,7 +36,7 @@ executors:
     environment: &machine_env
       <<: *common_envs
       GOPATH: /home/circleci/go
-      GOLANG_VERSION: 1.14.7
+      GOLANG_VERSION: 1.15.1
 
   # uses a more recent image with unattended upgrades disabled properly
   # but seems to break docker builds
@@ -53,7 +53,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.14.7
+      GOLANG_VERSION: 1.15.1
 
   go-windows:
     machine:
@@ -65,6 +65,6 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.14.7
+      GOLANG_VERSION: 1.15.1
       GOTESTSUM_VERSION: 0.4.2
       VAULT_VERSION: 1.4.1
