@@ -2,103 +2,124 @@
 
 set -e
 
+log() {
+  echo "==> $(date) - ${1}"
+}
+
+log "Running ${0}"
+
+# This prevents some cases where simple dependencies don't appear to be
+# available intermittently.
+
+log "Waiting for cloud-init to update /etc/apt/sources.list"
+timeout 180 /bin/bash -c \
+  'until stat /var/lib/cloud/instance/boot-finished 2>/dev/null; do echo waiting ...; sleep 1; done'
+
 # Disable interactive apt prompts
 export DEBIAN_FRONTEND=noninteractive
+echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+
+# Dependencies
+sudo apt-get update
+sudo apt-get install -y \
+  software-properties-common \
+  unzip \
+  tree \
+  redis-tools \
+  jq \
+  curl \
+  tmux \
+  apt-transport-https \
+  ca-certificates \
+  lsb-release \
+  sudo \
+  vim \
+  gnupg2 
 
 cd /ops
 
 CONFIGDIR=/ops/shared/config
 
-CONSULVERSION=1.8.3
-CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
+# This function will facilitate transition to package installs; however
+# post-provisioning is likely to need changing to work with packaged
+# installs.
+install_packages()
+{
+    log "Installing HashiCorp Packages"
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+    sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+    sudo apt-get update
+    sudo apt-get install nomad consul vault terraform packer
+    sudo apt-get clean all
+}
+
+install_zip()
+{
+    NAME="$1"
+    DOWNLOAD_URL="$2"
+    log "Installing ${NAME} from ${DOWNLOAD_URL}"
+    curl -sS -L -o ~/$NAME.zip $DOWNLOAD_URL
+    sudo unzip -d /usr/local/bin/ ~/$NAME.zip
+    sudo chmod 0755 /usr/local/bin/$NAME
+    sudo chown root:root /usr/local/bin/$NAME
+    rm ~/$NAME.zip
+}
+
+install_release()
+{
+    PRODUCT="$1"
+    VERSION="$2"
+    DOWNLOAD_URL="https://releases.hashicorp.com/${PRODUCT}/${VERSION}/${PRODUCT}_${VERSION}_linux_amd64.zip"
+    install_zip "$PRODUCT" "$DOWNLOAD_URL"
+}
+
+install_release "consul" "1.8.3"
+install_release "vault" "1.5.3"
+install_release "nomad" "0.12.3"
+install_release "packer" "1.6.2"
+install_release "terraform" "0.13.2"
+install_release "consul-template" "0.25.1"
+install_release "envconsul" "0.10.0"
+install_release "sentinel" "0.15.6"
+
 CONSULCONFIGDIR=/etc/consul.d
 CONSULDIR=/opt/consul
 
-VAULTVERSION=1.5.3
-VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
 VAULTCONFIGDIR=/etc/vault.d
 VAULTDIR=/opt/vault
 
-NOMADVERSION=0.12.3
-NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
 NOMADCONFIGDIR=/etc/nomad.d
 NOMADDIR=/opt/nomad
 
-CONSULTEMPLATEVERSION=0.25.1
-CONSULTEMPLATEDOWNLOAD=https://releases.hashicorp.com/consul-template/${CONSULTEMPLATEVERSION}/consul-template_${CONSULTEMPLATEVERSION}_linux_amd64.zip
 CONSULTEMPLATECONFIGDIR=/etc/consul-template.d
 CONSULTEMPLATEDIR=/opt/consul-template
-
-# Dependencies
-sudo apt-get install -y software-properties-common
-sudo apt-get update
-sudo apt-get install -y unzip tree redis-tools jq curl tmux
-
 
 # Disable the firewall
 
 sudo ufw disable || echo "ufw not installed"
 
 # Consul
-
-curl -L $CONSULDOWNLOAD > consul.zip
-
-## Install
-sudo unzip consul.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/consul
-sudo chown root:root /usr/local/bin/consul
-
 ## Configure
-sudo mkdir -p $CONSULCONFIGDIR
-sudo chmod 755 $CONSULCONFIGDIR
-sudo mkdir -p $CONSULDIR
-sudo chmod 755 $CONSULDIR
+sudo mkdir -p $CONSULCONFIGDIR $CONSULDIR
+sudo chmod 755 $CONSULCONFIGDIR $CONSULDIR
 
 # Vault
-
-curl -L $VAULTDOWNLOAD > vault.zip
-
-## Install
-sudo unzip vault.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/vault
-sudo chown root:root /usr/local/bin/vault
-
 ## Configure
-sudo mkdir -p $VAULTCONFIGDIR
-sudo chmod 755 $VAULTCONFIGDIR
-sudo mkdir -p $VAULTDIR
-sudo chmod 755 $VAULTDIR
+sudo mkdir -p $VAULTCONFIGDIR $VAULTDIR
+sudo chmod 755 $VAULTCONFIGDIR $VAULTDIR
 
 # Nomad
-
-curl -L $NOMADDOWNLOAD > nomad.zip
-
-## Install
-sudo unzip nomad.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/nomad
-sudo chown root:root /usr/local/bin/nomad
-
 ## Configure
-sudo mkdir -p $NOMADCONFIGDIR
-sudo chmod 755 $NOMADCONFIGDIR
-sudo mkdir -p $NOMADDIR
-sudo chmod 755 $NOMADDIR
+sudo mkdir -p $NOMADCONFIGDIR $NOMADDIR
+sudo chmod 755 $NOMADCONFIGDIR $NOMADDIR
 
 # Consul Template 
-
-curl -L $CONSULTEMPLATEDOWNLOAD > consul-template.zip
-
-## Install
-sudo unzip consul-template.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/consul-template
-sudo chown root:root /usr/local/bin/consul-template
-
 ## Configure
-sudo mkdir -p $CONSULTEMPLATECONFIGDIR
-sudo chmod 755 $CONSULTEMPLATECONFIGDIR
-sudo mkdir -p $CONSULTEMPLATEDIR
-sudo chmod 755 $CONSULTEMPLATEDIR
+sudo mkdir -p $CONSULTEMPLATECONFIGDIR $CONSULTEMPLATEDIR
+sudo chmod 755 $CONSULTEMPLATECONFIGDIR $CONSULTEMPLATEDIR
 
+## Everything below here is installed in service to Nomad Clients.
+## Should this be done in a different image?
 
 # Docker
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
@@ -135,14 +156,15 @@ VERSION=1.30.0
 DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
 
 function install_rkt() {
-	wget -q -O /tmp/rkt.tar.gz "${DOWNLOAD}"
-	tar -C /tmp -xvf /tmp/rkt.tar.gz
-	sudo mv /tmp/rkt-v${VERSION}/rkt /usr/local/bin
-	sudo mv /tmp/rkt-v${VERSION}/*.aci /usr/local/bin
+  log "Installing rkt ${VERSION}"
+  wget -q -O /tmp/rkt.tar.gz "${DOWNLOAD}"
+  tar -C /tmp -xvf /tmp/rkt.tar.gz
+  sudo mv /tmp/rkt-v${VERSION}/rkt /usr/local/bin
+  sudo mv /tmp/rkt-v${VERSION}/*.aci /usr/local/bin
 }
 
 function configure_rkt_networking() {
-	sudo mkdir -p /etc/rkt/net.d
+  sudo mkdir -p /etc/rkt/net.d
     sudo bash -c 'cat << EOT > /etc/rkt/net.d/99-network.conf
 {
   "name": "default",
