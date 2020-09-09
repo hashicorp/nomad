@@ -3,6 +3,7 @@ package jobspec2
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
@@ -18,6 +19,7 @@ var hclDecoder *gohcl.Decoder
 func init() {
 	hclDecoder = newHCLDecoder()
 	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.TaskGroup{}), decodeTaskGroup)
+	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.Task{}), decodeTask)
 }
 
 func newHCLDecoder() *gohcl.Decoder {
@@ -266,6 +268,7 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 	}
 
 	d := newHCLDecoder()
+	d.RegisterBlockDecoder(reflect.TypeOf(api.Task{}), decodeTask)
 	diags = d.DecodeBody(tgBody, ctx, tg)
 
 	if tgExtra.Vault != nil {
@@ -276,6 +279,128 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 		}
 	}
 
+	if tg.Scaling != nil {
+		if tg.Scaling.Type == "" {
+			tg.Scaling.Type = "horizontal"
+		}
+		diags = append(diags, validateGroupScalingPolicy(tg.Scaling, tgBody)...)
+	}
 	return diags
 
+}
+
+func decodeTask(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	// special case scaling policy
+	t := val.(*api.Task)
+	b, remain, diags := body.PartialContent(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{
+			{Type: "scaling", LabelNames: []string{"name"}},
+		},
+	})
+
+	diags = append(diags, decodeTaskScalingPolicies(b.Blocks, ctx, t)...)
+
+	decoder := newHCLDecoder()
+	diags = append(diags, decoder.DecodeBody(remain, ctx, val)...)
+
+	return diags
+}
+
+func decodeTaskScalingPolicies(blocks hcl.Blocks, ctx *hcl.EvalContext, task *api.Task) hcl.Diagnostics {
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	var diags hcl.Diagnostics
+	seen := map[string]*hcl.Block{}
+	for _, b := range blocks {
+		label := strings.ToLower(b.Labels[0])
+		var policyType string
+		switch label {
+		case "cpu":
+			policyType = "vertical_cpu"
+		case "mem":
+			policyType = "vertical_mem"
+		default:
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid scaling policy name",
+				Detail:   `scaling policy name must be "cpu" or "mem"`,
+				Subject:  &b.LabelRanges[0],
+			})
+			continue
+		}
+
+		if prev, ok := seen[label]; ok {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicate scaling %q block", label),
+				Detail: fmt.Sprintf(
+					"Only one scaling %s block is allowed. Another was defined at %s.",
+					label, prev.DefRange.String(),
+				),
+				Subject: &b.DefRange,
+			})
+			continue
+		}
+		seen[label] = b
+
+		var p api.ScalingPolicy
+		diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, &p)...)
+
+		if p.Type == "" {
+			p.Type = policyType
+		} else if p.Type != policyType {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid scaling policy type",
+				Detail: fmt.Sprintf(
+					"Invalid policy type, expected %q but found %q",
+					p.Type, policyType),
+				Subject: &b.DefRange,
+			})
+			continue
+		}
+
+		task.ScalingPolicies = append(task.ScalingPolicies, &p)
+	}
+
+	return diags
+}
+
+func validateGroupScalingPolicy(p *api.ScalingPolicy, body hcl.Body) hcl.Diagnostics {
+	// fast path: do nothing
+	if p.Max != nil && p.Type == "horizontal" {
+		return nil
+	}
+
+	content, _, diags := body.PartialContent(&hcl.BodySchema{
+		Blocks: []hcl.BlockHeaderSchema{{Type: "scaling"}},
+	})
+
+	if len(content.Blocks) == 0 {
+		// unexpected, given that we have a scaling policy
+		return diags
+	}
+
+	pc, _, diags := content.Blocks[0].Body.PartialContent(&hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{Name: "max", Required: true},
+			{Name: "type", Required: false},
+		},
+	})
+
+	if p.Type != "horizontal" {
+		if attr, ok := pc.Attributes["type"]; ok {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid group scaling type",
+				Detail: fmt.Sprintf(
+					"task group scaling policy had invalid type: %q",
+					p.Type),
+				Subject: attr.Expr.Range().Ptr(),
+			})
+		}
+	}
+	return diags
 }

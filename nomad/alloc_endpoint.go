@@ -37,6 +37,10 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 		return structs.ErrPermissionDenied
 	}
 
+	allow := func(ns string) bool {
+		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
+	}
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -48,7 +52,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 
 			prefix := args.QueryOptions.Prefix
 			if args.RequestNamespace() == structs.AllNamespacesSentinel {
-				allowedNSes, err := allowedNSes(aclObj, state)
+				allowedNSes, err := allowedNSes(aclObj, state, allow)
 				if err != nil {
 					return err
 				}

@@ -1380,9 +1380,7 @@ func ScalingPolicy() *structs.ScalingPolicy {
 		Policy: map[string]interface{}{
 			"a": "b",
 		},
-		Enabled:     true,
-		CreateIndex: 10,
-		ModifyIndex: 20,
+		Enabled: true,
 	}
 }
 

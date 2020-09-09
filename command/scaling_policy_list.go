@@ -31,6 +31,9 @@ General Options:
 
 Policy Info Options:
 
+  -type
+    Filter scaling policies by type.
+
   -json
     Output the scaling policy in its JSON format.
 
@@ -48,6 +51,8 @@ func (s *ScalingPolicyListCommand) Synopsis() string {
 func (s *ScalingPolicyListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
+			"-job":  complete.PredictNothing,
+			"-type": complete.PredictNothing,
 			"-json": complete.PredictNothing,
 			"-t":    complete.PredictAnything,
 		})
@@ -59,12 +64,14 @@ func (s *ScalingPolicyListCommand) Name() string { return "scaling policy list" 
 // Run satisfies the cli.Command Run function.
 func (s *ScalingPolicyListCommand) Run(args []string) int {
 	var json bool
-	var tmpl string
+	var tmpl, policyType, job string
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&policyType, "type", "", "")
+	flags.StringVar(&job, "job", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -81,7 +88,16 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 		return 1
 	}
 
-	policies, _, err := client.Scaling().ListPolicies(nil)
+	q := &api.QueryOptions{
+		Params: map[string]string{},
+	}
+	if policyType != "" {
+		q.Params["type"] = policyType
+	}
+	if job != "" {
+		q.Params["job"] = job
+	}
+	policies, _, err := client.Scaling().ListPolicies(q)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error listing scaling policies: %s", err))
 		return 1
@@ -103,7 +119,7 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 	}
 
 	// Create the output table header.
-	output := []string{"ID|Enabled|Target"}
+	output := []string{"ID|Enabled|Type|Target"}
 
 	// Sort the list of policies based on their target.
 	sortedPolicies := scalingPolicyStubList{policies: policies}
@@ -112,8 +128,8 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 	// Iterate the policies and add to the output.
 	for _, policy := range sortedPolicies.policies {
 		output = append(output, fmt.Sprintf(
-			"%s|%v|%s",
-			policy.ID, policy.Enabled, formatScalingPolicyTarget(policy.Target)))
+			"%s|%v|%s|%s",
+			policy.ID, policy.Enabled, policy.Type, formatScalingPolicyTarget(policy.Target)))
 	}
 
 	// Output.

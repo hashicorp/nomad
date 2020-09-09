@@ -68,6 +68,32 @@ func testPeriodicJob() *Job {
 	return job
 }
 
+func testRecommendation(job *Job) *Recommendation {
+	rec := &Recommendation{
+		ID:        "",
+		Region:    *job.Region,
+		Namespace: *job.Namespace,
+		JobID:     *job.ID,
+		Group:     *job.TaskGroups[0].Name,
+		Task:      job.TaskGroups[0].Tasks[0].Name,
+		Resource:  "CPU",
+		Value:     *job.TaskGroups[0].Tasks[0].Resources.CPU * 2,
+		Meta: map[string]interface{}{
+			"testing": true,
+			"mocked":  "also true",
+		},
+		Stats: map[string]float64{
+			"median": 50.0,
+			"mean":   51.0,
+			"max":    75.5,
+			"99":     73.0,
+			"min":    0.0,
+		},
+		EnforceVersion: false,
+	}
+	return rec
+}
+
 func testNamespace() *Namespace {
 	return &Namespace{
 		Name:        "test-namespace",

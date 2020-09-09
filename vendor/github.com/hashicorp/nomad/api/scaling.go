@@ -66,12 +66,12 @@ type ScalingPolicy struct {
 	Max     *int64                 `hcl:"max,optional"`
 	Policy  map[string]interface{} `hcl:"policy,block"`
 	Enabled *bool                  `hcl:"enabled,optional"`
+	Type    string                 `hcl:"type,optional"`
 
 	/* fields set by server */
 
 	ID          string
 	Namespace   string
-	Type        string
 	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64
