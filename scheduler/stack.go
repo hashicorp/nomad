@@ -193,13 +193,14 @@ type SystemStack struct {
 	taskGroupCSIVolumes  *CSIVolumeChecker
 	taskGroupNetwork     *NetworkChecker
 
+	distinctNodeConstraint     *DistinctNodesIterator
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
 	scoreNorm                  *ScoreNormalizationIterator
 }
 
 // NewSystemStack constructs a stack used for selecting system job placements.
-func NewSystemStack(ctx Context) *SystemStack {
+func NewSystemStack(batch bool, ctx Context) *SystemStack {
 	// Create a new stack
 	s := &SystemStack{ctx: ctx}
 
@@ -244,8 +245,10 @@ func NewSystemStack(ctx Context) *SystemStack {
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
 
+	s.distinctNodeConstraint = NewDistinctNodesIterator(ctx, s.wrappedChecks)
+
 	// Filter on distinct property constraints.
-	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.wrappedChecks)
+	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.distinctNodeConstraint)
 
 	// Upgrade from feasible to rank iterator
 	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
@@ -274,6 +277,7 @@ func (s *SystemStack) SetNodes(baseNodes []*structs.Node) {
 
 func (s *SystemStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
+	s.distinctNodeConstraint.SetJob(job)
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)
@@ -284,6 +288,21 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 }
 
 func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
+	// This block handles trying to select from preferred nodes if options specify them
+	// It also sets back the set of nodes to the original nodes
+	if options != nil && len(options.PreferredNodes) > 0 {
+		originalNodes := s.source.nodes
+		s.source.SetNodes(options.PreferredNodes)
+		optionsNew := *options
+		optionsNew.PreferredNodes = nil
+		if option := s.Select(tg, &optionsNew); option != nil {
+			s.source.SetNodes(originalNodes)
+			return option
+		}
+		s.source.SetNodes(originalNodes)
+		return s.Select(tg, &optionsNew)
+	}
+
 	// Reset the binpack selector and context
 	s.scoreNorm.Reset()
 	s.ctx.Reset()

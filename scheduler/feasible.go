@@ -1457,3 +1457,79 @@ func newSemverConstraintParser(ctx Context) verConstraintParser {
 		return constraints
 	}
 }
+
+
+
+// DistinctNodesIterator is a FeasibleIterator which returns nodes that pass the
+// distinct_hosts constraint. The constraint ensures that multiple allocations
+// do not exist on the same node.
+type DistinctNodesIterator struct {
+	ctx    Context
+	source FeasibleIterator
+	tg     *structs.TaskGroup
+	job    *structs.Job
+}
+
+// NewDistinctNodesIterator creates a DistinctNodesIterator from a source.
+func NewDistinctNodesIterator(ctx Context, source FeasibleIterator) *DistinctNodesIterator {
+	return &DistinctNodesIterator{
+		ctx:    ctx,
+		source: source,
+	}
+}
+
+func (iter *DistinctNodesIterator) SetTaskGroup(tg *structs.TaskGroup) {
+	iter.tg = tg
+}
+
+func (iter *DistinctNodesIterator) SetJob(job *structs.Job) {
+	iter.job = job
+}
+
+func (iter *DistinctNodesIterator) Next() *structs.Node {
+	for {
+		// Get the next option from the source
+		option := iter.source.Next()
+
+		// Hot-path if the option is nil.
+		if option == nil {
+			return option
+		}
+
+		// Check if the host constraints are satisfied
+		if !iter.satisfiesDistinctNodes(option) {
+			iter.ctx.Metrics().FilterNode(option, "")
+			continue
+		}
+
+		return option
+	}
+}
+
+// satisfiesDistinctNodes checks if the node satisfies a distinct_hosts
+// constraint either specified at the job level or the TaskGroup level.
+func (iter *DistinctNodesIterator) satisfiesDistinctNodes(option *structs.Node) bool {
+	// Get the proposed allocations
+	proposed, err := iter.ctx.ProposedAllocs(option.ID)
+	if err != nil {
+		iter.ctx.Logger().Named("distinct_nodes").Error("failed to get proposed allocations", "error", err)
+		return false
+	}
+
+	// Skip the node if the task group has already been allocated on it.
+	for _, alloc := range proposed {
+		// TODO(dubadub) check job version
+		// If the job has a distinct_hosts constraint we only need an alloc
+		// collision on the JobID but if the constraint is on the TaskGroup then
+		// we need both a job and TaskGroup collision.
+		if alloc.JobID == iter.job.ID && alloc.Job.Version == iter.job.Version && alloc.Job.CreateIndex == iter.job.CreateIndex {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (iter *DistinctNodesIterator) Reset() {
+	iter.source.Reset()
+}
