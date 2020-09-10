@@ -35,7 +35,7 @@ const (
 )
 
 // ErrMultipleNamespaces is send when multiple namespaces are used in the OSS setup
-var ErrMultipleNamespaces = errors.New("multiple vault namespaces requires Nomad Enterprise")
+var ErrMultipleNamespaces = errors.New("multiple Vault namespaces requires Nomad Enterprise")
 
 var (
 	// allowRescheduleTransition is the transition that allows failed
