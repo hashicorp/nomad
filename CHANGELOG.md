@@ -1,4 +1,4 @@
-## 0.12.4 (Unreleased)
+## 0.12.4 (September 9, 2020)
 
 FEATURES:
 
