@@ -3,16 +3,12 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	vapi "github.com/hashicorp/vault/api"
 )
-
-// ErrMultipleNamespaces is send when multiple namespaces are used in the OSS setup
-var ErrMultipleNamespaces = errors.New("multiple vault namespaces requires Nomad Enterprise")
 
 // enforceSubmitJob is used to check any Sentinel policies for the submit-job scope
 func (j *Job) enforceSubmitJob(override bool, job *structs.Job) (error, error) {
