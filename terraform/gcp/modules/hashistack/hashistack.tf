@@ -9,15 +9,15 @@ variable "credentials" {
 }
 
 variable "name" {
-    type        = string
-    default     = "hashistack"
-    description = "The default name to use for resources."
+  type        = string
+  default     = "hashistack"
+  description = "The default name to use for resources."
 }
 
 variable "region" {
-    type        = string
-    default     = "us-east1"
-    description = "The GCP region to deploy resources in."
+  type        = string
+  default     = "us-east1"
+  description = "The GCP region to deploy resources in."
 }
 
 variable "zone" {
@@ -38,27 +38,27 @@ variable "router_asn" {
 }
 
 variable "image" {
-    type        = string
-    default     = "hashistack"
-    description = "The GCP image name (built with Packer)."
+  type        = string
+  default     = "hashistack"
+  description = "The GCP image name (built with Packer)."
 }
 
 variable "enable_preemptible" {
-    type        = bool 
-    default     = false 
-    description = "Use preemptible VM instances, which will be cheaper to run." 
+  type        = bool
+  default     = false
+  description = "Use preemptible VM instances, which will be cheaper to run."
 }
 
 variable "server_count" {
-    type        = number
-    default     = 3
-    description = "The number of server instances to deploy (always use odd number)." 
+  type        = number
+  default     = 3
+  description = "The number of server instances to deploy (always use odd number)."
 }
 
 variable "client_count" {
-    type        = number
-    default     = 5
-    description = "The number of client instances to deploy." 
+  type        = number
+  default     = 5
+  description = "The number of client instances to deploy."
 }
 
 variable "server_machine_type" {
@@ -86,7 +86,7 @@ variable "client_disk_size_gb" {
 }
 
 resource "google_compute_network" "hashistack" {
-  name                    = var.name 
+  name                    = var.name
   auto_create_subnetworks = false
 }
 
@@ -120,8 +120,8 @@ resource "google_compute_router_nat" "hashistack" {
 }
 
 resource "google_compute_firewall" "allow-ssh" {
-  name          = "${var.name}-allow-ssh"
-  network       = google_compute_network.hashistack.name
+  name    = "${var.name}-allow-ssh"
+  network = google_compute_network.hashistack.name
 
   allow {
     protocol = "tcp"
@@ -130,9 +130,9 @@ resource "google_compute_firewall" "allow-ssh" {
 }
 
 resource "google_compute_firewall" "allow-http-external" {
-  name          = "${var.name}-allow-http-external"
-  network       = google_compute_network.hashistack.name
-  target_tags   = ["server"]
+  name        = "${var.name}-allow-http-external"
+  network     = google_compute_network.hashistack.name
+  target_tags = ["server"]
 
   allow {
     protocol = "tcp"
@@ -153,7 +153,7 @@ resource "google_compute_firewall" "allow-all-internal" {
     protocol = "tcp"
     ports    = ["0-65535"]
   }
-  
+
   allow {
     protocol = "udp"
     ports    = ["0-65535"]
@@ -165,18 +165,18 @@ locals {
 }
 
 locals {
-   server_metadata_startup_script = <<EOF
+  server_metadata_startup_script = <<EOF
 sudo bash /ops/shared/scripts/server.sh "gce" "${var.server_count}" "${local.retry_join}"
    EOF
-   
-   client_metadata_startup_script = <<EOF
+
+  client_metadata_startup_script = <<EOF
 sudo bash /ops/shared/scripts/client.sh "gce" "${local.retry_join}"
    EOF
 }
 
 resource "google_compute_instance" "server" {
   count        = var.server_count
-  name         = "${var.name}-server-${count.index}"
+  name         = "${var.name}-server-${count.index + 1}"
   machine_type = var.server_machine_type
   zone         = "${var.region}-${var.zone}"
   tags         = ["server", "auto-join"]
@@ -199,7 +199,7 @@ resource "google_compute_instance" "server" {
   }
 
   scheduling {
-    preemptible       = var.enable_preemptible
+    preemptible = var.enable_preemptible
     # scheduling must have automatic_restart be false when preemptible is true.
     automatic_restart = ! var.enable_preemptible
   }
@@ -220,7 +220,7 @@ resource "google_compute_instance" "server" {
 
 resource "google_compute_instance" "client" {
   count        = var.client_count
-  name         = "${var.name}-client-${count.index}"
+  name         = "${var.name}-client-${count.index + 1}"
   machine_type = var.client_machine_type
   zone         = "${var.region}-${var.zone}"
   tags         = ["client", "auto-join"]
@@ -243,7 +243,7 @@ resource "google_compute_instance" "client" {
   }
 
   scheduling {
-    preemptible       = var.enable_preemptible
+    preemptible = var.enable_preemptible
     # scheduling must have automatic_restart be false when preemptible is true.
     automatic_restart = ! var.enable_preemptible
   }

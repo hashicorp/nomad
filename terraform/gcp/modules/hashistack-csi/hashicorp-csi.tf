@@ -1,7 +1,7 @@
 variable "name" {
-    type        = string
-    default     = "hashistack"
-    description = "The default name to use for resources."
+  type        = string
+  default     = "hashistack"
+  description = "The default name to use for resources."
 }
 
 variable "project" {
@@ -10,9 +10,9 @@ variable "project" {
 }
 
 variable "region" {
-    type        = string
-    default     = "us-east1"
-    description = "The GCP region to deploy resources in."
+  type        = string
+  default     = "us-east1"
+  description = "The GCP region to deploy resources in."
 }
 
 variable "zone" {
@@ -40,7 +40,7 @@ variable "csi_disk_type" {
 }
 
 data "google_compute_default_service_account" "default" {
-    project = var.project
+  project = var.project
 }
 
 locals {
@@ -48,65 +48,65 @@ locals {
 }
 
 resource "google_project_iam_custom_role" "nomad" {
-  count = local.shouldCreate
+  count       = local.shouldCreate
   role_id     = "nomad"
   title       = "Nomad CSI"
   description = "A description"
   permissions = [
-    "compute.disks.get", 
+    "compute.disks.get",
     "compute.disks.use",
-    "compute.instances.get", 
-    "compute.instances.attachDisk", 
+    "compute.instances.get",
+    "compute.instances.attachDisk",
     "compute.instances.detachDisk"
   ]
 }
 
 resource "google_service_account" "nomad" {
-  count = local.shouldCreate
+  count        = local.shouldCreate
   account_id   = "nomad-sa"
   display_name = "Nomad CSI Account"
 }
 
 resource "google_service_account_iam_member" "nomad-sa-csi" {
-  count = local.shouldCreate
+  count              = local.shouldCreate
   service_account_id = google_service_account.nomad[count.index].name
   role               = google_project_iam_custom_role.nomad[count.index].id
   member             = "serviceAccount:${google_service_account.nomad[count.index].email}"
 }
 
 resource "google_project_iam_member" "nomad-sa-csi" {
-  count = local.shouldCreate
-  role               = google_project_iam_custom_role.nomad[count.index].id
-  member             = "serviceAccount:${google_service_account.nomad[count.index].email}"
+  count  = local.shouldCreate
+  role   = google_project_iam_custom_role.nomad[count.index].id
+  member = "serviceAccount:${google_service_account.nomad[count.index].email}"
 }
 
 # Allow SA service account use the default GCE account
 resource "google_service_account_iam_member" "gce-default-account-iam" {
-  count = local.shouldCreate
+  count              = local.shouldCreate
   service_account_id = data.google_compute_default_service_account.default.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.nomad[count.index].email}"
 }
 
 resource "google_service_account_key" "nomad-sa-key" {
-  count = local.shouldCreate
+  count              = local.shouldCreate
   service_account_id = google_service_account.nomad[count.index].id
   public_key_type    = "TYPE_X509_PEM_FILE"
 }
 
 resource "local_file" "nomad-sa-key-file" {
-  count = local.shouldCreate
+  count           = local.shouldCreate
   content         = base64decode(google_service_account_key.nomad-sa-key[count.index].private_key)
   filename        = "nomad-sa-key.json"
   file_permission = "0600"
 }
 
 resource "google_compute_disk" "csi-disk" {
-  count  = var.csi_disk_count
-  name   = "${var.name}-csi-disk-${count.index}"
-  size   = var.csi_disk_size_gb
-  type   = var.csi_disk_type
-  zone   = "${var.region}-${var.zone}"
+  count = var.csi_disk_count
+  name  = "${var.name}-csi-disk-${count.index + 1}"
+  size  = var.csi_disk_size_gb
+  type  = var.csi_disk_type
+  zone  = "${var.region}-${var.zone}"
   labels = {
     environment = "dev"
   }
@@ -114,9 +114,9 @@ resource "google_compute_disk" "csi-disk" {
 }
 
 output "csi-disks" {
-    description = "A map of created CSI disk resources and their self-links."
-    value = zipmap(
-        google_compute_disk.csi-disk[*].name,
-        google_compute_disk.csi-disk[*].self_link
-    )
+  description = "A map of created CSI disk resources and their self-links."
+  value = zipmap(
+    google_compute_disk.csi-disk[*].name,
+    google_compute_disk.csi-disk[*].self_link
+  )
 }
