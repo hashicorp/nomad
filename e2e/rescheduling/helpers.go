@@ -97,7 +97,7 @@ func register(f *framework.F, jobFile, jobID string) {
 func waitForAllocStatusComparison(query func() ([]string, error), comparison func([]string) bool) error {
 	var got []string
 	var err error
-	testutil.WaitForResultRetries(30, func() (bool, error) {
+	testutil.WaitForResultRetries(50, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
 		got, err = query()
 		if err != nil {
@@ -113,7 +113,7 @@ func waitForAllocStatusComparison(query func() ([]string, error), comparison fun
 func waitForLastDeploymentStatus(f *framework.F, jobID, status string) error {
 	var got string
 	var err error
-	testutil.WaitForResultRetries(30, func() (bool, error) {
+	testutil.WaitForResultRetries(50, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
 
 		out, err := e2eutil.Command("nomad", "job", "status", jobID)
