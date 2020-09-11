@@ -47,11 +47,13 @@ export default class TopologyControllers extends Controller {
 
   @computed('totalMemory', 'totalReservedMemory')
   get reservedMemoryPercent() {
+    if (!this.totalReservedMemory || !this.totalMemory) return 0;
     return this.totalReservedMemory / this.totalMemory;
   }
 
   @computed('totalCPU', 'totalReservedCPU')
   get reservedCPUPercent() {
+    if (!this.totalReservedCPU || !this.totalCPU) return 0;
     return this.totalReservedCPU / this.totalCPU;
   }
 

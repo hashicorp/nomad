@@ -62,6 +62,7 @@ export default class TopoViz extends Component {
     if (this.args.onAllocationSelect) this.args.onAllocationSelect(this.activeAllocation);
   }
 
+  @action
   computedActiveEdges() {
     // Wait a render cycle
     run.next(() => {
@@ -70,8 +71,6 @@ export default class TopoViz extends Component {
       );
       const selectedAllocations = this.element.querySelectorAll('.memory .bar.is-selected');
       const activeBBox = activeEl.getBoundingClientRect();
-      console.log('bb', activeBBox);
-      console.log('win', window.visualViewport);
 
       const vLeft = window.visualViewport.pageLeft;
       const vTop = window.visualViewport.pageTop;
