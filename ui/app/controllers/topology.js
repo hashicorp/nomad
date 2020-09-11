@@ -1,5 +1,5 @@
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
+import { computed, action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
 
@@ -53,5 +53,29 @@ export default class TopologyControllers extends Controller {
   @computed('totalCPU', 'totalReservedCPU')
   get reservedCPUPercent() {
     return this.totalReservedCPU / this.totalCPU;
+  }
+
+  @computed('activeAllocation', 'model.allocations.@each.{taskGroupName,job}')
+  get siblingAllocations() {
+    if (!this.activeAllocation) return [];
+    const taskGroup = this.activeAllocation.taskGroupName;
+    const jobId = this.activeAllocation.belongsTo('job').id();
+
+    return this.model.allocations.filter(allocation => {
+      return allocation.taskGroupName === taskGroup && allocation.belongsTo('job').id() === jobId;
+    });
+  }
+
+  @computed('siblingAllocations.@each.node')
+  get uniqueActiveAllocationNodes() {
+    return this.siblingAllocations.mapBy('node').uniq();
+  }
+
+  @action
+  setAllocation(allocation) {
+    this.set('activeAllocation', allocation);
+    if (allocation) {
+      allocation.reload();
+    }
   }
 }

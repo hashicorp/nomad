@@ -27,7 +27,30 @@
           <div class="boxed-section-head">{{if this.activeAllocation "Allocation" "Cluster"}} Details</div>
           <div class="boxed-section-body">
             {{#if this.activeAllocation}}
-              Showing alloc details for {{this.activeAllocation.shortId}}
+              <h3 style="font-size:16px">
+                <strong>Allocation:</strong>
+                <LinkTo @route="allocations.allocation" @model={{this.activeAllocation}} class="is-primary">{{this.activeAllocation.shortId}}</LinkTo>
+              </h3>
+              <p><strong>Sibling Allocations:</strong> {{this.siblingAllocations.length}}</p>
+              <p><strong>Unique Client Placements:</strong> {{this.uniqueActiveAllocationNodes.length}}</p>
+              <p></p>
+              <p>
+                <strong>Job:</strong>
+                <LinkTo
+                  @route="jobs.job"
+                  @model={{this.activeAllocation.job}}
+                  @query={{hash jobNamespace=this.activeAllocation.job.namespace.id}} data-test-job>
+                  {{this.activeAllocation.job.name}}
+                </LinkTo>
+              </p>
+              <p>
+                <strong>Client:</strong>
+                <LinkTo @route="clients.client" @model={{this.activeAllocation.node}}>
+                  {{this.activeAllocation.node.name}} ({{this.activeAllocation.node.shortId}})
+                </LinkTo>
+              </p>
+              <PrimaryMetric @resource={{this.activeAllocation}} @metric="memory" class="is-short" />
+              <PrimaryMetric @resource={{this.activeAllocation}} @metric="cpu" class="is-short" />
             {{else}}
               <div class="metric-group columns is-centered">
                 <div class="metric">
@@ -91,7 +114,7 @@
         </div>
       </div>
       <div class="column">
-        <TopoViz @nodes={{this.model.nodes}} @allocations={{this.model.allocations}} @onAllocationSelect={{action (mut this.activeAllocation)}} />
+        <TopoViz @nodes={{this.model.nodes}} @allocations={{this.model.allocations}} @onAllocationSelect={{action this.setAllocation}} />
       </div>
     </div>
   </section>
