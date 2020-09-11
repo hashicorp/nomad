@@ -7,36 +7,41 @@ description: Learn how to install Nomad for Production.
 
 # Installing Nomad for Production
 
-This section covers how to install Nomad for production.
+While HashiCorp Nomad provides a low-friction practitioner experience out of
+the box, there are a few critical steps to take for a successful production
+Nomad deployment.
 
-There are multiple steps to cover for a successful Nomad deployment:
+## Explore the Reference Architecture and Installation Guide
 
-## Installing Nomad
+Learn more about recommended practices and explore a reference architecture for
+deploying HashiCorp Nomad in production.
 
-This page lists the two primary methods to installing Nomad and how to verify a successful installation.
+- [Nomad Reference Architecture][] - Learn recommended practices and a reference
+  architecture for Nomad production deployments. This reference architecture
+  conveys a general architecture. Adapt it to accommodate the specific needs
+  of your implementation.
 
-Please refer to [Installing Nomad](/docs/install) sub-section.
+- [Nomad Deployment Guide][] - Follow along with an end-to-end outline of the
+  steps required to install a single production-ready Nomad cluster as defined
+  in the Reference Architecture section.
 
-## Hardware Requirements
+## Verify Hardware Requirements
 
-This page details the recommended machine resources (instances), port requirements, and network topology for Nomad.
+Review the recommended machine resources (instances), port requirements, and
+network topology for Nomad in the [Hardware Requirements](/docs/install/production/requirements).
 
-Please refer to [Hardware Requirements](/docs/install/production/requirements) sub-section.
+## Install Nomad
 
-## Setting Nodes with Nomad Agent
+Visit the [Installing Nomad](/docs/install) page to learn the options
+available for installing Nomad and how to verify a successful
+installation.
 
-These pages explain the Nomad agent process and how to set the server and client nodes in the cluster.
+## Configure your Nomad Servers and Clients
 
-Please refer to [Set Server & Client Nodes](/docs/install/production/nomad-agent) and [Nomad Agent documentation](/docs/commands/agent) pages.
+Refer to the [Set Server & Client Nodes](/docs/install/production/nomad-agent)
+and [Nomad Agent documentation](/docs/commands/agent) pages to learn about the
+Nomad agent process and how to configure the server and client nodes in your
+cluster.
 
-## Reference Architecture
-
-This HashiCorp Learn tutorial provides recommended practices and a reference architecture for HashiCorp Nomad production deployments. This reference architecture conveys a general architecture that should be adapted to accommodate the specific needs of each implementation.
-
-Please refer to [Reference Architecture](https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul) sub-section.
-
-## Install Guide Based on Reference Architecture
-
-This HashiCorp Learn tutorial provides an end-to-end walkthrough of the steps required to install a single production-ready Nomad cluster as defined in the Reference Architecture section.
-
-Please refer to [Reference Install Guide](https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul) sub-section.
+[Nomad Reference Architecture]: https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul
+[Nomad Deployment Guide]: https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul
