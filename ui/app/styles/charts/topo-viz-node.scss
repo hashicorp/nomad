@@ -27,10 +27,14 @@
       }
     }
 
-    .bar.is-selected {
-      stroke-width: 1px;
-      stroke: $blue;
-      fill: $blue-light;
+    .bar {
+      cursor: pointer;
+
+      &.is-selected {
+        stroke-width: 1px;
+        stroke: $blue;
+        fill: $blue-light;
+      }
     }
 
     .label {
