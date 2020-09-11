@@ -51,7 +51,7 @@ func (tc *RescheduleE2ETest) AfterEach(f *framework.F) {
 
 // TestNoReschedule runs a job that should fail and never reschedule
 func (tc *RescheduleE2ETest) TestNoReschedule(f *framework.F) {
-	jobID := "test-no-reschedule" + uuid.Generate()[0:8]
+	jobID := "test-no-reschedule-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/norescheduling.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -65,7 +65,7 @@ func (tc *RescheduleE2ETest) TestNoReschedule(f *framework.F) {
 
 // TestNoRescheduleSystem runs a system job that should fail and never reschedule
 func (tc *RescheduleE2ETest) TestNoRescheduleSystem(f *framework.F) {
-	jobID := "test-reschedule-system" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-system-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_system.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -86,7 +86,7 @@ func (tc *RescheduleE2ETest) TestNoRescheduleSystem(f *framework.F) {
 // TestDefaultReschedule runs a job that should reschedule after delay
 func (tc *RescheduleE2ETest) TestDefaultReschedule(f *framework.F) {
 
-	jobID := "test-default-reschedule" + uuid.Generate()[0:8]
+	jobID := "test-default-reschedule-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_default.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -111,7 +111,7 @@ func (tc *RescheduleE2ETest) TestDefaultReschedule(f *framework.F) {
 // TestRescheduleMaxAttempts runs a job with a maximum reschedule attempts
 func (tc *RescheduleE2ETest) TestRescheduleMaxAttempts(f *framework.F) {
 
-	jobID := "test-reschedule-fail" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-fail-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_fail.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -146,7 +146,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxAttempts(f *framework.F) {
 // TestRescheduleSuccess runs a job that should be running after rescheduling
 func (tc *RescheduleE2ETest) TestRescheduleSuccess(f *framework.F) {
 
-	jobID := "test-reschedule-success" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-success-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_success.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -168,7 +168,7 @@ func (tc *RescheduleE2ETest) TestRescheduleSuccess(f *framework.F) {
 // it gets rescheduled
 func (tc *RescheduleE2ETest) TestRescheduleWithUpdate(f *framework.F) {
 
-	jobID := "test-reschedule-update" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-update-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_update.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -198,7 +198,7 @@ func (tc *RescheduleE2ETest) TestRescheduleWithUpdate(f *framework.F) {
 // canary gets rescheduled
 func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 
-	jobID := "test-reschedule-canary" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-canary-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_canary.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -234,7 +234,7 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 // the job gets reverted
 func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) {
 
-	jobID := "test-reschedule-canary-revert" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-canary-revert-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_canary_autorevert.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -277,7 +277,7 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) 
 // TestRescheduleMaxParallel updates a job with a max_parallel config
 func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 
-	jobID := "test-reschedule-maxp" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-maxp-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_maxp.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -317,7 +317,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 // config that will autorevert on failure
 func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F) {
 
-	jobID := "test-reschedule-maxp-revert" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-maxp-revert-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_maxp_autorevert.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
@@ -376,7 +376,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 // progress deadline
 func (tc *RescheduleE2ETest) TestRescheduleProgressDeadline(f *framework.F) {
 
-	jobID := "test-reschedule-deadline" + uuid.Generate()[0:8]
+	jobID := "test-reschedule-deadline-" + uuid.Generate()[0:8]
 	register(f, "rescheduling/input/rescheduling_progressdeadline.nomad", jobID)
 	tc.jobIds = append(tc.jobIds, jobID)
 
