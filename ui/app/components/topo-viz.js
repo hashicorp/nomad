@@ -42,9 +42,11 @@ export default class TopoViz extends Component {
     if (this.activeTaskGroup === taskGroup && this.activeJobId === jobId) {
       this.activeTaskGroup = null;
       this.activeJobId = null;
+      if (this.args.onAllocationSelect) this.args.onAllocationSelect(null);
     } else {
       this.activeTaskGroup = taskGroup;
       this.activeJobId = jobId;
+      if (this.args.onAllocationSelect) this.args.onAllocationSelect(allocation);
     }
   }
 }

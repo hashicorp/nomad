@@ -24,14 +24,74 @@
           </div>
         </div>
         <div class="boxed-section">
-          <div class="boxed-section-head">Cluster Details</div>
+          <div class="boxed-section-head">{{if this.activeAllocation "Allocation" "Cluster"}} Details</div>
           <div class="boxed-section-body">
-            Aggregate metrics go here.
+            {{#if this.activeAllocation}}
+              Showing alloc details for {{this.activeAllocation.shortId}}
+            {{else}}
+              <div class="metric-group columns is-centered">
+                <div class="metric">
+                  <h3 class="label">DCs</h3>
+                  <p class="value">{{this.datacenters.length}}</p>
+                </div>
+                <div class="metric">
+                  <h3 class="label">Clients</h3>
+                  <p class="value">{{this.model.nodes.length}}</p>
+                </div>
+                <div class="metric">
+                  <h3 class="label">Allocations</h3>
+                  {{! TODO: make sure that this is only the scheduled allocations }}
+                  <p class="value">{{this.model.allocations.length}}</p>
+                </div>
+              </div>
+              <div class="dashboard-metric">
+                <p class="metric">{{this.totalMemoryFormatted}} <span class="metric-units">{{this.totalMemoryUnits}}</span> <span class="metric-label">of memory</span></p>
+                <div class="columns graphic">
+                  <div class="column">
+                    <div class="inline-chart" data-test-percentage-bar>
+                      <progress
+                        class="progress is-danger is-small"
+                        value="{{this.reservedMemoryPercent}}"
+                        max="1">
+                        {{this.reservedMemoryPercent}}
+                      </progress>
+                    </div>
+                  </div>
+                  <div class="column is-minimum">
+                    <span class="nowrap" data-test-percentage>{{format-percentage this.reservedMemoryPercent total=1}}</span>
+                  </div>
+                </div>
+                <div class="annotation" data-test-absolute-value>
+                  <strong>{{format-bytes this.totalReservedMemory}}</strong> / {{format-bytes this.totalMemory}} reserved
+                </div>
+              </div>
+              <div class="dashboard-metric">
+                <p class="metric">{{this.totalCPU}} <span class="metric-units">Mhz</span> <span class="metric-label">of CPU</span></p>
+                <div class="columns graphic">
+                  <div class="column">
+                    <div class="inline-chart" data-test-percentage-bar>
+                      <progress
+                        class="progress is-info is-small"
+                        value="{{this.reservedCPUPercent}}"
+                        max="1">
+                        {{this.reservedCPUPercent}}
+                      </progress>
+                    </div>
+                  </div>
+                  <div class="column is-minimum">
+                    <span class="nowrap" data-test-percentage>{{format-percentage this.reservedCPUPercent total=1}}</span>
+                  </div>
+                </div>
+                <div class="annotation" data-test-absolute-value>
+                  <strong>{{this.totalReservedCPU}} Mhz</strong> / {{this.totalCPU}} Mhz reserved
+                </div>
+              </div>
+            {{/if}}
           </div>
         </div>
       </div>
       <div class="column">
-        <TopoViz @nodes={{this.model.nodes}} @allocations={{this.model.allocations}} />
+        <TopoViz @nodes={{this.model.nodes}} @allocations={{this.model.allocations}} @onAllocationSelect={{action (mut this.activeAllocation)}} />
       </div>
     </div>
   </section>

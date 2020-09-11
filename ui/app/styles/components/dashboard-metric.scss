@@ -1,0 +1,31 @@
+.dashboard-metric {
+  margin-top: 1.5em;
+
+  .metric {
+    text-align: left;
+    font-weight: $weight-bold;
+    font-size: $size-3;
+
+    .metric-units {
+      font-size: $size-4;
+    }
+
+    .metric-label {
+      font-size: $body-size;
+      font-weight: $weight-normal;
+    }
+  }
+
+  .graphic {
+    padding-bottom: 0;
+    margin-bottom: 0;
+
+    > .column {
+      padding: 0.5rem 0.75rem;
+    }
+  }
+
+  .annotation {
+    margin-top: -0.75rem;
+  }
+}

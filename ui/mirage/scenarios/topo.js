@@ -17,7 +17,7 @@ export function topoSmall(server) {
   });
 
   const jobResources = [
-    ['M: 256, C: 150'],
+    ['M: 2560, C: 150'],
     ['M: 128, C: 400'],
     ['M: 512, C: 100'],
     ['M: 256, C: 150'],
