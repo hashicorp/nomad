@@ -1,5 +1,7 @@
 .dashboard-metric {
-  margin-top: 1.5em;
+  &:not(:last-child) {
+    margin-bottom: 1.5em;
+  }
 
   .metric {
     text-align: left;
@@ -27,5 +29,18 @@
 
   .annotation {
     margin-top: -0.75rem;
+  }
+
+  &.with-divider {
+    border-top: 1px solid $grey-blue;
+    padding-top: 1.5em;
+  }
+
+  .pair {
+    font-size: $size-5;
+  }
+
+  .is-faded {
+    color: darken($grey-blue, 20%);
   }
 }
