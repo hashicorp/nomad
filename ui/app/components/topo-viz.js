@@ -1,6 +1,7 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
+import { run } from '@ember/runloop';
 import { scaleLinear } from 'd3-scale';
 import { max } from 'd3-array';
 import RSVP from 'rsvp';
@@ -8,9 +9,18 @@ import RSVP from 'rsvp';
 export default class TopoViz extends Component {
   @tracked heightScale = null;
   @tracked isLoaded = false;
+  @tracked element = null;
 
-  @tracked activeTaskGroup = null;
-  @tracked activeJobId = null;
+  @tracked activeAllocation = null;
+  @tracked activeEdges = [];
+
+  get activeTaskGroup() {
+    return this.activeAllocation && this.activeAllocation.taskGroupName;
+  }
+
+  get activeJobId() {
+    return this.activeAllocation && this.activeAllocation.belongsTo('job').id();
+  }
 
   get datacenters() {
     const datacentersMap = this.args.nodes.reduce((datacenters, node) => {
@@ -36,17 +46,53 @@ export default class TopoViz extends Component {
   }
 
   @action
+  captureElement(element) {
+    this.element = element;
+  }
+
+  @action
   associateAllocations(allocation) {
-    const taskGroup = allocation.taskGroupName;
-    const jobId = allocation.belongsTo('job').id();
-    if (this.activeTaskGroup === taskGroup && this.activeJobId === jobId) {
-      this.activeTaskGroup = null;
-      this.activeJobId = null;
-      if (this.args.onAllocationSelect) this.args.onAllocationSelect(null);
+    if (this.activeAllocation === allocation) {
+      this.activeAllocation = null;
+      this.activeEdges = [];
     } else {
-      this.activeTaskGroup = taskGroup;
-      this.activeJobId = jobId;
-      if (this.args.onAllocationSelect) this.args.onAllocationSelect(allocation);
+      this.activeAllocation = allocation;
+      this.computedActiveEdges();
     }
+    if (this.args.onAllocationSelect) this.args.onAllocationSelect(this.activeAllocation);
+  }
+
+  computedActiveEdges() {
+    // Wait a render cycle
+    run.next(() => {
+      const activeEl = this.element.querySelector(
+        `[data-allocation-id="${this.activeAllocation.id}"]`
+      );
+      const selectedAllocations = this.element.querySelectorAll('.memory .bar.is-selected');
+      const activeBBox = activeEl.getBoundingClientRect();
+      console.log('bb', activeBBox);
+      console.log('win', window.visualViewport);
+
+      const vLeft = window.visualViewport.pageLeft;
+      const vTop = window.visualViewport.pageTop;
+
+      const edges = [];
+      for (let allocation of selectedAllocations) {
+        if (allocation !== activeEl) {
+          const bbox = allocation.getBoundingClientRect();
+          edges.push({
+            x1: activeBBox.x + activeBBox.width / 2 + vLeft,
+            y1: activeBBox.y + activeBBox.height / 2 + vTop,
+            x2: bbox.x + bbox.width / 2 + vLeft,
+            y2: bbox.y + bbox.height / 2 + vTop,
+          });
+        }
+      }
+
+      this.activeEdges = edges;
+    });
+    // get element for active alloc
+    // get element for all selected allocs
+    // draw lines between centroid of each
   }
 }

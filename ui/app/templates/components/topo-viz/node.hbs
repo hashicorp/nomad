@@ -17,7 +17,9 @@
         {{on "mouseout" this.clearHighlight}}
       >
         <g class="memory">
-          <text class="label" aria-label="Memory" transform="translate({{this.data.memoryLabel.x}},{{this.data.memoryLabel.y}})">M</text>
+          {{#if this.data.memoryLabel}}
+            <text class="label" aria-label="Memory" transform="translate({{this.data.memoryLabel.x}},{{this.data.memoryLabel.y}})">M</text>
+          {{/if}}
           {{#if this.data.memoryRemainder}}
             <rect
               class="dimension-background"
@@ -29,6 +31,7 @@
             <g
               class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}} {{if memory.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"
+              data-allocation-id="{{memory.allocation.id}}"
               {{on "mouseenter" (fn this.highlightAllocation memory.allocation)}}
               {{on "click" (fn this.selectAllocation memory.allocation)}}>
               <rect
@@ -49,7 +52,9 @@
           {{/each}}
         </g>
         <g class="cpu">
-          <text class="label" aria-label="CPU" transform="translate({{this.data.cpuLabel.x}},{{this.data.cpuLabel.y}})">C</text>
+          {{#if this.data.cpuLabel}}
+            <text class="label" aria-label="CPU" transform="translate({{this.data.cpuLabel.x}},{{this.data.cpuLabel.y}})">C</text>
+          {{/if}}
           {{#if this.data.cpuRemainder}}
             <rect
               class="dimension-background"
@@ -62,6 +67,7 @@
             <g
               class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}} {{if cpu.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"
+              data-allocation-id="{{cpu.allocation.id}}"
               {{on "mouseenter" (fn this.highlightAllocation cpu.allocation)}}
               {{on "click" (fn this.selectAllocation cpu.allocation)}}>
               <rect

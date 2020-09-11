@@ -1,4 +1,4 @@
-<div class="topo-viz" {{did-insert this.loadNodes}}>
+<div class="topo-viz" {{did-insert this.loadNodes}} {{did-insert this.captureElement}}>
   {{#if this.isLoaded}}
     {{#each this.datacenters as |dc|}}
       <TopoViz::Datacenter
@@ -9,5 +9,13 @@
         @activeTaskGroup={{this.activeTaskGroup}}
         @activeJobId={{this.activeJobId}} />
     {{/each}}
+
+    {{#if this.activeAllocation}}
+    <svg class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>
+        {{#each this.activeEdges as |edge|}}
+          <line class="edge" x1={{edge.x1}} y1={{edge.y1}} x2={{edge.x2}} y2={{edge.y2}} />
+        {{/each}}
+      </svg>
+    {{/if}}
   {{/if}}
 </div>
