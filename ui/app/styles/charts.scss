@@ -3,8 +3,9 @@
 @import './charts/line-chart';
 @import './charts/tooltip';
 @import './charts/colors';
-@import './charts/chart-annotation.scss';
-@import './charts/topo-viz-node.scss';
+@import './charts/chart-annotation';
+@import './charts/topo-viz';
+@import './charts/topo-viz-node';
 
 .inline-chart {
   height: 1.5rem;

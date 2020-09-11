@@ -42,5 +42,6 @@ export default class TopoVizNode extends Component {
     );
 
     this.isLoaded = true;
+    this.args.onLoad && this.args.onLoad();
   }
 }

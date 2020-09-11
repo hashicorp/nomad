@@ -1,4 +1,4 @@
-<div class="topo-viz" {{did-insert this.loadNodes}} {{did-insert this.captureElement}}>
+<div class="topo-viz {{if (eq this.datacenters.length 1) "is-single-column"}}" {{did-insert this.loadNodes}} {{did-insert this.captureElement}}>
   {{#if this.isLoaded}}
     {{#each this.datacenters as |dc|}}
       <TopoViz::Datacenter
@@ -7,7 +7,8 @@
         @heightScale={{this.heightScale}}
         @onAllocationSelect={{this.associateAllocations}}
         @activeTaskGroup={{this.activeTaskGroup}}
-        @activeJobId={{this.activeJobId}} />
+        @activeJobId={{this.activeJobId}}
+        @onLoad={{action this.masonry}}/>
     {{/each}}
 
     {{#if this.activeAllocation}}

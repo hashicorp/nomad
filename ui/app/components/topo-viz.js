@@ -43,6 +43,32 @@ export default class TopoViz extends Component {
       .range([15, 30])
       .domain([0, max(this.args.nodes.map(node => node.resources.memory))]);
     this.isLoaded = true;
+
+    // schedule masonry
+    run.schedule('afterRender', () => {
+      this.masonry();
+    });
+  }
+
+  @action
+  masonry() {
+    run.next(() => {
+      const datacenterSections = this.element.querySelectorAll('.topo-viz-datacenter');
+      const elementStyles = window.getComputedStyle(this.element);
+      if (!elementStyles) return;
+
+      const rowHeight = parseInt(elementStyles.getPropertyValue('grid-auto-rows')) || 0;
+      const rowGap = parseInt(elementStyles.getPropertyValue('grid-row-gap')) || 0;
+
+      if (!rowHeight) return;
+
+      for (let dc of datacenterSections) {
+        const contents = dc.querySelector('.masonry-container');
+        const height = contents.getBoundingClientRect().height;
+        const rowSpan = Math.ceil((height + rowGap) / (rowHeight + rowGap));
+        dc.style.gridRowEnd = `span ${rowSpan}`;
+      }
+    });
   }
 
   @action

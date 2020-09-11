@@ -1,0 +1,11 @@
+.topo-viz {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 1.5em;
+  row-gap: 1.5em;
+  grid-auto-rows: 10px;
+
+  &.is-single-column {
+    grid-template-columns: 100%;
+  }
+}
