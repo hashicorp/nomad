@@ -1,12 +1,38 @@
 {{title "Cluster Topology"}}
 <PageLayout>
   <section class="section is-full-width">
-    <div class="boxed-section">
-      <div class="boxed-section-head is-hollow">Cluster Metrics</div>
-      <div class="boxed-section-body">
-        Aggregate metrics go here.
+    <div class="columns">
+      <div class="column is-one-quarter">
+        <div class="boxed-section">
+          <div class="boxed-section-head">Legend</div>
+          <div class="boxed-section-body">
+            <div class="legend">
+              <h3 class="legend-label">Metrics</h3>
+              <dl class="legend-terms">
+                <dt>M:</dt><dd>Memory</dd>
+                <dt>C:</dt><dd>CPU</dd>
+              </dl>
+            </div>
+            <div class="legend">
+              <h3 class="legend-label">Allocation Status</h3>
+              <dl class="legend-terms">
+                <dt><span class="color-swatch is-wide running" title="Running" /></dt><dd>Running</dd>
+                <dt><span class="color-swatch is-wide failed" title="Failed" /></dt><dd>Failed</dd>
+                <dt><span class="color-swatch is-wide pending" title="Starting" /></dt><dd>Starting</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <div class="boxed-section">
+          <div class="boxed-section-head">Cluster Details</div>
+          <div class="boxed-section-body">
+            Aggregate metrics go here.
+          </div>
+        </div>
+      </div>
+      <div class="column">
+        <TopoViz @nodes={{this.model.nodes}} @allocations={{this.model.allocations}} />
       </div>
     </div>
-    <TopoViz @nodes={{this.model.nodes}} @allocations={{this.model.allocations}} />
   </section>
 </PageLayout>

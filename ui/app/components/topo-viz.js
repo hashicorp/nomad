@@ -10,6 +10,7 @@ export default class TopoViz extends Component {
   @tracked isLoaded = false;
 
   @tracked activeTaskGroup = null;
+  @tracked activeJobId = null;
 
   get datacenters() {
     const datacentersMap = this.args.nodes.reduce((datacenters, node) => {
@@ -36,6 +37,14 @@ export default class TopoViz extends Component {
 
   @action
   associateAllocations(allocation) {
-    this.activeTaskGroup = allocation.taskGroup;
+    const taskGroup = allocation.taskGroupName;
+    const jobId = allocation.belongsTo('job').id();
+    if (this.activeTaskGroup === taskGroup && this.activeJobId === jobId) {
+      this.activeTaskGroup = null;
+      this.activeJobId = null;
+    } else {
+      this.activeTaskGroup = taskGroup;
+      this.activeJobId = jobId;
+    }
   }
 }

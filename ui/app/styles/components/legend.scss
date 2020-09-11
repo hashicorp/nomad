@@ -1,0 +1,27 @@
+.legend {
+  margin-bottom: 1em;
+
+  .legend-label {
+    font-weight: $weight-bold;
+    margin-bottom: 0.3em;
+  }
+
+  .legend-terms {
+    dt,
+    dd {
+      display: inline;
+    }
+
+    dt {
+      font-weight: $weight-bold;
+    }
+
+    dd {
+      margin-left: 0.5em;
+    }
+
+    dd + dt {
+      margin-left: 1.5em;
+    }
+  }
+}

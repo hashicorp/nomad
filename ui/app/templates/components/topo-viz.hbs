@@ -1,7 +1,13 @@
 <div class="topo-viz" {{did-insert this.loadNodes}}>
   {{#if this.isLoaded}}
     {{#each this.datacenters as |dc|}}
-      <TopoViz::Datacenter @datacenter={{dc.name}} @nodes={{dc.nodes}} @heightScale={{this.heightScale}} @onAllocationSelect={{this.associateAllocations}} />
+      <TopoViz::Datacenter
+        @datacenter={{dc.name}}
+        @nodes={{dc.nodes}}
+        @heightScale={{this.heightScale}}
+        @onAllocationSelect={{this.associateAllocations}}
+        @activeTaskGroup={{this.activeTaskGroup}}
+        @activeJobId={{this.activeJobId}} />
     {{/each}}
   {{/if}}
 </div>

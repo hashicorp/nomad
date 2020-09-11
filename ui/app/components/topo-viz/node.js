@@ -5,13 +5,33 @@ import { guidFor } from '@ember/object/internals';
 
 export default class TopoVizNode extends Component {
   @tracked data = { cpu: [], memory: [] };
-  // @tracked height = 15;
   @tracked dimensionsWidth = 0;
   @tracked padding = 5;
   @tracked activeAllocation = null;
 
   get height() {
     return this.args.heightScale ? this.args.heightScale(this.args.node.resources.memory) : 15;
+  }
+
+  get labelHeight() {
+    return this.height / 2;
+  }
+
+  get paddingLeft() {
+    const labelWidth = 20;
+    return this.padding + labelWidth;
+  }
+
+  // Since strokes are placed centered on the perimeter of fills, The width of the stroke needs to be removed from
+  // the height of the fill to match unstroked height and avoid clipping.
+  get selectedHeight() {
+    return this.height - 1;
+  }
+
+  // Since strokes are placed centered on the perimeter of fills, half the width of the stroke needs to be added to
+  // the yOffset to match heights with unstroked shapes.
+  get selectedYOffset() {
+    return this.height + 2.5;
   }
 
   get yOffset() {
@@ -35,7 +55,17 @@ export default class TopoVizNode extends Component {
   }
 
   get allocations() {
-    return this.args.node.allocations.filterBy('isScheduled').sortBy('resources.memory');
+    // return this.args.node.allocations.filterBy('isScheduled').sortBy('resources.memory');
+    const totalCPU = this.args.node.resources.cpu;
+    const totalMemory = this.args.node.resources.memory;
+
+    // Sort by the delta between memory and cpu percent. This creates the least amount of
+    // drift between the positional alignment of an alloc's cpu and memory representations.
+    return this.args.node.allocations.filterBy('isScheduled').sort((a, b) => {
+      const deltaA = Math.abs(a.resources.memory / totalMemory - a.resources.cpu / totalCPU);
+      const deltaB = Math.abs(b.resources.memory / totalMemory - b.resources.cpu / totalCPU);
+      return deltaA - deltaB;
+    });
   }
 
   @action
@@ -48,7 +78,7 @@ export default class TopoVizNode extends Component {
 
   @action
   render(svg) {
-    this.dimensionsWidth = svg.clientWidth - this.padding * 2;
+    this.dimensionsWidth = svg.clientWidth - this.padding - this.paddingLeft;
     this.data = this.computeData(this.dimensionsWidth);
   }
 
@@ -82,6 +112,9 @@ export default class TopoVizNode extends Component {
       const cpuPercent = allocation.resources.cpu / totalCPU;
       const memoryPercent = allocation.resources.memory / totalMemory;
       const isFirst = allocation === this.allocations[0];
+      const isSelected =
+        allocation.taskGroupName === this.args.activeTaskGroup &&
+        allocation.belongsTo('job').id() === this.args.activeJobId;
 
       let cpuWidth = cpuPercent * width - 1;
       let memoryWidth = memoryPercent * width - 1;
@@ -89,21 +122,27 @@ export default class TopoVizNode extends Component {
         cpuWidth += 0.5;
         memoryWidth += 0.5;
       }
+      if (isSelected) {
+        cpuWidth--;
+        memoryWidth--;
+      }
 
       cpu.push({
         allocation,
+        isSelected,
         offset: cpuOffset * 100,
         percent: cpuPercent * 100,
         width: cpuWidth,
-        x: cpuOffset * width + (isFirst ? 0 : 0.5),
+        x: cpuOffset * width + (isFirst ? 0 : 0.5) + (isSelected ? 0.5 : 0),
         className: allocation.clientStatus,
       });
       memory.push({
         allocation,
+        isSelected,
         offset: memoryOffset * 100,
         percent: memoryPercent * 100,
         width: memoryWidth,
-        x: memoryOffset * width + (isFirst ? 0 : 0.5),
+        x: memoryOffset * width + (isFirst ? 0 : 0.5) + (isSelected ? 0.5 : 0),
         className: allocation.clientStatus,
       });
 
@@ -120,7 +159,14 @@ export default class TopoVizNode extends Component {
       width: width - memoryOffset * width,
     };
 
-    return { cpu, memory, cpuRemainder, memoryRemainder };
+    return {
+      cpu,
+      memory,
+      cpuRemainder,
+      memoryRemainder,
+      cpuLabel: { x: -this.paddingLeft / 2, y: this.height / 2 + this.yOffset },
+      memoryLabel: { x: -this.paddingLeft / 2, y: this.height / 2 },
+    };
   }
 }
 

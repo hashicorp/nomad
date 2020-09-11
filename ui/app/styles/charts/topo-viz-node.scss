@@ -26,6 +26,19 @@
         }
       }
     }
+
+    .bar.is-selected {
+      stroke-width: 1px;
+      stroke: $blue;
+      fill: $blue-light;
+    }
+
+    .label {
+      text-anchor: middle;
+      alignment-baseline: central;
+      font-weight: $weight-normal;
+      fill: $grey;
+    }
   }
 
   & + .topo-viz-node {
