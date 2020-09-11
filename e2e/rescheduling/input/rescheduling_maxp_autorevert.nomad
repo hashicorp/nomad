@@ -7,7 +7,7 @@ job "demo3" {
     value     = "linux"
   }
 
-  type        = "service"
+  type = "service"
 
   group "t2" {
     count = 3

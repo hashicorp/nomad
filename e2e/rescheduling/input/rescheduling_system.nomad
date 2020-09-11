@@ -7,7 +7,7 @@ job "test" {
     value     = "linux"
   }
 
-  type        = "system"
+  type = "system"
 
   group "t" {
     count = 1
