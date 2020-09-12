@@ -64,5 +64,5 @@ func (d *df) total() uint64 {
 }
 
 func (d *df) available() uint64 {
-	return d.s.Bavail * uint64(d.s.Bsize)
+	return uint64(d.s.Bavail) * uint64(d.s.Bsize)
 }
