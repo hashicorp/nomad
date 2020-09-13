@@ -15,11 +15,8 @@ replace (
 
 require (
 	cloud.google.com/go/storage v1.0.0 // indirect
-	github.com/Azure/azure-sdk-for-go v29.0.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.4 // indirect
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.1 // indirect
-	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
-	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873
 	github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1 // indirect
@@ -60,7 +57,7 @@ require (
 	github.com/hashicorp/go-checkpoint v0.0.0-20171009173528-1545e56e46de
 	github.com/hashicorp/go-cleanhttp v0.5.1
 	github.com/hashicorp/go-connlimit v0.2.0
-	github.com/hashicorp/go-discover v0.0.0-20200108194735-7698de1390a1
+	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 	github.com/hashicorp/go-getter v1.3.1-0.20190822194507-f5101da01173
 	github.com/hashicorp/go-hclog v0.12.0
