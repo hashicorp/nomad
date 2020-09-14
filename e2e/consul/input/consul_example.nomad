@@ -26,6 +26,10 @@ job "consul-example" {
   group "cache" {
     count = 3
 
+    network {
+      port "db" {}
+    }
+
     restart {
       attempts = 2
       interval = "30m"
@@ -45,18 +49,12 @@ job "consul-example" {
         command = "nc"
         args    = ["-ll", "-p", "1234", "-e", "/bin/cat"]
 
-        port_map {
-          db = 1234
-        }
+        ports = ["db"]
       }
 
       resources {
         cpu    = 100
         memory = 100
-
-        network {
-          port "db" {}
-        }
       }
 
       service {
