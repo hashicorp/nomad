@@ -19,7 +19,8 @@ job "simpleweb" {
       config {
         image = "nginx:latest"
 
-      } ports = ["http"]
+        ports = ["http"]
+      }
 
       resources {
         cpu    = 256

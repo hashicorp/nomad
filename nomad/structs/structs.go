@@ -2282,7 +2282,6 @@ func (r *Resources) MeetsMinResources() error {
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
 	}
-
 	return mErr.ErrorOrNil()
 }
 
