@@ -275,14 +275,18 @@ parameters.
 
 ```json
 {
-  "ID": "volume-id1",
-  "Name": "volume id1",
-  "Namespace": "default",
-  "ExternalID": "volume-id1",
-  "Topologies": [{ "foo": "bar" }],
-  "AccessMode": "multi-node-single-writer",
-  "AttachmentMode": "file-system",
-  "PluginID": "plugin-id1"
+  "Volumes": [
+    {
+      "ID": "volume-id1",
+      "Name": "volume id1",
+      "Namespace": "default",
+      "ExternalID": "volume-id1",
+      "Topologies": [{ "foo": "bar" }],
+      "AccessMode": "multi-node-single-writer",
+      "AttachmentMode": "file-system",
+      "PluginID": "plugin-id1"
+    }
+  ]
 }
 ```
 
