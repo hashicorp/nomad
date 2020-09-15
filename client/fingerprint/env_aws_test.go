@@ -342,6 +342,11 @@ var awsStubs = []endpoint{
 		ContentType: "text/plain",
 		Body:        "54.191.117.175",
 	},
+	{
+		Uri:         "/latest/meta-data/mac",
+		ContentType: "text/plain",
+		Body:        "0a:20:d2:42:b3:55",
+	},
 }
 
 var unknownInstanceType = []endpoint{
