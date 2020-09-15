@@ -30,9 +30,6 @@ func (r *Resources) Canonicalize() {
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
 	}
-	for _, n := range r.Networks {
-		n.Canonicalize()
-	}
 	for _, d := range r.Devices {
 		d.Canonicalize()
 	}
@@ -110,12 +107,8 @@ type NetworkResource struct {
 }
 
 func (n *NetworkResource) Canonicalize() {
-	// COMPAT(0.12) MBits is deprecated but this should not be removed
-	// until MBits is fully removed. Removing this *without* fully removing
-	// MBits would cause unnecessary job diffs and destructive updates.
-	if n.MBits == nil {
-		n.MBits = intToPtr(10)
-	}
+	// COMPAT(0.13)
+	// Noop to maintain backwards compatibility
 }
 
 func (n *NetworkResource) HasPorts() bool {
