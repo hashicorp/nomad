@@ -432,11 +432,7 @@
 /guides/security/sentinel-policy                  https://learn.hashicorp.com/nomad/governance-and-policy/sentinel 301!
 /guides/operations/install/index.html             /docs/install 301!
 /guides/operations/install/index                  /docs/install 301!
-/guides/operations/deployment-guide.html          /docs/install/production/deployment-guide 301!
-/guides/operations/deployment-guide               /docs/install/production/deployment-guide 301!
 /guides/operations/agent/index.html               /docs/install/production/nomad-agent 301!
-/guides/operations/reference-architecture.html    /docs/install/production/reference-architecture 301!
-/guides/operations/reference-architecture         /docs/install/production/reference-architecture 301!
 /guides/operations/requirements.html              /docs/install/production/requirements 301!
 /guides/operations/requirements                   /docs/install/production/requirements 301!
 /guides/operations/consul-integration/index.html  /docs/integrations/consul-integration 301!
@@ -455,7 +451,12 @@
 /guides/upgrade/upgrade-specific.html             /docs/upgrade/upgrade-specific 301!
 /guides/upgrade/upgrade-specific                  /docs/upgrade/upgrade-specific 301!
 
-
+/guides/operations/deployment-guide.html          https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul 301!
+/guides/operations/deployment-guide               https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul 301!
+/guides/operations/reference-architecture.html    https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul 301!
+/guides/operations/reference-architecture         https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul 301!
+/docs/install/production/deployment-guide         https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul 301!
+/docs/install/production/reference-architecture   https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul 301!
 
 # Enterprise
 
