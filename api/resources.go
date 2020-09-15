@@ -100,10 +100,15 @@ type NetworkResource struct {
 	Device        string     `hcl:"device,optional"`
 	CIDR          string     `hcl:"cidr,optional"`
 	IP            string     `hcl:"ip,optional"`
-	MBits         *int       `hcl:"mbits,optional"`
 	DNS           *DNSConfig `hcl:"dns,block"`
 	ReservedPorts []Port     `hcl:"reserved_ports,block"`
 	DynamicPorts  []Port     `hcl:"port,block"`
+
+	// COMPAT(0.13)
+	// XXX Deprecated. Please do not use. The field will be removed in Nomad
+	// 0.13 and is only being kept to allow any references to be removed before
+	// then.
+	MBits *int `hcl:"mbits,optional"`
 }
 
 func (n *NetworkResource) Canonicalize() {

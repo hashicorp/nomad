@@ -218,11 +218,15 @@ check: ## Lint the source code
 	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 	@echo "==> Checking Go mod.."
-	@GO111MODULE=on go mod tidy
+	@GO111MODULE=on $(MAKE) sync
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
 		echo go.mod or go.sum needs updating; \
 		git --no-pager diff go.mod; \
 		git --no-pager diff go.sum; \
+		exit 1; fi
+	@if (git status --porcelain | grep -Eq "vendor/github.com/hashicorp/nomad/.*\.go"); then \
+		echo "nomad go submodules are out of sync, try 'make sync':"; \
+		git status -s | grep -E "vendor/github.com/hashicorp/nomad/.*\.go"; \
 		exit 1; fi
 
 	@echo "==> Check raft util msg type mapping are in-sync..."
