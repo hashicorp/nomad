@@ -84,6 +84,18 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     );
   });
 
+  test('it generates an exec task URL without an allocation', function(assert) {
+    generateExecUrl(this.router, {
+      job: { plainId: 'job-name' },
+      taskGroup: { name: 'task-group-name' },
+      task: { name: 'task-name' },
+    });
+
+    assert.ok(
+      this.urlForSpy.calledWith('exec.task-group.task', 'job-name', 'task-group-name', 'task-name')
+    );
+  });
+
   test('it includes query parameters from the current route', function(assert) {
     this.router.currentRoute.queryParams = {
       namespace: 'a-namespace',
