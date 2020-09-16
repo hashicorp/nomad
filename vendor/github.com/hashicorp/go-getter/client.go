@@ -39,10 +39,6 @@ type Client struct {
 	// for documentation.
 	Mode ClientMode
 
-	// Umask is used to mask file permissions when storing local files or decompressing
-	// an archive
-	Umask os.FileMode
-
 	// Detectors is the list of detectors that are tried on the source.
 	// If this is nil, then the default Detectors will be used.
 	Detectors []Detector
@@ -68,20 +64,6 @@ type Client struct {
 	ProgressListener ProgressTracker
 
 	Options []ClientOption
-}
-
-// umask returns the effective umask for the Client, defaulting to the process umask
-func (c *Client) umask() os.FileMode {
-	if c == nil {
-		return 0
-	}
-	return c.Umask
-}
-
-// mode returns file mode umasked by the Client umask
-func (c *Client) mode(mode os.FileMode) os.FileMode {
-	m := mode & ^c.umask()
-	return m
 }
 
 // Get downloads the configured source to the destination.
@@ -251,7 +233,7 @@ func (c *Client) Get() error {
 		if decompressor != nil {
 			// We have a decompressor, so decompress the current destination
 			// into the final destination with the proper mode.
-			err := decompressor.Decompress(decompressDst, dst, decompressDir, c.umask())
+			err := decompressor.Decompress(decompressDst, dst, decompressDir)
 			if err != nil {
 				return err
 			}
@@ -299,7 +281,7 @@ func (c *Client) Get() error {
 		if err := os.RemoveAll(realDst); err != nil {
 			return err
 		}
-		if err := os.MkdirAll(realDst, c.mode(0755)); err != nil {
+		if err := os.MkdirAll(realDst, 0755); err != nil {
 			return err
 		}
 
@@ -309,7 +291,7 @@ func (c *Client) Get() error {
 			return err
 		}
 
-		return copyDir(c.Ctx, realDst, subDir, false, c.umask())
+		return copyDir(c.Ctx, realDst, subDir, false)
 	}
 
 	return nil

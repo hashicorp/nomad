@@ -77,7 +77,7 @@ func (g *GCSGetter) Get(dst string, u *url.URL) error {
 	}
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), g.client.mode(0755)); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
 		return err
 	}
 
@@ -138,11 +138,18 @@ func (g *GCSGetter) getObject(ctx context.Context, client *storage.Client, dst, 
 	defer rc.Close()
 
 	// Create all the parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), g.client.mode(0755)); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
 		return err
 	}
 
-	return copyReader(dst, rc, 0666, g.client.umask())
+	f, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = Copy(ctx, f, rc)
+	return err
 }
 
 func (g *GCSGetter) parseURL(u *url.URL) (bucket, path string, err error) {

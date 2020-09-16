@@ -62,7 +62,7 @@ require (
 	github.com/hashicorp/go-connlimit v0.2.0
 	github.com/hashicorp/go-discover v0.0.0-20200108194735-7698de1390a1
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
-	github.com/hashicorp/go-getter v1.3.1-0.20190822194507-f5101da01173
+	github.com/hashicorp/go-getter v1.4.1
 	github.com/hashicorp/go-hclog v0.12.0
 	github.com/hashicorp/go-immutable-radix v1.2.0
 	github.com/hashicorp/go-memdb v1.2.1

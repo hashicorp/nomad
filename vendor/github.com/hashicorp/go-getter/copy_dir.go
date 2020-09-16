@@ -7,16 +7,11 @@ import (
 	"strings"
 )
 
-// mode returns the file mode masked by the umask
-func mode(mode, umask os.FileMode) os.FileMode {
-	return mode & ^umask
-}
-
 // copyDir copies the src directory contents into dst. Both directories
 // should already exist.
 //
 // If ignoreDot is set to true, then dot-prefixed files/folders are ignored.
-func copyDir(ctx context.Context, dst string, src string, ignoreDot bool, umask os.FileMode) error {
+func copyDir(ctx context.Context, dst string, src string, ignoreDot bool) error {
 	src, err := filepath.EvalSymlinks(src)
 	if err != nil {
 		return err
@@ -51,7 +46,7 @@ func copyDir(ctx context.Context, dst string, src string, ignoreDot bool, umask 
 				return nil
 			}
 
-			if err := os.MkdirAll(dstPath, mode(0755, umask)); err != nil {
+			if err := os.MkdirAll(dstPath, 0755); err != nil {
 				return err
 			}
 
@@ -59,8 +54,24 @@ func copyDir(ctx context.Context, dst string, src string, ignoreDot bool, umask 
 		}
 
 		// If we have a file, copy the contents.
-		_, err = copyFile(ctx, dstPath, path, info.Mode(), umask)
-		return err
+		srcF, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer srcF.Close()
+
+		dstF, err := os.Create(dstPath)
+		if err != nil {
+			return err
+		}
+		defer dstF.Close()
+
+		if _, err := Copy(ctx, dstF, srcF); err != nil {
+			return err
+		}
+
+		// Chmod it
+		return os.Chmod(dstPath, info.Mode())
 	}
 
 	return filepath.Walk(src, walkFn)

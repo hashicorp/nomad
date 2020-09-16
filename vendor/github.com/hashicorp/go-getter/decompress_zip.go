@@ -3,6 +3,7 @@ package getter
 import (
 	"archive/zip"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -11,13 +12,13 @@ import (
 // decompress zip files.
 type ZipDecompressor struct{}
 
-func (d *ZipDecompressor) Decompress(dst, src string, dir bool, umask os.FileMode) error {
+func (d *ZipDecompressor) Decompress(dst, src string, dir bool) error {
 	// If we're going into a directory we should make that first
 	mkdir := dst
 	if !dir {
 		mkdir = filepath.Dir(dst)
 	}
-	if err := os.MkdirAll(mkdir, mode(0755, umask)); err != nil {
+	if err := os.MkdirAll(mkdir, 0755); err != nil {
 		return err
 	}
 
@@ -55,7 +56,7 @@ func (d *ZipDecompressor) Decompress(dst, src string, dir bool, umask os.FileMod
 			}
 
 			// A directory, just make the directory and continue unarchiving...
-			if err := os.MkdirAll(path, mode(0755, umask)); err != nil {
+			if err := os.MkdirAll(path, 0755); err != nil {
 				return err
 			}
 
@@ -66,7 +67,7 @@ func (d *ZipDecompressor) Decompress(dst, src string, dir bool, umask os.FileMod
 		// required to contain entries for just the directories so this
 		// can happen.
 		if dir {
-			if err := os.MkdirAll(filepath.Dir(path), mode(0755, umask)); err != nil {
+			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 				return err
 			}
 		}
@@ -74,13 +75,24 @@ func (d *ZipDecompressor) Decompress(dst, src string, dir bool, umask os.FileMod
 		// Open the file for reading
 		srcF, err := f.Open()
 		if err != nil {
-			srcF.Close()
 			return err
 		}
 
-		err = copyReader(path, srcF, f.Mode(), umask)
-		srcF.Close()
+		// Open the file for writing
+		dstF, err := os.Create(path)
 		if err != nil {
+			srcF.Close()
+			return err
+		}
+		_, err = io.Copy(dstF, srcF)
+		srcF.Close()
+		dstF.Close()
+		if err != nil {
+			return err
+		}
+
+		// Chmod the file
+		if err := os.Chmod(path, f.Mode()); err != nil {
 			return err
 		}
 	}
