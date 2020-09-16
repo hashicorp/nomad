@@ -93,9 +93,17 @@ func StringToPtr(str string) *string {
 	return &str
 }
 
-// TimeToPtr returns the pointer to a time stamp
+// TimeToPtr returns the pointer to a time.Duration.
 func TimeToPtr(t time.Duration) *time.Duration {
 	return &t
+}
+
+// CompareTimePtrs return true if a is the same as b.
+func CompareTimePtrs(a, b *time.Duration) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 // Float64ToPtr returns the pointer to an float64
@@ -167,6 +175,16 @@ func SliceStringIsSubset(larger, smaller []string) (bool, []string) {
 	}
 
 	return subset, offending
+}
+
+// SliceStringContains returns whether item exists at least once in list.
+func SliceStringContains(list []string, item string) bool {
+	for _, s := range list {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
 
 func SliceSetDisjoint(first, second []string) (bool, []string) {
@@ -273,6 +291,19 @@ func CopyMapStringStruct(m map[string]struct{}) map[string]struct{} {
 	c := make(map[string]struct{}, l)
 	for k := range m {
 		c[k] = struct{}{}
+	}
+	return c
+}
+
+func CopyMapStringInterface(m map[string]interface{}) map[string]interface{} {
+	l := len(m)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]interface{}, l)
+	for k, v := range m {
+		c[k] = v
 	}
 	return c
 }

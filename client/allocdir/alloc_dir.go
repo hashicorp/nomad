@@ -117,12 +117,13 @@ func NewAllocDir(logger hclog.Logger, allocDir string) *AllocDir {
 // Copy an AllocDir and all of its TaskDirs. Returns nil if AllocDir is
 // nil.
 func (d *AllocDir) Copy() *AllocDir {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
 	if d == nil {
 		return nil
 	}
+
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
 	dcopy := &AllocDir{
 		AllocDir:  d.AllocDir,
 		SharedDir: d.SharedDir,
@@ -429,6 +430,7 @@ func detectContentType(fileInfo os.FileInfo, path string) string {
 			if err == nil {
 				contentType = http.DetectContentType(fileBytes)
 			}
+			f.Close()
 		}
 	}
 	// Special case json files

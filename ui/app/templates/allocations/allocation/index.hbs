@@ -109,7 +109,6 @@
             <th>Last Event</th>
             <t.sort-by @prop="events.lastObject.time">Time</t.sort-by>
             <th>Volumes</th>
-            <th>Addresses</th>
             <th>CPU</th>
             <th>Memory</th>
           </t.head>
@@ -129,25 +128,23 @@
     </div>
   </div>
 
-  {{#if this.network.ports.length}}
+  {{#if this.ports.length}}
     <div class="boxed-section" data-test-allocation-ports>
       <div class="boxed-section-head">
         Ports
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <ListTable @source={{this.network.ports}} as |t|>
+        <ListTable @source={{this.ports}} as |t|>
           <t.head>
-            <th class="is-2">Name</th>
-            <th class="is-1">Dynamic?</th>
+            <th>Name</th>
             <th>Host Address</th>
             <th>Mapped Port</th>
           </t.head>
           <t.body as |row|>
             <tr data-test-allocation-port>
-              <td data-test-allocation-port-name>{{row.model.name}}</td>
-              <td data-test-allocation-port-is-dynamic>{{if row.model.isDynamic "Yes" "No"}}</td>
+              <td data-test-allocation-port-name>{{row.model.label}}</td>
               <td data-test-allocation-port-address>
-                <a href="http://{{this.network.ip}}:{{row.model.port}}" target="_blank" rel="noopener noreferrer">{{this.network.ip}}:{{row.model.port}}</a>
+                <a href="http://{{row.model.hostIp}}:{{row.model.value}}" target="_blank" rel="noopener noreferrer">{{row.model.hostIp}}:{{row.model.value}}</a>
               </td>
               <td data-test-allocation-port-to>{{row.model.to}}</td>
             </tr>

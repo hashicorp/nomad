@@ -27,11 +27,12 @@ export const STORAGE_PROVIDERS = ['ebs', 'zfs', 'nfs', 'cow', 'moo'];
 
 export function generateResources(options = {}) {
   return {
-    CPU: faker.helpers.randomize(CPU_RESERVATIONS),
-    MemoryMB: faker.helpers.randomize(MEMORY_RESERVATIONS),
-    DiskMB: faker.helpers.randomize(DISK_RESERVATIONS),
-    IOPS: faker.helpers.randomize(IOPS_RESERVATIONS),
+    CPU: options.CPU || faker.helpers.randomize(CPU_RESERVATIONS),
+    MemoryMB: options.MemoryMB || faker.helpers.randomize(MEMORY_RESERVATIONS),
+    DiskMB: options.DiskMB || faker.helpers.randomize(DISK_RESERVATIONS),
+    IOPS: options.IOPS || faker.helpers.randomize(IOPS_RESERVATIONS),
     Networks: generateNetworks(options.networks),
+    Ports: generatePorts(options.networks),
   };
 }
 
@@ -68,5 +69,21 @@ export function generateNetworks(options = {}) {
           Value: faker.random.number({ min: 5000, max: 60000 }),
           To: faker.random.number({ min: 5000, max: 60000 }),
         })),
+    }));
+}
+
+export function generatePorts(options = {}) {
+  return Array(
+    faker.random.number({
+      min: options.minPorts != null ? options.minPorts : 0,
+      max: options.maxPorts != null ? options.maxPorts : 2,
+    })
+  )
+    .fill(null)
+    .map(() => ({
+      Label: faker.hacker.noun(),
+      Value: faker.random.number({ min: 5000, max: 60000 }),
+      To: faker.random.number({ min: 5000, max: 60000 }),
+      HostIP: faker.random.boolean() ? faker.internet.ip() : faker.internet.ipv6(),
     }));
 }

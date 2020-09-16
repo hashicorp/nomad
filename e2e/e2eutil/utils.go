@@ -94,6 +94,8 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 	return allocs
 }
 
+// RegisterAndWaitForAllocs wraps RegisterAllocs but blocks until Evals
+// successfully create Allocs.
 func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
 	jobs := nomadClient.Jobs()
 
@@ -162,6 +164,18 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 	}, func(err error) {
 		t.Fatalf("failed to wait on alloc: %v", err)
 	})
+}
+
+// WaitForJobStopped stops a job and waits for all of its allocs to terminate.
+func WaitForJobStopped(t *testing.T, nomadClient *api.Client, job string) {
+	allocs, _, err := nomadClient.Jobs().Allocations(job, true, nil)
+	require.NoError(t, err, "error getting allocations for job %q", job)
+	ids := AllocIDsFromAllocationListStubs(allocs)
+	_, _, err = nomadClient.Jobs().Deregister(job, true, nil)
+	require.NoError(t, err, "error deregistering job %q", job)
+	for _, id := range ids {
+		WaitForAllocStopped(t, nomadClient, id)
+	}
 }
 
 func WaitForAllocStopped(t *testing.T, nomadClient *api.Client, allocID string) {

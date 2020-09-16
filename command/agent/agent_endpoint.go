@@ -660,7 +660,7 @@ type healthResponseAgent struct {
 }
 
 // AgentHostRequest runs on servers and clients, and captures information about the host system to add
-// to the nomad debug archive.
+// to the nomad operator debug archive.
 func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)

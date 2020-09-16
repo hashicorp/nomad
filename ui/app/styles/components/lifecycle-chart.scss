@@ -11,7 +11,6 @@
 
     .divider {
       position: absolute;
-      left: 25%;
       height: 100%;
 
       stroke: $ui-gray-200;
@@ -19,6 +18,14 @@
       stroke-dasharray: 1, 7;
       stroke-dashoffset: 1;
       stroke-linecap: square;
+
+      &.prestart {
+        left: 25%;
+      }
+
+      &.poststop {
+        left: 75%;
+      }
     }
   }
 
@@ -26,7 +33,6 @@
     position: absolute;
     bottom: 0;
     top: 0;
-
     border-top: 2px solid transparent;
 
     .name {
@@ -52,6 +58,16 @@
 
     &.main {
       left: 25%;
+      right: 0;
+    }
+
+    &.poststart {
+      left: 40%;
+      right: 0;
+    }
+
+    &.poststop {
+      left: 75%;
       right: 0;
     }
   }
@@ -110,10 +126,24 @@
 
     &.main {
       margin-left: 25%;
+      margin-right: 0;
     }
 
-    &.prestart {
+    &.prestart-ephemeral {
       margin-right: 75%;
+    }
+
+    &.poststart-ephemeral,
+    &.poststart-sidecar {
+      margin-left: 40%;
+    }
+
+    &.poststart-ephemeral {
+      margin-right: 10%;
+    }
+
+    &.poststop {
+      margin-left: 75%;
     }
 
     &:last-child .task {

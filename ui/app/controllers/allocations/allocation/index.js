@@ -39,7 +39,10 @@ export default class IndexController extends Controller.extend(Sortable) {
   })
   error;
 
-  @alias('model.allocatedResources.networks.firstObject') network;
+  @computed('model.allocatedResources.ports.@each.label')
+  get ports() {
+    return (this.get('model.allocatedResources.ports') || []).sortBy('label');
+  }
 
   @computed('model.taskGroup.services.@each.name')
   get services() {

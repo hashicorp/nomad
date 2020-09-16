@@ -15,32 +15,43 @@ export default [
         content: [
           'requirements',
           'nomad-agent',
-          'reference-architecture',
-          'deployment-guide'
-        ]
+          {
+            title: 'Reference Architecture',
+            href:
+              'https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul',
+          },
+          {
+            title: 'Deployment Guide',
+            href:
+              'https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul',
+          },
+        ],
       },
-      'windows-service'
-    ]
+      'windows-service',
+    ],
   },
   { category: 'upgrade', content: ['upgrade-specific'] },
   {
     category: 'integrations',
-    content: ['consul-integration', 'consul-connect', 'vault-integration']
+    content: ['consul-integration', 'consul-connect', 'vault-integration'],
   },
   '-----------',
   {
     category: 'internals',
     content: [
       'architecture',
-      { category: 'plugins', content: ['base', 'task-drivers', 'devices', 'csi'] },
+      {
+        category: 'plugins',
+        content: ['base', 'task-drivers', 'devices', 'csi'],
+      },
       {
         category: 'scheduling',
-        content: ['scheduling', 'preemption']
+        content: ['scheduling', 'preemption'],
       },
       'consensus',
       'gossip',
-      'security'
-    ]
+      'security',
+    ],
   },
   {
     category: 'configuration',
@@ -56,8 +67,8 @@ export default [
       'server_join',
       'telemetry',
       'tls',
-      'vault'
-    ]
+      'vault',
+    ],
   },
   {
     category: 'commands',
@@ -75,19 +86,26 @@ export default [
           'token-info',
           'token-list',
           'token-self',
-          'token-update'
-        ]
+          'token-update',
+        ],
       },
       'agent',
       'agent-info',
       {
         category: 'alloc',
-        content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop']
+        content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop'],
       },
-      'debug',
       {
         category: 'deployment',
-        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
+        content: [
+          'fail',
+          'list',
+          'pause',
+          'promote',
+          'resume',
+          'status',
+          'unblock',
+        ],
       },
       'eval-status',
       {
@@ -106,27 +124,28 @@ export default [
           'run',
           'status',
           'stop',
-          'validate'
-        ]
+          'validate',
+        ],
       },
       {
         category: 'license',
-        content: ['get', 'put']
+        content: ['get', 'put'],
       },
       'monitor',
       {
         category: 'namespace',
-        content: ['apply', 'delete', 'inspect', 'list', 'status']
+        content: ['apply', 'delete', 'inspect', 'list', 'status'],
       },
       {
         category: 'node',
-        content: ['config', 'drain', 'eligibility', 'status']
+        content: ['config', 'drain', 'eligibility', 'status'],
       },
       {
         category: 'operator',
         content: [
           'autopilot-get-config',
           'autopilot-set-config',
+          'debug',
           'keygen',
           'keyring',
           'raft-list-peers',
@@ -134,13 +153,13 @@ export default [
           'snapshot-agent',
           'snapshot-inspect',
           'snapshot-restore',
-          'snapshot-save'
-        ]
+          'snapshot-save',
+        ],
       },
       { category: 'plugin', content: ['status'] },
       {
         category: 'quota',
-        content: ['apply', 'delete', 'init', 'inspect', 'list', 'status']
+        content: ['apply', 'delete', 'init', 'inspect', 'list', 'status'],
       },
       { category: 'sentinel', content: ['apply', 'delete', 'list', 'read'] },
       { category: 'server', content: ['force-leave', 'join', 'members'] },
@@ -148,8 +167,11 @@ export default [
       { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
       'version',
-      { category: 'volume', content: ['register', 'deregister', 'status'] }
-    ]
+      {
+        category: 'volume',
+        content: ['deregister', 'detach', 'status', 'register'],
+      },
+    ],
   },
   '----------',
   {
@@ -166,6 +188,7 @@ export default [
       'env',
       'ephemeral_disk',
       'expose',
+      'gateway',
       'group',
       'job',
       'lifecycle',
@@ -191,8 +214,8 @@ export default [
       'upstreams',
       'vault',
       'volume',
-      'volume_mount'
-    ]
+      'volume_mount',
+    ],
   },
   {
     category: 'drivers',
@@ -206,21 +229,22 @@ export default [
       {
         category: 'external',
         content: [
+          'containerd',
+          'firecracker-task-driver',
+          'jail-task-driver',
           'lxc',
+          'pot',
           'rkt',
           'singularity',
-          'jail-task-driver',
-          'pot',
-          'firecracker-task-driver',
           'nspawn',
-          'iis'
-        ]
-      }
-    ]
+          'iis',
+        ],
+      },
+    ],
   },
   {
     category: 'devices',
-    content: ['nvidia', 'community']
+    content: ['nvidia', 'community'],
   },
   'schedulers',
   { category: 'runtime', content: ['environment', 'interpolation'] },
@@ -231,25 +255,19 @@ export default [
       'api',
       'cli',
       'policy',
+      'telemetry',
       {
         category: 'plugins',
-        content: [
-          'apm',
-          'strategy',
-          'target'
-        ]
+        content: ['apm', 'strategy', 'target'],
       },
       {
         category: 'internals',
-        content: [
-          'checks'
-        ]
-      }
-    ]
+        content: ['checks'],
+      },
+    ],
   },
   { category: 'telemetry', content: ['metrics'] },
-  { category: 'vault-integration' },
   '------------',
   { category: 'enterprise' },
-  'faq'
+  'faq',
 ]

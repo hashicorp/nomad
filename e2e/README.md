@@ -1,20 +1,23 @@
 # End to End Tests
 
-This package contains integration tests.
+This package contains integration tests. Unlike tests alongside Nomad code,
+these tests expect there to already be a functional Nomad cluster accessible
+(either on localhost or via the `NOMAD_ADDR` env var).
 
 The `terraform` folder has provisioning code to spin up a Nomad cluster on AWS.
 The tests work with the `NOMAD_ADDR` environment variable which can be set
 either to a local dev Nomad agent or a Nomad client on AWS.
 
-## Local Development
+The `NOMAD_E2E=1` environment variable must be set for these tests to run.
 
-The workflow when developing end to end tests locally is to run the
-provisioning step described below once, and then run the tests as described
-below.
+## Local Nomad Development
 
-When making local changes, use `./bin/update $(which nomad) /usr/local/bin/nomad`
-and `./bin/run sudo systemctl restart nomad` to destructively modify the
-provisioned cluster.
+When developing tests locally, provisioning is not required when only the tests
+change. See [`framework/doc.go`](framework/doc.go) for how to write tests.
+
+When making changes to the Nomad agent itself, use `./bin/update $(which nomad)
+/usr/local/bin/nomad` and `./bin/run sudo systemctl restart nomad` to
+destructively modify the provisioned cluster.
 
 ## Provisioning Test Infrastructure on AWS
 
@@ -26,8 +29,8 @@ the configuration file for each client and server.
 
 ## Provisioning e2e Framework Nomad Cluster
 
-You can use the Terraform output from the previous step to generate a
-provisioning configuration file for the e2e framework.
+You can use the Terraform output from the [previous step](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md)
+to generate a provisioning configuration file for the e2e framework.
 
 ```sh
 # from the ./e2e/terraform directory
@@ -53,12 +56,17 @@ Then deploy Nomad to the cluster by passing `-provision.terraform`
 without a Nomad version flag:
 
 ```sh
-NOMAD_E2E=1 go test -v . -nomad.version=0.10.2 -provision.terraform ./provisioning.json -skipTests
+NOMAD_E2E=1 go test -v .                   \
+  -timeout 20m                             \
+  -nomad.local_file=$(which nomad)         \
+  -provision.terraform=./provisioning.json \
+  -skipTests
 ```
 
-Because it can take a little while for the cluster to settle, it's
-recommended to run this provisioning step (with `-skipTests`) first,
-and then run tests as separate step.
+- `-skipTests`: provisioning can take time, so it's best to skip tests
+
+- `-timeout 20m`: depending on your cluster size and upload bandwidth the
+  default 10m timeout may not be long enough for provisioning to finish 
 
 ## Running
 
@@ -88,6 +96,11 @@ names in the full name of the tests:
 
 ```sh
 go test -v . -run 'TestE2E/Consul/\*consul\.ScriptChecksE2ETest/TestGroup'
+                              ^       ^             ^               ^
+                              |       |             |               |
+                          Component   |             |           Test func    
+                                      |             |
+                                  Go Package      Struct
 ```
 
 ## I Want To...
@@ -100,6 +113,8 @@ in the `./terraform/keys/` directory.
 ```sh
 ssh -i keys/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
 ```
+
+Run `terraform output` for IP addresses and details.
 
 ### ...Deploy a Cluster of Mixed Nomad Versions
 

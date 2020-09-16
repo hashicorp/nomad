@@ -24,7 +24,7 @@ import (
 )
 
 func getTestConsul(t *testing.T) *consultest.TestServer {
-	testConsul, err := consultest.NewTestServerConfig(func(c *consultest.TestServerConfig) {
+	testConsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
 		if !testing.Verbose() { // disable consul logging if -v not set
 			c.Stdout = ioutil.Discard
 			c.Stderr = ioutil.Discard

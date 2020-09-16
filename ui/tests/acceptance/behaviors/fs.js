@@ -24,17 +24,31 @@ const fileSort = (prop, files) => {
   return dir.sortBy(prop).concat(file.sortBy(prop));
 };
 
-export default function browseFilesystem({ pageObjectVisitPathFunctionName, pageObjectVisitFunctionName, visitSegments, getExpectedPathBase, getTitleComponent, getBreadcrumbComponent, getFilesystemRoot }) {
+export default function browseFilesystem({
+  pageObjectVisitPathFunctionName,
+  pageObjectVisitFunctionName,
+  visitSegments,
+  getExpectedPathBase,
+  getTitleComponent,
+  getBreadcrumbComponent,
+  getFilesystemRoot,
+}) {
   test('it passes an accessibility audit', async function(assert) {
-    await FS[pageObjectVisitFunctionName](visitSegments({allocation: this.allocation, task: this.task }));
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await FS[pageObjectVisitFunctionName](
+      visitSegments({ allocation: this.allocation, task: this.task })
+    );
+    await a11yAudit(assert);
   });
 
   test('visiting filesystem root', async function(assert) {
-    await FS[pageObjectVisitFunctionName](visitSegments({allocation: this.allocation, task: this.task }));
+    await FS[pageObjectVisitFunctionName](
+      visitSegments({ allocation: this.allocation, task: this.task })
+    );
 
-    const pathBaseWithTrailingSlash = getExpectedPathBase({ allocation: this.allocation, task: this.task });
+    const pathBaseWithTrailingSlash = getExpectedPathBase({
+      allocation: this.allocation,
+      task: this.task,
+    });
     const pathBaseWithoutTrailingSlash = pathBaseWithTrailingSlash.slice(0, -1);
 
     assert.equal(currentURL(), pathBaseWithoutTrailingSlash, 'No redirect');
@@ -50,17 +64,32 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
         pathWithLeadingSlash = `/${filePath}`;
       }
 
-      await FS[pageObjectVisitPathFunctionName]({ ...visitSegments({allocation: this.allocation, task: this.task }), path: filePath });
+      await FS[pageObjectVisitPathFunctionName]({
+        ...visitSegments({ allocation: this.allocation, task: this.task }),
+        path: filePath,
+      });
       assert.equal(
         currentURL(),
-        `${getExpectedPathBase({allocation: this.allocation, task: this.task })}${encodeURIComponent(filePath)}`,
+        `${getExpectedPathBase({
+          allocation: this.allocation,
+          task: this.task,
+        })}${encodeURIComponent(filePath)}`,
         'No redirect'
       );
       assert.equal(
         document.title,
-        `${pathWithLeadingSlash} - ${getTitleComponent({allocation: this.allocation, task: this.task})} - Nomad`
+        `${pathWithLeadingSlash} - ${getTitleComponent({
+          allocation: this.allocation,
+          task: this.task,
+        })} - Nomad`
       );
-      assert.equal(FS.breadcrumbsText, `${getBreadcrumbComponent({allocation: this.allocation, task: this.task})} ${filePath.replace(/\//g, ' ')}`.trim());
+      assert.equal(
+        FS.breadcrumbsText,
+        `${getBreadcrumbComponent({
+          allocation: this.allocation,
+          task: this.task,
+        })} ${filePath.replace(/\//g, ' ')}`.trim()
+      );
     };
 
     await paths.reduce(async (prev, filePath) => {
@@ -73,7 +102,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
     const objects = { allocation: this.allocation, task: this.task };
     await FS[pageObjectVisitPathFunctionName]({ ...visitSegments(objects), path: '/' });
 
-    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects)).models);
+    const sortedFiles = fileSort(
+      'name',
+      filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects)).models
+    );
 
     assert.ok(FS.fileViewer.isHidden);
 
@@ -123,7 +155,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
     );
 
     assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(FS.breadcrumbsText, `${getBreadcrumbComponent(objects)} ${this.directory.name} ${this.nestedDirectory.name}`);
+    assert.equal(
+      FS.breadcrumbsText,
+      `${getBreadcrumbComponent(objects)} ${this.directory.name} ${this.nestedDirectory.name}`
+    );
     assert.equal(FS.breadcrumbs[2].text, this.nestedDirectory.name);
 
     assert.notOk(
@@ -190,7 +225,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
       ];
     });
 
-    await FS[pageObjectVisitPathFunctionName]({ ...visitSegments({allocation: this.allocation, task: this.task }), path: '/' });
+    await FS[pageObjectVisitPathFunctionName]({
+      ...visitSegments({ allocation: this.allocation, task: this.task }),
+      path: '/',
+    });
 
     assert.deepEqual(FS.directoryEntryNames(), [
       'aaa-big-old-directory',
@@ -275,7 +313,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
 
     await FS[pageObjectVisitPathFunctionName]({ ...visitSegments(objects), path: '/' });
 
-    const sortedFiles = fileSort('name', filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects)).models);
+    const sortedFiles = fileSort(
+      'name',
+      filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects)).models
+    );
     const fileRecord = sortedFiles.find(f => !f.isDir);
     const fileIndex = sortedFiles.indexOf(fileRecord);
 
@@ -303,7 +344,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
   });
 
   test('viewing an empty directory', async function(assert) {
-    await FS[pageObjectVisitPathFunctionName]({ ...visitSegments({ allocation: this.allocation, task: this.task }), path: 'empty-directory' });
+    await FS[pageObjectVisitPathFunctionName]({
+      ...visitSegments({ allocation: this.allocation, task: this.task }),
+      path: 'empty-directory',
+    });
 
     assert.ok(FS.isEmptyDirectory);
   });
@@ -313,7 +357,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
       return new Response(500, {}, 'no such file or directory');
     });
 
-    await FS[pageObjectVisitPathFunctionName]({ ...visitSegments({ allocation: this.allocation, task: this.task }), path: '/what-is-this' });
+    await FS[pageObjectVisitPathFunctionName]({
+      ...visitSegments({ allocation: this.allocation, task: this.task }),
+      path: '/what-is-this',
+    });
     assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
 
     await visit('/');
@@ -322,7 +369,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
       return new Response(999);
     });
 
-    await FS[pageObjectVisitPathFunctionName]({ ...visitSegments({ allocation: this.allocation, task: this.task }), path: '/what-is-this' });
+    await FS[pageObjectVisitPathFunctionName]({
+      ...visitSegments({ allocation: this.allocation, task: this.task }),
+      path: '/what-is-this',
+    });
     assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
   });
 
@@ -331,7 +381,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
       return new Response(500, {}, 'no such file or directory');
     });
 
-    await FS[pageObjectVisitPathFunctionName]({ ...visitSegments({ allocation: this.allocation, task: this.task }), path: this.directory.name });
+    await FS[pageObjectVisitPathFunctionName]({
+      ...visitSegments({ allocation: this.allocation, task: this.task }),
+      path: this.directory.name,
+    });
     assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
 
     await visit('/');
@@ -340,7 +393,10 @@ export default function browseFilesystem({ pageObjectVisitPathFunctionName, page
       return new Response(999);
     });
 
-    await FS[pageObjectVisitPathFunctionName]({ ...visitSegments({ allocation: this.allocation, task: this.task }), path: this.directory.name });
+    await FS[pageObjectVisitPathFunctionName]({
+      ...visitSegments({ allocation: this.allocation, task: this.task }),
+      path: this.directory.name,
+    });
     assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
   });
 }

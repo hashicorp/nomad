@@ -150,3 +150,29 @@ running as root, many of these mechanisms cannot be used.
 
 As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.
+
+### Chroot
+
+The chroot created on Linux is populated with data in the following
+directories from the host machine:
+
+```
+[
+  "/bin",
+  "/etc",
+  "/lib",
+  "/lib32",
+  "/lib64",
+  "/run/resolvconf",
+  "/sbin",
+  "/usr",
+]
+```
+
+The task's chroot is populated by linking or copying the data from the host into
+the chroot. Note that this can take considerable disk space. Since Nomad v0.5.3,
+the client manages garbage collection locally which mitigates any issue this may
+create.
+
+This list is configurable through the agent client
+[configuration file](/docs/configuration/client#chroot_env).

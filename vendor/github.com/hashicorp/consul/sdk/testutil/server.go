@@ -88,7 +88,6 @@ type TestServerConfig struct {
 	ACLDatacenter       string                 `json:"acl_datacenter,omitempty"`
 	PrimaryDatacenter   string                 `json:"primary_datacenter,omitempty"`
 	ACLDefaultPolicy    string                 `json:"acl_default_policy,omitempty"`
-	ACLEnforceVersion8  bool                   `json:"acl_enforce_version_8"`
 	ACL                 TestACLs               `json:"acl,omitempty"`
 	Encrypt             string                 `json:"encrypt,omitempty"`
 	CAFile              string                 `json:"ca_file,omitempty"`
@@ -102,7 +101,8 @@ type TestServerConfig struct {
 	Connect             map[string]interface{} `json:"connect,omitempty"`
 	EnableDebug         bool                   `json:"enable_debug,omitempty"`
 	ReadyTimeout        time.Duration          `json:"-"`
-	Stdout, Stderr      io.Writer              `json:"-"`
+	Stdout              io.Writer              `json:"-"`
+	Stderr              io.Writer              `json:"-"`
 	Args                []string               `json:"-"`
 	ReturnPorts         func()                 `json:"-"`
 }
@@ -133,13 +133,14 @@ type ServerConfigCallback func(c *TestServerConfig)
 
 // defaultServerConfig returns a new TestServerConfig struct
 // with all of the listen ports incremented by one.
-func defaultServerConfig() *TestServerConfig {
+func defaultServerConfig(t CleanupT) *TestServerConfig {
 	nodeID, err := uuid.GenerateUUID()
 	if err != nil {
 		panic(err)
 	}
 
 	ports := freeport.MustTake(6)
+	logBuffer := NewLogBuffer(t)
 
 	return &TestServerConfig{
 		NodeName:          "node-" + nodeID,
@@ -172,6 +173,8 @@ func defaultServerConfig() *TestServerConfig {
 		ReturnPorts: func() {
 			freeport.Return(ports)
 		},
+		Stdout: logBuffer,
+		Stderr: logBuffer,
 	}
 }
 
@@ -212,34 +215,11 @@ type TestServer struct {
 	tmpdir string
 }
 
-// Deprecated: Use NewTestServerT instead.
-func NewTestServer() (*TestServer, error) {
-	return NewTestServerConfigT(nil, nil)
-}
-
-// NewTestServerT is an easy helper method to create a new Consul
-// test server with the most basic configuration.
-func NewTestServerT(t *testing.T) (*TestServer, error) {
-	if t == nil {
-		return nil, errors.New("testutil: a non-nil *testing.T is required")
-	}
-	return NewTestServerConfigT(t, nil)
-}
-
-func NewTestServerConfig(cb ServerConfigCallback) (*TestServer, error) {
-	return NewTestServerConfigT(nil, cb)
-}
-
 // NewTestServerConfig creates a new TestServer, and makes a call to an optional
 // callback function to modify the configuration. If there is an error
 // configuring or starting the server, the server will NOT be running when the
 // function returns (thus you do not need to stop it).
 func NewTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, error) {
-	return newTestServerConfigT(t, cb)
-}
-
-// newTestServerConfigT is the internal helper for NewTestServerConfigT.
-func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, error) {
 	path, err := exec.LookPath("consul")
 	if err != nil || path == "" {
 		return nil, fmt.Errorf("consul not found on $PATH - download and install " +
@@ -256,11 +236,7 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 		return nil, errors.Wrap(err, "failed to create tempdir")
 	}
 
-	cfg := defaultServerConfig()
-	testWriter := TestWriter(t)
-	cfg.Stdout = testWriter
-	cfg.Stderr = testWriter
-
+	cfg := defaultServerConfig(t)
 	cfg.DataDir = filepath.Join(tmpdir, "data")
 	if cb != nil {
 		cb(cfg)
@@ -273,10 +249,7 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 		return nil, errors.Wrap(err, "failed marshaling json")
 	}
 
-	if t != nil {
-		// if you really want this output ensure to pass a valid t
-		t.Logf("CONFIG JSON: %s", string(b))
-	}
+	t.Logf("CONFIG JSON: %s", string(b))
 	configFile := filepath.Join(tmpdir, "config.json")
 	if err := ioutil.WriteFile(configFile, b, 0644); err != nil {
 		cfg.ReturnPorts()
@@ -284,21 +257,12 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 		return nil, errors.Wrap(err, "failed writing config content")
 	}
 
-	stdout := testWriter
-	if cfg.Stdout != nil {
-		stdout = cfg.Stdout
-	}
-	stderr := testWriter
-	if cfg.Stderr != nil {
-		stderr = cfg.Stderr
-	}
-
 	// Start the server
 	args := []string{"agent", "-config-file", configFile}
 	args = append(args, cfg.Args...)
 	cmd := exec.Command("consul", args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	cmd.Stdout = cfg.Stdout
+	cmd.Stderr = cfg.Stderr
 	if err := cmd.Start(); err != nil {
 		cfg.ReturnPorts()
 		os.RemoveAll(tmpdir)
@@ -332,7 +296,9 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 
 	// Wait for the server to be ready
 	if err := server.waitForAPI(); err != nil {
-		server.Stop()
+		if err := server.Stop(); err != nil {
+			t.Logf("server stop failed with: %v", err)
+		}
 		return nil, err
 	}
 
@@ -367,9 +333,12 @@ func (s *TestServer) Stop() error {
 	return s.cmd.Wait()
 }
 
-// waitForAPI waits for only the agent HTTP endpoint to start
+// waitForAPI waits for the /status/leader HTTP endpoint to start
 // responding. This is an indication that the agent has started,
 // but will likely return before a leader is elected.
+// Note: We do not check for a successful response status because
+// we want this function to return without error even when
+// there's no leader elected.
 func (s *TestServer) waitForAPI() error {
 	var failed bool
 
@@ -381,17 +350,13 @@ func (s *TestServer) waitForAPI() error {
 	for !time.Now().After(deadline) {
 		time.Sleep(timer.Wait)
 
-		resp, err := s.HTTPClient.Get(s.url("/v1/agent/self"))
+		url := s.url("/v1/status/leader")
+		_, err := s.masterGet(url)
 		if err != nil {
 			failed = true
 			continue
 		}
-		resp.Body.Close()
 
-		if err = s.requireOK(resp); err != nil {
-			failed = true
-			continue
-		}
 		failed = false
 	}
 	if failed {
@@ -407,7 +372,7 @@ func (s *TestServer) WaitForLeader(t *testing.T) {
 	retry.Run(t, func(r *retry.R) {
 		// Query the API and check the status code.
 		url := s.url("/v1/catalog/nodes")
-		resp, err := s.HTTPClient.Get(url)
+		resp, err := s.masterGet(url)
 		if err != nil {
 			r.Fatalf("failed http get '%s': %v", url, err)
 		}
@@ -443,7 +408,7 @@ func (s *TestServer) WaitForActiveCARoot(t *testing.T) {
 	retry.Run(t, func(r *retry.R) {
 		// Query the API and check the status code.
 		url := s.url("/v1/agent/connect/ca/roots")
-		resp, err := s.HTTPClient.Get(url)
+		resp, err := s.masterGet(url)
 		if err != nil {
 			r.Fatalf("failed http get '%s': %v", url, err)
 		}
@@ -475,7 +440,7 @@ func (s *TestServer) WaitForSerfCheck(t *testing.T) {
 	retry.Run(t, func(r *retry.R) {
 		// Query the API and check the status code.
 		url := s.url("/v1/catalog/nodes?index=0")
-		resp, err := s.HTTPClient.Get(url)
+		resp, err := s.masterGet(url)
 		if err != nil {
 			r.Fatal("failed http get", err)
 		}
@@ -496,7 +461,7 @@ func (s *TestServer) WaitForSerfCheck(t *testing.T) {
 
 		// Ensure the serfHealth check is registered
 		url = s.url(fmt.Sprintf("/v1/health/node/%s", payload[0]["Node"]))
-		resp, err = s.HTTPClient.Get(url)
+		resp, err = s.masterGet(url)
 		if err != nil {
 			r.Fatal("failed http get", err)
 		}
@@ -520,4 +485,15 @@ func (s *TestServer) WaitForSerfCheck(t *testing.T) {
 			r.Fatal("missing serfHealth registration")
 		}
 	})
+}
+
+func (s *TestServer) masterGet(url string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if s.Config.ACL.Tokens.Master != "" {
+		req.Header.Set("x-consul-token", s.Config.ACL.Tokens.Master)
+	}
+	return s.HTTPClient.Do(req)
 }

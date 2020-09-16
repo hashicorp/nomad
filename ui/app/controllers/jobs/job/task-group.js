@@ -60,6 +60,12 @@ export default class TaskGroupController extends Controller.extend(
   })
   sortedScaleEvents;
 
+  @computed('sortedScaleEvents.@each.{hasCount}', function() {
+    const countEventsCount = this.sortedScaleEvents.filterBy('hasCount').length;
+    return countEventsCount > 1 && countEventsCount >= this.sortedScaleEvents.length / 2;
+  })
+  shouldShowScaleEventTimeline;
+
   @computed('model.job.runningDeployment')
   get tooltipText() {
     if (this.can.cannot('scale job')) return "You aren't allowed to scale task groups";

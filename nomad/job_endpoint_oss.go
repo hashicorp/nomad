@@ -25,6 +25,18 @@ func (j *Job) multiregionStart(args *structs.JobRegisterRequest, reply *structs.
 	return nil
 }
 
+// multiregionDrop is used to deregister regions from a previous version of the
+// job that are no longer in use
+func (j *Job) multiregionDrop(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
+	return nil
+}
+
+// multiregionStop is used to fan-out Job.Deregister RPCs to all regions if
+// the global flag is passed to Job.Deregister
+func (j *Job) multiregionStop(job *structs.Job, args *structs.JobDeregisterRequest, reply *structs.JobDeregisterResponse) error {
+	return nil
+}
+
 // interpolateMultiregionFields interpolates a job for a specific region
 func (j *Job) interpolateMultiregionFields(args *structs.JobPlanRequest) error {
 	return nil
@@ -39,7 +51,7 @@ func (j *Job) multiVaultNamespaceValidation(
 ) error {
 	requestedNamespaces := structs.VaultNamespaceSet(policies)
 	if len(requestedNamespaces) > 0 {
-		return fmt.Errorf("multiple vault namespaces requires Nomad Enterprise, Namespaces: %s", strings.Join(requestedNamespaces, ", "))
+		return fmt.Errorf("%w, Namespaces: %s", ErrMultipleNamespaces, strings.Join(requestedNamespaces, ", "))
 	}
 	return nil
 }

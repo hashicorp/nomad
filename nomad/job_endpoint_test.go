@@ -237,6 +237,208 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
 }
 
+func TestJobEndpoint_Register_ConnectIngressGateway_minimum(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// job contains the minimalist possible gateway service definition
+	job := mock.ConnectIngressGatewayJob("host", false)
+
+	// Create the register request
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the gateway task got injected
+	r.Len(out.TaskGroups[0].Tasks, 1)
+	task := out.TaskGroups[0].Tasks[0]
+	r.Equal("connect-ingress-my-ingress-service", task.Name)
+	r.Equal("connect-ingress:my-ingress-service", string(task.Kind))
+	r.Equal("docker", task.Driver)
+	r.NotNil(task.Config)
+
+	// Check the CE fields got set
+	service := out.TaskGroups[0].Services[0]
+	r.Equal(&structs.ConsulIngressConfigEntry{
+		TLS: nil,
+		Listeners: []*structs.ConsulIngressListener{{
+			Port:     2000,
+			Protocol: "tcp",
+			Services: []*structs.ConsulIngressService{{
+				Name: "service1",
+			}},
+		}},
+	}, service.Connect.Gateway.Ingress)
+
+	// Check that round-tripping does not inject a duplicate task
+	out.Meta["test"] = "abc"
+	req.Job = out
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the new node in the fsm
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check we did not re-add the task that was added the first time
+	r.Len(out.TaskGroups[0].Tasks, 1)
+}
+
+func TestJobEndpoint_Register_ConnectIngressGateway_full(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// reconfigure job to fill in all the possible fields
+	job := mock.ConnectIngressGatewayJob("bridge", false)
+	job.TaskGroups[0].Services[0].Connect = &structs.ConsulConnect{
+		Gateway: &structs.ConsulGateway{
+			Proxy: &structs.ConsulGatewayProxy{
+				ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+				EnvoyGatewayBindTaggedAddresses: true,
+				EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
+					"service1": {
+						Address: "10.0.0.1",
+						Port:    2001,
+					},
+					"service2": {
+						Address: "10.0.0.2",
+						Port:    2002,
+					},
+				},
+				EnvoyGatewayNoDefaultBind: true,
+				Config: map[string]interface{}{
+					"foo": 1,
+					"bar": "baz",
+				},
+			},
+			Ingress: &structs.ConsulIngressConfigEntry{
+				TLS: &structs.ConsulGatewayTLSConfig{
+					Enabled: true,
+				},
+				Listeners: []*structs.ConsulIngressListener{{
+					Port:     3000,
+					Protocol: "tcp",
+					Services: []*structs.ConsulIngressService{{
+						Name: "db",
+					}},
+				}, {
+					Port:     3001,
+					Protocol: "http",
+					Services: []*structs.ConsulIngressService{{
+						Name:  "website",
+						Hosts: []string{"10.0.1.0", "10.0.1.0:3001"},
+					}},
+				}},
+			},
+		},
+	}
+
+	// Create the register request
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check that the gateway task got injected
+	r.Len(out.TaskGroups[0].Tasks, 1)
+	task := out.TaskGroups[0].Tasks[0]
+	r.Equal("connect-ingress-my-ingress-service", task.Name)
+	r.Equal("connect-ingress:my-ingress-service", string(task.Kind))
+	r.Equal("docker", task.Driver)
+	r.NotNil(task.Config)
+
+	// Check that the ingress service is all set
+	service := out.TaskGroups[0].Services[0]
+	r.Equal("my-ingress-service", service.Name)
+	r.Equal(&structs.ConsulIngressConfigEntry{
+		TLS: &structs.ConsulGatewayTLSConfig{
+			Enabled: true,
+		},
+		Listeners: []*structs.ConsulIngressListener{{
+			Port:     3000,
+			Protocol: "tcp",
+			Services: []*structs.ConsulIngressService{{
+				Name: "db",
+			}},
+		}, {
+			Port:     3001,
+			Protocol: "http",
+			Services: []*structs.ConsulIngressService{{
+				Name:  "website",
+				Hosts: []string{"10.0.1.0", "10.0.1.0:3001"},
+			}},
+		}},
+	}, service.Connect.Gateway.Ingress)
+
+	// Check that round-tripping does not inject a duplicate task
+	out.Meta["test"] = "abc"
+	req.Job = out
+	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	r.NotZero(resp.Index)
+
+	// Check for the new node in the fsm
+	state = s1.fsm.State()
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, job.Namespace, job.ID)
+	r.NoError(err)
+	r.NotNil(out)
+	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+
+	// Check we did not re-add the task that was added the first time
+	r.Len(out.TaskGroups[0].Tasks, 1)
+}
+
 func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
@@ -421,7 +623,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	require.Equal("test", sidecarTask.Meta["source"])
 	require.Equal(500, sidecarTask.Resources.CPU)
 	require.Equal(connectSidecarResources().MemoryMB, sidecarTask.Resources.MemoryMB)
-	cfg := connectDriverConfig()
+	cfg := connectSidecarDriverConfig()
 	cfg["labels"] = map[string]interface{}{
 		"foo": "bar",
 	}
@@ -1534,8 +1736,9 @@ func TestJobEndpoint_Register_Vault_MultiNamespaces(t *testing.T) {
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 	// OSS or Ent check
-	if s1.EnterpriseState.Features() == 0 {
-		require.Contains(t, err.Error(), "multiple vault namespaces requires Nomad Enterprise")
+	if err != nil && s1.EnterpriseState.Features() == 0 {
+		// errors.Is cannot be used because the RPC call break error wrapping.
+		require.Contains(t, err.Error(), ErrMultipleNamespaces.Error())
 	} else {
 		require.NoError(t, err)
 	}

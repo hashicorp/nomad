@@ -12,6 +12,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/grpc-middleware/logging"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"google.golang.org/grpc"
@@ -314,8 +315,12 @@ func (c *client) ControllerUnpublishVolume(ctx context.Context, req *ControllerU
 		code := status.Code(err)
 		switch code {
 		case codes.NotFound:
-			err = fmt.Errorf("volume %q or node %q could not be found: %v",
-				req.ExternalID, req.NodeID, err)
+			// we'll have validated the volume and node *should* exist at the
+			// server, so if we get a not-found here it's because we've previously
+			// checkpointed. we'll return an error so the caller can log it for
+			// diagnostic purposes.
+			err = fmt.Errorf("%w: volume %q or node %q could not be found: %v",
+				structs.ErrCSIClientRPCIgnorable, req.ExternalID, req.NodeID, err)
 		case codes.Internal:
 			err = fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
 		}
@@ -558,7 +563,8 @@ func (c *client) NodeUnstageVolume(ctx context.Context, volumeID string, staging
 		code := status.Code(err)
 		switch code {
 		case codes.NotFound:
-			err = fmt.Errorf("volume %q could not be found: %v", volumeID, err)
+			err = fmt.Errorf("%w: volume %q could not be found: %v",
+				structs.ErrCSIClientRPCIgnorable, volumeID, err)
 		case codes.Internal:
 			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
 		}
@@ -630,7 +636,8 @@ func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 		code := status.Code(err)
 		switch code {
 		case codes.NotFound:
-			err = fmt.Errorf("volume %q could not be found: %v", volumeID, err)
+			err = fmt.Errorf("%w: volume %q could not be found: %v",
+				structs.ErrCSIClientRPCIgnorable, volumeID, err)
 		case codes.Internal:
 			err = fmt.Errorf("node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
 		}

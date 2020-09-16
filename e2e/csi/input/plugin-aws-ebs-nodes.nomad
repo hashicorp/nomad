@@ -3,7 +3,7 @@
 # https://github.com/kubernetes-sigs/aws-ebs-csi-driver/tree/master/deploy/kubernetes
 
 job "plugin-aws-ebs-nodes" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -19,7 +19,7 @@ job "plugin-aws-ebs-nodes" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-ebs-csi-driver:v0.5.0"
+        image = "amazon/aws-ebs-csi-driver:v0.6.0"
 
         args = [
           "node",

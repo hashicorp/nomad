@@ -27,8 +27,7 @@ module('Acceptance | servers list', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     minimumSetup();
     await ServersList.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/servers should list all servers', async function(assert) {
@@ -61,7 +60,7 @@ module('Acceptance | servers list', function(hooks) {
     assert.equal(agentRow.status, agent.status, 'Status');
     assert.equal(agentRow.leader, 'True', 'Leader?');
     assert.equal(agentRow.address, agent.address, 'Address');
-    assert.equal(agentRow.serfPort, agent.serf_port, 'Serf Port');
+    assert.equal(agentRow.serfPort, agent.serfPort, 'Serf Port');
     assert.equal(agentRow.datacenter, agent.tags.dc, 'Datacenter');
   });
 

@@ -76,6 +76,7 @@ type ScalingPolicyListStub struct {
 // JobScaleStatusResponse is used to return information about job scaling status
 type JobScaleStatusResponse struct {
 	JobID          string
+	Namespace      string
 	JobCreateIndex uint64
 	JobModifyIndex uint64
 	JobStopped     bool

@@ -1,6 +1,7 @@
 /* eslint-disable ember/no-observers */
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { assert } from '@ember/debug';
 import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { guidFor } from '@ember/object/internals';
@@ -14,7 +15,7 @@ import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
 import styleStringProperty from 'nomad-ui/utils/properties/style-string';
-import { classNames } from '@ember-decorators/component';
+import { classNames, classNameBindings } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 // Returns a new array with the specified number of points linearly
@@ -31,14 +32,29 @@ const lerp = ([low, high], numPoints) => {
 // Round a number or an array of numbers
 const nice = val => (val instanceof Array ? val.map(nice) : Math.round(val));
 
+const iconFor = {
+  error: 'cancel-circle-fill',
+  info: 'info-circle-fill',
+};
+
+const iconClassFor = {
+  error: 'is-danger',
+  info: '',
+};
+
 @classic
 @classNames('chart', 'line-chart')
+@classNameBindings('annotations.length:with-annotations')
 export default class LineChart extends Component.extend(WindowResizable) {
   // Public API
 
   data = null;
+  annotations = null;
+  activeAnnotation = null;
+  onAnnotationClick() {}
   xProp = null;
   yProp = null;
+  curve = 'linear';
   timeseries = false;
   chartClass = 'is-primary';
 
@@ -88,9 +104,19 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return this.yFormat()(y);
   }
 
+  @computed('curve')
+  get curveMethod() {
+    const mappings = {
+      linear: 'curveLinear',
+      stepAfter: 'curveStepAfter',
+    };
+    assert(`Provided curve "${this.curve}" is not an allowed curve type`, mappings[this.curve]);
+    return mappings[this.curve];
+  }
+
   // Overridable functions that retrurn formatter functions
   xFormat(timeseries) {
-    return timeseries ? d3TimeFormat.timeFormat('%b') : d3Format.format(',');
+    return timeseries ? d3TimeFormat.timeFormat('%b %d, %H:%M') : d3Format.format(',');
   }
 
   yFormat() {
@@ -99,6 +125,14 @@ export default class LineChart extends Component.extend(WindowResizable) {
 
   tooltipPosition = null;
   @styleStringProperty('tooltipPosition') tooltipStyle;
+
+  @computed('xAxisOffset')
+  get chartAnnotationBounds() {
+    return {
+      height: this.xAxisOffset,
+    };
+  }
+  @styleStringProperty('chartAnnotationBounds') chartAnnotationsStyle;
 
   @computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset')
   get xScale() {
@@ -217,12 +251,13 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return this.width - this.yAxisWidth;
   }
 
-  @computed('data.[]', 'xScale', 'yScale')
+  @computed('data.[]', 'xScale', 'yScale', 'curveMethod')
   get line() {
-    const { xScale, yScale, xProp, yProp } = this;
+    const { xScale, yScale, xProp, yProp, curveMethod } = this;
 
     const line = d3Shape
       .line()
+      .curve(d3Shape[curveMethod])
       .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y(d => yScale(d[yProp]));
@@ -230,18 +265,54 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return line(this.data);
   }
 
-  @computed('data.[]', 'xScale', 'yScale')
+  @computed('data.[]', 'xScale', 'yScale', 'curveMethod')
   get area() {
-    const { xScale, yScale, xProp, yProp } = this;
+    const { xScale, yScale, xProp, yProp, curveMethod } = this;
 
     const area = d3Shape
       .area()
+      .curve(d3Shape[curveMethod])
       .defined(d => d[yProp] != null)
       .x(d => xScale(d[xProp]))
       .y0(yScale(0))
       .y1(d => yScale(d[yProp]));
 
     return area(this.data);
+  }
+
+  @computed('annotations.[]', 'xScale', 'xProp', 'timeseries')
+  get processedAnnotations() {
+    const { xScale, xProp, annotations, timeseries } = this;
+
+    if (!annotations || !annotations.length) return null;
+
+    let sortedAnnotations = annotations.sortBy(xProp);
+    if (timeseries) {
+      sortedAnnotations = sortedAnnotations.reverse();
+    }
+
+    let prevX = 0;
+    let prevHigh = false;
+    return sortedAnnotations.map(annotation => {
+      const x = xScale(annotation[xProp]);
+      if (prevX && !prevHigh && Math.abs(x - prevX) < 30) {
+        prevHigh = true;
+      } else if (prevHigh) {
+        prevHigh = false;
+      }
+      const y = prevHigh ? -15 : 0;
+      const formattedX = this.xFormat(timeseries)(annotation[xProp]);
+
+      prevX = x;
+      return {
+        annotation,
+        style: `transform:translate(${x}px,${y}px)`.htmlSafe(),
+        icon: iconFor[annotation.type],
+        iconClass: iconClassFor[annotation.type],
+        staggerClass: prevHigh ? 'is-staggered' : '',
+        label: `${annotation.type} event at ${formattedX}`,
+      };
+    });
   }
 
   didInsertElement() {
@@ -342,6 +413,10 @@ export default class LineChart extends Component.extend(WindowResizable) {
       d3.select(this.element.querySelector('.y-axis')).call(this.yAxis);
       d3.select(this.element.querySelector('.y-gridlines')).call(this.yGridlines);
     }
+  }
+
+  annotationClick(annotation) {
+    this.onAnnotationClick(annotation);
   }
 
   windowResizeHandler() {

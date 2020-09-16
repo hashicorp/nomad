@@ -139,11 +139,11 @@ func TestJobExposeCheckHook_tgValidateUseOfCheckExpose(t *testing.T) {
 	})
 
 	t.Run("group-service uses custom proxy but no expose", func(t *testing.T) {
-		withCustomProxyTaskNoExpose := &(*withCustomProxyTask)
+		withCustomProxyTaskNoExpose := *withCustomProxyTask
 		withCustomProxyTask.Checks[0].Expose = false
 		require.Nil(t, tgValidateUseOfCheckExpose(&structs.TaskGroup{
 			Name:     "g1",
-			Services: []*structs.Service{withCustomProxyTaskNoExpose},
+			Services: []*structs.Service{&withCustomProxyTaskNoExpose},
 		}))
 	})
 
@@ -375,6 +375,30 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 			LocalPathPort: 9999,
 			ListenerPort:  tg.Networks[0].DynamicPorts[0].Label,
 		}, ePath)
+	})
+
+	t.Run("missing network with no service check port label", func(t *testing.T) {
+		// this test ensures we do not try to manipulate the group network
+		// to inject an expose port if the group network does not exist
+		c := &structs.ServiceCheck{
+			Name:      "check1",
+			Type:      "http",
+			Path:      "/health",
+			PortLabel: "",   // not set
+			Expose:    true, // will require a service check port label
+		}
+		s := &structs.Service{
+			Name:   "service1",
+			Checks: []*structs.ServiceCheck{c},
+		}
+		tg := &structs.TaskGroup{
+			Name:     "group1",
+			Services: []*structs.Service{s},
+			Networks: nil, // not set, should cause validation error
+		}
+		ePath, err := exposePathForCheck(tg, s, c)
+		require.EqualError(t, err, `group "group1" must specify one bridge network for exposing service check(s)`)
+		require.Nil(t, ePath)
 	})
 }
 

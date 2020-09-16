@@ -30,8 +30,7 @@ module('Acceptance | tokens', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await Tokens.visit();
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('the token form sets the token in local storage', async function(assert) {

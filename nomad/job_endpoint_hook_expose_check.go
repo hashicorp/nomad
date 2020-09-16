@@ -170,7 +170,7 @@ func serviceUsesConnectEnvoy(s *structs.Service) bool {
 	}
 
 	// A non-nil connect.sidecar_task stanza implies the sidecar task is being
-	// overridden (i.e. the default Envoy is not being uesd).
+	// overridden (i.e. the default Envoy is not being used).
 	if s.Connect.SidecarTask != nil {
 		return false
 	}
@@ -197,6 +197,12 @@ func checkIsExposable(check *structs.ServiceCheck) bool {
 func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *structs.ServiceCheck) (*structs.ConsulExposePath, error) {
 	if !checkIsExposable(check) {
 		return nil, nil
+	}
+
+	// Borrow some of the validation before we start manipulating the group
+	// network, which needs to exist once.
+	if err := tgValidateUseOfBridgeMode(tg); err != nil {
+		return nil, err
 	}
 
 	// If the check is exposable but doesn't have a port label set build

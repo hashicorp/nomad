@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -41,8 +40,8 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	delete(m, "multiregion")
 
 	// Set the ID and name to the object key
-	result.ID = helper.StringToPtr(obj.Keys[0].Token.Value().(string))
-	result.Name = helper.StringToPtr(*result.ID)
+	result.ID = stringToPtr(obj.Keys[0].Token.Value().(string))
+	result.Name = stringToPtr(*result.ID)
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -83,7 +82,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"consul_token",
 		"multiregion",
 	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "job:")
 	}
 
@@ -176,7 +175,7 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		result.TaskGroups = make([]*api.TaskGroup, len(tasks), len(tasks)*2)
 		for i, t := range tasks {
 			result.TaskGroups[i] = &api.TaskGroup{
-				Name:  helper.StringToPtr(t.Name),
+				Name:  stringToPtr(t.Name),
 				Tasks: []*api.Task{t},
 			}
 		}
@@ -192,8 +191,8 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	// If we have a vault block, then parse that
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		jobVault := &api.Vault{
-			Env:        helper.BoolToPtr(true),
-			ChangeMode: helper.StringToPtr("restart"),
+			Env:        boolToPtr(true),
+			ChangeMode: stringToPtr("restart"),
 		}
 
 		if err := parseVault(jobVault, o); err != nil {
@@ -234,7 +233,7 @@ func parsePeriodic(result **api.PeriodicConfig, list *ast.ObjectList) error {
 		"prohibit_overlap",
 		"time_zone",
 	}
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 
@@ -281,7 +280,7 @@ func parseParameterizedJob(result **api.ParameterizedJobConfig, list *ast.Object
 		"meta_required",
 		"meta_optional",
 	}
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return err
 	}
 

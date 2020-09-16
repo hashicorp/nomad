@@ -402,7 +402,7 @@ func DefaultConfig() *Config {
 		CSIPluginGCInterval:              5 * time.Minute,
 		CSIPluginGCThreshold:             1 * time.Hour,
 		CSIVolumeClaimGCInterval:         5 * time.Minute,
-		CSIVolumeClaimGCThreshold:        1 * time.Hour,
+		CSIVolumeClaimGCThreshold:        5 * time.Minute,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,

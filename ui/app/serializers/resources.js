@@ -7,4 +7,6 @@ export default class ResourcesSerializer extends ApplicationSerializer {
     disk: 'DiskMB',
     iops: 'IOPS',
   };
+
+  arrayNullOverrides = ['Ports'];
 }

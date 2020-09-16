@@ -154,7 +154,9 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	harness.taskDir = d
 
 	if consul {
-		harness.consul, err = ctestutil.NewTestServer()
+		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
+			// defaults
+		})
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)
 		}
