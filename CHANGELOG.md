@@ -1,3 +1,11 @@
+## 0.12.5 (September 15, 2020)
+
+BUG FIXES:
+ * core: Fixed a panic on job submission when the job contains a service with `expose = true` set [GH-8882]
+ * core: Fixed a regression where stopping the sole job allocation result in two replacement allocations [GH-8867]
+ * cli: Fixed the whitespace in nomad monitor help output [GH-8884]
+ * ui: Task log streaming will no longer suddenly flip to a different task's logs. [[GH-8833](https://github.com/hashicorp/nomad/issues/8833)]
+
 ## 0.12.4 (September 9, 2020)
 
 FEATURES:
