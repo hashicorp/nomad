@@ -111,6 +111,17 @@ type NetworkResource struct {
 	MBits *int `hcl:"mbits,optional"`
 }
 
+// COMPAT(0.13)
+// XXX Deprecated. Please do not use. The method will be removed in Nomad
+// 0.13 and is only being kept to allow any references to be removed before
+// then.
+func (n *NetworkResource) Megabits() int {
+	if n == nil || n.MBits == nil {
+		return 0
+	}
+	return *n.MBits
+}
+
 func (n *NetworkResource) Canonicalize() {
 	// COMPAT(0.13)
 	// Noop to maintain backwards compatibility
