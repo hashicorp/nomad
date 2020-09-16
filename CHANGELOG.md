@@ -1,9 +1,11 @@
 ## 0.12.5 (September 15, 2020)
 
 BUG FIXES:
- * core: Fixed a panic on job submission when the job contains a service with `expose = true` set [GH-8882]
- * core: Fixed a regression where stopping the sole job allocation result in two replacement allocations [GH-8867]
- * cli: Fixed the whitespace in nomad monitor help output [GH-8884]
+ * core: Fixed a panic on job submission when the job contains a service with `expose = true` set [[GH-8882](https://github.com/hashicorp/nomad/issues/8882)]
+ * core: Fixed a regression where stopping the sole job allocation result in two replacement allocations [[GH-8867](https://github.com/hashicorp/nomad/issues/8867)]
+ * core: Fixed a bug where an allocation may be left running expectedly despite promoting a new job version [[GH-8886](https://github.com/hashicorp/nomad/issues/8886)]
+ * cli: Fixed the whitespace in nomad monitor help output [[GH-8884](https://github.com/hashicorp/nomad/issues/8884)]
+ * cli: Fixed a bug where alloc signal fails if the CLI cannot contact the Nomad client directly [[GH-8897](https://github.com/hashicorp/nomad/issues/8897)]
  * ui: Task log streaming will no longer suddenly flip to a different task's logs. [[GH-8833](https://github.com/hashicorp/nomad/issues/8833)]
 
 ## 0.12.4 (September 9, 2020)
