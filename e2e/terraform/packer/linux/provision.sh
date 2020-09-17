@@ -29,7 +29,7 @@ install_from_s3() {
     # check that we don't already have this version
     if [ "$(command -v nomad)" ]; then
         nomad -version | grep -q "${NOMAD_SHA}" \
-            && echo "$NOMAD_SHA already installed" && exit 0
+            && echo "$NOMAD_SHA already installed" && return
     fi
 
     S3_URL="s3://nomad-team-dev-test-binaries/builds-oss/nomad_${PLATFORM}_${NOMAD_SHA}.tar.gz"
@@ -52,7 +52,7 @@ install_from_release() {
     # check that we don't already have this version
     if [ "$(command -v nomad)" ]; then
         nomad -version | grep -v 'dev' | grep -q "${NOMAD_VERSION}" \
-            && echo "$NOMAD_VERSION already installed" && exit 0
+            && echo "$NOMAD_VERSION already installed" && return
     fi
 
     RELEASE_URL="https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_${PLATFORM}.zip"
