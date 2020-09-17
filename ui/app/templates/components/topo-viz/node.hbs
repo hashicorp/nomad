@@ -4,7 +4,7 @@
     <span class="bumper-left">{{this.count}} Allocs</span>
     <span class="bumper-left is-faded">{{@node.resources.memory}} MiB, {{@node.resources.cpu}} Mhz</span>
   </p>
-  <svg class="chart" height="{{this.totalHeight}}px" {{did-insert this.render}} {{did-update this.render @activeTaskGroup @activeJobId}} {{window-resize this.render}}>
+  <svg class="chart" height="{{this.totalHeight}}px" {{did-insert this.render}} {{did-update this.updateRender @activeTaskGroup @activeJobId}} {{window-resize this.render}}>
     <defs>
       <clipPath id="{{this.maskId}}">
         <rect class="mask" x="0" y="0" width="{{this.dimensionsWidth}}px" height="{{this.maskHeight}}px" rx="2px" ry="2px" />
@@ -31,7 +31,7 @@
               width="{{this.data.memoryRemainder.width}}px"
               height="{{this.height}}px" />
           {{/if}}
-          {{#each this.data.memory as |memory|}}
+          {{#each this.data.memory key="allocation.id" as |memory|}}
             <g
               class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}} {{if memory.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"
@@ -67,7 +67,7 @@
               width="{{this.data.cpuRemainder.width}}px"
               height="{{this.height}}px" />
           {{/if}}
-          {{#each this.data.cpu as |cpu|}}
+          {{#each this.data.cpu key="allocation.id" as |cpu|}}
             <g
               class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}} {{if cpu.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"

@@ -1,6 +1,6 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { action } from '@ember/object';
+import { action, set } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 
 export default class TopoVizNode extends Component {
@@ -83,6 +83,18 @@ export default class TopoVizNode extends Component {
   }
 
   @action
+  updateRender(svg) {
+    // Only update all data when the width changes
+    const newWidth = svg.clientWidth - this.padding - this.paddingLeft;
+    if (newWidth !== this.dimensionsWidth) {
+      this.dimensionsWidth = newWidth;
+      this.data = this.computeData(this.dimensionsWidth);
+    } else {
+      this.data = this.setSelection();
+    }
+  }
+
+  @action
   highlightAllocation(allocation) {
     this.activeAllocation = allocation;
   }
@@ -95,6 +107,34 @@ export default class TopoVizNode extends Component {
   @action
   selectAllocation(allocation) {
     if (this.args.onAllocationSelect) this.args.onAllocationSelect(allocation);
+  }
+
+  containsActiveTaskGroup() {
+    return this.allocations.some(
+      allocation =>
+        allocation.taskGroupName === this.args.activeTaskGroup &&
+        allocation.belongsTo('job').id() === this.args.activeJobId
+    );
+  }
+
+  setSelection() {
+    this.data.cpu.forEach(cpu => {
+      set(
+        cpu,
+        'isSelected',
+        cpu.allocation.taskGroupName === this.args.activeTaskGroup &&
+          cpu.allocation.belongsTo('job').id() === this.args.activeJobId
+      );
+    });
+    this.data.memory.forEach(memory => {
+      set(
+        memory,
+        'isSelected',
+        memory.allocation.taskGroupName === this.args.activeTaskGroup &&
+          memory.allocation.belongsTo('job').id() === this.args.activeJobId
+      );
+    });
+    return this.data;
   }
 
   computeData(width) {
