@@ -443,6 +443,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		"local-ipv4":                  true,
 		"public-hostname":             true,
 		"public-ipv4":                 true,
+		"mac":                         true,
 		"placement/availability-zone": false,
 	}
 
@@ -491,6 +492,30 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 				CIDR:   val + "/32",
 				MBits:  f.throughput(request, ec2meta, val),
 			},
+		}
+	}
+
+	// copy over IPv6 network specific information
+	if val, ok := response.Attributes["unique.platform.aws.mac"]; ok && val != "" {
+		k := "network/interfaces/macs/" + val + "/ipv6s"
+		addrsStr, err := ec2meta.GetMetadata(k)
+		addrsStr = strings.TrimSpace(addrsStr)
+		if addrsStr == "" {
+			f.logger.Debug("read an empty value", "attribute", k)
+		} else if awsErr, ok := err.(awserr.RequestFailure); ok {
+			f.logger.Debug("could not read attribute value", "attribute", k, "error", awsErr)
+		} else if awsErr, ok := err.(awserr.Error); ok {
+			// if it's a URL error, assume we're not in an AWS environment
+			// TODO: better way to detect AWS? Check xen virtualization?
+			if _, ok := awsErr.OrigErr().(*url.Error); ok {
+				return nil
+			}
+
+			// not sure what other errors it would return
+			return err
+		} else {
+			addrs := strings.SplitN(addrsStr, "\n", 2)
+			response.AddAttribute("unique.platform.aws.public-ipv6", addrs[0])
 		}
 	}
 
