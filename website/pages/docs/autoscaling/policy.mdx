@@ -58,8 +58,7 @@ horizontal application scaling or horizontal cluster scaling.
   can be found on the [APM Plugins][apm_plugin_docs] page.
 
 - `query_window` - Defines how far back to query the APM for metrics. It should
-  be provided as a duration (e.g.: `"5s"`, `"1m"`). If omitted only the latest
-  value will be queried.
+  be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
 
 - `strategy` - The strategy to use, and it's configuration when calculating the
   desired state based on the current count and the metric returned by the APM.
