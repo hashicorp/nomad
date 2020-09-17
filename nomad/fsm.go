@@ -162,7 +162,6 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 
 // Close is used to cleanup resources associated with the FSM
 func (n *nomadFSM) Close() error {
-	n.state.Abandon()
 	return nil
 }
 
