@@ -1,4 +1,4 @@
-## 0.12.5 (September 15, 2020)
+## 0.12.5 (September 17, 2020)
 
 BUG FIXES:
  * core: Fixed a panic on job submission when the job contains a service with `expose = true` set [[GH-8882](https://github.com/hashicorp/nomad/issues/8882)]
