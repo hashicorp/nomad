@@ -15,9 +15,7 @@ scaling should occur.
 ## Prometheus APM Plugin
 
 Use [Prometheus][prometheus_io] metrics to scale your Nomad job task groups or
-cluster. The query performed on Prometheus should return a single value. You can
-use the [scalar][prometheus_scaler_function] function in your query to achieve
-this.
+cluster.
 
 ### Agent Configuration Options
 
@@ -39,7 +37,7 @@ apm "prometheus" {
 ```hcl
 check {
   source = "prometheus"
-  query  = "scalar(avg((haproxy_server_current_sessions{backend=\"http_back\"}) and (haproxy_server_up{backend=\"http_back\"} == 1)))"
+  query  = "avg((haproxy_server_current_sessions{backend=\"http_back\"}) and (haproxy_server_up{backend=\"http_back\"} == 1))"
   ...
 }
 ```
@@ -74,19 +72,10 @@ configuration parameters take precedence over the environment variables.
 ```hcl
 check {
   source = "datadog"
-  query  = "FROM=2m;TO=0m;QUERY=avg:proxy.backend.response.time{proxy-service:web-app}"
+  query  = "avg:proxy.backend.response.time{proxy-service:web-app}"
   ...
 }
 ```
-
-The query consists of three sections, each separated using a `;` delimiter. More
-information on the arguments can be found on the [Datadog site][datadog_timeseries].
-
-- `FROM` - A time offset which indicates the start of the queried time period.
-
-- `TO` - A time offset which indicates the end of the queried time period.
-
-- `QUERY` - The query string to execute.
 
 ## Nomad APM Plugin
 
