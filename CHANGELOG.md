@@ -5,6 +5,7 @@ BUG FIXES:
  * core: Fixed a regression where stopping the sole job allocation result in two replacement allocations [[GH-8867](https://github.com/hashicorp/nomad/issues/8867)]
  * core: Fixed a bug where an allocation may be left running expectedly despite promoting a new job version [[GH-8886](https://github.com/hashicorp/nomad/issues/8886)]
  * cli: Fixed the whitespace in nomad monitor help output [[GH-8884](https://github.com/hashicorp/nomad/issues/8884)]
+ * cli: Updated job samples to avoid using deprecated task level networks and mbit syntax [[GH-8911](https://github.com/hashicorp/nomad/issues/8911)]
  * cli: Fixed a bug where alloc signal fails if the CLI cannot contact the Nomad client directly [[GH-8897](https://github.com/hashicorp/nomad/issues/8897)]
  * cli: Fixed a bug where host volumes could cause `nomad node status` to panic when the `-verbose` flag was used. [[GH-8902](https://github.com/hashicorp/nomad/issues/8902)]
  * ui: Fixed ability to switch between tasks in alloc exec sessions [[GH-8856](https://github.com/hashicorp/nomad/issues/8856)]
