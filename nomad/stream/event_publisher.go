@@ -55,6 +55,7 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 	if cfg.EventBufferTTL == 0 {
 		cfg.EventBufferTTL = 1 * time.Hour
 	}
+
 	buffer := newEventBuffer(cfg.EventBufferSize, cfg.EventBufferTTL)
 	e := &EventPublisher{
 		eventBuf:  buffer,
@@ -62,6 +63,7 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 		subscriptions: &subscriptions{
 			byToken: make(map[string]map[*SubscribeRequest]*Subscription),
 		},
+		pruneTick: 5 * time.Second,
 	}
 
 	go e.handleUpdates(ctx)

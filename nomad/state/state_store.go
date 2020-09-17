@@ -45,6 +45,8 @@ type StateStoreConfig struct {
 
 	// Region is the region of the server embedding the state store.
 	Region string
+
+	EnablePublisher bool
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -86,11 +88,16 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		abandonCh:          make(chan struct{}),
 		stopEventPublisher: cancel,
 	}
-	publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
-		EventBufferTTL:  1 * time.Hour,
-		EventBufferSize: 250,
-	})
-	s.db = NewChangeTrackerDB(db, publisher, processDBChanges)
+
+	if config.EnablePublisher {
+		publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
+			EventBufferTTL:  1 * time.Hour,
+			EventBufferSize: 250,
+		})
+		s.db = NewChangeTrackerDB(db, publisher, processDBChanges)
+	} else {
+		s.db = NewChangeTrackerDB(db, &noOpPublisher{}, processDBChanges)
+	}
 
 	// Initialize the state store with required enterprise objects
 	if err := s.enterpriseInit(); err != nil {
