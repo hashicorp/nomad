@@ -488,7 +488,7 @@ task "example" {
 ```
 
 Example docker-config, using two helper scripts in \$PATH,
-"docker-credential-ecr" and "docker-credential-vault":
+"docker-credential-ecr-login" and "docker-credential-vault":
 
 ```json
 {
@@ -504,7 +504,7 @@ Example docker-config, using two helper scripts in \$PATH,
 }
 ```
 
-Example agent configuration, using a helper script "docker-credential-ecr" in
+Example agent configuration, using a helper script "docker-credential-ecr-login" in
 \$PATH
 
 ```hcl
@@ -517,7 +517,7 @@ plugin "docker" {
     auth {
       # Nomad will prepend "docker-credential-" to the helper value and call
       # that script name.
-      helper = "ecr"
+      helper = "ecr-login"
     }
   }
 }
@@ -691,7 +691,7 @@ plugin "docker" {
 
     auth {
       config = "/etc/docker-auth.json"
-      helper = "docker-credential-aws"
+      helper = "ecr-login"
     }
 
     tls {
