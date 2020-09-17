@@ -20,4 +20,7 @@ icacls $adminKey /inheritance:r
 icacls $adminKey /grant BUILTIN\Administrators:`(F`)
 icacls $adminKey /grant SYSTEM:`(F`)
 
+# for host volume testing
+New-Item -ItemType Directory -Force -Path C:\tmp\data
+
 </powershell>

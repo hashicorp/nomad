@@ -14,6 +14,9 @@ nameserver $DOCKER_BRIDGE_IP_ADDRESS
 EOF
 sudo mv /tmp/resolv.conf /etc/resolv.conf
 
+# For host volume testing
+sudo mkdir -p /tmp/data
+
 # need to get the AWS DNS address from the VPC...
 # this is pretty hacky but will work for any typical case
 MAC=$(curl -s --fail http://169.254.169.254/latest/meta-data/mac)

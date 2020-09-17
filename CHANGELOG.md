@@ -1,6 +1,7 @@
 ## 0.12.5 (Unreleased)
 
 BUG FIXES:
+ * cli: Fixed a bug where host volumes could cause `nomad node status` to panic when the `-verbose` flag was used. [[GH-8902](https://github.com/hashicorp/nomad/issues/8902)]
  * ui: Task log streaming will no longer suddenly flip to a different task's logs. [[GH-8833](https://github.com/hashicorp/nomad/issues/8833)]
 
 ## 0.12.4 (September 9, 2020)
