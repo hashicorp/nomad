@@ -210,6 +210,10 @@ func (s *StateStore) Abandon() {
 	close(s.abandonCh)
 }
 
+func (s *StateStore) StopEventPublisher() {
+	s.stopEventPublisher()
+}
+
 // QueryFn is the definition of a function that can be used to implement a basic
 // blocking query against the state store.
 type QueryFn func(memdb.WatchSet, *StateStore) (resp interface{}, index uint64, err error)
@@ -740,6 +744,18 @@ func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID stri
 	return nil, 0, nil
 }
 
+func (s *StateStore) UpsertNodeCtx(ctx context.Context, index uint64, node *structs.Node) error {
+	txn := s.db.WriteTxnWithCtx(ctx, index)
+	defer txn.Abort()
+
+	err := upsertNodeTxn(txn, index, node)
+	if err != nil {
+		return nil
+	}
+	txn.Commit()
+	return nil
+}
+
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
@@ -747,6 +763,15 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
+	err := upsertNodeTxn(txn, index, node)
+	if err != nil {
+		return nil
+	}
+	txn.Commit()
+	return nil
+}
+
+func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 	// Check if the node already exists
 	existing, err := txn.First("nodes", "id", node.ID)
 	if err != nil {
@@ -795,18 +820,38 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 		return fmt.Errorf("csi plugin update failed: %v", err)
 	}
 
+	return nil
+}
+
+func (s *StateStore) DeleteNodeCtx(ctx context.Context, index uint64, nodes []string) error {
+	txn := s.db.WriteTxnWithCtx(ctx, index)
+	defer txn.Abort()
+
+	err := deleteNodeTxn(txn, index, nodes)
+	if err != nil {
+		return nil
+	}
 	txn.Commit()
 	return nil
 }
 
 // DeleteNode deregisters a batch of nodes
 func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	err := deleteNodeTxn(txn, index, nodes)
+	if err != nil {
+		return nil
+	}
+	txn.Commit()
+	return nil
+}
+
+func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
 	if len(nodes) == 0 {
 		return fmt.Errorf("node ids missing")
 	}
-
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
 
 	for _, nodeID := range nodes {
 		existing, err := txn.First("nodes", "id", nodeID)
@@ -832,7 +877,6 @@ func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
 	return nil
 }
 
