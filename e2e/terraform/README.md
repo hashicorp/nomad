@@ -14,9 +14,10 @@ framework uses.
 
 ## Setup
 
-You'll need Terraform 0.12+, as well as AWS credentials (`AWS_ACCESS_KEY_ID`
-and `AWS_SECRET_ACCESS_KEY`) to create the Nomad cluster. Use
-[envchain](https://github.com/sorah/envchain) to store your AWS credentials.
+You'll need Terraform 0.13+, as well as AWS credentials to create the Nomad
+cluster. This Terraform stack assumes that an appropriate instance role has
+been configured elsewhere and that you have the ability to `AssumeRole` into
+the AWS account.
 
 Optionally, edit the `terraform.tfvars` file to change the number of
 Linux clients or Windows clients.
@@ -33,7 +34,7 @@ Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
-envchain nomadaws terraform apply
+terraform apply
 ```
 
 ## Outputs
@@ -73,5 +74,5 @@ The terraform state file stores all the info.
 
 ```sh
 cd e2e/terraform/
-envchain nomadaws terraform destroy
+terraform destroy
 ```

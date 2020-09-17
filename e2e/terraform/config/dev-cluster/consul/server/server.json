@@ -1,7 +1,7 @@
 {
   "server": true,
   "ui": true,
-  "bootstrap_expect": SERVER_COUNT,
+  "bootstrap_expect": 3,
   "service": {
     "name": "consul"
   }
