@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/raftutil"
@@ -19,7 +18,7 @@ func (c *OperatorRaftStateCommand) Help() string {
 	helpText := `
 Usage: nomad operator raft _state <path to nomad data dir>
 
-  Display the log entries persisted in data dir in json form.
+  Display the server state obtained by replaying raft log entries persisted in data dir in json form.
 
   This is a low-level debugging tool and not subject to Nomad's usual backward
   compatibility guarantees.
@@ -43,10 +42,10 @@ func (c *OperatorRaftStateCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *OperatorRaftStateCommand) Synopsis() string {
-	return "Display raft log content"
+	return "Display raft server state"
 }
 
-func (c *OperatorRaftStateCommand) Name() string { return "operator raft _info" }
+func (c *OperatorRaftStateCommand) Name() string { return "operator raft _state" }
 
 func (c *OperatorRaftStateCommand) Run(args []string) int {
 	var fLastIdx int64
@@ -68,19 +67,14 @@ func (c *OperatorRaftStateCommand) Run(args []string) int {
 		return 1
 	}
 
-	var p string
-	if _, err := os.Stat(filepath.Join(args[0], "server", "raft", "raft.db")); err == nil {
-		p = filepath.Join(args[0], "server", "raft")
-	} else if _, err := os.Stat(filepath.Join(args[0], "raft", "raft.db")); err == nil {
-		p = filepath.Join(args[0], "raft")
-	} else if _, err := os.Stat(filepath.Join(args[0], "raft.db")); err == nil {
-		p = args[0]
-	} else {
-		c.Ui.Error(fmt.Sprintf("path needs to be a data dir path with raft.db file: %v", err))
+	// Find raft.db folder
+	raftPath, err := raftutil.FindRaftInPath(args[0], false)
+	if err != nil {
+		c.Ui.Error(err.Error())
 		return 1
 	}
 
-	state, err := raftutil.FSMState(p, fLastIdx)
+	state, err := raftutil.FSMState(raftPath, fLastIdx)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

@@ -160,3 +160,39 @@ func commandName(mt structs.MessageType) string {
 
 	return fmt.Sprintf("%v", mt)
 }
+
+// Find raft.db given path p
+func FindRaftInPath(p string, includeFileInPath bool) (raftpath string, err error) {
+	if _, err := os.Stat(p); err == nil && filepath.Ext(p) == ".db" {
+		// Path p is to a valid .db file, use as specified
+		raftpath = p
+	} else {
+		// Define walk function to identify raft.db
+		walkFn := func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if filepath.Base(path) == "raft.db" {
+				raftpath = path
+			}
+			return nil
+		}
+
+		// Walk path p looking for raft.db
+		walkErr := filepath.Walk(p, walkFn)
+		if walkErr != nil {
+			return "", walkErr
+		}
+	}
+
+	if raftpath == "" {
+		return "", fmt.Errorf("No raft.db file found in path %s", p)
+	}
+
+	if includeFileInPath {
+		return raftpath, nil
+	} else {
+		return filepath.Dir(raftpath), nil
+	}
+}

@@ -2,8 +2,6 @@ package command
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/raftutil"
@@ -48,19 +46,21 @@ func (c *OperatorRaftInfoCommand) Run(args []string) int {
 		return 1
 	}
 
-	p := args[0]
-	if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-		p = filepath.Join(args[0], "server", "raft", "raft.db")
+	// Find raft.db
+	raftPath, err := raftutil.FindRaftInPath(args[0], true)
+	if err != nil {
+		c.Ui.Error(err.Error())
+		return 1
 	}
 
-	store, firstIdx, lastIdx, err := raftutil.RaftStateInfo(p)
+	store, firstIdx, lastIdx, err := raftutil.RaftStateInfo(raftPath)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("failed to open raft logs: %v", err))
 		return 1
 	}
 	defer store.Close()
 
-	c.Ui.Output(fmt.Sprintf("path:        %v", p))
+	c.Ui.Output(fmt.Sprintf("path:        %v", raftPath))
 	c.Ui.Output(fmt.Sprintf("length:      %v", lastIdx-firstIdx+1))
 	c.Ui.Output(fmt.Sprintf("first index: %v", firstIdx))
 	c.Ui.Output(fmt.Sprintf("last index:  %v", lastIdx))
