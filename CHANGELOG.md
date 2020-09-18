@@ -1,5 +1,12 @@
 ## 0.13.0 (Unreleased)
 
+IMPROVEMENTS:
+ * api: Added support for cancellation contexts to HTTP API. [[GH-8836](https://github.com/hashicorp/nomad/issues/8836)]
+
+BUG FIXES:
+
+ * core: Fixed a bug where blocking queries would not include the query's maximum wait time when calculating whether it was safe to retry. [[GH-8921](https://github.com/hashicorp/nomad/issues/8921)]
+
 ## 0.12.5 (September 17, 2020)
 
 BUG FIXES:
