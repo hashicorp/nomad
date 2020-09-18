@@ -24,7 +24,7 @@ variable "nomad_local_binary" {
 
 variable "profile" {
   type        = string
-  description = "The expected path to the configuration profile (ex. '/opt/config/full-cluster')"
+  description = "The name of the configuration profile (ex. 'full-cluster')"
   default     = ""
 }
 

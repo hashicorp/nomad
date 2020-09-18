@@ -84,9 +84,15 @@ install_config_profile() {
         sudo mv /tmp/custom /opt/config/
     fi
 
-    sudo rm -rf /etc/nomad.d/*
-    sudo rm -rf /etc/consul.d/*
-    sudo rm -rf /etc/vault.d/*
+    # we're removing the whole directory and recreating to avoid
+    # any quirks around dotfiles that might show up here.
+    sudo rm -rf /etc/nomad.d
+    sudo rm -rf /etc/consul.d
+    sudo rm -rf /etc/vault.d
+
+    sudo mkdir -p /etc/nomad.d
+    sudo mkdir -p /etc/consul.d
+    sudo mkdir -p /etc/vault.d
 
     sym "${NOMAD_PROFILE}/nomad/" '*' /etc/nomad.d
     sym "${NOMAD_PROFILE}/consul/" '*' /etc/consul.d
