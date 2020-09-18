@@ -54,8 +54,6 @@ func (c *OperatorRaftLogsCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("final paths: %v", raftPath))
-
 	logs, warnings, err := raftutil.LogEntries(raftPath)
 	if err != nil {
 		c.Ui.Error(err.Error())
