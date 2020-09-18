@@ -46,7 +46,7 @@ resource "null_resource" "provision_nomad" {
 }
 
 data "template_file" "provision_script" {
-  template = "${local.provision_script}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}"
+  template = "${local.provision_script}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}"
 }
 
 data "template_file" "arg_nomad_sha" {
@@ -59,6 +59,10 @@ data "template_file" "arg_nomad_version" {
 
 data "template_file" "arg_nomad_binary" {
   template = var.nomad_local_binary != "" ? " ${local._arg}nomad_binary ${var.nomad_local_binary}" : ""
+}
+
+data "template_file" "arg_nomad_enterprise" {
+  template = var.nomad_enterprise != false ? " ${local._arg}enterprise" : ""
 }
 
 data "template_file" "arg_profile" {

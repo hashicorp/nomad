@@ -2,6 +2,7 @@ param(
     [string]$nomad_sha,
     [string]$nomad_version,
     [string]$nomad_binary,
+    [switch]$enterprise = $false,
     [string]$config_profile,
     [string]$role,
     [string]$index,
@@ -23,6 +24,8 @@ Options for configuration:
  -role ROLE               role within config profile directory
  -index INDEX             count of instance, for profiles with per-instance config
  -nostart                 do not start or restart Nomad
+ -enterprise              if nomad_sha is passed, use the ENT version
+
 "@
 
 $RunningAsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
@@ -57,7 +60,11 @@ function InstallFromS3 {
     }
 
     Try {
-        $key = "builds-oss/nomad_${platform}_${nomad_sha}.zip"
+        $build_folder = "builds-oss"
+        if ($enterprise) {
+            $build_folder = "builds-ent"
+        }
+        $key = "${build_folder}/nomad_${platform}_${nomad_sha}.zip"
 		Read-S3Object -BucketName nomad-team-dev-test-binaries -Key $key -File ./nomad.zip
 		Remove-Item -Path $install_path -Force -ErrorAction Ignore
 		Expand-Archive ./nomad.zip ./ -Force

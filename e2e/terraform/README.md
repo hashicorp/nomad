@@ -57,6 +57,9 @@ You'll need to pass one of the following variables in either your
   [releases.hashicorp.com](https://releases.hashicorp.com/nomad). Ex. `nomad_version
   = "0.10.2+ent"`
 
+If you want to deploy the Enterprise build of a specific SHA, include
+`-var 'nomad_enterprise=true'`.
+
 ## Profiles
 
 The `profile` field selects from a set of configuration files for Nomad,

@@ -19,6 +19,8 @@ module "nomad_server" {
 
   nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
 
+  nomad_enterprise = var.nomad_enterprise
+
   connection = {
     type        = "ssh"
     user        = "ubuntu"
@@ -51,6 +53,8 @@ module "nomad_client_linux" {
 
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_linux) ? var.nomad_local_binary_client_linux[count.index] : var.nomad_local_binary
 
+  nomad_enterprise = var.nomad_enterprise
+
   connection = {
     type        = "ssh"
     user        = "ubuntu"
@@ -80,6 +84,11 @@ module "nomad_client_windows" {
   nomad_version = count.index < length(var.nomad_version_client_windows) ? var.nomad_version_client_windows[count.index] : var.nomad_version
 
   nomad_sha = count.index < length(var.nomad_sha_client_windows) ? var.nomad_sha_client_windows[count.index] : var.nomad_sha
+
+  # if nomad_local_binary is in use, you must pass a nomad_local_binary_client_windows!
+  nomad_local_binary = count.index < length(var.nomad_local_binary_client_windows) ? var.nomad_local_binary_client_windows[count.index] : ""
+
+  nomad_enterprise = var.nomad_enterprise
 
   connection = {
     type        = "ssh"
