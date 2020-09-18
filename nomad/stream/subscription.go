@@ -21,10 +21,6 @@ const (
 // closed. The client should Unsubscribe, then re-Subscribe.
 var ErrSubscriptionClosed = errors.New("subscription closed by server, client should resubscribe")
 
-// type Subscriber struct {
-// 	logger hclog.Logger
-// }
-
 type Subscription struct {
 	// state is accessed atomically 0 means open, 1 means closed with reload
 	state uint32
@@ -104,8 +100,15 @@ func filter(req *SubscribeRequest, events []Event) []Event {
 
 	var count int
 	for _, e := range events {
-		if _, ok := req.Topics[e.Topic]; ok {
-			for _, k := range req.Topics[e.Topic] {
+		_, allTopics := req.Topics[AllKeys]
+		if _, ok := req.Topics[e.Topic]; ok || allTopics {
+			var keys []string
+			if allTopics {
+				keys = req.Topics[AllKeys]
+			} else {
+				keys = req.Topics[e.Topic]
+			}
+			for _, k := range keys {
 				if e.Key == k || k == AllKeys {
 					count++
 				}
@@ -124,8 +127,15 @@ func filter(req *SubscribeRequest, events []Event) []Event {
 	// Return filtered events
 	result := make([]Event, 0, count)
 	for _, e := range events {
-		if _, ok := req.Topics[e.Topic]; ok {
-			for _, k := range req.Topics[e.Topic] {
+		_, allTopics := req.Topics[AllKeys]
+		if _, ok := req.Topics[e.Topic]; ok || allTopics {
+			var keys []string
+			if allTopics {
+				keys = req.Topics[AllKeys]
+			} else {
+				keys = req.Topics[e.Topic]
+			}
+			for _, k := range keys {
 				if e.Key == k || k == AllKeys {
 					result = append(result, e)
 				}
