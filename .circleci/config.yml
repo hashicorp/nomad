@@ -1385,76 +1385,6 @@ workflows:
             - /^.-ui\b.*/
             - /^docs-.*/
             - stable-website
-    - test-windows:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-client:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-nomad:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-api:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-devices:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-other:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-docker:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-exec:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-shared-exec:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-32bit:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
     - test-e2e:
         filters:
           branches:
@@ -1468,6 +1398,86 @@ workflows:
             ignore:
             - stable-website
             - /^docs-.*/
+    - test-windows:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-client:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-nomad:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-api:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-devices:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-other:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-docker:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-exec:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-shared-exec:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-32bit:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
   website:
     jobs:
     - website-docker-image:
