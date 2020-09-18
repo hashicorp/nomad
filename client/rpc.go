@@ -83,24 +83,22 @@ TRY:
 	// Move off to another server, and see if we can retry.
 	c.rpcLogger.Error("error performing RPC to server", "error", rpcErr, "rpc", method, "server", server.Addr)
 	c.servers.NotifyFailedServer(server)
-	if retry := canRetry(args, rpcErr); !retry {
+	if retry := canRetry(args, rpcErr, firstCheck, c.config.RPCHoldTimeout); !retry {
 		return rpcErr
 	}
 
 	// We can wait a bit and retry!
-	if time.Since(firstCheck) < c.config.RPCHoldTimeout {
-		jitter := lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)
-		select {
-		case <-time.After(jitter):
-			goto TRY
-		case <-c.shutdownCh:
-		}
+	jitter := lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)
+	select {
+	case <-time.After(jitter):
+		goto TRY
+	case <-c.shutdownCh:
 	}
 	return rpcErr
 }
 
 // canRetry returns true if the given situation is safe for a retry.
-func canRetry(args interface{}, err error) bool {
+func canRetry(args interface{}, err error, start time.Time, rpcHoldTimeout time.Duration) bool {
 	// No leader errors are always safe to retry since no state could have
 	// been changed.
 	if structs.IsErrNoLeader(err) {
@@ -110,7 +108,7 @@ func canRetry(args interface{}, err error) bool {
 	// Reads are safe to retry for stream errors, such as if a server was
 	// being shut down.
 	info, ok := args.(structs.RPCInfo)
-	if ok && info.IsRead() && lib.IsErrEOF(err) {
+	if ok && info.IsRead() && lib.IsErrEOF(err) && !info.HasTimedOut(start, rpcHoldTimeout) {
 		return true
 	}
 
