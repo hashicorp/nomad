@@ -11,7 +11,12 @@ Options (use one of the following):
  --nomad_sha SHA          full git sha to install from S3
  --nomad_version VERSION  release version number (ex. 0.12.4+ent)
  --nomad_binary FILEPATH  path to file on host
- --nostart                do not start or restart Nomad
+
+Options for configuration:
+ --config_profile FILEPATH  path to config profile directory
+ --role ROLE                role within config profile directory
+ --index INDEX              count of instance, for profiles with per-instance config
+ --nostart                  do not start or restart Nomad
 
 EOF
 
@@ -25,6 +30,10 @@ PLATFORM=linux_amd64
 START=1
 install_fn=
 
+NOMAD_PROFILE=
+NOMAD_ROLE=
+NOMAD_INDEX=
+
 install_from_s3() {
     # check that we don't already have this version
     if [ "$(command -v nomad)" ]; then
@@ -36,16 +45,13 @@ install_from_s3() {
     aws s3 cp --quiet "$S3_URL" nomad.tar.gz
     sudo tar -zxvf nomad.tar.gz -C "$INSTALL_DIR"
     set_ownership
-    if [ $START == "1" ]; then sudo systemctl restart nomad; fi
 }
 
 install_from_uploaded_binary() {
-    # we don't check for reinstallation here because we do it at the user's
-    # end, rather than on the remote host, so that we don't bother copying
-    # if we don't have to
+    # we don't need to check for reinstallation here because we do it at the
+    # user's end so that we're not copying it up if we don't have to
     sudo cp "$NOMAD_UPLOADED_BINARY" "$INSTALL_PATH"
     set_ownership
-    if [ $START == "1" ]; then sudo systemctl restart nomad; fi
 }
 
 install_from_release() {
@@ -59,13 +65,51 @@ install_from_release() {
     curl -sL --fail -o /tmp/nomad.zip "$RELEASE_URL"
     sudo unzip -o /tmp/nomad.zip -d "$INSTALL_DIR"
     set_ownership
-    if [ $START == "1" ]; then sudo systemctl restart nomad; fi
 }
 
 set_ownership() {
     sudo chmod 0755 "$INSTALL_PATH"
     sudo chown root:root "$INSTALL_PATH"
 }
+
+sym() {
+    find "$1" -maxdepth 1 -type f -name "$2" 2>/dev/null \
+        | sudo xargs -I % ln -fs % "$3"
+}
+
+install_config_profile() {
+
+    if [ -d /tmp/custom ]; then
+        rm -rf /opt/config/custom
+        sudo mv /tmp/custom /opt/config/
+    fi
+
+    # we're removing the whole directory and recreating to avoid
+    # any quirks around dotfiles that might show up here.
+    sudo rm -rf /etc/nomad.d
+    sudo rm -rf /etc/consul.d
+    sudo rm -rf /etc/vault.d
+
+    sudo mkdir -p /etc/nomad.d
+    sudo mkdir -p /etc/consul.d
+    sudo mkdir -p /etc/vault.d
+
+    sym "${NOMAD_PROFILE}/nomad/" '*' /etc/nomad.d
+    sym "${NOMAD_PROFILE}/consul/" '*' /etc/consul.d
+    sym "${NOMAD_PROFILE}/vault/" '*' /etc/vault.d
+
+    if [ -n "$NOMAD_ROLE" ]; then
+        sym "${NOMAD_PROFILE}/nomad/${NOMAD_ROLE}/" '*' /etc/nomad.d
+        sym "${NOMAD_PROFILE}/consul/${NOMAD_ROLE}/" '*' /etc/consul.d
+        sym "${NOMAD_PROFILE}/vault/${NOMAD_ROLE}/" '*' /etc/vault.d
+    fi
+    if [ -n "$NOMAD_INDEX" ]; then
+        sym "${NOMAD_PROFILE}/nomad/${NOMAD_ROLE}/indexed/" "*${NOMAD_INDEX}*" /etc/nomad.d
+        sym "${NOMAD_PROFILE}/consul/${NOMAD_ROLE}/indexed/" "*${NOMAD_INDEX}*" /etc/consul.d
+        sym "${NOMAD_PROFILE}/vault/${NOMAD_ROLE}/indexed/" "*${NOMAD_INDEX}*" /etc/vault.d
+    fi
+}
+
 
 while [[ $# -gt 0 ]]
 do
@@ -89,6 +133,21 @@ opt="$1"
             install_fn=install_from_uploaded_binary
             shift 2
             ;;
+        --config_profile)
+            if [ -z "$2" ]; then echo "Missing profile parameter"; usage; fi
+            NOMAD_PROFILE="/opt/config/${2}"
+            shift 2
+            ;;
+        --role)
+            if [ -z "$2" ]; then echo "Missing role parameter"; usage; fi
+            NOMAD_ROLE="$2"
+            shift 2
+            ;;
+        --index)
+            if [ -z "$2" ]; then echo "Missing index parameter"; usage; fi
+            NOMAD_INDEX="$2"
+            shift 2
+            ;;
         --nostart)
             # for initial packer builds, we don't want to start Nomad
             START=0
@@ -98,6 +157,16 @@ opt="$1"
     esac
 done
 
-# call the appropriate instalation function
-if [ -z "$install_fn" ]; then echo "Missing install option"; usage; fi
-$install_fn
+# call the appropriate installation function
+if [ -n "$install_fn" ]; then
+    $install_fn
+fi
+if [ -n "$NOMAD_PROFILE" ]; then
+    install_config_profile
+fi
+
+if [ $START == "1" ]; then
+    # sudo systemctl restart vault
+    sudo systemctl restart consul
+    sudo systemctl restart nomad
+fi

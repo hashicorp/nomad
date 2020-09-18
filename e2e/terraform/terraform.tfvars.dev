@@ -3,3 +3,8 @@ instance_type        = "t2.medium"
 server_count         = "3"
 client_count         = "2"
 windows_client_count = "0"
+profile              = "dev-cluster"
+
+# Example overrides:
+# nomad_local_binary = "../../pkg/linux_amd/nomad"
+# nomad_local_binary_client_windows = ["../../pkg/windows_amd64/nomad.exe"]
