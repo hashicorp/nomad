@@ -93,7 +93,7 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
 
     for (var testName in additionalTests) {
       test(testName, async function(assert) {
-        await additionalTests[testName](job, assert);
+        await additionalTests[testName].call(this, job, assert);
       });
     }
   });

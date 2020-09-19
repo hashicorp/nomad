@@ -222,7 +222,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     await this.render(commonTemplate);
 
     assert.equal(
-      find('[data-test-submit-time]').textContent,
+      find('[data-test-job-submit-time]').textContent,
       moment(job.get('children.firstObject.submitTime')).format('MMM DD HH:mm:ss ZZ'),
       'The new periodic job launch is in the children list'
     );
