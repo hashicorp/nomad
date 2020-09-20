@@ -286,13 +286,8 @@ func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceU
 }
 
 func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
-	if err != nil {
-		return err
-	}
-
 	var resp struct{}
-	_, err = nodeClient.query("/v1/client/allocation/"+alloc.ID+"/gc", &resp, nil)
+	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/gc", &resp, nil)
 	return err
 }
 
@@ -321,18 +316,13 @@ type AllocStopResponse struct {
 }
 
 func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
-	nodeClient, err := a.client.GetNodeClient(alloc.NodeID, q)
-	if err != nil {
-		return err
-	}
-
 	req := AllocSignalRequest{
 		Signal: signal,
 		Task:   task,
 	}
 
 	var resp GenericResponse
-	_, err = nodeClient.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
+	_, err := a.client.putQuery("/v1/client/allocation/"+alloc.ID+"/signal", &req, &resp, q)
 	return err
 }
 

@@ -149,10 +149,12 @@ func toArray(iter memdb.ResultIterator, err error) []interface{} {
 
 	r := []interface{}{}
 
-	item := iter.Next()
-	for item != nil {
-		r = append(r, item)
-		item = iter.Next()
+	if iter != nil {
+		item := iter.Next()
+		for item != nil {
+			r = append(r, item)
+			item = iter.Next()
+		}
 	}
 
 	return r

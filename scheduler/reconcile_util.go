@@ -256,8 +256,10 @@ func (a allocSet) filterByRescheduleable(isBatch bool, now time.Time, evalID str
 		var eligibleNow, eligibleLater bool
 		var rescheduleTime time.Time
 
-		// Ignore allocs that have already been rescheduled
-		if alloc.NextAllocation != "" {
+		// Ignore failing allocs that have already been rescheduled
+		// only failed allocs should be rescheduled, but protect against a bug allowing rescheduling
+		// running allocs
+		if alloc.NextAllocation != "" && alloc.TerminalStatus() {
 			continue
 		}
 

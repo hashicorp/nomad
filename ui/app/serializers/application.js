@@ -105,14 +105,16 @@ export default class Application extends JSONSerializer {
 
           const map = hash[apiKey] || {};
 
-          hash[uiKey] = Object.keys(map).map(mapKey => {
-            const propertiesForKey = map[mapKey] || {};
-            const convertedMap = { Name: mapKey };
+          hash[uiKey] = Object.keys(map)
+            .sort()
+            .map(mapKey => {
+              const propertiesForKey = map[mapKey] || {};
+              const convertedMap = { Name: mapKey };
 
-            assign(convertedMap, propertiesForKey);
+              assign(convertedMap, propertiesForKey);
 
-            return convertedMap;
-          });
+              return convertedMap;
+            });
         });
       }
 

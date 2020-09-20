@@ -44,6 +44,50 @@ check {
 }
 ```
 
+## Datadog APM Plugin
+
+The [Datadog][datadog_homepage] APM allows using [time series][datadog_timeseries]
+data to make scaling decisions.
+
+### Agent Configuration Options
+
+```hcl
+apm "datadog" {
+  driver = "datadog"
+
+  config = {
+    dd_api_key = "<api key>"
+    dd_app_key = "<app key>"
+  }
+}
+```
+
+- `dd_api_key` `(string: "")` - The Datadog API key to use for authentication.
+- `dd_app_key` `(string: "")` - The Datadog APP key to use for authentication.
+
+The Datadog plugin can also read its configuration options via environment
+variables. The accepted keys are `DD_API_KEY` and `DD_APP_KEY`. The agent
+configuration parameters take precedence over the environment variables.
+
+### Policy Configuration Options
+
+```hcl
+check {
+  source = "datadog"
+  query  = "FROM=2m;TO=0m;QUERY=avg:proxy.backend.response.time{proxy-service:web-app}"
+  ...
+}
+```
+
+The query consists of three sections, each separated using a `;` delimiter. More
+information on the arguments can be found on the [Datadog site][datadog_timeseries].
+
+- `FROM` - A time offset which indicates the start of the queried time period.
+
+- `TO` - A time offset which indicates the end of the queried time period.
+
+- `QUERY` - The query string to execute.
+
 ## Nomad APM Plugin
 
 The Nomad APM plugin allows querying the Nomad API for metric data. This provides
@@ -147,3 +191,5 @@ The metric value can be:
 [prometheus_io]: https://prometheus.io/
 [prometheus_scaler_function]: https://prometheus.io/docs/prometheus/latest/querying/functions/#scalar
 [nomad_telemetry_stanza]: /docs/configuration/telemetry#inlinecode-publish_allocation_metrics
+[datadog_homepage]: https://www.datadoghq.com/
+[datadog_timeseries]: https://docs.datadoghq.com/api/v1/metrics/#query-timeseries-points

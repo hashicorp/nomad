@@ -203,6 +203,7 @@ type RPCInfo interface {
 	AllowStaleRead() bool
 	IsForwarded() bool
 	SetForwarded()
+	HasTimedOut(since time.Time, rpcHoldTimeout time.Duration) bool
 }
 
 // InternalRpcInfo allows adding internal RPC metadata to an RPC. This struct
@@ -280,6 +281,13 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
+}
+
+func (q QueryOptions) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
+	if q.MinQueryIndex > 0 {
+		return time.Since(start) > (q.MaxQueryTime + rpcHoldTimeout)
+	}
+	return time.Since(start) > rpcHoldTimeout
 }
 
 // AgentPprofRequest is used to request a pprof report for a given node.
@@ -366,6 +374,10 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
+}
+
+func (w WriteRequest) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
+	return time.Since(start) > rpcHoldTimeout
 }
 
 // QueryMeta allows a query response to include potentially
