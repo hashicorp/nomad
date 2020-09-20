@@ -131,6 +131,7 @@ check {
     aws_asg_name        = "hashistack-client-asg"
     node_class          = "hashistack"
     node_drain_deadline = "5m"
+    node_purge          = "true"
   }
   ...
 ```
@@ -144,6 +145,9 @@ check {
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
   to use when performing node draining actions.
 
+- `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
+  be [purged][nomad_node_purge] when performing scale in actions.
+
 [nomad_node_class]: https://www.nomadproject.io/docs/configuration/client#node_class
 [nomad_node_drain_deadline]: https://www.nomadproject.io/api-docs/nodes#deadline
 [nomad_scaling_stanza]: /docs/job-specification/scaling
@@ -152,3 +156,4 @@ check {
 [aws_region]: https://aws.amazon.com/about-aws/global-infrastructure/regions_az/
 [aws_autoscaling]: https://aws.amazon.com/autoscaling/
 [vault_aws_backend]: https://www.vaultproject.io/docs/secrets/aws
+[nomad_node_purge]: https://www.nomadproject.io/api/nodes.html#purge-node

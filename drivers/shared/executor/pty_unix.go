@@ -17,7 +17,6 @@ func sessionCmdAttr(tty *os.File) *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{
 		Setsid:  true,
 		Setctty: true,
-		Ctty:    int(tty.Fd()),
 	}
 }
 

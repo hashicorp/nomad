@@ -6,11 +6,13 @@ import ApplicationSerializer from './application';
 // excessive copies of the originals which would otherwise just
 // be garbage collected.
 const unmap = (hash, propKey) =>
-  Object.keys(hash).map(key => {
-    const record = hash[key];
-    record[propKey] = key;
-    return record;
-  });
+  Object.keys(hash)
+    .sort()
+    .map(key => {
+      const record = hash[key];
+      record[propKey] = key;
+      return record;
+    });
 
 export default class Plugin extends ApplicationSerializer {
   normalize(typeHash, hash) {

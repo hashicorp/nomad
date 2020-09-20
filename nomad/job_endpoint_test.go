@@ -1736,8 +1736,9 @@ func TestJobEndpoint_Register_Vault_MultiNamespaces(t *testing.T) {
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 	// OSS or Ent check
-	if s1.EnterpriseState.Features() == 0 {
-		require.Contains(t, err.Error(), "multiple vault namespaces requires Nomad Enterprise")
+	if err != nil && s1.EnterpriseState.Features() == 0 {
+		// errors.Is cannot be used because the RPC call break error wrapping.
+		require.Contains(t, err.Error(), ErrMultipleNamespaces.Error())
 	} else {
 		require.NoError(t, err)
 	}

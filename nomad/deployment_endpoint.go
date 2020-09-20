@@ -52,14 +52,15 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 				return err
 			}
 
+			// Re-check namespace in case it differs from request.
+			if out != nil && !allowNsOp(aclObj, out.Namespace) {
+				// hide this deployment, caller is not authorized to view it
+				out = nil
+			}
+
 			// Setup the output
 			reply.Deployment = out
 			if out != nil {
-				// Re-check namespace in case it differs from request.
-				if !allowNsOp(aclObj, out.Namespace) {
-					return structs.NewErrUnknownAllocation(args.DeploymentID)
-				}
-
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the deployments table

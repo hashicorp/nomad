@@ -34,6 +34,9 @@ const (
 	DispatchPayloadSizeLimit = 16 * 1024
 )
 
+// ErrMultipleNamespaces is send when multiple namespaces are used in the OSS setup
+var ErrMultipleNamespaces = errors.New("multiple Vault namespaces requires Nomad Enterprise")
+
 var (
 	// allowRescheduleTransition is the transition that allows failed
 	// allocations to be force rescheduled. We create a one off

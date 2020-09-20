@@ -508,11 +508,8 @@ github.com/hashicorp/vic/pkg/vsphere/tags
 github.com/hashicorp/yamux
 # github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
 ## explicit
-github.com/hpcloud/tail
-github.com/hpcloud/tail/ratelimiter
 github.com/hpcloud/tail/util
 github.com/hpcloud/tail/watch
-github.com/hpcloud/tail/winfile
 # github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07
 ## explicit
 github.com/ishidawataru/sctp
@@ -593,26 +590,6 @@ github.com/nicolai86/scaleway-sdk
 # github.com/oklog/run v1.0.1-0.20180308005104-6934b124db28
 ## explicit
 github.com/oklog/run
-# github.com/onsi/ginkgo v1.12.0
-## explicit
-github.com/onsi/ginkgo
-github.com/onsi/ginkgo/config
-github.com/onsi/ginkgo/internal/codelocation
-github.com/onsi/ginkgo/internal/containernode
-github.com/onsi/ginkgo/internal/failer
-github.com/onsi/ginkgo/internal/leafnodes
-github.com/onsi/ginkgo/internal/remote
-github.com/onsi/ginkgo/internal/spec
-github.com/onsi/ginkgo/internal/spec_iterator
-github.com/onsi/ginkgo/internal/specrunner
-github.com/onsi/ginkgo/internal/suite
-github.com/onsi/ginkgo/internal/testingtproxy
-github.com/onsi/ginkgo/internal/writer
-github.com/onsi/ginkgo/reporters
-github.com/onsi/ginkgo/reporters/stenographer
-github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable
-github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
-github.com/onsi/ginkgo/types
 # github.com/onsi/gomega v1.9.0
 ## explicit
 github.com/onsi/gomega

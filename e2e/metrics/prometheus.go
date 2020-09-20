@@ -17,7 +17,7 @@ func (tc *MetricsTest) setUpPrometheus(f *framework.F) error {
 	uuid := uuid.Generate()
 	fabioID := "fabio" + uuid[0:8]
 	fabioAllocs := e2eutil.RegisterAndWaitForAllocs(f.T(), tc.Nomad(),
-		"fabio/fabio.nomad", fabioID, "")
+		"metrics/input/fabio.nomad", fabioID, "")
 	if len(fabioAllocs) < 1 {
 		return fmt.Errorf("fabio failed to start")
 	}
@@ -36,7 +36,7 @@ func (tc *MetricsTest) setUpPrometheus(f *framework.F) error {
 	tc.fabioAddress = fmt.Sprintf("http://%s:9999", publicIP)
 	prometheusID := "prometheus" + uuid[0:8]
 	prometheusAllocs := e2eutil.RegisterAndWaitForAllocs(f.T(), tc.Nomad(),
-		"prometheus/prometheus.nomad", prometheusID, "")
+		"metrics/input/prometheus.nomad", prometheusID, "")
 	if len(prometheusAllocs) < 1 {
 		return fmt.Errorf("prometheus failed to start")
 	}
