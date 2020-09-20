@@ -13,6 +13,7 @@ import (
 	"github.com/docker/cli/cli/config/credentials"
 	"github.com/docker/cli/cli/config/types"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -177,7 +178,7 @@ func (configFile *ConfigFile) SaveToWriter(writer io.Writer) error {
 }
 
 // Save encodes and writes out all the authorization information
-func (configFile *ConfigFile) Save() error {
+func (configFile *ConfigFile) Save() (retErr error) {
 	if configFile.Filename == "" {
 		return errors.Errorf("Can't save config with empty filename")
 	}
@@ -190,12 +191,26 @@ func (configFile *ConfigFile) Save() error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		temp.Close()
+		if retErr != nil {
+			if err := os.Remove(temp.Name()); err != nil {
+				logrus.WithError(err).WithField("file", temp.Name()).Debug("Error cleaning up temp file")
+			}
+		}
+	}()
+
 	err = configFile.SaveToWriter(temp)
-	temp.Close()
 	if err != nil {
-		os.Remove(temp.Name())
 		return err
 	}
+
+	if err := temp.Close(); err != nil {
+		return errors.Wrap(err, "error closing temp file")
+	}
+
+	// Try copying the current config file (if any) ownership and permissions
+	copyFilePermissions(configFile.Filename, temp.Name())
 	return os.Rename(temp.Name(), configFile.Filename)
 }
 
