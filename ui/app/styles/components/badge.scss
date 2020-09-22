@@ -43,6 +43,10 @@
     color: darken($grey-blue, 30%);
     background: lighten($grey-blue, 10%);
   }
+
+  &.is-warning {
+    background-color: darken($orange, 20%);
+  }
 }
 
 button.badge {

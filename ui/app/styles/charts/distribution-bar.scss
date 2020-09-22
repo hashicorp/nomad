@@ -74,11 +74,11 @@
         }
 
         &.is-empty {
-          color: darken($grey-blue, 20%);
+          color: darken($grey-blue, 30%);
           border: none;
 
           .label {
-            color: darken($grey-blue, 20%);
+            color: darken($grey-blue, 30%);
           }
         }
       }

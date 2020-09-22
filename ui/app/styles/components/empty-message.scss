@@ -5,17 +5,17 @@
 
   .empty-message-headline {
     font-size: $size-3;
-    color: $grey;
+    color: $grey-dark;
     text-align: center;
   }
 
   .empty-message-body {
     padding: 0 20%;
     text-align: center;
-    color: $grey;
+    color: $grey-dark;
 
     strong {
-      color: $grey;
+      color: $grey-dark;
     }
   }
 

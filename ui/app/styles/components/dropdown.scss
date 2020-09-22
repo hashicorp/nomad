@@ -127,7 +127,7 @@
 
 .ember-power-select-prefix,
 .dropdown-prefix {
-  color: $grey;
+  color: $grey-dark;
 }
 
 .ember-power-select-option,
@@ -192,6 +192,6 @@
   .dropdown-empty {
     display: block;
     padding: 8px 12px;
-    color: $grey-light;
+    color: $grey-dark;
   }
 }

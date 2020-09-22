@@ -54,14 +54,6 @@ export default class Deployment extends Model {
 
   @computed('status')
   get statusClass() {
-    const classMap = {
-      running: 'is-running',
-      successful: 'is-primary',
-      paused: 'is-light',
-      failed: 'is-error',
-      cancelled: 'is-cancelled',
-    };
-
     return classMap[this.status] || 'is-dark';
   }
 
@@ -70,3 +62,13 @@ export default class Deployment extends Model {
     return this.store.adapterFor('deployment').promote(this);
   }
 }
+
+const classMap = {
+  running: 'is-running',
+  successful: 'is-primary',
+  paused: 'is-light',
+  failed: 'is-error',
+  cancelled: 'is-cancelled',
+};
+
+export const STATUS_CLASSES = Object.values(classMap).concat('is-dark');

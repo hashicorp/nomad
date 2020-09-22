@@ -1,4 +1,4 @@
-$dark-bright: lighten($dark, 15%);
+$dark-bright: lighten($dark, 45%);
 
 .CodeMirror {
   height: auto;
@@ -52,7 +52,7 @@ $dark-bright: lighten($dark, 15%);
   }
 
   span.cm-number {
-    color: $serf-red;
+    color: lighten($serf-red, 10%);
   }
 
   span.cm-variable {
@@ -75,7 +75,7 @@ $dark-bright: lighten($dark, 15%);
   }
 
   span.cm-atom {
-    color: $terraform-purple-bright;
+    color: lighten($terraform-purple-bright, 10%);
   }
 
   span.cm-meta {

@@ -111,7 +111,7 @@
 
     &.is-#{$name} {
       > .boxed-section-head {
-        background: $color;
+        background: darken($color, 10%);
         border-color: $color;
         color: $color-invert;
       }
