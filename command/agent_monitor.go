@@ -22,14 +22,14 @@ func (c *MonitorCommand) Help() string {
 	helpText := `
 Usage: nomad monitor [options]
 
-	Stream log messages of a nomad agent. The monitor command lets you
-	listen for log levels that may be filtered out of the Nomad agent. For
-	example your agent may only be logging at INFO level, but with the monitor
-	command you can set -log-level DEBUG
+  Stream log messages of a nomad agent. The monitor command lets you
+  listen for log levels that may be filtered out of the Nomad agent. For
+  example your agent may only be logging at INFO level, but with the monitor
+  command you can set -log-level DEBUG
 
 General Options:
 
-	` + generalOptionsUsage() + `
+  ` + generalOptionsUsage() + `
 
 Monitor Specific Options:
 

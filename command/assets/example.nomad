@@ -142,6 +142,49 @@ job "example" {
     # to 1.
     count = 1
 
+    # The "network" stanza specifies the network configuration for the allocation
+    # including requesting port bindings.
+    #
+    # For more information and examples on the "network" stanza, please see
+    # the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/network
+    #
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
+
+    # The "service" stanza instructs Nomad to register this task as a service
+    # in the service discovery engine, which is currently Consul. This will
+    # make the service addressable after Nomad has placed it on a host and
+    # port.
+    #
+    # For more information and examples on the "service" stanza, please see
+    # the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/service
+    #
+    service {
+      name = "redis-cache"
+      tags = ["global", "cache"]
+      port = "db"
+
+      # The "check" stanza instructs Nomad to create a Consul health check for
+      # this service. A sample check is provided here for your convenience;
+      # uncomment it to enable it. The "check" stanza is documented in the
+      # "service" stanza documentation.
+
+      # check {
+      #   name     = "alive"
+      #   type     = "tcp"
+      #   interval = "10s"
+      #   timeout  = "2s"
+      # }
+
+    }
+
     # The "restart" stanza configures a group's behavior on task failure. If
     # left unspecified, a default restart policy is used based on the job type.
     #
@@ -261,9 +304,7 @@ job "example" {
       config {
         image = "redis:3.2"
 
-        port_map {
-          db = 6379
-        }
+        ports = ["db"]
       }
 
       # The "artifact" stanza instructs Nomad to download an artifact from a
@@ -301,7 +342,7 @@ job "example" {
       # }
 
       # The "resources" stanza describes the requirements a task needs to
-      # execute. Resource requirements include memory, network, cpu, and more.
+      # execute. Resource requirements include memory, cpu, and more.
       # This ensures the task will execute on a machine that contains enough
       # resource capacity.
       #
@@ -313,40 +354,8 @@ job "example" {
       resources {
         cpu    = 500 # 500 MHz
         memory = 256 # 256MB
-
-        network {
-          mbits = 10
-          port "db" {}
-        }
       }
-      # The "service" stanza instructs Nomad to register this task as a service
-      # in the service discovery engine, which is currently Consul. This will
-      # make the service addressable after Nomad has placed it on a host and
-      # port.
-      #
-      # For more information and examples on the "service" stanza, please see
-      # the online documentation at:
-      #
-      #     https://www.nomadproject.io/docs/job-specification/service
-      #
-      service {
-        name = "redis-cache"
-        tags = ["global", "cache"]
-        port = "db"
 
-        # The "check" stanza instructs Nomad to create a Consul health check for
-        # this service. A sample check is provided here for your convenience;
-        # uncomment it to enable it. The "check" stanza is documented in the
-        # "service" stanza documentation.
-
-        # check {
-        #   name     = "alive"
-        #   type     = "tcp"
-        #   interval = "10s"
-        #   timeout  = "2s"
-        # }
-
-      }
 
       # The "template" stanza instructs Nomad to manage a template, such as
       # a configuration file or script. This template can optionally pull data

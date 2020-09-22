@@ -51,7 +51,7 @@ func (j *Job) multiVaultNamespaceValidation(
 ) error {
 	requestedNamespaces := structs.VaultNamespaceSet(policies)
 	if len(requestedNamespaces) > 0 {
-		return fmt.Errorf("multiple vault namespaces requires Nomad Enterprise, Namespaces: %s", strings.Join(requestedNamespaces, ", "))
+		return fmt.Errorf("%w, Namespaces: %s", ErrMultipleNamespaces, strings.Join(requestedNamespaces, ", "))
 	}
 	return nil
 }

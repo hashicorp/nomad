@@ -1,13 +1,15 @@
 package consulacls
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/hashicorp/nomad/e2e/framework/provisioning"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -50,21 +52,18 @@ func New(tfStateFile string) (*tfManager, error) {
 }
 
 func (m *tfManager) Enable(t *testing.T) string {
-	// Create the local script runner that will be used to run the ACL management
-	// script, this time with the "enable" sub-command.
-	var runner provisioning.LinuxRunner
-	err := runner.Open(t)
-	require.NoError(t, err)
-
 	// Run the consul ACL bootstrap script, which will store the master token
 	// in the deterministic path based on the TF state serial number. If the
 	// bootstrap process had already taken place, ACLs will be activated but
 	// without going through the bootstrap process again, re-using the already
 	// existing Consul ACL master token.
-	err = runner.Run(strings.Join([]string{
-		"consulacls/consul-acls-manage.sh", "enable",
-	}, " "))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	response, err := exec.CommandContext(ctx,
+		"consulacls/consul-acls-manage.sh", "enable").CombinedOutput()
 	require.NoError(t, err)
+	fmt.Println(response)
 
 	// Read the Consul ACL master token that was generated (or if the token
 	// already existed because the bootstrap process had already taken place,
@@ -109,16 +108,13 @@ func (m *tfManager) readToken() (string, error) {
 }
 
 func (m *tfManager) Disable(t *testing.T) {
-	// Create the local script runner that will be used to run the ACL management
-	// script, this time with the "disable" sub-command.
-	var runner provisioning.LinuxRunner
-	err := runner.Open(t)
-	require.NoError(t, err)
-
 	// Run the consul ACL bootstrap script, which will modify the Consul Server
 	// ACL policies to disable ACLs, and then restart those agents.
-	err = runner.Run(strings.Join([]string{
-		"consulacls/consul-acls-manage.sh", "disable",
-	}, " "))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	response, err := exec.CommandContext(ctx,
+		"consulacls/consul-acls-manage.sh", "disable").CombinedOutput()
 	require.NoError(t, err)
+	fmt.Println(response)
 }

@@ -19,6 +19,18 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     });
   }
 
+  setupController(controller, model) {
+    // Parameterized and periodic detail pages, which list children jobs,
+    // should sort by submit time.
+    if (model && ['periodic', 'parameterized'].includes(model.templateType)) {
+      controller.setProperties({
+        sortProperty: 'submitTime',
+        sortDescending: true,
+      });
+    }
+    return super.setupController(...arguments);
+  }
+
   @watchRecord('job') watch;
   @watchAll('job') watchAll;
   @watchRecord('job-summary') watchSummary;

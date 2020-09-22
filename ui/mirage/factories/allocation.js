@@ -11,7 +11,7 @@ const DESIRED_STATUSES = ['run', 'stop', 'evict'];
 const REF_TIME = new Date();
 
 export default Factory.extend({
-  id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
+  id: (i) => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
 
   jobVersion: 1,
 
@@ -40,16 +40,18 @@ export default Factory.extend({
   withTaskWithPorts: trait({
     afterCreate(allocation, server) {
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
-      const resources = taskGroup.taskIds.map(id =>
-        server.create(
+      const resources = taskGroup.taskIds.map((id) => {
+        const task = server.db.tasks.find(id);
+        return server.create(
           'task-resource',
           {
             allocation,
-            name: server.db.tasks.find(id).name,
+            name: task.name,
+            resources: task.Resources,
           },
           'withReservedPorts'
-        )
-      );
+        );
+      });
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
     },
@@ -58,16 +60,18 @@ export default Factory.extend({
   withoutTaskWithPorts: trait({
     afterCreate(allocation, server) {
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
-      const resources = taskGroup.taskIds.map(id =>
-        server.create(
+      const resources = taskGroup.taskIds.map((id) => {
+        const task = server.db.tasks.find(id);
+        return server.create(
           'task-resource',
           {
             allocation,
-            name: server.db.tasks.find(id).name,
+            name: task.name,
+            resources: task.Resources,
           },
           'withoutReservedPorts'
-        )
-      );
+        );
+      });
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
     },
@@ -184,19 +188,21 @@ export default Factory.extend({
     });
 
     if (!allocation.shallow) {
-      const states = taskGroup.taskIds.map(id =>
+      const states = taskGroup.taskIds.map((id) =>
         server.create('task-state', {
           allocation,
           name: server.db.tasks.find(id).name,
         })
       );
 
-      const resources = taskGroup.taskIds.map(id =>
-        server.create('task-resource', {
+      const resources = taskGroup.taskIds.map((id) => {
+        const task = server.db.tasks.find(id);
+        return server.create('task-resource', {
           allocation,
-          name: server.db.tasks.find(id).name,
-        })
-      );
+          name: task.name,
+          resources: task.Resources,
+        });
+      });
 
       allocation.update({
         taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),

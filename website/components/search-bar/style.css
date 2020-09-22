@@ -1,6 +1,6 @@
 .g-search {
+  width: calc(100% - 2rem);
   max-width: 600px;
-  margin-left: 0 !important;
 
   & .c-hits .ais-Highlight-highlighted {
     background-color: #c1f1e0;

@@ -1903,7 +1903,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 
 	// Actually delete
 	const deletionIndex = uint64(10001)
-	err = state.WithWriteTransaction(func(txn Txn) error {
+	err = state.WithWriteTransaction(deletionIndex, func(txn Txn) error {
 		for i, job := range jobs {
 			err := state.DeleteJobTxn(deletionIndex, job.Namespace, job.ID, txn)
 			require.NoError(t, err, "failed at %d %e", i, err)
@@ -6053,19 +6053,20 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
 	t.Parallel()
 
+	index := uint64(0)
 	state := testStateStore(t)
-	txn := state.db.Txn(true)
+	txn := state.db.WriteTxn(index)
 
 	// Create and insert a mock job.
 	job := mock.Job()
 	job.Status = ""
-	job.ModifyIndex = 0
+	job.ModifyIndex = index
 	if err := txn.Insert("jobs", job); err != nil {
 		t.Fatalf("job insert failed: %v", err)
 	}
 
 	exp := "foobar"
-	index := uint64(1000)
+	index = uint64(1000)
 	if err := state.setJobStatus(index, txn, job, false, exp); err != nil {
 		t.Fatalf("setJobStatus() failed: %v", err)
 	}
@@ -6088,8 +6089,9 @@ func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
 func TestStateStore_SetJobStatus_NoOp(t *testing.T) {
 	t.Parallel()
 
+	index := uint64(0)
 	state := testStateStore(t)
-	txn := state.db.Txn(true)
+	txn := state.db.WriteTxn(index)
 
 	// Create and insert a mock job that should be pending.
 	job := mock.Job()
@@ -6099,7 +6101,7 @@ func TestStateStore_SetJobStatus_NoOp(t *testing.T) {
 		t.Fatalf("job insert failed: %v", err)
 	}
 
-	index := uint64(1000)
+	index = uint64(1000)
 	if err := state.setJobStatus(index, txn, job, false, ""); err != nil {
 		t.Fatalf("setJobStatus() failed: %v", err)
 	}
@@ -6119,7 +6121,7 @@ func TestStateStore_SetJobStatus(t *testing.T) {
 	t.Parallel()
 
 	state := testStateStore(t)
-	txn := state.db.Txn(true)
+	txn := state.db.WriteTxn(uint64(0))
 
 	// Create and insert a mock job that should be pending but has an incorrect
 	// status.
@@ -6155,7 +6157,7 @@ func TestStateStore_GetJobStatus_NoEvalsOrAllocs(t *testing.T) {
 
 	job := mock.Job()
 	state := testStateStore(t)
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, false)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6171,7 +6173,7 @@ func TestStateStore_GetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
 
 	job := mock.PeriodicJob()
 	state := testStateStore(t)
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, false)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6187,7 +6189,7 @@ func TestStateStore_GetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
 
 	job := mock.Job()
 	state := testStateStore(t)
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, true)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6221,7 +6223,7 @@ func TestStateStore_GetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, false)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6247,7 +6249,7 @@ func TestStateStore_GetJobStatus_RunningAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, true)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6264,7 +6266,7 @@ func TestStateStore_GetJobStatus_PeriodicJob(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.PeriodicJob()
 
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, false)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6293,7 +6295,7 @@ func TestStateStore_GetJobStatus_ParameterizedJob(t *testing.T) {
 	job := mock.Job()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, false)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6329,7 +6331,7 @@ func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, true)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -6357,7 +6359,7 @@ func TestStateStore_SetJobStatus_SystemJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	txn := state.db.Txn(false)
+	txn := state.db.ReadTxn()
 	status, err := state.getJobStatus(txn, job, true)
 	if err != nil {
 		t.Fatalf("getJobStatus() failed: %v", err)
@@ -8693,7 +8695,6 @@ func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
 	}
 	require.ElementsMatch([]string{policy2.ID}, policiesInNS2)
 }
-
 
 func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 	t.Parallel()

@@ -71,7 +71,7 @@ install_release()
 
 install_release "consul" "1.8.3"
 install_release "vault" "1.5.3"
-install_release "nomad" "0.12.3"
+install_release "nomad" "0.12.5"
 install_release "packer" "1.6.2"
 install_release "terraform" "0.13.2"
 install_release "consul-template" "0.25.1"
@@ -116,6 +116,7 @@ sudo chmod 755 $CONSULTEMPLATECONFIGDIR $CONSULTEMPLATEDIR
 
 ## Everything below here is installed in service to Nomad Clients.
 ## Should this be done in a different image?
+
 
 # Docker
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')

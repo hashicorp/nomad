@@ -51,6 +51,20 @@ export default create({
 
   viewAllAllocations: text('[data-test-view-all-allocations]'),
 
+  jobs: collection('[data-test-job-row]', {
+    id: attribute('data-test-job-row'),
+    name: text('[data-test-job-name]'),
+    link: attribute('href', '[data-test-job-name] a'),
+    submitTime: text('[data-test-job-submit-time]'),
+    status: text('[data-test-job-status]'),
+    type: text('[data-test-job-type]'),
+    priority: text('[data-test-job-priority]'),
+    taskGroups: text('[data-test-job-task-groups]'),
+
+    clickRow: clickable(),
+    clickName: clickable('[data-test-job-name] a'),
+  }),
+
   error: {
     isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),

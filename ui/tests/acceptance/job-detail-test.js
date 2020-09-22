@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import moment from 'moment';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
@@ -14,12 +15,42 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
   server.create('job', { type: 'system', shallow: true })
 );
-moduleForJob('Acceptance | job detail (periodic)', 'children', () =>
-  server.create('job', 'periodic', { shallow: true })
+moduleForJob(
+  'Acceptance | job detail (periodic)',
+  'children',
+  () => server.create('job', 'periodic', { shallow: true }),
+  {
+    'the default sort is submitTime descending': async function (job, assert) {
+      const mostRecentLaunch = server.db.jobs
+        .where({ parentId: job.id })
+        .sortBy('submitTime')
+        .reverse()[0];
+
+      assert.equal(
+        JobDetail.jobs[0].submitTime,
+        moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
+      );
+    },
+  }
 );
 
-moduleForJob('Acceptance | job detail (parameterized)', 'children', () =>
-  server.create('job', 'parameterized', { shallow: true })
+moduleForJob(
+  'Acceptance | job detail (parameterized)',
+  'children',
+  () => server.create('job', 'parameterized', { shallow: true }),
+  {
+    'the default sort is submitTime descending': async (job, assert) => {
+      const mostRecentLaunch = server.db.jobs
+        .where({ parentId: job.id })
+        .sortBy('submitTime')
+        .reverse()[0];
+
+      assert.equal(
+        JobDetail.jobs[0].submitTime,
+        moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
+      );
+    },
+  }
 );
 
 moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
@@ -49,7 +80,7 @@ moduleForJob(
 
       assert.equal(
         server.pretender.handledRequests
-          .filter(request => !request.url.includes('policy'))
+          .filter((request) => !request.url.includes('policy'))
           .findBy('status', 404).url,
         '/v1/job/not-a-real-job',
         'A request to the nonexistent job is made'
@@ -61,13 +92,13 @@ moduleForJob(
   }
 );
 
-module('Acceptance | job detail (with namespaces)', function(hooks) {
+module('Acceptance | job detail (with namespaces)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   let job, clientToken;
 
-  hooks.beforeEach(function() {
+  hooks.beforeEach(function () {
     server.createList('namespace', 2);
     server.create('node');
     job = server.create('job', {
@@ -81,22 +112,22 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     clientToken = server.create('token');
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  test('it passes an accessibility audit', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
     await a11yAudit(assert);
   });
 
-  test('when there are namespaces, the job detail page states the namespace for the job', async function(assert) {
+  test('when there are namespaces, the job detail page states the namespace for the job', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
 
     assert.ok(JobDetail.statFor('namespace').text, 'Namespace included in stats');
   });
 
-  test('when switching namespaces, the app redirects to /jobs with the new namespace', async function(assert) {
+  test('when switching namespaces, the app redirects to /jobs with the new namespace', async function (assert) {
     const namespace = server.db.namespaces.find(job.namespaceId);
-    const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
+    const otherNamespace = server.db.namespaces.toArray().find((ns) => ns !== namespace).name;
     const label = otherNamespace === 'default' ? 'Default Namespace' : otherNamespace;
 
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
@@ -116,7 +147,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     });
   });
 
-  test('the exec button state can change between namespaces', async function(assert) {
+  test('the exec button state can change between namespaces', async function (assert) {
     const job1 = server.create('job', {
       status: 'running',
       namespaceId: server.db.namespaces[0].id,
@@ -156,7 +187,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.ok(JobDetail.execButton.isDisabled);
   });
 
-  test('the anonymous policy is fetched to check whether to show the exec button', async function(assert) {
+  test('the anonymous policy is fetched to check whether to show the exec button', async function (assert) {
     window.localStorage.removeItem('nomadTokenSecret');
 
     server.create('policy', {

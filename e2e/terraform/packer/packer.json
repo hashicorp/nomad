@@ -16,23 +16,13 @@
   "provisioners": [
     {
       "type": "file",
-      "source": "./linux/install-nomad",
-      "destination": "/tmp/install-nomad"
+      "source": "./linux",
+      "destination": "/tmp/linux"
     },
     {
       "type": "file",
-      "source": "./linux/nomad.service",
-      "destination": "/tmp/nomad.service"
-    },
-    {
-      "type": "file",
-      "source": "./linux/consul_aws.service",
-      "destination": "/tmp/consul.service"
-    },
-    {
-      "type": "file",
-      "source": "./linux/vault.service",
-      "destination": "/tmp/vault.service"
+      "source": "../config",
+      "destination": "/tmp/config"
     },
     {
       "type": "shell",

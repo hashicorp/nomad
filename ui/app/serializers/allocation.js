@@ -5,7 +5,7 @@ import classic from 'ember-classic-decorator';
 
 const taskGroupFromJob = (job, taskGroupName) => {
   const taskGroups = job && job.TaskGroups;
-  const taskGroup = taskGroups && taskGroups.find(group => group.Name === taskGroupName);
+  const taskGroup = taskGroups && taskGroups.find((group) => group.Name === taskGroupName);
   return taskGroup ? taskGroup : null;
 };
 
@@ -24,13 +24,15 @@ export default class AllocationSerializer extends ApplicationSerializer {
     // Transform the map-based TaskStates object into an array-based
     // TaskState fragment list
     const states = hash.TaskStates || {};
-    hash.TaskStates = Object.keys(states).map(key => {
-      const state = states[key] || {};
-      const summary = { Name: key };
-      Object.keys(state).forEach(stateKey => (summary[stateKey] = state[stateKey]));
-      summary.Resources = hash.TaskResources && hash.TaskResources[key];
-      return summary;
-    });
+    hash.TaskStates = Object.keys(states)
+      .sort()
+      .map((key) => {
+        const state = states[key] || {};
+        const summary = { Name: key };
+        Object.keys(state).forEach((stateKey) => (summary[stateKey] = state[stateKey]));
+        summary.Resources = hash.TaskResources && hash.TaskResources[key];
+        return summary;
+      });
 
     hash.JobVersion = hash.JobVersion != null ? hash.JobVersion : get(hash, 'Job.Version');
 

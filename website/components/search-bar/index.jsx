@@ -13,7 +13,16 @@ export default function SearchBar() {
           </span>
         </>
       )}
+      resolveHitLink={(hit) => ({
+        href: {
+          pathname: `/${transformIdtoUrl(hit.objectID)}`,
+        },
+      })}
       placeholder="Search Nomad documentation"
     />
   )
+}
+
+function transformIdtoUrl(id) {
+  return id.replace(/\/index$/, '')
 }
