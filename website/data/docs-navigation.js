@@ -9,7 +9,7 @@ export default [
   {
     category: 'install',
     content: [
-      { category: 'quickstart' },
+      'quickstart',
       {
         category: 'production',
         content: [
@@ -268,6 +268,6 @@ export default [
   },
   { category: 'telemetry', content: ['metrics'] },
   '------------',
-  { category: 'enterprise' },
+  'enterprise',
   'faq',
 ]
