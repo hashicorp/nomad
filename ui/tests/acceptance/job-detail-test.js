@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import moment from 'moment';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
@@ -14,12 +15,42 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
   server.create('job', { type: 'system', shallow: true })
 );
-moduleForJob('Acceptance | job detail (periodic)', 'children', () =>
-  server.create('job', 'periodic', { shallow: true })
+moduleForJob(
+  'Acceptance | job detail (periodic)',
+  'children',
+  () => server.create('job', 'periodic', { shallow: true }),
+  {
+    'the default sort is submitTime descending': async function(job, assert) {
+      const mostRecentLaunch = server.db.jobs
+        .where({ parentId: job.id })
+        .sortBy('submitTime')
+        .reverse()[0];
+
+      assert.equal(
+        JobDetail.jobs[0].submitTime,
+        moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
+      );
+    },
+  }
 );
 
-moduleForJob('Acceptance | job detail (parameterized)', 'children', () =>
-  server.create('job', 'parameterized', { shallow: true })
+moduleForJob(
+  'Acceptance | job detail (parameterized)',
+  'children',
+  () => server.create('job', 'parameterized', { shallow: true }),
+  {
+    'the default sort is submitTime descending': async (job, assert) => {
+      const mostRecentLaunch = server.db.jobs
+        .where({ parentId: job.id })
+        .sortBy('submitTime')
+        .reverse()[0];
+
+      assert.equal(
+        JobDetail.jobs[0].submitTime,
+        moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
+      );
+    },
+  }
 );
 
 moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {

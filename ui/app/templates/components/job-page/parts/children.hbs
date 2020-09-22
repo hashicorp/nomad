@@ -14,6 +14,7 @@
         @class="with-foot" as |t|>
         <t.head>
           <t.sort-by @prop="name">Name</t.sort-by>
+          <t.sort-by @prop="submitTime">Submitted At</t.sort-by>
           <t.sort-by @prop="status">Status</t.sort-by>
           <t.sort-by @prop="type">Type</t.sort-by>
           <t.sort-by @prop="priority">Priority</t.sort-by>
@@ -21,16 +22,17 @@
           <th class="is-3">Summary</th>
         </t.head>
         <t.body @key="model.id" as |row|>
-          <JobRow data-test-job-row @job={{row.model}} @onClick={{action this.gotoJob row.model}} />
+          <JobRow data-test-job-row @job={{row.model}} @context="child" @onClick={{action this.gotoJob row.model}} />
         </t.body>
       </ListTable>
       <div class="table-foot">
+        <PageSizeSelect @onChange={{action this.resetPagination}} />
         <nav class="pagination">
           <div class="pagination-numbers">
             {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedChildren.length}}
           </div>
-          <p.prev @class="pagination-previous"> &lt; </p.prev>
-          <p.next @class="pagination-next"> &gt; </p.next>
+          <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
+          <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
           <ul class="pagination-list"></ul>
         </nav>
       </div>
