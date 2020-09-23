@@ -4,6 +4,7 @@ import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
+const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
 const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
@@ -19,6 +20,7 @@ export default Factory.extend({
   },
 
   version: 1,
+  submitTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
 
   // When provided, the resourceSpec will inform how many task groups to create
   // and how much of each resource that task group reserves.

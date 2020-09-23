@@ -712,6 +712,29 @@ func TestFSM_RegisterJob_BadNamespace(t *testing.T) {
 	}
 }
 
+func TestFSM_DeregisterJob_Error(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	job := mock.Job()
+
+	deregReq := structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Namespace: job.Namespace,
+		},
+	}
+	buf, err := structs.Encode(structs.JobDeregisterRequestType, deregReq)
+	require.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.NotNil(t, resp)
+	respErr, ok := resp.(error)
+	require.Truef(t, ok, "expected response to be an error but found: %T", resp)
+	require.Error(t, respErr)
+}
+
 func TestFSM_DeregisterJob_Purge(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)

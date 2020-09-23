@@ -12,6 +12,10 @@ export default class JobRow extends Component {
 
   job = null;
 
+  // One of independent, parent, or child. Used to customize the template
+  // based on the relationship of this job to others.
+  context = 'independent';
+
   onClick() {}
 
   click(event) {

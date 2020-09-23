@@ -7,6 +7,8 @@ export default class JobSerializer extends ApplicationSerializer {
     parameterized: 'ParameterizedJob',
   };
 
+  separateNanos = ['SubmitTime'];
+
   normalize(typeHash, hash) {
     hash.NamespaceID = hash.Namespace;
 

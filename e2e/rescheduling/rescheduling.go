@@ -265,7 +265,7 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
 			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID) },
-			func(got []string) bool { return len(got) == 0 }, nil,
+			func(got []string) bool { return len(got) > 0 }, nil,
 		),
 		"should have new allocs after update",
 	)
@@ -354,7 +354,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
 			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID) },
-			func(got []string) bool { return len(got) == 0 }, nil,
+			func(got []string) bool { return len(got) > 0 }, nil,
 		),
 		"should have new allocs after update",
 	)
