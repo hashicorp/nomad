@@ -17,6 +17,22 @@ sudo mv /tmp/resolv.conf /etc/resolv.conf
 # For host volume testing
 sudo mkdir -p /tmp/data
 
+# need to get the interface for dnsmasq config so that we can
+# accomodate both "predictable" and old-style interface names
+IFACE=$(/usr/local/bin/sockaddr eval 'GetDefaultInterfaces | attr "Name"')
+
+cat <<EOF > /tmp/dnsmasq
+port=53
+resolv-file=/var/run/dnsmasq/resolv.conf
+bind-interfaces
+interface=docker0
+interface=lo
+interface=$IFACE
+listen-address=127.0.0.1
+server=/consul/127.0.0.1#8600
+EOF
+sudo mv /tmp/dnsmasq /etc/dnsmasq.d/default
+
 # need to get the AWS DNS address from the VPC...
 # this is pretty hacky but will work for any typical case
 MAC=$(curl -s --fail http://169.254.169.254/latest/meta-data/mac)
