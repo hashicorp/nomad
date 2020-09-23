@@ -24,6 +24,25 @@ func TestStateStore(t testing.T) *StateStore {
 	return state
 }
 
+func TestStateStorePublisher(t testing.T) *StateStoreConfig {
+	return &StateStoreConfig{
+		Logger:          testlog.HCLogger(t),
+		Region:          "global",
+		EnablePublisher: true,
+	}
+}
+func TestStateStoreCfg(t testing.T, cfg *StateStoreConfig) *StateStore {
+	state, err := NewStateStore(cfg)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if state == nil {
+		t.Fatalf("missing state")
+	}
+	return state
+}
+
 // CreateTestCSIPlugin is a helper that generates the node + fingerprint results necessary
 // to create a CSIPlugin by directly inserting into the state store. The plugin requires a
 // controller.
