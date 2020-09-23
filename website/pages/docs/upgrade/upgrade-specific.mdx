@@ -35,7 +35,7 @@ detailing the missing capability.
 Enterprise binaries for Nomad are now publicly available via
 [releases.hashicorp.com](https://releases.hashicorp.com/nomad/). By default all
 enterprise features are enabled for 6 hours. During that time enterprise users
-should apply their license with the [`nomad license put ...`](https://www.nomadproject.io/docs/commands/license/put) command.
+should apply their license with the [`nomad license put ...`](/docs/commands/license/put) command.
 
 Once the 6 hour demonstration period expires, Nomad will shutdown. If restarted
 Nomad will shutdown in a very short amount of time unless a valid license is
@@ -362,7 +362,7 @@ not the container's.
 
 Nomad 0.10 introduced Task Group Networking which natively supports port
 mapping without relying on task driver specific `port_map` fields. The
-[`to`](/docs/job-specification/network/#to) field on group network port stanzas
+[`to`](/docs/job-specification/network#to) field on group network port stanzas
 will be interpolated properly. Please see the
 [`network`](/docs/job-specification/network/) stanza documentation for details.
 
