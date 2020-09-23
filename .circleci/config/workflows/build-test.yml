@@ -16,8 +16,11 @@ jobs:
             - /^.-ui\b.*/
             - /^docs-.*/
             - stable-website
+
+    # Note: comment-out this job in ENT
   - build-darwin-binaries:
       filters: *backend_check_branches_filter
+
   - test-e2e:
       filters: *backend_check_branches_filter
 
@@ -28,7 +31,19 @@ jobs:
             - stable-website
             - /^docs-.*/
 
+    # Note: comment-out this job in ENT
   - test-windows:
+      filters:
+        branches:
+          ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+
+  - test-machine:
+      name: "test-client"
+      test_packages: "./client/..."
       # test branches are the branches that can impact unit tests
       filters: &backend_test_branches_filter
         branches:
@@ -37,10 +52,6 @@ jobs:
             - /^docs-.*/
             - /^e2e-.*/
             - stable-website
-  - test-machine:
-      name: "test-client"
-      test_packages: "./client/..."
-      filters: *backend_test_branches_filter
   - test-machine:
       name: "test-nomad"
       test_packages: "./nomad/..."
