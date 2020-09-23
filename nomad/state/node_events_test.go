@@ -81,6 +81,37 @@ func TestNodeRegisterEventFromChanges(t *testing.T) {
 			}},
 			WantErr: false,
 		},
+		{
+			MsgType:   structs.NodeDeregisterRequestType,
+			WantTopic: TopicNodeDeregistration,
+			Name:      "batch node deregistered",
+			Setup: func(s *StateStore, tx *txn) error {
+				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
+				return upsertNodeTxn(tx, tx.Index, testNode(nodeIDTwo))
+			},
+			Mutate: func(s *StateStore, tx *txn) error {
+				return deleteNodeTxn(tx, tx.Index, []string{testNodeID(), testNodeIDTwo()})
+			},
+			WantEvents: []stream.Event{
+				{
+					Topic: TopicNodeDeregistration,
+					Key:   testNodeID(),
+					Index: 100,
+					Payload: &NodeDeregistrationEvent{
+						NodeID: testNodeID(),
+					},
+				},
+				{
+					Topic: TopicNodeDeregistration,
+					Key:   testNodeIDTwo(),
+					Index: 100,
+					Payload: &NodeDeregistrationEvent{
+						NodeID: testNodeIDTwo(),
+					},
+				},
+			},
+			WantErr: false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -155,6 +186,10 @@ func nodeNotReady(n *structs.Node) {
 	n.Status = structs.NodeStatusInit
 }
 
+func nodeIDTwo(n *structs.Node) {
+	n.ID = testNodeIDTwo()
+}
+
 func testNode(opts ...nodeOpts) *structs.Node {
 	n := mock.Node()
 	n.ID = testNodeID()
@@ -169,4 +204,8 @@ func testNode(opts ...nodeOpts) *structs.Node {
 
 func testNodeID() string {
 	return "9d5741c1-3899-498a-98dd-eb3c05665863"
+}
+
+func testNodeIDTwo() string {
+	return "694ff31d-8c59-4030-ac83-e15692560c8d"
 }

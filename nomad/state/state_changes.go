@@ -88,7 +88,8 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 	return t
 }
 
-func (c *changeTrackerDB) WriteTxnWithCtx(ctx context.Context, idx uint64) *txn {
+// WriteTxnCtx is identical to WriteTxn but takes a ctx used for event sourcing
+func (c *changeTrackerDB) WriteTxnCtx(ctx context.Context, idx uint64) *txn {
 	t := &txn{
 		ctx:     ctx,
 		Txn:     c.db.Txn(true),
@@ -198,6 +199,5 @@ func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 	case structs.NodeDeregisterRequestType:
 		return NodeDeregisterEventFromChanges(tx, changes)
 	}
-	// TODO: add  handlers here.
 	return []stream.Event{}, nil
 }

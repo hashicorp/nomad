@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -19,12 +21,17 @@ type NodeDeregistrationEvent struct {
 	NodeID string
 }
 
+// NodeRegisterEventFromChanges generates a NodeRegistrationEvent from a set
+// of transaction changes.
 func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 	var events []stream.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
-			after := change.After.(*structs.Node)
+			after, ok := change.After.(*structs.Node)
+			if !ok {
+				return nil, fmt.Errorf("transaction change was not a Node")
+			}
 
 			event := stream.Event{
 				Topic: TopicNodeRegistration,
@@ -41,14 +48,19 @@ func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, 
 	return events, nil
 }
 
+// NodeDeregisterEventFromChanges generates a NodeDeregistrationEvent from a set
+// of transaction changes.
 func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
-	var event stream.Event
+	var events []stream.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
-			before := change.Before.(*structs.Node)
+			before, ok := change.Before.(*structs.Node)
+			if !ok {
+				return nil, fmt.Errorf("transaction change was not a Node")
+			}
 
-			event = stream.Event{
+			event := stream.Event{
 				Topic: TopicNodeDeregistration,
 				Index: changes.Index,
 				Key:   before.ID,
@@ -56,7 +68,8 @@ func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event
 					NodeID: before.ID,
 				},
 			}
+			events = append(events, event)
 		}
 	}
-	return []stream.Event{event}, nil
+	return events, nil
 }
