@@ -73,6 +73,11 @@ variable "nomad_local_binary" {
   default     = ""
 }
 
+variable "nomad_enterprise" {
+  type        = bool
+  description = "If nomad_sha is used, deploy Nomad Enterprise"
+  default     = false
+}
 # ----------------------------------------
 # If you want to deploy multiple versions you can use these variables to
 # provide a list of builds to override the values of nomad_sha, nomad_version,

@@ -17,6 +17,7 @@ Options for configuration:
  --role ROLE                role within config profile directory
  --index INDEX              count of instance, for profiles with per-instance config
  --nostart                  do not start or restart Nomad
+ --enterprise               if nomad_sha is passed, use the ENT version
 
 EOF
 
@@ -33,6 +34,7 @@ install_fn=
 NOMAD_PROFILE=
 NOMAD_ROLE=
 NOMAD_INDEX=
+BUILD_FOLDER="builds-oss"
 
 install_from_s3() {
     # check that we don't already have this version
@@ -41,7 +43,7 @@ install_from_s3() {
             && echo "$NOMAD_SHA already installed" && return
     fi
 
-    S3_URL="s3://nomad-team-dev-test-binaries/builds-oss/nomad_${PLATFORM}_${NOMAD_SHA}.tar.gz"
+    S3_URL="s3://nomad-team-dev-test-binaries/${BUILD_FOLDER}/nomad_${PLATFORM}_${NOMAD_SHA}.tar.gz"
     aws s3 cp --quiet "$S3_URL" nomad.tar.gz
     sudo tar -zxvf nomad.tar.gz -C "$INSTALL_DIR"
     set_ownership
@@ -151,6 +153,10 @@ opt="$1"
         --nostart)
             # for initial packer builds, we don't want to start Nomad
             START=0
+            shift
+            ;;
+        --enterprise)
+            BUILD_FOLDER="builds-ent"
             shift
             ;;
         *) usage ;;

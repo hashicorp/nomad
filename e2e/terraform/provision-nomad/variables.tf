@@ -22,6 +22,12 @@ variable "nomad_local_binary" {
   default     = ""
 }
 
+variable "nomad_enterprise" {
+  type        = bool
+  description = "If nomad_sha is used, deploy Nomad Enterprise"
+  default     = false
+}
+
 variable "profile" {
   type        = string
   description = "The name of the configuration profile (ex. 'full-cluster')"

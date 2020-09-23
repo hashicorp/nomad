@@ -22,6 +22,8 @@ module "nomad_server" {
   nomad_sha = count.index < length(var.nomad_sha_server) ? var.nomad_sha_server[count.index] : var.nomad_sha
 
   nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
+
+  nomad_enterprise = var.nomad_enterprise
 }
 
 module "nomad_client_linux" {
@@ -37,6 +39,8 @@ module "nomad_client_linux" {
   nomad_sha = count.index < length(var.nomad_sha_client_linux) ? var.nomad_sha_client_linux[count.index] : var.nomad_sha
 
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_linux) ? var.nomad_local_binary_client_linux[count.index] : var.nomad_local_binary
+
+  nomad_enterprise = var.nomad_enterprise
 }
 
 module "nomad_client_windows" {
@@ -52,4 +56,6 @@ module "nomad_client_windows" {
   nomad_sha = count.index < length(var.nomad_sha_client_windows) ? var.nomad_sha_client_windows[count.index] : var.nomad_sha
 
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_windows) ? var.nomad_local_binary_client_windows[count.index] : var.nomad_local_binary
+
+  nomad_enterprise = var.nomad_enterprise
 }
