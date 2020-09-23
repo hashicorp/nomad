@@ -17,14 +17,14 @@ job "demo2" {
 
       config {
         command = "bash"
-        args    = ["-c", "sleep 300"]
+        args    = ["-c", "exit 1"]
       }
     }
 
     update {
-      # we want the first allocation to take a while to become healthy,
-      # so that we can check the deployment's progress deadline before
-      # and after it becomes healthy
+      # we want the first allocation to take a while before we give up on it,
+      # so that we can check the deployment's progress deadline before and
+      # after it becomes healthy
       min_healthy_time  = "10s"
       healthy_deadline  = "15s"
       progress_deadline = "20s"

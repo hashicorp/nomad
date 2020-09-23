@@ -45,3 +45,29 @@ func WaitForLastDeploymentStatus(jobID, ns, status string, wc *WaitConfig) error
 	})
 	return err
 }
+
+func LastDeploymentID(jobID, ns string) (string, error) {
+
+	var nsArg = []string{}
+	if ns != "" {
+		nsArg = []string{"-namespace", ns}
+	}
+
+	cmd := []string{"nomad", "deployment", "list"}
+	cmd = append(cmd, nsArg...)
+
+	out, err := Command(cmd[0], cmd[1:]...)
+	if err != nil {
+		return "", fmt.Errorf("could not get deployment list: %v\n%v", err, out)
+	}
+	rows, err := ParseColumns(out)
+	if err != nil {
+		return "", fmt.Errorf("could not parse deployment list output: %w", err)
+	}
+	for _, row := range rows {
+		if row["Job ID"] == jobID {
+			return row["ID"], nil
+		}
+	}
+	return "", fmt.Errorf("could not find a recent deployment for job")
+}
