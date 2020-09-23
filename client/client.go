@@ -739,8 +739,7 @@ func (c *Client) Shutdown() error {
 	c.garbageCollector.Stop()
 
 	arGroup := group{}
-	if c.config.DevMode {
-		// In DevMode destroy all the running allocations.
+	if c.config.CleanupOnShutdown {
 		for _, ar := range c.getAllocRunners() {
 			ar.Destroy()
 			arGroup.AddCh(ar.DestroyCh())

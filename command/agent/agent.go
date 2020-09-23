@@ -629,6 +629,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.NoHostUUID = true
 	}
 
+	conf.CleanupOnShutdown = agentConfig.Client.CleanupOnShutdown
+
 	// Setup the ACLs
 	conf.ACLEnabled = agentConfig.ACL.Enabled
 	conf.ACLTokenTTL = agentConfig.ACL.TokenTTL

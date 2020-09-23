@@ -256,6 +256,10 @@ type ClientConfig struct {
 	// before garbage collection is triggered.
 	GCMaxAllocs int `hcl:"gc_max_allocs"`
 
+	// CleanupOnShutdown will cause the nomad client to destroy allocations
+	// on shutdown - cleaning up resources but preventing recovery
+	CleanupOnShutdown bool `hcl:"cleanup_on_shutdown"`
+
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `hcl:"no_host_uuid"`
@@ -831,6 +835,7 @@ func DevConfig(mode *devModeConfig) *Config {
 		DisableSandbox:    false,
 	}
 	conf.Client.BindWildcardDefaultHostNetwork = true
+	conf.Client.CleanupOnShutdown = true
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -865,6 +870,7 @@ func DefaultConfig() *Config {
 			GCDiskUsageThreshold:  80,
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
+			CleanupOnShutdown:     false,
 			NoHostUUID:            helper.BoolToPtr(true),
 			DisableRemoteExec:     false,
 			ServerJoin: &ServerJoin{
@@ -1485,6 +1491,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.GCMaxAllocs != 0 {
 		result.GCMaxAllocs = b.GCMaxAllocs
+	}
+	if b.CleanupOnShutdown {
+		result.CleanupOnShutdown = b.CleanupOnShutdown
 	}
 	// NoHostUUID defaults to true, merge if false
 	if b.NoHostUUID != nil {

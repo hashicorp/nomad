@@ -221,6 +221,10 @@ type Config struct {
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
 
+	// CleanupOnShutdown will cause the nomad client to destroy allocations
+	// on shutdown - cleaning up resources but preventing recovery
+	CleanupOnShutdown bool
+
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
 
@@ -324,6 +328,7 @@ func DefaultConfig() *Config {
 		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
+		CleanupOnShutdown:          false,
 		CNIPath:                    "/opt/cni/bin",
 		CNIConfigDir:               "/opt/cni/config",
 		CNIInterfacePrefix:         "eth",
