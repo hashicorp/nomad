@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -257,7 +258,10 @@ var (
 		// image to use when creating a network namespace parent container
 		"infra_image": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image", "string", false),
-			hclspec.NewLiteral(`"gcr.io/google_containers/pause-amd64:3.0"`),
+			hclspec.NewLiteral(fmt.Sprintf(
+				`"gcr.io/google_containers/pause-%s:3.1"`,
+				runtime.GOARCH,
+			)),
 		),
 		// timeout to use when pulling the infra image.
 		"infra_image_pull_timeout": hclspec.NewDefault(
