@@ -1,10 +1,16 @@
 package state
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/stream"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	CtxMsgType = "type"
 )
 
 // ReadTxn is implemented by memdb.Txn to perform read operations.
@@ -21,6 +27,7 @@ type Changes struct {
 	// Index is the latest index at the time these changes were committed.
 	Index   uint64
 	Changes memdb.Changes
+	MsgType structs.MessageType
 }
 
 // changeTrackerDB is a thin wrapper around memdb.DB which enables TrackChanges on
@@ -81,6 +88,18 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 	return t
 }
 
+// WriteTxnCtx is identical to WriteTxn but takes a ctx used for event sourcing
+func (c *changeTrackerDB) WriteTxnCtx(ctx context.Context, idx uint64) *txn {
+	t := &txn{
+		ctx:     ctx,
+		Txn:     c.db.Txn(true),
+		Index:   idx,
+		publish: c.publish,
+	}
+	t.Txn.TrackChanges()
+	return t
+}
+
 func (c *changeTrackerDB) publish(changes Changes) error {
 	readOnlyTx := c.db.Txn(false)
 	defer readOnlyTx.Abort()
@@ -113,6 +132,9 @@ func (c *changeTrackerDB) WriteTxnRestore() *txn {
 // error. Any errors from the callback would be lost,  which would result in a
 // missing change event, even though the state store had changed.
 type txn struct {
+	// ctx is used to hold message type information from an FSM request
+	ctx context.Context
+
 	*memdb.Txn
 	// Index in raft where the write is occurring. The value is zero for a
 	// read-only, or WriteTxnRestore transaction.
@@ -136,6 +158,7 @@ func (tx *txn) Commit() error {
 		changes := Changes{
 			Index:   tx.Index,
 			Changes: tx.Txn.Changes(),
+			MsgType: tx.MsgType(),
 		}
 		if err := tx.publish(changes); err != nil {
 			return err
@@ -146,7 +169,35 @@ func (tx *txn) Commit() error {
 	return nil
 }
 
+// MsgType returns a MessageType from the txn's context.
+// If the context is empty or the value isn't set IgnoreUnknownTypeFlag will
+// be returned to signal that the MsgType is unknown.
+func (tx *txn) MsgType() structs.MessageType {
+	if tx.ctx == nil {
+		return structs.IgnoreUnknownTypeFlag
+	}
+
+	raw := tx.ctx.Value(CtxMsgType)
+	if raw == nil {
+		return structs.IgnoreUnknownTypeFlag
+	}
+
+	msgType, ok := raw.(structs.MessageType)
+	if !ok {
+		return structs.IgnoreUnknownTypeFlag
+	}
+	return msgType
+}
+
 func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
-	// TODO: add  handlers here.
+	switch changes.MsgType {
+	case structs.IgnoreUnknownTypeFlag:
+		// unknown event type
+		return []stream.Event{}, nil
+	case structs.NodeRegisterRequestType:
+		return NodeRegisterEventFromChanges(tx, changes)
+	case structs.NodeDeregisterRequestType:
+		return NodeDeregisterEventFromChanges(tx, changes)
+	}
 	return []stream.Event{}, nil
 }
