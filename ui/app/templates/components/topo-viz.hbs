@@ -1,13 +1,12 @@
-<div class="topo-viz {{if (eq this.datacenters.length 1) "is-single-column"}}" {{did-insert this.loadNodes}} {{did-insert this.captureElement}}>
-  {{#if this.isLoaded}}
-    {{#each this.datacenters as |dc|}}
+<div class="topo-viz {{if (eq this.datacenters.length 1) "is-single-column"}}" {{did-insert (perform this.buildTopology)}} {{did-insert this.captureElement}}>
+  {{#if this.buildTopology.isRunning}}
+    <div class="has-text-centered"><LoadingSpinner /></div>
+  {{else}}
+    {{#each this.topology.datacenters as |dc|}}
       <TopoViz::Datacenter
-        @datacenter={{dc.name}}
-        @nodes={{dc.nodes}}
-        @heightScale={{this.heightScale}}
+        @datacenter={{dc}}
+        @heightScale={{this.topology.heightScale}}
         @onAllocationSelect={{this.associateAllocations}}
-        @activeTaskGroup={{this.activeTaskGroup}}
-        @activeJobId={{this.activeJobId}}
         @onLoad={{action this.masonry}}/>
     {{/each}}
 

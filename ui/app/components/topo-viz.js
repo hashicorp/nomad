@@ -1,7 +1,8 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { action } from '@ember/object';
+import { action, set } from '@ember/object';
 import { run } from '@ember/runloop';
+import { task } from 'ember-concurrency';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
 import RSVP from 'rsvp';
@@ -10,6 +11,7 @@ export default class TopoViz extends Component {
   @tracked heightScale = null;
   @tracked isLoaded = false;
   @tracked element = null;
+  @tracked topology = {};
 
   @tracked activeAllocation = null;
   @tracked activeEdges = [];
@@ -22,17 +24,88 @@ export default class TopoViz extends Component {
     return this.activeAllocation && this.activeAllocation.belongsTo('job').id();
   }
 
-  get datacenters() {
-    const datacentersMap = this.args.nodes.reduce((datacenters, node) => {
-      if (!datacenters[node.datacenter]) datacenters[node.datacenter] = [];
-      datacenters[node.datacenter].push(node);
+  dataForNode(node) {
+    return {
+      node,
+      datacenter: node.datacenter,
+      memory: node.resources.memory,
+      cpu: node.resources.cpu,
+      allocations: [],
+    };
+  }
+
+  dataForAllocation(allocation, node) {
+    const jobId = allocation.belongsTo('job').id();
+    return {
+      allocation,
+      node,
+      jobId,
+      groupKey: JSON.stringify([jobId, allocation.taskGroupName]),
+      memory: allocation.resources.memory,
+      cpu: allocation.resources.cpu,
+      memoryPercent: allocation.resources.memory / node.memory,
+      cpuPercent: allocation.resources.cpu / node.cpu,
+      isSelected: false,
+    };
+  }
+
+  @task(function*() {
+    const nodes = this.args.nodes;
+    const allocations = this.args.allocations;
+
+    // Nodes are probably partials and we'll need the resources on them
+    // TODO: this is an API update waiting to happen.
+    yield RSVP.all(nodes.map(node => (node.isPartial ? node.reload() : RSVP.resolve(node))));
+
+    // Wrap nodes in a topo viz specific data structure and build an index to speed up allocation assignment
+    const nodeContainers = [];
+    const nodeIndex = {};
+    nodes.forEach(node => {
+      const container = this.dataForNode(node);
+      nodeContainers.push(container);
+      nodeIndex[node.id] = container;
+    });
+
+    // Wrap allocations in a topo viz specific data structure, assign allocations to nodes, and build an allocation
+    // index keyed off of job and task group
+    const allocationIndex = {};
+    allocations.forEach(allocation => {
+      const nodeId = allocation.belongsTo('node').id();
+      const nodeContainer = nodeIndex[nodeId];
+      if (!nodeContainer)
+        throw new Error(`Node ${nodeId} for alloc ${allocation.id} not in index???`);
+
+      const allocationContainer = this.dataForAllocation(allocation, nodeContainer);
+      nodeContainer.allocations.push(allocationContainer);
+
+      const key = allocationContainer.groupKey;
+      if (!allocationIndex[key]) allocationIndex[key] = [];
+      allocationIndex[key].push(allocationContainer);
+    });
+
+    // Group nodes into datacenters
+    const datacentersMap = nodeContainers.reduce((datacenters, nodeContainer) => {
+      if (!datacenters[nodeContainer.datacenter]) datacenters[nodeContainer.datacenter] = [];
+      datacenters[nodeContainer.datacenter].push(nodeContainer);
       return datacenters;
     }, {});
 
-    return Object.keys(datacentersMap)
+    // Turn hash of datacenters into a sorted array
+    const datacenters = Object.keys(datacentersMap)
       .map(key => ({ name: key, nodes: datacentersMap[key] }))
       .sortBy('name');
-  }
+
+    const topology = {
+      datacenters,
+      allocationIndex,
+      selectedKey: null,
+      heightScale: scaleLinear()
+        .range([15, 40])
+        .domain(extent(nodeContainers.mapBy('memory'))),
+    };
+    this.topology = topology;
+  })
+  buildTopology;
 
   @action
   async loadNodes() {
@@ -81,11 +154,37 @@ export default class TopoViz extends Component {
     if (this.activeAllocation === allocation) {
       this.activeAllocation = null;
       this.activeEdges = [];
+
+      if (this.topology.selectedKey) {
+        const selectedAllocations = this.topology.allocationIndex[this.topology.selectedKey];
+        if (selectedAllocations) {
+          selectedAllocations.forEach(allocation => {
+            set(allocation, 'isSelected', false);
+          });
+        }
+        set(this.topology, 'selectedKey', null);
+      }
     } else {
       this.activeAllocation = allocation;
+      const selectedAllocations = this.topology.allocationIndex[this.topology.selectedKey];
+      if (selectedAllocations) {
+        selectedAllocations.forEach(allocation => {
+          set(allocation, 'isSelected', false);
+        });
+      }
+
+      set(this.topology, 'selectedKey', allocation.groupKey);
+      const newAllocations = this.topology.allocationIndex[this.topology.selectedKey];
+      if (newAllocations) {
+        newAllocations.forEach(allocation => {
+          set(allocation, 'isSelected', true);
+        });
+      }
+
       this.computedActiveEdges();
     }
-    if (this.args.onAllocationSelect) this.args.onAllocationSelect(this.activeAllocation);
+    if (this.args.onAllocationSelect)
+      this.args.onAllocationSelect(this.activeAllocation && this.activeAllocation.allocation);
   }
 
   @action
@@ -93,7 +192,7 @@ export default class TopoViz extends Component {
     // Wait a render cycle
     run.next(() => {
       const activeEl = this.element.querySelector(
-        `[data-allocation-id="${this.activeAllocation.id}"]`
+        `[data-allocation-id="${this.activeAllocation.allocation.id}"]`
       );
       const selectedAllocations = this.element.querySelectorAll('.memory .bar.is-selected');
       const activeBBox = activeEl.getBoundingClientRect();

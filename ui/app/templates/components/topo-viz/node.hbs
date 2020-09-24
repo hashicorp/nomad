@@ -1,10 +1,10 @@
 <div class="chart topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
   <p>
-    <strong>{{@node.name}}</strong>
+    <strong>{{@node.node.name}}</strong>
     <span class="bumper-left">{{this.count}} Allocs</span>
-    <span class="bumper-left is-faded">{{@node.resources.memory}} MiB, {{@node.resources.cpu}} Mhz</span>
+    <span class="bumper-left is-faded">{{@node.memory}} MiB, {{@node.cpu}} Mhz</span>
   </p>
-  <svg class="chart" height="{{this.totalHeight}}px" {{did-insert this.render}} {{did-update this.updateRender @activeTaskGroup @activeJobId}} {{window-resize this.render}}>
+  <svg class="chart" height="{{this.totalHeight}}px" {{did-insert this.render}} {{did-update this.updateRender}} {{window-resize this.render}}>
     <defs>
       <clipPath id="{{this.maskId}}">
         <rect class="mask" x="0" y="0" width="{{this.dimensionsWidth}}px" height="{{this.maskHeight}}px" rx="2px" ry="2px" />
@@ -33,23 +33,23 @@
           {{/if}}
           {{#each this.data.memory key="allocation.id" as |memory|}}
             <g
-              class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}} {{if memory.isSelected "is-selected"}}"
+              class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}} {{if memory.allocation.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"
-              data-allocation-id="{{memory.allocation.id}}"
+              data-allocation-id="{{memory.allocation.allocation.id}}"
               {{on "mouseenter" (fn this.highlightAllocation memory.allocation)}}
               {{on "click" (fn this.selectAllocation memory.allocation)}}>
               <rect
                 width="{{memory.width}}px"
-                height="{{if memory.isSelected this.selectedHeight this.height}}px"
+                height="{{if memory.allocation.isSelected this.selectedHeight this.height}}px"
                 x="{{memory.x}}px"
-                y="{{if memory.isSelected 0.5 0}}px"
+                y="{{if memory.allocation.isSelected 0.5 0}}px"
                 class="layer-0" />
               {{#if (or (eq memory.className "starting") (eq memory.className "pending"))}}
                 <rect
                   width="{{memory.width}}px"
-                  height="{{if memory.isSelected this.selectedHeight this.height}}px"
+                  height="{{if memory.allocation.isSelected this.selectedHeight this.height}}px"
                   x="{{memory.x}}px"
-                  y="{{if memory.isSelected 0.5 0}}px"
+                  y="{{if memory.allocation.isSelected 0.5 0}}px"
                   class="layer-1" />
               {{/if}}
             </g>
@@ -69,23 +69,23 @@
           {{/if}}
           {{#each this.data.cpu key="allocation.id" as |cpu|}}
             <g
-              class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}} {{if cpu.isSelected "is-selected"}}"
+              class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}} {{if cpu.allocation.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"
-              data-allocation-id="{{cpu.allocation.id}}"
+              data-allocation-id="{{cpu.allocation.allocation.id}}"
               {{on "mouseenter" (fn this.highlightAllocation cpu.allocation)}}
               {{on "click" (fn this.selectAllocation cpu.allocation)}}>
               <rect
                 width="{{cpu.width}}px"
-                height="{{if cpu.isSelected this.selectedHeight this.height}}px"
+                height="{{if cpu.allocation.isSelected this.selectedHeight this.height}}px"
                 x="{{cpu.x}}px"
-                y="{{if cpu.isSelected this.selectedYOffset this.yOffset}}px"
+                y="{{if cpu.allocation.isSelected this.selectedYOffset this.yOffset}}px"
                 class="layer-0" />
               {{#if (or (eq cpu.className "starting") (eq cpu.className "pending"))}}
                 <rect
                   width="{{cpu.width}}px"
-                  height="{{if cpu.isSelected this.selectedHeight this.height}}px"
+                  height="{{if cpu.allocation.isSelected this.selectedHeight this.height}}px"
                   x="{{cpu.x}}px"
-                  y="{{if cpu.isSelected this.selectedYOffset this.yOffset}}px"
+                  y="{{if cpu.allocation.isSelected this.selectedYOffset this.yOffset}}px"
                   class="layer-1" />
               {{/if}}
             </g>

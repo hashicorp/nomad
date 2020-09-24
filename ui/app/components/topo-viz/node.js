@@ -1,6 +1,6 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { action, set } from '@ember/object';
+import { action } from '@ember/object';
 import { guidFor } from '@ember/object/internals';
 
 export default class TopoVizNode extends Component {
@@ -10,7 +10,7 @@ export default class TopoVizNode extends Component {
   @tracked activeAllocation = null;
 
   get height() {
-    return this.args.heightScale ? this.args.heightScale(this.args.node.resources.memory) : 15;
+    return this.args.heightScale ? this.args.heightScale(this.args.node.memory) : 15;
   }
 
   get labelHeight() {
@@ -51,19 +51,15 @@ export default class TopoVizNode extends Component {
   }
 
   get count() {
-    return this.args.node.get('allocations.length');
+    return this.args.node.allocations.length;
   }
 
   get allocations() {
-    // return this.args.node.allocations.filterBy('isScheduled').sortBy('resources.memory');
-    const totalCPU = this.args.node.resources.cpu;
-    const totalMemory = this.args.node.resources.memory;
-
     // Sort by the delta between memory and cpu percent. This creates the least amount of
     // drift between the positional alignment of an alloc's cpu and memory representations.
-    return this.args.node.allocations.filterBy('isScheduled').sort((a, b) => {
-      const deltaA = Math.abs(a.resources.memory / totalMemory - a.resources.cpu / totalCPU);
-      const deltaB = Math.abs(b.resources.memory / totalMemory - b.resources.cpu / totalCPU);
+    return this.args.node.allocations.filterBy('allocation.isScheduled').sort((a, b) => {
+      const deltaA = Math.abs(a.memoryPercent - a.cpuPercent);
+      const deltaB = Math.abs(b.memoryPercent - b.cpuPercent);
       return deltaA - deltaB;
     });
   }
@@ -89,8 +85,6 @@ export default class TopoVizNode extends Component {
     if (newWidth !== this.dimensionsWidth) {
       this.dimensionsWidth = newWidth;
       this.data = this.computeData(this.dimensionsWidth);
-    } else {
-      this.data = this.setSelection();
     }
   }
 
@@ -110,51 +104,23 @@ export default class TopoVizNode extends Component {
   }
 
   containsActiveTaskGroup() {
-    return this.allocations.some(
+    return this.args.node.allocations.some(
       allocation =>
         allocation.taskGroupName === this.args.activeTaskGroup &&
         allocation.belongsTo('job').id() === this.args.activeJobId
     );
   }
 
-  setSelection() {
-    this.data.cpu.forEach(cpu => {
-      set(
-        cpu,
-        'isSelected',
-        cpu.allocation.taskGroupName === this.args.activeTaskGroup &&
-          cpu.allocation.belongsTo('job').id() === this.args.activeJobId
-      );
-    });
-    this.data.memory.forEach(memory => {
-      set(
-        memory,
-        'isSelected',
-        memory.allocation.taskGroupName === this.args.activeTaskGroup &&
-          memory.allocation.belongsTo('job').id() === this.args.activeJobId
-      );
-    });
-    return this.data;
-  }
-
   computeData(width) {
-    // TODO: differentiate reserved and resources
-    if (!this.args.node.resources) return;
-
-    const totalCPU = this.args.node.resources.cpu;
-    const totalMemory = this.args.node.resources.memory;
+    const allocations = this.allocations;
     let cpuOffset = 0;
     let memoryOffset = 0;
 
     const cpu = [];
     const memory = [];
-    for (const allocation of this.allocations) {
-      const cpuPercent = allocation.resources.cpu / totalCPU;
-      const memoryPercent = allocation.resources.memory / totalMemory;
-      const isFirst = allocation === this.allocations[0];
-      const isSelected =
-        allocation.taskGroupName === this.args.activeTaskGroup &&
-        allocation.belongsTo('job').id() === this.args.activeJobId;
+    for (const allocation of allocations) {
+      const { cpuPercent, memoryPercent, isSelected } = allocation;
+      const isFirst = allocation === allocations[0];
 
       let cpuWidth = cpuPercent * width - 1;
       let memoryWidth = memoryPercent * width - 1;
@@ -169,21 +135,19 @@ export default class TopoVizNode extends Component {
 
       cpu.push({
         allocation,
-        isSelected,
         offset: cpuOffset * 100,
         percent: cpuPercent * 100,
         width: cpuWidth,
         x: cpuOffset * width + (isFirst ? 0 : 0.5) + (isSelected ? 0.5 : 0),
-        className: allocation.clientStatus,
+        className: allocation.allocation.clientStatus,
       });
       memory.push({
         allocation,
-        isSelected,
         offset: memoryOffset * 100,
         percent: memoryPercent * 100,
         width: memoryWidth,
         x: memoryOffset * width + (isFirst ? 0 : 0.5) + (isSelected ? 0.5 : 0),
-        className: allocation.clientStatus,
+        className: allocation.allocation.clientStatus,
       });
 
       cpuOffset += cpuPercent;
@@ -209,7 +173,3 @@ export default class TopoVizNode extends Component {
     };
   }
 }
-
-// capture width on did insert element
-// update width on window resize
-// recompute data when width changes
