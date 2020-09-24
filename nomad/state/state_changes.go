@@ -35,8 +35,8 @@ type Changes struct {
 // sent to the EventPublisher which will create and emit change events.
 type changeTrackerDB struct {
 	db             *memdb.MemDB
-	publisher      *stream.EventPublisher
-	processChanges func(ReadTxn, Changes) ([]stream.Event, error)
+	publisher      eventPublisher
+	processChanges func(*StateStore, ReadTxn, Changes) ([]stream.Event, error)
 }
 
 func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, changesFn changeProcessor) *changeTrackerDB {
@@ -47,7 +47,7 @@ func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, chang
 	}
 }
 
-type changeProcessor func(ReadTxn, Changes) ([]stream.Event, error)
+type changeProcessor func(*StateStore, ReadTxn, Changes) ([]stream.Event, error)
 
 func noOpProcessChanges(ReadTxn, Changes) ([]stream.Event, error) { return []stream.Event{}, nil }
 

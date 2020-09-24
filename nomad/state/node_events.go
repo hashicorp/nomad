@@ -13,12 +13,15 @@ const (
 )
 
 type NodeRegistrationEvent struct {
-	Event      *structs.NodeEvent
-	NodeStatus string
+	Node *structs.Node
 }
 
 type NodeDeregistrationEvent struct {
 	NodeID string
+}
+
+type NodeDrainEvent struct {
+	Node *structs.Node
 }
 
 // NodeRegisterEventFromChanges generates a NodeRegistrationEvent from a set
@@ -38,8 +41,7 @@ func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, 
 				Index: changes.Index,
 				Key:   after.ID,
 				Payload: &NodeRegistrationEvent{
-					Event:      after.Events[len(after.Events)-1],
-					NodeStatus: after.Status,
+					Node: after,
 				},
 			}
 			events = append(events, event)
@@ -66,6 +68,31 @@ func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event
 				Key:   before.ID,
 				Payload: &NodeDeregistrationEvent{
 					NodeID: before.ID,
+				},
+			}
+			events = append(events, event)
+		}
+	}
+	return events, nil
+}
+
+func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+	var events []stream.Event
+	for _, change := range changes.Changes {
+		switch change.Table {
+		case "nodes":
+			after, ok := change.After.(*structs.Node)
+			if !ok {
+				return nil, fmt.Errorf("transaction change was not a Node")
+			}
+
+			// jobs :=
+			event := stream.Event{
+				Topic: TopicNodeRegistration,
+				Index: changes.Index,
+				Key:   after.ID,
+				Payload: &NodeRegistrationEvent{
+					Node: after,
 				},
 			}
 			events = append(events, event)

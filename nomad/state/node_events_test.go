@@ -31,11 +31,7 @@ func TestNodeRegisterEventFromChanges(t *testing.T) {
 				Key:   testNodeID(),
 				Index: 100,
 				Payload: &NodeRegistrationEvent{
-					Event: &structs.NodeEvent{
-						Message:   "Node registered",
-						Subsystem: "Cluster",
-					},
-					NodeStatus: structs.NodeStatusReady,
+					Node: testNode(),
 				},
 			}},
 			WantErr: false,
@@ -52,11 +48,7 @@ func TestNodeRegisterEventFromChanges(t *testing.T) {
 				Key:   testNodeID(),
 				Index: 100,
 				Payload: &NodeRegistrationEvent{
-					Event: &structs.NodeEvent{
-						Message:   "Node registered",
-						Subsystem: "Cluster",
-					},
-					NodeStatus: structs.NodeStatusInit,
+					Node: testNode(),
 				},
 			}},
 			WantErr: false,
@@ -161,10 +153,9 @@ func requireNodeRegistrationEventEqual(t *testing.T, want, got stream.Event) {
 	wantPayload := want.Payload.(*NodeRegistrationEvent)
 	gotPayload := got.Payload.(*NodeRegistrationEvent)
 
+	require.Len(t, gotPayload.Node.Events, 1)
 	// Check payload equality for the fields that we can easily control
-	require.Equal(t, wantPayload.NodeStatus, gotPayload.NodeStatus)
-	require.Equal(t, wantPayload.Event.Message, gotPayload.Event.Message)
-	require.Equal(t, wantPayload.Event.Subsystem, gotPayload.Event.Subsystem)
+	require.Equal(t, wantPayload.Node.ID, gotPayload.Node.ID)
 }
 
 func requireNodeDeregistrationEventEqual(t *testing.T, want, got stream.Event) {

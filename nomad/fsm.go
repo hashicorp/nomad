@@ -206,7 +206,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.NodeUpdateStatusRequestType:
 		return n.applyStatusUpdate(buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
-		return n.applyDrainUpdate(buf[1:], log.Index)
+		return n.applyDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
 		return n.applyUpsertJob(buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
@@ -402,12 +402,14 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_drain_update"}, time.Now())
 	var req structs.NodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
+
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, reqType)
 
 	// COMPAT Remove in version 0.10
 	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
@@ -423,7 +425,7 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 		}
 	}
 
-	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeDrainCtx(ctx, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}

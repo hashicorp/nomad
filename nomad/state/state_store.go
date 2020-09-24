@@ -957,6 +957,19 @@ func (s *StateStore) BatchUpdateNodeDrain(index uint64, updatedAt int64, updates
 }
 
 // UpdateNodeDrain is used to update the drain of a node
+func (s *StateStore) UpdateNodeDrainCtx(ctx context.Context, index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
+
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
+// UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
