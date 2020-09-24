@@ -45,7 +45,7 @@ func LogEntries(p string) (logs []interface{}, warnings []error, err error) {
 		var e raft.Log
 		err := store.GetLog(i, &e)
 		if err != nil {
-			warnings = append(warnings, fmt.Errorf("failed to read log entry at index %d: %v", i, err))
+			warnings = append(warnings, fmt.Errorf("failed to read log entry at index %d (firstIdx: %d, lastIdx: %d): %v", i, firstIdx, lastIdx, err))
 			continue
 		}
 
