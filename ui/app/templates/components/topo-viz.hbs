@@ -1,6 +1,10 @@
-<div class="topo-viz {{if (eq this.datacenters.length 1) "is-single-column"}}" {{did-insert (perform this.buildTopology)}} {{did-insert this.captureElement}}>
+<div class="topo-viz {{if (or this.buildTopology.isRunning (eq this.datacenters.length 1)) "is-single-column"}}" {{did-insert (perform this.buildTopology)}} {{did-insert this.captureElement}}>
   {{#if this.buildTopology.isRunning}}
-    <div class="has-text-centered"><LoadingSpinner /></div>
+    <div class="has-text-centered">
+      <h2 class="title">Loading. If you have a lot of clients this may take awhile</h2>
+      <p>Every client needs to be loaded individually. This is a shortcoming of the prototype and will be fixed before this is graduated to the actual Nomad project.</p>
+      <LoadingSpinner />
+    </div>
   {{else}}
     {{#each this.topology.datacenters as |dc|}}
       <TopoViz::Datacenter
