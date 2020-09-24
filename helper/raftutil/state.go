@@ -117,7 +117,7 @@ func decode(e *raft.Log) (*logMessage, error) {
 			fmt.Fprintf(os.Stderr, "failed to decode log entry at index %d: failed to decode body of %v.%v %v\n", e.Index, e.Type, m.CommandType, err)
 			v = "FAILED TO DECODE DATA"
 		}
-		fixTime(v)
+		FixTime(v)
 		m.Body = v
 	}
 

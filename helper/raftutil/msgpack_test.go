@@ -49,7 +49,7 @@ func TestDecodesTime(t *testing.T) {
 	require.Equal(t, "host", r["Mode"])
 	require.IsType(t, "", r["CreateTime"])
 
-	fixTime(r)
+	FixTime(r)
 
 	expected := map[string]interface{}{
 		"CreateTime": now,
