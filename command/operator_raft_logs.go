@@ -48,7 +48,7 @@ func (c *OperatorRaftLogsCommand) Run(args []string) int {
 		return 1
 	}
 
-	raftPath, err := raftutil.FindRaftInPath(args[0], true)
+	raftPath, err := raftutil.FindRaftFile(args[0])
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

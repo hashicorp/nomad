@@ -68,7 +68,7 @@ func (c *OperatorRaftStateCommand) Run(args []string) int {
 	}
 
 	// Find raft.db folder
-	raftPath, err := raftutil.FindRaftInPath(args[0], false)
+	raftPath, err := raftutil.FindRaftDir(args[0])
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

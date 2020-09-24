@@ -162,10 +162,37 @@ func commandName(mt structs.MessageType) string {
 	return fmt.Sprintf("%v", mt)
 }
 
-// Find raft.db given path p
-func FindRaftInPath(p string, includeFileInPath bool) (raftpath string, err error) {
-	if _, err := os.Stat(p); err == nil && filepath.Ext(p) == ".db" {
-		// Path p is to a valid .db file, use as specified
+// FindRaftFile finds raft.db and returns path
+func FindRaftFile(p string) (raftpath string, err error) {
+	raftpath, err = FindRaftInPath(p)
+	if err != nil {
+		return "", err
+	}
+
+	return raftpath, nil
+}
+
+// FindRaftDir finds raft.db and returns parent directory path
+func FindRaftDir(p string) (raftpath string, err error) {
+	raftpath, err = FindRaftInPath(p)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Dir(raftpath), nil
+}
+
+// FindRaftInPath finds raft.db in path p
+func FindRaftInPath(p string) (raftpath string, err error) {
+	// Try known locations before traversal to avoid walking deep structure
+	if _, err := os.Stat(filepath.Join(p, "server", "raft", "raft.db")); err == nil {
+		raftpath = filepath.Join(p, "server", "raft", "raft.db")
+	} else if _, err := os.Stat(filepath.Join(p, "raft", "raft.db")); err == nil {
+		raftpath = filepath.Join(p, "raft", "raft.db")
+	} else if _, err := os.Stat(filepath.Join(p, "raft.db")); err == nil {
+		raftpath = filepath.Join(p, "raft.db")
+	} else if _, err := os.Stat(p); err == nil && filepath.Ext(p) == ".db" {
+		// Also accept path to .db file
 		raftpath = p
 	} else {
 		// Define walk function to identify raft.db
@@ -191,9 +218,5 @@ func FindRaftInPath(p string, includeFileInPath bool) (raftpath string, err erro
 		return "", fmt.Errorf("No raft.db file found in path %s", p)
 	}
 
-	if includeFileInPath {
-		return raftpath, nil
-	} else {
-		return filepath.Dir(raftpath), nil
-	}
+	return raftpath, nil
 }
