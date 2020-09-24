@@ -200,6 +200,7 @@ export default class TopoViz extends Component {
       const vLeft = window.visualViewport.pageLeft;
       const vTop = window.visualViewport.pageTop;
 
+      // Lines to the memory rect of each selected allocation
       const edges = [];
       for (let allocation of selectedAllocations) {
         if (allocation !== activeEl) {
@@ -213,10 +214,23 @@ export default class TopoViz extends Component {
         }
       }
 
+      // Lines from the memory rect to the cpu rect
+      for (let allocation of selectedAllocations) {
+        const id = allocation.closest('[data-allocation-id]').dataset.allocationId;
+        const cpu = allocation
+          .closest('.topo-viz-node')
+          .querySelector(`.cpu .bar[data-allocation-id="${id}"]`);
+        const bboxMem = allocation.getBoundingClientRect();
+        const bboxCpu = cpu.getBoundingClientRect();
+        edges.push({
+          x1: bboxMem.x + bboxMem.width / 2 + vLeft,
+          y1: bboxMem.y + bboxMem.height / 2 + vTop,
+          x2: bboxCpu.x + bboxCpu.width / 2 + vLeft,
+          y2: bboxCpu.y + bboxCpu.height / 2 + vTop,
+        });
+      }
+
       this.activeEdges = edges;
     });
-    // get element for active alloc
-    // get element for all selected allocs
-    // draw lines between centroid of each
   }
 }
