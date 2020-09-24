@@ -60,6 +60,12 @@ You'll need to pass one of the following variables in either your
 If you want to deploy the Enterprise build of a specific SHA, include
 `-var 'nomad_enterprise=true'`.
 
+If you want to bootstrap Nomad ACLs, include `-var 'nomad_acls=true'`.
+
+> Note: If you bootstrap ACLs you will see "No cluster leader" in the output
+> several times while the ACL bootstrap script polls the cluster to start and
+> and elect a leader.
+
 ## Profiles
 
 The `profile` field selects from a set of configuration files for Nomad,

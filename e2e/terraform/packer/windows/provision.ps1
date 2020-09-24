@@ -3,6 +3,7 @@ param(
     [string]$nomad_version,
     [string]$nomad_binary,
     [switch]$enterprise = $false,
+    [switch]$nomad_acls = $false,
     [string]$config_profile,
     [string]$role,
     [string]$index,

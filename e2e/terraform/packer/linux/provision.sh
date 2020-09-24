@@ -18,6 +18,7 @@ Options for configuration:
  --index INDEX              count of instance, for profiles with per-instance config
  --nostart                  do not start or restart Nomad
  --enterprise               if nomad_sha is passed, use the ENT version
+ --nomad_acls               write Nomad ACL configuration
 
 EOF
 
@@ -35,6 +36,7 @@ NOMAD_PROFILE=
 NOMAD_ROLE=
 NOMAD_INDEX=
 BUILD_FOLDER="builds-oss"
+ACLS=0
 
 install_from_s3() {
     # check that we don't already have this version
@@ -110,6 +112,10 @@ install_config_profile() {
         sym "${NOMAD_PROFILE}/consul/${NOMAD_ROLE}/indexed/" "*${NOMAD_INDEX}*" /etc/consul.d
         sym "${NOMAD_PROFILE}/vault/${NOMAD_ROLE}/indexed/" "*${NOMAD_INDEX}*" /etc/vault.d
     fi
+
+    if [ $ACLS == "1" ]; then
+        sudo ln -fs /opt/config/shared/nomad-acl.hcl /etc/nomad.d/acl.hcl
+    fi
 }
 
 
@@ -157,6 +163,10 @@ opt="$1"
             ;;
         --enterprise)
             BUILD_FOLDER="builds-ent"
+            shift
+            ;;
+        --nomad_acls)
+            ACLS=1
             shift
             ;;
         *) usage ;;

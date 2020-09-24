@@ -20,6 +20,7 @@ module "nomad_server" {
   nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
 
   nomad_enterprise = var.nomad_enterprise
+  nomad_acls       = var.nomad_acls
 
   connection = {
     type        = "ssh"
@@ -54,6 +55,7 @@ module "nomad_client_linux" {
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_linux) ? var.nomad_local_binary_client_linux[count.index] : var.nomad_local_binary
 
   nomad_enterprise = var.nomad_enterprise
+  nomad_acls       = false
 
   connection = {
     type        = "ssh"
@@ -89,6 +91,7 @@ module "nomad_client_windows" {
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_windows) ? var.nomad_local_binary_client_windows[count.index] : ""
 
   nomad_enterprise = var.nomad_enterprise
+  nomad_acls       = false
 
   connection = {
     type        = "ssh"
