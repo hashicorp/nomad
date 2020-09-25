@@ -1,11 +1,19 @@
 .topo-viz {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: 1.5em;
-  row-gap: 1.5em;
-  grid-auto-rows: 10px;
+  .topo-viz-datacenters {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: space-between;
+    margin-top: -0.75em;
 
-  &.is-single-column {
-    grid-template-columns: 100%;
+    .topo-viz-datacenter {
+      margin-top: 0.75em;
+      margin-bottom: 0.75em;
+      width: calc(50% - 0.75em);
+    }
+  }
+
+  &.is-single-column .topo-viz-datacenter {
+    width: 100%;
   }
 }
