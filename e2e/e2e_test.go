@@ -16,7 +16,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/csi"
 	_ "github.com/hashicorp/nomad/e2e/deployment"
 	_ "github.com/hashicorp/nomad/e2e/example"
-	_ "github.com/hashicorp/nomad/e2e/hostvolumes"
 	_ "github.com/hashicorp/nomad/e2e/lifecycle"
 	_ "github.com/hashicorp/nomad/e2e/metrics"
 	_ "github.com/hashicorp/nomad/e2e/nodedrain"
@@ -27,6 +26,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/spread"
 	_ "github.com/hashicorp/nomad/e2e/systemsched"
 	_ "github.com/hashicorp/nomad/e2e/taskevents"
+	_ "github.com/hashicorp/nomad/e2e/volumes"
 )
 
 func TestE2E(t *testing.T) {
