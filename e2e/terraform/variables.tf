@@ -78,6 +78,13 @@ variable "nomad_enterprise" {
   description = "If nomad_sha is used, deploy Nomad Enterprise"
   default     = false
 }
+
+variable "nomad_acls" {
+  type        = bool
+  description = "Bootstrap ACLs"
+  default     = false
+}
+
 # ----------------------------------------
 # If you want to deploy multiple versions you can use these variables to
 # provide a list of builds to override the values of nomad_sha, nomad_version,
