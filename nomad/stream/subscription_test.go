@@ -10,6 +10,22 @@ func TestSubscription(t *testing.T) {
 
 }
 
+func TestFilter_AllTopics(t *testing.T) {
+	events := make([]Event, 0, 5)
+	events = append(events, Event{Topic: "Test", Key: "One"}, Event{Topic: "Test", Key: "Two"})
+
+	req := &SubscribeRequest{
+		Topics: map[Topic][]string{
+			"*": []string{"*"},
+		},
+	}
+	actual := filter(req, events)
+	require.Equal(t, events, actual)
+
+	// ensure new array was not allocated
+	require.Equal(t, cap(actual), 5)
+}
+
 func TestFilter_AllKeys(t *testing.T) {
 	events := make([]Event, 0, 5)
 	events = append(events, Event{Topic: "Test", Key: "One"}, Event{Topic: "Test", Key: "Two"})
