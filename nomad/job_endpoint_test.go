@@ -478,6 +478,7 @@ func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
 			Name:     "check2",
 			Type:     "script",
 			Command:  "/bin/true",
+			TaskName: "web",
 			Interval: 1 * time.Second,
 			Timeout:  1 * time.Second,
 		}, {

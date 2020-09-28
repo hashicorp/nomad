@@ -5801,6 +5801,12 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
+	// Validate group service script-checks
+	if err := tg.validateScriptChecksInGroupServices(); err != nil {
+		outer := fmt.Errorf("Task group service check validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
 	// Validate the scaling policy
 	if err := tg.validateScalingPolicy(j); err != nil {
 		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
@@ -5943,6 +5949,26 @@ func (tg *TaskGroup) validateServices() error {
 				if _, ok := knownTasks[check.TaskName]; !ok {
 					mErr.Errors = append(mErr.Errors,
 						fmt.Errorf("Check %s invalid: refers to non-existent task %s", check.Name, check.TaskName))
+				}
+			}
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+// validateScriptChecksInGroupServices ensures group-level services with script
+// checks know what task driver to use. Either the service.task or service.check.task
+// parameter must be configured.
+func (tg *TaskGroup) validateScriptChecksInGroupServices() error {
+	var mErr multierror.Error
+	for _, service := range tg.Services {
+		if service.TaskName == "" {
+			for _, check := range service.Checks {
+				if check.Type == "script" && check.TaskName == "" {
+					mErr.Errors = append(mErr.Errors,
+						fmt.Errorf("Service [%s]->%s or Check %s must specify task parameter",
+							tg.Name, service.Name, check.Name,
+						))
 				}
 			}
 		}
