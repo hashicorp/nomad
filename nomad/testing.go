@@ -47,6 +47,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	config.Logger = testlog.HCLogger(t)
 	config.Build = version.Version + "+unittest"
 	config.DevMode = true
+	config.EnableEventPublisher = true
 	config.BootstrapExpect = 1
 	nodeNum := atomic.AddUint32(&nodeNumber, 1)
 	config.NodeName = fmt.Sprintf("nomad-%03d", nodeNum)
