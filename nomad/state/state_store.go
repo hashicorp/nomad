@@ -957,6 +957,19 @@ func (s *StateStore) BatchUpdateNodeDrain(index uint64, updatedAt int64, updates
 }
 
 // UpdateNodeDrain is used to update the drain of a node
+func (s *StateStore) UpdateNodeDrainCtx(ctx context.Context, index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
+
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
+// UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
@@ -1053,6 +1066,20 @@ func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibil
 	}
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) UpsertNodeEventsCtx(ctx context.Context, index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+
+	for nodeID, events := range nodeEvents {
+		if err := s.upsertNodeEvents(index, nodeID, events, txn); err != nil {
+			return err
+		}
 	}
 
 	txn.Commit()
@@ -3375,6 +3402,10 @@ func (s *StateStore) AllocsByIDPrefixInNSes(ws memdb.WatchSet, namespaces map[st
 func (s *StateStore) AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error) {
 	txn := s.db.ReadTxn()
 
+	return allocsByNodeTxn(txn, ws, node)
+}
+
+func allocsByNodeTxn(txn ReadTxn, ws memdb.WatchSet, node string) ([]*structs.Allocation, error) {
 	// Get an iterator over the node allocations, using only the
 	// node prefix which ignores the terminal status
 	iter, err := txn.Get("allocs", "node_prefix", node)

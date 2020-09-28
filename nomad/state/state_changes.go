@@ -190,6 +190,10 @@ func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 		return NodeRegisterEventFromChanges(tx, changes)
 	case structs.NodeDeregisterRequestType:
 		return NodeDeregisterEventFromChanges(tx, changes)
+	case structs.NodeUpdateDrainRequestType:
+		return NodeDrainEventFromChanges(tx, changes)
+	case structs.UpsertNodeEventsType:
+		return NodeEventFromChanges(tx, changes)
 	}
 	return []stream.Event{}, nil
 }

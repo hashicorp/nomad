@@ -206,7 +206,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.NodeUpdateStatusRequestType:
 		return n.applyStatusUpdate(buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
-		return n.applyDrainUpdate(buf[1:], log.Index)
+		return n.applyDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
 		return n.applyUpsertJob(buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
@@ -250,7 +250,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.UpsertNodeEventsType:
-		return n.applyUpsertNodeEvent(buf[1:], log.Index)
+		return n.applyUpsertNodeEvent(msgType, buf[1:], log.Index)
 	case structs.JobBatchDeregisterRequestType:
 		return n.applyBatchDeregisterJob(buf[1:], log.Index)
 	case structs.AllocUpdateDesiredTransitionRequestType:
@@ -402,12 +402,14 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_drain_update"}, time.Now())
 	var req structs.NodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
+
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, reqType)
 
 	// COMPAT Remove in version 0.10
 	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
@@ -423,7 +425,7 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 		}
 	}
 
-	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeDrainCtx(ctx, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
@@ -874,14 +876,16 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 }
 
 // applyUpsertNodeEvent tracks the given node events.
-func (n *nomadFSM) applyUpsertNodeEvent(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
 	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode EmitNodeEventsRequest: %v", err))
 	}
 
-	if err := n.state.UpsertNodeEvents(index, req.NodeEvents); err != nil {
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+
+	if err := n.state.UpsertNodeEventsCtx(ctx, index, req.NodeEvents); err != nil {
 		n.logger.Error("failed to add node events", "error", err)
 		return err
 	}
