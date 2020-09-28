@@ -39,6 +39,7 @@ import (
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
+	"github.com/hashicorp/nomad/nomad/stream"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -10628,4 +10629,35 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// EEventStreamRequest is used to stream events from a servers
+// EventPublisher
+type EventStreamRequest struct {
+	Topics map[stream.Topic][]string
+	Index  int
+
+	QueryOptions
+}
+
+type EventStreamWrapper struct {
+	Error *RpcError
+	Event *stream.NDJson
+}
+
+// RpcError is used for serializing errors with a potential error code
+type RpcError struct {
+	Message string
+	Code    *int64
+}
+
+func NewRpcError(err error, code *int64) *RpcError {
+	return &RpcError{
+		Message: err.Error(),
+		Code:    code,
+	}
+}
+
+func (r *RpcError) Error() string {
+	return r.Message
 }

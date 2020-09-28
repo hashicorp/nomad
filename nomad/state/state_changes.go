@@ -32,14 +32,14 @@ type Changes struct {
 
 // changeTrackerDB is a thin wrapper around memdb.DB which enables TrackChanges on
 // all write transactions. When the transaction is committed the changes are
-// sent to the eventPublisher which will create and emit change events.
+// sent to the EventPublisher which will create and emit change events.
 type changeTrackerDB struct {
 	db             *memdb.MemDB
-	publisher      eventPublisher
+	publisher      *stream.EventPublisher
 	processChanges func(ReadTxn, Changes) ([]stream.Event, error)
 }
 
-func NewChangeTrackerDB(db *memdb.MemDB, publisher eventPublisher, changesFn changeProcessor) *changeTrackerDB {
+func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, changesFn changeProcessor) *changeTrackerDB {
 	return &changeTrackerDB{
 		db:             db,
 		publisher:      publisher,
@@ -49,15 +49,7 @@ func NewChangeTrackerDB(db *memdb.MemDB, publisher eventPublisher, changesFn cha
 
 type changeProcessor func(ReadTxn, Changes) ([]stream.Event, error)
 
-type eventPublisher interface {
-	Publish(index uint64, events []stream.Event)
-}
-
-// noOpPublisher satisfies the eventPublisher interface and does nothing
-type noOpPublisher struct{}
-
-func (n *noOpPublisher) Publish(index uint64, events []stream.Event) {}
-func noOpProcessChanges(ReadTxn, Changes) ([]stream.Event, error)    { return []stream.Event{}, nil }
+func noOpProcessChanges(ReadTxn, Changes) ([]stream.Event, error) { return []stream.Event{}, nil }
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn

@@ -256,7 +256,7 @@ func (i *bufferItem) Next(ctx context.Context, forceClose <-chan struct{}) (*buf
 	// state change (chan nil) as that's not threadsafe but detecting close is.
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, fmt.Errorf("waiting for next event: %w", ctx.Err())
 	case <-forceClose:
 		return nil, fmt.Errorf("subscription closed")
 	case <-i.link.ch:
