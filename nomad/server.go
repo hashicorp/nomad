@@ -275,6 +275,7 @@ type endpoints struct {
 	ACL        *ACL
 	Scaling    *Scaling
 	Enterprise *EnterpriseEndpoints
+	Event      *Event
 
 	// Client endpoints
 	ClientStats       *ClientStats
@@ -1162,6 +1163,9 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 		s.staticEndpoints.Agent = &Agent{srv: s}
 		s.staticEndpoints.Agent.register()
+
+		s.staticEndpoints.Event = &Event{srv: s}
+		s.staticEndpoints.Event.register()
 	}
 
 	// Register the static handlers
@@ -1207,11 +1211,12 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	fsmConfig := &FSMConfig{
-		EvalBroker: s.evalBroker,
-		Periodic:   s.periodicDispatcher,
-		Blocked:    s.blockedEvals,
-		Logger:     s.logger,
-		Region:     s.Region(),
+		EvalBroker:           s.evalBroker,
+		Periodic:             s.periodicDispatcher,
+		Blocked:              s.blockedEvals,
+		Logger:               s.logger,
+		Region:               s.Region(),
+		EnableEventPublisher: s.config.EnableEventPublisher,
 	}
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)

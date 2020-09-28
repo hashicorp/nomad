@@ -93,10 +93,11 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
 			EventBufferTTL:  1 * time.Hour,
 			EventBufferSize: 250,
+			Logger:          config.Logger,
 		})
 		s.db = NewChangeTrackerDB(db, publisher, processDBChanges)
 	} else {
-		s.db = NewChangeTrackerDB(db, &noOpPublisher{}, processDBChanges)
+		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
 	}
 
 	// Initialize the state store with required enterprise objects
@@ -105,6 +106,13 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	}
 
 	return s, nil
+}
+
+func (s *StateStore) EventPublisher() (*stream.EventPublisher, error) {
+	if s.db.publisher == nil {
+		return nil, fmt.Errorf("EventPublisher not configured")
+	}
+	return s.db.publisher, nil
 }
 
 // Config returns the state store configuration.
@@ -123,7 +131,8 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 		config: s.config,
 	}
 
-	store.db = NewChangeTrackerDB(memDBSnap, &noOpPublisher{}, noOpProcessChanges)
+	// Create a new change tracker DB that does not publish or track changes
+	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges)
 
 	snap := &StateSnapshot{
 		StateStore: store,
