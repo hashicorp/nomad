@@ -78,6 +78,10 @@ type Config struct {
 	// in the absence of ACLs
 	EnableDebug bool
 
+	// EnableEventPublisher is used to enable or disable the state stores
+	// event publishing
+	EnableEventPublisher bool
+
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
@@ -421,6 +425,7 @@ func DefaultConfig() *Config {
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
 		LicenseConfig:                    &LicenseConfig{},
+		EnableEventPublisher:             true,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
