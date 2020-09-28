@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 )
 
+const ns = ""
+
 type RescheduleE2ETest struct {
 	framework.TC
 	jobIds []string
@@ -57,7 +59,7 @@ func (tc *RescheduleE2ETest) TestNoReschedule(f *framework.F) {
 
 	expected := []string{"failed", "failed", "failed"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 failed allocs",
 	)
 }
@@ -70,7 +72,7 @@ func (tc *RescheduleE2ETest) TestNoRescheduleSystem(f *framework.F) {
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatuses(jobID) },
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
 			func(got []string) bool {
 				for _, status := range got {
 					if status != "failed" {
@@ -93,7 +95,7 @@ func (tc *RescheduleE2ETest) TestDefaultReschedule(f *framework.F) {
 
 	expected := []string{"failed", "failed", "failed"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 failed allocs",
 	)
 
@@ -102,7 +104,7 @@ func (tc *RescheduleE2ETest) TestDefaultReschedule(f *framework.F) {
 	time.Sleep(time.Second * 35)
 	expected = []string{"failed", "failed", "failed", "failed", "failed", "failed"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 6 failed allocs after 35s",
 	)
 }
@@ -116,7 +118,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxAttempts(f *framework.F) {
 
 	expected := []string{"failed", "failed", "failed"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 failed allocs",
 	)
 
@@ -129,7 +131,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxAttempts(f *framework.F) {
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatuses(jobID) },
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
 			func(got []string) bool {
 				for _, status := range got {
 					if status == "running" {
@@ -152,7 +154,7 @@ func (tc *RescheduleE2ETest) TestRescheduleSuccess(f *framework.F) {
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatuses(jobID) },
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
 			func(got []string) bool {
 				for _, status := range got {
 					if status == "running" {
@@ -176,7 +178,7 @@ func (tc *RescheduleE2ETest) TestRescheduleWithUpdate(f *framework.F) {
 
 	expected := []string{"running", "running", "running"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 running allocs",
 	)
 
@@ -190,7 +192,7 @@ func (tc *RescheduleE2ETest) TestRescheduleWithUpdate(f *framework.F) {
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID) },
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
 			func(got []string) bool { return len(got) > 0 }, nil,
 		),
 		"should have rescheduled allocs until progress deadline",
@@ -207,12 +209,12 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 
 	expected := []string{"running", "running", "running"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 running allocs",
 	)
 
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "successful", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
 		"deployment should be successful")
 
 	// reschedule to make fail
@@ -225,14 +227,14 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID) },
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
 			func(got []string) bool { return len(got) > 0 }, nil,
 		),
 		"should have rescheduled allocs until progress deadline",
 	)
 
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "running", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "running", nil),
 		"deployment should be running")
 }
 
@@ -246,12 +248,12 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) 
 
 	expected := []string{"running", "running", "running"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 running allocs",
 	)
 
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "successful", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
 		"deployment should be successful")
 
 	// reschedule to make fail
@@ -264,7 +266,7 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) 
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID) },
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
 			func(got []string) bool { return len(got) > 0 }, nil,
 		),
 		"should have new allocs after update",
@@ -273,12 +275,12 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) 
 	// then we'll fail and revert
 	expected = []string{"failed", "failed", "failed", "running", "running", "running"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 running reverted allocs",
 	)
 
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "successful", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
 		"deployment should be successful")
 }
 
@@ -291,12 +293,12 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 
 	expected := []string{"running", "running", "running"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 running allocs",
 	)
 
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "successful", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
 		"deployment should be successful")
 
 	// reschedule to make fail
@@ -311,7 +313,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatuses(jobID) },
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
 			func(got []string) bool {
 				sort.Strings(got)
 				return reflect.DeepEqual(got, expected)
@@ -321,7 +323,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 	)
 
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "running", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "running", nil),
 		"deployment should be running")
 }
 
@@ -335,12 +337,12 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 
 	expected := []string{"running", "running", "running"}
 	f.NoError(
-		e2e.WaitForAllocStatusExpected(jobID, expected),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
 		"should have exactly 3 running allocs",
 	)
 
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "successful", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
 		"deployment should be successful")
 
 	// reschedule to make fail
@@ -353,7 +355,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID) },
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
 			func(got []string) bool { return len(got) > 0 }, nil,
 		),
 		"should have new allocs after update",
@@ -363,7 +365,7 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 	expected = []string{"complete", "failed", "running", "running", "running"}
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatuses(jobID) },
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
 			func(got []string) bool {
 				sort.Strings(got)
 				return reflect.DeepEqual(got, expected)
@@ -400,6 +402,6 @@ func (tc *RescheduleE2ETest) TestRescheduleProgressDeadline(f *framework.F) {
 	// wait until first exponential delay kicks in and rescheduling is attempted
 	time.Sleep(time.Second * 30)
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, "successful", nil),
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
 		"deployment should be successful")
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
+const ns = ""
+
 type NodeDrainE2ETest struct {
 	framework.TC
 	jobIDs  []string
@@ -57,7 +59,7 @@ func (tc *NodeDrainE2ETest) AfterEach(f *framework.F) {
 }
 
 func nodesForJob(jobID string) ([]string, error) {
-	allocs, err := e2e.AllocsForJob(jobID)
+	allocs, err := e2e.AllocsForJob(jobID, ns)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +101,9 @@ func (tc *NodeDrainE2ETest) TestNodeDrainEphemeralMigrate(f *framework.F) {
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	expected := []string{"running"}
-	f.NoError(e2e.WaitForAllocStatusExpected(jobID, expected), "job should be running")
+	f.NoError(e2e.WaitForAllocStatusExpected(jobID, ns, expected), "job should be running")
 
-	allocs, err := e2e.AllocsForJob(jobID)
+	allocs, err := e2e.AllocsForJob(jobID, ns)
 	f.NoError(err, "could not get allocs for job")
 	f.Len(allocs, 1, "could not get allocs for job")
 	oldAllocID := allocs[0]["ID"]
@@ -128,9 +130,9 @@ func (tc *NodeDrainE2ETest) TestNodeDrainEphemeralMigrate(f *framework.F) {
 
 	// wait for the allocation to be migrated
 	expected = []string{"running", "complete"}
-	f.NoError(e2e.WaitForAllocStatusExpected(jobID, expected), "job should be running")
+	f.NoError(e2e.WaitForAllocStatusExpected(jobID, ns, expected), "job should be running")
 
-	allocs, err = e2e.AllocsForJob(jobID)
+	allocs, err = e2e.AllocsForJob(jobID, ns)
 	f.NoError(err, "could not get allocations for job")
 
 	// the task writes its alloc ID to a file if it hasn't been previously
@@ -178,7 +180,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
 	f.NoError(e2e.Register(serviceJobID, "nodedrain/input/drain_simple.nomad"))
 	tc.jobIDs = append(tc.jobIDs, serviceJobID)
 
-	allocs, err := e2e.AllocsForJob(serviceJobID)
+	allocs, err := e2e.AllocsForJob(serviceJobID, ns)
 	f.NoError(err, "could not get allocs for service job")
 	f.Len(allocs, 1, "could not get allocs for service job")
 	oldAllocID := allocs[0]["ID"]
@@ -187,13 +189,13 @@ func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
 	tc.jobIDs = append(tc.jobIDs, systemJobID)
 
 	expected := []string{"running"}
-	f.NoError(e2e.WaitForAllocStatusExpected(serviceJobID, expected),
+	f.NoError(e2e.WaitForAllocStatusExpected(serviceJobID, ns, expected),
 		"service job should be running")
 
 	// can't just give it a static list because the number of nodes can vary
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatuses(systemJobID) },
+			func() ([]string, error) { return e2e.AllocStatuses(systemJobID, ns) },
 			func(got []string) bool {
 				if len(got) != len(nodes) {
 					return false
@@ -231,7 +233,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
 		}, &e2e.WaitConfig{Interval: time.Millisecond * 100, Retries: 500},
 	), "node did not drain")
 
-	allocs, err = e2e.AllocsForJob(systemJobID)
+	allocs, err = e2e.AllocsForJob(systemJobID, ns)
 	f.NoError(err, "could not query allocs for system job")
 	f.Equal(len(nodes), len(allocs), "system job should still be running on every node")
 	for _, alloc := range allocs {
@@ -249,7 +251,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	expected := []string{"running"}
-	f.NoError(e2e.WaitForAllocStatusExpected(jobID, expected), "job should be running")
+	f.NoError(e2e.WaitForAllocStatusExpected(jobID, ns, expected), "job should be running")
 
 	nodes, err := nodesForJob(jobID)
 	f.NoError(err, "could not get nodes for job")
@@ -287,7 +289,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	expected := []string{"running"}
-	f.NoError(e2e.WaitForAllocStatusExpected(jobID, expected), "job should be running")
+	f.NoError(e2e.WaitForAllocStatusExpected(jobID, ns, expected), "job should be running")
 
 	nodes, err := nodesForJob(jobID)
 	f.NoError(err, "could not get nodes for job")

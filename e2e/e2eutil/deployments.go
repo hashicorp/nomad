@@ -7,14 +7,23 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
-func WaitForLastDeploymentStatus(jobID, status string, wc *WaitConfig) error {
+func WaitForLastDeploymentStatus(jobID, ns, status string, wc *WaitConfig) error {
+	var nsArg = []string{}
+	if ns != "" {
+		nsArg = []string{"-namespace", ns}
+	}
+
 	var got string
 	var err error
 	interval, retries := wc.OrDefault()
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(interval)
 
-		out, err := Command("nomad", "job", "status", jobID)
+		cmd := []string{"nomad", "job", "status"}
+		cmd = append(cmd, nsArg...)
+		cmd = append(cmd, jobID)
+
+		out, err := Command(cmd[0], cmd[1:]...)
 		if err != nil {
 			return false, fmt.Errorf("could not get job status: %v\n%v", err, out)
 		}
