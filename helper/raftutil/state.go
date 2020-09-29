@@ -165,13 +165,13 @@ func commandName(mt structs.MessageType) string {
 // FindRaftFile finds raft.db and returns path
 func FindRaftFile(p string) (raftpath string, err error) {
 	// Try known locations before traversal to avoid walking deep structure
-	if _, err := os.Stat(filepath.Join(p, "server", "raft", "raft.db")); err == nil {
+	if _, err = os.Stat(filepath.Join(p, "server", "raft", "raft.db")); err == nil {
 		raftpath = filepath.Join(p, "server", "raft", "raft.db")
-	} else if _, err := os.Stat(filepath.Join(p, "raft", "raft.db")); err == nil {
+	} else if _, err = os.Stat(filepath.Join(p, "raft", "raft.db")); err == nil {
 		raftpath = filepath.Join(p, "raft", "raft.db")
-	} else if _, err := os.Stat(filepath.Join(p, "raft.db")); err == nil {
+	} else if _, err = os.Stat(filepath.Join(p, "raft.db")); err == nil {
 		raftpath = filepath.Join(p, "raft.db")
-	} else if _, err := os.Stat(p); err == nil && filepath.Ext(p) == ".db" {
+	} else if _, err = os.Stat(p); err == nil && filepath.Ext(p) == ".db" {
 		// Also accept path to .db file
 		raftpath = p
 	} else {
