@@ -164,26 +164,6 @@ func commandName(mt structs.MessageType) string {
 
 // FindRaftFile finds raft.db and returns path
 func FindRaftFile(p string) (raftpath string, err error) {
-	raftpath, err = FindRaftInPath(p)
-	if err != nil {
-		return "", err
-	}
-
-	return raftpath, nil
-}
-
-// FindRaftDir finds raft.db and returns parent directory path
-func FindRaftDir(p string) (raftpath string, err error) {
-	raftpath, err = FindRaftInPath(p)
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Dir(raftpath), nil
-}
-
-// FindRaftInPath finds raft.db in path p
-func FindRaftInPath(p string) (raftpath string, err error) {
 	// Try known locations before traversal to avoid walking deep structure
 	if _, err := os.Stat(filepath.Join(p, "server", "raft", "raft.db")); err == nil {
 		raftpath = filepath.Join(p, "server", "raft", "raft.db")
@@ -195,28 +175,53 @@ func FindRaftInPath(p string) (raftpath string, err error) {
 		// Also accept path to .db file
 		raftpath = p
 	} else {
-		// Define walk function to identify raft.db
-		walkFn := func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-
-			if filepath.Base(path) == "raft.db" {
-				raftpath = path
-			}
-			return nil
-		}
-
-		// Walk path p looking for raft.db
-		walkErr := filepath.Walk(p, walkFn)
-		if walkErr != nil {
-			return "", walkErr
-		}
+		raftpath, err = FindFileInPath("raft.db", p)
 	}
 
-	if raftpath == "" {
-		return "", fmt.Errorf("No raft.db file found in path %s", p)
+	if err != nil {
+		return "", err
 	}
 
 	return raftpath, nil
+}
+
+// FindRaftDir finds raft.db and returns parent directory path
+func FindRaftDir(p string) (raftpath string, err error) {
+	raftpath, err = FindRaftFile(p)
+	if err != nil {
+		return "", err
+	}
+
+	if raftpath == "" {
+		return "", nil
+	}
+
+	return filepath.Dir(raftpath), nil
+}
+
+// FindFileInPath searches for file in path p
+func FindFileInPath(file string, p string) (path string, err error) {
+	// Define walk function to find file
+	walkFn := func(walkPath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if filepath.Base(walkPath) == file {
+			path = walkPath
+		}
+		return nil
+	}
+
+	// Walk path p looking for file
+	walkErr := filepath.Walk(p, walkFn)
+	if walkErr != nil {
+		return "", walkErr
+	}
+
+	if path == "" {
+		return "", fmt.Errorf("File %s not found in path %s", file, p)
+	}
+
+	return path, nil
 }
