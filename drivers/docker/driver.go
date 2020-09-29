@@ -1299,7 +1299,7 @@ func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) e
 	}
 
 	if signal == "" {
-		signal = "SIGINT"
+		signal = "SIGTERM"
 	}
 
 	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
