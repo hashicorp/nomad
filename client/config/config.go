@@ -57,6 +57,11 @@ var (
 		"/run/resolvconf": "/run/resolvconf",
 		"/sbin":           "/sbin",
 		"/usr":            "/usr",
+
+		// embed systemd-resolved paths for systemd-resolved paths:
+		// /etc/resolv.conf is a symlink to /run/systemd/resolve/stub-resolv.conf in such systems.
+		// In non-systemd systems, this mount is a no-op and the path is ignored if not present.
+		"/run/systemd/resolve": "/run/systemd/resolve",
 	}
 )
 
