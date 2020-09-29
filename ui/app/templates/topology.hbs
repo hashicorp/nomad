@@ -24,9 +24,67 @@
           </div>
         </div>
         <div class="boxed-section">
-          <div class="boxed-section-head">{{if this.activeAllocation "Allocation" "Cluster"}} Details</div>
+          <div class="boxed-section-head">
+            {{#if this.activeNode}}Client{{else if this.activeAllocation}}Allocation{{else}}Cluster{{/if}} Details
+          </div>
           <div class="boxed-section-body">
-            {{#if this.activeAllocation}}
+            {{#if this.activeNode}}
+              <div class="dashboard-metric">
+                <p class="metric">{{this.activeNode.allocations.length}} <span class="metric-label">Allocations</span></p>
+              </div>
+              <div class="dashboard-metric">
+                <h3 class="pair">
+                  <strong>Client:</strong>
+                  <LinkTo @route="clients.client" @model={{this.activeNode.node}}>
+                    {{this.activeNode.node.shortId}}
+                  </LinkTo>
+                </h3>
+                <p><strong>Name:</strong> {{this.activeNode.node.name}}</p>
+                <p><strong>Address:</strong> {{this.activeNode.node.httpAddr}}</p>
+              </div>
+              <div class="dashboard-metric with-divider">
+                <p class="metric">{{this.nodeUtilization.totalMemoryFormatted}} <span class="metric-units">{{this.nodeUtilization.totalMemoryUnits}}</span> <span class="metric-label">of memory</span></p>
+                <div class="columns graphic">
+                  <div class="column">
+                    <div class="inline-chart" data-test-percentage-bar>
+                      <progress
+                        class="progress is-danger is-small"
+                        value="{{this.nodeUtilization.reservedMemoryPercent}}"
+                        max="1">
+                        {{this.nodeUtilization.reservedMemoryPercent}}
+                      </progress>
+                    </div>
+                  </div>
+                  <div class="column is-minimum">
+                    <span class="nowrap" data-test-percentage>{{format-percentage this.nodeUtilization.reservedMemoryPercent total=1}}</span>
+                  </div>
+                </div>
+                <div class="annotation" data-test-absolute-value>
+                  <strong>{{format-bytes this.nodeUtilization.totalReservedMemory}}</strong> / {{format-bytes this.nodeUtilization.totalMemory}} reserved
+                </div>
+              </div>
+              <div class="dashboard-metric">
+                <p class="metric">{{this.nodeUtilization.totalCPU}} <span class="metric-units">Mhz</span> <span class="metric-label">of CPU</span></p>
+                <div class="columns graphic">
+                  <div class="column">
+                    <div class="inline-chart" data-test-percentage-bar>
+                      <progress
+                        class="progress is-info is-small"
+                        value="{{this.nodeUtilization.reservedCPUPercent}}"
+                        max="1">
+                        {{this.nodeUtilization.reservedCPUPercent}}
+                      </progress>
+                    </div>
+                  </div>
+                  <div class="column is-minimum">
+                    <span class="nowrap" data-test-percentage>{{format-percentage this.nodeUtilization.reservedCPUPercent total=1}}</span>
+                  </div>
+                </div>
+                <div class="annotation" data-test-absolute-value>
+                  <strong>{{this.nodeUtilization.totalReservedCPU}} Mhz</strong> / {{this.nodeUtilization.totalCPU}} Mhz reserved
+                </div>
+              </div>
+            {{else if this.activeAllocation}}
               <div class="dashboard-metric">
                 <h3 class="pair">
                   <strong>Allocation:</strong>
@@ -121,7 +179,11 @@
         </div>
       </div>
       <div class="column">
-        <TopoViz @nodes={{this.model.nodes}} @allocations={{this.model.allocations}} @onAllocationSelect={{action this.setAllocation}} />
+        <TopoViz
+          @nodes={{this.model.nodes}}
+          @allocations={{this.model.allocations}}
+          @onAllocationSelect={{action this.setAllocation}}
+          @onNodeSelect={{action this.setNode}} />
       </div>
     </div>
   </section>

@@ -1,16 +1,18 @@
 <div class="chart topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
-  <p>
-    <strong>{{@node.node.name}}</strong>
-    <span class="bumper-left">{{this.count}} Allocs</span>
-    <span class="bumper-left is-faded">{{@node.memory}} MiB, {{@node.cpu}} Mhz</span>
-  </p>
+  {{#unless @isDense}}
+    <p>
+      <strong>{{@node.node.name}}</strong>
+      <span class="bumper-left">{{this.count}} Allocs</span>
+      <span class="bumper-left is-faded">{{@node.memory}} MiB, {{@node.cpu}} Mhz</span>
+    </p>
+  {{/unless}}
   <svg class="chart" height="{{this.totalHeight}}px" {{did-insert this.render}} {{did-update this.updateRender}} {{window-resize this.render}}>
     <defs>
       <clipPath id="{{this.maskId}}">
         <rect class="mask" x="0" y="0" width="{{this.dimensionsWidth}}px" height="{{this.maskHeight}}px" rx="2px" ry="2px" />
       </clipPath>
     </defs>
-    <rect class="node-background" width="100%" height="{{this.totalHeight}}px" rx="2px" ry="2px" />
+    <rect class="node-background {{if @node.isSelected "is-selected"}} {{if @isDense "is-interactive"}}" width="100%" height="{{this.totalHeight}}px" rx="2px" ry="2px" {{on "click" this.selectNode}} />
     {{#if this.allocations.length}}
       <g
         class="dimensions {{if this.activeAllocation "is-active"}}"

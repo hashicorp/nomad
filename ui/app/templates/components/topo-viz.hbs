@@ -10,8 +10,10 @@
       <TopoViz::Datacenter
           @datacenter={{dc}}
           @isSingleColumn={{this.datacenterIsSingleColumn}}
+          @isDense={{this.isDense}}
           @heightScale={{this.topology.heightScale}}
           @onAllocationSelect={{this.associateAllocations}}
+          @onNodeSelect={{this.showNodeDetails}}
           @onLoad={{action reflow}}/>
     </FlexMasonry>
 

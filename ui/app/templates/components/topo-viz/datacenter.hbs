@@ -10,8 +10,10 @@
     <FlexMasonry @columns={{if @isSingleColumn 1 2}} @items={{@datacenter.nodes}} as |node|>
       <TopoViz::Node
         @node={{node}}
+        @isDense={{@isDense}}
         @heightScale={{@heightScale}}
-        @onAllocationSelect={{@onAllocationSelect}} />
+        @onAllocationSelect={{@onAllocationSelect}}
+        @onNodeSelect={{@onNodeSelect}}/>
     </FlexMasonry>
   </div>
 </div>

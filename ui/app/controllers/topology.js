@@ -68,6 +68,31 @@ export default class TopologyControllers extends Controller {
     });
   }
 
+  @computed('activeNode')
+  get nodeUtilization() {
+    const node = this.activeNode;
+    const [formattedMemory, memoryUnits] = reduceToLargestUnit(node.memory * 1024 * 1024);
+    const totalReservedMemory = node.allocations
+      .mapBy('memory')
+      .reduce((sum, memory) => sum + (memory || 0), 0);
+    const totalReservedCPU = node.allocations
+      .mapBy('cpu')
+      .reduce((sum, cpu) => sum + (cpu || 0), 0);
+
+    return {
+      totalMemoryFormatted: formattedMemory.toFixed(2),
+      totalMemoryUnits: memoryUnits,
+
+      totalMemory: node.memory * 1024 * 1024,
+      totalReservedMemory: totalReservedMemory * 1024 * 1024,
+      reservedMemoryPercent: totalReservedMemory / node.memory,
+
+      totalCPU: node.cpu,
+      totalReservedCPU,
+      reservedCPUPercent: totalReservedCPU / node.cpu,
+    };
+  }
+
   @computed('siblingAllocations.@each.node')
   get uniqueActiveAllocationNodes() {
     return this.siblingAllocations.mapBy('node').uniq();
@@ -79,5 +104,10 @@ export default class TopologyControllers extends Controller {
     if (allocation) {
       allocation.reload();
     }
+  }
+
+  @action
+  setNode(node) {
+    this.set('activeNode', node);
   }
 }

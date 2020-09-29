@@ -11,6 +11,17 @@
       fill: $white-ter;
       stroke-width: 1;
       stroke: $grey-lighter;
+
+      &.is-interactive:hover {
+        fill: $white;
+        stroke: $grey-light;
+      }
+
+      &.is-selected,
+      &.is-selected:hover {
+        fill: $white;
+        stroke: $grey;
+      }
     }
 
     .dimension-background {
@@ -42,6 +53,7 @@
       alignment-baseline: central;
       font-weight: $weight-normal;
       fill: $grey;
+      pointer-events: none;
     }
   }
 

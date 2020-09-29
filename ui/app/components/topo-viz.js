@@ -13,6 +13,7 @@ export default class TopoViz extends Component {
   @tracked element = null;
   @tracked topology = { datacenters: [] };
 
+  @tracked activeNode = null;
   @tracked activeAllocation = null;
   @tracked activeEdges = [];
 
@@ -34,6 +35,12 @@ export default class TopoViz extends Component {
     // If there are enough nodes, use two columns of nodes within
     // a single column layout of datacenteres to increase density.
     return !this.isSingleColumn || (this.isSingleColumn && this.args.nodes.length <= 20);
+  }
+
+  // Once a cluster is large enough, the exact details of a node are
+  // typically irrelevant and a waste of space.
+  get isDense() {
+    return this.args.nodes.length > 50;
   }
 
   dataForNode(node) {
@@ -136,6 +143,21 @@ export default class TopoViz extends Component {
   }
 
   @action
+  showNodeDetails(node) {
+    if (this.activeNode) {
+      set(this.activeNode, 'isSelected', false);
+    }
+
+    this.activeNode = this.activeNode === node ? null : node;
+
+    if (this.activeNode) {
+      set(this.activeNode, 'isSelected', true);
+    }
+
+    if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
+  }
+
+  @action
   associateAllocations(allocation) {
     if (this.activeAllocation === allocation) {
       this.activeAllocation = null;
@@ -151,6 +173,10 @@ export default class TopoViz extends Component {
         set(this.topology, 'selectedKey', null);
       }
     } else {
+      if (this.activeNode) {
+        set(this.activeNode, 'isSelected', false);
+      }
+      this.activeNode = null;
       this.activeAllocation = allocation;
       const selectedAllocations = this.topology.allocationIndex[this.topology.selectedKey];
       if (selectedAllocations) {
@@ -171,6 +197,7 @@ export default class TopoViz extends Component {
     }
     if (this.args.onAllocationSelect)
       this.args.onAllocationSelect(this.activeAllocation && this.activeAllocation.allocation);
+    if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
   }
 
   @action

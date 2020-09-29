@@ -99,6 +99,13 @@ export default class TopoVizNode extends Component {
   }
 
   @action
+  selectNode() {
+    if (this.args.isDense && this.args.onNodeSelect) {
+      this.args.onNodeSelect(this.args.node.isSelected ? null : this.args.node);
+    }
+  }
+
+  @action
   selectAllocation(allocation) {
     if (this.args.onAllocationSelect) this.args.onAllocationSelect(allocation);
   }
