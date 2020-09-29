@@ -7,11 +7,11 @@
       {{this.aggregatedAllocationResources.cpu}}/{{this.aggregatedNodeResources.cpu}} Mhz</span>
   </div>
   <div class="boxed-section-body">
-    {{#each @datacenter.nodes as |node|}}
+    <FlexMasonry @columns={{if @isSingleColumn 1 2}} @items={{@datacenter.nodes}} as |node|>
       <TopoViz::Node
         @node={{node}}
         @heightScale={{@heightScale}}
         @onAllocationSelect={{@onAllocationSelect}} />
-    {{/each}}
+    </FlexMasonry>
   </div>
 </div>
