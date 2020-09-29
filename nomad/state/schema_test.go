@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,4 +84,63 @@ func TestState_singleRecord(t *testing.T) {
 	setSingleton("three")
 	require.Equal(1, numRecordsInTable())
 	require.Equal("three", first())
+}
+
+func TestState_ScalingPolicyTargetFieldIndex_FromObject(t *testing.T) {
+	require := require.New(t)
+
+	policy := mock.ScalingPolicy()
+	policy.Target["TestField"] = "test"
+
+	// Create test indexers
+	indexersAllowMissingTrue := &ScalingPolicyTargetFieldIndex{Field: "TestField", AllowMissing: true}
+	indexersAllowMissingFalse := &ScalingPolicyTargetFieldIndex{Field: "TestField", AllowMissing: false}
+
+	// Check if box indexers can find the test field
+	ok, val, err := indexersAllowMissingTrue.FromObject(policy)
+	require.True(ok)
+	require.NoError(err)
+	require.Equal("test\x00", string(val))
+
+	ok, val, err = indexersAllowMissingFalse.FromObject(policy)
+	require.True(ok)
+	require.NoError(err)
+	require.Equal("test\x00", string(val))
+
+	// Check for empty field
+	policy.Target["TestField"] = ""
+
+	ok, val, err = indexersAllowMissingTrue.FromObject(policy)
+	require.True(ok)
+	require.NoError(err)
+	require.Equal("\x00", string(val))
+
+	ok, val, err = indexersAllowMissingFalse.FromObject(policy)
+	require.True(ok)
+	require.NoError(err)
+	require.Equal("\x00", string(val))
+
+	// Check for missing field
+	delete(policy.Target, "TestField")
+
+	ok, val, err = indexersAllowMissingTrue.FromObject(policy)
+	require.True(ok)
+	require.NoError(err)
+	require.Equal("\x00", string(val))
+
+	ok, val, err = indexersAllowMissingFalse.FromObject(policy)
+	require.False(ok)
+	require.NoError(err)
+	require.Equal("", string(val))
+
+	// Check for invalid input
+	ok, val, err = indexersAllowMissingTrue.FromObject("not-a-scaling-policy")
+	require.False(ok)
+	require.Error(err)
+	require.Equal("", string(val))
+
+	ok, val, err = indexersAllowMissingFalse.FromObject("not-a-scaling-policy")
+	require.False(ok)
+	require.Error(err)
+	require.Equal("", string(val))
 }

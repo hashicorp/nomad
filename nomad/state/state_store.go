@@ -5387,22 +5387,34 @@ func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*s
 
 	for _, policy := range scalingPolicies {
 		// Check if the scaling policy already exists
-		existing, err := txn.First("scaling_policy", "target",
+		// Policy uniqueness is based on target and type
+		it, err := txn.Get("scaling_policy", "target",
 			policy.Target[structs.ScalingTargetNamespace],
 			policy.Target[structs.ScalingTargetJob],
-			policy.Target[structs.ScalingTargetGroup])
+			policy.Target[structs.ScalingTargetGroup],
+			policy.Target[structs.ScalingTargetTask],
+		)
 		if err != nil {
 			return fmt.Errorf("scaling policy lookup failed: %v", err)
 		}
 
+		// Check if type matches
+		var existing *structs.ScalingPolicy
+		for raw := it.Next(); raw != nil; raw = it.Next() {
+			p := raw.(*structs.ScalingPolicy)
+			if p.Type == policy.Type {
+				existing = p
+				break
+			}
+		}
+
 		// Setup the indexes correctly
 		if existing != nil {
-			p := existing.(*structs.ScalingPolicy)
-			if !p.Diff(policy) {
+			if !existing.Diff(policy) {
 				continue
 			}
-			policy.ID = p.ID
-			policy.CreateIndex = p.CreateIndex
+			policy.ID = existing.ID
+			policy.CreateIndex = existing.CreateIndex
 			policy.ModifyIndex = index
 		} else {
 			// policy.ID must have been set already in Job.Register before log apply
@@ -5483,6 +5495,32 @@ func (s *StateStore) ScalingPolicies(ws memdb.WatchSet) (memdb.ResultIterator, e
 	return iter, nil
 }
 
+// ScalingPoliciesByType returns an iterator over scaling policies of a certain type.
+func (s *StateStore) ScalingPoliciesByType(ws memdb.WatchSet, t string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("scaling_policy", "type", t)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+// ScalingPoliciesByTypePrefix returns an iterator over scaling policies with a certain type prefix.
+func (s *StateStore) ScalingPoliciesByTypePrefix(ws memdb.WatchSet, t string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("scaling_policy", "type_prefix", t)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
@@ -5551,23 +5589,33 @@ func (s *StateStore) ScalingPolicyByID(ws memdb.WatchSet, id string) (*structs.S
 	return nil, nil
 }
 
-func (s *StateStore) ScalingPolicyByTarget(ws memdb.WatchSet, target map[string]string) (*structs.ScalingPolicy,
+func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[string]string, typ string) (*structs.ScalingPolicy,
 	error) {
 	txn := s.db.ReadTxn()
 
-	// currently, only scaling policy type is against a task group
 	namespace := target[structs.ScalingTargetNamespace]
 	job := target[structs.ScalingTargetJob]
 	group := target[structs.ScalingTargetGroup]
+	task := target[structs.ScalingTargetTask]
 
-	watchCh, existing, err := txn.FirstWatch("scaling_policy", "target", namespace, job, group)
+	it, err := txn.Get("scaling_policy", "target", namespace, job, group, task)
 	if err != nil {
 		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
 	}
-	ws.Add(watchCh)
+	ws.Add(it.WatchCh())
+
+	// Check for type
+	var existing *structs.ScalingPolicy
+	for raw := it.Next(); raw != nil; raw = it.Next() {
+		p := raw.(*structs.ScalingPolicy)
+		if p.Type == typ {
+			existing = p
+			break
+		}
+	}
 
 	if existing != nil {
-		return existing.(*structs.ScalingPolicy), nil
+		return existing, nil
 	}
 
 	return nil, nil

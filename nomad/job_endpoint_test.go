@@ -5589,7 +5589,7 @@ func TestJobEndpoint_Plan_Scaling(t *testing.T) {
 	job := mock.Job()
 	tg := job.TaskGroups[0]
 	tg.Tasks[0].Resources.MemoryMB = 999999999
-	scaling := &structs.ScalingPolicy{Min: 1, Max: 100}
+	scaling := &structs.ScalingPolicy{Min: 1, Max: 100, Type: structs.ScalingPolicyTypeHorizontal}
 	tg.Scaling = scaling.TargetTaskGroup(job, tg)
 	planReq := &structs.JobPlanRequest{
 		Job:  job,

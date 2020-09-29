@@ -8552,11 +8552,11 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	require.Nil(all.Next())
 
 	ws := memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	out, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.Nil(out)
 
-	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	out, err = state.ScalingPolicyByTargetAndType(ws, policy2.Target, policy2.Type)
 	require.NoError(err)
 	require.Nil(out)
 
@@ -8566,32 +8566,59 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 	require.True(watchFired(wsAll))
 
 	ws = memdb.NewWatchSet()
-	out, err = state.ScalingPolicyByTarget(ws, policy.Target)
+	out, err = state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.Equal(policy, out)
 
-	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	out, err = state.ScalingPolicyByTargetAndType(ws, policy2.Target, policy2.Type)
 	require.NoError(err)
 	require.Equal(policy2, out)
 
-	iter, err := state.ScalingPolicies(ws)
-	require.NoError(err)
-
 	// Ensure we see both policies
-	count := 0
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
+	countPolicies := func() (n int, err error) {
+		iter, err := state.ScalingPolicies(ws)
+		if err != nil {
+			return
 		}
-		count++
+
+		for raw := iter.Next(); raw != nil; raw = iter.Next() {
+			n++
+		}
+		return
 	}
+
+	count, err := countPolicies()
+	require.NoError(err)
 	require.Equal(2, count)
 
 	index, err := state.Index("scaling_policy")
 	require.NoError(err)
 	require.True(1000 == index)
 	require.False(watchFired(ws))
+
+	// Check that we can add policy with same target but different type
+	policy3 := mock.ScalingPolicy()
+	for k, v := range policy2.Target {
+		policy3.Target[k] = v
+	}
+
+	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy3})
+	require.NoError(err)
+
+	// Ensure we see both policies, since target didn't change
+	count, err = countPolicies()
+	require.NoError(err)
+	require.Equal(2, count)
+
+	// Change type and check if we see 3
+	policy3.Type = "other-type"
+
+	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy3})
+	require.NoError(err)
+
+	count, err = countPolicies()
+	require.NoError(err)
+	require.Equal(3, count)
 }
 
 func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
@@ -8706,7 +8733,7 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 
 	// Create a watchset so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	out, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.Nil(out)
 
@@ -8716,7 +8743,7 @@ func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
 	require.True(watchFired(ws), "watch did not fire")
 
 	ws = memdb.NewWatchSet()
-	out, err = state.ScalingPolicyByTarget(ws, policy.Target)
+	out, err = state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(out)
 	require.Equal(newIndex, out.CreateIndex)
@@ -8743,7 +8770,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
-	p1, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	p1, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(p1)
 	require.Equal(newIndex, p1.CreateIndex)
@@ -8761,7 +8788,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	require.NoError(err)
 	require.False(watchFired(ws), "watch should not have fired")
 
-	p2, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	p2, err := state.ScalingPolicyByTargetAndType(nil, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(p2)
 	require.Equal(p1.ID, p2.ID, "ID should not have changed")
@@ -8787,7 +8814,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	require.NoError(state.UpsertJob(oldIndex, job))
 
 	ws := memdb.NewWatchSet()
-	p1, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	p1, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(p1)
 	require.Equal(oldIndex, p1.CreateIndex)
@@ -8800,13 +8827,13 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	require.NotEmpty(p1.ID)
 
 	// update the job with the updated scaling policy; make sure to use a different object
-	newPolicy := structs.CopyScalingPolicy(p1)
+	newPolicy := p1.Copy()
 	newPolicy.Policy["new-field"] = "new-value"
 	job.TaskGroups[0].Scaling = newPolicy
 	require.NoError(state.UpsertJob(oldIndex+100, job))
 	require.True(watchFired(ws), "watch should have fired")
 
-	p2, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	p2, err := state.ScalingPolicyByTargetAndType(nil, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(p2)
 	require.Equal(p2.Policy["new-field"], "new-value")
@@ -8834,7 +8861,7 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 
 	// Create a watcher
 	ws := memdb.NewWatchSet()
-	_, err = state.ScalingPolicyByTarget(ws, policy.Target)
+	_, err = state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 
 	// Delete the policy
@@ -8846,12 +8873,12 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 
 	// Ensure we don't get the objects back
 	ws = memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	out, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.Nil(out)
 
 	ws = memdb.NewWatchSet()
-	out, err = state.ScalingPolicyByTarget(ws, policy2.Target)
+	out, err = state.ScalingPolicyByTargetAndType(ws, policy2.Target, policy2.Type)
 	require.NoError(err)
 	require.Nil(out)
 
@@ -8893,7 +8920,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 
 	// Ensure the scaling policy is present and start some watches
 	wsGet := memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(wsGet, policy.Target)
+	out, err := state.ScalingPolicyByTargetAndType(wsGet, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(out)
 	wsList := memdb.NewWatchSet()
@@ -8913,7 +8940,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 	// * the table index was advanced
 	require.True(watchFired(wsGet))
 	require.True(watchFired(wsList))
-	out, err = state.ScalingPolicyByTarget(nil, policy.Target)
+	out, err = state.ScalingPolicyByTargetAndType(nil, policy.Target, policy.Type)
 	require.NoError(err)
 	require.Nil(out)
 	index, err := state.Index("scaling_policy")
@@ -8957,7 +8984,7 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 
 	// Ensure the scaling policy was added, watch was fired, index was advanced
 	require.True(watchFired(ws))
-	out, err := state.ScalingPolicyByTarget(nil, policy.Target)
+	out, err := state.ScalingPolicyByTargetAndType(nil, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(out)
 	index, err := state.Index("scaling_policy")
@@ -8988,7 +9015,7 @@ func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
 
 	// Ensure the scaling policy was deleted
 	ws := memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTarget(ws, policy.Target)
+	out, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
 	require.NoError(err)
 	require.Nil(out)
 	index, err := state.Index("scaling_policy")
@@ -9056,6 +9083,163 @@ func TestStateStore_DeleteJob_ScalingPolicyIndexNoop(t *testing.T) {
 	newIndex, err = state.Index("scaling_policy")
 	require.NoError(err)
 	require.Equal(prevIndex, newIndex)
+}
+
+func TestStateStore_ScalingPoliciesByType(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	// Create scaling policies of different types
+	pHorzA := mock.ScalingPolicy()
+	pHorzA.Type = structs.ScalingPolicyTypeHorizontal
+	pHorzB := mock.ScalingPolicy()
+	pHorzB.Type = structs.ScalingPolicyTypeHorizontal
+
+	pOther1 := mock.ScalingPolicy()
+	pOther1.Type = "other-type-1"
+
+	pOther2 := mock.ScalingPolicy()
+	pOther2.Type = "other-type-2"
+
+	// Create search routine
+	search := func(t string) (count int, found []string, err error) {
+		found = []string{}
+		iter, err := state.ScalingPoliciesByType(nil, t)
+		if err != nil {
+			return
+		}
+
+		for raw := iter.Next(); raw != nil; raw = iter.Next() {
+			count++
+			found = append(found, raw.(*structs.ScalingPolicy).Type)
+		}
+		return
+	}
+
+	// Create the policies
+	var baseIndex uint64 = 1000
+	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{pHorzA, pHorzB, pOther1, pOther2})
+	require.NoError(err)
+
+	// Check if we can read horizontal policies
+	expect := []string{pHorzA.Type, pHorzB.Type}
+	count, found, err := search(structs.ScalingPolicyTypeHorizontal)
+
+	sort.Strings(found)
+	sort.Strings(expect)
+
+	require.NoError(err)
+	require.Equal(expect, found)
+	require.Equal(2, count)
+
+	// Check if we can read policies of other types
+	expect = []string{pOther1.Type}
+	count, found, err = search("other-type-1")
+
+	sort.Strings(found)
+	sort.Strings(expect)
+
+	require.NoError(err)
+	require.Equal(expect, found)
+	require.Equal(1, count)
+
+	// Check if we can't read policies by prefix
+	expect = []string{}
+	count, found, err = search("other-type")
+
+	sort.Strings(found)
+	sort.Strings(expect)
+
+	require.NoError(err)
+	require.Equal(expect, found)
+	require.Equal(0, count)
+
+	// Check for empty result
+	expect = []string{}
+	count, found, err = search("non-existing")
+
+	sort.Strings(found)
+	sort.Strings(expect)
+
+	require.NoError(err)
+	require.Equal(expect, found)
+	require.Equal(0, count)
+}
+
+func TestStateStore_ScalingPoliciesByTypePrefix(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	// Create scaling policies of different types
+	pHorzA := mock.ScalingPolicy()
+	pHorzA.Type = structs.ScalingPolicyTypeHorizontal
+	pHorzB := mock.ScalingPolicy()
+	pHorzB.Type = structs.ScalingPolicyTypeHorizontal
+
+	pOther1 := mock.ScalingPolicy()
+	pOther1.Type = "other-type-1"
+
+	pOther2 := mock.ScalingPolicy()
+	pOther2.Type = "other-type-2"
+
+	// Create search routine
+	search := func(t string) (count int, found []string, err error) {
+		found = []string{}
+		iter, err := state.ScalingPoliciesByTypePrefix(nil, t)
+		if err != nil {
+			return
+		}
+
+		for raw := iter.Next(); raw != nil; raw = iter.Next() {
+			count++
+			found = append(found, raw.(*structs.ScalingPolicy).Type)
+		}
+		return
+	}
+
+	// Create the policies
+	var baseIndex uint64 = 1000
+	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{pHorzA, pHorzB, pOther1, pOther2})
+	require.NoError(err)
+
+	// Check if we can read horizontal policies
+	expect := []string{pHorzA.Type, pHorzB.Type}
+	count, found, err := search("h")
+
+	sort.Strings(found)
+	sort.Strings(expect)
+
+	require.NoError(err)
+	require.Equal(expect, found)
+	require.Equal(2, count)
+
+	// Check if we can read other prefix policies
+	expect = []string{pOther1.Type, pOther2.Type}
+	count, found, err = search("other")
+
+	sort.Strings(found)
+	sort.Strings(expect)
+
+	require.NoError(err)
+	require.Equal(expect, found)
+	require.Equal(2, count)
+
+	// Check for empty result
+	expect = []string{}
+	count, found, err = search("non-existing")
+
+	sort.Strings(found)
+	sort.Strings(expect)
+
+	require.NoError(err)
+	require.Equal(expect, found)
+	require.Equal(0, count)
 }
 
 func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
@@ -9159,6 +9343,48 @@ func TestStateStore_ScalingPoliciesByJob_PrefixBug(t *testing.T) {
 	require.Equal(1, count)
 	expect := []string{policy1.ID}
 	require.Equal(expect, found)
+}
+
+func TestStateStore_ScalingPolicyByTargetAndType(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	state := testStateStore(t)
+
+	// Create scaling policies
+	policyA := mock.ScalingPolicy()
+	// Same target, different type
+	policyB := mock.ScalingPolicy()
+	policyC := mock.ScalingPolicy()
+	for k, v := range policyB.Target {
+		policyC.Target[k] = v
+	}
+	policyC.Type = "other-type"
+
+	// Create the policies
+	var baseIndex uint64 = 1000
+	err := state.UpsertScalingPolicies(baseIndex, []*structs.ScalingPolicy{policyA, policyB, policyC})
+	require.NoError(err)
+
+	// Check if we can retrieve the right policies
+	found, err := state.ScalingPolicyByTargetAndType(nil, policyA.Target, policyA.Type)
+	require.NoError(err)
+	require.Equal(policyA, found)
+
+	// Check for wrong type
+	found, err = state.ScalingPolicyByTargetAndType(nil, policyA.Target, "wrong_type")
+	require.NoError(err)
+	require.Nil(found)
+
+	// Check for same target but different type
+	found, err = state.ScalingPolicyByTargetAndType(nil, policyB.Target, policyB.Type)
+	require.NoError(err)
+	require.Equal(policyB, found)
+
+	found, err = state.ScalingPolicyByTargetAndType(nil, policyB.Target, policyC.Type)
+	require.NoError(err)
+	require.Equal(policyC, found)
 }
 
 func TestStateStore_UpsertScalingEvent(t *testing.T) {
