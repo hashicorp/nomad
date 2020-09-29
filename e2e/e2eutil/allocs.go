@@ -14,9 +14,9 @@ import (
 // WaitForAllocStatusExpected polls 'nomad job status' and exactly compares
 // the status of all allocations (including any previous versions) against the
 // expected list.
-func WaitForAllocStatusExpected(jobID string, expected []string) error {
+func WaitForAllocStatusExpected(jobID, ns string, expected []string) error {
 	return WaitForAllocStatusComparison(
-		func() ([]string, error) { return AllocStatuses(jobID) },
+		func() ([]string, error) { return AllocStatuses(jobID, ns) },
 		func(got []string) bool { return reflect.DeepEqual(got, expected) },
 		nil,
 	)
@@ -44,9 +44,19 @@ func WaitForAllocStatusComparison(query func() ([]string, error), comparison fun
 // AllocsForJob returns a slice of key->value maps, each describing the values
 // of the 'nomad job status' Allocations section (not actual
 // structs.Allocation objects, query the API if you want those)
-func AllocsForJob(jobID string) ([]map[string]string, error) {
+func AllocsForJob(jobID, ns string) ([]map[string]string, error) {
 
-	out, err := Command("nomad", "job", "status", "-verbose", "-all-allocs", jobID)
+	var nsArg = []string{}
+	if ns != "" {
+		nsArg = []string{"-namespace", ns}
+	}
+
+	cmd := []string{"nomad", "job", "status"}
+	params := []string{"-verbose", "-all-allocs", jobID}
+	cmd = append(cmd, nsArg...)
+	cmd = append(cmd, params...)
+
+	out, err := Command(cmd[0], cmd[1:]...)
 	if err != nil {
 		return nil, fmt.Errorf("'nomad job status' failed: %w", err)
 	}
@@ -86,9 +96,9 @@ func AllocsForNode(nodeID string) ([]map[string]string, error) {
 }
 
 // AllocStatuses returns a slice of client statuses
-func AllocStatuses(jobID string) ([]string, error) {
+func AllocStatuses(jobID, ns string) ([]string, error) {
 
-	allocs, err := AllocsForJob(jobID)
+	allocs, err := AllocsForJob(jobID, ns)
 	if err != nil {
 		return nil, err
 	}
@@ -102,9 +112,19 @@ func AllocStatuses(jobID string) ([]string, error) {
 
 // AllocStatusesRescheduled is a helper function that pulls
 // out client statuses only from rescheduled allocs.
-func AllocStatusesRescheduled(jobID string) ([]string, error) {
+func AllocStatusesRescheduled(jobID, ns string) ([]string, error) {
 
-	out, err := Command("nomad", "job", "status", "-verbose", jobID)
+	var nsArg = []string{}
+	if ns != "" {
+		nsArg = []string{"-namespace", ns}
+	}
+
+	cmd := []string{"nomad", "job", "status"}
+	params := []string{"-verbose", jobID}
+	cmd = append(cmd, nsArg...)
+	cmd = append(cmd, params...)
+
+	out, err := Command(cmd[0], cmd[1:]...)
 	if err != nil {
 		return nil, fmt.Errorf("nomad job status failed: %w", err)
 	}
@@ -124,8 +144,13 @@ func AllocStatusesRescheduled(jobID string) ([]string, error) {
 
 		allocID := alloc["ID"]
 
+		cmd := []string{"nomad", "alloc", "status"}
+		params := []string{"-json", allocID}
+		cmd = append(cmd, nsArg...)
+		cmd = append(cmd, params...)
+
 		// reschedule tracker isn't exposed in the normal CLI output
-		out, err := Command("nomad", "alloc", "status", "-json", allocID)
+		out, err := Command(cmd[0], cmd[1:]...)
 		if err != nil {
 			return nil, fmt.Errorf("nomad alloc status failed: %w", err)
 		}
@@ -146,19 +171,28 @@ func AllocStatusesRescheduled(jobID string) ([]string, error) {
 }
 
 // AllocExec is a convenience wrapper that runs 'nomad alloc exec' with the
-// passed cmd via '/bin/sh -c', retrying if the task isn't ready
-func AllocExec(allocID, taskID string, cmd string, wc *WaitConfig) (string, error) {
+// passed execCmd via '/bin/sh -c', retrying if the task isn't ready
+func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, error) {
 	var got string
 	var err error
 	interval, retries := wc.OrDefault()
 
-	args := []string{"alloc", "exec", "-task", taskID, allocID, "/bin/sh", "-c", cmd}
+	var nsArg = []string{}
+	if ns != "" {
+		nsArg = []string{"-namespace", ns}
+	}
+
+	cmd := []string{"nomad", "exec"}
+	params := []string{"-task", taskID, allocID, "/bin/sh", "-c", execCmd}
+	cmd = append(cmd, nsArg...)
+	cmd = append(cmd, params...)
+
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(interval)
-		got, err = Command("nomad", args...)
+		got, err = Command(cmd[0], cmd[1:]...)
 		return err == nil, err
 	}, func(e error) {
-		err = fmt.Errorf("exec failed: 'nomad %s'", strings.Join(args, " "))
+		err = fmt.Errorf("exec failed: '%s'", strings.Join(cmd, " "))
 	})
 	return got, err
 }

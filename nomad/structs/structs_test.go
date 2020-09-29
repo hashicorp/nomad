@@ -5584,3 +5584,69 @@ func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
 		},
 	}, a.Ports)
 }
+
+func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
+	t.Run("service task not set", func(t *testing.T) {
+		tg := &TaskGroup{
+			Name: "group1",
+			Services: []*Service{{
+				Name:     "service1",
+				TaskName: "", // unset
+				Checks: []*ServiceCheck{{
+					Name:     "check1",
+					Type:     "script",
+					TaskName: "", // unset
+				}, {
+					Name: "check2",
+					Type: "ttl", // not script
+				}, {
+					Name:     "check3",
+					Type:     "script",
+					TaskName: "", // unset
+				}},
+			}, {
+				Name: "service2",
+				Checks: []*ServiceCheck{{
+					Type:     "script",
+					TaskName: "task1", // set
+				}},
+			}, {
+				Name:     "service3",
+				TaskName: "", // unset
+				Checks: []*ServiceCheck{{
+					Name:     "check1",
+					Type:     "script",
+					TaskName: "", // unset
+				}},
+			}},
+		}
+
+		errStr := tg.validateScriptChecksInGroupServices().Error()
+		require.Contains(t, errStr, "Service [group1]->service1 or Check check1 must specify task parameter")
+		require.Contains(t, errStr, "Service [group1]->service1 or Check check3 must specify task parameter")
+		require.Contains(t, errStr, "Service [group1]->service3 or Check check1 must specify task parameter")
+	})
+
+	t.Run("service task set", func(t *testing.T) {
+		tgOK := &TaskGroup{
+			Name: "group1",
+			Services: []*Service{{
+				Name:     "service1",
+				TaskName: "task1",
+				Checks: []*ServiceCheck{{
+					Name: "check1",
+					Type: "script",
+				}, {
+					Name: "check2",
+					Type: "ttl",
+				}, {
+					Name: "check3",
+					Type: "script",
+				}},
+			}},
+		}
+
+		mErrOK := tgOK.validateScriptChecksInGroupServices()
+		require.Nil(t, mErrOK)
+	})
+}

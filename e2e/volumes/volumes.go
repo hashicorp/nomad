@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 )
 
+const ns = ""
+
 type VolumesTest struct {
 	framework.TC
 	jobIDs []string
@@ -56,20 +58,20 @@ func (tc *VolumesTest) TestVolumeMounts(f *framework.F) {
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	expected := []string{"running"}
-	f.NoError(e2e.WaitForAllocStatusExpected(jobID, expected), "job should be running")
+	f.NoError(e2e.WaitForAllocStatusExpected(jobID, ns, expected), "job should be running")
 
-	allocs, err := e2e.AllocsForJob(jobID)
+	allocs, err := e2e.AllocsForJob(jobID, ns)
 	f.NoError(err, "could not get allocs for job")
 	allocID := allocs[0]["ID"]
 	nodeID := allocs[0]["Node ID"]
 
 	cmdToExec := fmt.Sprintf("cat /tmp/foo/%s", allocID)
 
-	out, err := e2e.AllocExec(allocID, "docker_task", cmdToExec, nil)
+	out, err := e2e.AllocExec(allocID, "docker_task", cmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: docker_task")
 	f.Equal(out, allocID+"\n", "alloc data is missing from docker_task")
 
-	out, err = e2e.AllocExec(allocID, "exec_task", cmdToExec, nil)
+	out, err = e2e.AllocExec(allocID, "exec_task", cmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: exec_task")
 	f.Equal(out, allocID+"\n", "alloc data is missing from exec_task")
 
@@ -92,25 +94,25 @@ func (tc *VolumesTest) TestVolumeMounts(f *framework.F) {
 	_, _, err = tc.Nomad().Jobs().Register(job, nil)
 	f.NoError(err, "could not register updated job")
 
-	allocs, err = e2e.AllocsForJob(jobID)
+	allocs, err = e2e.AllocsForJob(jobID, ns)
 	f.NoError(err, "could not get allocs for job")
 	newAllocID := allocs[0]["ID"]
 
 	newCmdToExec := fmt.Sprintf("cat /tmp/foo/%s", newAllocID)
 
-	out, err = e2e.AllocExec(newAllocID, "docker_task", cmdToExec, nil)
+	out, err = e2e.AllocExec(newAllocID, "docker_task", cmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: docker_task")
 	f.Equal(out, allocID+"\n", "previous alloc data is missing from docker_task")
 
-	out, err = e2e.AllocExec(newAllocID, "docker_task", newCmdToExec, nil)
+	out, err = e2e.AllocExec(newAllocID, "docker_task", newCmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: docker_task")
 	f.Equal(out, newAllocID+"\n", "new alloc data is missing from docker_task")
 
-	out, err = e2e.AllocExec(newAllocID, "exec_task", cmdToExec, nil)
+	out, err = e2e.AllocExec(newAllocID, "exec_task", cmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: exec_task")
 	f.Equal(out, allocID+"\n", "previous alloc data is missing from exec_task")
 
-	out, err = e2e.AllocExec(newAllocID, "exec_task", newCmdToExec, nil)
+	out, err = e2e.AllocExec(newAllocID, "exec_task", newCmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: exec_task")
 	f.Equal(out, newAllocID+"\n", "new alloc data is missing from exec_task")
 }
