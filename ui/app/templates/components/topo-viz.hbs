@@ -6,16 +6,14 @@
       <LoadingSpinner />
     </div>
   {{else}}
-    <div class="topo-viz-datacenters">
-      {{#each this.topology.datacenters as |dc|}}
-        <TopoViz::Datacenter
+    <FlexMasonry @columns={{if this.isSingleColumn 1 2}} @items={{this.topology.datacenters}} @withSpacing={{true}} as |dc reflow|>
+      <TopoViz::Datacenter
           @datacenter={{dc}}
           @isSingleColumn={{this.datacenterIsSingleColumn}}
           @heightScale={{this.topology.heightScale}}
           @onAllocationSelect={{this.associateAllocations}}
-          @onLoad={{action this.masonry}}/>
-      {{/each}}
-    </div>
+          @onLoad={{action reflow}}/>
+    </FlexMasonry>
 
     {{#if this.activeAllocation}}
       <svg class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>

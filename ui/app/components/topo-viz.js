@@ -4,7 +4,7 @@ import { action, set } from '@ember/object';
 import { run } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import { scaleLinear } from 'd3-scale';
-import { extent, deviation, mean, minIndex, max } from 'd3-array';
+import { extent, deviation, mean } from 'd3-array';
 import RSVP from 'rsvp';
 
 export default class TopoViz extends Component {
@@ -25,7 +25,7 @@ export default class TopoViz extends Component {
     const variationCoefficient = deviation(nodeCounts) / mean(nodeCounts);
 
     // The point at which the varation is too extreme for a two column layout
-    const threshold = 0.3;
+    const threshold = 0.5;
     if (variationCoefficient > threshold) return true;
     return false;
   }
@@ -33,7 +33,7 @@ export default class TopoViz extends Component {
   get datacenterIsSingleColumn() {
     // If there are enough nodes, use two columns of nodes within
     // a single column layout of datacenteres to increase density.
-    return this.columnsCount !== 1 || this.args.nodes.length <= 20;
+    return !this.isSingleColumn || (this.isSingleColumn && this.args.nodes.length <= 20);
   }
 
   dataForNode(node) {
@@ -128,55 +128,6 @@ export default class TopoViz extends Component {
       .range([15, 40])
       .domain(extent(this.args.nodes.map(node => node.resources.memory)));
     this.isLoaded = true;
-
-    // schedule masonry
-    run.schedule('afterRender', () => {
-      this.masonry();
-    });
-  }
-
-  @action
-  masonry() {
-    run.next(() => {
-      const columnCount = this.isSingleColumn ? 1 : 2;
-
-      // There's nothing to do if this is  single column layout
-      if (columnCount === 1) return;
-
-      const columns = new Array(columnCount).fill(null).map(() => ({
-        height: 0,
-        elements: [],
-      }));
-
-      const datacenterSections = this.element.querySelectorAll('.topo-viz-datacenter');
-
-      // First pass: assign each element to a column based on the running heights of each column
-      for (let dc of datacenterSections) {
-        const styles = window.getComputedStyle(dc);
-        const marginTop = parseFloat(styles.marginTop);
-        const marginBottom = parseFloat(styles.marginBottom);
-        const height = dc.clientHeight;
-
-        // Pick the shortest column accounting for margins
-        const column = columns[minIndex(columns, c => c.height)];
-
-        // Add the new element's height to the column height
-        column.height += marginTop + height + marginBottom;
-        column.elements.push(dc);
-      }
-
-      // Second pass: assign an order to each element based on their column and position in the column
-      columns
-        .mapBy('elements')
-        .flat()
-        .forEach((dc, index) => {
-          dc.style.order = index;
-        });
-
-      // Set the max height of the container to the height of the tallest column
-      this.element.querySelector('.topo-viz-datacenters').style.maxHeight =
-        max(columns.mapBy('height')) + 1 + 'px';
-    });
   }
 
   @action
