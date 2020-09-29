@@ -18,7 +18,7 @@ workloads including Docker, non-containerized, microservice, and batch
 applications.
 
 Nomad utilizes a lightweight gossip and RPC system, [similar to
-Consul](https://www.consul.io/docs/internals/security.html), which provides
+Consul](https://www.consul.io/docs/internals/security), which provides
 various essential features. Both of these systems provide security mechanisms
 which should be utilized to help provide [confidentiality, integrity and
 authentication](https://en.wikipedia.org/wiki/Information_security).
@@ -38,12 +38,12 @@ but the general mechanisms for a secure Nomad deployment revolve around:
     authorization for authenticated connections by granting capabilities to ACL
     tokens.
 
-* **[Namespaces](/docs/enterprise/index.html#namespaces)**
+* **[Namespaces](https://learn.hashicorp.com/tutorials/nomad/namespaces)**
     (**Enterprise Only**) - Access to read and write to a Namepsace can be
     controlled to allow for granular access to job information managed within a
     multi-tenant cluster.
 
-* **[Sentinel Policies](/docs/enterprise/index.html#sentinel-policies)**
+* **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
     (**Enterprise Only**) - Sentinel policies allow for granular control over
     components such as task drivers within a cluster.
 
@@ -53,7 +53,7 @@ When thinking about Nomad, it helps to consider the following types of base
 personas when managing the security requirements for the cluster deployment. The
 granularity may change depending on your team's use case where rigorous roles
 can be accurately defined and managed using the [Nomad backend secret engine for
-Vault](https://www.vaultproject.io/docs/secrets/nomad/index.html). This is
+Vault](https://www.vaultproject.io/docs/secrets/nomad). This is
 described further with getting started steps using a development server
 [here](https://learn.hashicorp.com/collections/nomad/access-control).
 
@@ -110,7 +110,7 @@ recommendations accordingly.
     traffic being encrypted using the well known network security protocol
     [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) version 1.2,
     with a [configurable minimal
-    version](/docs/configuration/tls.html#tls_min_version).
+    version](/docs/configuration/tls#tls_min_version).
     Both server and client agents must be configured to validate each other's
     certificates to ensure mTLS is actually enabled. This requires appropriate
     certificates to be distributed to servers, clients, machines, or operators
@@ -167,9 +167,9 @@ environment.
     frequently is highly recommended to reduce damage of accidentally leaked
     credentials.
 
-    * Use [Vault](/docs/vault-integration/index.html) to create and manage
+    * Use [Vault](/docs/integrations/vault-integration) to create and manage
       dynamic, rotated credentials prevent secrets from being easily exposed
-      within the [job specification](/docs/job-specification/index.html) itself
+      within the [job specification](/docs/job-specification) itself
       which may be leaked into version control or otherwise be accidentally stored
       on disk on an operator's local machine.
 
@@ -200,9 +200,9 @@ environment.
     both the Nomad hosts and applied to containers for an extra layer of
     security. Seccomp profiles are able to be passed directly to containers
     using the
-    **[`security_opt`](/docs/drivers/docker.html#security_opt)**
+    **[`security_opt`](/docs/drivers/docker#security_opt)**
     parameter available in the default [Docker
-    driver](/docs/drivers/docker.html).
+    driver](/docs/drivers/docker).
 
 * **[Service Mesh](https://www.hashicorp.com/resources/service-mesh-microservices-networking)** -
     Integrating service mesh technologies such as
@@ -266,7 +266,7 @@ The following are not part of the threat model for client agents:
 * **Access (read or write) to the Nomad configuration directory** - Access to a
     client's configuration file can enable and disable features for a client
     including insecure drivers such as
-    [`raw_exec`](/docs/drivers/raw_exec.html).
+    [`raw_exec`](/docs/drivers/raw_exec).
 
 * **Memory access to a running Nomad client agent** - Direct access to the
     memory of the Nomad client agent process allows an attack to extract secrets
@@ -298,7 +298,7 @@ The following are not part of the threat model for client agents:
     and the backend configuration of these drivers should be considered to
     implement defense in depth. For example, a custom Docker driver that limits
     the ability to mount the host file system may be subverted by network access
-    to an exposed Docker daemon API through other means such as the [`raw_exec`](/docs/drivers/raw_exec.html)
+    to an exposed Docker daemon API through other means such as the [`raw_exec`](/docs/drivers/raw_exec)
     driver.
 
 
@@ -321,6 +321,6 @@ There are two main components to consider to for external threats in a Nomad clu
 
 | **Port / Protocol**  | Agents  | Description |
 |----------------------|---------|-------------|
-| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](https://learn.hashicorp.com/collections/nomad/web-ui) and [API](/api-docs) access to agents. |
+| **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](https://learn.hashicorp.com/tutorials/nomad/web-ui-access) and [API](/api-docs) access to agents. |
 | **4647** / TCP       | Servers | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents. |
-| **4648** / TCP + UDP | Servers | [gossip](/docs/internals/gossip.html) protocol to manage server membership using [Serf](https://www.serf.io/). |
+| **4648** / TCP + UDP | Servers | [gossip](/docs/internals/gossip) protocol to manage server membership using [Serf](https://www.serf.io/). |

@@ -32,7 +32,7 @@ Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as e
 
 Automated Upgrades allows operators to deploy a complete cluster of new servers and then simply wait for the upgrade to complete. As the new servers join the cluster, server logic checks the version of each Nomad server node. If the version is higher than the version on the current set of voters, it will avoid promoting the new servers to voters until the number of new servers matches the number of existing servers at the previous version. Once the numbers match, Nomad will begin to promote new servers and demote old ones.
 
-See the [Autopilot - Upgrade Migrations](https://learn.hashicorp.com/nomad/operating-nomad/autopilot#upgrade-migrations) documentation for a thorough overview.
+See the [Autopilot - Upgrade Migrations](https://learn.hashicorp.com/tutorials/nomad/autopilot#upgrade-migrations) documentation for a thorough overview.
 
 ### Automated Backups
 
@@ -40,25 +40,25 @@ Automated Backups allows operators to run the snapshot agent as a long-running d
 
 This capability provides an enterprise solution for backup and restoring the state of Nomad servers within an environment in an automated manner. These snapshots are atomic and point-in-time.
 
-See the [Operator Snapshot agent](https://www.nomadproject.io/docs/commands/operator/snapshot-agent) documentation for a thorough overview.
+See the [Operator Snapshot agent](/docs/commands/operator/snapshot-agent) documentation for a thorough overview.
 
 ### Enhanced Read Scalability
 
 This feature enables an operator to introduce non-voting server nodes to a Nomad cluster. Non-voting servers will receive the replication stream but will not take part in quorum (required by the leader before log entries can be committed). Adding explicit non-voters will scale reads and scheduling without impacting write latency.
 
-See the [Autopilot - Read Scalability](https://learn.hashicorp.com/nomad/operating-nomad/autopilot#server-read-and-scheduling-scaling) documentation for a thorough overview.
+See the [Autopilot - Read Scalability](https://learn.hashicorp.com/tutorials/nomad/autopilot#server-read-and-scheduling-scaling) documentation for a thorough overview.
 
 ### Redundancy Zones
 
 Redundancy Zones enables an operator to deploy a non-voting server as a hot standby server on a per availability zone basis. For example, in an environment with three availability zones an operator can run one voter and one non-voter in each availability zone, for a total of six servers. If an availability zone is completely lost, only one voter will be lost, so the cluster remains available. If a voter is lost in an availability zone, Nomad will promote the non-voter to a voter automatically, putting the hot standby server into service quickly.
 
-See the [Autopilot - Redundancy Zones](https://learn.hashicorp.com/nomad/operating-nomad/autopilot#redundancy-zones) documentation for a thorough overview.
+See the [Autopilot - Redundancy Zones](https://learn.hashicorp.com/tutorials/nomad/autopilot#redundancy-zones) documentation for a thorough overview.
 
 ### Multiple Vault Namespaces
 
 Multi-Vault Namespaces enables an operator to configure a single Nomad cluster to support multiple Vault Namespaces for topology simplicity and fleet consolidation when running Nomad and Vault together. Nomad will automatically retrieve a Vault token based on a job's defined Vault Namespace and make it available for the specified Nomad task at hand.
 
-See the [Vault Integration documentation](https://www.nomadproject.io/docs/integrations/vault-integration#enterprise-configuration) for more information.
+See the [Vault Integration documentation](/docs/integrations/vault-integration#enterprise-configuration) for more information.
 
 ## Governance & Policy
 
@@ -78,7 +78,7 @@ Namespaces enable multiple teams to safely use a shared multi-region Nomad envir
 
 Namespaces enhance the usability of a shared cluster by isolating teams from the jobs of others, by providing fine grain access control to jobs when coupled with ACLs, and by preventing bad actors from negatively impacting the whole cluster.
 
-See the [Namespaces Guide](https://learn.hashicorp.com/nomad/governance-and-policy/namespaces) for a thorough overview.
+See the [Namespaces Guide](https://learn.hashicorp.com/tutorials/nomad/namespaces) for a thorough overview.
 
 ### Resource Quotas
 
@@ -86,18 +86,18 @@ Resource Quotas enable an operator to limit resource consumption across teams or
 
 This allows operators to partition a shared cluster and ensure that no single actor can consume the whole resources of the cluster.
 
-See the [Resource Quotas Guide](https://learn.hashicorp.com/nomad/governance-and-policy/quotas) for a thorough overview.
+See the [Resource Quotas Guide](https://learn.hashicorp.com/tutorials/nomad/quotas) for a thorough overview.
 
 ### Sentinel Policies
 
 In Nomad Enterprise, operators can create Sentinel policies for fine-grained policy enforcement. Sentinel policies build on top of the ACL system and allow operators to define policies such as disallowing jobs to be submitted to production on Fridays or only allowing users to run jobs that use pre-authorized Docker images. Sentinel policies are defined as code, giving operators considerable flexibility to meet compliance requirements.
 
-See the [Sentinel Policies Guide](https://learn.hashicorp.com/nomad/governance-and-policy/sentinel) for a thorough overview.
+See the [Sentinel Policies Guide](https://learn.hashicorp.com/tutorials/nomad/sentinel) for a thorough overview.
 
 ### Cross-Namespace Queries
 Cross-Namespace Queries allows operators to query jobs and allocations across all namespaces for faster operator debugging and visibility in multi-tenant clusters. This enterprise feature accelerates and simplifies the debugging process by allowing operators to easily locate faulty jobs and allocations from developers.
 
-See the individual Nomad CLI command documentation (e.g., [alloc exec](https://www.nomadproject.io/docs/commands/alloc/exec#namespace)) for more information.
+See the individual Nomad CLI command documentation (e.g., [alloc exec](/docs/commands/alloc/exec#namespace)) for more information.
 
 ## Multi-Cluster & Efficiency
 

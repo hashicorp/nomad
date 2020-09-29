@@ -32,14 +32,14 @@ launch a proxy alongside the application in the job file. The proxy (Envoy)
 provides secure communication with other applications in the cluster.
 
 Nomad job specification authors can use Nomad's Consul Connect integration to
-implement [service segmentation](https://www.consul.io/segmentation.html) in a
+implement [service segmentation](https://www.consul.io/use-cases/multi-platform-service-mesh) in a
 microservice architecture running in public clouds without having to directly
 manage TLS certificates. This is transparent to job specification authors as
 security features in Connect continue to work even as the application scales up
 or down or gets rescheduled by Nomad.
 
 For using the Consul Connect integration with Consul ACLs enabled, see the
-[Secure Nomad Jobs with Consul Connect](https://learn.hashicorp.com/nomad/consul-integration/nomad-connect-acl)
+[Secure Nomad Jobs with Consul Connect](https://learn.hashicorp.com/tutorials/nomad/consul-service-mesh)
 guide.
 
 # Nomad Consul Connect Example

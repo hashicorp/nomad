@@ -35,18 +35,17 @@ detailing the missing capability.
 Enterprise binaries for Nomad are now publicly available via
 [releases.hashicorp.com](https://releases.hashicorp.com/nomad/). By default all
 enterprise features are enabled for 6 hours. During that time enterprise users
-should apply their license with the [`nomad license put
-...`](https://www.nomadproject.io/docs/commands/license/put) command.
+should apply their license with the [`nomad license put ...`](/docs/commands/license/put) command.
 
 Once the 6 hour demonstration period expires, Nomad will shutdown. If restarted
 Nomad will shutdown in a very short amount of time unless a valid license is
 applied.
 
 ~> **Warning:** Due to a [bug][gh-8457] in Nomad v0.12.0, existing clusters
-   that are upgraded will **not** have 6 hours to apply a license. The minimal
-   grace period should be sufficient to apply a valid license, but enterprise
-   users are encouraged to delay upgrading until Nomad v0.12.1 is released and
-   fixes the issue.
+that are upgraded will **not** have 6 hours to apply a license. The minimal
+grace period should be sufficient to apply a valid license, but enterprise
+users are encouraged to delay upgrading until Nomad v0.12.1 is released and
+fixes the issue.
 
 ### Docker access host filesystem
 
@@ -107,10 +106,10 @@ incorrectly during scoring. The result of this bug was that scoring biased in
 favor of nodes with reserved resources vs nodes without reserved resources.
 
 Placements will be more correct but slightly different in v0.11.2 vs earlier
-versions of Nomad. Operators do *not* need to take any actions as the impact of
+versions of Nomad. Operators do _not_ need to take any actions as the impact of
 the bug fix will only minimally affect scoring.
 
-Feasability (whether a node is capable of running a job at all) is *not*
+Feasability (whether a node is capable of running a job at all) is _not_
 affected.
 
 ### Periodic Jobs and Daylight Saving Time
@@ -358,14 +357,12 @@ Before Nomad 0.9.0 ports mapped via a task driver's `port_map` stanza could be
 interpolated via the `NOMAD_PORT_<label>` environment variables.
 
 However, in Nomad 0.9.0 no parameters in a driver's `config` stanza, including
-its `port_map`, are available for interpolation. This means `{{ env
-NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT =
-"${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the *host* ports,
+its `port_map`, are available for interpolation. This means `{{ env NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT = "${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the _host_ ports,
 not the container's.
 
 Nomad 0.10 introduced Task Group Networking which natively supports port
 mapping without relying on task driver specific `port_map` fields. The
-[`to`](/docs/job-specification/network/#to) field on group network port stanzas
+[`to`](/docs/job-specification/network#to) field on group network port stanzas
 will be interpolated properly. Please see the
 [`network`](/docs/job-specification/network/) stanza documentation for details.
 
@@ -408,18 +405,18 @@ Raft Protocol versions supported by each Nomad version:
   </tbody>
 </table>
 
-In order to enable all [Autopilot](https://learn.hashicorp.com/nomad/operating-nomad/autopilot) features, all servers
+In order to enable all [Autopilot](https://learn.hashicorp.com/tutorials/nomad/autopilot) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
 
 #### Upgrading to Raft Protocol 3
 
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](https://learn.hashicorp.com/nomad/operating-nomad/outage#manual-recovery-using-peersjson) for a description of the required format.
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson) for a description of the required format.
 
 Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
 
 The easiest way to upgrade servers is to have each server leave the cluster, upgrade its `raft_protocol` version in the `server` stanza, and then add it back. Make sure the new server joins successfully and that the cluster is stable before rolling the upgrade forward to the next server. It's also possible to stand up a new set of servers, and then slowly stand down each of the older servers in a similar fashion.
 
-When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](https://learn.hashicorp.com/nomad/operating-nomad/outage#manual-recovery-using-peersjson) to map the server to its node ID in the Raft quorum configuration.
+When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson) to map the server to its node ID in the Raft quorum configuration.
 
 ### Node Draining Improvements
 
@@ -434,7 +431,7 @@ The `drain` command now blocks until the drain completes. To get the Nomad
 0.7.1 and earlier drain behavior use the command: `nomad node drain -enable -force -detach <node-id>`
 
 See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
-guide](https://learn.hashicorp.com/nomad/operating-nomad/node-draining) for details.
+guide](https://learn.hashicorp.com/tutorials/nomad/node-drain) for details.
 
 ### Periods in Environment Variable Names No Longer Escaped
 
@@ -609,8 +606,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
-[tls-guide]: https://learn.hashicorp.com/nomad/transport-security/enable-tls
-[tls-vault-guide]: https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad
+[tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
+[tls-vault-guide]: https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad
 [update]: /docs/job-specification/update
 [validate]: /docs/commands/job/validate
 [vault_grace]: /docs/job-specification/template

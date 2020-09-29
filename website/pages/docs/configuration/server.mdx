@@ -162,7 +162,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](https://learn.hashicorp.com/nomad/operating-nomad/autopilot).
+  information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -177,7 +177,7 @@ server {
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](https://learn.hashicorp.com/nomad/operating-nomad/autopilot).
+  For more information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
 
 ### Deprecated Parameters
 
@@ -243,7 +243,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/nomad/operating-nomad/clustering).
+[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/tutorials/nomad/clustering).
 
 ### Restricting Schedulers
 
@@ -266,8 +266,8 @@ scheduler configuration determines which scheduling algorithm is configured—
 spread scheduling or binpacking—and which job types are eligible for preemption.
 
 ~> **Warning:** Once the cluster is bootstrapped, you must configure this using
-   the [update scheduler configuration][update-scheduler-config] API. This
-   option is only consulted during bootstrap.
+the [update scheduler configuration][update-scheduler-config] API. This
+option is only consulted during bootstrap.
 
 The structure matches the [Update Scheduler Config][update-scheduler-config] API
 endpoint, which you should consult for canonical documentation. However, the
@@ -291,7 +291,7 @@ server {
 }
 ```
 
-[encryption]: https://learn.hashicorp.com/nomad/transport-security/gossip-encryption 'Nomad Encryption Overview'
+[encryption]: https://learn.hashicorp.com/tutorials/nomad/security-gossip-encryption 'Nomad Encryption Overview'
 [server-join]: /docs/configuration/server_join 'Server Join'
 [update-scheduler-config]: /api-docs/operator#update-scheduler-configuration 'Scheduler Config'
 [bootstrapping a cluster]: /docs/faq#bootstrapping

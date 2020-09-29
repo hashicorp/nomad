@@ -126,7 +126,7 @@ Connect][connect] integration.
 - `enable_tag_override` `(bool: false)` - Enables users of Consul's Catalog API
   to make changes to the tags of a service without having those changes be
   overwritten by Consul's anti-entropy mechanism. See Consul
-  [documentation](https://www.consul.io/docs/internals/anti-entropy.html#enable-tag-override)
+  [documentation](https://www.consul.io/docs/internals/anti-entropy#enable-tag-override)
   for more information.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
@@ -702,8 +702,8 @@ advertise and check directly since Nomad isn't managing any port assignments.
   client does not have access to the file system of a task for that driver.
 </small>
 
-[check_restart_stanza]: /docs/job-specification/check_restart 'check_restart stanza'
-[consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
+[check_restart_stanza]: /docs/job-specification/check_restart
+[consul_grpc]: https://www.consul.io/api/agent/check#grpc
 [consul_passfail]: https://www.consul.io/docs/agent/checks#success-failures-before-passing-critical
 [service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
