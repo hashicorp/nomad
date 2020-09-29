@@ -246,7 +246,8 @@ scripts.
 - `task` `(string: <required>)` - Specifies the task associated with this
   check. Scripts are executed within the task's environment, and
   `check_restart` stanzas will apply to the specified task. For `checks` on group
-  level `services` only.
+  level `services` only. Inherits the [`service.task`][service_task] value if not
+  set.
 
 - `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
   health check query to succeed. This is specified using a label suffix like
@@ -714,3 +715,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [shutdowndelay]: /docs/job-specification/task#shutdown_delay
 [killsignal]: /docs/job-specification/task#kill_signal
 [killtimeout]: /docs/job-specification/task#kill_timeout
+[service_task]: /docs/job-specification/service#task-1

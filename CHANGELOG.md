@@ -8,6 +8,7 @@ IMPROVEMENTS:
 BUG FIXES:
 
  * core: Fixed a bug where blocking queries would not include the query's maximum wait time when calculating whether it was safe to retry. [[GH-8921](https://github.com/hashicorp/nomad/issues/8921)]
+ * consul: Fixed a bug to correctly validate task when using script-checks in group-level services [[GH-8952](https://github.com/hashicorp/nomad/issues/8952)]
 
 ## 0.12.5 (September 17, 2020)
 
