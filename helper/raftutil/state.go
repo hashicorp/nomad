@@ -193,7 +193,7 @@ func FindRaftDir(p string) (raftpath string, err error) {
 	}
 
 	if raftpath == "" {
-		return "", nil
+		return "", fmt.Errorf("failed to find raft dir in %s", p)
 	}
 
 	return filepath.Dir(raftpath), nil
