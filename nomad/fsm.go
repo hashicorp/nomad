@@ -206,7 +206,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.NodeUpdateStatusRequestType:
 		return n.applyStatusUpdate(buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
-		return n.applyDrainUpdate(buf[1:], log.Index)
+		return n.applyDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
 		return n.applyUpsertJob(buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
@@ -226,13 +226,13 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.VaultAccessorDeregisterRequestType:
 		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
 	case structs.ApplyPlanResultsRequestType:
-		return n.applyPlanResults(buf[1:], log.Index)
+		return n.applyPlanResults(msgType, buf[1:], log.Index)
 	case structs.DeploymentStatusUpdateRequestType:
-		return n.applyDeploymentStatusUpdate(buf[1:], log.Index)
+		return n.applyDeploymentStatusUpdate(msgType, buf[1:], log.Index)
 	case structs.DeploymentPromoteRequestType:
-		return n.applyDeploymentPromotion(buf[1:], log.Index)
+		return n.applyDeploymentPromotion(msgType, buf[1:], log.Index)
 	case structs.DeploymentAllocHealthRequestType:
-		return n.applyDeploymentAllocHealth(buf[1:], log.Index)
+		return n.applyDeploymentAllocHealth(msgType, buf[1:], log.Index)
 	case structs.DeploymentDeleteRequestType:
 		return n.applyDeploymentDelete(buf[1:], log.Index)
 	case structs.JobStabilityRequestType:
@@ -250,7 +250,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.UpsertNodeEventsType:
-		return n.applyUpsertNodeEvent(buf[1:], log.Index)
+		return n.applyUpsertNodeEvent(msgType, buf[1:], log.Index)
 	case structs.JobBatchDeregisterRequestType:
 		return n.applyBatchDeregisterJob(buf[1:], log.Index)
 	case structs.AllocUpdateDesiredTransitionRequestType:
@@ -402,12 +402,14 @@ func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_drain_update"}, time.Now())
 	var req structs.NodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
+
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, reqType)
 
 	// COMPAT Remove in version 0.10
 	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
@@ -423,7 +425,7 @@ func (n *nomadFSM) applyDrainUpdate(buf []byte, index uint64) interface{} {
 		}
 	}
 
-	if err := n.state.UpdateNodeDrain(index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeDrainCtx(ctx, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
@@ -874,14 +876,16 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 }
 
 // applyUpsertNodeEvent tracks the given node events.
-func (n *nomadFSM) applyUpsertNodeEvent(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
 	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode EmitNodeEventsRequest: %v", err))
 	}
 
-	if err := n.state.UpsertNodeEvents(index, req.NodeEvents); err != nil {
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+
+	if err := n.state.UpsertNodeEventsCtx(ctx, index, req.NodeEvents); err != nil {
 		n.logger.Error("failed to add node events", "error", err)
 		return err
 	}
@@ -953,14 +957,16 @@ func (n *nomadFSM) applyDeregisterSIAccessor(buf []byte, index uint64) interface
 }
 
 // applyPlanApply applies the results of a plan application
-func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_plan_results"}, time.Now())
 	var req structs.ApplyPlanResultsRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertPlanResults(index, &req); err != nil {
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+
+	if err := n.state.UpsertPlanResults(ctx, index, &req); err != nil {
 		n.logger.Error("ApplyPlan failed", "error", err)
 		return err
 	}
@@ -972,14 +978,16 @@ func (n *nomadFSM) applyPlanResults(buf []byte, index uint64) interface{} {
 
 // applyDeploymentStatusUpdate is used to update the status of an existing
 // deployment
-func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_status_update"}, time.Now())
 	var req structs.DeploymentStatusUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentStatus(index, &req); err != nil {
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+
+	if err := n.state.UpdateDeploymentStatus(ctx, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentStatusUpdate failed", "error", err)
 		return err
 	}
@@ -989,14 +997,16 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(buf []byte, index uint64) interfa
 }
 
 // applyDeploymentPromotion is used to promote canaries in a deployment
-func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentPromotion(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_promotion"}, time.Now())
 	var req structs.ApplyDeploymentPromoteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentPromotion(index, &req); err != nil {
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+
+	if err := n.state.UpdateDeploymentPromotion(ctx, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentPromotion failed", "error", err)
 		return err
 	}
@@ -1007,14 +1017,16 @@ func (n *nomadFSM) applyDeploymentPromotion(buf []byte, index uint64) interface{
 
 // applyDeploymentAllocHealth is used to set the health of allocations as part
 // of a deployment
-func (n *nomadFSM) applyDeploymentAllocHealth(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentAllocHealth(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_alloc_health"}, time.Now())
 	var req structs.ApplyDeploymentAllocHealthRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentAllocHealth(index, &req); err != nil {
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+
+	if err := n.state.UpdateDeploymentAllocHealth(ctx, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentAllocHealth failed", "error", err)
 		return err
 	}

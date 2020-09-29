@@ -91,7 +91,7 @@ OUTER:
 				continue
 			}
 
-			var event stream.Event
+			var event stream.Events
 			err = json.Unmarshal(msg.Event.Data, &event)
 			require.NoError(t, err)
 
@@ -102,7 +102,7 @@ OUTER:
 				Result:   &out,
 			}
 			dec, err := mapstructure.NewDecoder(cfg)
-			dec.Decode(event.Payload)
+			dec.Decode(event.Events[0].Payload)
 			require.NoError(t, err)
 			require.Equal(t, node.ID, out.ID)
 			break OUTER
@@ -123,7 +123,7 @@ func TestEventStream_StreamErr(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	req := structs.EventStreamRequest{
-		Topics: map[stream.Topic][]string{"*": []string{"*"}},
+		Topics: map[stream.Topic][]string{"*": {"*"}},
 		QueryOptions: structs.QueryOptions{
 			Region: s1.Region(),
 		},
@@ -210,7 +210,7 @@ func TestEventStream_RegionForward(t *testing.T) {
 
 	// Create request targed for region foo
 	req := structs.EventStreamRequest{
-		Topics: map[stream.Topic][]string{"*": []string{"*"}},
+		Topics: map[stream.Topic][]string{"*": {"*"}},
 		QueryOptions: structs.QueryOptions{
 			Region: "foo",
 		},
@@ -272,7 +272,7 @@ OUTER:
 				continue
 			}
 
-			var event stream.Event
+			var event stream.Events
 			err = json.Unmarshal(msg.Event.Data, &event)
 			require.NoError(t, err)
 
@@ -282,7 +282,7 @@ OUTER:
 				Result:   &out,
 			}
 			dec, err := mapstructure.NewDecoder(cfg)
-			dec.Decode(event.Payload)
+			dec.Decode(event.Events[0].Payload)
 			require.NoError(t, err)
 			require.Equal(t, node.ID, out.ID)
 			break OUTER
