@@ -1474,6 +1474,10 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+			// Handle upgrade path:
+			//   - Set policy type if empty
+			scalingPolicy.Canonicalize()
+
 			if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
 				return err
 			}

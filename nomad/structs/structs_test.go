@@ -128,6 +128,7 @@ func TestJob_ValidateScaling(t *testing.T) {
 
 	p := &ScalingPolicy{
 		Policy:  nil, // allowed to be nil
+		Type:    ScalingPolicyTypeHorizontal,
 		Min:     5,
 		Max:     5,
 		Enabled: true,
@@ -145,7 +146,6 @@ func TestJob_ValidateScaling(t *testing.T) {
 	require.Error(err)
 	mErr := err.(*multierror.Error)
 	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
 
@@ -157,7 +157,6 @@ func TestJob_ValidateScaling(t *testing.T) {
 	require.Error(err)
 	mErr = err.(*multierror.Error)
 	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
 
 	// min <= count
@@ -4833,6 +4832,175 @@ func TestDispatchPayloadConfig_Validate(t *testing.T) {
 	d.File = "../../../haha"
 	if err := d.Validate(); err == nil {
 		t.Fatalf("bad: %v", err)
+	}
+}
+
+func TestScalingPolicy_Canonicalize(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    *ScalingPolicy
+		expected *ScalingPolicy
+	}{
+		{
+			name:     "empty policy",
+			input:    &ScalingPolicy{},
+			expected: &ScalingPolicy{Type: ScalingPolicyTypeHorizontal},
+		},
+		{
+			name:     "policy with type",
+			input:    &ScalingPolicy{Type: "other-type"},
+			expected: &ScalingPolicy{Type: "other-type"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require := require.New(t)
+
+			c.input.Canonicalize()
+			require.Equal(c.expected, c.input)
+		})
+	}
+}
+
+func TestScalingPolicy_Validate(t *testing.T) {
+	type testCase struct {
+		name        string
+		input       *ScalingPolicy
+		expectedErr string
+	}
+
+	cases := []testCase{
+		{
+			name: "full horizontal policy",
+			input: &ScalingPolicy{
+				Policy: map[string]interface{}{
+					"key": "value",
+				},
+				Type:    ScalingPolicyTypeHorizontal,
+				Min:     5,
+				Max:     5,
+				Enabled: true,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetJob:       "my-job",
+					ScalingTargetGroup:     "my-task-group",
+				},
+			},
+		},
+		{
+			name:        "missing type",
+			input:       &ScalingPolicy{},
+			expectedErr: "missing scaling policy type",
+		},
+		{
+			name: "invalid type",
+			input: &ScalingPolicy{
+				Type: "not valid",
+			},
+			expectedErr: `scaling policy type "not valid" is not valid`,
+		},
+		{
+			name: "min < 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  -1,
+				Max:  5,
+			},
+			expectedErr: "minimum count must be specified and non-negative",
+		},
+		{
+			name: "max < 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  5,
+				Max:  -1,
+			},
+			expectedErr: "maximum count must be specified and non-negative",
+		},
+		{
+			name: "min > max",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  10,
+				Max:  0,
+			},
+			expectedErr: "maximum count must not be less than minimum count",
+		},
+		{
+			name: "min == max",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  10,
+				Max:  10,
+			},
+		},
+		{
+			name: "min == 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  0,
+				Max:  10,
+			},
+		},
+		{
+			name: "max == 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  0,
+				Max:  0,
+			},
+		},
+		{
+			name: "horizontal missing namespace",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetJob:   "my-job",
+					ScalingTargetGroup: "my-group",
+				},
+			},
+			expectedErr: "missing target namespace",
+		},
+		{
+			name: "horizontal missing job",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetGroup:     "my-group",
+				},
+			},
+			expectedErr: "missing target job",
+		},
+		{
+			name: "horizontal missing group",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetJob:       "my-job",
+				},
+			},
+			expectedErr: "missing target group",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require := require.New(t)
+
+			err := c.input.Validate()
+
+			if len(c.expectedErr) > 0 {
+				require.Error(err)
+				mErr := err.(*multierror.Error)
+				require.Len(mErr.Errors, 1)
+				require.Contains(mErr.Errors[0].Error(), c.expectedErr)
+			} else {
+				require.NoError(err)
+			}
+		})
 	}
 }
 

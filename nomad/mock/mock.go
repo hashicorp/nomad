@@ -1350,13 +1350,15 @@ func ACLManagementToken() *structs.ACLToken {
 
 func ScalingPolicy() *structs.ScalingPolicy {
 	return &structs.ScalingPolicy{
-		ID:  uuid.Generate(),
-		Min: 1,
-		Max: 100,
+		ID:   uuid.Generate(),
+		Min:  1,
+		Max:  100,
+		Type: structs.ScalingPolicyTypeHorizontal,
 		Target: map[string]string{
 			structs.ScalingTargetNamespace: structs.DefaultNamespace,
 			structs.ScalingTargetJob:       uuid.Generate(),
 			structs.ScalingTargetGroup:     uuid.Generate(),
+			structs.ScalingTargetTask:      uuid.Generate(),
 		},
 		Policy: map[string]interface{}{
 			"a": "b",
@@ -1373,6 +1375,7 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 		ID:      uuid.Generate(),
 		Min:     int64(job.TaskGroups[0].Count),
 		Max:     int64(job.TaskGroups[0].Count),
+		Type:    structs.ScalingPolicyTypeHorizontal,
 		Policy:  map[string]interface{}{},
 		Enabled: true,
 	}
