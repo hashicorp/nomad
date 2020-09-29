@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// FixTime converts any suspected time.Time binary string representation to time.Time
-func FixTime(v interface{}) {
+// fixTime converts any suspected time.Time binary string representation to time.Time
+func fixTime(v interface{}) {
 	switch v2 := v.(type) {
 	case map[string]interface{}:
 		for ek, ev := range v2 {
@@ -21,12 +21,12 @@ func FixTime(v interface{}) {
 					v2[ek] = *t
 				}
 			} else {
-				FixTime(ev)
+				fixTime(ev)
 			}
 		}
 	case []interface{}:
 		for _, e := range v2 {
-			FixTime(e)
+			fixTime(e)
 		}
 	default:
 		return
