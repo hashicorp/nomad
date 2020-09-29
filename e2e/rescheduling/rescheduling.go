@@ -390,18 +390,91 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 	)
 }
 
-// TestRescheduleProgressDeadline verifies a deployment succeeds by the
-// progress deadline
+// TestRescheduleProgressDeadline verifies the progress deadline is reset with
+// each healthy allocation, and that a rescheduled allocation does not.
 func (tc *RescheduleE2ETest) TestRescheduleProgressDeadline(f *framework.F) {
 
 	jobID := "test-reschedule-deadline-" + uuid.Generate()[0:8]
 	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_progressdeadline.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
-	// TODO(tgross): return early if "slow" isn't set
-	// wait until first exponential delay kicks in and rescheduling is attempted
-	time.Sleep(time.Second * 30)
+	expected := []string{"running"}
 	f.NoError(
-		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have a running allocation",
+	)
+
+	deploymentID, err := e2e.LastDeploymentID(jobID, ns)
+	f.NoError(err, "couldn't look up deployment")
+
+	oldDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get progress deadline")
+	time.Sleep(time.Second * 20)
+
+	newDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get new progress deadline")
+	f.NotEqual(oldDeadline, newDeadline, "progress deadline should have been updated")
+
+	f.NoError(e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
 		"deployment should be successful")
+}
+
+// TestRescheduleProgressDeadlineFail verifies the progress deadline is reset with
+// each healthy allocation, and that a rescheduled allocation does not.
+func (tc *RescheduleE2ETest) TestRescheduleProgressDeadlineFail(f *framework.F) {
+
+	jobID := "test-reschedule-deadline-fail" + uuid.Generate()[0:8]
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_progressdeadline_fail.nomad"))
+	tc.jobIds = append(tc.jobIds, jobID)
+
+	deploymentID, err := e2e.LastDeploymentID(jobID, ns)
+	f.NoError(err, "couldn't look up deployment")
+
+	oldDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get progress deadline")
+	time.Sleep(time.Second * 20)
+
+	f.NoError(e2e.WaitForLastDeploymentStatus(jobID, ns, "failed", nil),
+		"deployment should be failed")
+
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
+			func(got []string) bool {
+				for _, status := range got {
+					if status != "failed" {
+						return false
+					}
+				}
+				return true
+			}, nil,
+		),
+		"should have only failed allocs",
+	)
+
+	newDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get new progress deadline")
+	f.Equal(oldDeadline, newDeadline, "progress deadline should not have been updated")
+}
+
+func getProgressDeadline(deploymentID string) (time.Time, error) {
+
+	out, err := e2e.Command("nomad", "deployment", "status", deploymentID)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not get deployment status: %v\n%v", err, out)
+	}
+
+	section, err := e2e.GetSection(out, "Deployed")
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not find Deployed section: %w", err)
+	}
+
+	rows, err := e2e.ParseColumns(section)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not parse Deployed section: %w", err)
+	}
+
+	layout := "2006-01-02T15:04:05Z07:00" // taken from command/helpers.go
+	raw := rows[0]["Progress Deadline"]
+	return time.Parse(layout, raw)
 }
