@@ -28,6 +28,12 @@ variable "nomad_enterprise" {
   default     = false
 }
 
+variable "nomad_acls" {
+  type        = bool
+  description = "Bootstrap ACLs"
+  default     = false
+}
+
 variable "profile" {
   type        = string
   description = "The name of the configuration profile (ex. 'full-cluster')"

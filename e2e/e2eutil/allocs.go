@@ -144,3 +144,21 @@ func AllocStatusesRescheduled(jobID string) ([]string, error) {
 	}
 	return statuses, nil
 }
+
+// AllocExec is a convenience wrapper that runs 'nomad alloc exec' with the
+// passed cmd via '/bin/sh -c', retrying if the task isn't ready
+func AllocExec(allocID, taskID string, cmd string, wc *WaitConfig) (string, error) {
+	var got string
+	var err error
+	interval, retries := wc.OrDefault()
+
+	args := []string{"alloc", "exec", "-task", taskID, allocID, "/bin/sh", "-c", cmd}
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(interval)
+		got, err = Command("nomad", args...)
+		return err == nil, err
+	}, func(e error) {
+		err = fmt.Errorf("exec failed: 'nomad %s'", strings.Join(args, " "))
+	})
+	return got, err
+}

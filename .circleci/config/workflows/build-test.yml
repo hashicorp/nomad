@@ -30,6 +30,7 @@ jobs:
           ignore:
             - stable-website
             - /^docs-.*/
+            - /^e2e-.*/
 
     # Note: comment-out this job in ENT
   - test-windows:

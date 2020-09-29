@@ -4,9 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
 )
 
 func TestQuotaApplyCommand_Implements(t *testing.T) {
@@ -35,43 +33,4 @@ func TestQuotaApplyCommand_Fails(t *testing.T) {
 		t.Fatalf("name required error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
-}
-
-func TestQuotaApplyNetwork(t *testing.T) {
-	t.Parallel()
-
-	mbits := 20
-
-	cases := []struct {
-		hcl string
-		q   *api.QuotaSpec
-		err string
-	}{{
-		hcl: `limit {region = "global", region_limit {network {mbits = 20}}}`,
-		q: &api.QuotaSpec{
-			Limits: []*api.QuotaLimit{{
-				Region: "global",
-				RegionLimit: &api.Resources{
-					Networks: []*api.NetworkResource{{
-						MBits: &mbits,
-					}},
-				},
-			}},
-		},
-		err: "",
-	}, {
-		hcl: `limit {region = "global", region_limit {network { mbits = 20, device = "eth0"}}}`,
-		q:   nil,
-		err: "network -> invalid key: device",
-	}}
-
-	for _, c := range cases {
-		t.Run(c.hcl, func(t *testing.T) {
-			q, err := parseQuotaSpec([]byte(c.hcl))
-			require.Equal(t, c.q, q)
-			if c.err != "" {
-				require.Contains(t, err.Error(), c.err)
-			}
-		})
-	}
 }
