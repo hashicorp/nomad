@@ -7,17 +7,17 @@ import (
 // Resources encapsulates the required resources of
 // a given task or task group.
 type Resources struct {
-	CPU      *int
-	MemoryMB *int `mapstructure:"memory"`
-	DiskMB   *int `mapstructure:"disk"`
-	Networks []*NetworkResource
-	Devices  []*RequestedDevice
+	CPU      *int               `hcl:"cpu,optional"`
+	MemoryMB *int               `mapstructure:"memory" hcl:"memory_mb,optional"`
+	DiskMB   *int               `mapstructure:"disk" hcl:"disk_mb,optional"`
+	Networks []*NetworkResource `hcl:"networks,optional"`
+	Devices  []*RequestedDevice `hcl:"devices,optional"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
 	// 0.10 and is only being kept to allow any references to be removed before
 	// then.
-	IOPS *int
+	IOPS *int `hcl:"iops,optional"`
 }
 
 // Canonicalize will supply missing values in the cases
@@ -91,22 +91,22 @@ type Port struct {
 }
 
 type DNSConfig struct {
-	Servers  []string `mapstructure:"servers"`
-	Searches []string `mapstructure:"searches"`
-	Options  []string `mapstructure:"options"`
+	Servers  []string `mapstructure:"servers" hcl:"servers,optional"`
+	Searches []string `mapstructure:"searches" hcl:"searches,optional"`
+	Options  []string `mapstructure:"options" hcl:"options,optional"`
 }
 
 // NetworkResource is used to describe required network
 // resources of a given task.
 type NetworkResource struct {
-	Mode          string
-	Device        string
-	CIDR          string
-	IP            string
-	MBits         *int
-	DNS           *DNSConfig
-	ReservedPorts []Port
-	DynamicPorts  []Port
+	Mode          string     `hcl:"mode,optional"`
+	Device        string     `hcl:"device,optional"`
+	CIDR          string     `hcl:"cidr,optional"`
+	IP            string     `hcl:"ip,optional"`
+	MBits         *int       `hcl:"m_bits,optional"`
+	DNS           *DNSConfig `hcl:"dns,optional"`
+	ReservedPorts []Port     `hcl:"reserved_ports,optional"`
+	DynamicPorts  []Port     `hcl:"dynamic_ports,optional"`
 }
 
 func (n *NetworkResource) Canonicalize() {
