@@ -73,28 +73,28 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 // ServiceCheck represents the consul health check that Nomad registers.
 type ServiceCheck struct {
 	//FIXME Id is unused. Remove?
-	Id                     string
-	Name                   string
-	Type                   string
-	Command                string
-	Args                   []string
-	Path                   string
-	Protocol               string
-	PortLabel              string `mapstructure:"port"`
-	Expose                 bool
-	AddressMode            string `mapstructure:"address_mode"`
-	Interval               time.Duration
-	Timeout                time.Duration
-	InitialStatus          string `mapstructure:"initial_status"`
-	TLSSkipVerify          bool   `mapstructure:"tls_skip_verify"`
-	Header                 map[string][]string
-	Method                 string
-	CheckRestart           *CheckRestart `mapstructure:"check_restart"`
-	GRPCService            string        `mapstructure:"grpc_service"`
-	GRPCUseTLS             bool          `mapstructure:"grpc_use_tls"`
-	TaskName               string        `mapstructure:"task"`
-	SuccessBeforePassing   int           `mapstructure:"success_before_passing"`
-	FailuresBeforeCritical int           `mapstructure:"failures_before_critical"`
+	Id                     string              `hcl:"id,optional"`
+	Name                   string              `hcl:"name,optional"`
+	Type                   string              `hcl:"type,optional"`
+	Command                string              `hcl:"command,optional"`
+	Args                   []string            `hcl:"args,optional"`
+	Path                   string              `hcl:"path,optional"`
+	Protocol               string              `hcl:"protocol,optional"`
+	PortLabel              string              `mapstructure:"port" hcl:"port,optional"`
+	Expose                 bool                `hcl:"expose,optional"`
+	AddressMode            string              `mapstructure:"address_mode" hcl:"address_mode,optional"`
+	Interval               time.Duration       `hcl:"interval,optional"`
+	Timeout                time.Duration       `hcl:"timeout,optional"`
+	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
+	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
+	Header                 map[string][]string `hcl:"header,optional"`
+	Method                 string              `hcl:"method,optional"`
+	CheckRestart           *CheckRestart       `mapstructure:"check_restart" hcl:"check_restart,optional"`
+	GRPCService            string              `mapstructure:"grpc_service" hcl:"grpc_service,optional"`
+	GRPCUseTLS             bool                `mapstructure:"grpc_use_tls" hcl:"grpc_use_tls,optional"`
+	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
+	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
+	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
 }
 
 // Service represents a Consul service definition.

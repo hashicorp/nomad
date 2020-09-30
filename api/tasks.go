@@ -605,8 +605,8 @@ func (g *TaskGroup) AddSpread(s *Spread) *TaskGroup {
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
-	MaxFiles      *int `mapstructure:"max_files"`
-	MaxFileSizeMB *int `mapstructure:"max_file_size"`
+	MaxFiles      *int `mapstructure:"max_files" hcl:"max_files,optional"`
+	MaxFileSizeMB *int `mapstructure:"max_file_size" hcl:"max_file_size,optional"`
 }
 
 func DefaultLogConfig() *LogConfig {
@@ -636,8 +636,8 @@ const (
 )
 
 type TaskLifecycle struct {
-	Hook    string `mapstructure:"hook"`
-	Sidecar bool   `mapstructure:"sidecar"`
+	Hook    string `mapstructure:"hook" hcl:"hook,optional"`
+	Sidecar bool   `mapstructure:"sidecar" hcl:"sidecar,optional"`
 }
 
 // Determine if lifecycle has user-input values
@@ -975,10 +975,10 @@ const (
 type TaskCSIPluginConfig struct {
 	// ID is the identifier of the plugin.
 	// Ideally this should be the FQDN of the plugin.
-	ID string `mapstructure:"id"`
+	ID string `mapstructure:"id" hcl:"id,optional"`
 
 	// CSIPluginType instructs Nomad on how to handle processing a plugin
-	Type CSIPluginType `mapstructure:"type"`
+	Type CSIPluginType `mapstructure:"type" hcl:"type,optional"`
 
 	// MountDir is the destination that nomad should mount in its CSI
 	// directory for the plugin. It will then expect a file called CSISocketName
@@ -986,7 +986,7 @@ type TaskCSIPluginConfig struct {
 	// "MountDir/CSIIntermediaryDirname/VolumeName/AllocID for mounts.
 	//
 	// Default is /csi.
-	MountDir string `mapstructure:"mount_dir"`
+	MountDir string `mapstructure:"mount_dir" hcl:"mount_dir,optional"`
 }
 
 func (t *TaskCSIPluginConfig) Canonicalize() {
