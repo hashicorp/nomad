@@ -424,7 +424,7 @@ type TaskGroup struct {
 	Update                    *UpdateStrategy           `hcl:"update,block"`
 	Migrate                   *MigrateStrategy          `hcl:"migrate,block"`
 	Networks                  []*NetworkResource        `hcl:"networks,block"`
-	Meta                      map[string]string         `hcl:"meta,block"`
+	Meta                      map[string]string         `hcl:"meta,optional"`
 	Services                  []*Service                `hcl:"services,block"`
 	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
