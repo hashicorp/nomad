@@ -44,11 +44,11 @@ func (tc *RescheduleE2ETest) AfterEach(f *framework.F) {
 
 	for _, id := range tc.jobIds {
 		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.NoError(err)
+		f.Assert().NoError(err)
 	}
 	tc.jobIds = []string{}
 	_, err := e2e.Command("nomad", "system", "gc")
-	f.NoError(err)
+	f.Assert().NoError(err)
 }
 
 // TestNoReschedule runs a job that should fail and never reschedule

@@ -40,12 +40,12 @@ func (tc *VolumesTest) AfterEach(f *framework.F) {
 
 	for _, id := range tc.jobIDs {
 		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.NoError(err)
+		f.Assert().NoError(err)
 	}
 	tc.jobIDs = []string{}
 
 	_, err := e2e.Command("nomad", "system", "gc")
-	f.NoError(err)
+	f.Assert().NoError(err)
 }
 
 // TestVolumeMounts exercises host volume and Docker volume functionality for

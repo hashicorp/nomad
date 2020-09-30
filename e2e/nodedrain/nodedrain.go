@@ -44,18 +44,18 @@ func (tc *NodeDrainE2ETest) AfterEach(f *framework.F) {
 
 	for _, id := range tc.jobIDs {
 		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
-		f.NoError(err)
+		f.Assert().NoError(err)
 	}
 	tc.jobIDs = []string{}
 
 	for _, id := range tc.nodeIDs {
 		_, err := e2e.Command("nomad", "node", "drain", "-disable", "-yes", id)
-		f.NoError(err)
+		f.Assert().NoError(err)
 	}
 	tc.nodeIDs = []string{}
 
 	_, err := e2e.Command("nomad", "system", "gc")
-	f.NoError(err)
+	f.Assert().NoError(err)
 }
 
 func nodesForJob(jobID string) ([]string, error) {
