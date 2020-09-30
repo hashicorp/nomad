@@ -67,10 +67,10 @@ type AllocResourceUsage struct {
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {
-	Interval *time.Duration
-	Attempts *int
-	Delay    *time.Duration
-	Mode     *string
+	Interval *time.Duration `hcl:"interval,optional"`
+	Attempts *int           `hcl:"attempts,optional"`
+	Delay    *time.Duration `hcl:"delay,optional"`
+	Mode     *string        `hcl:"mode,optional"`
 }
 
 func (r *RestartPolicy) Merge(rp *RestartPolicy) {
@@ -91,24 +91,24 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 // Reschedule configures how Tasks are rescheduled  when they crash or fail.
 type ReschedulePolicy struct {
 	// Attempts limits the number of rescheduling attempts that can occur in an interval.
-	Attempts *int `mapstructure:"attempts"`
+	Attempts *int `mapstructure:"attempts" hcl:"attempts,optional"`
 
 	// Interval is a duration in which we can limit the number of reschedule attempts.
-	Interval *time.Duration `mapstructure:"interval"`
+	Interval *time.Duration `mapstructure:"interval" hcl:"interval,optional"`
 
 	// Delay is a minimum duration to wait between reschedule attempts.
 	// The delay function determines how much subsequent reschedule attempts are delayed by.
-	Delay *time.Duration `mapstructure:"delay"`
+	Delay *time.Duration `mapstructure:"delay" hcl:"delay,optional"`
 
 	// DelayFunction determines how the delay progressively changes on subsequent reschedule
 	// attempts. Valid values are "exponential", "constant", and "fibonacci".
-	DelayFunction *string `mapstructure:"delay_function"`
+	DelayFunction *string `mapstructure:"delay_function" hcl:"delay_function,optional"`
 
 	// MaxDelay is an upper bound on the delay.
-	MaxDelay *time.Duration `mapstructure:"max_delay"`
+	MaxDelay *time.Duration `mapstructure:"max_delay" hcl:"max_delay,optional"`
 
 	// Unlimited allows rescheduling attempts until they succeed
-	Unlimited *bool `mapstructure:"unlimited"`
+	Unlimited *bool `mapstructure:"unlimited" hcl:"unlimited,optional"`
 }
 
 func (r *ReschedulePolicy) Merge(rp *ReschedulePolicy) {
@@ -159,10 +159,10 @@ func (r *ReschedulePolicy) Canonicalize(jobType string) {
 
 // Affinity is used to serialize task group affinities
 type Affinity struct {
-	LTarget string // Left-hand target
-	RTarget string // Right-hand target
-	Operand string // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
-	Weight  *int8  // Weight applied to nodes that match the affinity. Can be negative
+	LTarget string `hcl:"l_target,optional"` // Left-hand target
+	RTarget string `hcl:"r_target,optional"` // Right-hand target
+	Operand string `hcl:"operand,optional"`  // Constraint operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
+	Weight  *int8  `hcl:"weight,optional"`   // Weight applied to nodes that match the affinity. Can be negative
 }
 
 func NewAffinity(LTarget string, Operand string, RTarget string, Weight int8) *Affinity {
@@ -255,15 +255,15 @@ func (p *ReschedulePolicy) String() string {
 
 // Spread is used to serialize task group allocation spread preferences
 type Spread struct {
-	Attribute    string
-	Weight       *int8
-	SpreadTarget []*SpreadTarget
+	Attribute    string          `hcl:"attribute,optional"`
+	Weight       *int8           `hcl:"weight,optional"`
+	SpreadTarget []*SpreadTarget `hcl:"spread_target,optional"`
 }
 
 // SpreadTarget is used to serialize target allocation spread percentages
 type SpreadTarget struct {
-	Value   string
-	Percent uint8
+	Value   string `hcl:"value,optional"`
+	Percent uint8  `hcl:"percent,optional"`
 }
 
 func NewSpreadTarget(value string, percent uint8) *SpreadTarget {
@@ -289,9 +289,9 @@ func (s *Spread) Canonicalize() {
 
 // EphemeralDisk is an ephemeral disk object
 type EphemeralDisk struct {
-	Sticky  *bool
-	Migrate *bool
-	SizeMB  *int `mapstructure:"size"`
+	Sticky  *bool `hcl:"sticky,optional"`
+	Migrate *bool `hcl:"migrate,optional"`
+	SizeMB  *int  `mapstructure:"size" hcl:"size_mb,optional"`
 }
 
 func DefaultEphemeralDisk() *EphemeralDisk {
@@ -317,10 +317,10 @@ func (e *EphemeralDisk) Canonicalize() {
 // MigrateStrategy describes how allocations for a task group should be
 // migrated between nodes (eg when draining).
 type MigrateStrategy struct {
-	MaxParallel     *int           `mapstructure:"max_parallel"`
-	HealthCheck     *string        `mapstructure:"health_check"`
-	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time"`
-	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline"`
+	MaxParallel     *int           `mapstructure:"max_parallel" hcl:"max_parallel,optional"`
+	HealthCheck     *string        `mapstructure:"health_check" hcl:"health_check,optional"`
+	MinHealthyTime  *time.Duration `mapstructure:"min_healthy_time" hcl:"min_healthy_time,optional"`
+	HealthyDeadline *time.Duration `mapstructure:"healthy_deadline" hcl:"healthy_deadline,optional"`
 }
 
 func DefaultMigrateStrategy() *MigrateStrategy {
@@ -377,12 +377,12 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name         string
-	Type         string
-	Source       string
-	ReadOnly     bool             `hcl:"read_only"`
-	MountOptions *CSIMountOptions `hcl:"mount_options"`
-	ExtraKeysHCL []string         `hcl:",unusedKeys" json:"-"`
+	Name         string           `hcl:"name,optional"`
+	Type         string           `hcl:"type,optional"`
+	Source       string           `hcl:"source,optional"`
+	ReadOnly     bool             `hcl:"read_only,optional"`
+	MountOptions *CSIMountOptions `hcl:"mount_options,optional"`
+	ExtraKeysHCL []string         `hcl:",unusedKeys,optional" json:"-"`
 }
 
 const (
@@ -394,10 +394,10 @@ const (
 // VolumeMount represents the relationship between a destination path in a task
 // and the task group volume that should be mounted there.
 type VolumeMount struct {
-	Volume          *string
-	Destination     *string
-	ReadOnly        *bool   `mapstructure:"read_only"`
-	PropagationMode *string `mapstructure:"propagation_mode"`
+	Volume          *string `hcl:"volume,optional"`
+	Destination     *string `hcl:"destination,optional"`
+	ReadOnly        *bool   `mapstructure:"read_only" hcl:"read_only,optional"`
+	PropagationMode *string `mapstructure:"propagation_mode" hcl:"propagation_mode,optional"`
 }
 
 func (vm *VolumeMount) Canonicalize() {
@@ -411,24 +411,24 @@ func (vm *VolumeMount) Canonicalize() {
 
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name                      *string
-	Count                     *int
-	Constraints               []*Constraint
-	Affinities                []*Affinity
-	Tasks                     []*Task
-	Spreads                   []*Spread
-	Volumes                   map[string]*VolumeRequest
-	RestartPolicy             *RestartPolicy
-	ReschedulePolicy          *ReschedulePolicy
-	EphemeralDisk             *EphemeralDisk
-	Update                    *UpdateStrategy
-	Migrate                   *MigrateStrategy
-	Networks                  []*NetworkResource
-	Meta                      map[string]string
-	Services                  []*Service
-	ShutdownDelay             *time.Duration `mapstructure:"shutdown_delay"`
-	StopAfterClientDisconnect *time.Duration `mapstructure:"stop_after_client_disconnect"`
-	Scaling                   *ScalingPolicy
+	Name                      *string                   `hcl:"name,optional"`
+	Count                     *int                      `hcl:"count,optional"`
+	Constraints               []*Constraint             `hcl:"constraints,optional"`
+	Affinities                []*Affinity               `hcl:"affinities,optional"`
+	Tasks                     []*Task                   `hcl:"tasks,optional"`
+	Spreads                   []*Spread                 `hcl:"spreads,optional"`
+	Volumes                   map[string]*VolumeRequest `hcl:"volumes,optional"`
+	RestartPolicy             *RestartPolicy            `hcl:"restart_policy,optional"`
+	ReschedulePolicy          *ReschedulePolicy         `hcl:"reschedule_policy,optional"`
+	EphemeralDisk             *EphemeralDisk            `hcl:"ephemeral_disk,optional"`
+	Update                    *UpdateStrategy           `hcl:"update,optional"`
+	Migrate                   *MigrateStrategy          `hcl:"migrate,optional"`
+	Networks                  []*NetworkResource        `hcl:"networks,optional"`
+	Meta                      map[string]string         `hcl:"meta,optional"`
+	Services                  []*Service                `hcl:"services,optional"`
+	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
+	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
+	Scaling                   *ScalingPolicy            `hcl:"scaling,optional"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -631,7 +631,7 @@ type DispatchPayloadConfig struct {
 }
 
 const (
-	TaskLifecycleHookPrestart = "prestart"
+	TaskLifecycleHookPrestart  = "prestart"
 	TaskLifecycleHookPoststart = "poststart"
 )
 
@@ -647,30 +647,30 @@ func (l *TaskLifecycle) Empty() bool {
 
 // Task is a single process in a task group.
 type Task struct {
-	Name            string
-	Driver          string
-	User            string
-	Lifecycle       *TaskLifecycle
-	Config          map[string]interface{}
-	Constraints     []*Constraint
-	Affinities      []*Affinity
-	Env             map[string]string
-	Services        []*Service
-	Resources       *Resources
-	RestartPolicy   *RestartPolicy
-	Meta            map[string]string
-	KillTimeout     *time.Duration `mapstructure:"kill_timeout"`
-	LogConfig       *LogConfig     `mapstructure:"logs"`
-	Artifacts       []*TaskArtifact
-	Vault           *Vault
-	Templates       []*Template
-	DispatchPayload *DispatchPayloadConfig
-	VolumeMounts    []*VolumeMount
-	CSIPluginConfig *TaskCSIPluginConfig `mapstructure:"csi_plugin" json:",omitempty"`
-	Leader          bool
-	ShutdownDelay   time.Duration `mapstructure:"shutdown_delay"`
-	KillSignal      string        `mapstructure:"kill_signal"`
-	Kind            string
+	Name            string                 `hcl:"name,optional"`
+	Driver          string                 `hcl:"driver,optional"`
+	User            string                 `hcl:"user,optional"`
+	Lifecycle       *TaskLifecycle         `hcl:"lifecycle,optional"`
+	Config          map[string]interface{} `hcl:"config,optional"`
+	Constraints     []*Constraint          `hcl:"constraints,optional"`
+	Affinities      []*Affinity            `hcl:"affinities,optional"`
+	Env             map[string]string      `hcl:"env,optional"`
+	Services        []*Service             `hcl:"services,optional"`
+	Resources       *Resources             `hcl:"resources,optional"`
+	RestartPolicy   *RestartPolicy         `hcl:"restart_policy,optional"`
+	Meta            map[string]string      `hcl:"meta,optional"`
+	KillTimeout     *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
+	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"log_config,optional"`
+	Artifacts       []*TaskArtifact        `hcl:"artifacts,optional"`
+	Vault           *Vault                 `hcl:"vault,optional"`
+	Templates       []*Template            `hcl:"templates,optional"`
+	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,optional"`
+	VolumeMounts    []*VolumeMount         `hcl:"volume_mounts,optional"`
+	CSIPluginConfig *TaskCSIPluginConfig   `mapstructure:"csi_plugin" json:",omitempty" hcl:"csi_plugin_config,optional"`
+	Leader          bool                   `hcl:"leader,optional"`
+	ShutdownDelay   time.Duration          `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
+	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
+	Kind            string                 `hcl:"kind,optional"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
@@ -723,10 +723,10 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 
 // TaskArtifact is used to download artifacts before running a task.
 type TaskArtifact struct {
-	GetterSource  *string           `mapstructure:"source"`
-	GetterOptions map[string]string `mapstructure:"options"`
-	GetterMode    *string           `mapstructure:"mode"`
-	RelativeDest  *string           `mapstructure:"destination"`
+	GetterSource  *string           `mapstructure:"source" hcl:"getter_source,optional"`
+	GetterOptions map[string]string `mapstructure:"options" hcl:"getter_options,optional"`
+	GetterMode    *string           `mapstructure:"mode" hcl:"getter_mode,optional"`
+	RelativeDest  *string           `mapstructure:"destination" hcl:"relative_dest,optional"`
 }
 
 func (a *TaskArtifact) Canonicalize() {
@@ -753,17 +753,17 @@ func (a *TaskArtifact) Canonicalize() {
 }
 
 type Template struct {
-	SourcePath   *string        `mapstructure:"source"`
-	DestPath     *string        `mapstructure:"destination"`
-	EmbeddedTmpl *string        `mapstructure:"data"`
-	ChangeMode   *string        `mapstructure:"change_mode"`
-	ChangeSignal *string        `mapstructure:"change_signal"`
-	Splay        *time.Duration `mapstructure:"splay"`
-	Perms        *string        `mapstructure:"perms"`
-	LeftDelim    *string        `mapstructure:"left_delimiter"`
-	RightDelim   *string        `mapstructure:"right_delimiter"`
-	Envvars      *bool          `mapstructure:"env"`
-	VaultGrace   *time.Duration `mapstructure:"vault_grace"`
+	SourcePath   *string        `mapstructure:"source" hcl:"source_path,optional"`
+	DestPath     *string        `mapstructure:"destination" hcl:"dest_path,optional"`
+	EmbeddedTmpl *string        `mapstructure:"data" hcl:"embedded_tmpl,optional"`
+	ChangeMode   *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Splay        *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
+	Perms        *string        `mapstructure:"perms" hcl:"perms,optional"`
+	LeftDelim    *string        `mapstructure:"left_delimiter" hcl:"left_delim,optional"`
+	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delim,optional"`
+	Envvars      *bool          `mapstructure:"env" hcl:"envvars,optional"`
+	VaultGrace   *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -812,11 +812,11 @@ func (tmpl *Template) Canonicalize() {
 }
 
 type Vault struct {
-	Policies     []string
-	Namespace    *string `mapstructure:"namespace"`
-	Env          *bool
-	ChangeMode   *string `mapstructure:"change_mode"`
-	ChangeSignal *string `mapstructure:"change_signal"`
+	Policies     []string `hcl:"policies,optional"`
+	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
+	Env          *bool    `hcl:"env,optional"`
+	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
 }
 
 func (v *Vault) Canonicalize() {
