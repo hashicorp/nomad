@@ -1,6 +1,11 @@
 job "volumes" {
   datacenters = ["dc1", "dc2"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "group" {
 
     volume "data" {
