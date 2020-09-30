@@ -1378,6 +1378,67 @@ func TestTask_Validate(t *testing.T) {
 	}
 }
 
+func TestTask_Validate_Resources(t *testing.T) {
+	cases := []struct {
+		name string
+		res  *Resources
+	}{
+		{
+			name: "Minimum",
+			res:  MinResources(),
+		},
+		{
+			name: "Default",
+			res:  DefaultResources(),
+		},
+		{
+			name: "Full",
+			res: &Resources{
+				CPU:      1000,
+				MemoryMB: 1000,
+				IOPS:     1000,
+				Networks: []*NetworkResource{
+					{
+						Mode:   "host",
+						Device: "localhost",
+						CIDR:   "127.0.0.0/8",
+						IP:     "127.0.0.1",
+						MBits:  1000,
+						DNS: &DNSConfig{
+							Servers:  []string{"localhost"},
+							Searches: []string{"localdomain"},
+							Options:  []string{"ndots:5"},
+						},
+						ReservedPorts: []Port{
+							{
+								Label:       "reserved",
+								Value:       1234,
+								To:          1234,
+								HostNetwork: "loopback",
+							},
+						},
+						DynamicPorts: []Port{
+							{
+								Label:       "dynamic",
+								Value:       5678,
+								To:          5678,
+								HostNetwork: "loopback",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, tc.res.Validate())
+		})
+	}
+}
+
 func TestTask_Validate_Services(t *testing.T) {
 	s1 := &Service{
 		Name:      "service-name",

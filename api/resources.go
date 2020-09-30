@@ -56,7 +56,7 @@ func DefaultResources() *Resources {
 // IN nomad/structs/structs.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      intToPtr(20),
+		CPU:      intToPtr(1),
 		MemoryMB: intToPtr(10),
 	}
 }
@@ -110,6 +110,9 @@ type NetworkResource struct {
 }
 
 func (n *NetworkResource) Canonicalize() {
+	// COMPAT(0.12) MBits is deprecated but this should not be removed
+	// until MBits is fully removed. Removing this *without* fully removing
+	// MBits would cause unnecessary job diffs and destructive updates.
 	if n.MBits == nil {
 		n.MBits = intToPtr(10)
 	}
