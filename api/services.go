@@ -105,14 +105,14 @@ type Service struct {
 	Tags              []string          `hcl:"tags,optional"`
 	CanaryTags        []string          `mapstructure:"canary_tags" hcl:"canary_tags,optional"`
 	EnableTagOverride bool              `mapstructure:"enable_tag_override" hcl:"enable_tag_override,optional"`
-	PortLabel         string            `mapstructure:"port" hcl:"port_label,optional"`
+	PortLabel         string            `mapstructure:"port" hcl:"port,optional"`
 	AddressMode       string            `mapstructure:"address_mode" hcl:"address_mode,optional"`
 	Checks            []ServiceCheck    `hcl:"checks,optional"`
 	CheckRestart      *CheckRestart     `mapstructure:"check_restart" hcl:"check_restart,optional"`
 	Connect           *ConsulConnect    `hcl:"connect,optional"`
 	Meta              map[string]string `hcl:"meta,optional"`
 	CanaryMeta        map[string]string `hcl:"canary_meta,optional"`
-	TaskName          string            `mapstructure:"task" hcl:"task_name,optional"`
+	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
@@ -198,7 +198,7 @@ type SidecarTask struct {
 	Resources     *Resources             `hcl:"resources,optional"`
 	Meta          map[string]string      `hcl:"meta,optional"`
 	KillTimeout   *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
-	LogConfig     *LogConfig             `mapstructure:"logs" hcl:"log_config,optional"`
+	LogConfig     *LogConfig             `mapstructure:"logs" hcl:"logs,optional"`
 	ShutdownDelay *time.Duration         `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	KillSignal    string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 }
@@ -245,7 +245,7 @@ func (st *SidecarTask) Canonicalize() {
 type ConsulProxy struct {
 	LocalServiceAddress string                 `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
 	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
-	ExposeConfig        *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose_config,optional"`
+	ExposeConfig        *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,optional"`
 	Upstreams           []*ConsulUpstream      `hcl:"upstreams,optional"`
 	Config              map[string]interface{} `hcl:"config,optional"`
 }

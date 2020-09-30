@@ -291,7 +291,7 @@ func (s *Spread) Canonicalize() {
 type EphemeralDisk struct {
 	Sticky  *bool `hcl:"sticky,optional"`
 	Migrate *bool `hcl:"migrate,optional"`
-	SizeMB  *int  `mapstructure:"size" hcl:"size_mb,optional"`
+	SizeMB  *int  `mapstructure:"size" hcl:"size,optional"`
 }
 
 func DefaultEphemeralDisk() *EphemeralDisk {
@@ -660,13 +660,13 @@ type Task struct {
 	RestartPolicy   *RestartPolicy         `hcl:"restart_policy,optional"`
 	Meta            map[string]string      `hcl:"meta,optional"`
 	KillTimeout     *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
-	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"log_config,optional"`
+	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,optional"`
 	Artifacts       []*TaskArtifact        `hcl:"artifacts,optional"`
 	Vault           *Vault                 `hcl:"vault,optional"`
 	Templates       []*Template            `hcl:"templates,optional"`
 	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,optional"`
 	VolumeMounts    []*VolumeMount         `hcl:"volume_mounts,optional"`
-	CSIPluginConfig *TaskCSIPluginConfig   `mapstructure:"csi_plugin" json:",omitempty" hcl:"csi_plugin_config,optional"`
+	CSIPluginConfig *TaskCSIPluginConfig   `mapstructure:"csi_plugin" json:",omitempty" hcl:"csi_plugin,optional"`
 	Leader          bool                   `hcl:"leader,optional"`
 	ShutdownDelay   time.Duration          `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
@@ -723,10 +723,10 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 
 // TaskArtifact is used to download artifacts before running a task.
 type TaskArtifact struct {
-	GetterSource  *string           `mapstructure:"source" hcl:"getter_source,optional"`
-	GetterOptions map[string]string `mapstructure:"options" hcl:"getter_options,optional"`
-	GetterMode    *string           `mapstructure:"mode" hcl:"getter_mode,optional"`
-	RelativeDest  *string           `mapstructure:"destination" hcl:"relative_dest,optional"`
+	GetterSource  *string           `mapstructure:"source" hcl:"source,optional"`
+	GetterOptions map[string]string `mapstructure:"options" hcl:"options,optional"`
+	GetterMode    *string           `mapstructure:"mode" hcl:"mode,optional"`
+	RelativeDest  *string           `mapstructure:"destination" hcl:"destination,optional"`
 }
 
 func (a *TaskArtifact) Canonicalize() {
@@ -753,16 +753,16 @@ func (a *TaskArtifact) Canonicalize() {
 }
 
 type Template struct {
-	SourcePath   *string        `mapstructure:"source" hcl:"source_path,optional"`
-	DestPath     *string        `mapstructure:"destination" hcl:"dest_path,optional"`
-	EmbeddedTmpl *string        `mapstructure:"data" hcl:"embedded_tmpl,optional"`
+	SourcePath   *string        `mapstructure:"source" hcl:"source,optional"`
+	DestPath     *string        `mapstructure:"destination" hcl:"destination,optional"`
+	EmbeddedTmpl *string        `mapstructure:"data" hcl:"data,optional"`
 	ChangeMode   *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
 	Splay        *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
 	Perms        *string        `mapstructure:"perms" hcl:"perms,optional"`
-	LeftDelim    *string        `mapstructure:"left_delimiter" hcl:"left_delim,optional"`
-	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delim,optional"`
-	Envvars      *bool          `mapstructure:"env" hcl:"envvars,optional"`
+	LeftDelim    *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
+	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
+	Envvars      *bool          `mapstructure:"env" hcl:"env,optional"`
 	VaultGrace   *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
 }
 
