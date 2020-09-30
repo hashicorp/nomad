@@ -139,7 +139,7 @@ driver) but will be removed in a future release.
 
 - `cni_config_dir` `(string: "/opt/cni/config")` - Sets the directory where CNI
   network configuration is located. The client will use this path when fingerprinting CNI networks.
-	 
+
 - `bridge_network name` `(string: "nomad")` - Sets the name of the bridge to be
   created by nomad for allocations running with bridge networking mode on the
   client.
@@ -343,7 +343,7 @@ see the [drivers documentation](/docs/drivers).
 
 ### `template` Parameters
 
-- `function_blacklist` `([]string: ["plugin"])` - Specifies a list of template
+- `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
   rendering functions that should be disallowed in job specs. By default the
   `plugin` function is disallowed as it allows running arbitrary commands on
   the host as root (unless Nomad is configured to run as a non-root user).

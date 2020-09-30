@@ -576,7 +576,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		ct.Contents = &tmpl.EmbeddedTmpl
 		ct.LeftDelim = &tmpl.LeftDelim
 		ct.RightDelim = &tmpl.RightDelim
-		ct.FunctionBlacklist = config.ClientConfig.TemplateConfig.FunctionBlacklist
+		ct.FunctionDenylist = config.ClientConfig.TemplateConfig.FunctionDenylist
 		if !config.ClientConfig.TemplateConfig.DisableSandbox {
 			ct.SandboxPath = &config.TaskDir
 		}

@@ -51,6 +51,7 @@ type HealthService struct {
 	Checks              api.HealthChecks
 	Status              string
 	Port                int
+	Weights             api.AgentWeights
 }
 
 // HealthServiceQuery is the representation of all a service query in Consul.
@@ -187,9 +188,10 @@ func (d *HealthServiceQuery) Fetch(clients *ClientSet, opts *QueryOptions) (inte
 			Name:                entry.Service.Service,
 			Tags: ServiceTags(
 				deepCopyAndSortTags(entry.Service.Tags)),
-			Status: status,
-			Checks: entry.Checks,
-			Port:   entry.Service.Port,
+			Status:  status,
+			Checks:  entry.Checks,
+			Port:    entry.Service.Port,
+			Weights: entry.Service.Weights,
 		})
 	}
 
