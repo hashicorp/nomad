@@ -2099,7 +2099,7 @@ func DefaultResources() *Resources {
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      20,
+		CPU:      1,
 		MemoryMB: 10,
 	}
 }
@@ -2222,11 +2222,6 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
-	}
-	for i, n := range r.Networks {
-		if err := n.MeetsMinResources(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("network resource at index %d failed: %v", i, err))
-		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -2442,16 +2437,6 @@ func (n *NetworkResource) Canonicalize() {
 			n.ReservedPorts[i].HostNetwork = "default"
 		}
 	}
-}
-
-// MeetsMinResources returns an error if the resources specified are less than
-// the minimum allowed.
-func (n *NetworkResource) MeetsMinResources() error {
-	var mErr multierror.Error
-	if n.MBits < 1 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MBits value is 1; got %d", n.MBits))
-	}
-	return mErr.ErrorOrNil()
 }
 
 // Copy returns a deep copy of the network resource

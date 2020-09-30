@@ -2849,6 +2849,23 @@ func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
 	require.Equal(t, group2, *structsJob.TaskGroups[1].Update)
 }
 
+// TestJobs_Matching_Resources asserts:
+//	api.{Default,Min}Resources == structs.{Default,Min}Resources
+//
+// While this is an odd place to test that, this is where both are imported,
+// validated, and converted.
+func TestJobs_Matching_Resources(t *testing.T) {
+	t.Parallel()
+
+	// api.MinResources == structs.MinResources
+	structsMinRes := ApiResourcesToStructs(api.MinResources())
+	assert.Equal(t, structs.MinResources(), structsMinRes)
+
+	// api.DefaultResources == structs.DefaultResources
+	structsDefaultRes := ApiResourcesToStructs(api.DefaultResources())
+	assert.Equal(t, structs.DefaultResources(), structsDefaultRes)
+}
+
 // TestHTTP_JobValidate_SystemMigrate asserts that a system job with a migrate
 // stanza fails to validate but does not panic (see #5477).
 func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
