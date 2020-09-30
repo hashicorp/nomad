@@ -332,9 +332,6 @@ func copyFile(src, dst string, t *testing.T) {
 	if _, err = io.Copy(out, in); err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
-	if err := out.Sync(); err != nil {
-		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
-	}
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
