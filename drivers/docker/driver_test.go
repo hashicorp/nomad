@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -2660,5 +2661,34 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
 		require.Equal(t, int64(512*1024*1024), memory)
 		require.Equal(t, int64(256*1024*1024), memoryReservation)
+	})
+}
+
+func TestDockerDriver_parseSignal(t *testing.T) {
+	t.Parallel()
+
+	d := new(Driver)
+
+	t.Run("default", func(t *testing.T) {
+		s, err := d.parseSignal(runtime.GOOS, "")
+		require.NoError(t, err)
+		require.Equal(t, syscall.SIGTERM, s)
+	})
+
+	t.Run("set", func(t *testing.T) {
+		s, err := d.parseSignal(runtime.GOOS, "SIGHUP")
+		require.NoError(t, err)
+		require.Equal(t, syscall.SIGHUP, s)
+	})
+
+	t.Run("windows conversion", func(t *testing.T) {
+		s, err := d.parseSignal("windows", "SIGINT")
+		require.NoError(t, err)
+		require.Equal(t, syscall.SIGTERM, s)
+	})
+
+	t.Run("not a signal", func(t *testing.T) {
+		_, err := d.parseSignal(runtime.GOOS, "SIGDOESNOTEXIST")
+		require.Error(t, err)
 	})
 }

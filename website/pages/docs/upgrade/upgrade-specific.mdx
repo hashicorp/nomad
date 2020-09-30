@@ -15,6 +15,15 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.13.0
+
+### Signal used when stopping Docker tasks
+
+When stopping tasks running with the Docker task driver, Nomad documents that a
+`SIGTERM` will be issued (unless configured with `kill_signal`). However, recent
+versions of Nomad would issue `SIGINT` instead. Starting again with Nomad v0.13.0
+`SIGTERM` will be sent by default when stopping Docker tasks.
+
 ## Nomad 0.12.0
 
 ### `mbits` and Task Network Resource deprecation
