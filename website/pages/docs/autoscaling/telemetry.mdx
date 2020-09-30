@@ -13,11 +13,11 @@ of different libraries and subsystems. These metrics are aggregated on a ten
 second interval and are retained for one minute. To configure the telemetry output
 please see the [agent configuration][agent_telemetry_config].
 
-This data can be accessed via the `/v1/metrics` HTTP endpoint, via sending a 
+This data can be accessed via the `/v1/metrics` HTTP endpoint, via sending a
 signal to the Nomad Autoscaler process or via a number of integrations.
 
 To view this data via sending a signal to the Nomad Autoscaler process: on Unix,
-this is `USR1` while on Windows it is `BREAK`. Once Nomad Autoscaler receives 
+this is `USR1` while on Windows it is `BREAK`. Once Nomad Autoscaler receives
 the signal, it will dump the current telemetry information to the agent's `stderr`.
 
 This telemetry information can be used for debugging or otherwise

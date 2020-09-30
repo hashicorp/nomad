@@ -43,10 +43,9 @@ audit {
 ```
 
 The sink will create an `audit.log` file located within the defined `data_dir`
-directory inside an `audit` directory. `delivery_guarantee` will be set to 
-`"enforced"` meaning that all requests must successfully be written to the sink 
+directory inside an `audit` directory. `delivery_guarantee` will be set to
+`"enforced"` meaning that all requests must successfully be written to the sink
 in order for HTTP requests to successfully complete.
-
 
 ## `audit` Parameters
 
@@ -62,7 +61,7 @@ in order for HTTP requests to successfully complete.
 
 ### `sink` Stanza
 
-The `sink` stanza is used to make audit logging sinks for events to be 
+The `sink` stanza is used to make audit logging sinks for events to be
 sent to. Currently only a single sink is supported.
 
 The key of the stanza corresponds to the name of the sink which is used
@@ -89,19 +88,19 @@ audit {
 - `type` `(string: "file", required)` - Specifies the type of sink to create.
   Currently only `"file"` type is supported.
 
-- `delivery_guarantee` `(string: "enforced", required)` - Specifies the 
+- `delivery_guarantee` `(string: "enforced", required)` - Specifies the
   delivery guarantee that will be made for each audit log entry. Available
   options are `"enforced"` and `"best-effort"`. `"enforced"` will
   hault request execution if the audit log event fails to be written to it's sink.
   `"best-effort"` will not hault request execution, meaning a request could
   potentially be un-audited.
 
-- `format` `(string: "json", required)` - Specifies the output format to be 
+- `format` `(string: "json", required)` - Specifies the output format to be
   sent to a sink. Currently only `"json"` format is supported.
 
 - `path` `(string: "[data_dir]/audit/audit.log")` - Specifies the path and file
-  name to use for the audit log. By default Nomad will use it's configured 
-  [`data_dir`](/docs/configuration#data_dir) for a combined path of 
+  name to use for the audit log. By default Nomad will use it's configured
+  [`data_dir`](/docs/configuration#data_dir) for a combined path of
   `/data_dir/audit/audit.log`. If `rotate_bytes` or `rotate_duration` are set
   file rotation will occur. In this case the filename will be post-fixed with
   a timestamp `"filename-{timestamp}.log"`
@@ -119,10 +118,10 @@ audit {
 
 ### `filter` Stanza
 
-The `filter` stanza is used to create filters to filter __out__ matching events
+The `filter` stanza is used to create filters to filter **out** matching events
 from being written to the audit log. By default, all events will be sent to an
 audit log for all stages (OperationReceived and OperationComplete). Filters
-are useful for operators who want to limit the performance impact of audit 
+are useful for operators who want to limit the performance impact of audit
 logging as well as reducing the amount of events generated.
 
 `endpoints`, `stages`, and `operations` support [globbed pattern](https://github.com/ryanuber/go-glob/blob/master/README.md#example) matching.
@@ -161,18 +160,18 @@ audit {
 
 #### `filter` Parameters
 
-- `type` `(string: "HTTPEvent", required)` - Specifies the type of filter to 
+- `type` `(string: "HTTPEvent", required)` - Specifies the type of filter to
   create. Currently only HTTPEvent is supported.
 
 - `endpoints` `(array<string>: [])` - Specifies the list of endpoints to apply
   the filter to.
 
-- `stages` `(array<string>: [])` - Specifies the list of stages 
+- `stages` `(array<string>: [])` - Specifies the list of stages
   (`"OperationReceived"`, `"OperationComplete"`, `"*"`) to apply the filter to
   for a matching endpoint.
 
 - `operations` `(array<string>: [])` - Specifies the list of operations to
-  apply the filter to for a matching endpoint. For HTTPEvent types this 
+  apply the filter to for a matching endpoint. For HTTPEvent types this
   corresponds to an HTTP verb (GET, PUT, POST, DELETE...).
 
 ## Audit Log Format
@@ -268,9 +267,7 @@ If the request returns an error the audit log will reflect the error message.
     "auth": {
       "accessor_id": "anonymous",
       "name": "Anonymous Token",
-      "policies": [
-        "anonymous"
-      ],
+      "policies": ["anonymous"],
       "create_time": "0001-01-01T00:00:00Z"
     },
     "request": {

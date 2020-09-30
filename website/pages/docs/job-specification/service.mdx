@@ -12,7 +12,7 @@ description: |-
 <Placement
   groups={[
     ['job', 'group', 'service'],
-    ['job', 'group', 'task', 'service']
+    ['job', 'group', 'task', 'service'],
   ]}
 />
 
@@ -297,9 +297,9 @@ Nomad manages registering, updating, and deregistering services with Consul. It
 is important to understand when each of these steps happens and how they can be
 customized.
 
-**Registration**: Nomad will register `group` services and checks *before*
+**Registration**: Nomad will register `group` services and checks _before_
 starting any tasks. Services and checks for a specific `task` are registered
-*after* the task has started.
+_after_ the task has started.
 
 **Updating**: If a service or check definition is updated, Nomad will update
 the service in Consul as well. Consul is updated without restarting a task.

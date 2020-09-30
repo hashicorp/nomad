@@ -37,13 +37,13 @@ onto the client host in the configured plugin directory.
 
 The `containerd-driver` implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
-| Feature | Implementation |
-| --- | --- |
-| send signals | true |
-| exec | true |
-| filesystem isolation | none |
-| network isolation | host, group, task, none |
-| volume mounting | true |
+| Feature              | Implementation          |
+| -------------------- | ----------------------- |
+| send signals         | true                    |
+| exec                 | true                    |
+| filesystem isolation | none                    |
+| network isolation    | host, group, task, none |
+| volume mounting      | true                    |
 
 For sending signals, one can use `nomad alloc signal` command.<br/>
 For exec'ing into the container, one can use `nomad alloc exec` command.
@@ -85,6 +85,7 @@ config {
   image = "docker.io/library/redis:alpine"
 }
 ```
+
 - `command` - (Optional) Command to override command defined in the image.
 
 ```hcl
@@ -92,6 +93,7 @@ config {
   command = "some-command"
 }
 ```
+
 - `args` - (Optional) Arguments to the command.
 
 ```hcl
@@ -102,28 +104,35 @@ config {
   ]
 }
 ```
+
 - `privileged` - (Optional) `true` or `false` (default) Run container in privileged mode.
-Your container will have all linux capabilities when running in privileged mode.
+  Your container will have all linux capabilities when running in privileged mode.
 
 ```hcl
 config {
   privileged = true
 }
 ```
+
 - `readonly_rootfs` - (Optional) `true` or `false` (default) Container root filesystem will be read-only.
+
 ```hcl
 config {
   readonly_rootfs = true
 }
 ```
+
 - `host_network` ((#host_network)) - (Optional) `true` or `false` (default) Enable host network.
-This is equivalent to `--net=host` in docker.
+  This is equivalent to `--net=host` in docker.
+
 ```hcl
 config {
   host_network = true
 }
 ```
+
 - `cap_add` - (Optional) Add individual capabilities.
+
 ```hcl
 config {
   cap_add = [
@@ -133,7 +142,9 @@ config {
   ]
 }
 ```
+
 - `cap_drop` - (Optional) Drop individual capabilities.
+
 ```hcl
 config {
   cap_drop = [
@@ -143,7 +154,9 @@ config {
   ]
 }
 ```
+
 - `devices` - (Optional) A list of devices to be exposed to the container.
+
 ```hcl
 config {
   devices = [
@@ -152,12 +165,14 @@ config {
   ]
 }
 ```
+
 - `mounts` - (Optional) A list of mounts to be mounted in the container.
-Volume, bind and tmpfs type mounts are supported. fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211) are supported.
-   - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`. **Default:** `volume`.
-   - `target` - (Required) Target path in the container.
-   - `source` - (Optional) Source path on the host.
-   - `options` - (Optional) fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211). **NOTE:** For bind mounts, atleast `rbind` and `ro` are required.
+  Volume, bind and tmpfs type mounts are supported. fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211) are supported.
+  - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`. **Default:** `volume`.
+  - `target` - (Required) Target path in the container.
+  - `source` - (Optional) Source path on the host.
+  - `options` - (Optional) fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211). **NOTE:** For bind mounts, atleast `rbind` and `ro` are required.
+
 ```hcl
 config {
   mounts = [
@@ -178,17 +193,20 @@ config {
 **NOTE:** `host` and `bridge` are mutually exclusive options, and only one of them should be used at a time.
 
 1. **Host** network can be enabled by setting `host_network` to `true` in task config
-of the job spec (see [host_network][host-network] under Task Configuration).
+   of the job spec (see [host_network][host-network] under Task Configuration).
 
 2. **Bridge** network can be enabled by setting the `network` stanza in the task group section of the job spec.
+
 ```hcl
 network {
   mode = "bridge"
 }
 ```
+
 You need to install CNI plugins on Nomad client nodes under `/opt/cni/bin` before you can use `bridge` networks.
 
 **Instructions for installing CNI plugins.**
+
 ```hcl
  $ curl -L -o cni-plugins.tgz https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz
  $ sudo mkdir -p /opt/cni/bin
@@ -202,7 +220,6 @@ You need to install CNI plugins on Nomad client nodes under `/opt/cni/bin` befor
 - `containerd_runtime` - (Required) Runtime for `containerd` e.g. `io.containerd.runc.v1` or `io.containerd.runc.v2`
 
 - `stats_interval` - (Optional) This value defines how frequently you want to send `TaskStats` to nomad client. (defaults to `1 second`).
-
 
 An example of using these plugin options with the new [plugin
 syntax][plugin] is shown below:

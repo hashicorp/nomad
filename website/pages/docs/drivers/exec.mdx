@@ -81,13 +81,13 @@ task "example" {
 
 The `exec` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
-| Feature | Implementation |
-| --- | --- |
-| `nomad alloc signal` | true |
-| `nomad alloc exec` | true |
-| filesystem isolation | chroot |
-| network isolation | host, group |
-| volume mounting | all |
+| Feature              | Implementation |
+| -------------------- | -------------- |
+| `nomad alloc signal` | true           |
+| `nomad alloc exec`   | true           |
+| filesystem isolation | chroot         |
+| network isolation    | host, group    |
+| volume mounting      | all            |
 
 ## Client Requirements
 
