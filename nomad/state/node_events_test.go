@@ -22,49 +22,43 @@ func TestNodeEventsFromChanges(t *testing.T) {
 	}{
 		{
 			MsgType:   structs.NodeRegisterRequestType,
-			WantTopic: TopicNodeRegistration,
+			WantTopic: TopicNode,
 			Name:      "node registered",
 			Mutate: func(s *StateStore, tx *txn) error {
 				return upsertNodeTxn(tx, tx.Index, testNode())
 			},
 			WantEvents: []stream.Event{{
-				Topic: TopicNodeRegistration,
+				Topic: TopicNode,
+				Type:  TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeRegistrationEvent{
-					Event: &structs.NodeEvent{
-						Message:   "Node registered",
-						Subsystem: "Cluster",
-					},
-					NodeStatus: structs.NodeStatusReady,
+				Payload: &NodeEvent{
+					Node: testNode(),
 				},
 			}},
 			WantErr: false,
 		},
 		{
 			MsgType:   structs.NodeRegisterRequestType,
-			WantTopic: TopicNodeRegistration,
+			WantTopic: TopicNode,
 			Name:      "node registered initializing",
 			Mutate: func(s *StateStore, tx *txn) error {
 				return upsertNodeTxn(tx, tx.Index, testNode(nodeNotReady))
 			},
 			WantEvents: []stream.Event{{
-				Topic: TopicNodeRegistration,
+				Topic: TopicNode,
+				Type:  TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeRegistrationEvent{
-					Event: &structs.NodeEvent{
-						Message:   "Node registered",
-						Subsystem: "Cluster",
-					},
-					NodeStatus: structs.NodeStatusInit,
+				Payload: &NodeEvent{
+					Node: testNode(nodeNotReady),
 				},
 			}},
 			WantErr: false,
 		},
 		{
 			MsgType:   structs.NodeDeregisterRequestType,
-			WantTopic: TopicNodeDeregistration,
+			WantTopic: TopicNode,
 			Name:      "node deregistered",
 			Setup: func(s *StateStore, tx *txn) error {
 				return upsertNodeTxn(tx, tx.Index, testNode())
@@ -73,18 +67,19 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				return deleteNodeTxn(tx, tx.Index, []string{testNodeID()})
 			},
 			WantEvents: []stream.Event{{
-				Topic: TopicNodeDeregistration,
+				Topic: TopicNode,
+				Type:  TypeNodeDeregistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeDeregistrationEvent{
-					NodeID: testNodeID(),
+				Payload: &NodeEvent{
+					Node: testNode(),
 				},
 			}},
 			WantErr: false,
 		},
 		{
 			MsgType:   structs.NodeDeregisterRequestType,
-			WantTopic: TopicNodeDeregistration,
+			WantTopic: TopicNode,
 			Name:      "batch node deregistered",
 			Setup: func(s *StateStore, tx *txn) error {
 				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
@@ -95,19 +90,21 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			},
 			WantEvents: []stream.Event{
 				{
-					Topic: TopicNodeDeregistration,
+					Topic: TopicNode,
+					Type:  TypeNodeDeregistration,
 					Key:   testNodeID(),
 					Index: 100,
-					Payload: &NodeDeregistrationEvent{
-						NodeID: testNodeID(),
+					Payload: &NodeEvent{
+						Node: testNode(),
 					},
 				},
 				{
-					Topic: TopicNodeDeregistration,
+					Topic: TopicNode,
+					Type:  TypeNodeDeregistration,
 					Key:   testNodeIDTwo(),
 					Index: 100,
-					Payload: &NodeDeregistrationEvent{
-						NodeID: testNodeIDTwo(),
+					Payload: &NodeEvent{
+						Node: testNode(nodeIDTwo),
 					},
 				},
 			},
@@ -115,7 +112,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 		},
 		{
 			MsgType:   structs.UpsertNodeEventsType,
-			WantTopic: TopicNodeEvent,
+			WantTopic: TopicNode,
 			Name:      "batch node events upserted",
 			Setup: func(s *StateStore, tx *txn) error {
 				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
@@ -145,7 +142,8 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			},
 			WantEvents: []stream.Event{
 				{
-					Topic: TopicNodeEvent,
+					Topic: TopicNode,
+					Type:  TypeNodeEvent,
 					Key:   testNodeID(),
 					Index: 100,
 					Payload: &NodeEvent{
@@ -153,7 +151,8 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					},
 				},
 				{
-					Topic: TopicNodeEvent,
+					Topic: TopicNode,
+					Type:  TypeNodeEvent,
 					Key:   testNodeIDTwo(),
 					Index: 100,
 					Payload: &NodeEvent{
@@ -252,7 +251,8 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.Len(t, got, 1)
 
-	require.Equal(t, TopicNodeDrain, got[0].Topic)
+	require.Equal(t, TopicNode, got[0].Topic)
+	require.Equal(t, TypeNodeDrain, got[0].Type)
 	require.Equal(t, uint64(100), got[0].Index)
 
 	nodeEvent, ok := got[0].Payload.(*NodeDrainEvent)
@@ -265,22 +265,23 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 func requireNodeRegistrationEventEqual(t *testing.T, want, got stream.Event) {
 	t.Helper()
 
-	wantPayload := want.Payload.(*NodeRegistrationEvent)
-	gotPayload := got.Payload.(*NodeRegistrationEvent)
+	wantPayload := want.Payload.(*NodeEvent)
+	gotPayload := got.Payload.(*NodeEvent)
 
 	// Check payload equality for the fields that we can easily control
-	require.Equal(t, wantPayload.NodeStatus, gotPayload.NodeStatus)
-	require.Equal(t, wantPayload.Event.Message, gotPayload.Event.Message)
-	require.Equal(t, wantPayload.Event.Subsystem, gotPayload.Event.Subsystem)
+	require.Equal(t, wantPayload.Node.Status, gotPayload.Node.Status)
+	require.Equal(t, wantPayload.Node.ID, gotPayload.Node.ID)
+	require.NotEqual(t, wantPayload.Node.Events, gotPayload.Node.Events)
 }
 
 func requireNodeDeregistrationEventEqual(t *testing.T, want, got stream.Event) {
 	t.Helper()
 
-	wantPayload := want.Payload.(*NodeDeregistrationEvent)
-	gotPayload := got.Payload.(*NodeDeregistrationEvent)
+	wantPayload := want.Payload.(*NodeEvent)
+	gotPayload := got.Payload.(*NodeEvent)
 
-	require.Equal(t, wantPayload, gotPayload)
+	require.Equal(t, wantPayload.Node.ID, gotPayload.Node.ID)
+	require.NotEqual(t, wantPayload.Node.Events, gotPayload.Node.Events)
 }
 
 func requireNodeEventEqual(t *testing.T, want, got stream.Event) {
@@ -293,6 +294,10 @@ type nodeOpts func(n *structs.Node)
 
 func nodeNotReady(n *structs.Node) {
 	n.Status = structs.NodeStatusInit
+}
+
+func nodeReady(n *structs.Node) {
+	n.Status = structs.NodeStatusReady
 }
 
 func nodeIDTwo(n *structs.Node) {

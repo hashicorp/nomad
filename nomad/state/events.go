@@ -6,15 +6,14 @@ import (
 )
 
 const (
-	TopicDeployment         stream.Topic = "Deployment"
-	TopicEval               stream.Topic = "Eval"
-	TopicAlloc              stream.Topic = "Alloc"
-	TopicJob                stream.Topic = "Job"
-	TopicNodeRegistration   stream.Topic = "NodeRegistration"
-	TopicNodeDeregistration stream.Topic = "NodeDeregistration"
-	TopicNodeDrain          stream.Topic = "NodeDrain"
-	TopicNodeEvent          stream.Topic = "NodeEvent"
-	TopicNode               stream.Topic = "Node"
+	TopicDeployment stream.Topic = "Deployment"
+	TopicEval       stream.Topic = "Eval"
+	TopicAlloc      stream.Topic = "Alloc"
+	TopicJob        stream.Topic = "Job"
+	// TopicNodeRegistration   stream.Topic = "NodeRegistration"
+	// TopicNodeDeregistration stream.Topic = "NodeDeregistration"
+	// TopicNodeDrain          stream.Topic = "NodeDrain"
+	TopicNode stream.Topic = "Node"
 
 	// TODO(drew) Node Events use TopicNode + Type
 	TypeNodeRegistration   = "NodeRegistration"
@@ -44,15 +43,6 @@ type AllocEvent struct {
 
 type DeploymentEvent struct {
 	Deployment *structs.Deployment
-}
-
-type NodeRegistrationEvent struct {
-	Event      *structs.NodeEvent
-	NodeStatus string
-}
-
-type NodeDeregistrationEvent struct {
-	NodeID string
 }
 
 type NodeEvent struct {

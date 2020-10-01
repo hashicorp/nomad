@@ -20,12 +20,12 @@ func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, 
 			}
 
 			event := stream.Event{
-				Topic: TopicNodeRegistration,
+				Topic: TopicNode,
+				Type:  TypeNodeRegistration,
 				Index: changes.Index,
 				Key:   after.ID,
-				Payload: &NodeRegistrationEvent{
-					Event:      after.Events[len(after.Events)-1],
-					NodeStatus: after.Status,
+				Payload: &NodeEvent{
+					Node: after,
 				},
 			}
 			events = append(events, event)
@@ -47,11 +47,12 @@ func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event
 			}
 
 			event := stream.Event{
-				Topic: TopicNodeDeregistration,
+				Topic: TopicNode,
+				Type:  TypeNodeDeregistration,
 				Index: changes.Index,
 				Key:   before.ID,
-				Payload: &NodeDeregistrationEvent{
-					NodeID: before.ID,
+				Payload: &NodeEvent{
+					Node: before,
 				},
 			}
 			events = append(events, event)
@@ -73,7 +74,8 @@ func NodeEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 			}
 
 			event := stream.Event{
-				Topic: TopicNodeEvent,
+				Topic: TopicNode,
+				Type:  TypeNodeEvent,
 				Index: changes.Index,
 				Key:   after.ID,
 				Payload: &NodeEvent{
@@ -119,7 +121,8 @@ func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, err
 			}
 
 			event := stream.Event{
-				Topic: TopicNodeDrain,
+				Topic: TopicNode,
+				Type:  TypeNodeDrain,
 				Index: changes.Index,
 				Key:   after.ID,
 				Payload: &NodeDrainEvent{
