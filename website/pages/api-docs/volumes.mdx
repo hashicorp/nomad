@@ -360,12 +360,12 @@ The table below shows this endpoint's support for
   path.
 
 - `node` `(string: <required>)`- The node to detach the volume from.
+This is specified as a query string parameter.
 
 ### Sample Request
 
 ```shell-session
 $ curl \
     --request DELETE \
-    --data @payload.json \
-    https://localhost:4646/v1/volume/csi/volume-id/detach
+    https://localhost:4646/v1/volume/csi/volume-id/detach?node=00000000-0000-0000-0000-000000000000
 ```
