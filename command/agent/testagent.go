@@ -147,7 +147,7 @@ RETRY:
 	if a.Key != "" {
 		writeKey := func(key, filename string) {
 			path := filepath.Join(a.Config.DataDir, filename)
-			if err := initKeyring(path, key); err != nil {
+			if err := initKeyring(path, key, a.logger); err != nil {
 				a.T.Fatalf("Error creating keyring %s: %s", path, err)
 			}
 		}
