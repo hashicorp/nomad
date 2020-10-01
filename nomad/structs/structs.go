@@ -8944,6 +8944,15 @@ func (a *Allocation) ReschedulePolicy() *ReschedulePolicy {
 	return tg.ReschedulePolicy
 }
 
+// MigrateStrategy returns the migrate strategy based on the task group
+func (a *Allocation) MigrateStrategy() *MigrateStrategy {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+	return tg.Migrate
+}
+
 // NextRescheduleTime returns a time on or after which the allocation is eligible to be rescheduled,
 // and whether the next reschedule time is within policy's interval if the policy doesn't allow unlimited reschedules
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {

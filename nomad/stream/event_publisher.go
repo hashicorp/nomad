@@ -65,7 +65,7 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 	e := &EventPublisher{
 		logger:    cfg.Logger.Named("event_publisher"),
 		eventBuf:  buffer,
-		publishCh: make(chan changeEvents),
+		publishCh: make(chan changeEvents, 64),
 		subscriptions: &subscriptions{
 			byToken: make(map[string]map[*SubscribeRequest]*Subscription),
 		},
