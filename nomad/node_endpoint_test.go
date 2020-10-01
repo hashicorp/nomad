@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -2048,7 +2049,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
 		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
-		err := state.UpdateAllocsFromClient(200, []*structs.Allocation{allocUpdate})
+		err := state.UpdateAllocsFromClient(context.Background(), 200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
