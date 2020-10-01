@@ -6,3 +6,4 @@ windows_client_count = "1"
 profile              = "full-cluster"
 nomad_enterprise     = true
 nomad_acls           = true
+vault                = true

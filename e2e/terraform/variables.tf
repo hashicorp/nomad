@@ -85,6 +85,12 @@ variable "nomad_acls" {
   default     = false
 }
 
+variable "vault" {
+  type        = bool
+  description = "Bootstrap Vault"
+  default     = false
+}
+
 # ----------------------------------------
 # If you want to deploy multiple versions you can use these variables to
 # provide a list of builds to override the values of nomad_sha, nomad_version,
