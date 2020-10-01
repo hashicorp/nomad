@@ -16,7 +16,11 @@ func TestTaskDNSConfig(t *testing.T, driver *DriverHarness, taskID string, dns *
 		caps, err := driver.Capabilities()
 		require.NoError(t, err)
 
-		isolated := (caps.FSIsolation != drivers.FSIsolationNone)
+		// FS isolation is used here as a proxy for network isolation.
+		// This is true for the current built-in drivers but it is not necessarily so.
+		isolated := caps.FSIsolation != drivers.FSIsolationNone
+		usesHostNetwork := caps.FSIsolation != drivers.FSIsolationImage
+
 		if !isolated {
 			t.Skip("dns config not supported on non isolated drivers")
 		}
@@ -39,7 +43,12 @@ func TestTaskDNSConfig(t *testing.T, driver *DriverHarness, taskID string, dns *
 				require.ElementsMatch(t, dns.Options, dresolvconf.GetOptions(resolvConf))
 			}
 		} else {
-			system, err := dresolvconf.Get()
+			systemPath := "/etc/resolv.conf"
+			if !usesHostNetwork {
+				systemPath = dresolvconf.Path()
+			}
+
+			system, err := dresolvconf.GetSpecific(systemPath)
 			require.NoError(t, err)
 			require.ElementsMatch(t, dresolvconf.GetNameservers(system.Content, dtypes.IP), dresolvconf.GetNameservers(resolvConf, dtypes.IP))
 			require.ElementsMatch(t, dresolvconf.GetSearchDomains(system.Content), dresolvconf.GetSearchDomains(resolvConf))

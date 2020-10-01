@@ -495,7 +495,10 @@ func copyFile(t *testing.T, src, dst string) {
 	require.NoErrorf(t, err, "copying %v -> %v", src, dst)
 	defer in.Close()
 
-	out, err := os.Create(dst)
+	ins, err := in.Stat()
+	require.NoErrorf(t, err, "copying %v -> %v", src, dst)
+
+	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, ins.Mode())
 	require.NoErrorf(t, err, "copying %v -> %v", src, dst)
 	defer func() {
 		if err := out.Close(); err != nil {
@@ -633,6 +636,8 @@ func TestExecutor_Start_NonExecutableBinaries(pt *testing.T) {
 				}
 				return true, nil
 			}, func(err error) {
+				stderr := strings.TrimSpace(string(testExecCmd.stderr.String()))
+				t.Logf("stderr: %v", stderr)
 				require.NoError(err)
 			})
 		})

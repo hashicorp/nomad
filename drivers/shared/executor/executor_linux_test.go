@@ -206,7 +206,9 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 
 			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
 			// don't isolate it by default.
-			if strings.Contains(line, ":rdma:") {
+			// :: filters out odd empty cgroup found in latest Ubuntu lines, e.g. 0::/user.slice/user-1000.slice/session-17.scope
+			// that is also not used for isolation
+			if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
 				continue
 			}
 
@@ -260,7 +262,7 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 
 			// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
 			// don't isolate it by default.
-			if strings.Contains(line, ":rdma:") {
+			if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
 				continue
 			}
 
