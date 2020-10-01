@@ -8,10 +8,10 @@ import (
 // a given task or task group.
 type Resources struct {
 	CPU      *int               `hcl:"cpu,optional"`
-	MemoryMB *int               `mapstructure:"memory" hcl:"memory_mb,optional"`
-	DiskMB   *int               `mapstructure:"disk" hcl:"disk_mb,optional"`
-	Networks []*NetworkResource `hcl:"networks,optional"`
-	Devices  []*RequestedDevice `hcl:"devices,optional"`
+	MemoryMB *int               `mapstructure:"memory" hcl:"memory,optional"`
+	DiskMB   *int               `mapstructure:"disk" hcl:"disk,optional"`
+	Networks []*NetworkResource `hcl:"network,block"`
+	Devices  []*RequestedDevice `hcl:"device,block"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -84,10 +84,10 @@ func (r *Resources) Merge(other *Resources) {
 }
 
 type Port struct {
-	Label       string
-	Value       int    `mapstructure:"static"`
-	To          int    `mapstructure:"to"`
-	HostNetwork string `mapstructure:"host_network"`
+	Label       string `hcl:",label"`
+	Value       int    `mapstructure:"static" hcl:"static,optional"`
+	To          int    `mapstructure:"to" hcl:"to,optional"`
+	HostNetwork string `mapstructure:"host_network" hcl:"host_network,optional"`
 }
 
 type DNSConfig struct {
@@ -103,10 +103,10 @@ type NetworkResource struct {
 	Device        string     `hcl:"device,optional"`
 	CIDR          string     `hcl:"cidr,optional"`
 	IP            string     `hcl:"ip,optional"`
-	MBits         *int       `hcl:"m_bits,optional"`
-	DNS           *DNSConfig `hcl:"dns,optional"`
-	ReservedPorts []Port     `hcl:"reserved_ports,optional"`
-	DynamicPorts  []Port     `hcl:"dynamic_ports,optional"`
+	MBits         *int       `hcl:"mbits,optional"`
+	DNS           *DNSConfig `hcl:"dns,block"`
+	ReservedPorts []Port     `hcl:"reserved_ports,block"`
+	DynamicPorts  []Port     `hcl:"port,block"`
 }
 
 func (n *NetworkResource) Canonicalize() {

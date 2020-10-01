@@ -640,8 +640,8 @@ func (u *UpdateStrategy) Empty() bool {
 }
 
 type Multiregion struct {
-	Strategy *MultiregionStrategy `hcl:"strategy,optional"`
-	Regions  []*MultiregionRegion `hcl:"regions,optional"`
+	Strategy *MultiregionStrategy `hcl:"strategy,block"`
+	Regions  []*MultiregionRegion `hcl:"regions,block"`
 }
 
 func (m *Multiregion) Canonicalize() {
@@ -789,25 +789,25 @@ type Job struct {
 	Stop              *bool                   `hcl:"stop,optional"`
 	Region            *string                 `hcl:"region,optional"`
 	Namespace         *string                 `hcl:"namespace,optional"`
-	ID                *string                 `hcl:"id,optional"`
+	ID                *string                 `hcl:"id,label"`
 	ParentID          *string                 `hcl:"parent_id,optional"`
 	Name              *string                 `hcl:"name,optional"`
 	Type              *string                 `hcl:"type,optional"`
 	Priority          *int                    `hcl:"priority,optional"`
 	AllAtOnce         *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
 	Datacenters       []string                `hcl:"datacenters,optional"`
-	Constraints       []*Constraint           `hcl:"constraints,optional"`
-	Affinities        []*Affinity             `hcl:"affinities,optional"`
-	TaskGroups        []*TaskGroup            `hcl:"task_groups,optional"`
-	Update            *UpdateStrategy         `hcl:"update,optional"`
-	Multiregion       *Multiregion            `hcl:"multiregion,optional"`
-	Spreads           []*Spread               `hcl:"spreads,optional"`
-	Periodic          *PeriodicConfig         `hcl:"periodic,optional"`
-	ParameterizedJob  *ParameterizedJobConfig `hcl:"parameterized_job,optional"`
+	Constraints       []*Constraint           `hcl:"constraint,block"`
+	Affinities        []*Affinity             `hcl:"affinities,block"`
+	TaskGroups        []*TaskGroup            `hcl:"group,block"`
+	Update            *UpdateStrategy         `hcl:"update,block"`
+	Multiregion       *Multiregion            `hcl:"multiregion,block"`
+	Spreads           []*Spread               `hcl:"spreads,block"`
+	Periodic          *PeriodicConfig         `hcl:"periodic,block"`
+	ParameterizedJob  *ParameterizedJobConfig `hcl:"parameterized_job,block"`
 	Dispatched        bool                    `hcl:"dispatched,optional"`
 	Payload           []byte                  `hcl:"payload,optional"`
-	Reschedule        *ReschedulePolicy       `hcl:"reschedule,optional"`
-	Migrate           *MigrateStrategy        `hcl:"migrate,optional"`
+	Reschedule        *ReschedulePolicy       `hcl:"reschedule,block"`
+	Migrate           *MigrateStrategy        `hcl:"migrate,block"`
 	Meta              map[string]string       `hcl:"meta,optional"`
 	ConsulToken       *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken        *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`

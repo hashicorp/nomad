@@ -257,7 +257,7 @@ func (p *ReschedulePolicy) String() string {
 type Spread struct {
 	Attribute    string          `hcl:"attribute,optional"`
 	Weight       *int8           `hcl:"weight,optional"`
-	SpreadTarget []*SpreadTarget `hcl:"spread_target,optional"`
+	SpreadTarget []*SpreadTarget `hcl:"spread_target,block"`
 }
 
 // SpreadTarget is used to serialize target allocation spread percentages
@@ -381,7 +381,7 @@ type VolumeRequest struct {
 	Type         string           `hcl:"type,optional"`
 	Source       string           `hcl:"source,optional"`
 	ReadOnly     bool             `hcl:"read_only,optional"`
-	MountOptions *CSIMountOptions `hcl:"mount_options,optional"`
+	MountOptions *CSIMountOptions `hcl:"mount_options,block"`
 	ExtraKeysHCL []string         `hcl:",unusedKeys,optional" json:"-"`
 }
 
@@ -411,24 +411,24 @@ func (vm *VolumeMount) Canonicalize() {
 
 // TaskGroup is the unit of scheduling.
 type TaskGroup struct {
-	Name                      *string                   `hcl:"name,optional"`
+	Name                      *string                   `hcl:"name,label"`
 	Count                     *int                      `hcl:"count,optional"`
-	Constraints               []*Constraint             `hcl:"constraints,optional"`
-	Affinities                []*Affinity               `hcl:"affinities,optional"`
-	Tasks                     []*Task                   `hcl:"tasks,optional"`
-	Spreads                   []*Spread                 `hcl:"spreads,optional"`
+	Constraints               []*Constraint             `hcl:"constraint,block"`
+	Affinities                []*Affinity               `hcl:"affinity,block"`
+	Tasks                     []*Task                   `hcl:"task,block"`
+	Spreads                   []*Spread                 `hcl:"spreads,block"`
 	Volumes                   map[string]*VolumeRequest `hcl:"volumes,optional"`
-	RestartPolicy             *RestartPolicy            `hcl:"restart_policy,optional"`
-	ReschedulePolicy          *ReschedulePolicy         `hcl:"reschedule_policy,optional"`
-	EphemeralDisk             *EphemeralDisk            `hcl:"ephemeral_disk,optional"`
-	Update                    *UpdateStrategy           `hcl:"update,optional"`
-	Migrate                   *MigrateStrategy          `hcl:"migrate,optional"`
-	Networks                  []*NetworkResource        `hcl:"networks,optional"`
+	RestartPolicy             *RestartPolicy            `hcl:"restart_policy,block"`
+	ReschedulePolicy          *ReschedulePolicy         `hcl:"reschedule_policy,block"`
+	EphemeralDisk             *EphemeralDisk            `hcl:"ephemeral_disk,block"`
+	Update                    *UpdateStrategy           `hcl:"update,block"`
+	Migrate                   *MigrateStrategy          `hcl:"migrate,block"`
+	Networks                  []*NetworkResource        `hcl:"networks,block"`
 	Meta                      map[string]string         `hcl:"meta,optional"`
-	Services                  []*Service                `hcl:"services,optional"`
+	Services                  []*Service                `hcl:"services,block"`
 	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
-	Scaling                   *ScalingPolicy            `hcl:"scaling,optional"`
+	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -605,8 +605,8 @@ func (g *TaskGroup) AddSpread(s *Spread) *TaskGroup {
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
-	MaxFiles      *int `mapstructure:"max_files"`
-	MaxFileSizeMB *int `mapstructure:"max_file_size"`
+	MaxFiles      *int `mapstructure:"max_files" hcl:"max_files,optional"`
+	MaxFileSizeMB *int `mapstructure:"max_file_size" hcl:"max_file_size,optional"`
 }
 
 func DefaultLogConfig() *LogConfig {
@@ -636,8 +636,8 @@ const (
 )
 
 type TaskLifecycle struct {
-	Hook    string `mapstructure:"hook"`
-	Sidecar bool   `mapstructure:"sidecar"`
+	Hook    string `mapstructure:"hook" hcl:"hook,optional"`
+	Sidecar bool   `mapstructure:"sidecar" hcl:"sidecar,optional"`
 }
 
 // Determine if lifecycle has user-input values
@@ -647,26 +647,26 @@ func (l *TaskLifecycle) Empty() bool {
 
 // Task is a single process in a task group.
 type Task struct {
-	Name            string                 `hcl:"name,optional"`
+	Name            string                 `hcl:"name,label"`
 	Driver          string                 `hcl:"driver,optional"`
 	User            string                 `hcl:"user,optional"`
-	Lifecycle       *TaskLifecycle         `hcl:"lifecycle,optional"`
+	Lifecycle       *TaskLifecycle         `hcl:"lifecycle,block"`
 	Config          map[string]interface{} `hcl:"config,optional"`
-	Constraints     []*Constraint          `hcl:"constraints,optional"`
-	Affinities      []*Affinity            `hcl:"affinities,optional"`
+	Constraints     []*Constraint          `hcl:"constraint,block"`
+	Affinities      []*Affinity            `hcl:"affinity,block"`
 	Env             map[string]string      `hcl:"env,optional"`
-	Services        []*Service             `hcl:"services,optional"`
-	Resources       *Resources             `hcl:"resources,optional"`
-	RestartPolicy   *RestartPolicy         `hcl:"restart_policy,optional"`
+	Services        []*Service             `hcl:"services,block"`
+	Resources       *Resources             `hcl:"resources,block"`
+	RestartPolicy   *RestartPolicy         `hcl:"restart_policy,block"`
 	Meta            map[string]string      `hcl:"meta,optional"`
 	KillTimeout     *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
-	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,optional"`
-	Artifacts       []*TaskArtifact        `hcl:"artifacts,optional"`
-	Vault           *Vault                 `hcl:"vault,optional"`
-	Templates       []*Template            `hcl:"templates,optional"`
-	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,optional"`
-	VolumeMounts    []*VolumeMount         `hcl:"volume_mounts,optional"`
-	CSIPluginConfig *TaskCSIPluginConfig   `mapstructure:"csi_plugin" json:",omitempty" hcl:"csi_plugin,optional"`
+	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
+	Artifacts       []*TaskArtifact        `hcl:"artifacts,block"`
+	Vault           *Vault                 `hcl:"vault,block"`
+	Templates       []*Template            `hcl:"templates,block"`
+	DispatchPayload *DispatchPayloadConfig `hcl:"dispatch_payload,block"`
+	VolumeMounts    []*VolumeMount         `hcl:"volume_mounts,block"`
+	CSIPluginConfig *TaskCSIPluginConfig   `mapstructure:"csi_plugin" json:",omitempty" hcl:"csi_plugin,block"`
 	Leader          bool                   `hcl:"leader,optional"`
 	ShutdownDelay   time.Duration          `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
@@ -975,10 +975,10 @@ const (
 type TaskCSIPluginConfig struct {
 	// ID is the identifier of the plugin.
 	// Ideally this should be the FQDN of the plugin.
-	ID string `mapstructure:"id"`
+	ID string `mapstructure:"id" hcl:"id,optional"`
 
 	// CSIPluginType instructs Nomad on how to handle processing a plugin
-	Type CSIPluginType `mapstructure:"type"`
+	Type CSIPluginType `mapstructure:"type" hcl:"type,optional"`
 
 	// MountDir is the destination that nomad should mount in its CSI
 	// directory for the plugin. It will then expect a file called CSISocketName
@@ -986,7 +986,7 @@ type TaskCSIPluginConfig struct {
 	// "MountDir/CSIIntermediaryDirname/VolumeName/AllocID for mounts.
 	//
 	// Default is /csi.
-	MountDir string `mapstructure:"mount_dir"`
+	MountDir string `mapstructure:"mount_dir" hcl:"mount_dir,optional"`
 }
 
 func (t *TaskCSIPluginConfig) Canonicalize() {

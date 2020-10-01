@@ -264,7 +264,12 @@ func decodeBlockToValue(block *hcl.Block, ctx *hcl.EvalContext, v reflect.Value)
 			blockTags := getFieldTags(ty)
 			for li, lv := range block.Labels {
 				lfieldIdx := blockTags.Labels[li].FieldIndex
-				v.Field(lfieldIdx).Set(reflect.ValueOf(lv))
+				f := v.Field(lfieldIdx)
+				if f.Kind() == reflect.Ptr {
+					f.Set(reflect.ValueOf(&lv))
+				} else {
+					f.SetString(lv)
+				}
 			}
 		}
 
