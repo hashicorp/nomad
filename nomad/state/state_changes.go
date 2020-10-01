@@ -190,6 +190,18 @@ func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 		return NodeRegisterEventFromChanges(tx, changes)
 	case structs.NodeDeregisterRequestType:
 		return NodeDeregisterEventFromChanges(tx, changes)
+	case structs.NodeUpdateDrainRequestType:
+		return NodeDrainEventFromChanges(tx, changes)
+	case structs.UpsertNodeEventsType:
+		return NodeEventFromChanges(tx, changes)
+	case structs.DeploymentStatusUpdateRequestType:
+		return DeploymentEventFromChanges(changes.MsgType, tx, changes)
+	case structs.DeploymentPromoteRequestType:
+		return DeploymentEventFromChanges(changes.MsgType, tx, changes)
+	case structs.DeploymentAllocHealthRequestType:
+		return DeploymentEventFromChanges(changes.MsgType, tx, changes)
+	case structs.ApplyPlanResultsRequestType:
+		return ApplyPlanResultEventsFromChanges(tx, changes)
 	}
 	return []stream.Event{}, nil
 }

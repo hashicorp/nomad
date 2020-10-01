@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -374,7 +375,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 		EvalID: eval.ID,
 	}
 	assert := assert.New(t)
-	err := state.UpsertPlanResults(1000, &res)
+	err := state.UpsertPlanResults(context.Background(), 1000, &res)
 	assert.Nil(err)
 
 	// Dequeue the eval

@@ -270,7 +270,7 @@ RUN_QUERY:
 }
 
 // UpsertPlanResults is used to upsert the results of a plan.
-func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanResultsRequest) error {
+func (s *StateStore) UpsertPlanResults(ctx context.Context, index uint64, results *structs.ApplyPlanResultsRequest) error {
 	snapshot, err := s.Snapshot()
 	if err != nil {
 		return err
@@ -292,7 +292,7 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		return err
 	}
 
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnCtx(ctx, index)
 	defer txn.Abort()
 
 	// Upsert the newly created or updated deployment
@@ -356,7 +356,10 @@ func (s *StateStore) UpsertPlanResults(index uint64, results *structs.ApplyPlanR
 		}
 	}
 
-	txn.Commit()
+	if err := txn.Commit(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -957,6 +960,19 @@ func (s *StateStore) BatchUpdateNodeDrain(index uint64, updatedAt int64, updates
 }
 
 // UpdateNodeDrain is used to update the drain of a node
+func (s *StateStore) UpdateNodeDrainCtx(ctx context.Context, index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
+
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
+// UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
@@ -1053,6 +1069,20 @@ func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibil
 	}
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+func (s *StateStore) UpsertNodeEventsCtx(ctx context.Context, index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+
+	for nodeID, events := range nodeEvents {
+		if err := s.upsertNodeEvents(index, nodeID, events, txn); err != nil {
+			return err
+		}
 	}
 
 	txn.Commit()
@@ -3375,6 +3405,10 @@ func (s *StateStore) AllocsByIDPrefixInNSes(ws memdb.WatchSet, namespaces map[st
 func (s *StateStore) AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error) {
 	txn := s.db.ReadTxn()
 
+	return allocsByNodeTxn(txn, ws, node)
+}
+
+func allocsByNodeTxn(txn ReadTxn, ws memdb.WatchSet, node string) ([]*structs.Allocation, error) {
 	// Get an iterator over the node allocations, using only the
 	// node prefix which ignores the terminal status
 	iter, err := txn.Get("allocs", "node_prefix", node)
@@ -3796,8 +3830,8 @@ func (s *StateStore) SITokenAccessorsByNode(ws memdb.WatchSet, nodeID string) ([
 
 // UpdateDeploymentStatus is used to make deployment status updates and
 // potentially make a evaluation
-func (s *StateStore) UpdateDeploymentStatus(index uint64, req *structs.DeploymentStatusUpdateRequest) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpdateDeploymentStatus(ctx context.Context, index uint64, req *structs.DeploymentStatusUpdateRequest) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
 	defer txn.Abort()
 
 	if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
@@ -3900,8 +3934,8 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 
 // UpdateDeploymentPromotion is used to promote canaries in a deployment and
 // potentially make a evaluation
-func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpdateDeploymentPromotion(ctx context.Context, index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
 	defer txn.Abort()
 
 	// Retrieve deployment and ensure it is not terminal and is active
@@ -4043,8 +4077,8 @@ func (s *StateStore) UpdateDeploymentPromotion(index uint64, req *structs.ApplyD
 
 // UpdateDeploymentAllocHealth is used to update the health of allocations as
 // part of the deployment and potentially make a evaluation
-func (s *StateStore) UpdateDeploymentAllocHealth(index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpdateDeploymentAllocHealth(ctx context.Context, index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
 	defer txn.Abort()
 
 	// Retrieve deployment and ensure it is not terminal and is active
