@@ -79,14 +79,14 @@ func TestEventStream_QueryParse(t *testing.T) {
 			desc:  "all topics and keys specified",
 			query: "?topic=*:*",
 			want: map[stream.Topic][]string{
-				"*": []string{"*"},
+				"*": {"*"},
 			},
 		},
 		{
 			desc:  "all topics and keys inferred",
 			query: "",
 			want: map[stream.Topic][]string{
-				"*": []string{"*"},
+				"*": {"*"},
 			},
 		},
 		{
@@ -103,14 +103,14 @@ func TestEventStream_QueryParse(t *testing.T) {
 			desc:  "single topic and key",
 			query: "?topic=NodeDrain:*",
 			want: map[stream.Topic][]string{
-				"NodeDrain": []string{"*"},
+				"NodeDrain": {"*"},
 			},
 		},
 		{
 			desc:  "single topic multiple keys",
 			query: "?topic=NodeDrain:*&topic=NodeDrain:3caace09-f1f4-4d23-b37a-9ab5eb75069d",
 			want: map[stream.Topic][]string{
-				"NodeDrain": []string{
+				"NodeDrain": {
 					"*",
 					"3caace09-f1f4-4d23-b37a-9ab5eb75069d",
 				},
@@ -120,10 +120,10 @@ func TestEventStream_QueryParse(t *testing.T) {
 			desc:  "multiple topics",
 			query: "?topic=NodeRegister:*&topic=NodeDrain:3caace09-f1f4-4d23-b37a-9ab5eb75069d",
 			want: map[stream.Topic][]string{
-				"NodeDrain": []string{
+				"NodeDrain": {
 					"3caace09-f1f4-4d23-b37a-9ab5eb75069d",
 				},
-				"NodeRegister": []string{
+				"NodeRegister": {
 					"*",
 				},
 			},

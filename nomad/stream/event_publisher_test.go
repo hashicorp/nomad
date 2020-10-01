@@ -86,7 +86,7 @@ func consumeSubscription(ctx context.Context, sub *Subscription) <-chan subNextR
 		for {
 			es, err := sub.Next(ctx)
 			eventCh <- subNextResult{
-				Events: es,
+				Events: es.Events,
 				Err:    err,
 			}
 			if err != nil {
