@@ -807,7 +807,7 @@ func (a *Agent) setupKeyrings(config *nomad.Config) error {
 		goto LOAD
 	}
 	if _, err := os.Stat(file); err != nil {
-		if err := initKeyring(file, a.config.Server.EncryptKey); err != nil {
+		if err := initKeyring(file, a.config.Server.EncryptKey, a.logger); err != nil {
 			return err
 		}
 	}
