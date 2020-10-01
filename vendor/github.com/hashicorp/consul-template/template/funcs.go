@@ -2,7 +2,9 @@ package template
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -388,10 +390,8 @@ func byMeta(meta string, services []*dep.HealthService) (groups map[string][]*de
 	}
 	getOrDefault := func(m map[string]string, key string) string {
 		realKey := strings.TrimSuffix(key, "|int")
-		if val, ok := m[realKey]; ok {
-			if val != "" {
-				return val
-			}
+		if val := m[realKey]; val != "" {
+			return val
 		}
 		if strings.HasSuffix(key, "|int") {
 			return "0"
@@ -981,6 +981,19 @@ func parseUint(s string) (uint64, error) {
 	return result, nil
 }
 
+// parseYAML returns a structure for valid YAML
+func parseYAML(s string) (interface{}, error) {
+	if s == "" {
+		return map[string]interface{}{}, nil
+	}
+
+	var data interface{}
+	if err := yaml.Unmarshal([]byte(s), &data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 // plugin executes a subprocess as the given command string. It is assumed the
 // resulting command returns JSON which is then parsed and returned as the
 // value for use in the template.
@@ -1346,8 +1359,150 @@ func modulo(b, a interface{}) (interface{}, error) {
 	}
 }
 
-// blacklisted always returns an error, to be used in place of blacklisted template functions
-func blacklisted(...string) (string, error) {
+// minimum returns the minimum between a and b.
+func minimum(b, a interface{}) (interface{}, error) {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	switch av.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Int() < bv.Int() {
+				return av.Int(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Int() < int64(bv.Uint()) {
+				return av.Int(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Int()) < bv.Float() {
+				return av.Int(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("minimum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if int64(av.Uint()) < bv.Int() {
+				return av.Uint(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Uint() < bv.Uint() {
+				return av.Uint(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Uint()) < bv.Float() {
+				return av.Uint(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("minimum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Float32, reflect.Float64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Float() < float64(bv.Int()) {
+				return av.Float(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Float() < float64(bv.Uint()) {
+				return av.Float(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if av.Float() < bv.Float() {
+				return av.Float(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("minimum: unknown type for %q (%T)", bv, b)
+		}
+	default:
+		return nil, fmt.Errorf("minimum: unknown type for %q (%T)", av, a)
+	}
+}
+
+// maximum returns the maximum between a and b.
+func maximum(b, a interface{}) (interface{}, error) {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	switch av.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Int() > bv.Int() {
+				return av.Int(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Int() > int64(bv.Uint()) {
+				return av.Int(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Int()) > bv.Float() {
+				return av.Int(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("maximum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if int64(av.Uint()) > bv.Int() {
+				return av.Uint(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Uint() > bv.Uint() {
+				return av.Uint(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Uint()) > bv.Float() {
+				return av.Uint(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("maximum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Float32, reflect.Float64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Float() > float64(bv.Int()) {
+				return av.Float(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Float() > float64(bv.Uint()) {
+				return av.Float(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if av.Float() > bv.Float() {
+				return av.Float(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("maximum: unknown type for %q (%T)", bv, b)
+		}
+	default:
+		return nil, fmt.Errorf("maximum: unknown type for %q (%T)", av, a)
+	}
+}
+
+// denied always returns an error, to be used in place of denied template functions
+func denied(...string) (string, error) {
 	return "", errors.New("function is disabled")
 }
 
@@ -1378,4 +1533,12 @@ func sockaddr(args ...string) (string, error) {
 		return "", err
 	}
 	return k, nil
+}
+
+// sha256Hex return the sha256 hex of a string
+func sha256Hex(item string) (string, error) {
+	h := sha256.New()
+	h.Write([]byte(item))
+	output := hex.EncodeToString(h.Sum(nil))
+	return output, nil
 }

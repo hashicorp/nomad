@@ -307,8 +307,11 @@ type ClientConfig struct {
 // rendering
 type ClientTemplateConfig struct {
 
-	// FunctionBlacklist disables functions in consul-template that
+	// FunctionDenylist disables functions in consul-template that
 	// are unsafe because they expose information from the client host.
+	FunctionDenylist []string `hcl:"function_denylist"`
+
+	// COMPAT(0.13) consul-template uses inclusive language from v0.25.0 - function_blacklist is kept for compatibility
 	FunctionBlacklist []string `hcl:"function_blacklist"`
 
 	// DisableSandbox allows templates to access arbitrary files on the
@@ -827,8 +830,8 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
 	conf.Client.TemplateConfig = &ClientTemplateConfig{
-		FunctionBlacklist: []string{"plugin"},
-		DisableSandbox:    false,
+		FunctionDenylist: []string{"plugin"},
+		DisableSandbox:   false,
 	}
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Telemetry.PrometheusMetrics = true
@@ -873,8 +876,8 @@ func DefaultConfig() *Config {
 				RetryMaxAttempts: 0,
 			},
 			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			},
 			BindWildcardDefaultHostNetwork: true,
 		},

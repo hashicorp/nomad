@@ -276,8 +276,8 @@ type Config struct {
 }
 
 type ClientTemplateConfig struct {
-	FunctionBlacklist []string
-	DisableSandbox    bool
+	FunctionDenylist []string
+	DisableSandbox   bool
 }
 
 func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
@@ -287,7 +287,7 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 
 	nc := new(ClientTemplateConfig)
 	*nc = *c
-	nc.FunctionBlacklist = helper.CopySliceString(nc.FunctionBlacklist)
+	nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
 	return nc
 }
 
@@ -324,8 +324,8 @@ func DefaultConfig() *Config {
 		DisableTaggedMetrics:    false,
 		DisableRemoteExec:       false,
 		TemplateConfig: &ClientTemplateConfig{
-			FunctionBlacklist: []string{"plugin"},
-			DisableSandbox:    false,
+			FunctionDenylist: []string{"plugin"},
+			DisableSandbox:   false,
 		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
