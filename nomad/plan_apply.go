@@ -310,7 +310,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	// Optimistically apply to our state view
 	if snap != nil {
 		nextIdx := p.raft.AppliedIndex() + 1
-		if err := snap.UpsertPlanResults(nextIdx, &req); err != nil {
+		if err := snap.UpsertPlanResults(context.Background(), nextIdx, &req); err != nil {
 			return future, err
 		}
 	}

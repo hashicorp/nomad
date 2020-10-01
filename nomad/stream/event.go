@@ -7,8 +7,15 @@ const (
 type Topic string
 
 type Event struct {
-	Topic   Topic
-	Key     string
-	Index   uint64
-	Payload interface{}
+	Topic      Topic
+	Type       string
+	Key        string
+	FilterKeys []string
+	Index      uint64
+	Payload    interface{}
+}
+
+type Events struct {
+	Index  uint64
+	Events []Event
 }

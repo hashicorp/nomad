@@ -1,6 +1,7 @@
 package deploymentwatcher
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -917,7 +918,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+		require.Nil(m.state.UpdateDeploymentAllocHealth(context.Background(), m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -945,7 +946,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(context.Background(), m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -1453,7 +1454,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+		require.Nil(m.state.UpdateDeploymentAllocHealth(context.Background(), m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -1481,7 +1482,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(context.Background(), m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -1562,7 +1563,7 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 			HealthyAllocationIDs: []string{a1.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(context.Background(), m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 
 	req2 := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
@@ -1570,7 +1571,7 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 			HealthyAllocationIDs: []string{a2.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(context.Background(), m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval for each job
 	testutil.WaitForResult(func() (bool, error) {

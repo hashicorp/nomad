@@ -117,19 +117,16 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 			}
 
 			// Continue if there are no events
-			if events == nil {
+			if len(events.Events) == 0 {
 				continue
 			}
 
-			// Send each event as its own frame
-			for _, e := range events {
-				if err := jsonStream.Send(e); err != nil {
-					select {
-					case errCh <- err:
-					case <-ctx.Done():
-					}
-					break LOOP
+			if err := jsonStream.Send(events); err != nil {
+				select {
+				case errCh <- err:
+				case <-ctx.Done():
 				}
+				break LOOP
 			}
 		}
 	}()
