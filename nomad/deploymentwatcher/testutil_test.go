@@ -150,7 +150,7 @@ func matchDeploymentStatusUpdateRequest(c *matchDeploymentStatusUpdateConfig) fu
 func (m *mockBackend) UpdateDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
 	m.Called(req)
 	i := m.nextIndex()
-	return i, m.state.UpdateDeploymentPromotion(i, req)
+	return i, m.state.UpdateDeploymentPromotion(context.Background(), i, req)
 }
 
 // matchDeploymentPromoteRequestConfig is used to configure the matching
