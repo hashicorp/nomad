@@ -107,6 +107,10 @@ const (
 	// old servers to crash when the FSM attempts to process them.
 	IgnoreUnknownTypeFlag MessageType = 128
 
+	// MsgTypeTestSetup is used during testing when calling state store
+	// methods directly that require an FSM MessageType
+	MsgTypeTestSetup MessageType = IgnoreUnknownTypeFlag
+
 	// ApiMajorVersion is returned as part of the Status.Version request.
 	// It should be incremented anytime the APIs are changed in a way
 	// that would break clients for sane client versioning.
