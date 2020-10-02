@@ -261,6 +261,7 @@
       "data_dir": "/tmp/data",
       "deployment_gc_threshold": "12h",
       "enabled": true,
+      "enable_event_publisher": true,
       "enabled_schedulers": [
         "test"
       ],

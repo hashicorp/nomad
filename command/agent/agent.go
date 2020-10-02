@@ -240,6 +240,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.UpgradeVersion != "" {
 		conf.UpgradeVersion = agentConfig.Server.UpgradeVersion
 	}
+	if agentConfig.Server.EnableEventPublisher {
+		conf.EnableEventPublisher = agentConfig.Server.EnableEventPublisher
+	}
 	if agentConfig.Autopilot != nil {
 		if agentConfig.Autopilot.CleanupDeadServers != nil {
 			conf.AutopilotConfig.CleanupDeadServers = *agentConfig.Autopilot.CleanupDeadServers

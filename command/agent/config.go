@@ -484,6 +484,10 @@ type ServerConfig struct {
 	// This value is ignored.
 	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
+	// EnableEventPublisher configures whether this server's state store
+	// will generate events for its event stream.
+	EnableEventPublisher bool `hcl:"enable_event_publisher"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -882,8 +886,9 @@ func DefaultConfig() *Config {
 			BindWildcardDefaultHostNetwork: true,
 		},
 		Server: &ServerConfig{
-			Enabled:   false,
-			StartJoin: []string{},
+			Enabled:              false,
+			EnableEventPublisher: true,
+			StartJoin:            []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1405,6 +1410,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
+	if b.EnableEventPublisher {
+		result.EnableEventPublisher = true
 	}
 
 	if b.DefaultSchedulerConfig != nil {
