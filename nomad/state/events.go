@@ -31,6 +31,8 @@ const (
 	TypeAllocUpdated = "AllocUpdated"
 
 	TypeEvalUpdated = "EvalUpdated"
+
+	TypeJobRegistered = "JobRegistered"
 )
 
 type JobEvent struct {
@@ -78,6 +80,10 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 		eventType = TypeEvalUpdated
 	case structs.AllocClientUpdateRequestType:
 		eventType = TypeAllocUpdated
+	case structs.JobRegisterRequestType:
+		eventType = TypeJobRegistered
+	case structs.AllocUpdateRequestType:
+		eventType = TypeAllocUpdated
 	}
 
 	var events []stream.Event
@@ -114,6 +120,23 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 				Key:   after.ID,
 				Payload: &AllocEvent{
 					Alloc: after,
+				},
+			}
+
+			events = append(events, event)
+		case "jobs":
+			after, ok := change.After.(*structs.Job)
+			if !ok {
+				return nil, fmt.Errorf("transaction change was not an Allocation")
+			}
+
+			event := stream.Event{
+				Topic: TopicAlloc,
+				Type:  eventType,
+				Index: changes.Index,
+				Key:   after.ID,
+				Payload: &JobEvent{
+					Job: after,
 				},
 			}
 

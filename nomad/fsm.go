@@ -208,7 +208,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.NodeUpdateDrainRequestType:
 		return n.applyDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
-		return n.applyUpsertJob(buf[1:], log.Index)
+		return n.applyUpsertJob(msgType, buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
 		return n.applyDeregisterJob(buf[1:], log.Index)
 	case structs.EvalUpdateRequestType:
@@ -476,7 +476,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_job"}, time.Now())
 	var req structs.JobRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -491,6 +491,8 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	 * - Migrate from old style upgrade stanza that used only a stagger.
 	 */
 	req.Job.Canonicalize()
+
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
 
 	if err := n.state.UpsertJob(index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
