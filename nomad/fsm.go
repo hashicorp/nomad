@@ -216,7 +216,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.EvalDeleteRequestType:
 		return n.applyDeleteEval(buf[1:], log.Index)
 	case structs.AllocUpdateRequestType:
-		return n.applyAllocUpdate(buf[1:], log.Index)
+		return n.applyAllocUpdate(msgType, buf[1:], log.Index)
 	case structs.AllocClientUpdateRequestType:
 		return n.applyAllocClientUpdate(msgType, buf[1:], log.Index)
 	case structs.ReconcileJobSummariesRequestType:
@@ -494,7 +494,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 
 	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
 
-	if err := n.state.UpsertJob(index, req.Job); err != nil {
+	if err := n.state.UpsertJobCtx(ctx, index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -753,7 +753,7 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update"}, time.Now())
 	var req structs.AllocUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -784,7 +784,8 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 		alloc.Canonicalize()
 	}
 
-	if err := n.state.UpsertAllocs(index, req.Alloc); err != nil {
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+	if err := n.state.UpsertAllocsCtx(ctx, index, req.Alloc); err != nil {
 		n.logger.Error("UpsertAllocs failed", "error", err)
 		return err
 	}
