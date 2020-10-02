@@ -2706,6 +2706,18 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 	return err
 }
 
+// UpsertEvals is used to upsert a set of evaluations
+func (s *StateStore) UpsertEvalsCtx(ctx context.Context, index uint64, evals []*structs.Evaluation) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+
+	err := s.UpsertEvalsTxn(index, evals, txn)
+	if err == nil {
+		txn.Commit()
+	}
+	return err
+}
+
 // UpsertEvals is used to upsert a set of evaluations, like UpsertEvals
 // but in a transaction.  Useful for when making multiple modifications atomically
 func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
@@ -3018,8 +3030,8 @@ func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memd
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
 // from clients.
-func (s *StateStore) UpdateAllocsFromClient(index uint64, allocs []*structs.Allocation) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpdateAllocsFromClient(ctx context.Context, index uint64, allocs []*structs.Allocation) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
 	defer txn.Abort()
 
 	// Handle each of the updated allocations
