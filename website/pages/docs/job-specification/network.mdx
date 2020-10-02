@@ -4,7 +4,7 @@ page_title: network Stanza - Job Specification
 sidebar_title: network
 description: |-
   The "network" stanza specifies the networking requirements for the task group,
-  including networking mode and port allocations. 
+  including networking mode and port allocations.
 ---
 
 # `network` Stanza
@@ -161,16 +161,16 @@ will be mapped to the port in your container or virtual machine.
 ```hcl
 group "app" {
   network {
-    port "http" {}
+    port "http" {
+      to = 8080
+    }
   }
 
   task "example" {
     driver = "docker"
 
     config {
-      port_map = {
-        http = 8080
-      }
+      ports = ["http"]
     }
   }
 }
@@ -274,7 +274,7 @@ When Nomad does port mapping for ports with a defined `host_network`, the port m
 ```hcl
 network {
   mode = "bridge"
-  
+
   # define a port to use for public https traffic
   port "https" {
     static       = 443
