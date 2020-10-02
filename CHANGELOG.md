@@ -5,6 +5,7 @@ IMPROVEMENTS:
  * api: Added support for cancellation contexts to HTTP API. [[GH-8836](https://github.com/hashicorp/nomad/issues/8836)]
  * client: Added support for Azure fingerprinting. [[GH-8979](https://github.com/hashicorp/nomad/issues/8979)]
  * client: Updated consul-template to v0.25.0 - config function_blacklist deprecated and replaced with function_denylist [[GH-8988](https://github.com/hashicorp/nomad/pull/8988)]
+ * consul: Support consul namespace (consul enterprise) in client configuration. [[GH-8849](https://github.com/hashicorp/nomad/pull/8849)]
  * driver/docker: Upgrade pause container and detect architecture [[GH-8957](https://github.com/hashicorp/nomad/pull/8957)]
  * jobspec: Lowered minimum CPU allowed from 10 to 1. [[GH-8996](https://github.com/hashicorp/nomad/issues/8996)]
 
