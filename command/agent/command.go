@@ -94,6 +94,7 @@ func (c *Command) readConfig() *Config {
 	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.StartJoin), "join", "")
 	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.RetryJoin), "retry-join", "")
 	flags.IntVar(&cmdConfig.Server.ServerJoin.RetryMaxAttempts, "retry-max", 0, "")
+	flags.BoolVar(&cmdConfig.Server.EnableEventPublisher, "event-publisher", false, "")
 	flags.Var((flaghelper.FuncDurationVar)(func(d time.Duration) error {
 		cmdConfig.Server.ServerJoin.RetryInterval = d
 		return nil

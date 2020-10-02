@@ -57,6 +57,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	out, err := a.serverConfig()
 	require.NoError(t, err)
 
+	require.True(t, out.EnableEventPublisher)
+
 	serfAddr := out.SerfConfig.MemberlistConfig.AdvertiseAddr
 	require.Equal(t, "127.0.0.1", serfAddr)
 
