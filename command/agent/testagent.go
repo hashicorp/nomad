@@ -143,11 +143,15 @@ RETRY:
 		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
 	}
 
+	// Create a null logger before initializing the keyring. This is typically
+	// done using the agent's logger. However, it hasn't been created yet.
+	logger := hclog.NewNullLogger()
+
 	// write the keyring
 	if a.Key != "" {
 		writeKey := func(key, filename string) {
 			path := filepath.Join(a.Config.DataDir, filename)
-			if err := initKeyring(path, key, a.logger); err != nil {
+			if err := initKeyring(path, key, logger); err != nil {
 				a.T.Fatalf("Error creating keyring %s: %s", path, err)
 			}
 		}
