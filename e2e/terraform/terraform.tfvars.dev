@@ -4,6 +4,8 @@ server_count         = "3"
 client_count         = "2"
 windows_client_count = "0"
 profile              = "dev-cluster"
+nomad_acls           = false
+nomad_enterprise     = false
 
 # Example overrides:
 # nomad_local_binary = "../../pkg/linux_amd/nomad"
