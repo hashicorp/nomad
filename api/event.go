@@ -6,13 +6,18 @@ import (
 	"fmt"
 )
 
+// Events is a set of events for a corresponding index. Events returned for the
+// index depend on which topics are subscribed to when a request is made.
 type Events struct {
 	Index  uint64
 	Events []Event
 }
 
+// Topic is an event Topic
 type Topic string
 
+// Event holds information related to an event that occurred in Nomad.
+// The Payload is a hydrated object related to the Topic
 type Event struct {
 	Topic      Topic
 	Type       string
@@ -22,18 +27,24 @@ type Event struct {
 	Payload    interface{}
 }
 
+// IsHeartBeat specifies if the event is an empty heartbeat used to
+// keep a connection alive.
 func (e *Events) IsHeartBeat() bool {
 	return e.Index == 0 && len(e.Events) == 0
 }
 
+// EventStream is used to stream events from Nomad
 type EventStream struct {
 	client *Client
 }
 
+// EventStream returns a handle to the Events endpoint
 func (c *Client) EventStream() *EventStream {
 	return &EventStream{client: c}
 }
 
+// Stream establishes a new subscription to Nomad's event stream and streams
+// results back to the returned channel.
 func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, index uint64, q *QueryOptions) (<-chan *Events, <-chan error) {
 
 	errCh := make(chan error, 1)
