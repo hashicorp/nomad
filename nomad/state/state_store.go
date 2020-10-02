@@ -356,11 +356,7 @@ func (s *StateStore) UpsertPlanResults(ctx context.Context, index uint64, result
 		}
 	}
 
-	if err := txn.Commit(); err != nil {
-		return err
-	}
-
-	return nil
+	return txn.Commit()
 }
 
 // addComputedAllocAttrs adds the computed/derived attributes to the allocation.
@@ -769,8 +765,7 @@ func (s *StateStore) UpsertNodeCtx(ctx context.Context, index uint64, node *stru
 	if err != nil {
 		return nil
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpsertNode is used to register a node or update a node definition
@@ -849,8 +844,7 @@ func (s *StateStore) DeleteNodeCtx(ctx context.Context, index uint64, nodes []st
 	if err != nil {
 		return nil
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeleteNode deregisters a batch of nodes
@@ -968,8 +962,7 @@ func (s *StateStore) UpdateNodeDrainCtx(ctx context.Context, index uint64, nodeI
 	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
 		return err
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpdateNodeDrain is used to update the drain of a node
@@ -1085,8 +1078,7 @@ func (s *StateStore) UpsertNodeEventsCtx(ctx context.Context, index uint64, node
 		}
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpsertNodeEvents adds the node events to the nodes, rotating events as
@@ -1490,6 +1482,16 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	}
 	txn.Commit()
 	return nil
+}
+
+// UpsertJob is used to register a job or update a job definition
+func (s *StateStore) UpsertJobCtx(ctx context.Context, index uint64, job *structs.Job) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
+		return err
+	}
+	return txn.Commit()
 }
 
 // UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
@@ -2713,7 +2715,7 @@ func (s *StateStore) UpsertEvalsCtx(ctx context.Context, index uint64, evals []*
 
 	err := s.UpsertEvalsTxn(index, evals, txn)
 	if err == nil {
-		txn.Commit()
+		return txn.Commit()
 	}
 	return err
 }
@@ -3046,8 +3048,7 @@ func (s *StateStore) UpdateAllocsFromClient(ctx context.Context, index uint64, a
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // nestedUpdateAllocFromClient is used to nest an update of an allocation with client status
@@ -3147,6 +3148,17 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 	}
 	txn.Commit()
 	return nil
+}
+
+// UpsertAllocsCtx is used to evict a set of allocations and allocate new ones at
+// the same time.
+func (s *StateStore) UpsertAllocsCtx(ctx context.Context, index uint64, allocs []*structs.Allocation) error {
+	txn := s.db.WriteTxnCtx(ctx, index)
+	defer txn.Abort()
+	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
+		return err
+	}
+	return txn.Commit()
 }
 
 // upsertAllocs is the actual implementation of UpsertAllocs so that it may be
@@ -3864,8 +3876,7 @@ func (s *StateStore) UpdateDeploymentStatus(ctx context.Context, index uint64, r
 		}
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // updateDeploymentStatusImpl is used to make deployment status updates
@@ -4083,8 +4094,7 @@ func (s *StateStore) UpdateDeploymentPromotion(ctx context.Context, index uint64
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpdateDeploymentAllocHealth is used to update the health of allocations as
@@ -4179,8 +4189,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(ctx context.Context, index uint
 		}
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // LastIndex returns the greatest index value for all indexes
