@@ -108,7 +108,7 @@ func testFingerprint_Azure(t *testing.T, withExternalIp bool) {
 
 	keys := []string{
 		"unique.platform.azure.id",
-		"unique.platform.azure.hostname",
+		"unique.platform.azure.name",
 		"platform.azure.location",
 		"platform.azure.resource-group",
 		"platform.azure.scale-set",
@@ -134,7 +134,7 @@ func testFingerprint_Azure(t *testing.T, withExternalIp bool) {
 	}
 
 	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.azure.id", "13f56399-bd52-4150-9748-7190aae1ff21")
-	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.azure.hostname", "demo01.internal")
+	assertNodeAttributeEquals(t, response.Attributes, "unique.platform.azure.name", "demo01.internal")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.azure.location", "eastus")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.azure.resource-group", "myrg")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.azure.scale-set", "nomad-clients")
