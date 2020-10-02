@@ -185,10 +185,10 @@ consul {
 Consul does not allow ACL policies associated with namespaces to use agent
 permissions. Nomad requires `agent:read` permissions. In order to use the
 `consul_namespace` feature, Nomad will need a token generated in Consul's
-default namespace. That token should be created from with `agent:read` as well
+default namespace. That token should be created with `agent:read` as well
 as a `namespace` block with the other relevant permissions for running Nomad
-in the intended namespace. The Consul policy below shows the required policy
-configuration:
+in the intended namespace. The Consul policy below shows an example policy
+configuration for a Nomad server:
 
 ```
 agent_prefix "" {
@@ -199,7 +199,7 @@ namespace "nomad-ns" {
   acl = "write"
 
   key_prefix "" {
-    policy = "write"
+    policy = "read"
   }
 
   node_prefix "" {
