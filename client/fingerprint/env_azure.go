@@ -138,7 +138,7 @@ func (f *EnvAzureFingerprint) Fingerprint(request *FingerprintRequest, response 
 	// marked as unique, the key isn't included in the computed node class.
 	keys := map[string]AzureMetadataPair{
 		"id":             {unique: true, path: "compute/vmId"},
-		"hostname":       {unique: true, path: "compute/name"},
+		"name":           {unique: true, path: "compute/name"}, // name might not be the same as hostname
 		"location":       {unique: false, path: "compute/location"},
 		"resource-group": {unique: false, path: "compute/resourceGroupName"},
 		"scale-set":      {unique: false, path: "compute/vmScaleSetName"},
