@@ -212,13 +212,13 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.JobDeregisterRequestType:
 		return n.applyDeregisterJob(buf[1:], log.Index)
 	case structs.EvalUpdateRequestType:
-		return n.applyUpdateEval(buf[1:], log.Index)
+		return n.applyUpdateEval(msgType, buf[1:], log.Index)
 	case structs.EvalDeleteRequestType:
 		return n.applyDeleteEval(buf[1:], log.Index)
 	case structs.AllocUpdateRequestType:
 		return n.applyAllocUpdate(buf[1:], log.Index)
 	case structs.AllocClientUpdateRequestType:
-		return n.applyAllocClientUpdate(buf[1:], log.Index)
+		return n.applyAllocClientUpdate(msgType, buf[1:], log.Index)
 	case structs.ReconcileJobSummariesRequestType:
 		return n.applyReconcileSummaries(buf[1:], log.Index)
 	case structs.VaultAccessorRegisterRequestType:
@@ -570,7 +570,7 @@ func (n *nomadFSM) applyUpsertJob(buf []byte, index uint64) interface{} {
 	// so this may be nil during server upgrades.
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
-		if err := n.upsertEvals(index, []*structs.Evaluation{req.Eval}); err != nil {
+		if err := n.upsertEvals(context.Background(), index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}
 	}
@@ -602,7 +602,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 	// always attempt upsert eval even if job deregister fail
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
-		if err := n.upsertEvals(index, []*structs.Evaluation{req.Eval}); err != nil {
+		if err := n.upsertEvals(context.Background(), index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}
 	}
@@ -689,17 +689,20 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 	return nil
 }
 
-func (n *nomadFSM) applyUpdateEval(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "update_eval"}, time.Now())
 	var req structs.EvalUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
-	return n.upsertEvals(index, req.Evals)
+
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
+
+	return n.upsertEvals(ctx, index, req.Evals)
 }
 
-func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error {
-	if err := n.state.UpsertEvals(index, evals); err != nil {
+func (n *nomadFSM) upsertEvals(ctx context.Context, index uint64, evals []*structs.Evaluation) error {
+	if err := n.state.UpsertEvalsCtx(ctx, index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
@@ -786,7 +789,7 @@ func (n *nomadFSM) applyAllocUpdate(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_client_update"}, time.Now())
 	var req structs.AllocUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -807,15 +810,16 @@ func (n *nomadFSM) applyAllocClientUpdate(buf []byte, index uint64) interface{} 
 		}
 	}
 
+	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
 	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(index, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocsFromClient(ctx, index, req.Alloc); err != nil {
 		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
 
 	// Update any evals
 	if len(req.Evals) > 0 {
-		if err := n.upsertEvals(index, req.Evals); err != nil {
+		if err := n.upsertEvals(ctx, index, req.Evals); err != nil {
 			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
 			return err
 		}

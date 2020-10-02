@@ -673,7 +673,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 		new.ClientStatus = structs.AllocClientStatusComplete
 		updates = append(updates, new)
 	}
-	require.Nil(state.UpdateAllocsFromClient(1000, updates))
+	require.Nil(state.UpdateAllocsFromClient(context.Background(), 1000, updates))
 
 	// Check that the node drain is removed
 	testutil.WaitForResult(func() (bool, error) {

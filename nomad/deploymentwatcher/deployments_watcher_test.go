@@ -1025,7 +1025,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 		Healthy:   helper.BoolToPtr(false),
 		Timestamp: now,
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(100, []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(context.Background(), 100, []*structs.Allocation{a2}))
 
 	// Wait for the deployment to be failed
 	testutil.WaitForResult(func() (bool, error) {
@@ -1209,7 +1209,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 		Healthy:   helper.BoolToPtr(true),
 		Timestamp: now,
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(context.Background(), m.nextIndex(), []*structs.Allocation{a2}))
 
 	// Wait for the deployment to cross the deadline
 	dout, err := m.state.DeploymentByID(nil, d.ID)
@@ -1382,7 +1382,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 		Healthy:   helper.BoolToPtr(false),
 		Timestamp: time.Now(),
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(context.Background(), m.nextIndex(), []*structs.Allocation{a2}))
 
 	// Wait for the alloc's DesiredState to set reschedule
 	testutil.WaitForResult(func() (bool, error) {
