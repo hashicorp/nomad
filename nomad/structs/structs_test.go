@@ -185,7 +185,7 @@ func TestJob_ValidateNullChar(t *testing.T) {
 
 	// task name should not allow null characters
 	job.TaskGroups[0].Name = "so_much_better"
-	job.TaskGroups[0].Tasks[0].Name = "what_is_with_these_\000_chars"
+	job.TaskGroups[0].Tasks[0].Name = "ive_had_it_with_these_\000_chars_in_these_names"
 	assert.Error(job.Validate(), "null character in task name should not validate")
 }
 
