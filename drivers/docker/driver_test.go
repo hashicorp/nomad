@@ -1235,50 +1235,50 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		Name       string
 		CapAdd     []string
 		CapDrop    []string
-		Whitelist  string
+		Allowlist  string
 		StartError string
 	}{
 		{
-			Name:    "default-whitelist-add-allowed",
+			Name:    "default-allowlist-add-allowed",
 			CapAdd:  []string{"fowner", "mknod"},
 			CapDrop: []string{"all"},
 		},
 		{
-			Name:       "default-whitelist-add-forbidden",
+			Name:       "default-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin"},
 			StartError: "net_admin",
 		},
 		{
-			Name:    "default-whitelist-drop-existing",
+			Name:    "default-allowlist-drop-existing",
 			CapDrop: []string{"fowner", "mknod"},
 		},
 		{
-			Name:      "restrictive-whitelist-drop-all",
+			Name:      "restrictive-allowlist-drop-all",
 			CapDrop:   []string{"all"},
-			Whitelist: "fowner,mknod",
+			Allowlist: "fowner,mknod",
 		},
 		{
-			Name:      "restrictive-whitelist-add-allowed",
+			Name:      "restrictive-allowlist-add-allowed",
 			CapAdd:    []string{"fowner", "mknod"},
 			CapDrop:   []string{"all"},
-			Whitelist: "fowner,mknod",
+			Allowlist: "fowner,mknod",
 		},
 		{
-			Name:       "restrictive-whitelist-add-forbidden",
+			Name:       "restrictive-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin", "mknod"},
 			CapDrop:    []string{"all"},
-			Whitelist:  "fowner,mknod",
+			Allowlist:  "fowner,mknod",
 			StartError: "net_admin",
 		},
 		{
-			Name:      "permissive-whitelist",
+			Name:      "permissive-allowlist",
 			CapAdd:    []string{"net_admin", "mknod"},
-			Whitelist: "all",
+			Allowlist: "all",
 		},
 		{
-			Name:      "permissive-whitelist-add-all",
+			Name:      "permissive-allowlist-add-all",
 			CapAdd:    []string{"all"},
-			Whitelist: "all",
+			Allowlist: "all",
 		},
 	}
 
@@ -1299,8 +1299,8 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			d := dockerDriverHarness(t, nil)
 			dockerDriver, ok := d.Impl().(*Driver)
 			require.True(t, ok)
-			if tc.Whitelist != "" {
-				dockerDriver.config.AllowCaps = strings.Split(tc.Whitelist, ",")
+			if tc.Allowlist != "" {
+				dockerDriver.config.AllowCaps = strings.Split(tc.Allowlist, ",")
 			}
 
 			cleanup := d.MkAllocDir(task, true)
