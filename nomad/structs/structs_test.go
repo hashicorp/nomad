@@ -170,6 +170,25 @@ func TestJob_ValidateScaling(t *testing.T) {
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
 }
 
+func TestJob_ValidateNullChar(t *testing.T) {
+	assert := assert.New(t)
+
+	// job id should not allow null characters
+	job := testJob()
+	job.ID = "id_with\000null_character"
+	assert.Error(job.Validate(), "null character in job ID should not validate")
+
+	// task group name should not allow null characters
+	job.ID = "happy_little_job_id"
+	job.TaskGroups[0].Name = "oh_no_another_\000_char"
+	assert.Error(job.Validate(), "null character in task group name should not validate")
+
+	// task name should not allow null characters
+	job.TaskGroups[0].Name = "so_much_better"
+	job.TaskGroups[0].Tasks[0].Name = "what_is_with_these_\000_chars"
+	assert.Error(job.Validate(), "null character in task name should not validate")
+}
+
 func TestJob_Warnings(t *testing.T) {
 	cases := []struct {
 		Name     string
