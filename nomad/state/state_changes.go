@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
@@ -123,9 +122,7 @@ func (c *changeTrackerDB) WriteTxnRestore() *txn {
 // error. Any errors from the callback would be lost,  which would result in a
 // missing change event, even though the state store had changed.
 type txn struct {
-	// ctx is used to hold message type information from an FSM request
-	ctx context.Context
-
+	// msgType is used to inform event sourcing which type of event to create
 	msgType structs.MessageType
 
 	*memdb.Txn
