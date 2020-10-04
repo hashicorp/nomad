@@ -39,7 +39,6 @@ import (
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/kheap"
-	"github.com/hashicorp/nomad/nomad/stream"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -10712,7 +10711,7 @@ type ACLTokenUpsertResponse struct {
 // EEventStreamRequest is used to stream events from a servers
 // EventPublisher
 type EventStreamRequest struct {
-	Topics map[stream.Topic][]string
+	Topics map[Topic][]string
 	Index  int
 
 	QueryOptions
@@ -10720,7 +10719,7 @@ type EventStreamRequest struct {
 
 type EventStreamWrapper struct {
 	Error *RpcError
-	Event *stream.NDJson
+	Event *NDJson
 }
 
 // RpcError is used for serializing errors with a potential error code
@@ -10738,4 +10737,33 @@ func NewRpcError(err error, code *int64) *RpcError {
 
 func (r *RpcError) Error() string {
 	return r.Message
+}
+
+type Topic string
+
+type Event struct {
+	Topic      Topic
+	Type       string
+	Key        string
+	FilterKeys []string
+	Index      uint64
+	Payload    interface{}
+}
+
+type Events struct {
+	Index  uint64
+	Events []Event
+}
+
+// NNDJson is a wrapper for a Newline Delimited JSON object
+type NDJson struct {
+	Data []byte
+}
+
+func (j *NDJson) Copy() *NDJson {
+	n := new(NDJson)
+	*n = *j
+	n.Data = make([]byte, len(j.Data))
+	copy(n.Data, j.Data)
+	return n
 }

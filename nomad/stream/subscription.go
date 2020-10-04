@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"sync/atomic"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
+	AllKeys = "*"
 	// subscriptionStateOpen is the default state of a subscription. An open
 	// subscription may receive new events.
 	subscriptionStateOpen uint32 = 0
@@ -46,7 +49,7 @@ type SubscribeRequest struct {
 	Token string
 	Index uint64
 
-	Topics map[Topic][]string
+	Topics map[structs.Topic][]string
 }
 
 func newSubscription(req *SubscribeRequest, item *bufferItem, unsub func()) *Subscription {
@@ -58,18 +61,18 @@ func newSubscription(req *SubscribeRequest, item *bufferItem, unsub func()) *Sub
 	}
 }
 
-func (s *Subscription) Next(ctx context.Context) (Events, error) {
+func (s *Subscription) Next(ctx context.Context) (structs.Events, error) {
 	if atomic.LoadUint32(&s.state) == subscriptionStateClosed {
-		return Events{}, ErrSubscriptionClosed
+		return structs.Events{}, ErrSubscriptionClosed
 	}
 
 	for {
 		next, err := s.currentItem.Next(ctx, s.forceClosed)
 		switch {
 		case err != nil && atomic.LoadUint32(&s.state) == subscriptionStateClosed:
-			return Events{}, ErrSubscriptionClosed
+			return structs.Events{}, ErrSubscriptionClosed
 		case err != nil:
-			return Events{}, err
+			return structs.Events{}, err
 		}
 		s.currentItem = next
 
@@ -77,11 +80,11 @@ func (s *Subscription) Next(ctx context.Context) (Events, error) {
 		if len(events) == 0 {
 			continue
 		}
-		return Events{Index: next.Index, Events: events}, nil
+		return structs.Events{Index: next.Index, Events: events}, nil
 	}
 }
 
-func (s *Subscription) NextNoBlock() ([]Event, error) {
+func (s *Subscription) NextNoBlock() ([]structs.Event, error) {
 	if atomic.LoadUint32(&s.state) == subscriptionStateClosed {
 		return nil, ErrSubscriptionClosed
 	}
@@ -113,7 +116,7 @@ func (s *Subscription) Unsubscribe() {
 }
 
 // filter events to only those that match a subscriptions topic/keys
-func filter(req *SubscribeRequest, events []Event) []Event {
+func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 	if len(events) == 0 {
 		return events
 	}
@@ -145,7 +148,7 @@ func filter(req *SubscribeRequest, events []Event) []Event {
 	}
 
 	// Return filtered events
-	result := make([]Event, 0, count)
+	result := make([]structs.Event, 0, count)
 	for _, e := range events {
 		_, allTopics := req.Topics[AllKeys]
 		if _, ok := req.Topics[e.Topic]; ok || allTopics {

@@ -135,7 +135,7 @@ func TestDeploymentEventFromChanges_Promotion(t *testing.T) {
 	require.Equal(t, structs.DeploymentStatusRunning, de.Deployment.Status)
 }
 
-func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, timeout time.Duration) []stream.Event {
+func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, timeout time.Duration) []structs.Event {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -162,12 +162,12 @@ func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, tim
 	}
 }
 
-func EventsForIndex(t *testing.T, s *StateStore, index uint64) []stream.Event {
+func EventsForIndex(t *testing.T, s *StateStore, index uint64) []structs.Event {
 	pub, err := s.EventPublisher()
 	require.NoError(t, err)
 
 	sub, err := pub.Subscribe(&stream.SubscribeRequest{
-		Topics: map[stream.Topic][]string{
+		Topics: map[structs.Topic][]string{
 			"*": []string{"*"},
 		},
 		Index: index,
@@ -176,7 +176,7 @@ func EventsForIndex(t *testing.T, s *StateStore, index uint64) []stream.Event {
 
 	require.NoError(t, err)
 
-	var events []stream.Event
+	var events []structs.Event
 	for {
 		e, err := sub.NextNoBlock()
 		require.NoError(t, err)

@@ -47,6 +47,9 @@ type StateStoreConfig struct {
 	Region string
 
 	EnablePublisher bool
+
+	EnableDurability bool
+	DurableCount     int
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -90,14 +93,18 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	}
 
 	if config.EnablePublisher {
+		cfg := &ChangeConfig{
+			DurableEvents: config.EnableDurability,
+			DurableCount:  1000,
+		}
 		publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
 			EventBufferTTL:  1 * time.Hour,
 			EventBufferSize: 250,
 			Logger:          config.Logger,
 		})
-		s.db = NewChangeTrackerDB(db, publisher, processDBChanges)
+		s.db = NewChangeTrackerDB(db, publisher, processDBChanges, cfg)
 	} else {
-		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
+		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges, nil)
 	}
 
 	// Initialize the state store with required enterprise objects
@@ -132,7 +139,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	}
 
 	// Create a new change tracker DB that does not publish or track changes
-	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges)
+	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges, nil)
 
 	snap := &StateSnapshot{
 		StateStore: store,
@@ -5752,6 +5759,49 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	return nil, nil
 }
 
+// LatestEventsReverse returns the unfiltered list of all volumes
+func (s *StateStore) LatestEventsReverse(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+	defer txn.Abort()
+
+	iter, err := txn.GetReverse("events", "id")
+	if err != nil {
+		return nil, fmt.Errorf("events lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// Events returns the unfiltered list of all volumes
+func (s *StateStore) Events(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+	defer txn.Abort()
+
+	iter, err := txn.Get("events", "id")
+	if err != nil {
+		return nil, fmt.Errorf("events lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// UpsertEvents is used to insert events. It should only be used for testing.
+// Normal use events are inserted to go-memdb during transaction commit
+func (s *StateStore) UpsertEvents(index uint64, events *structs.Events) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	if err := txn.Insert("events", events); err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -5995,6 +6045,13 @@ func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
 func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
 	if err := r.txn.Insert("csi_volumes", volume); err != nil {
 		return fmt.Errorf("csi volume insert failed: %v", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) EventRestore(events *structs.Events) error {
+	if err := r.txn.Insert("events", events); err != nil {
+		return fmt.Errorf("events insert failed: %v", err)
 	}
 	return nil
 }
