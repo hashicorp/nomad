@@ -9,14 +9,14 @@ import (
 
 // NodeRegisterEventFromChanges generates a NodeRegistrationEvent from a set
 // of transaction changes.
-func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 	var events []stream.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Node")
 			}
 
 			event := stream.Event{
@@ -31,19 +31,19 @@ func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, 
 			events = append(events, event)
 		}
 	}
-	return events, nil
+	return stream.Events{Index: changes.Index, Events: events}, nil
 }
 
 // NodeDeregisterEventFromChanges generates a NodeDeregistrationEvent from a set
 // of transaction changes.
-func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 	var events []stream.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
 			before, ok := change.Before.(*structs.Node)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Node")
 			}
 
 			event := stream.Event{
@@ -58,19 +58,19 @@ func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event
 			events = append(events, event)
 		}
 	}
-	return events, nil
+	return stream.Events{Index: changes.Index, Events: events}, nil
 }
 
 // NodeEventFromChanges generates a NodeDeregistrationEvent from a set
 // of transaction changes.
-func NodeEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func NodeEventFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 	var events []stream.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Node")
 			}
 
 			event := stream.Event{
@@ -85,23 +85,23 @@ func NodeEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 			events = append(events, event)
 		}
 	}
-	return events, nil
+	return stream.Events{Index: changes.Index, Events: events}, nil
 }
 
-func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 	var events []stream.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Node")
 			}
 
 			// retrieve allocations currently on node
 			allocs, err := allocsByNodeTxn(tx, nil, after.ID)
 			if err != nil {
-				return nil, fmt.Errorf("retrieving allocations for node drain event: %w", err)
+				return stream.Events{}, fmt.Errorf("retrieving allocations for node drain event: %w", err)
 			}
 
 			// build job/alloc details for node drain
@@ -133,5 +133,5 @@ func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, err
 			events = append(events, event)
 		}
 	}
-	return events, nil
+	return stream.Events{Index: changes.Index, Events: events}, nil
 }

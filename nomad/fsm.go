@@ -136,6 +136,8 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		Logger:          config.Logger,
 		Region:          config.Region,
 		EnablePublisher: config.EnableEventPublisher,
+		// TODO(drew) plumb cfg
+		EnableDurability: true,
 	}
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {

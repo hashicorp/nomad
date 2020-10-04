@@ -47,6 +47,8 @@ type StateStoreConfig struct {
 	Region string
 
 	EnablePublisher bool
+
+	EnableDurability bool
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -90,14 +92,18 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	}
 
 	if config.EnablePublisher {
+		cfg := &ChangeConfig{
+			DurableEvents: config.EnableDurability,
+			DurableCount:  1000,
+		}
 		publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
 			EventBufferTTL:  1 * time.Hour,
 			EventBufferSize: 250,
 			Logger:          config.Logger,
 		})
-		s.db = NewChangeTrackerDB(db, publisher, processDBChanges)
+		s.db = NewChangeTrackerDB(db, publisher, processDBChanges, cfg)
 	} else {
-		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
+		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges, nil)
 	}
 
 	// Initialize the state store with required enterprise objects
@@ -132,7 +138,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	}
 
 	// Create a new change tracker DB that does not publish or track changes
-	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges)
+	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges, nil)
 
 	snap := &StateSnapshot{
 		StateStore: store,

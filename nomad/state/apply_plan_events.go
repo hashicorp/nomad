@@ -7,14 +7,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 	var events []stream.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "deployment":
 			after, ok := change.After.(*structs.Deployment)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Deployment")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Deployment")
 			}
 
 			event := stream.Event{
@@ -30,7 +30,7 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Eve
 		case "evals":
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Evaluation")
+				return stream.Events{}, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
 			event := stream.Event{
@@ -46,7 +46,7 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Eve
 		case "allocs":
 			after, ok := change.After.(*structs.Allocation)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Allocation")
+				return stream.Events{}, fmt.Errorf("transaction change was not an Allocation")
 			}
 			before := change.Before
 			var msg string
@@ -70,5 +70,5 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Eve
 		}
 	}
 
-	return events, nil
+	return stream.Events{Index: changes.Index, Events: events}, nil
 }

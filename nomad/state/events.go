@@ -73,7 +73,7 @@ type JobDrainDetails struct {
 	AllocDetails map[string]NodeDrainAllocDetails
 }
 
-func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func GenericEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 	var eventType string
 	switch changes.MsgType {
 	case structs.EvalUpdateRequestType:
@@ -94,7 +94,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 		case "evals":
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Evaluation")
+				return stream.Events{}, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
 			event := stream.Event{
@@ -112,7 +112,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 		case "allocs":
 			after, ok := change.After.(*structs.Allocation)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Allocation")
+				return stream.Events{}, fmt.Errorf("transaction change was not an Allocation")
 			}
 
 			event := stream.Event{
@@ -129,7 +129,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 		case "jobs":
 			after, ok := change.After.(*structs.Job)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Allocation")
+				return stream.Events{}, fmt.Errorf("transaction change was not an Allocation")
 			}
 
 			event := stream.Event{
@@ -146,7 +146,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 		case "nodes":
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Node")
 			}
 
 			event := stream.Event{
@@ -162,5 +162,5 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 		}
 	}
 
-	return events, nil
+	return stream.Events{Index: changes.Index, Events: events}, nil
 }
