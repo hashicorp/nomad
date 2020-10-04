@@ -34,7 +34,7 @@ func TestEventBufferFuzz(t *testing.T) {
 			e := Event{
 				Index: uint64(i), // Indexes should be contiguous
 			}
-			b.Append(uint64(i), []Event{e})
+			b.Append(Events{Index: uint64(i), Events: []Event{e}})
 			// Sleep sometimes for a while to let some subscribers catch up
 			wait := time.Duration(z.Uint64()) * time.Millisecond
 			time.Sleep(wait)
@@ -90,7 +90,7 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 		e := Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(uint64(i), []Event{e})
+		b.Append(Events{uint64(i), []Event{e}})
 	}
 
 	head := b.Head()
@@ -99,7 +99,7 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 		e := Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(uint64(i), []Event{e})
+		b.Append(Events{uint64(i), []Event{e}})
 	}
 
 	// Ensure the slow reader errors to handle dropped events and
@@ -119,7 +119,7 @@ func TestEventBuffer_Size(t *testing.T) {
 		e := Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(uint64(i), []Event{e})
+		b.Append(Events{uint64(i), []Event{e}})
 	}
 
 	require.Equal(t, 10, b.Len())
@@ -135,7 +135,7 @@ func TestEventBuffer_Prune_AllOld(t *testing.T) {
 		e := Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(uint64(i), []Event{e})
+		b.Append(Events{uint64(i), []Event{e}})
 	}
 
 	require.Equal(t, 10, int(b.Len()))
@@ -188,7 +188,7 @@ func TestStartAt_CurrentIdx_Past_Start(t *testing.T) {
 		e := Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(uint64(i), []Event{e})
+		b.Append(Events{uint64(i), []Event{e}})
 	}
 
 	for _, tc := range cases {

@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes Changes) (stream.Events, error) {
 	var events []stream.Event
 
 	var eventType string
@@ -25,7 +25,7 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		case "deployment":
 			after, ok := change.After.(*structs.Deployment)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Deployment")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Deployment")
 			}
 
 			event := stream.Event{
@@ -43,7 +43,7 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		case "jobs":
 			after, ok := change.After.(*structs.Job)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Job")
+				return stream.Events{}, fmt.Errorf("transaction change was not a Job")
 			}
 
 			event := stream.Event{
@@ -62,7 +62,7 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		case "evals":
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Evaluation")
+				return stream.Events{}, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
 			event := stream.Event{
@@ -80,5 +80,5 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		}
 	}
 
-	return events, nil
+	return stream.Events{Index: changes.Index, Events: events}, nil
 }

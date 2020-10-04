@@ -26,9 +26,10 @@ func TestStateStore(t testing.T) *StateStore {
 
 func TestStateStorePublisher(t testing.T) *StateStoreConfig {
 	return &StateStoreConfig{
-		Logger:          testlog.HCLogger(t),
-		Region:          "global",
-		EnablePublisher: true,
+		Logger:           testlog.HCLogger(t),
+		Region:           "global",
+		EnablePublisher:  true,
+		EnableDurability: true,
 	}
 }
 func TestStateStoreCfg(t testing.T, cfg *StateStoreConfig) *StateStore {

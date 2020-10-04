@@ -38,7 +38,7 @@ func TestEventStream(t *testing.T) {
 
 		pub, err := s.Agent.server.State().EventPublisher()
 		require.NoError(t, err)
-		pub.Publish(100, []stream.Event{{Payload: testEvent{ID: "123"}}})
+		pub.Publish(stream.Events{Index: 100, Events: []stream.Event{{Payload: testEvent{ID: "123"}}}})
 
 		testutil.WaitForResult(func() (bool, error) {
 			got := resp.Body.String()

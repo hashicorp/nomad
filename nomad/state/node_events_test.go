@@ -188,8 +188,8 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			require.Equal(t, len(tc.WantEvents), len(got))
-			for idx, g := range got {
+			require.Equal(t, len(tc.WantEvents), len(got.Events))
+			for idx, g := range got.Events {
 				// assert equality of shared fields
 
 				want := tc.WantEvents[idx]
@@ -251,11 +251,11 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.Len(t, got, 1)
 
-	require.Equal(t, TopicNode, got[0].Topic)
-	require.Equal(t, TypeNodeDrain, got[0].Type)
-	require.Equal(t, uint64(100), got[0].Index)
+	require.Equal(t, TopicNode, got.Events[0].Topic)
+	require.Equal(t, TypeNodeDrain, got.Events[0].Type)
+	require.Equal(t, uint64(100), got.Events[0].Index)
 
-	nodeEvent, ok := got[0].Payload.(*NodeDrainEvent)
+	nodeEvent, ok := got.Events[0].Payload.(*NodeDrainEvent)
 	require.True(t, ok)
 
 	require.Equal(t, structs.NodeSchedulingIneligible, nodeEvent.Node.SchedulingEligibility)

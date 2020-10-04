@@ -31,7 +31,7 @@ func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
 		Key:     "sub-key",
 		Payload: "sample payload",
 	}}
-	publisher.Publish(1, events)
+	publisher.Publish(Events{Index: 1, Events: events})
 
 	// Subscriber should see the published event
 	result := nextResult(t, eventCh)
@@ -49,7 +49,7 @@ func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
 		Key:     "sub-key",
 		Payload: "sample payload 2",
 	}}
-	publisher.Publish(2, events)
+	publisher.Publish(Events{Index: 2, Events: events})
 
 	result = nextResult(t, eventCh)
 	require.NoError(t, result.Err)

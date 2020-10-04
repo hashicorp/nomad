@@ -34,21 +34,35 @@ type Changes struct {
 // sent to the EventPublisher which will create and emit change events.
 type changeTrackerDB struct {
 	db             *memdb.MemDB
+	durableEvents  bool
+	durableCount   int
 	publisher      *stream.EventPublisher
-	processChanges func(ReadTxn, Changes) ([]stream.Event, error)
+	processChanges func(ReadTxn, Changes) (stream.Events, error)
 }
 
-func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, changesFn changeProcessor) *changeTrackerDB {
+// ChangeConfig
+type ChangeConfig struct {
+	DurableEvents bool
+	DurableCount  int
+}
+
+func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, changesFn changeProcessor, cfg *ChangeConfig) *changeTrackerDB {
+	if cfg == nil {
+		cfg = &ChangeConfig{}
+	}
+
 	return &changeTrackerDB{
 		db:             db,
 		publisher:      publisher,
 		processChanges: changesFn,
+		durableEvents:  cfg.DurableEvents,
+		durableCount:   cfg.DurableCount,
 	}
 }
 
-type changeProcessor func(ReadTxn, Changes) ([]stream.Event, error)
+type changeProcessor func(ReadTxn, Changes) (stream.Events, error)
 
-func noOpProcessChanges(ReadTxn, Changes) ([]stream.Event, error) { return []stream.Event{}, nil }
+func noOpProcessChanges(ReadTxn, Changes) (stream.Events, error) { return stream.Events{}, nil }
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn
@@ -90,16 +104,17 @@ func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) 
 	return t
 }
 
-func (c *changeTrackerDB) publish(changes Changes) error {
+func (c *changeTrackerDB) publish(changes Changes) (stream.Events, error) {
 	readOnlyTx := c.db.Txn(false)
 	defer readOnlyTx.Abort()
 
 	events, err := c.processChanges(readOnlyTx, changes)
 	if err != nil {
-		return fmt.Errorf("failed generating events from changes: %v", err)
+		return stream.Events{}, fmt.Errorf("failed generating events from changes: %v", err)
 	}
-	c.publisher.Publish(changes.Index, events)
-	return nil
+
+	c.publisher.Publish(events)
+	return events, nil
 }
 
 // WriteTxnRestore returns a wrapped RW transaction that does NOT have change
@@ -125,13 +140,15 @@ type txn struct {
 	// msgType is used to inform event sourcing which type of event to create
 	msgType structs.MessageType
 
+	persistChanges bool
+
 	*memdb.Txn
 	// Index in raft where the write is occurring. The value is zero for a
 	// read-only, or WriteTxnRestore transaction.
 	// Index is stored so that it may be passed along to any subscribers as part
 	// of a change event.
 	Index   uint64
-	publish func(changes Changes) error
+	publish func(changes Changes) (stream.Events, error)
 }
 
 // Commit first pushes changes to EventPublisher, then calls Commit on the
@@ -150,8 +167,17 @@ func (tx *txn) Commit() error {
 			Changes: tx.Txn.Changes(),
 			MsgType: tx.MsgType(),
 		}
-		if err := tx.publish(changes); err != nil {
+		events, err := tx.publish(changes)
+		if err != nil {
 			return err
+		}
+
+		if tx.persistChanges {
+			// persist events after processing changes
+			err := tx.Txn.Insert("events", events)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -166,11 +192,11 @@ func (tx *txn) MsgType() structs.MessageType {
 	return tx.msgType
 }
 
-func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
+func processDBChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 	switch changes.MsgType {
 	case structs.IgnoreUnknownTypeFlag:
 		// unknown event type
-		return []stream.Event{}, nil
+		return stream.Events{}, nil
 	case structs.NodeRegisterRequestType:
 		return NodeRegisterEventFromChanges(tx, changes)
 	case structs.NodeUpdateStatusRequestType:
@@ -201,5 +227,5 @@ func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
 	}
-	return []stream.Event{}, nil
+	return stream.Events{}, nil
 }
