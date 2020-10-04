@@ -32,7 +32,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 
 	setupTx.Txn.Commit()
 
-	ctx := context.WithValue(context.Background(), CtxMsgType, structs.DeploymentStatusUpdateRequestType)
+	msgType := structs.DeploymentStatusUpdateRequestType
 
 	req := &structs.DeploymentStatusUpdateRequest{
 		DeploymentUpdate: &structs.DeploymentStatusUpdate{
@@ -44,7 +44,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 		// Exlude Job and assert its added
 	}
 
-	require.NoError(t, s.UpdateDeploymentStatus(ctx, 100, req))
+	require.NoError(t, s.UpdateDeploymentStatus(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 2)
@@ -113,7 +113,7 @@ func TestDeploymentEventFromChanges_Promotion(t *testing.T) {
 
 	e := mock.Eval()
 	// Request to promote canaries
-	ctx := context.WithValue(context.Background(), CtxMsgType, structs.DeploymentPromoteRequestType)
+	msgType := structs.DeploymentPromoteRequestType
 	req := &structs.ApplyDeploymentPromoteRequest{
 		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
 			DeploymentID: d.ID,
@@ -122,7 +122,7 @@ func TestDeploymentEventFromChanges_Promotion(t *testing.T) {
 		Eval: e,
 	}
 
-	require.NoError(t, s.UpdateDeploymentPromotion(ctx, 100, req))
+	require.NoError(t, s.UpdateDeploymentPromotion(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 2)

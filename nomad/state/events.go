@@ -84,6 +84,8 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 		eventType = TypeJobRegistered
 	case structs.AllocUpdateRequestType:
 		eventType = TypeAllocUpdated
+	case structs.NodeUpdateStatusRequestType:
+		eventType = TypeNodeEvent
 	}
 
 	var events []stream.Event
@@ -140,6 +142,22 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) ([]stream.Event, erro
 				},
 			}
 
+			events = append(events, event)
+		case "nodes":
+			after, ok := change.After.(*structs.Node)
+			if !ok {
+				return nil, fmt.Errorf("transaction change was not a Node")
+			}
+
+			event := stream.Event{
+				Topic: TopicNode,
+				Type:  eventType,
+				Index: changes.Index,
+				Key:   after.ID,
+				Payload: &NodeEvent{
+					Node: after,
+				},
+			}
 			events = append(events, event)
 		}
 	}

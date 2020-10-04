@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -204,13 +203,13 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.NodeDeregisterRequestType:
 		return n.applyDeregisterNode(msgType, buf[1:], log.Index)
 	case structs.NodeUpdateStatusRequestType:
-		return n.applyStatusUpdate(buf[1:], log.Index)
+		return n.applyStatusUpdate(msgType, buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
 		return n.applyDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
 		return n.applyUpsertJob(msgType, buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
-		return n.applyDeregisterJob(buf[1:], log.Index)
+		return n.applyDeregisterJob(msgType, buf[1:], log.Index)
 	case structs.EvalUpdateRequestType:
 		return n.applyUpdateEval(msgType, buf[1:], log.Index)
 	case structs.EvalDeleteRequestType:
@@ -252,16 +251,21 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.UpsertNodeEventsType:
 		return n.applyUpsertNodeEvent(msgType, buf[1:], log.Index)
 	case structs.JobBatchDeregisterRequestType:
-		return n.applyBatchDeregisterJob(buf[1:], log.Index)
+		// TODO(drew) higher priority event
+		return n.applyBatchDeregisterJob(msgType, buf[1:], log.Index)
 	case structs.AllocUpdateDesiredTransitionRequestType:
+		// TODO(drew) higher priority event
 		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
 	case structs.NodeUpdateEligibilityRequestType:
+		// TODO(drew) higher priority event
 		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
 	case structs.BatchNodeUpdateDrainRequestType:
+		// TODO(drew) higher priority event
 		return n.applyBatchDrainUpdate(buf[1:], log.Index)
 	case structs.SchedulerConfigRequestType:
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
+		// TODO(drew) higher priority event
 		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
 	case structs.ClusterMetadataRequestType:
 		return n.applyClusterMetadata(buf[1:], log.Index)
@@ -322,12 +326,10 @@ func (n *nomadFSM) applyUpsertNode(reqType structs.MessageType, buf []byte, inde
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, reqType)
-
 	// Handle upgrade paths
 	req.Node.Canonicalize()
 
-	if err := n.state.UpsertNodeCtx(ctx, index, req.Node); err != nil {
+	if err := n.state.UpsertNodeMsgType(reqType, index, req.Node); err != nil {
 		n.logger.Error("UpsertNode failed", "error", err)
 		return err
 	}
@@ -348,9 +350,7 @@ func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, reqType)
-
-	if err := n.state.DeleteNodeCtx(ctx, index, []string{req.NodeID}); err != nil {
+	if err := n.state.DeleteNodeMsgType(reqType, index, []string{req.NodeID}); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
@@ -373,14 +373,14 @@ func (n *nomadFSM) applyDeregisterNodeBatch(buf []byte, index uint64) interface{
 	return nil
 }
 
-func (n *nomadFSM) applyStatusUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_status_update"}, time.Now())
 	var req structs.NodeUpdateStatusRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeStatus(index, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeStatus(msgType, index, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeStatus failed", "error", err)
 		return err
 	}
@@ -409,8 +409,6 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, reqType)
-
 	// COMPAT Remove in version 0.10
 	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
 	// drain strategy but we need to handle the upgrade path where the Raft log
@@ -425,7 +423,7 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		}
 	}
 
-	if err := n.state.UpdateNodeDrainCtx(ctx, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeDrainMsgType(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
@@ -492,9 +490,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-
-	if err := n.state.UpsertJobCtx(ctx, index, req.Job); err != nil {
+	if err := n.state.UpsertJobMsgType(msgType, index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -572,7 +568,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	// so this may be nil during server upgrades.
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
-		if err := n.upsertEvals(context.Background(), index, []*structs.Evaluation{req.Eval}); err != nil {
+		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}
 	}
@@ -580,14 +576,14 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_job"}, time.Now())
 	var req structs.JobDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	err := n.state.WithWriteTransaction(index, func(tx state.Txn) error {
+	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, tx)
 
 		if err != nil {
@@ -604,7 +600,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 	// always attempt upsert eval even if job deregister fail
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
-		if err := n.upsertEvals(context.Background(), index, []*structs.Evaluation{req.Eval}); err != nil {
+		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}
 	}
@@ -616,7 +612,7 @@ func (n *nomadFSM) applyDeregisterJob(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_job"}, time.Now())
 	var req structs.JobBatchDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -626,7 +622,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 	// Perform all store updates atomically to ensure a consistent view for store readers.
 	// A partial update may increment the snapshot index, allowing eval brokers to process
 	// evals for jobs whose deregistering didn't get committed yet.
-	err := n.state.WithWriteTransaction(index, func(tx state.Txn) error {
+	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
 			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, tx); err != nil {
 				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
@@ -698,13 +694,11 @@ func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, inde
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-
-	return n.upsertEvals(ctx, index, req.Evals)
+	return n.upsertEvals(msgType, index, req.Evals)
 }
 
-func (n *nomadFSM) upsertEvals(ctx context.Context, index uint64, evals []*structs.Evaluation) error {
-	if err := n.state.UpsertEvalsCtx(ctx, index, evals); err != nil {
+func (n *nomadFSM) upsertEvals(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
+	if err := n.state.UpsertEvalsMsgType(msgType, index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
@@ -784,8 +778,7 @@ func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, ind
 		alloc.Canonicalize()
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-	if err := n.state.UpsertAllocsCtx(ctx, index, req.Alloc); err != nil {
+	if err := n.state.UpsertAllocsMsgType(msgType, index, req.Alloc); err != nil {
 		n.logger.Error("UpsertAllocs failed", "error", err)
 		return err
 	}
@@ -813,16 +806,15 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 		}
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
 	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(ctx, index, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
 		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
 
 	// Update any evals
 	if len(req.Evals) > 0 {
-		if err := n.upsertEvals(ctx, index, req.Evals); err != nil {
+		if err := n.upsertEvals(msgType, index, req.Evals); err != nil {
 			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
 			return err
 		}
@@ -890,9 +882,7 @@ func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte,
 		panic(fmt.Errorf("failed to decode EmitNodeEventsRequest: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-
-	if err := n.state.UpsertNodeEventsCtx(ctx, index, req.NodeEvents); err != nil {
+	if err := n.state.UpsertNodeEventsMsgType(msgType, index, req.NodeEvents); err != nil {
 		n.logger.Error("failed to add node events", "error", err)
 		return err
 	}
@@ -971,9 +961,7 @@ func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-
-	if err := n.state.UpsertPlanResults(ctx, index, &req); err != nil {
+	if err := n.state.UpsertPlanResults(msgType, index, &req); err != nil {
 		n.logger.Error("ApplyPlan failed", "error", err)
 		return err
 	}
@@ -992,9 +980,7 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(msgType structs.MessageType, buf 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-
-	if err := n.state.UpdateDeploymentStatus(ctx, index, &req); err != nil {
+	if err := n.state.UpdateDeploymentStatus(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentStatusUpdate failed", "error", err)
 		return err
 	}
@@ -1011,9 +997,7 @@ func (n *nomadFSM) applyDeploymentPromotion(msgType structs.MessageType, buf []b
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-
-	if err := n.state.UpdateDeploymentPromotion(ctx, index, &req); err != nil {
+	if err := n.state.UpdateDeploymentPromotion(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentPromotion failed", "error", err)
 		return err
 	}
@@ -1031,9 +1015,7 @@ func (n *nomadFSM) applyDeploymentAllocHealth(msgType structs.MessageType, buf [
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	ctx := context.WithValue(context.Background(), state.CtxMsgType, msgType)
-
-	if err := n.state.UpdateDeploymentAllocHealth(ctx, index, &req); err != nil {
+	if err := n.state.UpdateDeploymentAllocHealth(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertDeploymentAllocHealth failed", "error", err)
 		return err
 	}

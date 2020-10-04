@@ -80,10 +80,9 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 	return t
 }
 
-// WriteTxnCtx is identical to WriteTxn but takes a ctx used for event sourcing
-func (c *changeTrackerDB) WriteTxnCtx(ctx context.Context, idx uint64) *txn {
+func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) *txn {
 	t := &txn{
-		ctx:     ctx,
+		msgType: msgType,
 		Txn:     c.db.Txn(true),
 		Index:   idx,
 		publish: c.publish,
@@ -127,6 +126,8 @@ type txn struct {
 	// ctx is used to hold message type information from an FSM request
 	ctx context.Context
 
+	msgType structs.MessageType
+
 	*memdb.Txn
 	// Index in raft where the write is occurring. The value is zero for a
 	// read-only, or WriteTxnRestore transaction.
@@ -165,20 +166,7 @@ func (tx *txn) Commit() error {
 // If the context is empty or the value isn't set IgnoreUnknownTypeFlag will
 // be returned to signal that the MsgType is unknown.
 func (tx *txn) MsgType() structs.MessageType {
-	if tx.ctx == nil {
-		return structs.IgnoreUnknownTypeFlag
-	}
-
-	raw := tx.ctx.Value(CtxMsgType)
-	if raw == nil {
-		return structs.IgnoreUnknownTypeFlag
-	}
-
-	msgType, ok := raw.(structs.MessageType)
-	if !ok {
-		return structs.IgnoreUnknownTypeFlag
-	}
-	return msgType
+	return tx.msgType
 }
 
 func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
@@ -188,6 +176,9 @@ func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 		return []stream.Event{}, nil
 	case structs.NodeRegisterRequestType:
 		return NodeRegisterEventFromChanges(tx, changes)
+	case structs.NodeUpdateStatusRequestType:
+		// TODO(drew) test
+		return GenericEventsFromChanges(tx, changes)
 	case structs.NodeDeregisterRequestType:
 		return NodeDeregisterEventFromChanges(tx, changes)
 	case structs.NodeUpdateDrainRequestType:
@@ -207,8 +198,10 @@ func processDBChanges(tx ReadTxn, changes Changes) ([]stream.Event, error) {
 	case structs.AllocClientUpdateRequestType:
 		return GenericEventsFromChanges(tx, changes)
 	case structs.JobRegisterRequestType:
+		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
 	case structs.AllocUpdateRequestType:
+		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
 	}
 	return []stream.Event{}, nil
