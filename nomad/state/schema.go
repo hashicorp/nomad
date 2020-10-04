@@ -52,6 +52,7 @@ func init() {
 		csiPluginTableSchema,
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
+		eventTableSchema,
 	}...)
 }
 
@@ -897,6 +898,22 @@ func scalingEventTableSchema() *memdb.TableSchema {
 			// 		Field: "Error",
 			// 	},
 			// },
+		},
+	}
+}
+
+func eventTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "events",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: true,
+				Unique:       true,
+				Indexer: &memdb.UintFieldIndex{
+					Field: "Index",
+				},
+			},
 		},
 	}
 }
