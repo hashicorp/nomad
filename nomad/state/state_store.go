@@ -270,7 +270,7 @@ RUN_QUERY:
 }
 
 // UpsertPlanResults is used to upsert the results of a plan.
-func (s *StateStore) UpsertPlanResults(ctx context.Context, index uint64, results *structs.ApplyPlanResultsRequest) error {
+func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64, results *structs.ApplyPlanResultsRequest) error {
 	snapshot, err := s.Snapshot()
 	if err != nil {
 		return err
@@ -292,7 +292,7 @@ func (s *StateStore) UpsertPlanResults(ctx context.Context, index uint64, result
 		return err
 	}
 
-	txn := s.db.WriteTxnCtx(ctx, index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Upsert the newly created or updated deployment
@@ -302,7 +302,7 @@ func (s *StateStore) UpsertPlanResults(ctx context.Context, index uint64, result
 		}
 	}
 
-	// Update the status of deployments effected by the plan.
+	// Update the status of dmsgType structs.MessageType by the plan.
 	if len(results.DeploymentUpdates) != 0 {
 		s.upsertDeploymentUpdates(index, results.DeploymentUpdates, txn)
 	}
@@ -754,11 +754,11 @@ func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID stri
 	return nil, 0, nil
 }
 
-// UpsertNodeCtx is used to register a node or update a node definition
+// UpsertNodeMsgType is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
-func (s *StateStore) UpsertNodeCtx(ctx context.Context, index uint64, node *structs.Node) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpsertNodeMsgType(msgType structs.MessageType, index uint64, node *structs.Node) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	err := upsertNodeTxn(txn, index, node)
@@ -836,8 +836,8 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 }
 
 // DeleteNode deregisters a batch of nodes
-func (s *StateStore) DeleteNodeCtx(ctx context.Context, index uint64, nodes []string) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) DeleteNodeMsgType(msgType structs.MessageType, index uint64, nodes []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	err := deleteNodeTxn(txn, index, nodes)
@@ -893,16 +893,15 @@ func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(index uint64, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpdateNodeStatus(msgType structs.MessageType, index uint64, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	if err := s.updateNodeStatusTxn(txn, nodeID, status, updatedAt, event); err != nil {
 		return err
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
@@ -954,10 +953,10 @@ func (s *StateStore) BatchUpdateNodeDrain(index uint64, updatedAt int64, updates
 }
 
 // UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrainCtx(ctx context.Context, index uint64, nodeID string,
+func (s *StateStore) UpdateNodeDrainMsgType(msgType structs.MessageType, index uint64, nodeID string,
 	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
-	txn := s.db.WriteTxnCtx(ctx, index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
 		return err
@@ -1068,8 +1067,8 @@ func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibil
 	return nil
 }
 
-func (s *StateStore) UpsertNodeEventsCtx(ctx context.Context, index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpsertNodeEventsMsgType(msgType structs.MessageType, index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	for nodeID, events := range nodeEvents {
@@ -1485,8 +1484,8 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 }
 
 // UpsertJob is used to register a job or update a job definition
-func (s *StateStore) UpsertJobCtx(ctx context.Context, index uint64, job *structs.Job) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpsertJobMsgType(msgType structs.MessageType, index uint64, job *structs.Job) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
 		return err
@@ -2709,8 +2708,8 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 }
 
 // UpsertEvals is used to upsert a set of evaluations
-func (s *StateStore) UpsertEvalsCtx(ctx context.Context, index uint64, evals []*structs.Evaluation) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpsertEvalsMsgType(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	err := s.UpsertEvalsTxn(index, evals, txn)
@@ -3032,8 +3031,8 @@ func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memd
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
 // from clients.
-func (s *StateStore) UpdateAllocsFromClient(ctx context.Context, index uint64, allocs []*structs.Allocation) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Handle each of the updated allocations
@@ -3150,10 +3149,10 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 	return nil
 }
 
-// UpsertAllocsCtx is used to evict a set of allocations and allocate new ones at
+// UpsertAllocsMsgType is used to evict a set of allocations and allocate new ones at
 // the same time.
-func (s *StateStore) UpsertAllocsCtx(ctx context.Context, index uint64, allocs []*structs.Allocation) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpsertAllocsMsgType(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
 		return err
@@ -3854,8 +3853,8 @@ func (s *StateStore) SITokenAccessorsByNode(ws memdb.WatchSet, nodeID string) ([
 
 // UpdateDeploymentStatus is used to make deployment status updates and
 // potentially make a evaluation
-func (s *StateStore) UpdateDeploymentStatus(ctx context.Context, index uint64, req *structs.DeploymentStatusUpdateRequest) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index uint64, req *structs.DeploymentStatusUpdateRequest) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
@@ -3957,8 +3956,8 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 
 // UpdateDeploymentPromotion is used to promote canaries in a deployment and
 // potentially make a evaluation
-func (s *StateStore) UpdateDeploymentPromotion(ctx context.Context, index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Retrieve deployment and ensure it is not terminal and is active
@@ -4099,8 +4098,8 @@ func (s *StateStore) UpdateDeploymentPromotion(ctx context.Context, index uint64
 
 // UpdateDeploymentAllocHealth is used to update the health of allocations as
 // part of the deployment and potentially make a evaluation
-func (s *StateStore) UpdateDeploymentAllocHealth(ctx context.Context, index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
-	txn := s.db.WriteTxnCtx(ctx, index)
+func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Retrieve deployment and ensure it is not terminal and is active
@@ -5416,13 +5415,13 @@ func (s *StateStore) ClusterSetMetadata(index uint64, meta *structs.ClusterMetad
 // WithWriteTransaction executes the passed function within a write transaction,
 // and returns its result.  If the invocation returns no error, the transaction
 // is committed; otherwise, it's aborted.
-func (s *StateStore) WithWriteTransaction(index uint64, fn func(Txn) error) error {
-	tx := s.db.WriteTxn(index)
+func (s *StateStore) WithWriteTransaction(msgType structs.MessageType, index uint64, fn func(Txn) error) error {
+	tx := s.db.WriteTxnMsgT(msgType, index)
 	defer tx.Abort()
 
 	err := fn(tx)
 	if err == nil {
-		tx.Commit()
+		return tx.Commit()
 	}
 	return err
 }
