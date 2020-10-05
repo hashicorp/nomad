@@ -157,16 +157,16 @@ will be mapped to the port in your container or virtual machine.
 ```hcl
 group "app" {
   network {
-    port "http" {}
+    port "http" {
+      to = 8080
+    }
   }
 
   task "example" {
     driver = "docker"
 
     config {
-      port_map = {
-        http = 8080
-      }
+      ports = ["http"]
     }
   }
 }
