@@ -488,6 +488,10 @@ type ServerConfig struct {
 	// will generate events for its event stream.
 	EnableEventPublisher bool `hcl:"enable_event_publisher"`
 
+	// DurableEventCount specifies the amount of events to persist during snapshot generation.
+	// A count of 0 signals that no events should be persisted.
+	DurableEventCount int `hcl:"durable_event_count"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -888,6 +892,7 @@ func DefaultConfig() *Config {
 		Server: &ServerConfig{
 			Enabled:              false,
 			EnableEventPublisher: true,
+			DurableEventCount:    100,
 			StartJoin:            []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -1414,6 +1419,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.EnableEventPublisher {
 		result.EnableEventPublisher = true
+	}
+
+	if b.DurableEventCount != 0 {
+		result.DurableEventCount = b.DurableEventCount
 	}
 
 	if b.DefaultSchedulerConfig != nil {

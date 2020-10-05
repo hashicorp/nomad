@@ -3206,9 +3206,8 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	cfg := state.Config()
-	cfg.EnableDurability = true
-	// DurableCount = 4 each mock events wrapper contains 2 events
-	cfg.DurableCount = 4
+	// DurableEventCount = 4 each mock events wrapper contains 2 events
+	cfg.DurableEventCount = 4
 
 	e1 := mock.Events(1000)
 	e2 := mock.Events(1001)
@@ -3251,7 +3250,7 @@ func TestFSM_SnapshotRestore_Events_NoDurability(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	cfg := state.Config()
-	cfg.EnableDurability = false
+	cfg.DurableEventCount = 0
 
 	e1 := mock.Events(1000)
 	e2 := mock.Events(1001)

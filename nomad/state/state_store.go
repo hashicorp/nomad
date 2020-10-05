@@ -46,10 +46,12 @@ type StateStoreConfig struct {
 	// Region is the region of the server embedding the state store.
 	Region string
 
+	// EnablePublisher is used to enable or disable the event publisher
 	EnablePublisher bool
 
-	EnableDurability bool
-	DurableCount     int
+	// DurableEventCount is the amount of events to persist during the snapshot
+	// process.
+	DurableEventCount int
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -94,8 +96,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		cfg := &ChangeConfig{
-			DurableEvents: config.EnableDurability,
-			DurableCount:  1000,
+			DurableEventCount: 1000,
 		}
 		publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
 			EventBufferTTL:  1 * time.Hour,

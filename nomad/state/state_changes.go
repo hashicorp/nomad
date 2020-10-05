@@ -42,8 +42,7 @@ type changeTrackerDB struct {
 
 // ChangeConfig
 type ChangeConfig struct {
-	DurableEvents bool
-	DurableCount  int
+	DurableEventCount int
 }
 
 func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, changesFn changeProcessor, cfg *ChangeConfig) *changeTrackerDB {
@@ -55,8 +54,7 @@ func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, chang
 		db:             db,
 		publisher:      publisher,
 		processChanges: changesFn,
-		durableEvents:  cfg.DurableEvents,
-		durableCount:   cfg.DurableCount,
+		durableCount:   cfg.DurableEventCount,
 	}
 }
 
