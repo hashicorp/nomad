@@ -83,7 +83,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	}
 	defer subscription.Unsubscribe()
 
-	ndJsonCh := make(chan *stream.NDJson)
+	ndJsonCh := make(chan *structs.NDJson)
 	errCh := make(chan error)
 
 	jsonStream := stream.NewNDJsonStream(ndJsonCh, 30*time.Second)

@@ -7,43 +7,40 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
 	// NDJsonHeartbeat is the NDJson to send as a heartbeat
 	// Avoids creating many heartbeat instances
-	NDJsonHeartbeat = &NDJson{Data: []byte("{}\n")}
+	NDJsonHeartbeat = &structs.NDJson{Data: []byte("{}\n")}
 )
 
 // NDJsonStream is used to send new line delimited JSON and heartbeats
 // to a destination (out channel)
 type NDJsonStream struct {
-	out chan<- *NDJson
+	out chan<- *structs.NDJson
 
 	// heartbeat is the interval to send heartbeat messages to keep a connection
 	// open.
 	heartbeat *time.Ticker
 
-	publishCh chan NDJson
+	publishCh chan structs.NDJson
 	exitCh    chan struct{}
 
 	l       sync.Mutex
 	running bool
 }
 
-// NNDJson is a wrapper for a Newline Delimited JSON object
-type NDJson struct {
-	Data []byte
-}
-
 // NewNNewNDJsonStream creates a new NDJson stream that will output NDJson structs
 // to the passed output channel
-func NewNDJsonStream(out chan<- *NDJson, heartbeat time.Duration) *NDJsonStream {
+func NewNDJsonStream(out chan<- *structs.NDJson, heartbeat time.Duration) *NDJsonStream {
 	return &NDJsonStream{
 		out:       out,
 		heartbeat: time.NewTicker(heartbeat),
 		exitCh:    make(chan struct{}),
-		publishCh: make(chan NDJson),
+		publishCh: make(chan structs.NDJson),
 	}
 }
 
@@ -97,18 +94,10 @@ func (n *NDJsonStream) Send(obj interface{}) error {
 	}
 
 	select {
-	case n.publishCh <- NDJson{Data: buf.Bytes()}:
+	case n.publishCh <- structs.NDJson{Data: buf.Bytes()}:
 	case <-n.exitCh:
 		return fmt.Errorf("stream is no longer running")
 	}
 
 	return nil
-}
-
-func (j *NDJson) Copy() *NDJson {
-	n := new(NDJson)
-	*n = *j
-	n.Data = make([]byte, len(j.Data))
-	copy(n.Data, j.Data)
-	return n
 }
