@@ -705,10 +705,10 @@ type MultiregionStrategy struct {
 }
 
 type MultiregionRegion struct {
-	Name        string
-	Count       *int
-	Datacenters []string
-	Meta        map[string]string
+	Name        string            `hcl:",label"`
+	Count       *int              `hcl:"count,optional"`
+	Datacenters []string          `hcl:"datacenters,optional"`
+	Meta        map[string]string `hcl:"meta,optional"`
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -797,18 +797,18 @@ type Job struct {
 	AllAtOnce         *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
 	Datacenters       []string                `hcl:"datacenters,optional"`
 	Constraints       []*Constraint           `hcl:"constraint,block"`
-	Affinities        []*Affinity             `hcl:"affinities,block"`
+	Affinities        []*Affinity             `hcl:"affinity,block"`
 	TaskGroups        []*TaskGroup            `hcl:"group,block"`
 	Update            *UpdateStrategy         `hcl:"update,block"`
 	Multiregion       *Multiregion            `hcl:"multiregion,block"`
-	Spreads           []*Spread               `hcl:"spreads,block"`
+	Spreads           []*Spread               `hcl:"spread,block"`
 	Periodic          *PeriodicConfig         `hcl:"periodic,block"`
 	ParameterizedJob  *ParameterizedJobConfig `hcl:"parameterized_job,block"`
 	Dispatched        bool                    `hcl:"dispatched,optional"`
 	Payload           []byte                  `hcl:"payload,optional"`
 	Reschedule        *ReschedulePolicy       `hcl:"reschedule,block"`
 	Migrate           *MigrateStrategy        `hcl:"migrate,block"`
-	Meta              map[string]string       `hcl:"meta,optional"`
+	Meta              map[string]string       `hcl:"meta,block"`
 	ConsulToken       *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken        *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
 	VaultNamespace    *string                 `mapstructure:"vault_namespace" hcl:"vault_namespace,optional"`

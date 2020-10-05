@@ -2,7 +2,9 @@ package gohcl
 
 import (
 	"fmt"
+	"math"
 	"reflect"
+	"time"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -123,6 +125,7 @@ func decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value) 
 		ty := field.Type
 		isSlice := false
 		isPtr := false
+		isMap := false
 		if ty.Kind() == reflect.Slice {
 			isSlice = true
 			ty = ty.Elem()
@@ -130,6 +133,9 @@ func decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value) 
 		if ty.Kind() == reflect.Ptr {
 			isPtr = true
 			ty = ty.Elem()
+		}
+		if ty.Kind() == reflect.Map {
+			isMap = true
 		}
 
 		if len(blocks) > 1 && !isSlice {
@@ -146,7 +152,7 @@ func decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value) 
 		}
 
 		if len(blocks) == 0 {
-			if isSlice || isPtr {
+			if isSlice || isPtr || isMap {
 				if val.Field(fieldIdx).IsNil() {
 					val.Field(fieldIdx).Set(reflect.Zero(field.Type))
 				}
@@ -225,6 +231,10 @@ func decodeBodyToMap(body hcl.Body, ctx *hcl.EvalContext, v reflect.Value) hcl.D
 
 	for k, attr := range attrs {
 		switch {
+		case v.Type().Elem().Kind() == reflect.Interface:
+			v, vdiags := decodeInterface(attr.Expr, ctx)
+			diags = append(diags, vdiags...)
+			mv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
 		case attrType.AssignableTo(v.Type().Elem()):
 			mv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(attr))
 		case exprType.AssignableTo(v.Type().Elem()):
@@ -300,8 +310,16 @@ func DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}
 		panic(fmt.Sprintf("unsuitable DecodeExpression target: %s", err))
 	}
 
+	if ok, srcValD, diag := convertDurationString(expr, srcVal, convTy, val); ok {
+		if diag != nil {
+			diags = append(diags, diag)
+			return diags
+		}
+		srcVal = *srcValD
+	}
 	srcVal, err = convert.Convert(srcVal, convTy)
 	if err != nil {
+		fmt.Printf("### FAILED %#+v %#+v %#+v\n", val, convTy, srcVal)
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unsuitable value type",
@@ -324,4 +342,175 @@ func DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}
 	}
 
 	return diags
+}
+
+var timeDurationType = reflect.TypeOf(time.Duration(0))
+
+func convertDurationString(expr hcl.Expression, srcVal cty.Value, convTy cty.Type, val interface{}) (bool, *cty.Value, *hcl.Diagnostic) {
+	if convTy != cty.Number {
+		return false, nil, nil
+	}
+
+	valType := reflect.TypeOf(val)
+	for valType.Kind() == reflect.Ptr {
+		valType = valType.Elem()
+	}
+	if !valType.AssignableTo(timeDurationType) {
+		return false, nil, nil
+	}
+
+	srcVal, err := convert.Convert(srcVal, cty.String)
+	if err != nil {
+		return true, nil, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unsuitable value type",
+			Detail:   fmt.Sprintf("Unsuitable value: %s", err.Error()),
+			Subject:  expr.StartRange().Ptr(),
+			Context:  expr.Range().Ptr(),
+		}
+	}
+
+	dur, err := time.ParseDuration(srcVal.AsString())
+	if err != nil {
+		return true, nil, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unsuitable value type",
+			Detail:   fmt.Sprintf("Unsuitable value: %s", err.Error()),
+			Subject:  expr.StartRange().Ptr(),
+			Context:  expr.Range().Ptr(),
+		}
+	}
+
+	v := cty.NumberIntVal(int64(dur))
+	return true, &v, nil
+}
+
+func decodeInterface(expr hcl.Expression, ctx *hcl.EvalContext) (interface{}, hcl.Diagnostics) {
+	srvVal, diags := expr.Value(ctx)
+
+	dst, err := interfaceFromCtyValue(srvVal)
+	if err != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "unsuitable value type",
+			Detail:   fmt.Sprintf("Unsuitable value: %s", err.Error()),
+			Subject:  expr.StartRange().Ptr(),
+			Context:  expr.Range().Ptr(),
+		})
+	}
+	return dst, diags
+}
+
+func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
+	t := val.Type()
+	//if val.IsMarked() {
+	//	return fmt.Errorf("value has marks, so it cannot be serialized as JSON")
+	//}
+
+	//// If we're going to decode as DynamicPseudoType then we need to save
+	//// dynamic type information to recover the real type.
+	//if t == cty.DynamicPseudoType && val.Type() != cty.DynamicPseudoType {
+	//	return marshalDynamic(val, path, b)
+	//}
+
+	if val.IsNull() {
+		return nil, nil
+	}
+
+	if !val.IsKnown() {
+		return nil, fmt.Errorf("value is not known")
+	}
+
+	// The caller should've guaranteed that the given val is conformant with
+	// the given type t, so we'll proceed under that assumption here.
+
+	switch {
+	case t.IsPrimitiveType():
+		switch t {
+		case cty.String:
+			return val.AsString(), nil
+		case cty.Number:
+			if val.RawEquals(cty.PositiveInfinity) {
+				return math.Inf(1), nil
+			} else if val.RawEquals(cty.NegativeInfinity) {
+				return math.Inf(-1), nil
+			} else {
+				return val.AsBigFloat(), nil
+			}
+		case cty.Bool:
+			return val.True(), nil
+		default:
+			panic("unsupported primitive type")
+		}
+	case t.IsListType(), t.IsSetType(), t.IsTupleType():
+		result := []interface{}{}
+
+		it := val.ElementIterator()
+		for it.Next() {
+			_, ev := it.Element()
+			evi, err := interfaceFromCtyValue(ev)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, evi)
+		}
+		return result, nil
+	case t.IsMapType():
+		result := map[string]interface{}{}
+		it := val.ElementIterator()
+		for it.Next() {
+			ek, ev := it.Element()
+
+			ekv := ek.AsString()
+			evv, err := interfaceFromCtyValue(ev)
+			if err != nil {
+				return nil, err
+			}
+
+			result[ekv] = evv
+		}
+		return result, nil
+		//	case t.IsTupleType():
+		//		b.WriteRune('[')
+		//		etys := t.TupleElementTypes()
+		//		it := val.ElementIterator()
+		//		path := append(path, nil) // local override of 'path' with extra element
+		//		i := 0
+		//		for it.Next() {
+		//			if i > 0 {
+		//				b.WriteRune(',')
+		//			}
+		//			ety := etys[i]
+		//			ek, ev := it.Element()
+		//			path[len(path)-1] = cty.IndexStep{
+		//				Key: ek,
+		//			}
+		//			err := marshal(ev, ety, path, b)
+		//			if err != nil {
+		//				return err
+		//			}
+		//			i++
+		//		}
+		//		b.WriteRune(']')
+		//		return nil
+	case t.IsObjectType():
+		result := map[string]interface{}{}
+
+		for k, _ := range t.AttributeTypes() {
+			av := val.GetAttr(k)
+			avv, err := interfaceFromCtyValue(av)
+			if err != nil {
+				return nil, err
+			}
+
+			result[k] = avv
+		}
+		return result, nil
+	case t.IsCapsuleType():
+		rawVal := val.EncapsulatedValue()
+		return rawVal, nil
+	default:
+		// should never happen
+		return nil, fmt.Errorf("cannot serialize %s", t.FriendlyName())
+	}
 }

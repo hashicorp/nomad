@@ -226,18 +226,18 @@ type RequestedDevice struct {
 	// * "gpu"
 	// * "nvidia/gpu"
 	// * "nvidia/gpu/GTX2080Ti"
-	Name string
+	Name string `hcl:",label"`
 
 	// Count is the number of requested devices
-	Count *uint64
+	Count *uint64 `hcl:"count,optional"`
 
 	// Constraints are a set of constraints to apply when selecting the device
 	// to use.
-	Constraints []*Constraint
+	Constraints []*Constraint `hcl:"constraint,block"`
 
 	// Affinities are a set of affinites to apply when selecting the device
 	// to use.
-	Affinities []*Affinity
+	Affinities []*Affinity `hcl:"affinity,block"`
 }
 
 func (d *RequestedDevice) Canonicalize() {

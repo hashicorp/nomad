@@ -80,18 +80,23 @@ func ImpliedBodySchema(val interface{}) (schema *hcl.BodySchema, partial bool) {
 		if fty.Kind() == reflect.Ptr {
 			fty = fty.Elem()
 		}
-		if fty.Kind() != reflect.Struct {
+
+		var labelNames []string
+
+		switch fty.Kind() {
+		case reflect.Struct:
+			ftags := getFieldTags(fty)
+			if len(ftags.Labels) > 0 {
+				labelNames = make([]string, len(ftags.Labels))
+				for i, l := range ftags.Labels {
+					labelNames[i] = l.Name
+				}
+			}
+		case reflect.Map:
+		default:
 			panic(fmt.Sprintf(
 				"hcl 'block' tag kind cannot be applied to %s field %s: struct required", field.Type.String(), field.Name,
 			))
-		}
-		ftags := getFieldTags(fty)
-		var labelNames []string
-		if len(ftags.Labels) > 0 {
-			labelNames = make([]string, len(ftags.Labels))
-			for i, l := range ftags.Labels {
-				labelNames[i] = l.Name
-			}
 		}
 
 		blockSchemas = append(blockSchemas, hcl.BlockHeaderSchema{

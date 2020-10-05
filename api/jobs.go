@@ -705,10 +705,10 @@ type MultiregionStrategy struct {
 }
 
 type MultiregionRegion struct {
-	Name        string
-	Count       *int
-	Datacenters []string
-	Meta        map[string]string
+	Name        string            `hcl:",label"`
+	Count       *int              `hcl:"count,optional"`
+	Datacenters []string          `hcl:"datacenters,optional"`
+	Meta        map[string]string `hcl:"meta,optional"`
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
@@ -808,7 +808,7 @@ type Job struct {
 	Payload           []byte                  `hcl:"payload,optional"`
 	Reschedule        *ReschedulePolicy       `hcl:"reschedule,block"`
 	Migrate           *MigrateStrategy        `hcl:"migrate,block"`
-	Meta              map[string]string       `hcl:"meta,optional"`
+	Meta              map[string]string       `hcl:"meta,block"`
 	ConsulToken       *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken        *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
 	VaultNamespace    *string                 `mapstructure:"vault_namespace" hcl:"vault_namespace,optional"`

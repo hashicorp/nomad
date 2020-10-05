@@ -89,7 +89,7 @@ type ServiceCheck struct {
 	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
 	Header                 map[string][]string `hcl:"header,optional"`
 	Method                 string              `hcl:"method,optional"`
-	CheckRestart           *CheckRestart       `mapstructure:"check_restart" hcl:"check_restart,optional"`
+	CheckRestart           *CheckRestart       `mapstructure:"check_restart" hcl:"check_restart,block"`
 	GRPCService            string              `mapstructure:"grpc_service" hcl:"grpc_service,optional"`
 	GRPCUseTLS             bool                `mapstructure:"grpc_use_tls" hcl:"grpc_use_tls,optional"`
 	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
@@ -107,11 +107,11 @@ type Service struct {
 	EnableTagOverride bool              `mapstructure:"enable_tag_override" hcl:"enable_tag_override,optional"`
 	PortLabel         string            `mapstructure:"port" hcl:"port,optional"`
 	AddressMode       string            `mapstructure:"address_mode" hcl:"address_mode,optional"`
-	Checks            []ServiceCheck    `hcl:"checks,block"`
+	Checks            []ServiceCheck    `hcl:"check,block"`
 	CheckRestart      *CheckRestart     `mapstructure:"check_restart" hcl:"check_restart,block"`
 	Connect           *ConsulConnect    `hcl:"connect,block"`
-	Meta              map[string]string `hcl:"meta,optional"`
-	CanaryMeta        map[string]string `hcl:"canary_meta,optional"`
+	Meta              map[string]string `hcl:"meta,block"`
+	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 }
 
