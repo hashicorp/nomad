@@ -356,7 +356,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		-cover \
 		-timeout=900s \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/vault/ \
+		github.com/hashicorp/nomad/e2e/vaultcompat/ \
 		-integration
 
 .PHONY: clean

@@ -1,4 +1,4 @@
-package vault
+package vaultcompat
 
 import (
 	"github.com/hashicorp/nomad/api"
