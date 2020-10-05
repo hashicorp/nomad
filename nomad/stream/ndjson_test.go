@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestNDJson(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	out := make(chan *NDJson)
+	out := make(chan *structs.NDJson)
 	s := NewNDJsonStream(out, 1*time.Second)
 	s.Run(ctx)
 
@@ -45,7 +46,7 @@ func TestNDJson_Send_After_Stop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	out := make(chan *NDJson)
+	out := make(chan *structs.NDJson)
 	s := NewNDJsonStream(out, 1*time.Second)
 	s.Run(ctx)
 
@@ -62,7 +63,7 @@ func TestNDJson_HeartBeat(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	out := make(chan *NDJson)
+	out := make(chan *structs.NDJson)
 	s := NewNDJsonStream(out, 10*time.Millisecond)
 	s.Run(ctx)
 
