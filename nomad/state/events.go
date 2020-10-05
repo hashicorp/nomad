@@ -3,19 +3,18 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
-	TopicDeployment stream.Topic = "Deployment"
-	TopicEval       stream.Topic = "Eval"
-	TopicAlloc      stream.Topic = "Alloc"
-	TopicJob        stream.Topic = "Job"
+	TopicDeployment structs.Topic = "Deployment"
+	TopicEval       structs.Topic = "Eval"
+	TopicAlloc      structs.Topic = "Alloc"
+	TopicJob        structs.Topic = "Job"
 	// TopicNodeRegistration   stream.Topic = "NodeRegistration"
 	// TopicNodeDeregistration stream.Topic = "NodeDeregistration"
 	// TopicNodeDrain          stream.Topic = "NodeDrain"
-	TopicNode stream.Topic = "Node"
+	TopicNode structs.Topic = "Node"
 
 	// TODO(drew) Node Events use TopicNode + Type
 	TypeNodeRegistration   = "NodeRegistration"
@@ -73,7 +72,7 @@ type JobDrainDetails struct {
 	AllocDetails map[string]NodeDrainAllocDetails
 }
 
-func GenericEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
+func GenericEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
 	var eventType string
 	switch changes.MsgType {
 	case structs.EvalUpdateRequestType:
@@ -88,16 +87,16 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error
 		eventType = TypeNodeEvent
 	}
 
-	var events []stream.Event
+	var events []structs.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "evals":
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not an Evaluation")
+				return structs.Events{}, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicEval,
 				Type:  eventType,
 				Index: changes.Index,
@@ -112,10 +111,10 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error
 		case "allocs":
 			after, ok := change.After.(*structs.Allocation)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not an Allocation")
+				return structs.Events{}, fmt.Errorf("transaction change was not an Allocation")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicAlloc,
 				Type:  eventType,
 				Index: changes.Index,
@@ -129,10 +128,10 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error
 		case "jobs":
 			after, ok := change.After.(*structs.Job)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not an Allocation")
+				return structs.Events{}, fmt.Errorf("transaction change was not an Allocation")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicAlloc,
 				Type:  eventType,
 				Index: changes.Index,
@@ -146,10 +145,10 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error
 		case "nodes":
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not a Node")
+				return structs.Events{}, fmt.Errorf("transaction change was not a Node")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicNode,
 				Type:  eventType,
 				Index: changes.Index,
@@ -162,5 +161,5 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error
 		}
 	}
 
-	return stream.Events{Index: changes.Index, Events: events}, nil
+	return structs.Events{Index: changes.Index, Events: events}, nil
 }

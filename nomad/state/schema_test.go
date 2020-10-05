@@ -1,11 +1,11 @@
 package state
 
 import (
+	"github.com/hashicorp/nomad/nomad/structs"
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/stretchr/testify/require"
 )
 
@@ -178,26 +178,26 @@ func TestEventTableUintIndex(t *testing.T) {
 		return num
 	}
 
-	insertEvents := func(e *stream.Events) {
+	insertEvents := func(e *structs.Events) {
 		txn := db.Txn(true)
 		err := txn.Insert(eventsTable, e)
 		require.NoError(err)
 		txn.Commit()
 	}
 
-	get := func(idx uint64) *stream.Events {
+	get := func(idx uint64) *structs.Events {
 		txn := db.Txn(false)
 		defer txn.Abort()
 		record, err := txn.First("events", "id", idx)
 		require.NoError(err)
-		s, ok := record.(*stream.Events)
+		s, ok := record.(*structs.Events)
 		require.True(ok)
 		return s
 	}
 
-	firstEvent := &stream.Events{Index: 10, Events: []stream.Event{{Index: 10}, {Index: 10}}}
-	secondEvent := &stream.Events{Index: 11, Events: []stream.Event{{Index: 11}, {Index: 11}}}
-	thirdEvent := &stream.Events{Index: 202, Events: []stream.Event{{Index: 202}, {Index: 202}}}
+	firstEvent := &structs.Events{Index: 10, Events: []structs.Event{{Index: 10}, {Index: 10}}}
+	secondEvent := &structs.Events{Index: 11, Events: []structs.Event{{Index: 11}, {Index: 11}}}
+	thirdEvent := &structs.Events{Index: 202, Events: []structs.Event{{Index: 202}, {Index: 202}}}
 	insertEvents(firstEvent)
 	insertEvents(secondEvent)
 	insertEvents(thirdEvent)
