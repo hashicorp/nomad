@@ -22,4 +22,4 @@ echo $NOMAD_TOKEN > "${DIR}/../keys/nomad_root_token"
 nomad acl policy apply \
       -description "Anonymous policy (full-access)" \
       anonymous \
-      "${DIR}/anonymous.policy.hcl"
+      "${DIR}/anonymous.nomad_policy.hcl"

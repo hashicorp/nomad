@@ -182,7 +182,9 @@ if [ -n "$NOMAD_PROFILE" ]; then
 fi
 
 if [ $START == "1" ]; then
-    # sudo systemctl restart vault
+    if [ "$NOMAD_ROLE" == "server" ]; then
+        sudo systemctl restart vault
+    fi
     sudo systemctl restart consul
     sudo systemctl restart nomad
 fi

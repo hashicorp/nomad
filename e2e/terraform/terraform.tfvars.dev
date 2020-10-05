@@ -6,6 +6,7 @@ windows_client_count = "0"
 profile              = "dev-cluster"
 nomad_acls           = false
 nomad_enterprise     = false
+vault                = true
 
 # Example overrides:
 # nomad_local_binary = "../../pkg/linux_amd/nomad"
