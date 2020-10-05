@@ -17,7 +17,7 @@ func TestDeploymentUnblockCommand_Implements(t *testing.T) {
 
 func TestDeploymentUnblockCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &DeploymentUnblockCommand{Meta: Meta{Ui: ui}}
 
 	// Unblocks on misuse
@@ -45,7 +45,7 @@ func TestDeploymentUnblockCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &DeploymentUnblockCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake deployment

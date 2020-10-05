@@ -21,7 +21,7 @@ func TestJobPeriodicForceCommand_Implements(t *testing.T) {
 
 func TestJobPeriodicForceCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -43,7 +43,7 @@ func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job, not periodic
@@ -98,7 +98,7 @@ func TestJobPeriodicForceCommand_NonPeriodicJob(t *testing.T) {
 	// Register a job
 	j := testJob("job_not_periodic")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	resp, _, err := client.Jobs().Register(j, nil)
@@ -141,7 +141,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForceDetach(t *testing.T) {
 		TimeZone:        helper.StringToPtr("Europe/Minsk"),
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	_, _, err := client.Jobs().Register(j, nil)
@@ -183,7 +183,7 @@ func TestJobPeriodicForceCommand_SuccessfulPeriodicForce(t *testing.T) {
 		TimeZone:        helper.StringToPtr("Europe/Minsk"),
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPeriodicForceCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	_, _, err := client.Jobs().Register(j, nil)

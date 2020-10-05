@@ -20,7 +20,7 @@ func TestOperatorAutopilotSetConfigCommand(t *testing.T) {
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorAutopilotSetCommand{Meta: Meta{Ui: ui}}
 	args := []string{
 		"-address=" + addr,

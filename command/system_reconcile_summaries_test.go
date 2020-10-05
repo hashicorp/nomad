@@ -18,7 +18,7 @@ func TestSystemReconcileSummariesCommand_Good(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &SystemReconcileSummariesCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	if code := cmd.Run([]string{"-address=" + url}); code != 0 {

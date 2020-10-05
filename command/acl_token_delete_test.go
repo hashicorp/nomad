@@ -27,7 +27,7 @@ func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenDeleteCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	state := srv.Agent.Server().State()
 

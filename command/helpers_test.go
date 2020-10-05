@@ -51,7 +51,7 @@ func TestHelpers_NodeID(t *testing.T) {
 	srv, _, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	meta := Meta{Ui: new(cli.MockUi)}
+	meta := Meta{Ui: cli.NewMockUi()}
 	client, err := meta.Client()
 	if err != nil {
 		t.FailNow()

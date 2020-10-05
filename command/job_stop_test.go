@@ -20,7 +20,7 @@ func TestStopCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -57,7 +57,7 @@ func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStopCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job

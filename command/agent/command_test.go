@@ -65,7 +65,7 @@ func TestCommand_Args(t *testing.T) {
 	for _, tc := range tcases {
 		// Make a new command. We preemptively close the shutdownCh
 		// so that the command exits immediately instead of blocking.
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		shutdownCh := make(chan struct{})
 		close(shutdownCh)
 		cmd := &Command{
@@ -119,7 +119,7 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 
 		// Make a new command. We preemptively close the shutdownCh
 		// so that the command exits immediately instead of blocking.
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		shutdownCh := make(chan struct{})
 		close(shutdownCh)
 		cmd := &Command{

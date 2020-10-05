@@ -19,7 +19,7 @@ func TestServerMembersCommand_Run(t *testing.T) {
 	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Get our own node name
@@ -48,7 +48,7 @@ func TestServerMembersCommand_Run(t *testing.T) {
 
 func TestMembersCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -97,7 +97,7 @@ func TestServerMembersCommand_MultiRegion_Leave(t *testing.T) {
 	if _, err := srv2.Agent.Server().Join([]string{addr}); err != nil {
 		t.Fatalf("Join err: %v", err)
 	}
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Get our own node name

@@ -43,7 +43,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Should return blank for no jobs
@@ -220,7 +220,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 
 func TestJobStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -248,7 +248,7 @@ func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job
@@ -303,7 +303,7 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 
 	invalidToken := mock.ACLToken()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// registering a job without a token fails
@@ -353,7 +353,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	require := require.New(t)

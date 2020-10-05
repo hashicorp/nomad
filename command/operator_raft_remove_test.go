@@ -18,7 +18,7 @@ func TestOperator_Raft_RemovePeer(t *testing.T) {
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + addr, "-peer-address=nope", "-peer-id=nope"}
 
@@ -46,7 +46,7 @@ func TestOperator_Raft_RemovePeerAddress(t *testing.T) {
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + addr, "-peer-address=nope"}
 
@@ -65,7 +65,7 @@ func TestOperator_Raft_RemovePeerID(t *testing.T) {
 	s, _, addr := testServer(t, false, nil)
 	defer s.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorRaftRemoveCommand{Meta: Meta{Ui: ui}}
 	args := []string{"-address=" + addr, "-peer-id=nope"}
 

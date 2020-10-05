@@ -21,7 +21,7 @@ func TestNodeEligibilityCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeEligibilityCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -112,7 +112,7 @@ func TestNodeEligibilityCommand_AutocompleteArgs(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeEligibilityCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	prefix := nodeID[:len(nodeID)-5]

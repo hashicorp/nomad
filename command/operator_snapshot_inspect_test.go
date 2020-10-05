@@ -17,7 +17,7 @@ func TestOperatorSnapshotInspect_Works(t *testing.T) {
 
 	snapPath := generateSnapshotFile(t, nil)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{snapPath})
@@ -49,7 +49,7 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("not found", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "foo")})
@@ -58,7 +58,7 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 	})
 
 	t.Run("invalid file", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &OperatorSnapshotInspectCommand{Meta: Meta{Ui: ui}}
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "invalid.snap")})
@@ -90,7 +90,7 @@ func generateSnapshotFile(t *testing.T, prepare func(srv *agent.TestAgent, clien
 		prepare(srv, api, url)
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotSaveCommand{Meta: Meta{Ui: ui}}
 
 	dest := filepath.Join(tmpDir, "backup.snap")

@@ -23,7 +23,7 @@ func TestAllocRestartCommand_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	require := require.New(t)
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocRestartCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -113,7 +113,7 @@ func TestAllocRestartCommand_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocRestartCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"
@@ -157,7 +157,7 @@ func TestAllocRestartCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocRestartCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc

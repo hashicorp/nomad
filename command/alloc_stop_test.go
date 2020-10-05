@@ -21,7 +21,7 @@ func TestAllocStop_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	require := require.New(t)
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -73,7 +73,7 @@ func TestAllocStop_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStopCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"

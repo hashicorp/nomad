@@ -20,7 +20,7 @@ func TestInspectCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -66,7 +66,7 @@ func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobInspectCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	state := srv.Agent.Server().State()
