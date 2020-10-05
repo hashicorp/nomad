@@ -1454,3 +1454,25 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		NodesExpected:       len(plugin.Nodes),
 	}
 }
+
+func Events(index uint64) *structs.Events {
+	return &structs.Events{
+		Index: index,
+		Events: []structs.Event{
+			{
+				Index:   index,
+				Topic:   "Node",
+				Type:    "update",
+				Key:     uuid.Generate(),
+				Payload: Node(),
+			},
+			{
+				Index:   index,
+				Topic:   "Eval",
+				Type:    "update",
+				Key:     uuid.Generate(),
+				Payload: Eval(),
+			},
+		},
+	}
+}

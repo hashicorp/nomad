@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -95,10 +96,11 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 
 func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) *txn {
 	t := &txn{
-		msgType: msgType,
-		Txn:     c.db.Txn(true),
-		Index:   idx,
-		publish: c.publish,
+		msgType:        msgType,
+		Txn:            c.db.Txn(true),
+		Index:          idx,
+		publish:        c.publish,
+		persistChanges: c.durableEvents,
 	}
 	t.Txn.TrackChanges()
 	return t
@@ -173,6 +175,7 @@ func (tx *txn) Commit() error {
 		}
 
 		if tx.persistChanges {
+			spew.Dump("YO!")
 			// persist events after processing changes
 			err := tx.Txn.Insert("events", events)
 			if err != nil {

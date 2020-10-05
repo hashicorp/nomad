@@ -25,6 +25,8 @@ const (
 
 	// timeTableLimit is the maximum limit of our tracking
 	timeTableLimit = 72 * time.Hour
+
+	defaultDurableCount = 1000
 )
 
 // SnapshotType is prefixed to a record in the FSM snapshot
@@ -52,6 +54,7 @@ const (
 	CSIPluginSnapshot
 	CSIVolumeSnapshot
 	ScalingEventsSnapshot
+	EventSnapshot
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -1268,8 +1271,11 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 	// Create a new state store
 	config := &state.StateStoreConfig{
-		Logger: n.config.Logger,
-		Region: n.config.Region,
+		Logger:          n.config.Logger,
+		Region:          n.config.Region,
+		EnablePublisher: n.config.EnableEventPublisher,
+		// TODO(drew) plumb cfg
+		EnableDurability: true,
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {
@@ -1513,7 +1519,14 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := restore.CSIVolumeRestore(plugin); err != nil {
 				return err
 			}
-
+		case EventSnapshot:
+			event := new(structs.Events)
+			if err := dec.Decode(event); err != nil {
+				return err
+			}
+			if err := restore.EventRestore(event); err != nil {
+				return err
+			}
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1548,6 +1561,24 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 	// blocking queries won't see any changes and need to be woken up.
 	stateOld.Abandon()
 
+	// Rehydrate the new state store's event publisher with the events
+	// persisted in the snapshot
+	// pub, err := n.state.EventPublisher()
+	// if err != nil {
+	// 	n.logger.Warn("Snapshot Restore: new state event publisher not configured")
+	// }
+	// events, err := n.state.Events(nil)
+	// if err != nil {
+	// 	n.logger.Warn("Snapshot Restore: unable to retrieve current events")
+	// }
+	// for {
+	// 	raw := events.Next()
+	// 	if raw == nil {
+	// 		break
+	// 	}
+	// 	e := raw.(*structs.Events)
+	// 	pub.Publish(e)
+	// }
 	return nil
 }
 
@@ -1822,6 +1853,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistClusterMetadata(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistEvents(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2323,6 +2358,47 @@ func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
 		sink.Write([]byte{byte(CSIVolumeSnapshot)})
 		if err := encoder.Encode(volume); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistEvents(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	var durableCount int
+	if s.snap.Config() != nil && !s.snap.Config().EnableDurability {
+		return nil
+	} else {
+		durableCount = s.snap.Config().DurableCount
+	}
+
+	events, err := s.snap.LatestEventsReverse(nil)
+	if err != nil {
+		return err
+	}
+
+	count := 0
+	for {
+		// Get the next item
+		raw := events.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		event := raw.(*structs.Events)
+
+		eventCount := len(event.Events)
+
+		// Write out a volume snapshot
+		sink.Write([]byte{byte(EventSnapshot)})
+		if err := encoder.Encode(event); err != nil {
+			return err
+		}
+		count += eventCount
+
+		// Only write to sink until durableCount has been reached
+		if count >= durableCount {
+			return nil
 		}
 	}
 	return nil
