@@ -11,7 +11,7 @@ IMPROVEMENTS:
  * jobspec: Lowered minimum CPU allowed from 10 to 1. [[GH-8996](https://github.com/hashicorp/nomad/issues/8996)]
 
 __BACKWARDS INCOMPATIBILITIES:__
- * core: job IDs, task group names, and task names are not allowed to contain null characters [[GH-9020](https://github.com/hashicorp/nomad/issues/9020)]
+ * core: null characters are prohibited in region, datacenter, job name/ID, task group name, and task name [[GH-9020](https://github.com/hashicorp/nomad/issues/9020)]
  * driver/docker: Tasks are now issued SIGTERM instead of SIGINT when stopping [[GH-8932](https://github.com/hashicorp/nomad/issues/8932)]
 
 BUG FIXES:

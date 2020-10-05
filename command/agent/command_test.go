@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
+
+	"github.com/hashicorp/nomad/version"
 )
 
 func TestCommand_Implements(t *testing.T) {
@@ -139,6 +140,104 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 		out := ui.ErrorWriter.String()
 		if !strings.Contains(out, expect) {
 			t.Fatalf("expect to find %q\n\n%s", expect, out)
+		}
+	}
+}
+
+func TestCommand_NullCharInDatacenter(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tcases := []string{
+		"char-\\000-in-the-middle",
+		"ends-with-\\000",
+		"\\000-at-the-beginning",
+	}
+	for _, tc := range tcases {
+		configFile := filepath.Join(tmpDir, "conf1.hcl")
+		err = ioutil.WriteFile(configFile, []byte(`
+        datacenter = "`+tc+`"
+        client{
+			enabled = true
+    	}`), 0600)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		// Make a new command. We preemptively close the shutdownCh
+		// so that the command exits immediately instead of blocking.
+		ui := cli.NewMockUi()
+		shutdownCh := make(chan struct{})
+		close(shutdownCh)
+		cmd := &Command{
+			Version:    version.GetVersion(),
+			Ui:         ui,
+			ShutdownCh: shutdownCh,
+		}
+
+		// To prevent test failures on hosts whose hostname resolves to
+		// a loopback address, we must append a bind address
+		args := []string{"-client", "-data-dir=" + tmpDir, "-config=" + configFile, "-bind=169.254.0.1"}
+		if code := cmd.Run(args); code != 1 {
+			t.Fatalf("args: %v\nexit: %d\n", args, code)
+		}
+
+		out := ui.ErrorWriter.String()
+		exp := "Datacenter contains invalid characters"
+		if !strings.Contains(out, exp) {
+			t.Fatalf("expect to find %q\n\n%s", exp, out)
+		}
+	}
+}
+
+func TestCommand_NullCharInRegion(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "nomad")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tcases := []string{
+		"char-\\000-in-the-middle",
+		"ends-with-\\000",
+		"\\000-at-the-beginning",
+	}
+	for _, tc := range tcases {
+		configFile := filepath.Join(tmpDir, "conf1.hcl")
+		err = ioutil.WriteFile(configFile, []byte(`
+        region = "`+tc+`"
+        client{
+			enabled = true
+    	}`), 0600)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		// Make a new command. We preemptively close the shutdownCh
+		// so that the command exits immediately instead of blocking.
+		ui := cli.NewMockUi()
+		shutdownCh := make(chan struct{})
+		close(shutdownCh)
+		cmd := &Command{
+			Version:    version.GetVersion(),
+			Ui:         ui,
+			ShutdownCh: shutdownCh,
+		}
+
+		// To prevent test failures on hosts whose hostname resolves to
+		// a loopback address, we must append a bind address
+		args := []string{"-client", "-data-dir=" + tmpDir, "-config=" + configFile, "-bind=169.254.0.1"}
+		if code := cmd.Run(args); code != 1 {
+			t.Fatalf("args: %v\nexit: %d\n", args, code)
+		}
+
+		out := ui.ErrorWriter.String()
+		exp := "Region contains invalid characters"
+		if !strings.Contains(out, exp) {
+			t.Fatalf("expect to find %q\n\n%s", exp, out)
 		}
 	}
 }

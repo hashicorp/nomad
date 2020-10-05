@@ -178,8 +178,13 @@ func TestJob_ValidateNullChar(t *testing.T) {
 	job.ID = "id_with\000null_character"
 	assert.Error(job.Validate(), "null character in job ID should not validate")
 
-	// task group name should not allow null characters
+	// job name should not allow null characters
 	job.ID = "happy_little_job_id"
+	job.Name = "my job name with \000 characters"
+	assert.Error(job.Validate(), "null character in job name should not validate")
+
+	// task group name should not allow null characters
+	job.Name = "my job"
 	job.TaskGroups[0].Name = "oh_no_another_\000_char"
 	assert.Error(job.Validate(), "null character in task group name should not validate")
 

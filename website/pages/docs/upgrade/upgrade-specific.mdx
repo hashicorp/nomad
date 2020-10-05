@@ -24,11 +24,13 @@ When stopping tasks running with the Docker task driver, Nomad documents that a
 versions of Nomad would issue `SIGINT` instead. Starting again with Nomad v0.13.0
 `SIGTERM` will be sent by default when stopping Docker tasks.
 
-### Null characters in job, task group, and task IDs
+### Null characters in region, datacenter, job name/ID, task group name, and task names
 
-Starting with Nomad v0.13.0, job will fail validation if any of the following
-contain null character: the job ID, the task group name, or the task name. Any
-jobs meeting this requirement should be modified before an update to v0.13.0.
+Starting with Nomad v0.13.0, jobs will fail validation if any of the following
+contain null character: the job ID or name, the task group name, or the task name. Any
+jobs meeting this requirement should be modified before an update to v0.13.0. Similarly,
+client and server config validation will prohibit either the region or the datacenter
+from containing null characters.
 
 ## Nomad 0.12.0
 
