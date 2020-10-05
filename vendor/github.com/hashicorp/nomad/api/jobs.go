@@ -715,7 +715,7 @@ type MultiregionRegion struct {
 type PeriodicConfig struct {
 	Enabled         *bool   `hcl:"enabled,optional"`
 	Spec            *string `hcl:"cron,optional"`
-	SpecType        *string `hcl:"spec_type,optional"`
+	SpecType        *string
 	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
 	TimeZone        *string `mapstructure:"time_zone" hcl:"time_zone,optional"`
 }
