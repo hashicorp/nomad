@@ -209,6 +209,17 @@ job: {{ env "NOMAD_JOB_NAME" }}
 				}
 				return servers == 3
 			}, nil), "expected 3 upstream servers")
+
+		// verify noop was honored: no additional restarts
+		out, err := e2e.Command("nomad", "alloc", "status", allocID)
+		f.NoError(err, "could not get allocation status")
+
+		section, err := e2e.GetSection(out, "Task Events:")
+		f.NoError(err, out)
+
+		restarts, err := e2e.GetField(section, "Total Restarts")
+		f.NoError(err)
+		f.Equal("1", restarts, "expected no new restarts for group")
 	}
 }
 
