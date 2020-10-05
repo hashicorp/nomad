@@ -262,6 +262,7 @@
       "deployment_gc_threshold": "12h",
       "enabled": true,
       "enable_event_publisher": true,
+      "durable_event_count": 100,
       "enabled_schedulers": [
         "test"
       ],
