@@ -6231,6 +6231,22 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
+func (l *LogConfig) Equals(o *LogConfig) bool {
+	if l == nil || o == nil {
+		return l == o
+	}
+
+	if l.MaxFiles != o.MaxFiles {
+		return false
+	}
+
+	if l.MaxFileSizeMB != o.MaxFileSizeMB {
+		return false
+	}
+
+	return true
+}
+
 func (l *LogConfig) Copy() *LogConfig {
 	if l == nil {
 		return nil

@@ -2123,6 +2123,38 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 	}
 }
 
+func TestLogConfig_Equals(t *testing.T) {
+	t.Run("both nil", func(t *testing.T) {
+		a := (*LogConfig)(nil)
+		b := (*LogConfig)(nil)
+		require.True(t, a.Equals(b))
+	})
+
+	t.Run("one nil", func(t *testing.T) {
+		a := new(LogConfig)
+		b := (*LogConfig)(nil)
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("max files", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		b := &LogConfig{MaxFiles: 2, MaxFileSizeMB: 200}
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("max file size", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 100}
+		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("same", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		require.True(t, a.Equals(b))
+	})
+}
+
 func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 	table := []struct {
 		name        string

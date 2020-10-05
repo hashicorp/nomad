@@ -691,6 +691,85 @@ func TestTasksUpdated(t *testing.T) {
 	require.True(t, tasksUpdated(j19, j20, name))
 }
 
+func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
+	servicesA := []*structs.Service{{
+		Name:      "service1",
+		PortLabel: "1111",
+		Connect: &structs.ConsulConnect{
+			SidecarService: &structs.ConsulSidecarService{
+				Tags: []string{"a"},
+			},
+		},
+	}}
+
+	t.Run("service not updated", func(t *testing.T) {
+		servicesB := []*structs.Service{{
+			Name: "service0",
+		}, {
+			Name:      "service1",
+			PortLabel: "1111",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Tags: []string{"a"},
+				},
+			},
+		}, {
+			Name: "service2",
+		}}
+		updated := connectServiceUpdated(servicesA, servicesB)
+		require.False(t, updated)
+	})
+
+	t.Run("service connect tags updated", func(t *testing.T) {
+		servicesB := []*structs.Service{{
+			Name: "service0",
+		}, {
+			Name:      "service1",
+			PortLabel: "1111",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Tags: []string{"b"}, // in-place update
+				},
+			},
+		}}
+		updated := connectServiceUpdated(servicesA, servicesB)
+		require.False(t, updated)
+	})
+
+	t.Run("service connect port updated", func(t *testing.T) {
+		servicesB := []*structs.Service{{
+			Name: "service0",
+		}, {
+			Name:      "service1",
+			PortLabel: "1111",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Tags: []string{"a"},
+					Port: "2222", // destructive update
+				},
+			},
+		}}
+		updated := connectServiceUpdated(servicesA, servicesB)
+		require.True(t, updated)
+	})
+
+	t.Run("service port label updated", func(t *testing.T) {
+		servicesB := []*structs.Service{{
+			Name: "service0",
+		}, {
+			Name:      "service1",
+			PortLabel: "1112", // destructive update
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{
+					Tags: []string{"1"},
+				},
+			},
+		}}
+		updated := connectServiceUpdated(servicesA, servicesB)
+		require.True(t, updated)
+	})
+}
+
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
