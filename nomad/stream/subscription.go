@@ -3,11 +3,13 @@ package stream
 import (
 	"context"
 	"errors"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"sync/atomic"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
+	AllKeys = "*"
 	// subscriptionStateOpen is the default state of a subscription. An open
 	// subscription may receive new events.
 	subscriptionStateOpen uint32 = 0
