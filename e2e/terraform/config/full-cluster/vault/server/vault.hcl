@@ -10,6 +10,6 @@ seal "awskms" {
   kms_key_id = "74b7e226-c745-4ddd-9b7f-2371024ee37d"
 }
 
-# Vault doesn't have autodiscovery for retry_join on its
+# Vault 1.5.4 doesn't have autodiscovery for retry_join on its
 # integrated storage yet so we'll just use consul for storage
 storage "consul" {}

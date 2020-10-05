@@ -62,7 +62,3 @@ resource "null_resource" "nomad_vault_config" {
     private_key = file("${path.root}/keys/${local.random_name}.pem")
   }
 }
-
-
-#    2020-10-02T15:32:53.298Z [ERROR] nomad.vault: failed to validate self token/role: retry=30s error="1 error occurred:
-#        * Role must have a non-zero period to make tokens periodic.
