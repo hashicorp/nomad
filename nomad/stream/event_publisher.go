@@ -2,9 +2,10 @@ package stream
 
 import (
 	"context"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -136,11 +137,6 @@ func (e *EventPublisher) periodicPrune(ctx context.Context) {
 			e.lock.Unlock()
 		}
 	}
-}
-
-type changeEvents struct {
-	index  uint64
-	events []structs.Event
 }
 
 // sendEvents sends the given events to the publishers event buffer.

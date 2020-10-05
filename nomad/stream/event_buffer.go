@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"sync/atomic"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // eventBuffer is a single-writer, multiple-reader, fixed length concurrent

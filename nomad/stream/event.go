@@ -1,6 +1,0 @@
-package stream
-
-const (
-	AllKeys = "*"
-)
-

@@ -25,8 +25,6 @@ const (
 
 	// timeTableLimit is the maximum limit of our tracking
 	timeTableLimit = 72 * time.Hour
-
-	defaultDurableCount = 1000
 )
 
 // SnapshotType is prefixed to a record in the FSM snapshot
