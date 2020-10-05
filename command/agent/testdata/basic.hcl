@@ -131,6 +131,7 @@ server {
   encrypt                       = "abc"
   raft_multiplier               = 4
   enable_event_publisher        = true
+  durable_event_count           = 100
 
   server_join {
     retry_join     = ["1.1.1.1", "2.2.2.2"]
