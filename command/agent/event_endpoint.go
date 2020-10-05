@@ -13,7 +13,6 @@ import (
 
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -134,12 +133,12 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	return nil, codedErr
 }
 
-func parseEventTopics(query url.Values) (map[stream.Topic][]string, error) {
+func parseEventTopics(query url.Values) (map[structs.Topic][]string, error) {
 	raw, ok := query["topic"]
 	if !ok {
 		return allTopics(), nil
 	}
-	topics := make(map[stream.Topic][]string)
+	topics := make(map[structs.Topic][]string)
 
 	for _, topic := range raw {
 		k, v, err := parseTopic(topic)
@@ -147,10 +146,10 @@ func parseEventTopics(query url.Values) (map[stream.Topic][]string, error) {
 			return nil, fmt.Errorf("error parsing topics: %w", err)
 		}
 
-		if topics[stream.Topic(k)] == nil {
-			topics[stream.Topic(k)] = []string{v}
+		if topics[structs.Topic(k)] == nil {
+			topics[structs.Topic(k)] = []string{v}
 		} else {
-			topics[stream.Topic(k)] = append(topics[stream.Topic(k)], v)
+			topics[structs.Topic(k)] = append(topics[structs.Topic(k)], v)
 		}
 	}
 	return topics, nil
@@ -164,6 +163,6 @@ func parseTopic(topic string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-func allTopics() map[stream.Topic][]string {
-	return map[stream.Topic][]string{"*": {"*"}}
+func allTopics() map[structs.Topic][]string {
+	return map[structs.Topic][]string{"*": {"*"}}
 }

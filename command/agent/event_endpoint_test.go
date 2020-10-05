@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +38,7 @@ func TestEventStream(t *testing.T) {
 
 		pub, err := s.Agent.server.State().EventPublisher()
 		require.NoError(t, err)
-		pub.Publish(stream.Events{Index: 100, Events: []stream.Event{{Payload: testEvent{ID: "123"}}}})
+		pub.Publish(structs.Events{Index: 100, Events: []structs.Event{{Payload: testEvent{ID: "123"}}}})
 
 		testutil.WaitForResult(func() (bool, error) {
 			got := resp.Body.String()
@@ -72,20 +72,20 @@ func TestEventStream_QueryParse(t *testing.T) {
 	cases := []struct {
 		desc    string
 		query   string
-		want    map[stream.Topic][]string
+		want    map[structs.Topic][]string
 		wantErr bool
 	}{
 		{
 			desc:  "all topics and keys specified",
 			query: "?topic=*:*",
-			want: map[stream.Topic][]string{
+			want: map[structs.Topic][]string{
 				"*": {"*"},
 			},
 		},
 		{
 			desc:  "all topics and keys inferred",
 			query: "",
-			want: map[stream.Topic][]string{
+			want: map[structs.Topic][]string{
 				"*": {"*"},
 			},
 		},
@@ -102,14 +102,14 @@ func TestEventStream_QueryParse(t *testing.T) {
 		{
 			desc:  "single topic and key",
 			query: "?topic=NodeDrain:*",
-			want: map[stream.Topic][]string{
+			want: map[structs.Topic][]string{
 				"NodeDrain": {"*"},
 			},
 		},
 		{
 			desc:  "single topic multiple keys",
 			query: "?topic=NodeDrain:*&topic=NodeDrain:3caace09-f1f4-4d23-b37a-9ab5eb75069d",
-			want: map[stream.Topic][]string{
+			want: map[structs.Topic][]string{
 				"NodeDrain": {
 					"*",
 					"3caace09-f1f4-4d23-b37a-9ab5eb75069d",
@@ -119,7 +119,7 @@ func TestEventStream_QueryParse(t *testing.T) {
 		{
 			desc:  "multiple topics",
 			query: "?topic=NodeRegister:*&topic=NodeDrain:3caace09-f1f4-4d23-b37a-9ab5eb75069d",
-			want: map[stream.Topic][]string{
+			want: map[structs.Topic][]string{
 				"NodeDrain": {
 					"3caace09-f1f4-4d23-b37a-9ab5eb75069d",
 				},

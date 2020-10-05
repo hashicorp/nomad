@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"sync"
 	"time"
 
@@ -36,7 +37,7 @@ type EventPublisher struct {
 	// publishCh is used to send messages from an active txn to a goroutine which
 	// publishes events, so that publishing can happen asynchronously from
 	// the Commit call in the FSM hot path.
-	publishCh chan Events
+	publishCh chan structs.Events
 }
 
 type subscriptions struct {
@@ -65,7 +66,7 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 	e := &EventPublisher{
 		logger:    cfg.Logger.Named("event_publisher"),
 		eventBuf:  buffer,
-		publishCh: make(chan Events, 64),
+		publishCh: make(chan structs.Events, 64),
 		subscriptions: &subscriptions{
 			byToken: make(map[string]map[*SubscribeRequest]*Subscription),
 		},
@@ -79,7 +80,7 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 }
 
 // Publish events to all subscribers of the event Topic.
-func (e *EventPublisher) Publish(events Events) {
+func (e *EventPublisher) Publish(events structs.Events) {
 	if len(events.Events) > 0 {
 		e.publishCh <- events
 	}
@@ -102,7 +103,7 @@ func (e *EventPublisher) Subscribe(req *SubscribeRequest) (*Subscription, error)
 	}
 
 	// Empty head so that calling Next on sub
-	start := newBufferItem(Events{Index: req.Index})
+	start := newBufferItem(structs.Events{Index: req.Index})
 	start.link.next.Store(head)
 	close(start.link.ch)
 
@@ -139,11 +140,11 @@ func (e *EventPublisher) periodicPrune(ctx context.Context) {
 
 type changeEvents struct {
 	index  uint64
-	events []Event
+	events []structs.Event
 }
 
 // sendEvents sends the given events to the publishers event buffer.
-func (e *EventPublisher) sendEvents(update Events) {
+func (e *EventPublisher) sendEvents(update structs.Events) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 

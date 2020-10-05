@@ -3,12 +3,11 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes Changes) (stream.Events, error) {
-	var events []stream.Event
+func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes Changes) (structs.Events, error) {
+	var events []structs.Event
 
 	var eventType string
 	switch msgType {
@@ -25,10 +24,10 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		case "deployment":
 			after, ok := change.After.(*structs.Deployment)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not a Deployment")
+				return structs.Events{}, fmt.Errorf("transaction change was not a Deployment")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic:      TopicDeployment,
 				Type:       eventType,
 				Index:      changes.Index,
@@ -43,10 +42,10 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		case "jobs":
 			after, ok := change.After.(*structs.Job)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not a Job")
+				return structs.Events{}, fmt.Errorf("transaction change was not a Job")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicJob,
 				Type:  eventType,
 				Index: changes.Index,
@@ -62,10 +61,10 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		case "evals":
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not an Evaluation")
+				return structs.Events{}, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic:      TopicEval,
 				Type:       eventType,
 				Index:      changes.Index,
@@ -80,5 +79,5 @@ func DeploymentEventFromChanges(msgType structs.MessageType, tx ReadTxn, changes
 		}
 	}
 
-	return stream.Events{Index: changes.Index, Events: events}, nil
+	return structs.Events{Index: changes.Index, Events: events}, nil
 }

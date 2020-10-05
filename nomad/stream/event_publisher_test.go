@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 
 func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
 	subscription := &SubscribeRequest{
-		Topics: map[Topic][]string{
+		Topics: map[structs.Topic][]string{
 			"Test": []string{"sub-key"},
 		},
 	}
@@ -25,35 +26,35 @@ func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
 	// Now subscriber should block waiting for updates
 	assertNoResult(t, eventCh)
 
-	events := []Event{{
+	events := []structs.Event{{
 		Index:   1,
 		Topic:   "Test",
 		Key:     "sub-key",
 		Payload: "sample payload",
 	}}
-	publisher.Publish(Events{Index: 1, Events: events})
+	publisher.Publish(structs.Events{Index: 1, Events: events})
 
 	// Subscriber should see the published event
 	result := nextResult(t, eventCh)
 	require.NoError(t, result.Err)
-	expected := []Event{{Payload: "sample payload", Key: "sub-key", Topic: "Test", Index: 1}}
+	expected := []structs.Event{{Payload: "sample payload", Key: "sub-key", Topic: "Test", Index: 1}}
 	require.Equal(t, expected, result.Events)
 
 	// Now subscriber should block waiting for updates
 	assertNoResult(t, eventCh)
 
 	// Publish a second event
-	events = []Event{{
+	events = []structs.Event{{
 		Index:   2,
 		Topic:   "Test",
 		Key:     "sub-key",
 		Payload: "sample payload 2",
 	}}
-	publisher.Publish(Events{Index: 2, Events: events})
+	publisher.Publish(structs.Events{Index: 2, Events: events})
 
 	result = nextResult(t, eventCh)
 	require.NoError(t, result.Err)
-	expected = []Event{{Payload: "sample payload 2", Key: "sub-key", Topic: "Test", Index: 2}}
+	expected = []structs.Event{{Payload: "sample payload 2", Key: "sub-key", Topic: "Test", Index: 2}}
 	require.Equal(t, expected, result.Events)
 }
 
@@ -98,7 +99,7 @@ func consumeSubscription(ctx context.Context, sub *Subscription) <-chan subNextR
 }
 
 type subNextResult struct {
-	Events []Event
+	Events []structs.Event
 	Err    error
 }
 

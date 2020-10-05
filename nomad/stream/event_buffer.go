@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"sync/atomic"
 	"time"
 )
@@ -60,7 +61,7 @@ func newEventBuffer(size int64, maxItemTTL time.Duration) *eventBuffer {
 		maxItemTTL: maxItemTTL,
 	}
 
-	item := newBufferItem(Events{Index: 0, Events: nil})
+	item := newBufferItem(structs.Events{Index: 0, Events: nil})
 
 	b.head.Store(item)
 	b.tail.Store(item)
@@ -73,7 +74,7 @@ func newEventBuffer(size int64, maxItemTTL time.Duration) *eventBuffer {
 // mutations to the events as they may have been exposed to subscribers in other
 // goroutines. Append only supports a single concurrent caller and must be
 // externally synchronized with other Append, AppendBuffer or AppendErr calls.
-func (b *eventBuffer) Append(events Events) {
+func (b *eventBuffer) Append(events structs.Events) {
 	b.appendItem(newBufferItem(events))
 }
 
@@ -200,7 +201,7 @@ type bufferItem struct {
 	// should check and skip nil Events at any point in the buffer. It will also
 	// be nil if the producer appends an Error event because they can't complete
 	// the request to populate the buffer. Err will be non-nil in this case.
-	Events []Event
+	Events []structs.Event
 
 	Index uint64
 
@@ -237,7 +238,7 @@ type bufferLink struct {
 
 // newBufferItem returns a blank buffer item with a link and chan ready to have
 // the fields set and be appended to a buffer.
-func newBufferItem(events Events) *bufferItem {
+func newBufferItem(events structs.Events) *bufferItem {
 	return &bufferItem{
 		link: &bufferLink{
 			ch:        make(chan struct{}),

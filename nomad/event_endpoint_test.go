@@ -28,7 +28,7 @@ func TestEventStream(t *testing.T) {
 
 	// Create request for all topics and keys
 	req := structs.EventStreamRequest{
-		Topics: map[stream.Topic][]string{"*": []string{"*"}},
+		Topics: map[structs.Topic][]string{"*": []string{"*"}},
 		QueryOptions: structs.QueryOptions{
 			Region: s1.Region(),
 		},
@@ -68,7 +68,7 @@ func TestEventStream(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(stream.Events{Index: uint64(1), Events: []stream.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
 
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(t, encoder.Encode(req))
@@ -91,7 +91,7 @@ OUTER:
 				continue
 			}
 
-			var event stream.Events
+			var event structs.Events
 			err = json.Unmarshal(msg.Event.Data, &event)
 			require.NoError(t, err)
 
@@ -123,7 +123,7 @@ func TestEventStream_StreamErr(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	req := structs.EventStreamRequest{
-		Topics: map[stream.Topic][]string{"*": {"*"}},
+		Topics: map[structs.Topic][]string{"*": {"*"}},
 		QueryOptions: structs.QueryOptions{
 			Region: s1.Region(),
 		},
@@ -160,7 +160,7 @@ func TestEventStream_StreamErr(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(stream.Events{uint64(1), []stream.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
@@ -210,7 +210,7 @@ func TestEventStream_RegionForward(t *testing.T) {
 
 	// Create request targed for region foo
 	req := structs.EventStreamRequest{
-		Topics: map[stream.Topic][]string{"*": {"*"}},
+		Topics: map[structs.Topic][]string{"*": {"*"}},
 		QueryOptions: structs.QueryOptions{
 			Region: "foo",
 		},
@@ -249,7 +249,7 @@ func TestEventStream_RegionForward(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(stream.Events{uint64(1), []stream.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
@@ -272,7 +272,7 @@ OUTER:
 				continue
 			}
 
-			var event stream.Events
+			var event structs.Events
 			err = json.Unmarshal(msg.Event.Data, &event)
 			require.NoError(t, err)
 

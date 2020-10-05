@@ -38,7 +38,7 @@ type changeTrackerDB struct {
 	durableEvents  bool
 	durableCount   int
 	publisher      *stream.EventPublisher
-	processChanges func(ReadTxn, Changes) (stream.Events, error)
+	processChanges func(ReadTxn, Changes) (structs.Events, error)
 }
 
 // ChangeConfig
@@ -61,9 +61,9 @@ func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, chang
 	}
 }
 
-type changeProcessor func(ReadTxn, Changes) (stream.Events, error)
+type changeProcessor func(ReadTxn, Changes) (structs.Events, error)
 
-func noOpProcessChanges(ReadTxn, Changes) (stream.Events, error) { return stream.Events{}, nil }
+func noOpProcessChanges(ReadTxn, Changes) (structs.Events, error) { return structs.Events{}, nil }
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn
@@ -106,13 +106,13 @@ func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) 
 	return t
 }
 
-func (c *changeTrackerDB) publish(changes Changes) (stream.Events, error) {
+func (c *changeTrackerDB) publish(changes Changes) (structs.Events, error) {
 	readOnlyTx := c.db.Txn(false)
 	defer readOnlyTx.Abort()
 
 	events, err := c.processChanges(readOnlyTx, changes)
 	if err != nil {
-		return stream.Events{}, fmt.Errorf("failed generating events from changes: %v", err)
+		return structs.Events{}, fmt.Errorf("failed generating events from changes: %v", err)
 	}
 
 	c.publisher.Publish(events)
@@ -150,7 +150,7 @@ type txn struct {
 	// Index is stored so that it may be passed along to any subscribers as part
 	// of a change event.
 	Index   uint64
-	publish func(changes Changes) (stream.Events, error)
+	publish func(changes Changes) (structs.Events, error)
 }
 
 // Commit first pushes changes to EventPublisher, then calls Commit on the
@@ -195,11 +195,11 @@ func (tx *txn) MsgType() structs.MessageType {
 	return tx.msgType
 }
 
-func processDBChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
+func processDBChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
 	switch changes.MsgType {
 	case structs.IgnoreUnknownTypeFlag:
 		// unknown event type
-		return stream.Events{}, nil
+		return structs.Events{}, nil
 	case structs.NodeRegisterRequestType:
 		return NodeRegisterEventFromChanges(tx, changes)
 	case structs.NodeUpdateStatusRequestType:
@@ -230,5 +230,5 @@ func processDBChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
 		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
 	}
-	return stream.Events{}, nil
+	return structs.Events{}, nil
 }

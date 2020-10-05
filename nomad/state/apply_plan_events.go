@@ -3,21 +3,20 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (stream.Events, error) {
-	var events []stream.Event
+func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
+	var events []structs.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "deployment":
 			after, ok := change.After.(*structs.Deployment)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not a Deployment")
+				return structs.Events{}, fmt.Errorf("transaction change was not a Deployment")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicDeployment,
 				Type:  TypeDeploymentUpdate,
 				Index: changes.Index,
@@ -30,10 +29,10 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (stream.Event
 		case "evals":
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not an Evaluation")
+				return structs.Events{}, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicEval,
 				Index: changes.Index,
 				Key:   after.ID,
@@ -46,7 +45,7 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (stream.Event
 		case "allocs":
 			after, ok := change.After.(*structs.Allocation)
 			if !ok {
-				return stream.Events{}, fmt.Errorf("transaction change was not an Allocation")
+				return structs.Events{}, fmt.Errorf("transaction change was not an Allocation")
 			}
 			before := change.Before
 			var msg string
@@ -56,7 +55,7 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (stream.Event
 				msg = TypeAllocUpdated
 			}
 
-			event := stream.Event{
+			event := structs.Event{
 				Topic: TopicAlloc,
 				Type:  msg,
 				Index: changes.Index,
@@ -70,5 +69,5 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (stream.Event
 		}
 	}
 
-	return stream.Events{Index: changes.Index, Events: events}, nil
+	return structs.Events{Index: changes.Index, Events: events}, nil
 }

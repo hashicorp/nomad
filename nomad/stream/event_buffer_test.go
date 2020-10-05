@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"math/rand"
 	"testing"
 	"time"
@@ -31,10 +32,10 @@ func TestEventBufferFuzz(t *testing.T) {
 		for i := 0; i < nMessages; i++ {
 			// Event content is arbitrary and not valid for our use of buffers in
 			// streaming - here we only care about the semantics of the buffer.
-			e := Event{
+			e := structs.Event{
 				Index: uint64(i), // Indexes should be contiguous
 			}
-			b.Append(Events{Index: uint64(i), Events: []Event{e}})
+			b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 			// Sleep sometimes for a while to let some subscribers catch up
 			wait := time.Duration(z.Uint64()) * time.Millisecond
 			time.Sleep(wait)
@@ -87,19 +88,19 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 	b := newEventBuffer(10, DefaultTTL)
 
 	for i := 0; i < 10; i++ {
-		e := Event{
+		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(Events{uint64(i), []Event{e}})
+		b.Append(structs.Events{uint64(i), []structs.Event{e}})
 	}
 
 	head := b.Head()
 
 	for i := 10; i < 15; i++ {
-		e := Event{
+		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(Events{uint64(i), []Event{e}})
+		b.Append(structs.Events{uint64(i), []structs.Event{e}})
 	}
 
 	// Ensure the slow reader errors to handle dropped events and
@@ -116,10 +117,10 @@ func TestEventBuffer_Size(t *testing.T) {
 	b := newEventBuffer(100, DefaultTTL)
 
 	for i := 0; i < 10; i++ {
-		e := Event{
+		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(Events{uint64(i), []Event{e}})
+		b.Append(structs.Events{uint64(i), []structs.Event{e}})
 	}
 
 	require.Equal(t, 10, b.Len())
@@ -132,10 +133,10 @@ func TestEventBuffer_Prune_AllOld(t *testing.T) {
 	b := newEventBuffer(100, 1*time.Second)
 
 	for i := 0; i < 10; i++ {
-		e := Event{
+		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(Events{uint64(i), []Event{e}})
+		b.Append(structs.Events{uint64(i), []structs.Event{e}})
 	}
 
 	require.Equal(t, 10, int(b.Len()))
@@ -185,10 +186,10 @@ func TestStartAt_CurrentIdx_Past_Start(t *testing.T) {
 	b := newEventBuffer(100, 1*time.Hour)
 
 	for i := 11; i <= 100; i++ {
-		e := Event{
+		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(Events{uint64(i), []Event{e}})
+		b.Append(structs.Events{uint64(i), []structs.Event{e}})
 	}
 
 	for _, tc := range cases {
