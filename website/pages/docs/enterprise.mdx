@@ -68,9 +68,9 @@ Governance & Policy features are part of an add-on module that enables an organi
 
 Secure clusters with enhanced risk management and operational traceability to fulfill compliance requirements. This Enterprise feature provides administrators with a complete set of records for all user-issued actions in Nomad.
 
-With Audit Logging, enterprises can now proactively identify access anomalies, ensure enforcement of their security policies, and diagnose cluster behavior by viewing preceding user operations.  Designed as an HTTP API based audit logging system, each audit event is captured with relevant request and response information in a JSON format that is easily digestibile and familiar to operators.
+With Audit Logging, enterprises can now proactively identify access anomalies, ensure enforcement of their security policies, and diagnose cluster behavior by viewing preceding user operations. Designed as an HTTP API based audit logging system, each audit event is captured with relevant request and response information in a JSON format that is easily digestibile and familiar to operators.
 
-See the [Audit Logging Documentation](/docs/configuration/audit) for a  thorough overview.
+See the [Audit Logging Documentation](/docs/configuration/audit) for a thorough overview.
 
 ### Namespaces
 
@@ -95,6 +95,7 @@ In Nomad Enterprise, operators can create Sentinel policies for fine-grained pol
 See the [Sentinel Policies Guide](https://learn.hashicorp.com/tutorials/nomad/sentinel) for a thorough overview.
 
 ### Cross-Namespace Queries
+
 Cross-Namespace Queries allows operators to query jobs and allocations across all namespaces for faster operator debugging and visibility in multi-tenant clusters. This enterprise feature accelerates and simplifies the debugging process by allowing operators to easily locate faulty jobs and allocations from developers.
 
 See the individual Nomad CLI command documentation (e.g., [alloc exec](/docs/commands/alloc/exec#namespace)) for more information.
@@ -108,7 +109,7 @@ features such as Multiregion Deployments.
 ### Multiregion Deployments
 
 [Multiregion Deployments] enable an operator to deploy a single job to multiple
-federated regions.  This includes the ability to control the order of rollouts
+federated regions. This includes the ability to control the order of rollouts
 and how each region will behave in the event of a deployment failure.
 
 ## Try Nomad Enterprise
@@ -116,4 +117,4 @@ and how each region will behave in the event of a deployment failure.
 Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or request a trial
 of Nomad Enterprise.
 
-[Multiregion Deployments]: /docs/job-specification/multiregion
+[multiregion deployments]: /docs/job-specification/multiregion

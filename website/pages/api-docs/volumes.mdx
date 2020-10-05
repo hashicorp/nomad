@@ -304,8 +304,8 @@ $ curl \
 This endpoint deregisters an external volume with Nomad. It is an error to
 deregister a volume that is in use.
 
-| Method  | Path                         | Produces           |
-| ------- | ---------------------------- | ------------------ |
+| Method   | Path                        | Produces           |
+| -------- | --------------------------- | ------------------ |
 | `DELETE` | `/v1/volume/csi/:volume_id` | `application/json` |
 
 The table below shows this endpoint's support for
@@ -338,11 +338,11 @@ $ curl \
 
 ## Detach Volume
 
-This endpoint detaches an external volume from a Nomad client node.  It is an
+This endpoint detaches an external volume from a Nomad client node. It is an
 error to detach a volume that is in use.
 
-| Method  | Path                                | Produces           |
-| ------- | ----------------------------------- | ------------------ |
+| Method   | Path                               | Produces           |
+| -------- | ---------------------------------- | ------------------ |
 | `DELETE` | `/v1/volume/csi/:volume_id/detach` | `application/json` |
 
 The table below shows this endpoint's support for

@@ -33,5 +33,5 @@ export default [
   'system',
   'ui',
   'validate',
-  'volumes'
+  'volumes',
 ]

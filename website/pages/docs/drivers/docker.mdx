@@ -224,7 +224,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `ports` - (Optional) A list of port labels to map into the container (see below).
 
-- `port_map` - (Optional) *Deprecated* A key-value map of port labels (see below).
+- `port_map` - (Optional) _Deprecated_ A key-value map of port labels (see below).
 
 - `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
@@ -653,13 +653,13 @@ through Nomad plugins or dynamic job configuration.
 
 The `docker` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
-| Feature | Implementation |
-| --- | --- |
-| `nomad alloc signal` | true |
-| `nomad alloc exec` | true |
-| filesystem isolation | image |
-| network isolation | host, group, task |
-| volume mounting | all |
+| Feature              | Implementation    |
+| -------------------- | ----------------- |
+| `nomad alloc signal` | true              |
+| `nomad alloc exec`   | true              |
+| filesystem isolation | image             |
+| network isolation    | host, group, task |
+| volume mounting      | all               |
 
 ## Client Requirements
 
@@ -747,8 +747,7 @@ plugin "docker" {
 
 - `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities.
   Defaults to
-  `CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
-  NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE` which is the list of
+  `CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP, NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE` which is the list of
   capabilities allowed by docker by default, as defined here. Allows the
   operator to control which capabilities can be obtained by tasks using cap_add
   and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting
@@ -825,7 +824,7 @@ plugin "docker" {
 
 - `infra_image` - This is the Docker image to use when creating the parent
   container necessary when sharing network namespaces between tasks. Defaults to
-   `gcr.io/google_containers/pause-<goarch>:3.1`.
+  `gcr.io/google_containers/pause-<goarch>:3.1`.
 
 - `infra_image_pull_timeout` - A time duration that controls how long Nomad will
   wait before cancelling an in-progress pull of the Docker image as specified in
