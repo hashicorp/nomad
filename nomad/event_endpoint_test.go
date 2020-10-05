@@ -68,7 +68,7 @@ func TestEventStream(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(Evens{Index: uint64(1), Events: []stream.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(stream.Events{Index: uint64(1), Events: []stream.Event{{Topic: "test", Payload: node}}})
 
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(t, encoder.Encode(req))
@@ -160,7 +160,7 @@ func TestEventStream_StreamErr(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(uint64(1), []stream.Event{{Topic: "test", Payload: node}})
+	publisher.Publish(stream.Events{uint64(1), []stream.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
@@ -249,7 +249,7 @@ func TestEventStream_RegionForward(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(uint64(1), []stream.Event{{Topic: "test", Payload: node}})
+	publisher.Publish(stream.Events{uint64(1), []stream.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)

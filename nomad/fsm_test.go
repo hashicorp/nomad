@@ -3199,3 +3199,73 @@ func TestFSM_ClusterMetadata(t *testing.T) {
 	r.Equal(clusterID, storedMetadata.ClusterID)
 	r.Equal(now, storedMetadata.CreateTime)
 }
+
+func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	cfg := state.Config()
+	cfg.EnableDurability = true
+	// DurableCount = 4 each mock events wrapper contains 2 events
+	cfg.DurableCount = 4
+
+	e1 := mock.Events(1000)
+	e2 := mock.Events(1001)
+	e3 := mock.Events(1002)
+
+	require.NoError(t, state.UpsertEvents(1000, e1))
+	require.NoError(t, state.UpsertEvents(1001, e2))
+	require.NoError(t, state.UpsertEvents(1002, e3))
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+
+	// latest events iterator is newest to oldest
+	iter, err := state2.LatestEventsReverse(nil)
+	require.NoError(t, err)
+
+	raw3 := iter.Next()
+	require.NotNil(t, raw3)
+
+	out3, ok := raw3.(*structs.Events)
+	require.True(t, ok)
+	require.Equal(t, e3.Index, out3.Index)
+
+	raw2 := iter.Next()
+	require.NotNil(t, raw2)
+
+	out2, ok := raw2.(*structs.Events)
+	require.True(t, ok)
+	require.Equal(t, e2.Index, out2.Index)
+
+	// Durable count was 4 so e1 events should be excluded
+	raw1 := iter.Next()
+	require.Nil(t, raw1)
+}
+
+func TestFSM_SnapshotRestore_Events_NoDurability(t *testing.T) {
+	t.Parallel()
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	cfg := state.Config()
+	cfg.EnableDurability = false
+
+	e1 := mock.Events(1000)
+	e2 := mock.Events(1001)
+
+	require.NoError(t, state.UpsertEvents(1000, e1))
+	require.NoError(t, state.UpsertEvents(1001, e2))
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	// ws := memdb.NewWatchSet()
+	out, err := state2.LatestEventsReverse(nil)
+	require.NoError(t, err)
+
+	raw := out.Next()
+	require.Nil(t, raw)
+}
