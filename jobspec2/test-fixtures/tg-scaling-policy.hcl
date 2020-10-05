@@ -9,7 +9,7 @@ job "elastic" {
         foo = "bar"
         b   = true
         val = 5
-        f   =.1
+        f   = .1
       }
     }
   }

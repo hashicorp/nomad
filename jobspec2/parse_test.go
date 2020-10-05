@@ -2,6 +2,7 @@ package jobspec2
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/nomad/jobspec"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
@@ -66,6 +68,37 @@ func TestBasic(t *testing.T) {
 	require.NoError(t, err)
 	//fmt.Println(job)
 	pretty.Println(job)
+}
+
+func TestEquavalency(t *testing.T) {
+	fis, err := ioutil.ReadDir("./test-fixtures")
+	require.NoError(t, err)
+
+	for _, fi := range fis {
+		name := fi.Name()
+		if strings.Contains(name, "bad") ||
+			strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		t.Run(name, func(t *testing.T) {
+			f, err := os.Open("./test-fixtures/" + name)
+			require.NoError(t, err)
+			defer f.Close()
+
+			job1, err := jobspec.Parse(f)
+			if err != nil {
+				t.Skip("file is not parsable in v1")
+			}
+
+			f.Seek(0, 0)
+
+			job2, err := Parse(f)
+			require.NoError(t, err)
+
+			require.Equal(t, job1, job2)
+		})
+	}
 }
 
 func TestMine(t *testing.T) {

@@ -70,10 +70,10 @@ job "binstore-storagelocker" {
   group "binsl" {
     count = 5
 
-    volume "foo" {
-      type   = "host"
-      source = "/path"
-    }
+    #volume "foo" {
+    #  type   = "host"
+    #  source = "/path"
+    #}
 
     #volume "bar" {
     #  type   = "csi"

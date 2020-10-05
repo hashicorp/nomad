@@ -31,5 +31,11 @@ func Parse(r io.Reader) (*api.Job, error) {
 		return nil, err
 	}
 
+	result.Job.Name = result.Job.ID
+	if result.Job.Periodic != nil && result.Job.Periodic.Spec != nil {
+		v := "cron"
+		result.Job.Periodic.SpecType = &v
+	}
+
 	return &result.Job, nil
 }
