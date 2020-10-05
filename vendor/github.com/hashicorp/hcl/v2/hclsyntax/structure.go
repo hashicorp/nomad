@@ -280,9 +280,7 @@ func (b *Body) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
 			continue
 		}
 
-		fmt.Println("### BLOCK ", blockS.Type)
 		attrs[blockS.Type] = convertToAttribute(blockS).AsHCLAttribute()
-		//attrs[blockS.Type] = blockS.Body.AsHCLAttribute()
 	}
 
 	return attrs, diags

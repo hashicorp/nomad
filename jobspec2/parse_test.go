@@ -27,7 +27,7 @@ job "example" {
 
   group "cache" {
     task "redis" {
-      driver = "docker"
+      driver = "hello ${  docker.asdf.qwer } asdf"
 
 config {
 hello = "a"

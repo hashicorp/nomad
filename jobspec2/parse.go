@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsimple"
 	"github.com/hashicorp/nomad/api"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func Parse(r io.Reader) (*api.Job, error) {
@@ -16,7 +17,12 @@ func Parse(r io.Reader) (*api.Job, error) {
 		return nil, err
 	}
 
-	evalContext := &hcl.EvalContext{}
+	evalContext := &hcl.EvalContext{
+		UnknownVariable: func(expr string) (cty.Value, error) {
+			v := "${" + expr + "}"
+			return cty.StringVal(v), nil
+		},
+	}
 	var result struct {
 		Job api.Job `hcl:"job,block"`
 	}

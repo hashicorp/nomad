@@ -18,20 +18,20 @@ job "binstore-storagelocker" {
   }
 
   constraint {
-    attribute = "$${attr.vault.version}"
+    attribute = "${attr.vault.version}"
     value     = ">= 0.6.1"
     operator  = "semver"
   }
 
   affinity {
-    attribute = "$${meta.team}"
+    attribute = "${meta.team}"
     value     = "mobile"
     operator  = "="
     weight    = 50
   }
 
   spread {
-    attribute = "$${meta.rack}"
+    attribute = "${meta.rack}"
     weight    = 100
 
     target "r1" {
@@ -70,10 +70,10 @@ job "binstore-storagelocker" {
   group "binsl" {
     count = 5
 
-    #volume "foo" {
-    #  type   = "host"
-    #  source = "/path"
-    #}
+    volume "foo" {
+      type   = "host"
+      source = "/path"
+    }
 
     #volume "bar" {
     #  type   = "csi"
@@ -129,14 +129,14 @@ job "binstore-storagelocker" {
     }
 
     affinity {
-      attribute = "$${node.datacenter}"
+      attribute = "${node.datacenter}"
       value     = "dc2"
       operator  = "="
       weight    = 100
     }
 
     spread {
-      attribute = "$${node.datacenter}"
+      attribute = "${node.datacenter}"
       weight    = 50
 
       target "dc1" {
@@ -161,7 +161,7 @@ job "binstore-storagelocker" {
       kind   = "connect-proxy:test"
 
       affinity {
-        attribute = "$${meta.foo}"
+        attribute = "${meta.foo}"
         value     = "a,b,c"
         operator  = "set_contains"
         weight    = 25
@@ -254,13 +254,13 @@ job "binstore-storagelocker" {
           count = 10
 
           constraint {
-            attribute = "$${device.attr.memory}"
+            attribute = "${device.attr.memory}"
             value     = "2GB"
             operator  = ">"
           }
 
           affinity {
-            attribute = "$${device.model}"
+            attribute = "${device.model}"
             value     = "1080ti"
             weight    = 50
           }
