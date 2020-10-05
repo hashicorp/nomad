@@ -377,12 +377,12 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name         string           `hcl:"name,optional"`
+	Name         string           `hcl:"name,label"`
 	Type         string           `hcl:"type,optional"`
 	Source       string           `hcl:"source,optional"`
 	ReadOnly     bool             `hcl:"read_only,optional"`
 	MountOptions *CSIMountOptions `hcl:"mount_options,block"`
-	ExtraKeysHCL []string         `hcl:",unusedKeys,optional" json:"-"`
+	//ExtraKeysHCL []string         `hcl:",unusedKeys,optional" json:"-"`
 }
 
 const (
@@ -423,9 +423,9 @@ type TaskGroup struct {
 	EphemeralDisk             *EphemeralDisk            `hcl:"ephemeral_disk,block"`
 	Update                    *UpdateStrategy           `hcl:"update,block"`
 	Migrate                   *MigrateStrategy          `hcl:"migrate,block"`
-	Networks                  []*NetworkResource        `hcl:"networks,block"`
+	Networks                  []*NetworkResource        `hcl:"network,block"`
 	Meta                      map[string]string         `hcl:"meta,block"`
-	Services                  []*Service                `hcl:"services,block"`
+	Services                  []*Service                `hcl:"service,block"`
 	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
@@ -627,7 +627,7 @@ func (l *LogConfig) Canonicalize() {
 
 // DispatchPayloadConfig configures how a task gets its input from a job dispatch
 type DispatchPayloadConfig struct {
-	File string
+	File string `hcl:"file,optional"`
 }
 
 const (
