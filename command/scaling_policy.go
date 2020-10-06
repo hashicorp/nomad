@@ -75,5 +75,5 @@ func formatScalingPolicyTarget(t map[string]string) string {
 	if len(other) > 0 {
 		out = append(out, other...)
 	}
-	return strings.Join(out, ",")
+	return strings.Trim(strings.Join(out, ","), ",")
 }

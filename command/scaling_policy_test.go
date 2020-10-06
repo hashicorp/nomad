@@ -31,6 +31,13 @@ func Test_formatScalingPolicyTarget(t *testing.T) {
 			expectedOutput: "Namespace:default,Job:example,Group:cache,Unknown:alien",
 			name:           "extra key in input mapping",
 		},
+		{
+			inputMap: map[string]string{
+				"Namespace": "default",
+			},
+			expectedOutput: "Namespace:default",
+			name:           "single entry in map",
+		},
 	}
 
 	for _, tc := range testCases {
