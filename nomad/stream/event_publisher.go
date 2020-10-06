@@ -80,6 +80,10 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 	return e
 }
 
+func (e *EventPublisher) Len() int {
+	return e.eventBuf.Len()
+}
+
 // Publish events to all subscribers of the event Topic.
 func (e *EventPublisher) Publish(events structs.Events) {
 	if len(events.Events) > 0 {
