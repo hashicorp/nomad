@@ -500,6 +500,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator metrics": func() (cli.Command, error) {
+			return &OperatorMetricsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator raft": func() (cli.Command, error) {
 			return &OperatorRaftCommand{
 				Meta: meta,
