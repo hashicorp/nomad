@@ -74,7 +74,7 @@ Debug Options:
     profiles. Accepts id prefixes.
 
   -server-id=<server>,<server>
-    Comma separated list of Nomad server names, or "leader" to monitor for logs and include pprof
+    Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
     profiles.
 
   -stale=<true|false>
@@ -252,8 +252,23 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Resolve server prefixes
-	for _, id := range argNodes(serverIDs) {
-		c.serverIDs = append(c.serverIDs, id)
+	members, err := client.Agent().Members()
+	c.writeJSON("/tmp", "members.json", members, err)
+	if serverIDs == "all" {
+		// Special case to capture from all servers
+		for _, member := range members.Members {
+			c.serverIDs = append(c.serverIDs, member.Name)
+		}
+	} else {
+		for _, id := range argNodes(serverIDs) {
+			c.serverIDs = append(c.serverIDs, id)
+		}
+	}
+
+	// Return error if servers were specified but not found
+	if len(serverIDs) > 0 && len(c.serverIDs) == 0 {
+		c.Ui.Error(fmt.Sprintf("Failed to retrieve servers, 0 members found in list: %s", serverIDs))
+		return 1
 	}
 
 	c.manifest = make([]string, 0)
@@ -267,6 +282,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	stamped := "nomad-debug-" + c.timestamp
 
 	c.Ui.Output("Starting debugger and capturing cluster data...")
+	c.Ui.Output(fmt.Sprintf("Capturing from servers: %v", c.serverIDs))
+	c.Ui.Output(fmt.Sprintf("Capturing from client nodes: %v", c.nodeIDs))
 
 	c.Ui.Output(fmt.Sprintf("    Interval: '%s'", interval))
 	c.Ui.Output(fmt.Sprintf("    Duration: '%s'", duration))
