@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -28,7 +29,7 @@ func TestEventStream(t *testing.T) {
 
 	// Create request for all topics and keys
 	req := structs.EventStreamRequest{
-		Topics: map[structs.Topic][]string{"*": []string{"*"}},
+		Topics: map[structs.Topic][]string{"*": {"*"}},
 		QueryOptions: structs.QueryOptions{
 			Region: s1.Region(),
 		},
@@ -47,7 +48,7 @@ func TestEventStream(t *testing.T) {
 	// invoke handler
 	go handler(p2)
 
-	// send request
+	// decode request responses
 	go func() {
 		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
 		for {
@@ -68,8 +69,9 @@ func TestEventStream(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
 
+	// Send request
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(t, encoder.Encode(req))
 
@@ -160,14 +162,14 @@ func TestEventStream_StreamErr(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(t, encoder.Encode(req))
 
-	// stop the publisher to force an error on subscription side
-	s1.State().StopEventPublisher()
+	// publish some events
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: "test", Payload: node}}})
 
 	timeout := time.After(5 * time.Second)
 OUTER:
@@ -178,8 +180,10 @@ OUTER:
 		case err := <-errCh:
 			t.Fatal(err)
 		case msg := <-streamMsg:
+			// close the publishers subscriptions forcing an error
+			// after an initial event is received
+			publisher.CloseAll()
 			if msg.Error == nil {
-				// race between error and receiving an event
 				// continue trying for error
 				continue
 			}
@@ -249,7 +253,7 @@ func TestEventStream_RegionForward(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
@@ -290,6 +294,114 @@ OUTER:
 	}
 }
 
-// TODO(drew) acl test
 func TestEventStream_ACL(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	// start server
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
+
+	cases := []struct {
+		Name        string
+		Token       string
+		ExpectedErr string
+	}{
+		{
+			Name:        "no token",
+			Token:       "",
+			ExpectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:        "bad token",
+			Token:       tokenBad.SecretID,
+			ExpectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			Name:        "root token",
+			Token:       root.SecretID,
+			ExpectedErr: "subscription closed by server",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			// Create request for all topics and keys
+			req := structs.EventStreamRequest{
+				Topics: map[structs.Topic][]string{"*": {"*"}},
+				QueryOptions: structs.QueryOptions{
+					Region:    s.Region(),
+					AuthToken: tc.Token,
+				},
+			}
+
+			handler, err := s.StreamingRpcHandler("Event.Stream")
+			require.Nil(err)
+
+			// create pipe
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			errCh := make(chan error)
+			streamMsg := make(chan *structs.EventStreamWrapper)
+
+			go handler(p2)
+
+			// Start decoder
+			go func() {
+				decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+				for {
+					var msg structs.EventStreamWrapper
+					if err := decoder.Decode(&msg); err != nil {
+						if err == io.EOF || strings.Contains(err.Error(), "closed") {
+							return
+						}
+						errCh <- fmt.Errorf("error decoding: %w", err)
+					}
+
+					streamMsg <- &msg
+				}
+			}()
+
+			// send request
+			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+			require.Nil(encoder.Encode(req))
+
+			publisher, err := s.State().EventPublisher()
+			require.NoError(err)
+
+			// publish some events
+			node := mock.Node()
+			publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
+			publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: "test", Payload: node}}})
+
+			timeout := time.After(5 * time.Second)
+		OUTER:
+			for {
+				select {
+				case <-timeout:
+					require.Fail("timeout waiting for response")
+				case err := <-errCh:
+					t.Fatal(err)
+				case msg := <-streamMsg:
+					// force error by closing all subscriptions
+					publisher.CloseAll()
+					if msg.Error == nil {
+						continue
+					}
+
+					if strings.Contains(msg.Error.Error(), tc.ExpectedErr) {
+						break OUTER
+					} else {
+						require.Fail("Unexpected error", msg.Error)
+					}
+				}
+			}
+		})
+	}
 }

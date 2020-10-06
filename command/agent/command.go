@@ -94,7 +94,6 @@ func (c *Command) readConfig() *Config {
 	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.StartJoin), "join", "")
 	flags.Var((*flaghelper.StringFlag)(&cmdConfig.Server.ServerJoin.RetryJoin), "retry-join", "")
 	flags.IntVar(&cmdConfig.Server.ServerJoin.RetryMaxAttempts, "retry-max", 0, "")
-	flags.BoolVar(&cmdConfig.Server.EnableEventPublisher, "event-publisher", false, "")
 	flags.Var((flaghelper.FuncDurationVar)(func(d time.Duration) error {
 		cmdConfig.Server.ServerJoin.RetryInterval = d
 		return nil
@@ -597,7 +596,6 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-vault-tls-server-name":         complete.PredictAnything,
 		"-acl-enabled":                   complete.PredictNothing,
 		"-acl-replication-token":         complete.PredictAnything,
-		"-event-publisher":               complete.PredictNothing,
 	}
 }
 
@@ -1279,9 +1277,6 @@ Server Options:
 
   -rejoin
     Ignore a previous leave and attempts to rejoin the cluster.
-
-  -event-publisher
-    Whether to enable or disable the servers event publisher.
 
 Client Options:
 

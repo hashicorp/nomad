@@ -1917,7 +1917,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	if time.Since(start) < 100*time.Millisecond {
 		t.Fatalf("too fast")
 	}
-	assert.EqualValues(200, resp3.Index)
+	assert.EqualValues(200, int(resp3.Index))
 	if assert.Len(resp3.Allocs, 1) {
 		assert.EqualValues(100, resp3.Allocs[alloc1.ID])
 	}

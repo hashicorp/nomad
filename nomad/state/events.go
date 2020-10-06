@@ -17,21 +17,22 @@ const (
 	TopicNode structs.Topic = "Node"
 
 	// TODO(drew) Node Events use TopicNode + Type
-	TypeNodeRegistration   = "NodeRegistration"
-	TypeNodeDeregistration = "NodeDeregistration"
-	TypeNodeDrain          = "NodeDrain"
-	TypeNodeEvent          = "NodeEvent"
+	TypeNodeRegistration      = "NodeRegistration"
+	TypeNodeDeregistration    = "NodeDeregistration"
+	TypeNodeEligibilityUpdate = "NodeEligibility"
+	TypeNodeDrain             = "NodeDrain"
+	TypeNodeEvent             = "NodeEvent"
 
-	TypeDeploymentUpdate      = "DeploymentStatusUpdate"
-	TypeDeploymentPromotion   = "DeploymentPromotion"
-	TypeDeploymentAllocHealth = "DeploymentAllocHealth"
-
-	TypeAllocCreated = "AllocCreated"
-	TypeAllocUpdated = "AllocUpdated"
-
-	TypeEvalUpdated = "EvalUpdated"
-
-	TypeJobRegistered = "JobRegistered"
+	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
+	TypeDeploymentPromotion      = "DeploymentPromotion"
+	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
+	TypeAllocCreated             = "AllocCreated"
+	TypeAllocUpdated             = "AllocUpdated"
+	TypeAllocUpdateDesiredStatus = "AllocUpdateDesiredStatus"
+	TypeEvalUpdated              = "EvalUpdated"
+	TypeJobRegistered            = "JobRegistered"
+	TypeJobDeregistered          = "JobDeregistered"
+	TypeJobBatchDeregistered     = "JobBatchDeregistered"
 )
 
 type JobEvent struct {
@@ -72,9 +73,13 @@ type JobDrainDetails struct {
 	AllocDetails map[string]NodeDrainAllocDetails
 }
 
-func GenericEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
+func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	var eventType string
 	switch changes.MsgType {
+	case structs.NodeRegisterRequestType:
+		eventType = TypeNodeRegistration
+	case structs.UpsertNodeEventsType:
+		eventType = TypeNodeEvent
 	case structs.EvalUpdateRequestType:
 		eventType = TypeEvalUpdated
 	case structs.AllocClientUpdateRequestType:
@@ -85,15 +90,31 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, erro
 		eventType = TypeAllocUpdated
 	case structs.NodeUpdateStatusRequestType:
 		eventType = TypeNodeEvent
+	case structs.JobDeregisterRequestType:
+		eventType = TypeJobDeregistered
+	case structs.JobBatchDeregisterRequestType:
+		eventType = TypeJobBatchDeregistered
+	case structs.AllocUpdateDesiredTransitionRequestType:
+		eventType = TypeAllocUpdateDesiredStatus
+	case structs.NodeUpdateEligibilityRequestType:
+		eventType = TypeNodeDrain
+	case structs.BatchNodeUpdateDrainRequestType:
+		eventType = TypeNodeDrain
+	default:
+		// unknown request type
+		return nil, nil
 	}
 
 	var events []structs.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "evals":
+			if change.Deleted() {
+				return nil, nil
+			}
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not an Evaluation")
+				return nil, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
 			event := structs.Event{
@@ -109,10 +130,17 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, erro
 			events = append(events, event)
 
 		case "allocs":
+			if change.Deleted() {
+				return nil, nil
+			}
 			after, ok := change.After.(*structs.Allocation)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not an Allocation")
+				return nil, fmt.Errorf("transaction change was not an Allocation")
 			}
+
+			alloc := after.Copy()
+			// remove job info to help keep size of alloc event down
+			alloc.Job = nil
 
 			event := structs.Event{
 				Topic: TopicAlloc,
@@ -120,15 +148,18 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, erro
 				Index: changes.Index,
 				Key:   after.ID,
 				Payload: &AllocEvent{
-					Alloc: after,
+					Alloc: alloc,
 				},
 			}
 
 			events = append(events, event)
 		case "jobs":
+			if change.Deleted() {
+				return nil, nil
+			}
 			after, ok := change.After.(*structs.Job)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not an Allocation")
+				return nil, fmt.Errorf("transaction change was not an Allocation")
 			}
 
 			event := structs.Event{
@@ -143,9 +174,12 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, erro
 
 			events = append(events, event)
 		case "nodes":
+			if change.Deleted() {
+				return nil, nil
+			}
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not a Node")
+				return nil, fmt.Errorf("transaction change was not a Node")
 			}
 
 			event := structs.Event{
@@ -161,5 +195,5 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, erro
 		}
 	}
 
-	return structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}, nil
 }

@@ -49,8 +49,11 @@ type StateStoreConfig struct {
 	// EnablePublisher is used to enable or disable the event publisher
 	EnablePublisher bool
 
-	// DurableEventCount is the amount of events to persist during the snapshot
-	// process.
+	// EventBufferSize configures the amount of events to hold in memory
+	EventBufferSize int64
+
+	// DurableEventCount is used to determine if events from transaction changes
+	// should be saved in go-memdb
 	DurableEventCount int
 }
 
@@ -96,12 +99,15 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		cfg := &ChangeConfig{
-			DurableEventCount: 1000,
+			DurableEventCount: config.DurableEventCount,
 		}
+
+		// Create new event publisher using provided config
 		publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
 			EventBufferTTL:  1 * time.Hour,
-			EventBufferSize: 250,
+			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
+			OnEvict:         s.eventPublisherEvict,
 		})
 		s.db = NewChangeTrackerDB(db, publisher, processDBChanges, cfg)
 	} else {
@@ -121,6 +127,30 @@ func (s *StateStore) EventPublisher() (*stream.EventPublisher, error) {
 		return nil, fmt.Errorf("EventPublisher not configured")
 	}
 	return s.db.publisher, nil
+}
+
+// eventPublisherEvict is used as a callback to delete an evicted events
+// entry from go-memdb.
+func (s *StateStore) eventPublisherEvict(events *structs.Events) {
+	if err := s.deleteEvent(events); err != nil {
+		if err == memdb.ErrNotFound {
+			s.logger.Info("Evicted event was not found in go-memdb table", "event index", events.Index)
+		} else {
+			s.logger.Error("Error deleting event from events table", "error", err)
+		}
+	}
+}
+
+func (s *StateStore) deleteEvent(events *structs.Events) error {
+	txn := s.db.db.Txn(true)
+	defer txn.Abort()
+
+	if err := txn.Delete("events", events); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
 }
 
 // Config returns the state store configuration.
@@ -948,7 +978,7 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 }
 
 // BatchUpdateNodeDrain is used to update the drain of a node set of nodes
-func (s *StateStore) BatchUpdateNodeDrain(index uint64, updatedAt int64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
+func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uint64, updatedAt int64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 	for node, update := range updates {
@@ -1030,9 +1060,9 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 }
 
 // UpdateNodeEligibility is used to update the scheduling eligibility of a node
-func (s *StateStore) UpdateNodeEligibility(index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent) error {
 
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Lookup the node
@@ -2919,8 +2949,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // EvalByID is used to lookup an eval by its ID
@@ -3291,10 +3320,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 
 // UpdateAllocsDesiredTransitions is used to update a set of allocations
 // desired transitions.
-func (s *StateStore) UpdateAllocsDesiredTransitions(index uint64, allocs map[string]*structs.DesiredTransition,
+func (s *StateStore) UpdateAllocsDesiredTransitions(msgType structs.MessageType, index uint64, allocs map[string]*structs.DesiredTransition,
 	evals []*structs.Evaluation) error {
 
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Handle each of the updated allocations

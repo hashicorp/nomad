@@ -78,9 +78,12 @@ type Config struct {
 	// in the absence of ACLs
 	EnableDebug bool
 
-	// EnableEventPublisher is used to enable or disable the state stores
+	// EnableEventPublisher is used to enable or disable state store
 	// event publishing
 	EnableEventPublisher bool
+
+	// EventBufferSize is the amount of events to hold in memory.
+	EventBufferSize int64
 
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.

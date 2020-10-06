@@ -3,10 +3,11 @@ package stream
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ func TestEventBufferFuzz(t *testing.T) {
 	nReaders := 1000
 	nMessages := 1000
 
-	b := newEventBuffer(1000, DefaultTTL)
+	b := newEventBuffer(1000, DefaultTTL, nil)
 
 	// Start a write goroutine that will publish 10000 messages with sequential
 	// indexes and some jitter in timing (to allow clients to "catch up" and block
@@ -35,7 +36,7 @@ func TestEventBufferFuzz(t *testing.T) {
 			e := structs.Event{
 				Index: uint64(i), // Indexes should be contiguous
 			}
-			b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+			b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 			// Sleep sometimes for a while to let some subscribers catch up
 			wait := time.Duration(z.Uint64()) * time.Millisecond
 			time.Sleep(wait)
@@ -61,9 +62,9 @@ func TestEventBufferFuzz(t *testing.T) {
 						expect, err)
 					return
 				}
-				if item.Events[0].Index != expect {
+				if item.Events.Events[0].Index != expect {
 					errCh <- fmt.Errorf("subscriber %05d got bad event want=%d, got=%d", i,
-						expect, item.Events[0].Index)
+						expect, item.Events.Events[0].Index)
 					return
 				}
 				expect++
@@ -84,14 +85,13 @@ func TestEventBufferFuzz(t *testing.T) {
 }
 
 func TestEventBuffer_Slow_Reader(t *testing.T) {
-
-	b := newEventBuffer(10, DefaultTTL)
+	b := newEventBuffer(10, DefaultTTL, nil)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{uint64(i), []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	head := b.Head()
@@ -100,7 +100,7 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{uint64(i), []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	// Ensure the slow reader errors to handle dropped events and
@@ -110,17 +110,17 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 	require.Nil(t, ev)
 
 	newHead := b.Head()
-	require.Equal(t, 4, int(newHead.Index))
+	require.Equal(t, 5, int(newHead.Events.Index))
 }
 
 func TestEventBuffer_Size(t *testing.T) {
-	b := newEventBuffer(100, DefaultTTL)
+	b := newEventBuffer(100, DefaultTTL, nil)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{uint64(i), []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	require.Equal(t, 10, b.Len())
@@ -130,26 +130,46 @@ func TestEventBuffer_Size(t *testing.T) {
 // are past their TTL, the event buffer should prune down to the last message
 // and hold onto the last item.
 func TestEventBuffer_Prune_AllOld(t *testing.T) {
-	b := newEventBuffer(100, 1*time.Second)
+	b := newEventBuffer(100, 1*time.Second, nil)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{uint64(i), []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	require.Equal(t, 10, int(b.Len()))
 
 	time.Sleep(1 * time.Second)
 
+	// prune old messages, which will bring the event buffer down
+	// to a single sentinel value
 	b.prune()
 
-	require.Equal(t, 9, int(b.Head().Index))
+	// head and tail are now a sentinel value
+	head := b.Head()
+	tail := b.Tail()
+	require.Equal(t, 0, int(head.Events.Index))
 	require.Equal(t, 0, b.Len())
+	require.Equal(t, head, tail)
+
+	e := structs.Event{
+		Index: uint64(100),
+	}
+	b.Append(&structs.Events{Index: uint64(100), Events: []structs.Event{e}})
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancel()
+
+	next, err := head.Next(ctx, make(chan struct{}))
+	require.NoError(t, err)
+	require.NotNil(t, next)
+	require.Equal(t, uint64(100), next.Events.Index)
+
 }
 
-func TestStartAt_CurrentIdx_Past_Start(t *testing.T) {
+func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
 	cases := []struct {
 		desc     string
 		req      uint64
@@ -183,20 +203,43 @@ func TestStartAt_CurrentIdx_Past_Start(t *testing.T) {
 	}
 
 	// buffer starts at index 11 goes to 100
-	b := newEventBuffer(100, 1*time.Hour)
+	b := newEventBuffer(100, 1*time.Hour, nil)
 
 	for i := 11; i <= 100; i++ {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{uint64(i), []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			got, offset := b.StartAtClosest(tc.req)
-			require.Equal(t, int(tc.expected), int(got.Index))
+			require.Equal(t, int(tc.expected), int(got.Events.Index))
 			require.Equal(t, tc.offset, offset)
 		})
+	}
+}
+
+func TestEventBuffer_OnEvict(t *testing.T) {
+	called := make(chan struct{})
+	testOnEvict := func(events *structs.Events) {
+		close(called)
+	}
+	b := newEventBuffer(2, DefaultTTL, testOnEvict)
+
+	// start at 1 since new event buffer is built with a starting sentinel value
+	for i := 1; i < 4; i++ {
+		e := structs.Event{
+			Index: uint64(i), // Indexes should be contiguous
+		}
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+	}
+
+	select {
+	case <-called:
+		// testOnEvict called
+	case <-time.After(100 * time.Millisecond):
+		require.Fail(t, "expected testOnEvict to be called")
 	}
 }

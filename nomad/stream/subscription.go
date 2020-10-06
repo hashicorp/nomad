@@ -76,11 +76,11 @@ func (s *Subscription) Next(ctx context.Context) (structs.Events, error) {
 		}
 		s.currentItem = next
 
-		events := filter(s.req, next.Events)
+		events := filter(s.req, next.Events.Events)
 		if len(events) == 0 {
 			continue
 		}
-		return structs.Events{Index: next.Index, Events: events}, nil
+		return structs.Events{Index: next.Events.Index, Events: events}, nil
 	}
 }
 
@@ -96,7 +96,7 @@ func (s *Subscription) NextNoBlock() ([]structs.Event, error) {
 		}
 		s.currentItem = next
 
-		events := filter(s.req, next.Events)
+		events := filter(s.req, next.Events.Events)
 		if len(events) == 0 {
 			continue
 		}

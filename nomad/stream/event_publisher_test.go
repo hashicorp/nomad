@@ -2,9 +2,10 @@ package stream
 
 import (
 	"context"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,7 @@ func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
 		Key:     "sub-key",
 		Payload: "sample payload",
 	}}
-	publisher.Publish(structs.Events{Index: 1, Events: events})
+	publisher.Publish(&structs.Events{Index: 1, Events: events})
 
 	// Subscriber should see the published event
 	result := nextResult(t, eventCh)
@@ -50,7 +51,7 @@ func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
 		Key:     "sub-key",
 		Payload: "sample payload 2",
 	}}
-	publisher.Publish(structs.Events{Index: 2, Events: events})
+	publisher.Publish(&structs.Events{Index: 2, Events: events})
 
 	result = nextResult(t, eventCh)
 	require.NoError(t, result.Err)

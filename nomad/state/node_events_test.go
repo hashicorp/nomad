@@ -175,7 +175,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				setupTx.Txn.Commit()
 			}
 
-			tx := s.db.WriteTxn(100)
+			tx := s.db.WriteTxnMsgT(tc.MsgType, 100)
 			require.NoError(t, tc.Mutate(s, tx))
 
 			changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: tc.MsgType}
@@ -186,6 +186,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			require.NotNil(t, got)
 
 			require.Equal(t, len(tc.WantEvents), len(got.Events))
 			for idx, g := range got.Events {

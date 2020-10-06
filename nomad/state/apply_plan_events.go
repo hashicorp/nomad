@@ -6,14 +6,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
+func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	var events []structs.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "deployment":
 			after, ok := change.After.(*structs.Deployment)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not a Deployment")
+				return nil, fmt.Errorf("transaction change was not a Deployment")
 			}
 
 			event := structs.Event{
@@ -29,7 +29,7 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (structs.Even
 		case "evals":
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not an Evaluation")
+				return nil, fmt.Errorf("transaction change was not an Evaluation")
 			}
 
 			event := structs.Event{
@@ -45,7 +45,7 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (structs.Even
 		case "allocs":
 			after, ok := change.After.(*structs.Allocation)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not an Allocation")
+				return nil, fmt.Errorf("transaction change was not an Allocation")
 			}
 			before := change.Before
 			var msg string
@@ -69,5 +69,5 @@ func ApplyPlanResultEventsFromChanges(tx ReadTxn, changes Changes) (structs.Even
 		}
 	}
 
-	return structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}, nil
 }

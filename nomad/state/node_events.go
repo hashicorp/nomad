@@ -8,14 +8,14 @@ import (
 
 // NodeRegisterEventFromChanges generates a NodeRegistrationEvent from a set
 // of transaction changes.
-func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
+func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	var events []structs.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not a Node")
+				return nil, fmt.Errorf("transaction change was not a Node")
 			}
 
 			event := structs.Event{
@@ -30,19 +30,19 @@ func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) (structs.Events, 
 			events = append(events, event)
 		}
 	}
-	return structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}, nil
 }
 
 // NodeDeregisterEventFromChanges generates a NodeDeregistrationEvent from a set
 // of transaction changes.
-func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
+func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	var events []structs.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
 			before, ok := change.Before.(*structs.Node)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not a Node")
+				return nil, fmt.Errorf("transaction change was not a Node")
 			}
 
 			event := structs.Event{
@@ -57,50 +57,23 @@ func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) (structs.Events
 			events = append(events, event)
 		}
 	}
-	return structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}, nil
 }
 
-// NodeEventFromChanges generates a NodeDeregistrationEvent from a set
-// of transaction changes.
-func NodeEventFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
+func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	var events []structs.Event
 	for _, change := range changes.Changes {
 		switch change.Table {
 		case "nodes":
 			after, ok := change.After.(*structs.Node)
 			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not a Node")
-			}
-
-			event := structs.Event{
-				Topic: TopicNode,
-				Type:  TypeNodeEvent,
-				Index: changes.Index,
-				Key:   after.ID,
-				Payload: &NodeEvent{
-					Node: after,
-				},
-			}
-			events = append(events, event)
-		}
-	}
-	return structs.Events{Index: changes.Index, Events: events}, nil
-}
-
-func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
-	var events []structs.Event
-	for _, change := range changes.Changes {
-		switch change.Table {
-		case "nodes":
-			after, ok := change.After.(*structs.Node)
-			if !ok {
-				return structs.Events{}, fmt.Errorf("transaction change was not a Node")
+				return nil, fmt.Errorf("transaction change was not a Node")
 			}
 
 			// retrieve allocations currently on node
 			allocs, err := allocsByNodeTxn(tx, nil, after.ID)
 			if err != nil {
-				return structs.Events{}, fmt.Errorf("retrieving allocations for node drain event: %w", err)
+				return nil, fmt.Errorf("retrieving allocations for node drain event: %w", err)
 			}
 
 			// build job/alloc details for node drain
@@ -132,5 +105,5 @@ func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) (structs.Events, err
 			events = append(events, event)
 		}
 	}
-	return structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}, nil
 }

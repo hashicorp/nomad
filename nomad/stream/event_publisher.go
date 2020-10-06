@@ -18,6 +18,7 @@ type EventPublisherCfg struct {
 	EventBufferSize int64
 	EventBufferTTL  time.Duration
 	Logger          hclog.Logger
+	OnEvict         EvictCallbackFn
 }
 
 type EventPublisher struct {
@@ -27,10 +28,6 @@ type EventPublisher struct {
 	// eventBuf stores a configurable amount of events in memory
 	eventBuf *eventBuffer
 
-	// pruneTick is the duration to periodically prune events from the event
-	// buffer. Defaults to 5s
-	pruneTick time.Duration
-
 	logger hclog.Logger
 
 	subscriptions *subscriptions
@@ -38,7 +35,7 @@ type EventPublisher struct {
 	// publishCh is used to send messages from an active txn to a goroutine which
 	// publishes events, so that publishing can happen asynchronously from
 	// the Commit call in the FSM hot path.
-	publishCh chan structs.Events
+	publishCh chan *structs.Events
 }
 
 type subscriptions struct {
@@ -63,19 +60,22 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 		cfg.Logger = hclog.NewNullLogger()
 	}
 
-	buffer := newEventBuffer(cfg.EventBufferSize, cfg.EventBufferTTL)
+	// Set the event buffer size to a minimum
+	if cfg.EventBufferSize == 0 {
+		cfg.EventBufferSize = 100
+	}
+
+	buffer := newEventBuffer(cfg.EventBufferSize, cfg.EventBufferTTL, cfg.OnEvict)
 	e := &EventPublisher{
 		logger:    cfg.Logger.Named("event_publisher"),
 		eventBuf:  buffer,
-		publishCh: make(chan structs.Events, 64),
+		publishCh: make(chan *structs.Events, 64),
 		subscriptions: &subscriptions{
 			byToken: make(map[string]map[*SubscribeRequest]*Subscription),
 		},
-		pruneTick: 5 * time.Second,
 	}
 
 	go e.handleUpdates(ctx)
-	go e.periodicPrune(ctx)
 
 	return e
 }
@@ -85,7 +85,7 @@ func (e *EventPublisher) Len() int {
 }
 
 // Publish events to all subscribers of the event Topic.
-func (e *EventPublisher) Publish(events structs.Events) {
+func (e *EventPublisher) Publish(events *structs.Events) {
 	if len(events.Events) > 0 {
 		e.publishCh <- events
 	}
@@ -104,11 +104,11 @@ func (e *EventPublisher) Subscribe(req *SubscribeRequest) (*Subscription, error)
 		head = e.eventBuf.Head()
 	}
 	if offset > 0 {
-		e.logger.Warn("requested index no longer in buffer", "requsted", int(req.Index), "closest", int(head.Index))
+		e.logger.Warn("requested index no longer in buffer", "requsted", int(req.Index), "closest", int(head.Events.Index))
 	}
 
 	// Empty head so that calling Next on sub
-	start := newBufferItem(structs.Events{Index: req.Index})
+	start := newBufferItem(&structs.Events{Index: req.Index})
 	start.link.next.Store(head)
 	close(start.link.ch)
 
@@ -116,6 +116,10 @@ func (e *EventPublisher) Subscribe(req *SubscribeRequest) (*Subscription, error)
 
 	e.subscriptions.add(req, sub)
 	return sub, nil
+}
+
+func (e *EventPublisher) CloseAll() {
+	e.subscriptions.closeAll()
 }
 
 func (e *EventPublisher) handleUpdates(ctx context.Context) {
@@ -130,21 +134,8 @@ func (e *EventPublisher) handleUpdates(ctx context.Context) {
 	}
 }
 
-func (e *EventPublisher) periodicPrune(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(e.pruneTick):
-			e.lock.Lock()
-			e.eventBuf.prune()
-			e.lock.Unlock()
-		}
-	}
-}
-
 // sendEvents sends the given events to the publishers event buffer.
-func (e *EventPublisher) sendEvents(update structs.Events) {
+func (e *EventPublisher) sendEvents(update *structs.Events) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 

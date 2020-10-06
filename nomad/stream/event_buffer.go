@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+type EvictCallbackFn func(events *structs.Events)
+
 // eventBuffer is a single-writer, multiple-reader, fixed length concurrent
 // buffer of events that have been published. The buffer is
 // the head and tail of an atomically updated single-linked list. Atomic
@@ -28,8 +30,8 @@ import (
 // goroutines or deliver to O(N) separate channels.
 //
 // Because eventBuffer is a linked list with atomically updated pointers, readers don't
-// have to take a lock and can consume at their own pace. Slow readers can eventually
-// append
+// have to take a lock and can consume at their own pace. Slow readers will eventually
+// be forced to reconnect to the lastest head by being notified via a bufferItem's droppedCh.
 //
 // A new buffer is constructed with a sentinel "empty" bufferItem that has a nil
 // Events array. This enables subscribers to start watching for the next update
@@ -39,10 +41,9 @@ import (
 // initialized with an empty bufferItem so can not be used to wait for the first
 // published event. Call newEventBuffer to construct a new buffer.
 //
-// Calls to Append or AppendBuffer that mutate the head must be externally
+// Calls to Append or purne that mutate the head must be externally
 // synchronized. This allows systems that already serialize writes to append
-// without lock overhead (e.g. a snapshot goroutine appending thousands of
-// events).
+// without lock overhead.
 type eventBuffer struct {
 	size *int64
 
@@ -51,18 +52,20 @@ type eventBuffer struct {
 
 	maxSize    int64
 	maxItemTTL time.Duration
+	onEvict    EvictCallbackFn
 }
 
 // newEventBuffer creates an eventBuffer ready for use.
-func newEventBuffer(size int64, maxItemTTL time.Duration) *eventBuffer {
+func newEventBuffer(size int64, maxItemTTL time.Duration, onEvict EvictCallbackFn) *eventBuffer {
 	zero := int64(0)
 	b := &eventBuffer{
 		maxSize:    size,
 		size:       &zero,
 		maxItemTTL: maxItemTTL,
+		onEvict:    onEvict,
 	}
 
-	item := newBufferItem(structs.Events{Index: 0, Events: nil})
+	item := newBufferItem(&structs.Events{Index: 0, Events: nil})
 
 	b.head.Store(item)
 	b.tail.Store(item)
@@ -74,8 +77,8 @@ func newEventBuffer(size int64, maxItemTTL time.Duration) *eventBuffer {
 // watchers. After calling append, the caller must not make any further
 // mutations to the events as they may have been exposed to subscribers in other
 // goroutines. Append only supports a single concurrent caller and must be
-// externally synchronized with other Append, AppendBuffer or AppendErr calls.
-func (b *eventBuffer) Append(events structs.Events) {
+// externally synchronized with other Append, or prune calls.
+func (b *eventBuffer) Append(events *structs.Events) {
 	b.appendItem(newBufferItem(events))
 }
 
@@ -88,11 +91,10 @@ func (b *eventBuffer) appendItem(item *bufferItem) {
 	b.tail.Store(item)
 
 	// Increment the buffer size
-	size := atomic.AddInt64(b.size, 1)
+	atomic.AddInt64(b.size, int64(len(item.Events.Events)))
 
-	// Check if we need to advance the head to keep the list
-	// constrained to max size
-	if size > b.maxSize {
+	// Advance Head until we are under allowable size
+	for atomic.LoadInt64(b.size) > b.maxSize {
 		b.advanceHead()
 	}
 
@@ -101,18 +103,43 @@ func (b *eventBuffer) appendItem(item *bufferItem) {
 
 }
 
+func newSentinelItem() *bufferItem {
+	return newBufferItem(&structs.Events{Index: 0, Events: nil})
+}
+
 // advanceHead drops the current Head buffer item and notifies readers
 // that the item should be discarded by closing droppedCh.
 // Slow readers will prevent the old head from being GC'd until they
 // discard it.
 func (b *eventBuffer) advanceHead() {
 	old := b.Head()
+
 	next := old.link.next.Load()
+	// if the next item is nil replace it with a sentinel value
+	if next == nil {
+		next = newSentinelItem()
+	}
 
+	// notify readers that old is being dropped
 	close(old.link.droppedCh)
-	b.head.Store(next)
-	atomic.AddInt64(b.size, -1)
 
+	// store the next value to head
+	b.head.Store(next)
+
+	// If the old head is equal to the tail
+	// update the tail value as well
+	if old == b.Tail() {
+		b.tail.Store(next)
+	}
+
+	// update the amount of events we have in the buffer
+	rmCount := len(old.Events.Events)
+	atomic.AddInt64(b.size, -int64(rmCount))
+
+	// Call evict callback if the item isn't a sentinel value
+	if b.onEvict != nil && old.Events.Index != 0 {
+		b.onEvict(old.Events)
+	}
 }
 
 // Head returns the current head of the buffer. It will always exist but it may
@@ -137,10 +164,10 @@ func (b *eventBuffer) Tail() *bufferItem {
 // index as well as the offset between the requested index and returned one.
 func (b *eventBuffer) StartAtClosest(index uint64) (*bufferItem, int) {
 	item := b.Head()
-	if index < item.Index {
-		return item, int(item.Index) - int(index)
+	if index < item.Events.Index {
+		return item, int(item.Events.Index) - int(index)
 	}
-	if item.Index == index {
+	if item.Events.Index == index {
 		return item, 0
 	}
 
@@ -148,12 +175,12 @@ func (b *eventBuffer) StartAtClosest(index uint64) (*bufferItem, int) {
 		prev := item
 		item = item.NextNoBlock()
 		if item == nil {
-			return prev, int(index) - int(prev.Index)
+			return prev, int(index) - int(prev.Events.Index)
 		}
-		if index < item.Index {
-			return item, int(item.Index) - int(index)
+		if index < item.Events.Index {
+			return item, int(item.Events.Index) - int(index)
 		}
-		if index == item.Index {
+		if index == item.Events.Index {
 			return item, 0
 		}
 	}
@@ -168,13 +195,14 @@ func (b *eventBuffer) Len() int {
 // is no longer expired. It should be externally synchronized as it mutates
 // the buffer of items.
 func (b *eventBuffer) prune() {
+	now := time.Now()
 	for {
 		head := b.Head()
 		if b.Len() == 0 {
 			return
 		}
 
-		if time.Since(head.createdAt) > b.maxItemTTL {
+		if now.Sub(head.createdAt) > b.maxItemTTL {
 			b.advanceHead()
 		} else {
 			return
@@ -202,9 +230,7 @@ type bufferItem struct {
 	// should check and skip nil Events at any point in the buffer. It will also
 	// be nil if the producer appends an Error event because they can't complete
 	// the request to populate the buffer. Err will be non-nil in this case.
-	Events []structs.Event
-
-	Index uint64
+	Events *structs.Events
 
 	// Err is non-nil if the producer can't complete their task and terminates the
 	// buffer. Subscribers should return the error to clients and cease attempting
@@ -239,14 +265,13 @@ type bufferLink struct {
 
 // newBufferItem returns a blank buffer item with a link and chan ready to have
 // the fields set and be appended to a buffer.
-func newBufferItem(events structs.Events) *bufferItem {
+func newBufferItem(events *structs.Events) *bufferItem {
 	return &bufferItem{
 		link: &bufferLink{
 			ch:        make(chan struct{}),
 			droppedCh: make(chan struct{}),
 		},
-		Events:    events.Events,
-		Index:     events.Index,
+		Events:    events,
 		createdAt: time.Now(),
 	}
 }
@@ -258,13 +283,15 @@ func (i *bufferItem) Next(ctx context.Context, forceClose <-chan struct{}) (*buf
 	// state change (chan nil) as that's not threadsafe but detecting close is.
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("waiting for next event: %w", ctx.Err())
+		return nil, ctx.Err()
 	case <-forceClose:
 		return nil, fmt.Errorf("subscription closed")
 	case <-i.link.ch:
 	}
 
 	// Check if the reader is too slow and the event buffer as discarded the event
+	// This must happen after the above select to prevent a random selection
+	// between linkCh and droppedCh
 	select {
 	case <-i.link.droppedCh:
 		return nil, fmt.Errorf("event dropped from buffer")
@@ -292,17 +319,4 @@ func (i *bufferItem) NextNoBlock() *bufferItem {
 		return nil
 	}
 	return nextRaw.(*bufferItem)
-}
-
-// NextLink returns either the next item in the buffer if there is one, or
-// an empty item (that will be ignored by subscribers) that has a pointer to
-// the same link as this bufferItem (but none of the bufferItem content).
-// When the link.ch is closed, subscriptions will be notified of the next item.
-func (i *bufferItem) NextLink() *bufferItem {
-	next := i.NextNoBlock()
-	if next == nil {
-		// Return an empty item that can be followed to the next item published.
-		return &bufferItem{link: i.link}
-	}
-	return next
 }
