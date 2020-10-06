@@ -168,7 +168,6 @@
 /api/index                                    /api-docs 301!
 /api-docs/index.html                          /api-docs 301!
 /api-docs/index                               /api-docs 301!
-/resources                                    /resources 301!
 /docs/agent/config.html                       /docs/configuration 301!
 /docs/agent/config                            /docs/configuration 301!
 /docs/jobops                                  https://learn.hashicorp.com/collections/nomad/manage-jobs 301!
