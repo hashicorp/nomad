@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"time"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsimple"
@@ -36,28 +37,38 @@ func Parse(r io.Reader) (*api.Job, error) {
 		return nil, err
 	}
 
-	result.Job.Name = result.Job.ID
-	if result.Job.Periodic != nil && result.Job.Periodic.Spec != nil {
-		v := "cron"
-		result.Job.Periodic.SpecType = &v
-	}
-
 	normalizeJob(&result.Job)
 	return &result.Job, nil
 }
 
 func normalizeJob(j *api.Job) {
+	j.Name = j.ID
+	if j.Periodic != nil && j.Periodic.Spec != nil {
+		v := "cron"
+		j.Periodic.SpecType = &v
+	}
+
 	for _, tg := range j.TaskGroups {
-		parseDynamic(tg.Networks)
+		normalizeNetworkPorts(tg.Networks)
 		for _, t := range tg.Tasks {
 			if t.Resources != nil {
-				parseDynamic(t.Resources.Networks)
+				normalizeNetworkPorts(t.Resources.Networks)
+			}
+
+			normalizeTemplates(t.Templates)
+
+			// normalize Vault
+			if t.Vault != nil && t.Vault.Env == nil {
+				t.Vault.Env = boolToPtr(true)
+			}
+			if t.Vault != nil && t.Vault.ChangeMode == nil {
+				t.Vault.ChangeMode = stringToPtr("restart")
 			}
 		}
 	}
 }
 
-func parseDynamic(networks []*api.NetworkResource) {
+func normalizeNetworkPorts(networks []*api.NetworkResource) {
 	if networks == nil {
 		return
 	}
@@ -84,4 +95,34 @@ func parseDynamic(networks []*api.NetworkResource) {
 		n.ReservedPorts = reserved
 	}
 
+}
+
+func normalizeTemplates(templates []*api.Template) {
+	if len(templates) == 0 {
+		return
+	}
+
+	for _, t := range templates {
+		if t.ChangeMode == nil {
+			t.ChangeMode = stringToPtr("restart")
+		}
+		if t.Perms == nil {
+			t.Perms = stringToPtr("0644")
+		}
+		if t.Splay == nil {
+			t.Splay = durationToPtr(5 * time.Second)
+		}
+	}
+}
+
+func boolToPtr(v bool) *bool {
+	return &v
+}
+
+func stringToPtr(v string) *string {
+	return &v
+}
+
+func durationToPtr(v time.Duration) *time.Duration {
+	return &v
 }
