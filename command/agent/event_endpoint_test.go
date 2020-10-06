@@ -3,13 +3,14 @@ package agent
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
@@ -95,9 +96,12 @@ func TestEventStream_QueryParse(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			desc:    "invalid key value formatting no value",
+			desc:    "Infer wildcard if absent",
 			query:   "?topic=NodeDrain",
-			wantErr: true,
+			wantErr: false,
+			want: map[structs.Topic][]string{
+				"NodeDrain": {"*"},
+			},
 		},
 		{
 			desc:  "single topic and key",
