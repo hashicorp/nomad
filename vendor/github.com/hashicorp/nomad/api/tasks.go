@@ -473,7 +473,7 @@ type VolumeRequest struct {
 	Source       string           `hcl:"source,optional"`
 	ReadOnly     bool             `hcl:"read_only,optional"`
 	MountOptions *CSIMountOptions `hcl:"mount_options,block"`
-	//ExtraKeysHCL []string         `hcl:",unusedKeys,optional" json:"-"`
+	ExtraKeysHCL []string         `hcl1:",unusedKeys,optional" json:"-"`
 }
 
 const (
