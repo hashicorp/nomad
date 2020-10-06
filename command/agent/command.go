@@ -597,6 +597,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-vault-tls-server-name":         complete.PredictAnything,
 		"-acl-enabled":                   complete.PredictNothing,
 		"-acl-replication-token":         complete.PredictAnything,
+		"-event-publisher":               complete.PredictNothing,
 	}
 }
 
@@ -1279,6 +1280,9 @@ Server Options:
 
   -rejoin
     Ignore a previous leave and attempts to rejoin the cluster.
+
+  -event-publisher
+    Whether to enable or disable the servers event publisher.
 
 Client Options:
 

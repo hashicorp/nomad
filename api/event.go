@@ -6,11 +6,12 @@ import (
 	"fmt"
 )
 
-// Events is a set of events for a corresponding index. Events returned for the
+// Ebvents is a set of events for a corresponding index. Events returned for the
 // index depend on which topics are subscribed to when a request is made.
 type Events struct {
 	Index  uint64
 	Events []Event
+	Err    error
 }
 
 // Topic is an event Topic
@@ -24,12 +25,12 @@ type Event struct {
 	Key        string
 	FilterKeys []string
 	Index      uint64
-	Payload    interface{}
+	Payload    map[string]interface{}
 }
 
-// IsHeartBeat specifies if the event is an empty heartbeat used to
+// IsHeartbeat specifies if the event is an empty heartbeat used to
 // keep a connection alive.
-func (e *Events) IsHeartBeat() bool {
+func (e *Events) IsHeartbeat() bool {
 	return e.Index == 0 && len(e.Events) == 0
 }
 
@@ -45,14 +46,11 @@ func (c *Client) EventStream() *EventStream {
 
 // Stream establishes a new subscription to Nomad's event stream and streams
 // results back to the returned channel.
-func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, index uint64, q *QueryOptions) (<-chan *Events, <-chan error) {
-
-	errCh := make(chan error, 1)
+func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, index uint64, q *QueryOptions) (<-chan *Events, error) {
 
 	r, err := e.client.newRequest("GET", "/v1/event/stream")
 	if err != nil {
-		errCh <- err
-		return nil, errCh
+		return nil, err
 	}
 	r.setQueryOptions(q)
 
@@ -66,39 +64,35 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 	_, resp, err := requireOK(e.client.doRequest(r))
 
 	if err != nil {
-		errCh <- err
-		return nil, errCh
+		return nil, err
 	}
 
 	eventsCh := make(chan *Events, 10)
 	go func() {
 		defer resp.Body.Close()
+		defer close(eventsCh)
 
 		dec := json.NewDecoder(resp.Body)
 
-		for {
-			select {
-			case <-ctx.Done():
-				close(eventsCh)
-				return
-			default:
-			}
-
+		for ctx.Err() == nil {
 			// Decode next newline delimited json of events
 			var events Events
 			if err := dec.Decode(&events); err != nil {
-				close(eventsCh)
-				errCh <- err
+				events = Events{Err: err}
+				eventsCh <- &events
 				return
 			}
-			if events.IsHeartBeat() {
+			if events.IsHeartbeat() {
 				continue
 			}
 
-			eventsCh <- &events
-
+			select {
+			case <-ctx.Done():
+				return
+			case eventsCh <- &events:
+			}
 		}
 	}()
 
-	return eventsCh, errCh
+	return eventsCh, nil
 }

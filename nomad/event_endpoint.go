@@ -97,7 +97,6 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 			return
 		}
 		select {
-		case <-errCh:
 		case <-ctx.Done():
 			return
 		}
@@ -105,7 +104,6 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 
 	go func() {
 		defer cancel()
-	LOOP:
 		for {
 			events, err := subscription.Next(ctx)
 			if err != nil {
@@ -113,7 +111,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 				case errCh <- err:
 				case <-ctx.Done():
 				}
-				break LOOP
+				return
 			}
 
 			// Continue if there are no events
@@ -126,7 +124,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 				case errCh <- err:
 				case <-ctx.Done():
 				}
-				break LOOP
+				return
 			}
 		}
 	}()

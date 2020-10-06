@@ -157,7 +157,10 @@ func parseEventTopics(query url.Values) (map[structs.Topic][]string, error) {
 
 func parseTopic(topic string) (string, string, error) {
 	parts := strings.Split(topic, ":")
-	if len(parts) != 2 {
+	// infer wildcard if only given a topic
+	if len(parts) == 1 {
+		return topic, "*", nil
+	} else if len(parts) != 2 {
 		return "", "", fmt.Errorf("Invalid key value pair for topic, topic: %s", topic)
 	}
 	return parts[0], parts[1], nil
