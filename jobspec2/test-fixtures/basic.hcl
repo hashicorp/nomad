@@ -70,28 +70,28 @@ job "binstore-storagelocker" {
   group "binsl" {
     count = 5
 
-    #volume "foo" {
-    #  type   = "host"
-    #  source = "/path"
-    #}
+    volume "foo" {
+      type   = "host"
+      source = "/path"
+    }
 
-    #volume "bar" {
-    #  type   = "csi"
-    #  source = "bar-vol"
+    volume "bar" {
+      type   = "csi"
+      source = "bar-vol"
 
-    #  mount_options {
-    #    fs_type = "ext4"
-    #  }
-    #}
+      mount_options {
+        fs_type = "ext4"
+      }
+    }
 
-    #volume "baz" {
-    #  type   = "csi"
-    #  source = "bar-vol"
+    volume "baz" {
+      type   = "csi"
+      source = "bar-vol"
 
-    #  mount_options {
-    #    mount_flags = ["ro"]
-    #  }
-    #}
+      mount_options {
+        mount_flags = ["ro"]
+      }
+    }
 
     restart {
       attempts = 5

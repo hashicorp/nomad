@@ -508,7 +508,7 @@ type TaskGroup struct {
 	Affinities                []*Affinity               `hcl:"affinity,block"`
 	Tasks                     []*Task                   `hcl:"task,block"`
 	Spreads                   []*Spread                 `hcl:"spread,block"`
-	Volumes                   map[string]*VolumeRequest `hcl:"volume,block"` // TODO: FIXME
+	Volumes                   map[string]*VolumeRequest `hcl:"volume,block"`
 	RestartPolicy             *RestartPolicy            `hcl:"restart,block"`
 	ReschedulePolicy          *ReschedulePolicy         `hcl:"reschedule,block"`
 	EphemeralDisk             *EphemeralDisk            `hcl:"ephemeral_disk,block"`

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
@@ -60,7 +61,7 @@ wht = "m"
 }
 
 func TestBasic(t *testing.T) {
-	f, err := os.Open("./test-fixtures/tg-scaling-policy.hcl")
+	f, err := os.Open("./test-fixtures/basic.hcl")
 	require.NoError(t, err)
 	defer f.Close()
 
@@ -111,12 +112,9 @@ func TestMine(t *testing.T) {
 func TestHCL2_Spec(t *testing.T) {
 	config := `
 job "example" {
-  meta {
-    hello = "var"
-    something {
-even = "asdf"
+group "test" {
+volume "foo" { source = "hello" }
 }
-  }
 }
 `
 
@@ -142,16 +140,19 @@ even = "asdf"
 }
 
 func TestHCL2_GoHCL(t *testing.T) {
-	config := `job "example" {
-timeout = 2
+	config := `#job "example" {
+volume "foo" {
+source = "/path"
+read_only = true
+#}
 }`
 	type Job struct {
-		Label   string        `hcl:",label"`
-		Timeout time.Duration `hcl:"timeout,optional"`
+		Label string `hcl:",label"`
 	}
 
 	type Target struct {
-		Job Job `hcl:"job,block"`
+		//Job Job `hcl:"job,block"`
+		Volumes map[string]*api.VolumeRequest `hcl:"volume,block"`
 	}
 
 	file, diags := hclparse.NewParser().ParseHCL([]byte(config), "test.hcl")

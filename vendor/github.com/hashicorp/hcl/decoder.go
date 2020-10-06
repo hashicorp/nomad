@@ -14,7 +14,7 @@ import (
 )
 
 // This is the tag to use with structures to have settings for HCL
-const tagName = "hcl"
+const tagName = "hcl1"
 
 var (
 	// nodeType holds a reference to the type of ast.Node
@@ -597,7 +597,12 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 		structType := structVal.Type()
 		for i := 0; i < structType.NumField(); i++ {
 			fieldType := structType.Field(i)
-			tagParts := strings.Split(fieldType.Tag.Get(tagName), ",")
+
+			tag := fieldType.Tag.Get(tagName)
+			if tag == "" {
+				tag = fieldType.Tag.Get("hcl")
+			}
+			tagParts := strings.Split(tag, ",")
 
 			// Ignore fields with tag name "-"
 			if tagParts[0] == "-" {
