@@ -618,6 +618,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"scaling": func() (cli.Command, error) {
+			return &ScalingCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy": func() (cli.Command, error) {
+			return &ScalingPolicyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy info": func() (cli.Command, error) {
+			return &ScalingPolicyInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy list": func() (cli.Command, error) {
+			return &ScalingPolicyListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"sentinel": func() (cli.Command, error) {
 			return &SentinelCommand{
 				Meta: meta,
