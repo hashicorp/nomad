@@ -9,7 +9,6 @@ replace (
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
-	github.com/hashicorp/go-memdb => /home/drew/work/go/go-memdb
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
 	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
@@ -64,7 +63,7 @@ require (
 	github.com/hashicorp/go-getter v1.3.1-0.20190822194507-f5101da01173
 	github.com/hashicorp/go-hclog v0.12.0
 	github.com/hashicorp/go-immutable-radix v1.3.0
-	github.com/hashicorp/go-memdb v1.2.1
+	github.com/hashicorp/go-memdb v1.3.0
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/go-plugin v1.0.2-0.20191004171845-809113480b55
