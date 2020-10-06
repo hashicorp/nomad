@@ -187,6 +187,12 @@ func (c *MockAgent) ServiceDeregister(serviceID string) error {
 	defer c.mu.Unlock()
 	c.hits++
 	delete(c.services, serviceID)
+	for k, v := range c.checks {
+		if v.ServiceID == serviceID {
+			delete(c.checks, k)
+			delete(c.checkTTLs, k)
+		}
+	}
 	return nil
 }
 
