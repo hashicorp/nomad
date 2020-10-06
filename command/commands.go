@@ -357,6 +357,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job scale": func() (cli.Command, error) {
+			return &JobScaleCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job scaling-events": func() (cli.Command, error) {
+			return &JobScalingEventsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job status": func() (cli.Command, error) {
 			return &JobStatusCommand{
 				Meta: meta,
