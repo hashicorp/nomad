@@ -15,7 +15,7 @@ func TestCommand_Metrics_Cases(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorMetricsCommand{Meta: Meta{Ui: ui}}
 
 	cases := []struct {
