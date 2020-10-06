@@ -1,7 +1,5 @@
 # Nomad Documentation Website
 
-[![Netlify Status](https://img.shields.io/netlify/57d01198-7abc-4c39-a89b-386a2fe7de09?style=flat-square)](https://app.netlify.com/sites/nomad-website/deploys)
-
 This subdirectory contains the entire source for the [Nomad Website](https://nomadproject.io/). This is a [NextJS](https://nextjs.org/) project, which builds a static site from these source files.
 
 <!--
