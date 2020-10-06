@@ -123,6 +123,7 @@ var basicConfig = &Config{
 		UpgradeVersion:            "0.8.0",
 		EncryptKey:                "abc",
 		EnableEventPublisher:      true,
+		EventBufferSize:           200,
 		DurableEventCount:         100,
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},

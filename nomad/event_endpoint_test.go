@@ -68,7 +68,7 @@ func TestEventStream(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
 
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(t, encoder.Encode(req))

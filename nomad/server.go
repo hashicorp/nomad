@@ -1217,6 +1217,7 @@ func (s *Server) setupRaft() error {
 		Logger:               s.logger,
 		Region:               s.Region(),
 		EnableEventPublisher: s.config.EnableEventPublisher,
+		EventBufferSize:      s.config.EventBufferSize,
 	}
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)
