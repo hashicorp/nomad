@@ -1,7 +1,7 @@
 const withHashicorp = require('@hashicorp/nextjs-scripts')
 const path = require('path')
 const dotenv = require('dotenv')
-const redirects = require('./redirects')
+//const redirects = require('./redirects')
 const rewrites = require('./rewrites')
 
 dotenv.config()
@@ -21,7 +21,12 @@ module.exports = withHashicorp({
   experimental: {
     modern: true,
     redirects() {
-      return redirects
+      return [
+        {
+          source: '/docs/agent',
+          destination: '/docs/install/production/nomad-agent/',
+        },
+      ]
     },
     rewrites() {
       return rewrites
