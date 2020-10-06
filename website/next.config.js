@@ -1,6 +1,8 @@
 const withHashicorp = require('@hashicorp/nextjs-scripts')
 const path = require('path')
 const dotenv = require('dotenv')
+const redirects = require('./redirects')
+const rewrites = require('./rewrites')
 
 dotenv.config()
 
@@ -18,12 +20,12 @@ module.exports = withHashicorp({
   },
   experimental: {
     modern: true,
-    rewrites: () => [
-      {
-        source: '/api/:path*',
-        destination: '/api-docs/:path*',
-      },
-    ],
+    redirects() {
+      return redirects
+    },
+    rewrites() {
+      return rewrites
+    },
   },
   env: {
     HASHI_ENV: process.env.HASHI_ENV || 'development',
