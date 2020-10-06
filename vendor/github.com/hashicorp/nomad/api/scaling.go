@@ -66,7 +66,7 @@ type ScalingPolicy struct {
 	Target      map[string]string      `hcl:"target,optional"`
 	Min         *int64                 `hcl:"min,optional"`
 	Max         *int64                 `hcl:"max,optional"`
-	Policy      map[string]interface{} `hcl:"policy,optional"`
+	Policy      map[string]interface{} `hcl:"policy,block"`
 	Enabled     *bool                  `hcl:"enabled,optional"`
 	CreateIndex uint64                 `hcl:"create_index,optional"`
 	ModifyIndex uint64                 `hcl:"modify_index,optional"`

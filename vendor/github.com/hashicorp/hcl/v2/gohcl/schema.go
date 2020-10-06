@@ -9,6 +9,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 )
 
+type HCLBodyScheme interface {
+	HCLSchema() (schema *hcl.BodySchema, partial bool)
+}
+
 // ImpliedBodySchema produces a hcl.BodySchema derived from the type of the
 // given value, which must be a struct value or a pointer to one. If an
 // inappropriate value is passed, this function will panic.
@@ -28,6 +32,10 @@ func ImpliedBodySchema(val interface{}) (schema *hcl.BodySchema, partial bool) {
 
 	if ty.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("given value must be struct, not %T", val))
+	}
+
+	if schemer, ok := val.(HCLBodyScheme); ok {
+		return schemer.HCLSchema()
 	}
 
 	var attrSchemas []hcl.AttributeSchema

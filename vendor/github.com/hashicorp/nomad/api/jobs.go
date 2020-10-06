@@ -786,7 +786,7 @@ type ParameterizedJobConfig struct {
 
 // Job is used to serialize a job.
 type Job struct {
-	Stop              *bool                   `hcl:"stop,optionals"`
+	Stop              *bool                   `hcl:"stop,optional"`
 	Region            *string                 `hcl:"region,optional"`
 	Namespace         *string                 `hcl:"namespace,optional"`
 	ID                *string                 `hcl:"id,label"`

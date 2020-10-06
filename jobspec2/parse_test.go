@@ -60,14 +60,15 @@ wht = "m"
 }
 
 func TestBasic(t *testing.T) {
-	f, err := os.Open("./test-fixtures/basic.hcl")
+	f, err := os.Open("./test-fixtures/tg-scaling-policy.hcl")
 	require.NoError(t, err)
 	defer f.Close()
 
 	job, err := Parse(f)
 	require.NoError(t, err)
 	//fmt.Println(job)
-	pretty.Println(job)
+	//pretty.Println(job)
+	_ = job
 }
 
 func TestEquavalency(t *testing.T) {

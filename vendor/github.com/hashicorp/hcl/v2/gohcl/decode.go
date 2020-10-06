@@ -3,6 +3,7 @@ package gohcl
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"reflect"
 	"time"
 
@@ -12,6 +13,10 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/gocty"
 )
+
+type Decoder interface {
+	DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnostics
+}
 
 // DecodeBody extracts the configuration within the given body into the given
 // value. This value must be a non-nil pointer to either a struct or
@@ -51,6 +56,10 @@ func decodeBodyToValue(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value) h
 }
 
 func decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value) hcl.Diagnostics {
+	if decoder, ok := val.Addr().Interface().(Decoder); ok {
+		return decoder.DecodeHCL(body, ctx)
+	}
+
 	schema, partial := ImpliedBodySchema(val.Interface())
 
 	var content *hcl.BodyContent
@@ -435,7 +444,7 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 			} else if val.RawEquals(cty.NegativeInfinity) {
 				return math.Inf(-1), nil
 			} else {
-				return val.AsBigFloat(), nil
+				return smallestNumber(val.AsBigFloat()), nil
 			}
 		case cty.Bool:
 			return val.True(), nil
@@ -513,4 +522,21 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 		// should never happen
 		return nil, fmt.Errorf("cannot serialize %s", t.FriendlyName())
 	}
+}
+
+func smallestNumber(b *big.Float) interface{} {
+
+	if v, acc := b.Int64(); acc == big.Exact {
+		// check if it fits in int
+		if int64(int(v)) == v {
+			return int(v)
+		}
+		return v
+	}
+
+	if v, acc := b.Float64(); acc == big.Exact || acc == big.Above {
+		return v
+	}
+
+	return b
 }
