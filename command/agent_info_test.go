@@ -17,7 +17,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{"-address=" + url})
@@ -28,7 +28,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 
 func TestAgentInfoCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

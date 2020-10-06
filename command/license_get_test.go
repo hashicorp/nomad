@@ -17,7 +17,7 @@ func TestCommand_LicenseGet_OSSErr(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &LicenseGetCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{"-address=" + url})
@@ -47,7 +47,7 @@ func TestOutputLicenseReply(t *testing.T) {
 		},
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 
 	require.Equal(t, 0, OutputLicenseReply(ui, lic))
 

@@ -11,7 +11,7 @@ import (
 
 func TestMonitor_Update_Eval(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	mon := newMonitor(ui, nil, fullId)
 
 	// Evals triggered by jobs log
@@ -65,7 +65,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 
 func TestMonitor_Update_Allocs(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	mon := newMonitor(ui, nil, fullId)
 
 	// New allocations write new logs
@@ -136,7 +136,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 
 func TestMonitor_Update_AllocModification(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	mon := newMonitor(ui, nil, fullId)
 
 	// New allocs with a create index lower than the
@@ -176,7 +176,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	defer srv.Shutdown()
 
 	// Create the monitor
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	mon := newMonitor(ui, client, fullId)
 
 	// Submit a job - this creates a new evaluation we can monitor
@@ -223,7 +223,7 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	defer srv.Shutdown()
 
 	// Create the monitor
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	mon := newMonitor(ui, client, shortId)
 
 	// Submit a job - this creates a new evaluation we can monitor

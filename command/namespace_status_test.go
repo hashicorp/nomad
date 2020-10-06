@@ -19,7 +19,7 @@ func TestNamespaceStatusCommand_Implements(t *testing.T) {
 
 func TestNamespaceStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -47,7 +47,7 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Create a namespace
@@ -76,7 +76,7 @@ func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Create a quota to delete
@@ -116,7 +116,7 @@ func TestNamespaceStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a namespace
@@ -145,7 +145,7 @@ func TestNamespaceStatusCommand_NamespaceMatchesPrefix(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Create a namespace that uses foo as a prefix

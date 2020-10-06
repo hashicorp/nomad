@@ -17,7 +17,7 @@ func TestJobDeploymentsCommand_Implements(t *testing.T) {
 
 func TestJobDeploymentsCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -44,7 +44,7 @@ func TestJobDeploymentsCommand_Run(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
 
 	// Should return an error message for no job match
@@ -88,7 +88,7 @@ func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui}}
 
 	// Should return an error message for no job match
@@ -133,7 +133,7 @@ func TestJobDeploymentsCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobDeploymentsCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job

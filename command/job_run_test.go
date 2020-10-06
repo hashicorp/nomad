@@ -17,7 +17,7 @@ func TestRunCommand_Implements(t *testing.T) {
 
 func TestRunCommand_Output_Json(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 
 	fh, err := ioutil.TempFile("", "nomad")
@@ -58,7 +58,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	// Fails on misuse
@@ -162,7 +162,7 @@ func TestRunCommand_From_STDIN(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
@@ -200,7 +200,7 @@ job "job1" {
 
 func TestRunCommand_From_URL(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},
 	}

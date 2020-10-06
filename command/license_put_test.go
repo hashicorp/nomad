@@ -16,7 +16,7 @@ func TestCommand_LicensePut_Err(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &LicensePutCommand{Meta: Meta{Ui: ui}, testStdin: strings.NewReader("testlicenseblob")}
 
 	if code := cmd.Run([]string{"-address=" + url, "-"}); code != 1 {

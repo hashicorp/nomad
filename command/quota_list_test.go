@@ -17,7 +17,7 @@ func TestQuotaListCommand_Implements(t *testing.T) {
 
 func TestQuotaListCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaListCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -46,7 +46,7 @@ func TestQuotaListCommand_List(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaListCommand{Meta: Meta{Ui: ui}}
 
 	// Create a quota

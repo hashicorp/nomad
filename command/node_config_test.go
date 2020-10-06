@@ -20,7 +20,7 @@ func TestClientConfigCommand_UpdateServers(t *testing.T) {
 	})
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeConfigCommand{Meta: Meta{Ui: ui}}
 
 	// Fails if trying to update with no servers
@@ -48,7 +48,7 @@ func TestClientConfigCommand_UpdateServers(t *testing.T) {
 
 func TestClientConfigCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeConfigCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

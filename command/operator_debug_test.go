@@ -37,7 +37,7 @@ func TestDebugFails(t *testing.T) {
 	srv, _, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	// Fails incorrect args
@@ -75,7 +75,7 @@ func TestDebugCapturedFiles(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{

@@ -21,7 +21,7 @@ func TestValidateCommand(t *testing.T) {
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobValidateCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	fh, err := ioutil.TempFile("", "nomad")
@@ -57,7 +57,7 @@ job "job1" {
 
 func TestValidateCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -124,7 +124,7 @@ func TestValidateCommand_From_STDIN(t *testing.T) {
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobValidateCommand{
 		Meta:      Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr},
 		JobGetter: JobGetter{testStdin: stdinR},
@@ -161,7 +161,7 @@ job "job1" {
 
 func TestValidateCommand_From_URL(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},
 	}

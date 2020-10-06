@@ -20,7 +20,7 @@ func TestStatusCommand_Run_JobStatus(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job
@@ -46,7 +46,7 @@ func TestStatusCommand_Run_JobStatus_MultiMatch(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create two fake jobs sharing a prefix
@@ -75,7 +75,7 @@ func TestStatusCommand_Run_EvalStatus(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake eval
@@ -104,7 +104,7 @@ func TestStatusCommand_Run_NodeStatus(t *testing.T) {
 	})
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Wait for a node to appear
@@ -141,7 +141,7 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
@@ -166,7 +166,7 @@ func TestStatusCommand_Run_DeploymentStatus(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake deployment
@@ -192,7 +192,7 @@ func TestStatusCommand_Run_NoPrefix(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job
@@ -218,7 +218,7 @@ func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job

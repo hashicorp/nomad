@@ -68,7 +68,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
+			ui := cli.NewMockUi()
 			cmd := &AllocExecCommand{Meta: Meta{Ui: ui}}
 
 			code := cmd.Run(c.args)
@@ -100,7 +100,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 	})
 
 	t.Run("non existent task", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &AllocExecCommand{Meta: Meta{Ui: ui}}
 
 		jobID := "job1_sfx"
@@ -139,7 +139,7 @@ func TestAllocExecCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocExecCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
@@ -193,7 +193,7 @@ func TestAllocExecCommand_Run(t *testing.T) {
 	resp, _, err := client.Jobs().Register(job, nil)
 	require.NoError(t, err)
 
-	evalUi := new(cli.MockUi)
+	evalUi := cli.NewMockUi()
 	code := waitForSuccess(evalUi, client, fullId, t, resp.EvalID)
 	require.Equal(t, 0, code, "failed to get status - output: %v", evalUi.ErrorWriter.String())
 
@@ -249,7 +249,7 @@ func TestAllocExecCommand_Run(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run("by id: "+c.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
+			ui := cli.NewMockUi()
 			var stdout, stderr bufferCloser
 
 			cmd := &AllocExecCommand{
@@ -265,7 +265,7 @@ func TestAllocExecCommand_Run(t *testing.T) {
 			assert.Equal(t, c.stderr, strings.TrimSpace(stderr.String()))
 		})
 		t.Run("by job: "+c.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
+			ui := cli.NewMockUi()
 			var stdout, stderr bufferCloser
 
 			cmd := &AllocExecCommand{

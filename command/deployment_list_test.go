@@ -14,7 +14,7 @@ func TestDeploymentListCommand_Implements(t *testing.T) {
 
 func TestDeploymentListCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &DeploymentListCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

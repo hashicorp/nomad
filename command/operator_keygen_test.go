@@ -9,7 +9,7 @@ import (
 
 func TestKeygenCommand(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorKeygenCommand{Meta: Meta{Ui: ui}}
 	code := c.Run(nil)
 	if code != 0 {
