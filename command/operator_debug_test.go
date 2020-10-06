@@ -130,6 +130,8 @@ func TestDebugCapturedFiles(t *testing.T) {
 	require.FileExists(t, filepath.Join(path, "server", "leader", "profile.prof"))
 	require.FileExists(t, filepath.Join(path, "server", "leader", "trace.prof"))
 	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine.prof"))
+	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine-debug1.txt"))
+	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine-debug2.txt"))
 
 	// Multiple snapshots are collected, 00 is always created
 	require.FileExists(t, filepath.Join(path, "nomad", "0000", "jobs.json"))

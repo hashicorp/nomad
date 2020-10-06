@@ -499,6 +499,20 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err == nil {
 		c.writeBytes(path, "goroutine.prof", bs)
 	}
+
+	// Gather goroutine text output - debug type 1
+	opts.Debug = 1
+	bs, err = client.Agent().Lookup("goroutine", opts, nil)
+	if err == nil {
+		c.writeBytes(path, "goroutine-debug1.txt", bs)
+	}
+
+	// Gather goroutine text output - debug type 2
+	opts.Debug = 2
+	bs, err = client.Agent().Lookup("goroutine", opts, nil)
+	if err == nil {
+		c.writeBytes(path, "goroutine-debug2.txt", bs)
+	}
 }
 
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
