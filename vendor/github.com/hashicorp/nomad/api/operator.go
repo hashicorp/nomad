@@ -305,6 +305,7 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	return &reply, qm, nil
 }
 
+// Metrics returns a slice of bytes containing metrics, optionally formatted as either json or prometheus
 func (op *Operator) Metrics(q *QueryOptions) ([]byte, error) {
 	if q == nil {
 		q = &QueryOptions{}
