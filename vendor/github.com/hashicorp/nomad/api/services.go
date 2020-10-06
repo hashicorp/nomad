@@ -328,6 +328,7 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 }
 
 type ConsulGatewayBindAddress struct {
+	Name    string `hcl:",label"`
 	Address string `mapstructure:"address" hcl:"address,optional"`
 	Port    int    `mapstructure:"port" hcl:"port,optional"`
 }
@@ -460,7 +461,7 @@ const (
 type ConsulIngressListener struct {
 	Port     int                     `hcl:"port,optional"`
 	Protocol string                  `hcl:"protocol,optional"`
-	Services []*ConsulIngressService `hcl:"services,block"`
+	Services []*ConsulIngressService `hcl:"service,block"`
 }
 
 func (l *ConsulIngressListener) Canonicalize() {
@@ -507,7 +508,7 @@ type ConsulIngressConfigEntry struct {
 	// Namespace string
 
 	TLS       *ConsulGatewayTLSConfig  `hcl:"tls,block"`
-	Listeners []*ConsulIngressListener `hcl:"listeners,block"`
+	Listeners []*ConsulIngressListener `hcl:"listener,block"`
 }
 
 func (e *ConsulIngressConfigEntry) Canonicalize() {
