@@ -200,6 +200,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&c.vault.tls.ClientKey, "vault-client-key", os.Getenv("VAULT_CLIENT_KEY"), "")
 
 	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
 		return 1
 	}
 
@@ -574,6 +575,9 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 
 	vs, _, err := client.CSIVolumes().List(qo)
 	c.writeJSON(dir, "volumes.json", vs, err)
+
+	metrics, err := client.Operator().Metrics(qo)
+	c.writeJSON(dir, "metrics.json", metrics, err)
 
 	return nil
 }
