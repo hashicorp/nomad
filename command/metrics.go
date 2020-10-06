@@ -88,12 +88,14 @@ func (c *OperatorMetricsCommand) Run(args []string) int {
 		Params: params,
 	}
 
-	resp, err := client.Operator().Metrics(query)
+	bs, err := client.Operator().Metrics(query)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting metrics: %v", err))
 		return 1
 	}
 
+	resp := string(bs[:])
 	c.Ui.Output(resp)
+
 	return 0
 }
