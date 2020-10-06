@@ -39,7 +39,7 @@ func TestEventStream(t *testing.T) {
 
 		pub, err := s.Agent.server.State().EventPublisher()
 		require.NoError(t, err)
-		pub.Publish(structs.Events{Index: 100, Events: []structs.Event{{Payload: testEvent{ID: "123"}}}})
+		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Payload: testEvent{ID: "123"}}}})
 
 		testutil.WaitForResult(func() (bool, error) {
 			got := resp.Body.String()
@@ -56,7 +56,6 @@ func TestEventStream(t *testing.T) {
 
 		// wait for response to close to prevent race between subscription
 		// shutdown and server shutdown returning subscription closed by server err
-		// resp.Close()
 		cancel()
 		select {
 		case err := <-respErrCh:

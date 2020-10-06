@@ -57,6 +57,7 @@ func testFSM(t *testing.T) *nomadFSM {
 		Logger:               logger,
 		Region:               "global",
 		EnableEventPublisher: true,
+		EventBufferSize:      100,
 	}
 	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
@@ -3207,11 +3208,10 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	fsm.config.EnableEventPublisher = true
+	// DurableEventCount = 4 each mock events wrapper contains 2 events
+	fsm.config.DurableEventCount = 4
 
 	state := fsm.State()
-	cfg := state.Config()
-	// DurableEventCount = 4 each mock events wrapper contains 2 events
-	cfg.DurableEventCount = 4
 
 	e1 := mock.Events(1000)
 	e2 := mock.Events(1001)
@@ -3261,9 +3261,11 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 
 func TestFSM_SnapshotRestore_Events_NoDurability(t *testing.T) {
 	t.Parallel()
-	// Add some state
 	fsm := testFSM(t)
-	fsm.config.EnableEventPublisher = false
+	// Enable event publisher with durable event count of zero
+	fsm.config.EnableEventPublisher = true
+	fsm.config.DurableEventCount = 0
+
 	state := fsm.State()
 
 	e1 := mock.Events(1000)

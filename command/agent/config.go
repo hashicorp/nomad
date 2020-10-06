@@ -488,6 +488,11 @@ type ServerConfig struct {
 	// will generate events for its event stream.
 	EnableEventPublisher bool `hcl:"enable_event_publisher"`
 
+	// EventBufferSize configure the amount of events to be held in memory.
+	// If EnableEventPublisher is set to true, the minimum allowable value
+	// for the EventBufferSize is 1.
+	EventBufferSize int `hcl:"event_buffer_size"`
+
 	// DurableEventCount specifies the amount of events to persist during snapshot generation.
 	// A count of 0 signals that no events should be persisted.
 	DurableEventCount int `hcl:"durable_event_count"`
@@ -892,6 +897,7 @@ func DefaultConfig() *Config {
 		Server: &ServerConfig{
 			Enabled:              false,
 			EnableEventPublisher: true,
+			EventBufferSize:      100,
 			DurableEventCount:    100,
 			StartJoin:            []string{},
 			ServerJoin: &ServerJoin{
@@ -1419,6 +1425,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.EnableEventPublisher {
 		result.EnableEventPublisher = true
+	}
+
+	if b.EventBufferSize != 0 {
+		result.EventBufferSize = b.EventBufferSize
 	}
 
 	if b.DurableEventCount != 0 {

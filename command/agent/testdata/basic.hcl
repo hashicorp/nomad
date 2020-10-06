@@ -131,6 +131,7 @@ server {
   encrypt                       = "abc"
   raft_multiplier               = 4
   enable_event_publisher        = true
+  event_buffer_size             = 200
   durable_event_count           = 100
 
   server_join {

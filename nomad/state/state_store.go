@@ -49,8 +49,11 @@ type StateStoreConfig struct {
 	// EnablePublisher is used to enable or disable the event publisher
 	EnablePublisher bool
 
-	// DurableEventCount is the amount of events to persist during the snapshot
-	// process.
+	// EventBufferSize configures the amount of events to hold in memory
+	EventBufferSize int64
+
+	// DurableEventCount is used to determine if events from transaction changes
+	// should be saved in go-memdb
 	DurableEventCount int
 }
 
@@ -96,12 +99,15 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		cfg := &ChangeConfig{
-			DurableEventCount: 1000,
+			DurableEventCount: config.DurableEventCount,
 		}
+
+		// Create new event publisher using provided config
 		publisher := stream.NewEventPublisher(ctx, stream.EventPublisherCfg{
 			EventBufferTTL:  1 * time.Hour,
-			EventBufferSize: 250,
+			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
+			OnEvict:         s.eventPublisherEvict,
 		})
 		s.db = NewChangeTrackerDB(db, publisher, processDBChanges, cfg)
 	} else {
@@ -121,6 +127,30 @@ func (s *StateStore) EventPublisher() (*stream.EventPublisher, error) {
 		return nil, fmt.Errorf("EventPublisher not configured")
 	}
 	return s.db.publisher, nil
+}
+
+// eventPublisherEvict is used as a callback to delete an evicted events
+// entry from go-memdb.
+func (s *StateStore) eventPublisherEvict(events *structs.Events) {
+	if err := s.deleteEvent(events); err != nil {
+		if err == memdb.ErrNotFound {
+			s.logger.Info("Evicted event was not found in go-memdb table", "event index", events.Index)
+		} else {
+			s.logger.Error("Error deleting event from events table", "error", err)
+		}
+	}
+}
+
+func (s *StateStore) deleteEvent(events *structs.Events) error {
+	txn := s.db.db.Txn(true)
+	defer txn.Abort()
+
+	if err := txn.Delete("events", events); err != nil {
+		return err
+	}
+
+	txn.Commit()
+	return nil
 }
 
 // Config returns the state store configuration.

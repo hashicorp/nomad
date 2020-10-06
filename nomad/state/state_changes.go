@@ -8,10 +8,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	CtxMsgType = "type"
-)
-
 // ReadTxn is implemented by memdb.Txn to perform read operations.
 type ReadTxn interface {
 	Get(table, index string, args ...interface{}) (memdb.ResultIterator, error)
@@ -34,10 +30,9 @@ type Changes struct {
 // sent to the EventPublisher which will create and emit change events.
 type changeTrackerDB struct {
 	db             *memdb.MemDB
-	durableEvents  bool
-	durableCount   int
+	durableCount   int64
 	publisher      *stream.EventPublisher
-	processChanges func(ReadTxn, Changes) (structs.Events, error)
+	processChanges func(ReadTxn, Changes) (*structs.Events, error)
 }
 
 // ChangeConfig
@@ -54,13 +49,13 @@ func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, chang
 		db:             db,
 		publisher:      publisher,
 		processChanges: changesFn,
-		durableCount:   cfg.DurableEventCount,
+		durableCount:   int64(cfg.DurableEventCount),
 	}
 }
 
-type changeProcessor func(ReadTxn, Changes) (structs.Events, error)
+type changeProcessor func(ReadTxn, Changes) (*structs.Events, error)
 
-func noOpProcessChanges(ReadTxn, Changes) (structs.Events, error) { return structs.Events{}, nil }
+func noOpProcessChanges(ReadTxn, Changes) (*structs.Events, error) { return nil, nil }
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn
@@ -92,24 +87,26 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 }
 
 func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) *txn {
+	persistChanges := c.durableCount > 0
+
 	t := &txn{
 		msgType:        msgType,
 		Txn:            c.db.Txn(true),
 		Index:          idx,
 		publish:        c.publish,
-		persistChanges: c.durableEvents,
+		persistChanges: persistChanges,
 	}
 	t.Txn.TrackChanges()
 	return t
 }
 
-func (c *changeTrackerDB) publish(changes Changes) (structs.Events, error) {
+func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
 	readOnlyTx := c.db.Txn(false)
 	defer readOnlyTx.Abort()
 
 	events, err := c.processChanges(readOnlyTx, changes)
 	if err != nil {
-		return structs.Events{}, fmt.Errorf("failed generating events from changes: %v", err)
+		return nil, fmt.Errorf("failed generating events from changes: %v", err)
 	}
 
 	c.publisher.Publish(events)
@@ -147,7 +144,7 @@ type txn struct {
 	// Index is stored so that it may be passed along to any subscribers as part
 	// of a change event.
 	Index   uint64
-	publish func(changes Changes) (structs.Events, error)
+	publish func(changes Changes) (*structs.Events, error)
 }
 
 // Commit first pushes changes to EventPublisher, then calls Commit on the
@@ -191,11 +188,11 @@ func (tx *txn) MsgType() structs.MessageType {
 	return tx.msgType
 }
 
-func processDBChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
+func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	switch changes.MsgType {
 	case structs.IgnoreUnknownTypeFlag:
 		// unknown event type
-		return structs.Events{}, nil
+		return nil, nil
 	case structs.NodeRegisterRequestType:
 		return NodeRegisterEventFromChanges(tx, changes)
 	case structs.NodeUpdateStatusRequestType:
@@ -226,5 +223,5 @@ func processDBChanges(tx ReadTxn, changes Changes) (structs.Events, error) {
 		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
 	}
-	return structs.Events{}, nil
+	return nil, nil
 }
