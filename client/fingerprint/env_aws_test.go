@@ -216,12 +216,11 @@ func TestCPUFingerprint_AWS_InstanceFound(t *testing.T) {
 	err := f.Fingerprint(request, &response)
 	require.NoError(t, err)
 	require.True(t, response.Detected)
-	require.Equal(t, "2.5 GHz AMD EPYC 7000 series", response.Attributes["cpu.modelname"])
-	require.Equal(t, "2500", response.Attributes["cpu.frequency"])
+	require.Equal(t, "2200", response.Attributes["cpu.frequency"])
 	require.Equal(t, "8", response.Attributes["cpu.numcores"])
-	require.Equal(t, "20000", response.Attributes["cpu.totalcompute"])
-	require.Equal(t, 20000, response.Resources.CPU)
-	require.Equal(t, int64(20000), response.NodeResources.Cpu.CpuShares)
+	require.Equal(t, "17600", response.Attributes["cpu.totalcompute"])
+	require.Equal(t, 17600, response.Resources.CPU)
+	require.Equal(t, int64(17600), response.NodeResources.Cpu.CpuShares)
 }
 
 func TestCPUFingerprint_AWS_OverrideCompute(t *testing.T) {
@@ -240,8 +239,7 @@ func TestCPUFingerprint_AWS_OverrideCompute(t *testing.T) {
 	err := f.Fingerprint(request, &response)
 	require.NoError(t, err)
 	require.True(t, response.Detected)
-	require.Equal(t, "2.5 GHz AMD EPYC 7000 series", response.Attributes["cpu.modelname"])
-	require.Equal(t, "2500", response.Attributes["cpu.frequency"])
+	require.Equal(t, "2200", response.Attributes["cpu.frequency"])
 	require.Equal(t, "8", response.Attributes["cpu.numcores"])
 	require.NotContains(t, response.Attributes, "cpu.totalcompute")
 	require.Nil(t, response.Resources)          // defaults in cpu fingerprinter
@@ -346,6 +344,28 @@ var awsStubs = []endpoint{
 		Uri:         "/latest/meta-data/mac",
 		ContentType: "text/plain",
 		Body:        "0a:20:d2:42:b3:55",
+	},
+	{
+		Uri:         "/latest/dynamic/instance-identity/document",
+		ContentType: "text/plain",
+		Body: `
+		{
+			"devpayProductCodes" : null,
+			"marketplaceProductCodes" : [ "1abc2defghijklm3nopqrs4tu" ],
+			"availabilityZone" : "us-west-2a",
+			"privateIp" : "10.0.0.207",
+			"version" : "2017-09-30",
+			"instanceId" : "i-b3ba3875",
+			"billingProducts" : null,
+			"instanceType" : "t3a.2xlarge",
+			"accountId" : "123456789012",
+			"imageId" : "ami-1234",
+			"pendingTime" : "2016-11-19T16:32:11Z",
+			"architecture" : "x86_64",
+			"kernelId" : null,
+			"ramdiskId" : null,
+			"region" : "us-west-2"
+		}`,
 	},
 }
 
