@@ -248,7 +248,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	got, err := processDBChanges(tx, changes)
 	require.NoError(t, err)
 
-	require.Len(t, got, 1)
+	require.Len(t, got.Events, 1)
 
 	require.Equal(t, TopicNode, got.Events[0].Topic)
 	require.Equal(t, TypeNodeDrain, got.Events[0].Type)

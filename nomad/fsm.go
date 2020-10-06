@@ -1564,22 +1564,33 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 
 	// Rehydrate the new state store's event publisher with the events
 	// persisted in the snapshot
-	// pub, err := n.state.EventPublisher()
-	// if err != nil {
-	// 	n.logger.Warn("Snapshot Restore: new state event publisher not configured")
-	// }
-	// events, err := n.state.Events(nil)
-	// if err != nil {
-	// 	n.logger.Warn("Snapshot Restore: unable to retrieve current events")
-	// }
-	// for {
-	// 	raw := events.Next()
-	// 	if raw == nil {
-	// 		break
-	// 	}
-	// 	e := raw.(*structs.Events)
-	// 	pub.Publish(e)
-	// }
+	if n.config.EnableEventPublisher {
+		if err := rehydratePublisherFromState(n.state); err != nil {
+			n.logger.Error("Error re-hydrating event publisher during restore", "error", err)
+		}
+	}
+
+	return nil
+}
+
+func rehydratePublisherFromState(s *state.StateStore) error {
+	pub, err := s.EventPublisher()
+	if err != nil {
+		return err
+	}
+
+	events, err := s.Events(nil)
+	if err != nil {
+		return err
+	}
+	for {
+		raw := events.Next()
+		if raw == nil {
+			break
+		}
+		e := raw.(*structs.Events)
+		pub.Publish(*e)
+	}
 	return nil
 }
 

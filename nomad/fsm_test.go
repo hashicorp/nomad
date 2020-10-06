@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -50,11 +51,12 @@ func testFSM(t *testing.T) *nomadFSM {
 	dispatcher, _ := testPeriodicDispatcher(t)
 	logger := testlog.HCLogger(t)
 	fsmConfig := &FSMConfig{
-		EvalBroker: broker,
-		Periodic:   dispatcher,
-		Blocked:    NewBlockedEvals(broker, logger),
-		Logger:     logger,
-		Region:     "global",
+		EvalBroker:           broker,
+		Periodic:             dispatcher,
+		Blocked:              NewBlockedEvals(broker, logger),
+		Logger:               logger,
+		Region:               "global",
+		EnableEventPublisher: true,
 	}
 	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
@@ -3204,6 +3206,8 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
+	fsm.config.EnableEventPublisher = true
+
 	state := fsm.State()
 	cfg := state.Config()
 	// DurableEventCount = 4 each mock events wrapper contains 2 events
@@ -3242,15 +3246,25 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 	// Durable count was 4 so e1 events should be excluded
 	raw1 := iter.Next()
 	require.Nil(t, raw1)
+
+	pub, err := state2.EventPublisher()
+	require.NoError(t, err)
+	testutil.WaitForResult(func() (bool, error) {
+		if pub.Len() == 2 {
+			return true, nil
+		}
+		return false, errors.New("expected publisher to be populated")
+	}, func(err error) {
+		require.Fail(t, err.Error())
+	})
 }
 
 func TestFSM_SnapshotRestore_Events_NoDurability(t *testing.T) {
 	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
+	fsm.config.EnableEventPublisher = false
 	state := fsm.State()
-	cfg := state.Config()
-	cfg.DurableEventCount = 0
 
 	e1 := mock.Events(1000)
 	e2 := mock.Events(1001)
