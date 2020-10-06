@@ -607,8 +607,13 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	vs, _, err := client.CSIVolumes().List(qo)
 	c.writeJSON(dir, "volumes.json", vs, err)
 
-	metrics, err := client.Operator().Metrics(qo)
-	c.writeJSON(dir, "metrics.json", metrics, err)
+	metricBytes, err := client.Operator().Metrics(qo)
+
+	if err != nil {
+		c.writeError(dir, "metrics.json", err)
+	} else {
+		c.writeBytes(dir, "metrics.json", metricBytes)
+	}
 
 	return nil
 }
