@@ -8,8 +8,6 @@ import (
 	"github.com/posener/complete"
 )
 
-//var _ cli.Command = &MetricsCommand{}
-
 type OperatorMetricsCommand struct {
 	Meta
 }
