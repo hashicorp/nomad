@@ -91,7 +91,7 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	head := b.Head()
@@ -100,7 +100,7 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	// Ensure the slow reader errors to handle dropped events and
@@ -120,7 +120,7 @@ func TestEventBuffer_Size(t *testing.T) {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	require.Equal(t, 10, b.Len())
@@ -136,17 +136,37 @@ func TestEventBuffer_Prune_AllOld(t *testing.T) {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	require.Equal(t, 10, int(b.Len()))
 
 	time.Sleep(1 * time.Second)
 
+	// prune old messages, which will bring the event buffer down
+	// to a single sentinel value
 	b.prune()
 
-	require.Equal(t, 9, int(b.Head().Events.Index))
+	// head and tail are now a sentinel value
+	head := b.Head()
+	tail := b.Tail()
+	require.Equal(t, 0, int(head.Events.Index))
 	require.Equal(t, 0, b.Len())
+	require.Equal(t, head, tail)
+
+	e := structs.Event{
+		Index: uint64(100),
+	}
+	b.Append(&structs.Events{Index: uint64(100), Events: []structs.Event{e}})
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(1*time.Second))
+	defer cancel()
+
+	next, err := head.Next(ctx, make(chan struct{}))
+	require.NoError(t, err)
+	require.NotNil(t, next)
+	require.Equal(t, uint64(100), next.Events.Index)
+
 }
 
 func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
@@ -189,7 +209,7 @@ func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	for _, tc := range cases {
@@ -203,7 +223,7 @@ func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
 
 func TestEventBuffer_OnEvict(t *testing.T) {
 	called := make(chan struct{})
-	testOnEvict := func(events structs.Events) {
+	testOnEvict := func(events *structs.Events) {
 		close(called)
 	}
 	b := newEventBuffer(2, DefaultTTL, testOnEvict)
@@ -213,7 +233,7 @@ func TestEventBuffer_OnEvict(t *testing.T) {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
-		b.Append(structs.Events{Index: uint64(i), Events: []structs.Event{e}})
+		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
 
 	select {

@@ -103,18 +103,33 @@ func (b *eventBuffer) appendItem(item *bufferItem) {
 
 }
 
+func newSentinelItem() *bufferItem {
+	return newBufferItem(&structs.Events{Index: 0, Events: nil})
+}
+
 // advanceHead drops the current Head buffer item and notifies readers
 // that the item should be discarded by closing droppedCh.
 // Slow readers will prevent the old head from being GC'd until they
 // discard it.
 func (b *eventBuffer) advanceHead() {
 	old := b.Head()
-	rmCount := len(old.Events.Events)
 
 	next := old.link.next.Load()
+	if next == nil {
+		next = newSentinelItem()
+	}
 
+	old.link.next.Store(next)
 	close(old.link.droppedCh)
 	b.head.Store(next)
+
+	// If the old head is equal to the tail
+	// update the tail value as well
+	if old == b.Tail() {
+		b.tail.Store(next)
+	}
+
+	rmCount := len(old.Events.Events)
 	atomic.AddInt64(b.size, -int64(rmCount))
 
 	// Call evict callback if the item isn't a sentinel value
