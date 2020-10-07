@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
@@ -67,6 +66,7 @@ func TestBasic(t *testing.T) {
 
 	job, err := Parse(f)
 	require.NoError(t, err)
+	fmt.Println("### ", job.ID, job.Name)
 	//fmt.Println(job)
 	//pretty.Println(job)
 	_ = job
@@ -140,19 +140,20 @@ volume "foo" { source = "hello" }
 }
 
 func TestHCL2_GoHCL(t *testing.T) {
-	config := `#job "example" {
-volume "foo" {
-source = "/path"
-read_only = true
-#}
+	config := `job "example" {
+name = "qwer"
+group "asdf" {}
+vault {
+namespace = "whatever"
+}
+task "hello" {}
 }`
 	type Job struct {
 		Label string `hcl:",label"`
 	}
 
 	type Target struct {
-		//Job Job `hcl:"job,block"`
-		Volumes map[string]*api.VolumeRequest `hcl:"volume,block"`
+		Job JobWrapper `hcl:"job,block"`
 	}
 
 	file, diags := hclparse.NewParser().ParseHCL([]byte(config), "test.hcl")
@@ -170,4 +171,9 @@ read_only = true
 	fmt.Println("### V\n", pretty.Sprint(v))
 	fmt.Println("### DIAGs\n", err)
 
+}
+
+func TestHCLSchema(t *testing.T) {
+	s, _ := gohcl.ImpliedBodySchema(JobWrapper{})
+	pretty.Println(s)
 }

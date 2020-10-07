@@ -789,7 +789,7 @@ type Job struct {
 	Stop              *bool                   `hcl:"stop,optional"`
 	Region            *string                 `hcl:"region,optional"`
 	Namespace         *string                 `hcl:"namespace,optional"`
-	ID                *string                 `hcl:"id,label"`
+	ID                *string                 `hcl:"id,optional"`
 	ParentID          *string                 `hcl:"parent_id,optional"`
 	Name              *string                 `hcl:"name,optional"`
 	Type              *string                 `hcl:"type,optional"`

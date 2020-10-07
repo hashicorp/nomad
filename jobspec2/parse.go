@@ -7,10 +7,52 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsimple"
 	"github.com/hashicorp/nomad/api"
 	"github.com/zclconf/go-cty/cty"
 )
+
+type JobWrapper struct {
+	JobID string `hcl:",label"`
+	Job   *api.Job
+
+	Extra struct {
+		Vault *api.Vault  `hcl:"vault,block"`
+		Tasks []*api.Task `hcl:"task,block"`
+	}
+}
+
+func (m JobWrapper) HCLSchema() (schema *hcl.BodySchema, partial bool) {
+	s, _ := gohcl.ImpliedBodySchema(m.Job)
+	return s, true
+}
+
+func (m *JobWrapper) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnostics {
+	extra, _ := gohcl.ImpliedBodySchema(m.Extra)
+	content, job, diags := body.PartialContent(extra)
+	if len(diags) != 0 {
+		return diags
+	}
+
+	for _, b := range content.Blocks {
+		if b.Type == "vault" {
+			v := &api.Vault{}
+			diags = append(diags, gohcl.DecodeBody(b.Body, ctx, v)...)
+			m.Extra.Vault = v
+		} else if b.Type == "task" {
+			t := &api.Task{}
+			diags = append(diags, gohcl.DecodeBody(b.Body, ctx, t)...)
+			if len(b.Labels) == 1 {
+				t.Name = b.Labels[0]
+				m.Extra.Tasks = append(m.Extra.Tasks, t)
+			}
+		}
+	}
+
+	m.Job = &api.Job{}
+	return gohcl.DecodeBody(job, ctx, m.Job)
+}
 
 func Parse(r io.Reader) (*api.Job, error) {
 	filename := "job.hcl"
@@ -30,7 +72,7 @@ func Parse(r io.Reader) (*api.Job, error) {
 		},
 	}
 	var result struct {
-		Job api.Job `hcl:"job,block"`
+		Job JobWrapper `hcl:"job,block"`
 	}
 	err := hclsimple.Decode(filename, buf.Bytes(), evalContext, &result)
 	if err != nil {
@@ -38,14 +80,35 @@ func Parse(r io.Reader) (*api.Job, error) {
 	}
 
 	normalizeJob(&result.Job)
-	return &result.Job, nil
+	return result.Job.Job, nil
 }
 
-func normalizeJob(j *api.Job) {
-	j.Name = j.ID
+func normalizeJob(jw *JobWrapper) {
+	j := jw.Job
+	if j.Name == nil {
+		j.Name = &jw.JobID
+	}
+	if j.ID == nil {
+		j.ID = &jw.JobID
+	}
+
 	if j.Periodic != nil && j.Periodic.Spec != nil {
 		v := "cron"
 		j.Periodic.SpecType = &v
+	}
+
+	normalizeVault(jw.Extra.Vault)
+
+	if len(jw.Extra.Tasks) != 0 {
+		alone := make([]*api.TaskGroup, 0, len(jw.Extra.Tasks))
+		for _, t := range jw.Extra.Tasks {
+			alone = append(alone, &api.TaskGroup{
+				Name:  &t.Name,
+				Tasks: []*api.Task{t},
+			})
+		}
+		alone = append(alone, j.TaskGroups...)
+		j.TaskGroups = alone
 	}
 
 	for _, tg := range j.TaskGroups {
@@ -58,13 +121,25 @@ func normalizeJob(j *api.Job) {
 			normalizeTemplates(t.Templates)
 
 			// normalize Vault
-			if t.Vault != nil && t.Vault.Env == nil {
-				t.Vault.Env = boolToPtr(true)
-			}
-			if t.Vault != nil && t.Vault.ChangeMode == nil {
-				t.Vault.ChangeMode = stringToPtr("restart")
+			normalizeVault(t.Vault)
+
+			if t.Vault == nil {
+				t.Vault = jw.Extra.Vault
 			}
 		}
+	}
+}
+
+func normalizeVault(v *api.Vault) {
+	if v == nil {
+		return
+	}
+
+	if v.Env == nil {
+		v.Env = boolToPtr(true)
+	}
+	if v.ChangeMode == nil {
+		v.ChangeMode = stringToPtr("restart")
 	}
 }
 
