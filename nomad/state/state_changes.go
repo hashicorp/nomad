@@ -109,7 +109,9 @@ func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
 		return nil, fmt.Errorf("failed generating events from changes: %v", err)
 	}
 
-	c.publisher.Publish(events)
+	if events != nil {
+		c.publisher.Publish(events)
+	}
 	return events, nil
 }
 
