@@ -14,6 +14,7 @@ IMPROVEMENTS:
 
 __BACKWARDS INCOMPATIBILITIES:__
  * core: null characters are prohibited in region, datacenter, job name/ID, task group name, and task name [[GH-9020](https://github.com/hashicorp/nomad/issues/9020)]
+ * csi: registering a CSI volume with a `block-device` attachment mode and `mount_options` now returns a validation error, instead of silently dropping the `mount_options`. [[GH-9044](https://github.com/hashicorp/nomad/issues/9044)]
  * driver/docker: Tasks are now issued SIGTERM instead of SIGINT when stopping [[GH-8932](https://github.com/hashicorp/nomad/issues/8932)]
 
 BUG FIXES:

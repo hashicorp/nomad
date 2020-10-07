@@ -141,8 +141,12 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		Namespace:      "notTheNamespace",
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
+		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+		MountOptions: &structs.CSIMountOptions{
+			FSType: "ext4", MountFlags: []string{"sensitive"}},
+		Secrets:    structs.CSISecrets{"mysecret": "secretvalue"},
+		Parameters: map[string]string{"myparam": "paramvalue"},
+		Context:    map[string]string{"mycontext": "contextvalue"},
 	}}
 
 	// Create the register request
@@ -155,6 +159,11 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	}
 	resp1 := &structs.CSIVolumeRegisterResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
+	require.Error(t, err, "expected validation error")
+
+	// Fix the registration so that it passes validation
+	vols[0].AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), resp1.Index)
 
@@ -170,6 +179,10 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, resp1.Index, resp2.Index)
 	require.Equal(t, vols[0].ID, resp2.Volume.ID)
+	require.Equal(t, "csi.CSISecrets(map[mysecret:[REDACTED]])",
+		resp2.Volume.Secrets.String())
+	require.Equal(t, "csi.CSIOptions(FSType: ext4, MountFlags: [REDACTED])",
+		resp2.Volume.MountOptions.String())
 
 	// Registration does not update
 	req1.Volumes[0].PluginID = "adam"
