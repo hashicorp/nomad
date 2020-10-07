@@ -142,19 +142,15 @@ volume "foo" { source = "hello" }
 
 func TestHCL2_GoHCL(t *testing.T) {
 	config := `job "example" {
-name = "qwer"
-group "asdf" {}
-vault {
-namespace = "whatever"
-}
-task "hello" {}
+duration = "1m"
 }`
 	type Job struct {
-		Label string `hcl:",label"`
+		Label string        `hcl:",label"`
+		Dur   time.Duration `hcl:"duration,optional"`
 	}
 
 	type Target struct {
-		Job JobWrapper `hcl:"job,block"`
+		Job Job `hcl:"job,block"`
 	}
 
 	file, diags := hclparse.NewParser().ParseHCL([]byte(config), "test.hcl")
