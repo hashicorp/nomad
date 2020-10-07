@@ -325,6 +325,25 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.Equal(t, id0, volGetResp.Volume.ID)
 	require.Len(t, volGetResp.Volume.ReadAllocs, 1)
 	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
+
+	// Make a second reader claim
+	alloc3 := mock.Alloc()
+	alloc3.JobID = uuid.Generate()
+	summary = mock.JobSummary(alloc3.JobID)
+	index++
+	require.NoError(t, state.UpsertJobSummary(index, summary))
+	index++
+	require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc3}))
+	claimReq.AllocationID = alloc3.ID
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	require.NoError(t, err)
+
+	// Verify the new claim was set
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", volGetReq, volGetResp)
+	require.NoError(t, err)
+	require.Equal(t, id0, volGetResp.Volume.ID)
+	require.Len(t, volGetResp.Volume.ReadAllocs, 2)
+	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
 }
 
 // TestCSIVolumeEndpoint_ClaimWithController exercises the VolumeClaim RPC
