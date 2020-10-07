@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -3249,11 +3248,13 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 
 	pub, err := state2.EventPublisher()
 	require.NoError(t, err)
+
 	testutil.WaitForResult(func() (bool, error) {
-		if pub.Len() == 2 {
+		plen := pub.Len()
+		if plen == 4 {
 			return true, nil
 		}
-		return false, errors.New("expected publisher to be populated")
+		return false, fmt.Errorf("expected publisher to have len 2 got: %d", plen)
 	}, func(err error) {
 		require.Fail(t, err.Error())
 	})

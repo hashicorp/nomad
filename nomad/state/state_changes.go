@@ -170,7 +170,7 @@ func (tx *txn) Commit() error {
 			return err
 		}
 
-		if tx.persistChanges {
+		if tx.persistChanges && events != nil {
 			// persist events after processing changes
 			err := tx.Txn.Insert("events", events)
 			if err != nil {
@@ -224,12 +224,12 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	case structs.AllocUpdateRequestType:
 		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
-	case structs.JobDeregisterRequestType:
-		// TODO(drew) test
-		return GenericEventsFromChanges(tx, changes)
-	case structs.JobBatchDeregisterRequestType:
-		// TODO(drew) test
-		return GenericEventsFromChanges(tx, changes)
+	// case structs.JobDeregisterRequestType:
+	// TODO(drew) test / handle delete
+	// return GenericEventsFromChanges(tx, changes)
+	// case structs.JobBatchDeregisterRequestType:
+	// TODO(drew) test & handle delete
+	// return GenericEventsFromChanges(tx, changes)
 	case structs.AllocUpdateDesiredTransitionRequestType:
 		// TODO(drew) drain
 		return GenericEventsFromChanges(tx, changes)

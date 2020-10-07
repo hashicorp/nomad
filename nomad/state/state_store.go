@@ -2950,8 +2950,7 @@ func (s *StateStore) DeleteEval(index uint64, evals []string, allocs []string) e
 		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // EvalByID is used to lookup an eval by its ID
