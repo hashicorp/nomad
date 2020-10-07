@@ -41,11 +41,11 @@ func (m *JobWrapper) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnost
 	for _, b := range content.Blocks {
 		if b.Type == "vault" {
 			v := &api.Vault{}
-			diags = append(diags, gohcl.DecodeBody(b.Body, ctx, v)...)
+			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, v)...)
 			m.Extra.Vault = v
 		} else if b.Type == "task" {
 			t := &api.Task{}
-			diags = append(diags, gohcl.DecodeBody(b.Body, ctx, t)...)
+			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, t)...)
 			if len(b.Labels) == 1 {
 				t.Name = b.Labels[0]
 				m.Extra.Tasks = append(m.Extra.Tasks, t)
@@ -54,7 +54,7 @@ func (m *JobWrapper) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnost
 	}
 
 	m.Job = &api.Job{}
-	return gohcl.DecodeBody(job, ctx, m.Job)
+	return hclDecoder.DecodeBody(job, ctx, m.Job)
 }
 
 func Parse(filename string, r io.Reader) (*api.Job, error) {
@@ -103,7 +103,8 @@ func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{
 		return diags
 	}
 
-	diags = gohcl.DecodeBody(file.Body, ctx, target)
+	//return decoder.DecodeBody(job, ctx, m.Job)
+	diags = hclDecoder.DecodeBody(file.Body, ctx, target)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -215,6 +216,10 @@ func normalizeTemplates(templates []*api.Template) {
 			t.Splay = durationToPtr(5 * time.Second)
 		}
 	}
+}
+
+func int8ToPtr(v int8) *int8 {
+	return &v
 }
 
 func boolToPtr(v bool) *bool {

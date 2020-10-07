@@ -24,6 +24,10 @@ type HCLBodyScheme interface {
 // field's value should be expressed within configuration. If an invalid
 // mapping is attempted, this function will panic.
 func ImpliedBodySchema(val interface{}) (schema *hcl.BodySchema, partial bool) {
+	return global.ImpliedBodySchema(val)
+}
+
+func (d *Decoder) ImpliedBodySchema(val interface{}) (schema *hcl.BodySchema, partial bool) {
 	ty := reflect.TypeOf(val)
 
 	if ty.Kind() == reflect.Ptr {
@@ -36,6 +40,9 @@ func ImpliedBodySchema(val interface{}) (schema *hcl.BodySchema, partial bool) {
 
 	if schemer, ok := val.(HCLBodyScheme); ok {
 		return schemer.HCLSchema()
+	}
+	if schema, ok := d.typeSchemas[ty]; ok {
+		return schema.schema, schema.partial
 	}
 
 	var attrSchemas []hcl.AttributeSchema

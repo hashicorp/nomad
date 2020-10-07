@@ -6,10 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hcldec"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -176,93 +172,6 @@ func NewAffinity(LTarget string, Operand string, RTarget string, Weight int8) *A
 		Operand: Operand,
 		Weight:  int8ToPtr(Weight),
 	}
-}
-
-var affinitySpec = hcldec.ObjectSpec{
-	"attribute": &hcldec.AttrSpec{"attribute", cty.String, false},
-	"value":     &hcldec.AttrSpec{"value", cty.String, false},
-	"operator":  &hcldec.AttrSpec{"operator", cty.String, false},
-	"weight":    &hcldec.AttrSpec{"weight", cty.Number, false},
-
-	ConstraintVersion:        &hcldec.AttrSpec{ConstraintVersion, cty.String, false},
-	ConstraintSemver:         &hcldec.AttrSpec{ConstraintSemver, cty.String, false},
-	ConstraintRegex:          &hcldec.AttrSpec{ConstraintRegex, cty.String, false},
-	ConstraintSetContains:    &hcldec.AttrSpec{ConstraintSetContains, cty.String, false},
-	ConstraintSetContainsAll: &hcldec.AttrSpec{ConstraintSetContainsAll, cty.String, false},
-	ConstraintSetContainsAny: &hcldec.AttrSpec{ConstraintSetContainsAny, cty.String, false},
-}
-
-func (a Affinity) HCLSchema() (schema *hcl.BodySchema, partial bool) {
-	return hcldec.ImpliedSchema(affinitySpec), false
-}
-
-func (a *Affinity) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnostics {
-	v, diags := hcldec.Decode(body, affinitySpec, ctx)
-	if len(diags) != 0 {
-		return diags
-	}
-
-	attr := func(attr string) string {
-		a := v.GetAttr(attr)
-		if a.IsNull() {
-			return ""
-		}
-		return a.AsString()
-	}
-	a.LTarget = attr("attribute")
-	a.RTarget = attr("value")
-	a.Operand = attr("operator")
-	weight := v.GetAttr("weight")
-	if !weight.IsNull() {
-		w, _ := weight.AsBigFloat().Int64()
-		a.Weight = int8ToPtr(int8(w))
-	}
-
-	// If "version" is provided, set the operand
-	// to "version" and the value to the "RTarget"
-	if affinity := attr(ConstraintVersion); affinity != "" {
-		a.Operand = ConstraintVersion
-		a.RTarget = affinity
-	}
-
-	// If "semver" is provided, set the operand
-	// to "semver" and the value to the "RTarget"
-	if affinity := attr(ConstraintSemver); affinity != "" {
-		a.Operand = ConstraintSemver
-		a.RTarget = affinity
-	}
-
-	// If "regexp" is provided, set the operand
-	// to "regexp" and the value to the "RTarget"
-	if affinity := attr(ConstraintRegex); affinity != "" {
-		a.Operand = ConstraintRegex
-		a.RTarget = affinity
-	}
-
-	// If "set_contains_any" is provided, set the operand
-	// to "set_contains_any" and the value to the "RTarget"
-	if affinity := attr(ConstraintSetContainsAny); affinity != "" {
-		a.Operand = ConstraintSetContainsAny
-		a.RTarget = affinity
-	}
-
-	// If "set_contains_all" is provided, set the operand
-	// to "set_contains_all" and the value to the "RTarget"
-	if affinity := attr(ConstraintSetContainsAll); affinity != "" {
-		a.Operand = ConstraintSetContainsAll
-		a.RTarget = affinity
-	}
-
-	// set_contains is a synonym of set_contains_all
-	if affinity := attr(ConstraintSetContains); affinity != "" {
-		a.Operand = ConstraintSetContains
-		a.RTarget = affinity
-	}
-
-	if a.Operand == "" {
-		a.Operand = "="
-	}
-	return diags
 }
 
 func (a *Affinity) Canonicalize() {

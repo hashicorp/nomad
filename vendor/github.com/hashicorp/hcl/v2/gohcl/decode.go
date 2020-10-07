@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 	"reflect"
-	"time"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -18,9 +17,42 @@ type SelfDecoder interface {
 	DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnostics
 }
 
-type Decoder struct{}
+type ExprDecoderFunc func(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics
+type BodyDecoderFunc func(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics
+
+type typeSchema struct {
+	schema  *hcl.BodySchema
+	partial bool
+}
+type Decoder struct {
+	exprConvertors map[reflect.Type]ExprDecoderFunc
+	bodyConvertors map[reflect.Type]BodyDecoderFunc
+	typeSchemas    map[reflect.Type]*typeSchema
+}
 
 var global = &Decoder{}
+
+func (d *Decoder) RegisterSchema(typ reflect.Type, schema *hcl.BodySchema, partial bool) {
+	if d.typeSchemas == nil {
+		d.typeSchemas = map[reflect.Type]*typeSchema{}
+	}
+
+	d.typeSchemas[typ] = &typeSchema{schema, partial}
+}
+
+func (d *Decoder) RegisterExprDecoder(typ reflect.Type, fn ExprDecoderFunc) {
+	if d.exprConvertors == nil {
+		d.exprConvertors = map[reflect.Type]ExprDecoderFunc{}
+	}
+	d.exprConvertors[typ] = fn
+}
+
+func (d *Decoder) RegisterBlockDecoder(typ reflect.Type, fn BodyDecoderFunc) {
+	if d.bodyConvertors == nil {
+		d.bodyConvertors = map[reflect.Type]BodyDecoderFunc{}
+	}
+	d.bodyConvertors[typ] = fn
+}
 
 // DecodeBody extracts the configuration within the given body into the given
 // value. This value must be a non-nil pointer to either a struct or
@@ -66,6 +98,9 @@ func (d *Decoder) decodeBodyToValue(body hcl.Body, ctx *hcl.EvalContext, val ref
 func (d *Decoder) decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value) hcl.Diagnostics {
 	if decoder, ok := val.Addr().Interface().(SelfDecoder); ok {
 		return decoder.DecodeHCL(body, ctx)
+	}
+	if fn, ok := d.bodyConvertors[val.Type()]; ok {
+		return fn(body, ctx, val.Addr().Interface())
 	}
 
 	schema, partial := ImpliedBodySchema(val.Interface())
@@ -127,7 +162,7 @@ func (d *Decoder) decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val re
 		case exprType.AssignableTo(field.Type):
 			fieldV.Set(reflect.ValueOf(attr.Expr))
 		default:
-			diags = append(diags, DecodeExpression(
+			diags = append(diags, d.DecodeExpression(
 				attr.Expr, ctx, fieldV.Addr().Interface(),
 			)...)
 		}
@@ -354,7 +389,21 @@ func DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}
 	return global.DecodeExpression(expr, ctx, val)
 }
 
+func (d *Decoder) decodeCustomExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) (hcl.Diagnostics, bool) {
+	ty := reflect.TypeOf(val).Elem()
+	fn, ok := d.exprConvertors[ty]
+	if !ok {
+		return nil, false
+	}
+	diags := fn(expr, ctx, val)
+	return diags, true
+}
+
 func (d *Decoder) DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	if diags, ok := d.decodeCustomExpression(expr, ctx, val); ok {
+		return diags
+	}
+
 	srcVal, diags := expr.Value(ctx)
 
 	convTy, err := gocty.ImpliedType(val)
@@ -362,13 +411,6 @@ func (d *Decoder) DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, va
 		panic(fmt.Sprintf("unsuitable DecodeExpression target: %s", err))
 	}
 
-	if ok, srcValD, diag := convertDurationString(expr, srcVal, convTy, val); ok {
-		if diag != nil {
-			diags = append(diags, diag)
-			return diags
-		}
-		srcVal = *srcValD
-	}
 	srcVal, err = convert.Convert(srcVal, convTy)
 	if err != nil {
 		diags = append(diags, &hcl.Diagnostic{
@@ -393,47 +435,6 @@ func (d *Decoder) DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, va
 	}
 
 	return diags
-}
-
-var timeDurationType = reflect.TypeOf(time.Duration(0))
-
-func convertDurationString(expr hcl.Expression, srcVal cty.Value, convTy cty.Type, val interface{}) (bool, *cty.Value, *hcl.Diagnostic) {
-	if convTy != cty.Number {
-		return false, nil, nil
-	}
-
-	valType := reflect.TypeOf(val)
-	for valType.Kind() == reflect.Ptr {
-		valType = valType.Elem()
-	}
-	if !valType.AssignableTo(timeDurationType) {
-		return false, nil, nil
-	}
-
-	srcVal, err := convert.Convert(srcVal, cty.String)
-	if err != nil {
-		return true, nil, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unsuitable value type",
-			Detail:   fmt.Sprintf("Unsuitable value: %s", err.Error()),
-			Subject:  expr.StartRange().Ptr(),
-			Context:  expr.Range().Ptr(),
-		}
-	}
-
-	dur, err := time.ParseDuration(srcVal.AsString())
-	if err != nil {
-		return true, nil, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unsuitable value type",
-			Detail:   fmt.Sprintf("Unsuitable value: %s", err.Error()),
-			Subject:  expr.StartRange().Ptr(),
-			Context:  expr.Range().Ptr(),
-		}
-	}
-
-	v := cty.NumberIntVal(int64(dur))
-	return true, &v, nil
 }
 
 func decodeInterface(expr hcl.Expression, ctx *hcl.EvalContext) (interface{}, hcl.Diagnostics) {
