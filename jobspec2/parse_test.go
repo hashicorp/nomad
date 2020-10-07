@@ -142,15 +142,18 @@ volume "foo" { source = "hello" }
 
 func TestHCL2_ParseString(t *testing.T) {
 	config := `job "example" {
-update {
-stagger = "2m"
+task "a" {
+config {
+image = "asdf"
+}
 }
 }`
 
 	job, err := Parse("test.hcl", strings.NewReader(config))
 	require.NoError(t, err)
-	fmt.Println("JOB ", job.Update)
+	pretty.Println(job.TaskGroups[0].Tasks[0].Config)
 }
+
 func TestHCL2_GoHCL(t *testing.T) {
 	config := `job "example" {
 duration = "1m"

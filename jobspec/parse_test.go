@@ -1,6 +1,7 @@
 package jobspec
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 // consts copied from nomad/structs package to keep jobspec isolated from rest of nomad
@@ -23,6 +25,18 @@ const (
 	// templateChangeModeRestart marks that the task should be restarted if the
 	templateChangeModeRestart = "restart"
 )
+
+func TestParseMounts(t *testing.T) {
+	f, err := os.Open("./test-fixtures/basic.hcl")
+	require.NoError(t, err)
+	defer f.Close()
+
+	j, err := Parse(f)
+	require.NoError(t, err)
+
+	config := j.LookupTaskGroup("binsl").Tasks[0].Config
+	pretty.Println(config)
+}
 
 func TestParse(t *testing.T) {
 	cases := []struct {

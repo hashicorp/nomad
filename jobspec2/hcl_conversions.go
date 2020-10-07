@@ -76,17 +76,17 @@ func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) 
 }
 
 var affinitySpec = hcldec.ObjectSpec{
-	"attribute": &hcldec.AttrSpec{"attribute", cty.String, false},
-	"value":     &hcldec.AttrSpec{"value", cty.String, false},
-	"operator":  &hcldec.AttrSpec{"operator", cty.String, false},
-	"weight":    &hcldec.AttrSpec{"weight", cty.Number, false},
+	"attribute": &hcldec.AttrSpec{Name: "attribute", Type: cty.String, Required: false},
+	"value":     &hcldec.AttrSpec{Name: "value", Type: cty.String, Required: false},
+	"operator":  &hcldec.AttrSpec{Name: "operator", Type: cty.String, Required: false},
+	"weight":    &hcldec.AttrSpec{Name: "weight", Type: cty.Number, Required: false},
 
-	api.ConstraintVersion:        &hcldec.AttrSpec{api.ConstraintVersion, cty.String, false},
-	api.ConstraintSemver:         &hcldec.AttrSpec{api.ConstraintSemver, cty.String, false},
-	api.ConstraintRegex:          &hcldec.AttrSpec{api.ConstraintRegex, cty.String, false},
-	api.ConstraintSetContains:    &hcldec.AttrSpec{api.ConstraintSetContains, cty.String, false},
-	api.ConstraintSetContainsAll: &hcldec.AttrSpec{api.ConstraintSetContainsAll, cty.String, false},
-	api.ConstraintSetContainsAny: &hcldec.AttrSpec{api.ConstraintSetContainsAny, cty.String, false},
+	api.ConstraintVersion:        &hcldec.AttrSpec{Name: api.ConstraintVersion, Type: cty.String, Required: false},
+	api.ConstraintSemver:         &hcldec.AttrSpec{Name: api.ConstraintSemver, Type: cty.String, Required: false},
+	api.ConstraintRegex:          &hcldec.AttrSpec{Name: api.ConstraintRegex, Type: cty.String, Required: false},
+	api.ConstraintSetContains:    &hcldec.AttrSpec{Name: api.ConstraintSetContains, Type: cty.String, Required: false},
+	api.ConstraintSetContainsAll: &hcldec.AttrSpec{Name: api.ConstraintSetContainsAll, Type: cty.String, Required: false},
+	api.ConstraintSetContainsAny: &hcldec.AttrSpec{Name: api.ConstraintSetContainsAny, Type: cty.String, Required: false},
 }
 
 func schemaAffinity() (schema *hcl.BodySchema, partial bool) {
@@ -164,20 +164,20 @@ func decodeAffinity(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Di
 }
 
 var constraintSpec = hcldec.ObjectSpec{
-	"attribute": &hcldec.AttrSpec{"attribute", cty.String, false},
-	"value":     &hcldec.AttrSpec{"value", cty.String, false},
-	"operator":  &hcldec.AttrSpec{"operator", cty.String, false},
+	"attribute": &hcldec.AttrSpec{Name: "attribute", Type: cty.String, Required: false},
+	"value":     &hcldec.AttrSpec{Name: "value", Type: cty.String, Required: false},
+	"operator":  &hcldec.AttrSpec{Name: "operator", Type: cty.String, Required: false},
 
-	api.ConstraintDistinctProperty:  &hcldec.AttrSpec{api.ConstraintDistinctProperty, cty.String, false},
-	api.ConstraintDistinctHosts:     &hcldec.AttrSpec{api.ConstraintDistinctHosts, cty.Bool, false},
-	api.ConstraintRegex:             &hcldec.AttrSpec{api.ConstraintRegex, cty.String, false},
-	api.ConstraintVersion:           &hcldec.AttrSpec{api.ConstraintVersion, cty.String, false},
-	api.ConstraintSemver:            &hcldec.AttrSpec{api.ConstraintSemver, cty.String, false},
-	api.ConstraintSetContains:       &hcldec.AttrSpec{api.ConstraintSetContains, cty.String, false},
-	api.ConstraintSetContainsAll:    &hcldec.AttrSpec{api.ConstraintSetContainsAll, cty.String, false},
-	api.ConstraintSetContainsAny:    &hcldec.AttrSpec{api.ConstraintSetContainsAny, cty.String, false},
-	api.ConstraintAttributeIsSet:    &hcldec.AttrSpec{api.ConstraintAttributeIsSet, cty.String, false},
-	api.ConstraintAttributeIsNotSet: &hcldec.AttrSpec{api.ConstraintAttributeIsNotSet, cty.String, false},
+	api.ConstraintDistinctProperty:  &hcldec.AttrSpec{Name: api.ConstraintDistinctProperty, Type: cty.String, Required: false},
+	api.ConstraintDistinctHosts:     &hcldec.AttrSpec{Name: api.ConstraintDistinctHosts, Type: cty.Bool, Required: false},
+	api.ConstraintRegex:             &hcldec.AttrSpec{Name: api.ConstraintRegex, Type: cty.String, Required: false},
+	api.ConstraintVersion:           &hcldec.AttrSpec{Name: api.ConstraintVersion, Type: cty.String, Required: false},
+	api.ConstraintSemver:            &hcldec.AttrSpec{Name: api.ConstraintSemver, Type: cty.String, Required: false},
+	api.ConstraintSetContains:       &hcldec.AttrSpec{Name: api.ConstraintSetContains, Type: cty.String, Required: false},
+	api.ConstraintSetContainsAll:    &hcldec.AttrSpec{Name: api.ConstraintSetContainsAll, Type: cty.String, Required: false},
+	api.ConstraintSetContainsAny:    &hcldec.AttrSpec{Name: api.ConstraintSetContainsAny, Type: cty.String, Required: false},
+	api.ConstraintAttributeIsSet:    &hcldec.AttrSpec{Name: api.ConstraintAttributeIsSet, Type: cty.String, Required: false},
+	api.ConstraintAttributeIsNotSet: &hcldec.AttrSpec{Name: api.ConstraintAttributeIsNotSet, Type: cty.String, Required: false},
 }
 
 func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {

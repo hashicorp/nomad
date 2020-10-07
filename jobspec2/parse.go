@@ -108,6 +108,7 @@ func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{
 	if diags.HasErrors() {
 		return diags
 	}
+	diags = append(diags, fixMapInterfaceType(target, ctx)...)
 	return nil
 }
 
