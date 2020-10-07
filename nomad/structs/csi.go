@@ -384,8 +384,13 @@ func (v *CSIVolume) WriteSchedulable() bool {
 // WriteFreeClaims determines if there are any free write claims available
 func (v *CSIVolume) WriteFreeClaims() bool {
 	switch v.AccessMode {
-	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter, CSIVolumeAccessModeMultiNodeMultiWriter:
+	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
 		return len(v.WriteAllocs) == 0
+	case CSIVolumeAccessModeMultiNodeMultiWriter:
+		// the CSI spec doesn't allow for setting a max number of writers.
+		// we track node resource exhaustion through v.ResourceExhausted
+		// which is checked in WriteSchedulable
+		return true
 	default:
 		return false
 	}
