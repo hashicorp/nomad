@@ -508,7 +508,7 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 
 			result[ekv] = evv
 		}
-		return result, nil
+		return []map[string]interface{}{result}, nil
 		//	case t.IsTupleType():
 		//		b.WriteRune('[')
 		//		etys := t.TupleElementTypes()
@@ -544,7 +544,7 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 
 			result[k] = avv
 		}
-		return result, nil
+		return []map[string]interface{}{result}, nil
 	case t.IsCapsuleType():
 		rawVal := val.EncapsulatedValue()
 		return rawVal, nil
