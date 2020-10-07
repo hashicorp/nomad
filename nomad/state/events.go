@@ -17,21 +17,22 @@ const (
 	TopicNode structs.Topic = "Node"
 
 	// TODO(drew) Node Events use TopicNode + Type
-	TypeNodeRegistration   = "NodeRegistration"
-	TypeNodeDeregistration = "NodeDeregistration"
-	TypeNodeDrain          = "NodeDrain"
-	TypeNodeEvent          = "NodeEvent"
+	TypeNodeRegistration      = "NodeRegistration"
+	TypeNodeDeregistration    = "NodeDeregistration"
+	TypeNodeEligibilityUpdate = "NodeEligibility"
+	TypeNodeDrain             = "NodeDrain"
+	TypeNodeEvent             = "NodeEvent"
 
-	TypeDeploymentUpdate      = "DeploymentStatusUpdate"
-	TypeDeploymentPromotion   = "DeploymentPromotion"
-	TypeDeploymentAllocHealth = "DeploymentAllocHealth"
-
-	TypeAllocCreated = "AllocCreated"
-	TypeAllocUpdated = "AllocUpdated"
-
-	TypeEvalUpdated = "EvalUpdated"
-
-	TypeJobRegistered = "JobRegistered"
+	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
+	TypeDeploymentPromotion      = "DeploymentPromotion"
+	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
+	TypeAllocCreated             = "AllocCreated"
+	TypeAllocUpdated             = "AllocUpdated"
+	TypeAllocUpdateDesiredStatus = "AllocUpdateDesiredStatus"
+	TypeEvalUpdated              = "EvalUpdated"
+	TypeJobRegistered            = "JobRegistered"
+	TypeJobDeregistered          = "JobDeregistered"
+	TypeJobBatchDeregistered     = "JobBatchDeregistered"
 )
 
 type JobEvent struct {
@@ -85,6 +86,16 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 		eventType = TypeAllocUpdated
 	case structs.NodeUpdateStatusRequestType:
 		eventType = TypeNodeEvent
+	case structs.JobDeregisterRequestType:
+		eventType = TypeJobDeregistered
+	case structs.JobBatchDeregisterRequestType:
+		eventType = TypeJobBatchDeregistered
+	case structs.AllocUpdateDesiredTransitionRequestType:
+		eventType = TypeAllocUpdateDesiredStatus
+	case structs.NodeUpdateEligibilityRequestType:
+		eventType = TypeNodeDrain
+	case structs.BatchNodeUpdateDrainRequestType:
+		eventType = TypeNodeDrain
 	}
 
 	var events []structs.Event
@@ -114,13 +125,17 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 				return nil, fmt.Errorf("transaction change was not an Allocation")
 			}
 
+			alloc := after.Copy()
+			// remove job info to help keep size of alloc event down
+			alloc.Job = nil
+
 			event := structs.Event{
 				Topic: TopicAlloc,
 				Type:  eventType,
 				Index: changes.Index,
 				Key:   after.ID,
 				Payload: &AllocEvent{
-					Alloc: after,
+					Alloc: alloc,
 				},
 			}
 

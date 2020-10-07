@@ -262,21 +262,16 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.UpsertNodeEventsType:
 		return n.applyUpsertNodeEvent(msgType, buf[1:], log.Index)
 	case structs.JobBatchDeregisterRequestType:
-		// TODO(drew) higher priority event
 		return n.applyBatchDeregisterJob(msgType, buf[1:], log.Index)
 	case structs.AllocUpdateDesiredTransitionRequestType:
-		// TODO(drew) higher priority event
-		return n.applyAllocUpdateDesiredTransition(buf[1:], log.Index)
+		return n.applyAllocUpdateDesiredTransition(msgType, buf[1:], log.Index)
 	case structs.NodeUpdateEligibilityRequestType:
-		// TODO(drew) higher priority event
-		return n.applyNodeEligibilityUpdate(buf[1:], log.Index)
+		return n.applyNodeEligibilityUpdate(msgType, buf[1:], log.Index)
 	case structs.BatchNodeUpdateDrainRequestType:
-		// TODO(drew) higher priority event
-		return n.applyBatchDrainUpdate(buf[1:], log.Index)
+		return n.applyBatchDrainUpdate(msgType, buf[1:], log.Index)
 	case structs.SchedulerConfigRequestType:
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
-		// TODO(drew) higher priority event
 		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
 	case structs.ClusterMetadataRequestType:
 		return n.applyClusterMetadata(buf[1:], log.Index)
@@ -441,21 +436,21 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 	return nil
 }
 
-func (n *nomadFSM) applyBatchDrainUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyBatchDrainUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_node_drain_update"}, time.Now())
 	var req structs.BatchNodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.BatchUpdateNodeDrain(index, req.UpdatedAt, req.Updates, req.NodeEvents); err != nil {
+	if err := n.state.BatchUpdateNodeDrain(msgType, index, req.UpdatedAt, req.Updates, req.NodeEvents); err != nil {
 		n.logger.Error("BatchUpdateNodeDrain failed", "error", err)
 		return err
 	}
 	return nil
 }
 
-func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_eligibility_update"}, time.Now())
 	var req structs.NodeUpdateEligibilityRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -469,7 +464,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(buf []byte, index uint64) interfac
 		return err
 	}
 
-	if err := n.state.UpdateNodeEligibility(index, req.NodeID, req.Eligibility, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeEligibility(msgType, index, req.NodeID, req.Eligibility, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeEligibility failed", "error", err)
 		return err
 	}
@@ -861,14 +856,14 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 
 // applyAllocUpdateDesiredTransition is used to update the desired transitions
 // of a set of allocations.
-func (n *nomadFSM) applyAllocUpdateDesiredTransition(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocUpdateDesiredTransition(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update_desired_transition"}, time.Now())
 	var req structs.AllocUpdateDesiredTransitionRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateAllocsDesiredTransitions(index, req.Allocs, req.Evals); err != nil {
+	if err := n.state.UpdateAllocsDesiredTransitions(msgType, index, req.Allocs, req.Evals); err != nil {
 		n.logger.Error("UpdateAllocsDesiredTransitions failed", "error", err)
 		return err
 	}

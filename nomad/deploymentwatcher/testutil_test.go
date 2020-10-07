@@ -38,7 +38,7 @@ func (m *mockBackend) nextIndex() uint64 {
 func (m *mockBackend) UpdateAllocDesiredTransition(u *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
 	m.Called(u)
 	i := m.nextIndex()
-	return i, m.state.UpdateAllocsDesiredTransitions(i, u.Allocs, u.Evals)
+	return i, m.state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, i, u.Allocs, u.Evals)
 }
 
 // matchUpdateAllocDesiredTransitions is used to match an upsert request

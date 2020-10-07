@@ -224,6 +224,21 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	case structs.AllocUpdateRequestType:
 		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
+	case structs.JobDeregisterRequestType:
+		// TODO(drew) test
+		return GenericEventsFromChanges(tx, changes)
+	case structs.JobBatchDeregisterRequestType:
+		// TODO(drew) test
+		return GenericEventsFromChanges(tx, changes)
+	case structs.AllocUpdateDesiredTransitionRequestType:
+		// TODO(drew) drain
+		return GenericEventsFromChanges(tx, changes)
+	case structs.NodeUpdateEligibilityRequestType:
+		// TODO(drew) test, drain
+		return GenericEventsFromChanges(tx, changes)
+	case structs.BatchNodeUpdateDrainRequestType:
+		// TODO(drew) test, drain
+		return GenericEventsFromChanges(tx, changes)
 	}
 	return nil, nil
 }
