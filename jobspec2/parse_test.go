@@ -79,7 +79,7 @@ func TestEquavalency(t *testing.T) {
 	for _, fi := range fis {
 		name := fi.Name()
 		if strings.Contains(name, "bad") ||
-			strings.Contains(name, "incorrect") ||
+			//strings.Contains(name, "incorrect") ||
 			strings.HasPrefix(name, ".") {
 			continue
 		}

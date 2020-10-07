@@ -749,7 +749,7 @@ type Task struct {
 	Services        []*Service             `hcl:"service,block"`
 	Resources       *Resources             `hcl:"resources,block"`
 	RestartPolicy   *RestartPolicy         `hcl:"restart,block"`
-	Meta            map[string]string      `hcl:"meta,optional"`
+	Meta            map[string]string      `hcl:"meta,block"`
 	KillTimeout     *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
 	LogConfig       *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
 	Artifacts       []*TaskArtifact        `hcl:"artifact,block"`
