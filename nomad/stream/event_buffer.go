@@ -30,8 +30,8 @@ type EvictCallbackFn func(events *structs.Events)
 // goroutines or deliver to O(N) separate channels.
 //
 // Because eventBuffer is a linked list with atomically updated pointers, readers don't
-// have to take a lock and can consume at their own pace. Slow readers can eventually
-// append
+// have to take a lock and can consume at their own pace. Slow readers will eventually
+// be forced to reconnect to the lastest head by being notified via a bufferItem's droppedCh.
 //
 // A new buffer is constructed with a sentinel "empty" bufferItem that has a nil
 // Events array. This enables subscribers to start watching for the next update
@@ -41,7 +41,7 @@ type EvictCallbackFn func(events *structs.Events)
 // initialized with an empty bufferItem so can not be used to wait for the first
 // published event. Call newEventBuffer to construct a new buffer.
 //
-// Calls to Append or AppendBuffer that mutate the head must be externally
+// Calls to Append or purne that mutate the head must be externally
 // synchronized. This allows systems that already serialize writes to append
 // without lock overhead.
 type eventBuffer struct {
@@ -77,7 +77,7 @@ func newEventBuffer(size int64, maxItemTTL time.Duration, onEvict EvictCallbackF
 // watchers. After calling append, the caller must not make any further
 // mutations to the events as they may have been exposed to subscribers in other
 // goroutines. Append only supports a single concurrent caller and must be
-// externally synchronized with other Append, AppendBuffer or AppendErr calls.
+// externally synchronized with other Append, or prune calls.
 func (b *eventBuffer) Append(events *structs.Events) {
 	b.appendItem(newBufferItem(events))
 }
@@ -176,13 +176,14 @@ func (b *eventBuffer) Len() int {
 // is no longer expired. It should be externally synchronized as it mutates
 // the buffer of items.
 func (b *eventBuffer) prune() {
+	now := time.Now()
 	for {
 		head := b.Head()
 		if b.Len() == 0 {
 			return
 		}
 
-		if time.Since(head.createdAt) > b.maxItemTTL {
+		if now.Sub(head.createdAt) > b.maxItemTTL {
 			b.advanceHead()
 		} else {
 			return
@@ -263,13 +264,15 @@ func (i *bufferItem) Next(ctx context.Context, forceClose <-chan struct{}) (*buf
 	// state change (chan nil) as that's not threadsafe but detecting close is.
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("waiting for next event: %w", ctx.Err())
+		return nil, ctx.Err()
 	case <-forceClose:
 		return nil, fmt.Errorf("subscription closed")
 	case <-i.link.ch:
 	}
 
 	// Check if the reader is too slow and the event buffer as discarded the event
+	// This must happen after the above select to prevent a random selection
+	// between linkCh and droppedCh
 	select {
 	case <-i.link.droppedCh:
 		return nil, fmt.Errorf("event dropped from buffer")
@@ -297,17 +300,4 @@ func (i *bufferItem) NextNoBlock() *bufferItem {
 		return nil
 	}
 	return nextRaw.(*bufferItem)
-}
-
-// NextLink returns either the next item in the buffer if there is one, or
-// an empty item (that will be ignored by subscribers) that has a pointer to
-// the same link as this bufferItem (but none of the bufferItem content).
-// When the link.ch is closed, subscriptions will be notified of the next item.
-func (i *bufferItem) NextLink() *bufferItem {
-	next := i.NextNoBlock()
-	if next == nil {
-		// Return an empty item that can be followed to the next item published.
-		return &bufferItem{link: i.link}
-	}
-	return next
 }

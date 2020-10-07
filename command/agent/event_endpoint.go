@@ -74,7 +74,7 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	output := ioutils.NewWriteFlusher(resp)
 
 	// create an error channel to handle errors
-	errCh := make(chan HTTPCodedError, 2)
+	errCh := make(chan HTTPCodedError, 1)
 
 	go func() {
 		defer cancel()
@@ -124,9 +124,7 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	cancel()
 	codedErr := <-errCh
 
-	if codedErr != nil &&
-		(codedErr == io.EOF ||
-			strings.Contains(codedErr.Error(), io.ErrClosedPipe.Error())) {
+	if codedErr != nil && strings.Contains(codedErr.Error(), io.ErrClosedPipe.Error()) {
 		codedErr = nil
 	}
 

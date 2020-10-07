@@ -56,13 +56,16 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	}
 
 	// TODO(drew) handle streams without ACLS
-	reqToken := args.AuthToken
-	if reqToken == "" {
-		// generate a random request token
-		reqToken = uuid.Generate()
+	// authToken is passed to the subscribe request so the event stream
+	// can handle closing a subscription if the authToken expires.
+	// If ACLs are disabled, a random token is generated and it will
+	// never be closed due to expiry.
+	authToken := args.AuthToken
+	if authToken == "" {
+		authToken = uuid.Generate()
 	}
 	subReq := &stream.SubscribeRequest{
-		Token:  reqToken,
+		Token:  authToken,
 		Topics: args.Topics,
 		Index:  uint64(args.Index),
 	}
