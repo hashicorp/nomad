@@ -122,7 +122,7 @@ var basicConfig = &Config{
 		RedundancyZone:            "foo",
 		UpgradeVersion:            "0.8.0",
 		EncryptKey:                "abc",
-		EnableEventPublisher:      true,
+		EnableEventPublisher:      helper.BoolToPtr(true),
 		EventBufferSize:           200,
 		DurableEventCount:         100,
 		ServerJoin: &ServerJoin{

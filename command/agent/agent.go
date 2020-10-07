@@ -240,8 +240,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.UpgradeVersion != "" {
 		conf.UpgradeVersion = agentConfig.Server.UpgradeVersion
 	}
-	if agentConfig.Server.EnableEventPublisher {
-		conf.EnableEventPublisher = agentConfig.Server.EnableEventPublisher
+	if agentConfig.Server.EnableEventPublisher != nil {
+		conf.EnableEventPublisher = *agentConfig.Server.EnableEventPublisher
 	}
 	if agentConfig.Server.EventBufferSize > 0 {
 		conf.EventBufferSize = int64(agentConfig.Server.EventBufferSize)

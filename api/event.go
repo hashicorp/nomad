@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// Ebvents is a set of events for a corresponding index. Events returned for the
+// Events is a set of events for a corresponding index. Events returned for the
 // index depend on which topics are subscribed to when a request is made.
 type Events struct {
 	Index  uint64
@@ -78,9 +78,9 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 			// Decode next newline delimited json of events
 			var events Events
 			if err := dec.Decode(&events); err != nil {
+				// set error and fallthrough to
+				// select eventsCh
 				events = Events{Err: err}
-				eventsCh <- &events
-				return
 			}
 			if events.IsHeartbeat() {
 				continue

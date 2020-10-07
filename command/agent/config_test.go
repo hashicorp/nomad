@@ -140,6 +140,7 @@ func TestConfig_Merge(t *testing.T) {
 			MaxHeartbeatsPerSecond: 30.0,
 			RedundancyZone:         "foo",
 			UpgradeVersion:         "foo",
+			EnableEventPublisher:   helper.BoolToPtr(false),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -332,6 +333,7 @@ func TestConfig_Merge(t *testing.T) {
 			NonVotingServer:        true,
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
+			EnableEventPublisher:   helper.BoolToPtr(true),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
