@@ -115,12 +115,15 @@ func (b *eventBuffer) advanceHead() {
 	old := b.Head()
 
 	next := old.link.next.Load()
+	// if the next item is nil replace it with a sentinel value
 	if next == nil {
 		next = newSentinelItem()
 	}
 
-	old.link.next.Store(next)
+	// notify readers that old is being dropped
 	close(old.link.droppedCh)
+
+	// store the next value to head
 	b.head.Store(next)
 
 	// If the old head is equal to the tail
@@ -129,6 +132,7 @@ func (b *eventBuffer) advanceHead() {
 		b.tail.Store(next)
 	}
 
+	// update the amount of events we have in the buffer
 	rmCount := len(old.Events.Events)
 	atomic.AddInt64(b.size, -int64(rmCount))
 

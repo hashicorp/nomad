@@ -28,10 +28,6 @@ type EventPublisher struct {
 	// eventBuf stores a configurable amount of events in memory
 	eventBuf *eventBuffer
 
-	// pruneTick is the duration to periodically prune events from the event
-	// buffer. Defaults to 5s
-	pruneTick time.Duration
-
 	logger hclog.Logger
 
 	subscriptions *subscriptions
@@ -77,11 +73,9 @@ func NewEventPublisher(ctx context.Context, cfg EventPublisherCfg) *EventPublish
 		subscriptions: &subscriptions{
 			byToken: make(map[string]map[*SubscribeRequest]*Subscription),
 		},
-		pruneTick: 5 * time.Second,
 	}
 
 	go e.handleUpdates(ctx)
-	go e.periodicPrune(ctx)
 
 	return e
 }
@@ -132,19 +126,6 @@ func (e *EventPublisher) handleUpdates(ctx context.Context) {
 			return
 		case update := <-e.publishCh:
 			e.sendEvents(update)
-		}
-	}
-}
-
-func (e *EventPublisher) periodicPrune(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(e.pruneTick):
-			e.lock.Lock()
-			e.eventBuf.prune()
-			e.lock.Unlock()
 		}
 	}
 }
