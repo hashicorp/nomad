@@ -1,27 +1,26 @@
 const withHashicorp = require('@hashicorp/nextjs-scripts')
 const path = require('path')
 const dotenv = require('dotenv')
+const redirects = require('./redirects')
+const rewrites = require('./rewrites')
 
 dotenv.config()
 
 module.exports = withHashicorp({
   defaultLayout: true,
-  transpileModules: ['is-absolute-url', '@hashicorp/react-mega-nav'],
+  transpileModules: ['is-absolute-url', '@hashicorp/react-.*'],
   mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') },
 })({
+  redirects() {
+    return redirects
+  },
+  rewrites() {
+    return rewrites
+  },
   svgo: {
     plugins: [
       {
         removeViewBox: false,
-      },
-    ],
-  },
-  experimental: {
-    modern: true,
-    rewrites: () => [
-      {
-        source: '/api/:path*',
-        destination: '/api-docs/:path*',
       },
     ],
   },

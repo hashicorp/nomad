@@ -13,7 +13,7 @@
 
 /* Global Transpiled Components */
 @import '~@hashicorp/react-alert/dist/style.css';
-@import '~@hashicorp/react-button/dist/style.css';
+@import '~@hashicorp/react-button/styles/index.css';
 @import '~@hashicorp/react-call-to-action/dist/style.css';
 @import '~@hashicorp/react-code-block/dist/style.css';
 @import '~@hashicorp/react-consent-manager/dist/style.css';
