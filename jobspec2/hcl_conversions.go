@@ -25,10 +25,8 @@ func init() {
 
 	// affinity
 	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
-	hclDecoder.RegisterSchema(reflect.TypeOf(api.Affinity{}), hcldec.ImpliedSchema(affinitySpec), false)
 
 	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
-	hclDecoder.RegisterSchema(reflect.TypeOf(api.Constraint{}), hcldec.ImpliedSchema(constraintSpec), false)
 
 }
 
