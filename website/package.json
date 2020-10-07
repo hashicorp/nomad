@@ -13,6 +13,7 @@
     "@hashicorp/react-docs-page": "5.0.1",
     "@hashicorp/react-docs-sidenav": "4.0.1",
     "@hashicorp/react-global-styles": "4.4.0",
+    "@hashicorp/react-hashi-stack-menu": "^1.0.1",
     "@hashicorp/react-head": "1.1.1",
     "@hashicorp/react-hero": "3.1.2",
     "@hashicorp/react-image": "2.0.1",
