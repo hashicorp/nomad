@@ -19,10 +19,11 @@ func TestStateStore_Events_OnEvict(t *testing.T) {
 	t.Parallel()
 
 	cfg := &StateStoreConfig{
-		Logger:          testlog.HCLogger(t),
-		Region:          "global",
-		EnablePublisher: true,
-		EventBufferSize: 10,
+		Logger:            testlog.HCLogger(t),
+		Region:            "global",
+		EnablePublisher:   true,
+		EventBufferSize:   10,
+		DurableEventCount: 10,
 	}
 	s := TestStateStoreCfg(t, cfg)
 
