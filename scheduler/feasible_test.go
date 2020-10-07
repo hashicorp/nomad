@@ -292,7 +292,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	vol := structs.NewCSIVolume(vid, index)
 	vol.PluginID = "foo"
 	vol.Namespace = structs.DefaultNamespace
-	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeMultiWriter
 	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
