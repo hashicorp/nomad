@@ -204,10 +204,10 @@ func MapVal(vals map[string]Value) Value {
 		if elementType == DynamicPseudoType {
 			elementType = val.ty
 		} else if val.ty != DynamicPseudoType && !elementType.Equals(val.ty) {
-			//panic(fmt.Errorf(
-			//	"inconsistent map element types (%#v then %#v)",
-			//	elementType, val.ty,
-			//))
+			panic(fmt.Errorf(
+				"inconsistent map element types (%#v then %#v)",
+				elementType, val.ty,
+			))
 		}
 
 		rawMap[NormalizeString(key)] = val.v
