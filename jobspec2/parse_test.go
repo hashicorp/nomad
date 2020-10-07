@@ -54,7 +54,7 @@ wht = "m"
 }
 `
 
-	job, err := Parse(strings.NewReader(jobStr))
+	job, err := Parse("stdin.hcl", strings.NewReader(jobStr))
 	require.NoError(t, err)
 	pretty.Println(job)
 }
@@ -64,7 +64,7 @@ func TestBasic(t *testing.T) {
 	require.NoError(t, err)
 	defer f.Close()
 
-	job, err := Parse(f)
+	job, err := Parse("stdin.hcl", f)
 	require.NoError(t, err)
 	fmt.Println("### ", job.ID, job.Name)
 	//fmt.Println(job)
@@ -95,7 +95,7 @@ func TestEquavalency(t *testing.T) {
 
 			f.Seek(0, 0)
 
-			job2, err := Parse(f)
+			job2, err := Parse(name, f)
 			require.NoError(t, err)
 
 			require.Equal(t, job1, job2)

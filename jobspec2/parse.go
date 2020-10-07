@@ -8,9 +8,12 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/hashicorp/hcl/v2/hclsimple"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/hashicorp/nomad/api"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
 type JobWrapper struct {
@@ -54,10 +57,11 @@ func (m *JobWrapper) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnost
 	return gohcl.DecodeBody(job, ctx, m.Job)
 }
 
-func Parse(r io.Reader) (*api.Job, error) {
-	filename := "job.hcl"
-	if f, ok := r.(*os.File); ok {
-		filename = f.Name()
+func Parse(filename string, r io.Reader) (*api.Job, error) {
+	if filename == "" {
+		if f, ok := r.(*os.File); ok {
+			filename = f.Name()
+		}
 	}
 	// Copy the reader into an in-memory buffer first since HCL requires it.
 	var buf bytes.Buffer
@@ -66,6 +70,9 @@ func Parse(r io.Reader) (*api.Job, error) {
 	}
 
 	evalContext := &hcl.EvalContext{
+		Functions: map[string]function.Function{
+			"upper": stdlib.UpperFunc,
+		},
 		UnknownVariable: func(expr string) (cty.Value, error) {
 			v := "${" + expr + "}"
 			return cty.StringVal(v), nil
@@ -74,13 +81,33 @@ func Parse(r io.Reader) (*api.Job, error) {
 	var result struct {
 		Job JobWrapper `hcl:"job,block"`
 	}
-	err := hclsimple.Decode(filename, buf.Bytes(), evalContext, &result)
+	err := decode(filename, buf.Bytes(), evalContext, &result)
 	if err != nil {
 		return nil, err
 	}
 
 	normalizeJob(&result.Job)
 	return result.Job.Job, nil
+}
+
+func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{}) error {
+	var file *hcl.File
+	var diags hcl.Diagnostics
+
+	if !isJSON(src) {
+		file, diags = hclsyntax.ParseConfig(src, filename, hcl.Pos{Line: 1, Column: 1})
+	} else {
+		file, diags = hcljson.Parse(src, filename)
+	}
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = gohcl.DecodeBody(file.Body, ctx, target)
+	if diags.HasErrors() {
+		return diags
+	}
+	return nil
 }
 
 func normalizeJob(jw *JobWrapper) {
@@ -200,4 +227,15 @@ func stringToPtr(v string) *string {
 
 func durationToPtr(v time.Duration) *time.Duration {
 	return &v
+}
+
+func isJSON(src []byte) bool {
+	for _, c := range src {
+		if c == ' ' {
+			continue
+		}
+
+		return c == '{'
+	}
+	return false
 }
