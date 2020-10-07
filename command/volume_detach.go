@@ -87,7 +87,24 @@ func (c *VolumeDetachCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = client.CSIVolumes().Detach(volID, nodeID, nil)
+	nodeID = sanitizeUUIDPrefix(nodeID)
+	nodes, _, err := client.Nodes().PrefixList(nodeID)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error detaching volume: %s", err))
+		return 1
+	}
+	// Return error if no nodes are found
+	if len(nodes) == 0 {
+		c.Ui.Error(fmt.Sprintf("No node(s) with prefix or id %q found", nodeID))
+		return 1
+	}
+	if len(nodes) > 1 {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple nodes\n\n%s",
+			formatNodeStubList(nodes, true)))
+		return 1
+	}
+
+	err = client.CSIVolumes().Detach(volID, nodes[0].ID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error detaching volume: %s", err))
 		return 1
