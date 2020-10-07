@@ -28,7 +28,7 @@ func TestEventStream(t *testing.T) {
 
 	// Create request for all topics and keys
 	req := structs.EventStreamRequest{
-		Topics: map[structs.Topic][]string{"*": []string{"*"}},
+		Topics: map[structs.Topic][]string{"*": {"*"}},
 		QueryOptions: structs.QueryOptions{
 			Region: s1.Region(),
 		},
@@ -160,7 +160,7 @@ func TestEventStream_StreamErr(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
@@ -249,7 +249,7 @@ func TestEventStream_RegionForward(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)

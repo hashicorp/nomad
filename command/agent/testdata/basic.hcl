@@ -130,7 +130,7 @@ server {
   upgrade_version               = "0.8.0"
   encrypt                       = "abc"
   raft_multiplier               = 4
-  enable_event_publisher        = true
+  enable_event_publisher        = false
   event_buffer_size             = 200
   durable_event_count           = 100
 
