@@ -60,33 +60,6 @@ func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) (*structs.Event
 	return &structs.Events{Index: changes.Index, Events: events}, nil
 }
 
-// NodeEventFromChanges generates a NodeDeregistrationEvent from a set
-// of transaction changes.
-func NodeEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
-	var events []structs.Event
-	for _, change := range changes.Changes {
-		switch change.Table {
-		case "nodes":
-			after, ok := change.After.(*structs.Node)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
-			}
-
-			event := structs.Event{
-				Topic: TopicNode,
-				Type:  TypeNodeEvent,
-				Index: changes.Index,
-				Key:   after.ID,
-				Payload: &NodeEvent{
-					Node: after,
-				},
-			}
-			events = append(events, event)
-		}
-	}
-	return &structs.Events{Index: changes.Index, Events: events}, nil
-}
-
 func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	var events []structs.Event
 	for _, change := range changes.Changes {

@@ -76,6 +76,10 @@ type JobDrainDetails struct {
 func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	var eventType string
 	switch changes.MsgType {
+	case structs.NodeRegisterRequestType:
+		eventType = TypeNodeRegistration
+	case structs.UpsertNodeEventsType:
+		eventType = TypeNodeEvent
 	case structs.EvalUpdateRequestType:
 		eventType = TypeEvalUpdated
 	case structs.AllocClientUpdateRequestType:
@@ -96,6 +100,9 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 		eventType = TypeNodeDrain
 	case structs.BatchNodeUpdateDrainRequestType:
 		eventType = TypeNodeDrain
+	default:
+		// unknown request type
+		return nil, nil
 	}
 
 	var events []structs.Event

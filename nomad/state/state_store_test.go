@@ -956,7 +956,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		n2.ID: event,
 	}
 
-	require.Nil(state.BatchUpdateNodeDrain(1002, 7, update, events))
+	require.Nil(state.BatchUpdateNodeDrain(structs.MsgTypeTestSetup, 1002, 7, update, events))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -1190,7 +1190,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemCluster,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, 7, event))
+	require.Nil(state.UpdateNodeEligibility(structs.MsgTypeTestSetup, 1001, node.ID, expectedEligibility, 7, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -1216,7 +1216,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, 7, nil))
 
 	// Try to set the node to eligible
-	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, 9, nil)
+	err = state.UpdateNodeEligibility(structs.MsgTypeTestSetup, 1003, node.ID, structs.NodeSchedulingEligible, 9, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), "while it is draining")
 }
@@ -5203,7 +5203,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	evals := []*structs.Evaluation{eval}
 
 	m := map[string]*structs.DesiredTransition{alloc.ID: t1}
-	require.Nil(state.UpdateAllocsDesiredTransitions(1001, m, evals))
+	require.Nil(state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, 1001, m, evals))
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
@@ -5223,7 +5223,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	require.NotNil(eout)
 
 	m = map[string]*structs.DesiredTransition{alloc.ID: t2}
-	require.Nil(state.UpdateAllocsDesiredTransitions(1002, m, evals))
+	require.Nil(state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, 1002, m, evals))
 
 	ws = memdb.NewWatchSet()
 	out, err = state.AllocByID(ws, alloc.ID)
@@ -5239,7 +5239,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 
 	// Try with a bogus alloc id
 	m = map[string]*structs.DesiredTransition{uuid.Generate(): t2}
-	require.Nil(state.UpdateAllocsDesiredTransitions(1003, m, evals))
+	require.Nil(state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, 1003, m, evals))
 }
 
 func TestStateStore_JobSummary(t *testing.T) {

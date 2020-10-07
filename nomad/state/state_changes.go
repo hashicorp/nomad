@@ -196,7 +196,7 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 		// unknown event type
 		return nil, nil
 	case structs.NodeRegisterRequestType:
-		return NodeRegisterEventFromChanges(tx, changes)
+		return GenericEventsFromChanges(tx, changes)
 	case structs.NodeUpdateStatusRequestType:
 		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
@@ -205,7 +205,7 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	case structs.NodeUpdateDrainRequestType:
 		return NodeDrainEventFromChanges(tx, changes)
 	case structs.UpsertNodeEventsType:
-		return NodeEventFromChanges(tx, changes)
+		return GenericEventsFromChanges(tx, changes)
 	case structs.DeploymentStatusUpdateRequestType:
 		return DeploymentEventFromChanges(changes.MsgType, tx, changes)
 	case structs.DeploymentPromoteRequestType:
