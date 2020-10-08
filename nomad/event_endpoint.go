@@ -55,7 +55,6 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// TODO(drew) handle streams without ACLS
 	// authToken is passed to the subscribe request so the event stream
 	// can handle closing a subscription if the authToken expires.
 	// If ACLs are disabled, a random token is generated and it will
