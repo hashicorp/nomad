@@ -580,7 +580,12 @@ func (v *CSIVolume) Validate() error {
 	}
 	if v.AttachmentMode == CSIVolumeAttachmentModeBlockDevice {
 		if v.MountOptions != nil {
-			errs = append(errs, "mount options not allowed for block-device")
+			if v.MountOptions.FSType != "" {
+				errs = append(errs, "mount options not allowed for block-device")
+			}
+			if v.MountOptions.MountFlags != nil && len(v.MountOptions.MountFlags) != 0 {
+				errs = append(errs, "mount options not allowed for block-device")
+			}
 		}
 	}
 
