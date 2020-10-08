@@ -149,15 +149,21 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			alloc := after.Copy()
+
+			filterKeys := []string{
+				alloc.JobID,
+				alloc.DeploymentID,
+			}
 			// remove job info to help keep size of alloc event down
 			alloc.Job = nil
 
 			event := structs.Event{
-				Topic:     TopicAlloc,
-				Type:      eventType,
-				Index:     changes.Index,
-				Key:       after.ID,
-				Namespace: after.Namespace,
+				Topic:      TopicAlloc,
+				Type:       eventType,
+				Index:      changes.Index,
+				Key:        after.ID,
+				FilterKeys: filterKeys,
+				Namespace:  after.Namespace,
 				Payload: &AllocEvent{
 					Alloc: alloc,
 				},

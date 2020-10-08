@@ -168,7 +168,7 @@ func EventsForIndex(t *testing.T, s *StateStore, index uint64) []structs.Event {
 
 	sub, err := pub.Subscribe(&stream.SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"*": []string{"*"},
+			"*": {"*"},
 		},
 		Index: index,
 	})

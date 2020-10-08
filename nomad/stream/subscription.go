@@ -138,7 +138,7 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 			for _, k := range keys {
 				// if req.Namespace != "" && e.Namespace != "" && e.Namespace ==
 				// if e.Namespace != "" && e.Namespace
-				if e.Key == k || k == AllKeys {
+				if e.Key == k || k == AllKeys || filterKeyContains(e.FilterKeys, k) {
 					count++
 				}
 			}
@@ -169,11 +169,20 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 				continue
 			}
 			for _, k := range keys {
-				if e.Key == k || k == AllKeys {
+				if e.Key == k || k == AllKeys || filterKeyContains(e.FilterKeys, k) {
 					result = append(result, e)
 				}
 			}
 		}
 	}
 	return result
+}
+
+func filterKeyContains(filterKeys []string, key string) bool {
+	for _, fk := range filterKeys {
+		if fk == key {
+			return true
+		}
+	}
+	return false
 }
