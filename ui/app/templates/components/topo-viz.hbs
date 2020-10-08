@@ -6,7 +6,10 @@
       <LoadingSpinner />
     </div>
   {{else}}
-    <FlexMasonry @columns={{if this.isSingleColumn 1 2}} @items={{this.topology.datacenters}} @withSpacing={{true}} as |dc reflow|>
+    <FlexMasonry
+      @columns={{if this.isSingleColumn 1 2}}
+      @items={{this.topology.datacenters}}
+      @withSpacing={{true}} as |dc reflow|>
       <TopoViz::Datacenter
           @datacenter={{dc}}
           @isSingleColumn={{this.datacenterIsSingleColumn}}
@@ -19,9 +22,11 @@
 
     {{#if this.activeAllocation}}
       <svg class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>
-        {{#each this.activeEdges as |edge|}}
-          <line class="edge" x1={{edge.x1}} y1={{edge.y1}} x2={{edge.x2}} y2={{edge.y2}} />
-        {{/each}}
+        <g transform="translate({{this.edgeOffset.x}},{{this.edgeOffset.y}})">
+          {{#each this.activeEdges as |edge|}}
+            <path class="edge" d={{edge}} />
+          {{/each}}
+        </g>
       </svg>
     {{/if}}
   {{/if}}

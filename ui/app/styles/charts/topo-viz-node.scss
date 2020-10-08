@@ -77,18 +77,3 @@
 .flex-masonry-columns-2 > .flex-masonry-item > .chart.topo-viz-node svg {
   width: calc(100% - 0.75em);
 }
-
-.chart.topo-viz-edges {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  left: 0;
-  top: 0;
-  pointer-events: none;
-  overflow: visible;
-
-  .edge {
-    stroke-width: 2;
-    stroke: $blue;
-  }
-}

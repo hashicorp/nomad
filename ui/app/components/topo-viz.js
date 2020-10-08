@@ -5,6 +5,7 @@ import { run } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import { scaleLinear } from 'd3-scale';
 import { extent, deviation, mean } from 'd3-array';
+import { line, curveBasis } from 'd3-shape';
 import RSVP from 'rsvp';
 
 export default class TopoViz extends Component {
@@ -16,6 +17,7 @@ export default class TopoViz extends Component {
   @tracked activeNode = null;
   @tracked activeAllocation = null;
   @tracked activeEdges = [];
+  @tracked edgeOffset = { x: 0, y: 0 };
 
   get isSingleColumn() {
     if (this.topology.datacenters.length <= 1) return true;
@@ -33,7 +35,7 @@ export default class TopoViz extends Component {
 
   get datacenterIsSingleColumn() {
     // If there are enough nodes, use two columns of nodes within
-    // a single column layout of datacenteres to increase density.
+    // a single column layout of datacenters to increase density.
     return !this.isSingleColumn || (this.isSingleColumn && this.args.nodes.length <= 20);
   }
 
@@ -204,46 +206,85 @@ export default class TopoViz extends Component {
   computedActiveEdges() {
     // Wait a render cycle
     run.next(() => {
-      const activeEl = this.element.querySelector(
-        `[data-allocation-id="${this.activeAllocation.allocation.id}"]`
-      );
-      const selectedAllocations = this.element.querySelectorAll('.memory .bar.is-selected');
-      const activeBBox = activeEl.getBoundingClientRect();
+      // const path = line().curve(curveCardinal.tension(0.5));
+      const path = line().curve(curveBasis);
+      // 1. Get the active element
+      const allocation = this.activeAllocation.allocation;
+      const activeEl = this.element.querySelector(`[data-allocation-id="${allocation.id}"]`);
+      const activePoint = centerOfBBox(activeEl.getBoundingClientRect());
 
-      const vLeft = window.visualViewport.pageLeft;
-      const vTop = window.visualViewport.pageTop;
-
-      // Lines to the memory rect of each selected allocation
-      const edges = [];
-      for (let allocation of selectedAllocations) {
-        if (allocation !== activeEl) {
-          const bbox = allocation.getBoundingClientRect();
-          edges.push({
-            x1: activeBBox.x + activeBBox.width / 2 + vLeft,
-            y1: activeBBox.y + activeBBox.height / 2 + vTop,
-            x2: bbox.x + bbox.width / 2 + vLeft,
-            y2: bbox.y + bbox.height / 2 + vTop,
-          });
-        }
-      }
-
-      // Lines from the memory rect to the cpu rect
-      for (let allocation of selectedAllocations) {
-        const id = allocation.closest('[data-allocation-id]').dataset.allocationId;
-        const cpu = allocation
+      // 2. Collect the mem and cpu pairs for all selected allocs
+      const selectedMem = Array.from(this.element.querySelectorAll('.memory .bar.is-selected'));
+      const selectedPairs = selectedMem.map(mem => {
+        const id = mem.closest('[data-allocation-id]').dataset.allocationId;
+        const cpu = mem
           .closest('.topo-viz-node')
           .querySelector(`.cpu .bar[data-allocation-id="${id}"]`);
-        const bboxMem = allocation.getBoundingClientRect();
-        const bboxCpu = cpu.getBoundingClientRect();
-        edges.push({
-          x1: bboxMem.x + bboxMem.width / 2 + vLeft,
-          y1: bboxMem.y + bboxMem.height / 2 + vTop,
-          x2: bboxCpu.x + bboxCpu.width / 2 + vLeft,
-          y2: bboxCpu.y + bboxCpu.height / 2 + vTop,
-        });
-      }
+        return [mem, cpu];
+      });
+      const selectedPoints = selectedPairs.map(pair => {
+        return pair.map(el => centerOfBBox(el.getBoundingClientRect()));
+      });
 
-      this.activeEdges = edges;
+      // 3. For each pair, compute the midpoint of the truncated triangle of points [Mem, Cpu, Active]
+      selectedPoints.forEach(points => {
+        const d1 = pointBetween(points[0], activePoint, 100, 0.5);
+        const d2 = pointBetween(points[1], activePoint, 100, 0.5);
+        points.push(midpoint(d1, d2));
+      });
+
+      // 4. Generate curves for each active->mem and active->cpu pair going through the bisector
+      const curves = [];
+      // Steps are used to restrict the range of curves. The closer control points are placed, the less
+      // curvature the curve generator will generate.
+      const stepsMain = [0, 0.8, 1.0];
+      // The second prong the fork does not need to retrace the entire path from the activePoint
+      const stepsSecondary = [0.8, 1.0];
+      selectedPoints.forEach(points => {
+        curves.push(
+          curveFromPoints(...pointsAlongPath(activePoint, points[2], stepsMain), points[0]),
+          curveFromPoints(...pointsAlongPath(activePoint, points[2], stepsSecondary), points[1])
+        );
+      });
+
+      this.activeEdges = curves.map(curve => path(curve));
+      this.edgeOffset = { x: window.visualViewport.pageLeft, y: window.visualViewport.pageTop };
     });
   }
+}
+
+function centerOfBBox(bbox) {
+  return {
+    x: bbox.x + bbox.width / 2,
+    y: bbox.y + bbox.height / 2,
+  };
+}
+
+function dist(p1, p2) {
+  return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+}
+
+// Return the point between p1 and p2 at len (or pct if len > dist(p1, p2))
+function pointBetween(p1, p2, len, pct) {
+  const d = dist(p1, p2);
+  const ratio = d < len ? pct : len / d;
+  return pointBetweenPct(p1, p2, ratio);
+}
+
+function pointBetweenPct(p1, p2, pct) {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  return { x: p1.x + dx * pct, y: p1.y + dy * pct };
+}
+
+function pointsAlongPath(p1, p2, pcts) {
+  return pcts.map(pct => pointBetweenPct(p1, p2, pct));
+}
+
+function midpoint(p1, p2) {
+  return pointBetweenPct(p1, p2, 0.5);
+}
+
+function curveFromPoints(...points) {
+  return points.map(p => [p.x, p.y]);
 }

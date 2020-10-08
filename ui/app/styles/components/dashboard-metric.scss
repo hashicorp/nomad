@@ -3,6 +3,10 @@
     margin-bottom: 1.5em;
   }
 
+  &.column:not(:last-child) {
+    margin-bottom: 0;
+  }
+
   .metric {
     text-align: left;
     font-weight: $weight-bold;
