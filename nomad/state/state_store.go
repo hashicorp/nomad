@@ -790,6 +790,7 @@ func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID stri
 // UpsertNodeMsgType is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
+// TODO(drew) remove this and update all test callers of UpsertNode to use msgType
 func (s *StateStore) UpsertNodeMsgType(msgType structs.MessageType, index uint64, node *structs.Node) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
@@ -972,7 +973,7 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 
 // BatchUpdateNodeDrain is used to update the drain of a node set of nodes
 func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uint64, updatedAt int64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	for node, update := range updates {
 		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible, updatedAt, events[node]); err != nil {

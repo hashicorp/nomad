@@ -11,10 +11,7 @@ const (
 	TopicEval       structs.Topic = "Eval"
 	TopicAlloc      structs.Topic = "Alloc"
 	TopicJob        structs.Topic = "Job"
-	// TopicNodeRegistration   stream.Topic = "NodeRegistration"
-	// TopicNodeDeregistration stream.Topic = "NodeDeregistration"
-	// TopicNodeDrain          stream.Topic = "NodeDrain"
-	TopicNode structs.Topic = "Node"
+	TopicNode       structs.Topic = "Node"
 
 	// TODO(drew) Node Events use TopicNode + Type
 	TypeNodeRegistration      = "NodeRegistration"
@@ -154,6 +151,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 				alloc.JobID,
 				alloc.DeploymentID,
 			}
+
 			// remove job info to help keep size of alloc event down
 			alloc.Job = nil
 
@@ -180,7 +178,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic:     TopicAlloc,
+				Topic:     TopicJob,
 				Type:      eventType,
 				Index:     changes.Index,
 				Key:       after.ID,
@@ -220,7 +218,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic:      TopicNode,
+				Topic:      TopicDeployment,
 				Type:       eventType,
 				Index:      changes.Index,
 				Key:        after.ID,

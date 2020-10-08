@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -103,8 +104,10 @@ func (e *EventPublisher) Subscribe(req *SubscribeRequest) (*Subscription, error)
 	} else {
 		head = e.eventBuf.Head()
 	}
-	if offset > 0 {
-		e.logger.Warn("requested index no longer in buffer", "requsted", int(req.Index), "closest", int(head.Events.Index))
+	if offset > 0 && req.StartExactlyAtIndex {
+		return nil, fmt.Errorf("requested index not in buffer")
+	} else {
+		e.logger.Debug("requested index no longer in buffer", "requsted", int(req.Index), "closest", int(head.Events.Index))
 	}
 
 	// Empty head so that calling Next on sub

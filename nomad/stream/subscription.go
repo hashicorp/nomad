@@ -51,6 +51,12 @@ type SubscribeRequest struct {
 	Namespace string
 
 	Topics map[structs.Topic][]string
+
+	// StartExactlyAtIndex specifies if a subscription needs to
+	// start exactly at the requested Index. If set to false,
+	// the closest index in the buffer will be returned if there is not
+	// an exact match
+	StartExactlyAtIndex bool
 }
 
 func newSubscription(req *SubscribeRequest, item *bufferItem, unsub func()) *Subscription {
