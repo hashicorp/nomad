@@ -480,23 +480,31 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 
 	cases := []struct {
 		Name        string
+		AccessType  VolumeAccessType
+		AccessMode  VolumeAccessMode
 		ResponseErr error
 		Response    *csipbv1.ValidateVolumeCapabilitiesResponse
 		ExpectedErr error
 	}{
 		{
 			Name:        "handles underlying grpc errors",
+			AccessType:  VolumeAccessTypeMount,
+			AccessMode:  VolumeAccessModeMultiNodeMultiWriter,
 			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
 			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 		{
-			Name:        "handles empty success",
+			Name:        "handles success empty capabilities",
+			AccessType:  VolumeAccessTypeMount,
+			AccessMode:  VolumeAccessModeMultiNodeMultiWriter,
 			Response:    &csipbv1.ValidateVolumeCapabilitiesResponse{},
 			ResponseErr: nil,
 			ExpectedErr: nil,
 		},
 		{
-			Name: "handles validate success",
+			Name:       "handles success exact match MountVolume",
+			AccessType: VolumeAccessTypeMount,
+			AccessMode: VolumeAccessModeMultiNodeMultiWriter,
 			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
 				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
 					VolumeContext: map[string]string{},
@@ -518,8 +526,33 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			ResponseErr: nil,
 			ExpectedErr: nil,
 		},
+
 		{
-			Name: "handles validation failure block mismatch",
+			Name:       "handles success exact match BlockVolume",
+			AccessType: VolumeAccessTypeBlock,
+			AccessMode: VolumeAccessModeMultiNodeMultiWriter,
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessType: &csipbv1.VolumeCapability_Block{
+								Block: &csipbv1.VolumeCapability_BlockVolume{},
+							},
+
+							AccessMode: &csipbv1.VolumeCapability_AccessMode{
+								Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
+
+		{
+			Name:       "handles failure AccessMode mismatch",
+			AccessMode: VolumeAccessModeMultiNodeMultiWriter,
 			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
 				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
 					VolumeContext: map[string]string{},
@@ -537,11 +570,13 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			},
 			ResponseErr: nil,
 			// this is a multierror
-			ExpectedErr: fmt.Errorf("volume capability validation failed: 1 error occurred:\n\t* requested AccessMode MULTI_NODE_MULTI_WRITER, got SINGLE_NODE_WRITER\n\n"),
+			ExpectedErr: fmt.Errorf("volume capability validation failed: 1 error occurred:\n\t* requested access mode MULTI_NODE_MULTI_WRITER, got SINGLE_NODE_WRITER\n\n"),
 		},
 
 		{
-			Name: "handles validation failure mount flags",
+			Name:       "handles failure MountFlags mismatch",
+			AccessType: VolumeAccessTypeMount,
+			AccessMode: VolumeAccessModeMultiNodeMultiWriter,
 			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
 				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
 					VolumeContext: map[string]string{},
@@ -564,6 +599,71 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			// this is a multierror
 			ExpectedErr: fmt.Errorf("volume capability validation failed: 1 error occurred:\n\t* requested mount flags did not match available capabilities\n\n"),
 		},
+
+		{
+			Name:       "handles failure MountFlags with Block",
+			AccessType: VolumeAccessTypeBlock,
+			AccessMode: VolumeAccessModeMultiNodeMultiWriter,
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeContext: map[string]string{},
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessType: &csipbv1.VolumeCapability_Mount{
+								Mount: &csipbv1.VolumeCapability_MountVolume{
+									FsType:     "ext4",
+									MountFlags: []string{},
+								},
+							},
+							AccessMode: &csipbv1.VolumeCapability_AccessMode{
+								Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			// this is a multierror
+			ExpectedErr: fmt.Errorf("volume capability validation failed: 1 error occurred:\n\t* 'file-system' access type was not requested but was validated by the controller\n\n"),
+		},
+
+		{
+			Name:       "handles success incomplete no AccessType",
+			AccessType: VolumeAccessTypeMount,
+			AccessMode: VolumeAccessModeMultiNodeMultiWriter,
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessMode: &csipbv1.VolumeCapability_AccessMode{
+								Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
+
+		{
+			Name:       "handles success incomplete no AccessMode",
+			AccessType: VolumeAccessTypeBlock,
+			AccessMode: VolumeAccessModeMultiNodeMultiWriter,
+			Response: &csipbv1.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csipbv1.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeCapabilities: []*csipbv1.VolumeCapability{
+						{
+							AccessType: &csipbv1.VolumeCapability_Block{
+								Block: &csipbv1.VolumeCapability_BlockVolume{},
+							},
+						},
+					},
+				},
+			},
+			ResponseErr: nil,
+			ExpectedErr: nil,
+		},
 	}
 
 	for _, tc := range cases {
@@ -572,8 +672,8 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			defer client.Close()
 
 			requestedCaps := &VolumeCapability{
-				AccessType: VolumeAccessTypeMount,
-				AccessMode: VolumeAccessModeMultiNodeMultiWriter,
+				AccessType: tc.AccessType,
+				AccessMode: tc.AccessMode,
 				MountVolume: &structs.CSIMountOptions{ // should be ignored
 					FSType:     "ext4",
 					MountFlags: []string{"noatime", "errors=remount-ro"},
