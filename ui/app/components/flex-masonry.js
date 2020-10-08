@@ -48,7 +48,7 @@ export default class FlexMasonry extends Component {
           dc.style.order = index;
         });
 
-      // Gaurantee column wrapping as predicted (if the first item of a column is shorter than the difference
+      // Guarantee column wrapping as predicted (if the first item of a column is shorter than the difference
       // beteen the height of the column and the previous column, then flexbox will naturally place the first
       // item at the end of the previous column).
       columns.forEach((column, index) => {
