@@ -463,8 +463,7 @@ func (s *StateStore) UpsertJobSummary(index uint64, jobSummary *structs.JobSumma
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeleteJobSummary deletes the job summary with the given ID. This is for
@@ -480,8 +479,7 @@ func (s *StateStore) DeleteJobSummary(index uint64, namespace, id string) error 
 	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpsertDeployment is used to insert a new deployment. If cancelPrior is set to
@@ -492,8 +490,7 @@ func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployme
 	if err := s.upsertDeploymentImpl(index, deployment, txn); err != nil {
 		return err
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, txn *txn) error {
@@ -705,8 +702,7 @@ func (s *StateStore) DeleteDeployment(index uint64, deploymentIDs []string) erro
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpsertScalingEvent is used to insert a new scaling event.
@@ -757,8 +753,7 @@ func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventR
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // ScalingEvents returns an iterator over all the job scaling events
@@ -817,8 +812,7 @@ func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
 	if err != nil {
 		return nil
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
@@ -894,8 +888,7 @@ func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
 	if err != nil {
 		return nil
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
@@ -986,8 +979,7 @@ func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uin
 			return err
 		}
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpdateNodeDrain is used to update the drain of a node
@@ -1011,8 +1003,7 @@ func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
 	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
 		return err
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
@@ -1101,8 +1092,7 @@ func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index ui
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func (s *StateStore) UpsertNodeEventsMsgType(msgType structs.MessageType, index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
@@ -1130,8 +1120,7 @@ func (s *StateStore) UpsertNodeEvents(index uint64, nodeEvents map[string][]*str
 		}
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // upsertNodeEvent upserts a node event for a respective node. It also maintains
@@ -1517,8 +1506,7 @@ func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
 	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
 		return err
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpsertJob is used to register a job or update a job definition
@@ -1629,7 +1617,7 @@ func (s *StateStore) DeleteJob(index uint64, namespace, jobID string) error {
 
 	err := s.DeleteJobTxn(index, namespace, jobID, txn)
 	if err == nil {
-		txn.Commit()
+		return txn.Commit()
 	}
 	return err
 }
@@ -2152,8 +2140,7 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // CSIVolumes returns the unfiltered list of all volumes
@@ -2342,8 +2329,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // CSIVolumeDeregister removes the volume from the server
@@ -2385,8 +2371,7 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // volSafeToForce checks if the any of the remaining allocations
@@ -2597,8 +2582,7 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeleteCSIPlugin deletes the plugin if it's not in use.
@@ -2628,8 +2612,7 @@ func (s *StateStore) DeleteCSIPlugin(index uint64, id string) error {
 	if err != nil {
 		return fmt.Errorf("csi_plugins delete error: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpsertPeriodicLaunch is used to register a launch or update it.
@@ -2660,8 +2643,7 @@ func (s *StateStore) UpsertPeriodicLaunch(index uint64, launch *structs.Periodic
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeletePeriodicLaunch is used to delete the periodic launch
@@ -2671,7 +2653,7 @@ func (s *StateStore) DeletePeriodicLaunch(index uint64, namespace, jobID string)
 
 	err := s.DeletePeriodicLaunchTxn(index, namespace, jobID, txn)
 	if err == nil {
-		txn.Commit()
+		return txn.Commit()
 	}
 	return err
 }
@@ -2739,7 +2721,7 @@ func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) erro
 
 	err := s.UpsertEvalsTxn(index, evals, txn)
 	if err == nil {
-		txn.Commit()
+		return txn.Commit()
 	}
 	return err
 }
@@ -3182,8 +3164,7 @@ func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) er
 	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
 		return err
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // UpsertAllocsMsgType is used to evict a set of allocations and allocate new ones at
@@ -3344,8 +3325,7 @@ func (s *StateStore) UpdateAllocsDesiredTransitions(msgType structs.MessageType,
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // nestedUpdateAllocDesiredTransition is used to nest an update of an
@@ -3654,8 +3634,7 @@ func (s *StateStore) UpsertVaultAccessor(index uint64, accessors []*structs.Vaul
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeleteVaultAccessors is used to delete a set of Vault Accessors
@@ -3675,8 +3654,7 @@ func (s *StateStore) DeleteVaultAccessors(index uint64, accessors []*structs.Vau
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // VaultAccessor returns the given Vault accessor
@@ -3786,8 +3764,7 @@ func (s *StateStore) UpsertSITokenAccessors(index uint64, accessors []*structs.S
 		return errors.Wrap(err, "index update failed")
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeleteSITokenAccessors is used to delete a set of Service Identity token accessors.
@@ -3808,8 +3785,7 @@ func (s *StateStore) DeleteSITokenAccessors(index uint64, accessors []*structs.S
 		return errors.Wrap(err, "index update failed")
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // SITokenAccessor returns the given Service Identity token accessor.
@@ -3964,8 +3940,7 @@ func (s *StateStore) UpdateJobStability(index uint64, namespace, jobID string, j
 		return err
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // updateJobStabilityImpl updates the stability of the given job and version
@@ -4436,8 +4411,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 	if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // setJobStatuses is a helper for calling setJobStatus on multiple jobs by ID.
@@ -5125,8 +5099,7 @@ func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPoli
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeleteACLPolicies deletes the policies with the given names
@@ -5143,8 +5116,7 @@ func (s *StateStore) DeleteACLPolicies(index uint64, names []string) error {
 	if err := txn.Insert("index", &IndexEntry{"acl_policy", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // ACLPolicyByName is used to lookup a policy by name
@@ -5232,8 +5204,7 @@ func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) e
 	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // DeleteACLTokens deletes the tokens with the given accessor ids
@@ -5250,8 +5221,7 @@ func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
 	if err := txn.Insert("index", &IndexEntry{"acl_token", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // ACLTokenByAccessorID is used to lookup a token by accessor ID
@@ -5385,8 +5355,7 @@ func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs
 	if err := txn.Insert("index", &IndexEntry{"acl_token_bootstrap", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // SchedulerConfig is used to get the current Scheduler configuration.
@@ -5415,8 +5384,7 @@ func (s *StateStore) SchedulerSetConfig(index uint64, config *structs.SchedulerC
 
 	s.schedulerSetConfigTxn(index, tx, config)
 
-	tx.Commit()
-	return nil
+	return tx.Commit()
 }
 
 func (s *StateStore) ClusterMetadata(ws memdb.WatchSet) (*structs.ClusterMetadata, error) {
@@ -5445,8 +5413,7 @@ func (s *StateStore) ClusterSetMetadata(index uint64, meta *structs.ClusterMetad
 		return errors.Wrap(err, "set cluster metadata failed")
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // WithWriteTransaction executes the passed function within a write transaction,
@@ -5486,7 +5453,9 @@ func (s *StateStore) SchedulerCASConfig(index, cidx uint64, config *structs.Sche
 
 	s.schedulerSetConfigTxn(index, tx, config)
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -5543,8 +5512,7 @@ func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*stru
 		return err
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // upsertScalingPolicy is used to insert a new scaling policy.
@@ -5613,7 +5581,7 @@ func (s *StateStore) DeleteScalingPolicies(index uint64, ids []string) error {
 
 	err := s.DeleteScalingPoliciesTxn(index, ids, txn)
 	if err == nil {
-		txn.Commit()
+		return txn.Commit()
 	}
 
 	return err
@@ -5828,8 +5796,7 @@ func (s *StateStore) UpsertEvents(index uint64, events *structs.Events) error {
 	if err := txn.Insert("events", events); err != nil {
 		return err
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot
