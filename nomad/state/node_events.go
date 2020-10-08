@@ -6,33 +6,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// NodeRegisterEventFromChanges generates a NodeRegistrationEvent from a set
-// of transaction changes.
-func NodeRegisterEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
-	var events []structs.Event
-	for _, change := range changes.Changes {
-		switch change.Table {
-		case "nodes":
-			after, ok := change.After.(*structs.Node)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
-			}
-
-			event := structs.Event{
-				Topic: TopicNode,
-				Type:  TypeNodeRegistration,
-				Index: changes.Index,
-				Key:   after.ID,
-				Payload: &NodeEvent{
-					Node: after,
-				},
-			}
-			events = append(events, event)
-		}
-	}
-	return &structs.Events{Index: changes.Index, Events: events}, nil
-}
-
 // NodeDeregisterEventFromChanges generates a NodeDeregistrationEvent from a set
 // of transaction changes.
 func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {

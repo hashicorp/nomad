@@ -10704,6 +10704,7 @@ type Event struct {
 	Topic      Topic
 	Type       string
 	Key        string
+	Namespace  string
 	FilterKeys []string
 	Index      uint64
 	Payload    interface{}
