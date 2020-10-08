@@ -82,14 +82,16 @@ context {
   single-node modes. Consult the documentation of the storage provider
   and CSI plugin.
 
-- `attachment_mode` `(string: <required>)` - The storage API that will
-  be used by the volume. Most storage providers will support
-  `"file-system"`, to mount pre-formatted file system volumes. Some
-  storage providers will support `"block-device"`, which will require
-  the job be configured with appropriate mount options.
+- `attachment_mode` `(string: <required>)` - The storage API that will be used
+  by the volume. Most storage providers will support `"file-system"`, to mount
+  volumes using the CSI filesystem API. Some storage providers will support
+  `"block-device"`, which will mount the volume with the CSI block device API
+  within the container.
 
-- `mount_options` <code>([mount_options][]:nil)</code> - Options for
-  mounting `block-device`volumes without a pre-formatted file system.
+- `mount_options` - Options for mounting `file-system` volumes that don't
+  already have a pre-formatted file system. Consult the documentation for your
+  storage provider and CSI plugin as to whether these options are required or
+  neccessary.
 
   - `fs_type`: file system type (ex. `"ext4"`)
   - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)

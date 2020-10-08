@@ -55,7 +55,20 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
 
+- `mount_options` - Options for mounting CSI volumes that have the
+  `file-system` [attachment mode]. These options override the `mount_options`
+  field from [volume registration]. Consult the documentation for your storage
+  provider and CSI plugin as to whether these options are required or
+  neccessary.
+
+  - `fs_type`: file system type (ex. `"ext4"`)
+  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
+
+
 [volume_mount]: /docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
 [host_volume]: /docs/configuration/client#host_volume-stanza
 [csi_volume]: /docs/commands/volume/register
 [csi_plugin]: /docs/job-specification/csi_plugin
+[csi_volume]: /docs/commands/volume/register
+[attachment mode]: /docs/commands/volume/register#attachment_mode
+[volume registration]: /docs/commands/volume/register#mount_options
