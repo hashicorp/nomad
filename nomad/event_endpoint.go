@@ -2,12 +2,14 @@ package nomad
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -41,35 +43,29 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// ACL check
-	// TODO(drew) ACL checks need to be per topic
-	// All Events        Management
-	// System Events     Management
-	// Node Events       NamespaceCapabilityReadEvents
-	// Job/Alloc Events  NamespaceCapabilityReadEvents
-	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := e.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		handleJsonResultError(err, nil, encoder)
-		return
-	} else if aclObj != nil && !aclObj.IsManagement() {
-		handleJsonResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
 		return
 	}
 
-	// authToken is passed to the subscribe request so the event stream
-	// can handle closing a subscription if the authToken expires.
-	// If ACLs are disabled, a random token is generated and it will
-	// never be closed due to expiry.
-	authToken := args.AuthToken
-	if authToken == "" {
-		authToken = uuid.Generate()
-	}
 	subReq := &stream.SubscribeRequest{
-		Token:     authToken,
+		Token:     args.AuthToken,
 		Topics:    args.Topics,
 		Index:     uint64(args.Index),
 		Namespace: args.Namespace,
 	}
-	publisher, err := e.srv.State().EventPublisher()
+
+	// Check required ACL permissions for requested Topics
+	if aclObj != nil {
+		if err := aclCheckForEvents(subReq, aclObj); err != nil {
+			handleJsonResultError(structs.ErrPermissionDenied, helper.Int64ToPtr(403), encoder)
+			return
+		}
+	}
+
+	// Get the servers broker and subscribe
+	publisher, err := e.srv.State().EventBroker()
 	if err != nil {
 		handleJsonResultError(err, helper.Int64ToPtr(500), encoder)
 		return
@@ -86,23 +82,14 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	}
 	defer subscription.Unsubscribe()
 
-	ndJsonCh := make(chan *structs.NDJson)
 	errCh := make(chan error)
 
-	jsonStream := stream.NewNDJsonStream(ndJsonCh, 30*time.Second)
-	jsonStream.Run(ctx)
+	jsonStream := stream.NewJsonStream(ctx, 30*time.Second)
 
 	// goroutine to detect remote side closing
 	go func() {
-		if _, err := conn.Read(nil); err != nil {
-			// One end of the pipe explicitly closed, exit
-			cancel()
-			return
-		}
-		select {
-		case <-ctx.Done():
-			return
-		}
+		io.Copy(ioutil.Discard, conn)
+		cancel()
 	}()
 
 	go func() {
@@ -140,7 +127,7 @@ OUTER:
 			break OUTER
 		case <-ctx.Done():
 			break OUTER
-		case eventJSON, ok := <-ndJsonCh:
+		case eventJSON, ok := <-jsonStream.OutCh():
 			// check if ndjson may have been closed when an error occurred,
 			// check once more for an error.
 			if !ok {
@@ -208,4 +195,48 @@ func handleJsonResultError(err error, code *int64, encoder *codec.Encoder) {
 	encoder.Encode(&structs.EventStreamWrapper{
 		Error: structs.NewRpcError(err, code),
 	})
+}
+
+func aclCheckForEvents(subReq *stream.SubscribeRequest, aclObj *acl.ACL) error {
+	if len(subReq.Topics) == 0 {
+		return fmt.Errorf("invalid topic request")
+	}
+
+	reqPolicies := make(map[string]struct{})
+	var required = struct{}{}
+
+	for topic := range subReq.Topics {
+		switch topic {
+		case structs.TopicDeployment, structs.TopicEval,
+			structs.TopicAlloc, structs.TopicJob:
+			if _, ok := reqPolicies[acl.NamespaceCapabilityReadJob]; !ok {
+				reqPolicies[acl.NamespaceCapabilityReadJob] = required
+			}
+		case structs.TopicNode:
+			reqPolicies["node-read"] = required
+		case structs.TopicAll:
+			reqPolicies["management"] = required
+		default:
+			return fmt.Errorf("unknown topic %s", topic)
+		}
+	}
+
+	for checks := range reqPolicies {
+		switch checks {
+		case acl.NamespaceCapabilityReadJob:
+			if ok := aclObj.AllowNsOp(subReq.Namespace, acl.NamespaceCapabilityReadJob); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case "node-read":
+			if ok := aclObj.AllowNodeRead(); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case "management":
+			if ok := aclObj.IsManagement(); !ok {
+				return structs.ErrPermissionDenied
+			}
+		}
+	}
+
+	return nil
 }

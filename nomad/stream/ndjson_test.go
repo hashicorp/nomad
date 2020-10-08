@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,15 +13,14 @@ type testObj struct {
 	Name string `json:"name"`
 }
 
-func TestNDJson(t *testing.T) {
+func TestJsonStream(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	out := make(chan *structs.NDJson)
-	s := NewNDJsonStream(out, 1*time.Second)
-	s.Run(ctx)
+	s := NewJsonStream(ctx, 1*time.Second)
+	out := s.OutCh()
 
 	require.NoError(t, s.Send(testObj{Name: "test"}))
 
@@ -30,25 +28,31 @@ func TestNDJson(t *testing.T) {
 
 	var expected bytes.Buffer
 	expected.Write([]byte(`{"name":"test"}`))
-	expected.Write([]byte("\n"))
 
 	require.Equal(t, expected.Bytes(), out1.Data)
 	select {
-	case _ = <-out:
-		t.Fatalf("Did not expect another message")
+	case msg := <-out:
+		require.Failf(t, "Did not expect another message", "%#v", msg)
 	case <-time.After(100 * time.Millisecond):
 	}
+
+	require.NoError(t, s.Send(testObj{Name: "test2"}))
+
+	out2 := <-out
+	expected.Reset()
+
+	expected.Write([]byte(`{"name":"test2"}`))
+	require.Equal(t, expected.Bytes(), out2.Data)
+
 }
 
-func TestNDJson_Send_After_Stop(t *testing.T) {
+func TestJson_Send_After_Stop(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	out := make(chan *structs.NDJson)
-	s := NewNDJsonStream(out, 1*time.Second)
-	s.Run(ctx)
+	s := NewJsonStream(ctx, 1*time.Second)
 
 	// stop the stream
 	cancel()
@@ -57,17 +61,16 @@ func TestNDJson_Send_After_Stop(t *testing.T) {
 	require.Error(t, s.Send(testObj{}))
 }
 
-func TestNDJson_HeartBeat(t *testing.T) {
+func TestJson_HeartBeat(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	out := make(chan *structs.NDJson)
-	s := NewNDJsonStream(out, 10*time.Millisecond)
-	s.Run(ctx)
+	s := NewJsonStream(ctx, 10*time.Millisecond)
 
+	out := s.OutCh()
 	heartbeat := <-out
 
-	require.Equal(t, NDJsonHeartbeat, heartbeat)
+	require.Equal(t, JsonHeartbeat, heartbeat)
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// Ebvents is a set of events for a corresponding index. Events returned for the
+// Events is a set of events for a corresponding index. Events returned for the
 // index depend on which topics are subscribed to when a request is made.
 type Events struct {
 	Index  uint64
@@ -47,11 +47,11 @@ func (c *Client) EventStream() *EventStream {
 // Stream establishes a new subscription to Nomad's event stream and streams
 // results back to the returned channel.
 func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, index uint64, q *QueryOptions) (<-chan *Events, error) {
-
 	r, err := e.client.newRequest("GET", "/v1/event/stream")
 	if err != nil {
 		return nil, err
 	}
+	q = q.WithContext(ctx)
 	r.setQueryOptions(q)
 
 	// Build topic query params
@@ -78,11 +78,11 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 			// Decode next newline delimited json of events
 			var events Events
 			if err := dec.Decode(&events); err != nil {
+				// set error and fallthrough to
+				// select eventsCh
 				events = Events{Err: err}
-				eventsCh <- &events
-				return
 			}
-			if events.IsHeartbeat() {
+			if events.Err == nil && events.IsHeartbeat() {
 				continue
 			}
 

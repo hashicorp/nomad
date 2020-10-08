@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -37,7 +38,7 @@ func TestEventStream(t *testing.T) {
 			assert.NoError(t, err)
 		}()
 
-		pub, err := s.Agent.server.State().EventPublisher()
+		pub, err := s.Agent.server.State().EventBroker()
 		require.NoError(t, err)
 		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Payload: testEvent{ID: "123"}}}})
 
@@ -71,6 +72,8 @@ func TestEventStream_NamespaceQuery(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		req, err := http.NewRequestWithContext(ctx, "GET", "/v1/event/stream?namespace=foo", nil)
 		require.Nil(t, err)
 		resp := httptest.NewRecorder()
@@ -82,17 +85,17 @@ func TestEventStream_NamespaceQuery(t *testing.T) {
 			assert.NoError(t, err)
 		}()
 
-		pub, err := s.Agent.server.State().EventPublisher()
+		pub, err := s.Agent.server.State().EventBroker()
 		require.NoError(t, err)
 
-		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Namespace: "bar", Payload: testEvent{ID: "123"}}}})
+		badID := uuid.Generate()
+		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Namespace: "bar", Payload: testEvent{ID: badID}}}})
 		pub.Publish(&structs.Events{Index: 101, Events: []structs.Event{{Namespace: "foo", Payload: testEvent{ID: "456"}}}})
 
 		testutil.WaitForResult(func() (bool, error) {
 			got := resp.Body.String()
 			want := `"Namespace":"foo"`
-			bad := `123`
-			if strings.Contains(got, bad) {
+			if strings.Contains(got, badID) {
 				return false, fmt.Errorf("expected non matching namespace to be filtered, got:%v", got)
 			}
 			if strings.Contains(got, want) {
@@ -101,7 +104,6 @@ func TestEventStream_NamespaceQuery(t *testing.T) {
 
 			return false, fmt.Errorf("missing expected json, got: %v, want: %v", got, want)
 		}, func(err error) {
-			cancel()
 			require.Fail(t, err.Error())
 		})
 

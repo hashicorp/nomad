@@ -47,11 +47,11 @@ func (c *Client) EventStream() *EventStream {
 // Stream establishes a new subscription to Nomad's event stream and streams
 // results back to the returned channel.
 func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, index uint64, q *QueryOptions) (<-chan *Events, error) {
-
 	r, err := e.client.newRequest("GET", "/v1/event/stream")
 	if err != nil {
 		return nil, err
 	}
+	q = q.WithContext(ctx)
 	r.setQueryOptions(q)
 
 	// Build topic query params
@@ -82,7 +82,7 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 				// select eventsCh
 				events = Events{Err: err}
 			}
-			if events.IsHeartbeat() {
+			if events.Err == nil && events.IsHeartbeat() {
 				continue
 			}
 

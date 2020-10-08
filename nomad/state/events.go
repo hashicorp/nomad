@@ -7,22 +7,11 @@ import (
 )
 
 const (
-	TopicDeployment structs.Topic = "Deployment"
-	TopicEval       structs.Topic = "Eval"
-	TopicAlloc      structs.Topic = "Alloc"
-	TopicJob        structs.Topic = "Job"
-	// TopicNodeRegistration   stream.Topic = "NodeRegistration"
-	// TopicNodeDeregistration stream.Topic = "NodeDeregistration"
-	// TopicNodeDrain          stream.Topic = "NodeDrain"
-	TopicNode structs.Topic = "Node"
-
-	// TODO(drew) Node Events use TopicNode + Type
-	TypeNodeRegistration      = "NodeRegistration"
-	TypeNodeDeregistration    = "NodeDeregistration"
-	TypeNodeEligibilityUpdate = "NodeEligibility"
-	TypeNodeDrain             = "NodeDrain"
-	TypeNodeEvent             = "NodeEvent"
-
+	TypeNodeRegistration         = "NodeRegistration"
+	TypeNodeDeregistration       = "NodeDeregistration"
+	TypeNodeEligibilityUpdate    = "NodeEligibility"
+	TypeNodeDrain                = "NodeDrain"
+	TypeNodeEvent                = "NodeEvent"
 	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
 	TypeDeploymentPromotion      = "DeploymentPromotion"
 	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
@@ -36,22 +25,28 @@ const (
 	TypePlanResult               = "PlanResult"
 )
 
+// JobEvent holds a newly updated Job.
 type JobEvent struct {
 	Job *structs.Job
 }
 
+// EvalEvent holds a newly updated Eval.
 type EvalEvent struct {
 	Eval *structs.Evaluation
 }
 
+// AllocEvent holds a newly updated Allocation. The
+// Allocs embedded Job has been removed to reduce size.
 type AllocEvent struct {
 	Alloc *structs.Allocation
 }
 
+// DeploymentEvent holds a newly updated Deployment.
 type DeploymentEvent struct {
 	Deployment *structs.Deployment
 }
 
+// NodeEvent holds a newly updated Node
 type NodeEvent struct {
 	Node *structs.Node
 }
@@ -74,43 +69,30 @@ type JobDrainDetails struct {
 	AllocDetails map[string]NodeDrainAllocDetails
 }
 
+var MsgTypeEvents = map[structs.MessageType]string{
+	structs.NodeRegisterRequestType:                 TypeNodeRegistration,
+	structs.UpsertNodeEventsType:                    TypeNodeEvent,
+	structs.EvalUpdateRequestType:                   TypeEvalUpdated,
+	structs.AllocClientUpdateRequestType:            TypeAllocUpdated,
+	structs.JobRegisterRequestType:                  TypeJobRegistered,
+	structs.AllocUpdateRequestType:                  TypeAllocUpdated,
+	structs.NodeUpdateStatusRequestType:             TypeNodeEvent,
+	structs.JobDeregisterRequestType:                TypeJobDeregistered,
+	structs.JobBatchDeregisterRequestType:           TypeJobBatchDeregistered,
+	structs.AllocUpdateDesiredTransitionRequestType: TypeAllocUpdateDesiredStatus,
+	structs.NodeUpdateEligibilityRequestType:        TypeNodeDrain,
+	structs.BatchNodeUpdateDrainRequestType:         TypeNodeDrain,
+	structs.DeploymentStatusUpdateRequestType:       TypeDeploymentUpdate,
+	structs.DeploymentPromoteRequestType:            TypeDeploymentPromotion,
+	structs.DeploymentAllocHealthRequestType:        TypeDeploymentAllocHealth,
+	structs.ApplyPlanResultsRequestType:             TypePlanResult,
+}
+
+// GenericEventsFromChanges returns a set of events for a given set of
+// transaction changes. It currently ignores Delete operations.
 func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
-	var eventType string
-	switch changes.MsgType {
-	case structs.NodeRegisterRequestType:
-		eventType = TypeNodeRegistration
-	case structs.UpsertNodeEventsType:
-		eventType = TypeNodeEvent
-	case structs.EvalUpdateRequestType:
-		eventType = TypeEvalUpdated
-	case structs.AllocClientUpdateRequestType:
-		eventType = TypeAllocUpdated
-	case structs.JobRegisterRequestType:
-		eventType = TypeJobRegistered
-	case structs.AllocUpdateRequestType:
-		eventType = TypeAllocUpdated
-	case structs.NodeUpdateStatusRequestType:
-		eventType = TypeNodeEvent
-	case structs.JobDeregisterRequestType:
-		eventType = TypeJobDeregistered
-	case structs.JobBatchDeregisterRequestType:
-		eventType = TypeJobBatchDeregistered
-	case structs.AllocUpdateDesiredTransitionRequestType:
-		eventType = TypeAllocUpdateDesiredStatus
-	case structs.NodeUpdateEligibilityRequestType:
-		eventType = TypeNodeDrain
-	case structs.BatchNodeUpdateDrainRequestType:
-		eventType = TypeNodeDrain
-	case structs.DeploymentStatusUpdateRequestType:
-		eventType = TypeDeploymentUpdate
-	case structs.DeploymentPromoteRequestType:
-		eventType = TypeDeploymentPromotion
-	case structs.DeploymentAllocHealthRequestType:
-		eventType = TypeDeploymentAllocHealth
-	case structs.ApplyPlanResultsRequestType:
-		eventType = TypePlanResult
-	default:
-		// unknown request type
+	eventType, ok := MsgTypeEvents[changes.MsgType]
+	if !ok {
 		return nil, nil
 	}
 
@@ -127,7 +109,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic:     TopicEval,
+				Topic:     structs.TopicEval,
 				Type:      eventType,
 				Index:     changes.Index,
 				Key:       after.ID,
@@ -149,15 +131,22 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			alloc := after.Copy()
+
+			filterKeys := []string{
+				alloc.JobID,
+				alloc.DeploymentID,
+			}
+
 			// remove job info to help keep size of alloc event down
 			alloc.Job = nil
 
 			event := structs.Event{
-				Topic:     TopicAlloc,
-				Type:      eventType,
-				Index:     changes.Index,
-				Key:       after.ID,
-				Namespace: after.Namespace,
+				Topic:      structs.TopicAlloc,
+				Type:       eventType,
+				Index:      changes.Index,
+				Key:        after.ID,
+				FilterKeys: filterKeys,
+				Namespace:  after.Namespace,
 				Payload: &AllocEvent{
 					Alloc: alloc,
 				},
@@ -174,7 +163,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic:     TopicAlloc,
+				Topic:     structs.TopicJob,
 				Type:      eventType,
 				Index:     changes.Index,
 				Key:       after.ID,
@@ -195,7 +184,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic: TopicNode,
+				Topic: structs.TopicNode,
 				Type:  eventType,
 				Index: changes.Index,
 				Key:   after.ID,
@@ -214,7 +203,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic:      TopicNode,
+				Topic:      structs.TopicDeployment,
 				Type:       eventType,
 				Index:      changes.Index,
 				Key:        after.ID,

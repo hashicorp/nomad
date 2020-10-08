@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	AllKeys = "*"
 	// subscriptionStateOpen is the default state of a subscription. An open
 	// subscription may receive new events.
 	subscriptionStateOpen uint32 = 0
@@ -25,7 +24,7 @@ const (
 var ErrSubscriptionClosed = errors.New("subscription closed by server, client should resubscribe")
 
 type Subscription struct {
-	// state is accessed atomically 0 means open, 1 means closed with reload
+	// state must be accessed atomically 0 means open, 1 means closed with reload
 	state uint32
 
 	req *SubscribeRequest
@@ -35,10 +34,10 @@ type Subscription struct {
 	currentItem *bufferItem
 
 	// forceClosed is closed when forceClose is called. It is used by
-	// EventPublisher to cancel Next().
+	// EventBroker to cancel Next().
 	forceClosed chan struct{}
 
-	// unsub is a function set by EventPublisher that is called to free resources
+	// unsub is a function set by EventBroker that is called to free resources
 	// when the subscription is no longer needed.
 	// It must be safe to call the function from multiple goroutines and the function
 	// must be idempotent.
@@ -51,6 +50,12 @@ type SubscribeRequest struct {
 	Namespace string
 
 	Topics map[structs.Topic][]string
+
+	// StartExactlyAtIndex specifies if a subscription needs to
+	// start exactly at the requested Index. If set to false,
+	// the closest index in the buffer will be returned if there is not
+	// an exact match
+	StartExactlyAtIndex bool
 }
 
 func newSubscription(req *SubscribeRequest, item *bufferItem, unsub func()) *Subscription {
@@ -124,11 +129,11 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 
 	var count int
 	for _, e := range events {
-		_, allTopics := req.Topics[AllKeys]
+		_, allTopics := req.Topics[structs.TopicAll]
 		if _, ok := req.Topics[e.Topic]; ok || allTopics {
 			var keys []string
 			if allTopics {
-				keys = req.Topics[AllKeys]
+				keys = req.Topics[structs.TopicAll]
 			} else {
 				keys = req.Topics[e.Topic]
 			}
@@ -136,9 +141,7 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 				continue
 			}
 			for _, k := range keys {
-				// if req.Namespace != "" && e.Namespace != "" && e.Namespace ==
-				// if e.Namespace != "" && e.Namespace
-				if e.Key == k || k == AllKeys {
+				if e.Key == k || k == string(structs.TopicAll) || filterKeyContains(e.FilterKeys, k) {
 					count++
 				}
 			}
@@ -156,11 +159,11 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 	// Return filtered events
 	result := make([]structs.Event, 0, count)
 	for _, e := range events {
-		_, allTopics := req.Topics[AllKeys]
+		_, allTopics := req.Topics[structs.TopicAll]
 		if _, ok := req.Topics[e.Topic]; ok || allTopics {
 			var keys []string
 			if allTopics {
-				keys = req.Topics[AllKeys]
+				keys = req.Topics[structs.TopicAll]
 			} else {
 				keys = req.Topics[e.Topic]
 			}
@@ -169,11 +172,20 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 				continue
 			}
 			for _, k := range keys {
-				if e.Key == k || k == AllKeys {
+				if e.Key == k || k == string(structs.TopicAll) || filterKeyContains(e.FilterKeys, k) {
 					result = append(result, e)
 				}
 			}
 		}
 	}
 	return result
+}
+
+func filterKeyContains(filterKeys []string, key string) bool {
+	for _, fk := range filterKeys {
+		if fk == key {
+			return true
+		}
+	}
+	return false
 }

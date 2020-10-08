@@ -1368,7 +1368,7 @@ func TestStateStore_RestoreNode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
@@ -2441,7 +2441,7 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
@@ -2711,7 +2711,7 @@ func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.PeriodicLaunchByID(ws, job.Namespace, job.ID)
@@ -2743,7 +2743,7 @@ func TestStateStore_RestoreJobVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByIDAndVersion(ws, job.Namespace, job.ID, job.Version)
@@ -2775,7 +2775,7 @@ func TestStateStore_RestoreDeployment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.DeploymentByID(ws, d.ID)
@@ -2815,7 +2815,7 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
@@ -3617,7 +3617,7 @@ func TestStateStore_RestoreCSIPlugin(t *testing.T) {
 
 	err = restore.CSIPluginRestore(plugin)
 	require.NoError(err)
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.CSIPluginByID(ws, plugin.ID)
@@ -3731,7 +3731,7 @@ func TestStateStore_RestoreIndex(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	out, err := state.Index("jobs")
 	if err != nil {
@@ -4397,7 +4397,7 @@ func TestStateStore_RestoreEval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.EvalByID(ws, eval.ID)
@@ -6033,7 +6033,7 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
@@ -7701,7 +7701,7 @@ func TestStateStore_RestoreVaultAccessor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.VaultAccessor(ws, a.Accessor)
@@ -7902,7 +7902,7 @@ func TestStateStore_RestoreSITokenAccessor(t *testing.T) {
 	err = restore.SITokenAccessorRestore(a1)
 	r.NoError(err)
 
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	result, err := state.SITokenAccessor(ws, a1.AccessorID)
@@ -8382,7 +8382,7 @@ func TestStateStore_RestoreACLPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ACLPolicyByName(ws, policy.Name)
@@ -8441,7 +8441,7 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ACLTokenByAccessorID(ws, token.AccessorID)
@@ -8470,7 +8470,7 @@ func TestStateStore_SchedulerConfig(t *testing.T) {
 	err = restore.SchedulerConfigRestore(schedConfig)
 	require.Nil(err)
 
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	modIndex, out, err := state.SchedulerConfig()
 	require.Nil(err)
@@ -8510,7 +8510,7 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 	err = restore.ClusterMetadataRestore(meta)
 	require.NoError(err)
 
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	out, err := state.ClusterMetadata(nil)
 	require.NoError(err)
@@ -8530,7 +8530,7 @@ func TestStateStore_RestoreScalingPolicy(t *testing.T) {
 
 	err = restore.ScalingPolicyRestore(scalingPolicy)
 	require.NoError(err)
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ScalingPolicyByID(ws, scalingPolicy.ID)
@@ -9543,7 +9543,7 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 
 	err = restore.ScalingEventsRestore(jobScalingEvents)
 	require.NoError(err)
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, _, err := state.ScalingEventsByJob(ws, jobScalingEvents.Namespace,

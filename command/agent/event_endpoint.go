@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/sync/errgroup"
 )
 
 func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -40,12 +41,12 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	resp.Header().Set("Content-Type", "application/json")
 	resp.Header().Set("Cache-Control", "no-cache")
 
+	// Set region, namespace and authtoken to args
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	// Make the RPC
+	// Determine the RPC handler to use to find a server
 	var handler structs.StreamingRpcHandler
 	var handlerErr error
-
 	if server := s.agent.Server(); server != nil {
 		handler, handlerErr = server.StreamingRpcHandler("Event.Stream")
 	} else if client := s.agent.Client(); client != nil {
@@ -73,57 +74,51 @@ func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (i
 	// Create an output that gets flushed on every write
 	output := ioutils.NewWriteFlusher(resp)
 
-	// create an error channel to handle errors
-	errCh := make(chan HTTPCodedError, 1)
-
-	go func() {
+	// send request and decode events
+	errs, errCtx := errgroup.WithContext(ctx)
+	errs.Go(func() error {
 		defer cancel()
 
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
-			errCh <- CodedError(500, err.Error())
-			return
+			return CodedError(500, err.Error())
 		}
 
 		for {
 			select {
-			case <-ctx.Done():
-				errCh <- nil
-				return
+			case <-errCtx.Done():
+				return nil
 			default:
 			}
 
 			// Decode the response
 			var res structs.EventStreamWrapper
 			if err := decoder.Decode(&res); err != nil {
-				if err == io.EOF || err == io.ErrClosedPipe {
-					return
-				}
-				errCh <- CodedError(500, err.Error())
-				return
+				return CodedError(500, err.Error())
 			}
 			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil {
 				if err.Code != nil {
-					errCh <- CodedError(int(*err.Code), err.Error())
-					return
+					return CodedError(int(*err.Code), err.Error())
 				}
 			}
 
 			// Flush json entry to response
 			if _, err := io.Copy(output, bytes.NewReader(res.Event.Data)); err != nil {
-				errCh <- CodedError(500, err.Error())
-				return
+				return CodedError(500, err.Error())
 			}
+			// Each entry is its own new line according to ndjson.org
+			// append new line to each entry
+			fmt.Fprint(output, "\n")
 		}
-	}()
+	})
 
 	// invoke handler
 	handler(handlerPipe)
 	cancel()
-	codedErr := <-errCh
 
+	codedErr := errs.Wait()
 	if codedErr != nil && strings.Contains(codedErr.Error(), io.ErrClosedPipe.Error()) {
 		codedErr = nil
 	}
@@ -144,11 +139,7 @@ func parseEventTopics(query url.Values) (map[structs.Topic][]string, error) {
 			return nil, fmt.Errorf("error parsing topics: %w", err)
 		}
 
-		if topics[structs.Topic(k)] == nil {
-			topics[structs.Topic(k)] = []string{v}
-		} else {
-			topics[structs.Topic(k)] = append(topics[structs.Topic(k)], v)
-		}
+		topics[structs.Topic(k)] = append(topics[structs.Topic(k)], v)
 	}
 	return topics, nil
 }

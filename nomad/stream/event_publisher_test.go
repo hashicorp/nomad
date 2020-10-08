@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -10,16 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
+func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
 	subscription := &SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"Test": []string{"sub-key"},
+			"Test": {"sub-key"},
 		},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	publisher := NewEventPublisher(ctx, EventPublisherCfg{EventBufferSize: 100, EventBufferTTL: DefaultTTL})
+	publisher := NewEventBroker(ctx, EventBrokerCfg{EventBufferSize: 100})
 	sub, err := publisher.Subscribe(subscription)
 	require.NoError(t, err)
 	eventCh := consumeSubscription(ctx, sub)
@@ -59,11 +60,11 @@ func TestEventPublisher_PublishChangesAndSubscribe(t *testing.T) {
 	require.Equal(t, expected, result.Events)
 }
 
-func TestEventPublisher_ShutdownClosesSubscriptions(t *testing.T) {
+func TestEventBroker_ShutdownClosesSubscriptions(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	publisher := NewEventPublisher(ctx, EventPublisherCfg{})
+	publisher := NewEventBroker(ctx, EventBrokerCfg{})
 
 	sub1, err := publisher.Subscribe(&SubscribeRequest{})
 	require.NoError(t, err)
@@ -80,6 +81,32 @@ func TestEventPublisher_ShutdownClosesSubscriptions(t *testing.T) {
 
 	_, err = sub2.Next(context.Background())
 	require.Equal(t, err, ErrSubscriptionClosed)
+}
+
+// TestEventBroker_EmptyReqToken_DistinctSubscriptions tests subscription
+// hanlding behavior when ACLs are disabled (request Token is empty).
+// Subscriptions are mapped by their request token.  when that token is empty,
+// the subscriptions should still be handled indeppendtly of each other when
+// unssubscribing.
+func TestEventBroker_EmptyReqToken_DistinctSubscriptions(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	publisher := NewEventBroker(ctx, EventBrokerCfg{})
+
+	// first subscription, empty token
+	sub1, err := publisher.Subscribe(&SubscribeRequest{})
+	require.NoError(t, err)
+	defer sub1.Unsubscribe()
+
+	// second subscription, empty token
+	sub2, err := publisher.Subscribe(&SubscribeRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, sub2)
+
+	sub1.Unsubscribe()
+
+	require.Equal(t, subscriptionStateOpen, atomic.LoadUint32(&sub2.state))
 }
 
 func consumeSubscription(ctx context.Context, sub *Subscription) <-chan subNextResult {

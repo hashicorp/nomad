@@ -484,18 +484,18 @@ type ServerConfig struct {
 	// This value is ignored.
 	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
-	// EnableEventPublisher configures whether this server's state store
+	// EnableEventBroker configures whether this server's state store
 	// will generate events for its event stream.
-	EnableEventPublisher *bool `hcl:"enable_event_publisher"`
+	EnableEventBroker *bool `hcl:"enable_event_broker"`
 
 	// EventBufferSize configure the amount of events to be held in memory.
-	// If EnableEventPublisher is set to true, the minimum allowable value
+	// If EnableEventBroker is set to true, the minimum allowable value
 	// for the EventBufferSize is 1.
-	EventBufferSize int `hcl:"event_buffer_size"`
+	EventBufferSize *int `hcl:"event_buffer_size"`
 
 	// DurableEventCount specifies the amount of events to persist during snapshot generation.
 	// A count of 0 signals that no events should be persisted.
-	DurableEventCount int `hcl:"durable_event_count"`
+	DurableEventCount *int `hcl:"durable_event_count"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -887,11 +887,11 @@ func DefaultConfig() *Config {
 			BindWildcardDefaultHostNetwork: true,
 		},
 		Server: &ServerConfig{
-			Enabled:              false,
-			EnableEventPublisher: helper.BoolToPtr(true),
-			EventBufferSize:      100,
-			DurableEventCount:    100,
-			StartJoin:            []string{},
+			Enabled:           false,
+			EnableEventBroker: helper.BoolToPtr(true),
+			EventBufferSize:   helper.IntToPtr(100),
+			DurableEventCount: helper.IntToPtr(100),
+			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1415,15 +1415,15 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
-	if b.EnableEventPublisher != nil {
-		result.EnableEventPublisher = b.EnableEventPublisher
+	if b.EnableEventBroker != nil {
+		result.EnableEventBroker = b.EnableEventBroker
 	}
 
-	if b.EventBufferSize != 0 {
+	if b.EventBufferSize != nil {
 		result.EventBufferSize = b.EventBufferSize
 	}
 
-	if b.DurableEventCount != 0 {
+	if b.DurableEventCount != nil {
 		result.DurableEventCount = b.DurableEventCount
 	}
 

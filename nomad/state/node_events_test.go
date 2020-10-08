@@ -21,13 +21,13 @@ func TestNodeEventsFromChanges(t *testing.T) {
 	}{
 		{
 			MsgType:   structs.NodeRegisterRequestType,
-			WantTopic: TopicNode,
+			WantTopic: structs.TopicNode,
 			Name:      "node registered",
 			Mutate: func(s *StateStore, tx *txn) error {
 				return upsertNodeTxn(tx, tx.Index, testNode())
 			},
 			WantEvents: []structs.Event{{
-				Topic: TopicNode,
+				Topic: structs.TopicNode,
 				Type:  TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
@@ -39,13 +39,13 @@ func TestNodeEventsFromChanges(t *testing.T) {
 		},
 		{
 			MsgType:   structs.NodeRegisterRequestType,
-			WantTopic: TopicNode,
+			WantTopic: structs.TopicNode,
 			Name:      "node registered initializing",
 			Mutate: func(s *StateStore, tx *txn) error {
 				return upsertNodeTxn(tx, tx.Index, testNode(nodeNotReady))
 			},
 			WantEvents: []structs.Event{{
-				Topic: TopicNode,
+				Topic: structs.TopicNode,
 				Type:  TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
@@ -57,7 +57,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 		},
 		{
 			MsgType:   structs.NodeDeregisterRequestType,
-			WantTopic: TopicNode,
+			WantTopic: structs.TopicNode,
 			Name:      "node deregistered",
 			Setup: func(s *StateStore, tx *txn) error {
 				return upsertNodeTxn(tx, tx.Index, testNode())
@@ -66,7 +66,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				return deleteNodeTxn(tx, tx.Index, []string{testNodeID()})
 			},
 			WantEvents: []structs.Event{{
-				Topic: TopicNode,
+				Topic: structs.TopicNode,
 				Type:  TypeNodeDeregistration,
 				Key:   testNodeID(),
 				Index: 100,
@@ -78,7 +78,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 		},
 		{
 			MsgType:   structs.NodeDeregisterRequestType,
-			WantTopic: TopicNode,
+			WantTopic: structs.TopicNode,
 			Name:      "batch node deregistered",
 			Setup: func(s *StateStore, tx *txn) error {
 				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
@@ -89,7 +89,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			},
 			WantEvents: []structs.Event{
 				{
-					Topic: TopicNode,
+					Topic: structs.TopicNode,
 					Type:  TypeNodeDeregistration,
 					Key:   testNodeID(),
 					Index: 100,
@@ -98,7 +98,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					},
 				},
 				{
-					Topic: TopicNode,
+					Topic: structs.TopicNode,
 					Type:  TypeNodeDeregistration,
 					Key:   testNodeIDTwo(),
 					Index: 100,
@@ -111,7 +111,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 		},
 		{
 			MsgType:   structs.UpsertNodeEventsType,
-			WantTopic: TopicNode,
+			WantTopic: structs.TopicNode,
 			Name:      "batch node events upserted",
 			Setup: func(s *StateStore, tx *txn) error {
 				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
@@ -141,7 +141,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			},
 			WantEvents: []structs.Event{
 				{
-					Topic: TopicNode,
+					Topic: structs.TopicNode,
 					Type:  TypeNodeEvent,
 					Key:   testNodeID(),
 					Index: 100,
@@ -150,7 +150,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					},
 				},
 				{
-					Topic: TopicNode,
+					Topic: structs.TopicNode,
 					Type:  TypeNodeEvent,
 					Key:   testNodeIDTwo(),
 					Index: 100,
@@ -166,7 +166,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			s := TestStateStoreCfg(t, TestStateStorePublisher(t))
-			defer s.StopEventPublisher()
+			defer s.StopEventBroker()
 
 			if tc.Setup != nil {
 				// Bypass publish mechanism for setup
@@ -215,7 +215,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 func TestNodeDrainEventFromChanges(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
-	defer s.StopEventPublisher()
+	defer s.StopEventBroker()
 
 	// setup
 	setupTx := s.db.WriteTxn(10)
@@ -251,7 +251,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.Len(t, got.Events, 1)
 
-	require.Equal(t, TopicNode, got.Events[0].Topic)
+	require.Equal(t, structs.TopicNode, got.Events[0].Topic)
 	require.Equal(t, TypeNodeDrain, got.Events[0].Type)
 	require.Equal(t, uint64(100), got.Events[0].Index)
 
@@ -294,10 +294,6 @@ type nodeOpts func(n *structs.Node)
 
 func nodeNotReady(n *structs.Node) {
 	n.Status = structs.NodeStatusInit
-}
-
-func nodeReady(n *structs.Node) {
-	n.Status = structs.NodeStatusReady
 }
 
 func nodeIDTwo(n *structs.Node) {

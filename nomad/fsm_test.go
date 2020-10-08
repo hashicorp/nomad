@@ -50,13 +50,13 @@ func testFSM(t *testing.T) *nomadFSM {
 	dispatcher, _ := testPeriodicDispatcher(t)
 	logger := testlog.HCLogger(t)
 	fsmConfig := &FSMConfig{
-		EvalBroker:           broker,
-		Periodic:             dispatcher,
-		Blocked:              NewBlockedEvals(broker, logger),
-		Logger:               logger,
-		Region:               "global",
-		EnableEventPublisher: true,
-		EventBufferSize:      100,
+		EvalBroker:        broker,
+		Periodic:          dispatcher,
+		Blocked:           NewBlockedEvals(broker, logger),
+		Logger:            logger,
+		Region:            "global",
+		EnableEventBroker: true,
+		EventBufferSize:   100,
 	}
 	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
@@ -3206,7 +3206,7 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 	t.Parallel()
 	// Add some state
 	fsm := testFSM(t)
-	fsm.config.EnableEventPublisher = true
+	fsm.config.EnableEventBroker = true
 	// DurableEventCount = 4 each mock events wrapper contains 2 events
 	fsm.config.DurableEventCount = 4
 
@@ -3246,7 +3246,7 @@ func TestFSM_SnapshotRestore_Events_WithDurability(t *testing.T) {
 	raw1 := iter.Next()
 	require.Nil(t, raw1)
 
-	pub, err := state2.EventPublisher()
+	pub, err := state2.EventBroker()
 	require.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -3264,7 +3264,7 @@ func TestFSM_SnapshotRestore_Events_NoDurability(t *testing.T) {
 	t.Parallel()
 	fsm := testFSM(t)
 	// Enable event publisher with durable event count of zero
-	fsm.config.EnableEventPublisher = true
+	fsm.config.EnableEventBroker = true
 	fsm.config.DurableEventCount = 0
 
 	state := fsm.State()

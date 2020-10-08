@@ -27,29 +27,20 @@ type Changes struct {
 
 // changeTrackerDB is a thin wrapper around memdb.DB which enables TrackChanges on
 // all write transactions. When the transaction is committed the changes are
-// sent to the EventPublisher which will create and emit change events.
+// sent to the EventBroker which will create and emit change events.
 type changeTrackerDB struct {
-	db             *memdb.MemDB
+	memdb          *memdb.MemDB
 	durableCount   int64
-	publisher      *stream.EventPublisher
+	publisher      *stream.EventBroker
 	processChanges func(ReadTxn, Changes) (*structs.Events, error)
 }
 
-// ChangeConfig
-type ChangeConfig struct {
-	DurableEventCount int
-}
-
-func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventPublisher, changesFn changeProcessor, cfg *ChangeConfig) *changeTrackerDB {
-	if cfg == nil {
-		cfg = &ChangeConfig{}
-	}
-
+func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventBroker, changesFn changeProcessor, durableCount int64) *changeTrackerDB {
 	return &changeTrackerDB{
-		db:             db,
+		memdb:          db,
 		publisher:      publisher,
 		processChanges: changesFn,
-		durableCount:   int64(cfg.DurableEventCount),
+		durableCount:   durableCount,
 	}
 }
 
@@ -63,7 +54,7 @@ func noOpProcessChanges(ReadTxn, Changes) (*structs.Events, error) { return nil,
 // TODO: this could return a regular memdb.Txn if all the state functions accepted
 // the ReadTxn interface
 func (c *changeTrackerDB) ReadTxn() *txn {
-	return &txn{Txn: c.db.Txn(false)}
+	return &txn{Txn: c.memdb.Txn(false)}
 }
 
 // WriteTxn returns a wrapped memdb.Txn suitable for writes to the state store.
@@ -78,7 +69,7 @@ func (c *changeTrackerDB) ReadTxn() *txn {
 // data directly into the DB. These cases may use WriteTxnRestore.
 func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 	t := &txn{
-		Txn:     c.db.Txn(true),
+		Txn:     c.memdb.Txn(true),
 		Index:   idx,
 		publish: c.publish,
 	}
@@ -91,7 +82,7 @@ func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) 
 
 	t := &txn{
 		msgType:        msgType,
-		Txn:            c.db.Txn(true),
+		Txn:            c.memdb.Txn(true),
 		Index:          idx,
 		publish:        c.publish,
 		persistChanges: persistChanges,
@@ -101,7 +92,7 @@ func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) 
 }
 
 func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
-	readOnlyTx := c.db.Txn(false)
+	readOnlyTx := c.memdb.Txn(false)
 	defer readOnlyTx.Abort()
 
 	events, err := c.processChanges(readOnlyTx, changes)
@@ -123,12 +114,12 @@ func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
 // written across many indexes.
 func (c *changeTrackerDB) WriteTxnRestore() *txn {
 	return &txn{
-		Txn:   c.db.Txn(true),
+		Txn:   c.memdb.Txn(true),
 		Index: 0,
 	}
 }
 
-// txn wraps a memdb.Txn to capture changes and send them to the EventPublisher.
+// txn wraps a memdb.Txn to capture changes and send them to the EventBroker.
 //
 // This can not be done with txn.Defer because the callback passed to Defer is
 // invoked after commit completes, and because the callback can not return an
@@ -149,7 +140,7 @@ type txn struct {
 	publish func(changes Changes) (*structs.Events, error)
 }
 
-// Commit first pushes changes to EventPublisher, then calls Commit on the
+// Commit first pushes changes to EventBroker, then calls Commit on the
 // underlying transaction.
 //
 // Note that this function, unlike memdb.Txn, returns an error which must be checked
@@ -195,51 +186,11 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	case structs.IgnoreUnknownTypeFlag:
 		// unknown event type
 		return nil, nil
-	case structs.NodeRegisterRequestType:
-		return GenericEventsFromChanges(tx, changes)
-	case structs.NodeUpdateStatusRequestType:
-		// TODO(drew) test
-		return GenericEventsFromChanges(tx, changes)
 	case structs.NodeDeregisterRequestType:
 		return NodeDeregisterEventFromChanges(tx, changes)
 	case structs.NodeUpdateDrainRequestType:
 		return NodeDrainEventFromChanges(tx, changes)
-	case structs.UpsertNodeEventsType:
-		return GenericEventsFromChanges(tx, changes)
-	case structs.DeploymentStatusUpdateRequestType:
-		return GenericEventsFromChanges(tx, changes)
-	case structs.DeploymentPromoteRequestType:
-		return GenericEventsFromChanges(tx, changes)
-	case structs.DeploymentAllocHealthRequestType:
-		return GenericEventsFromChanges(tx, changes)
-	case structs.ApplyPlanResultsRequestType:
-		// TODO test
-		return GenericEventsFromChanges(tx, changes)
-	case structs.EvalUpdateRequestType:
-		return GenericEventsFromChanges(tx, changes)
-	case structs.AllocClientUpdateRequestType:
-		return GenericEventsFromChanges(tx, changes)
-	case structs.JobRegisterRequestType:
-		// TODO(drew) test
-		return GenericEventsFromChanges(tx, changes)
-	case structs.AllocUpdateRequestType:
-		// TODO(drew) test
-		return GenericEventsFromChanges(tx, changes)
-	case structs.JobDeregisterRequestType:
-		// TODO(drew) test / handle delete
-		return GenericEventsFromChanges(tx, changes)
-	case structs.JobBatchDeregisterRequestType:
-		// TODO(drew) test & handle delete
-		return GenericEventsFromChanges(tx, changes)
-	case structs.AllocUpdateDesiredTransitionRequestType:
-		// TODO(drew) drain
-		return GenericEventsFromChanges(tx, changes)
-	case structs.NodeUpdateEligibilityRequestType:
-		// TODO(drew) test, drain
-		return GenericEventsFromChanges(tx, changes)
-	case structs.BatchNodeUpdateDrainRequestType:
-		// TODO(drew) test, drain
+	default:
 		return GenericEventsFromChanges(tx, changes)
 	}
-	return nil, nil
 }

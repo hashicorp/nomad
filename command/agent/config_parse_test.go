@@ -122,9 +122,9 @@ var basicConfig = &Config{
 		RedundancyZone:            "foo",
 		UpgradeVersion:            "0.8.0",
 		EncryptKey:                "abc",
-		EnableEventPublisher:      helper.BoolToPtr(false),
-		EventBufferSize:           200,
-		DurableEventCount:         100,
+		EnableEventBroker:         helper.BoolToPtr(false),
+		EventBufferSize:           helper.IntToPtr(200),
+		DurableEventCount:         helper.IntToPtr(0),
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:    time.Duration(15) * time.Second,

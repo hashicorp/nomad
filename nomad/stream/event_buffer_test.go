@@ -17,7 +17,7 @@ func TestEventBufferFuzz(t *testing.T) {
 	nReaders := 1000
 	nMessages := 1000
 
-	b := newEventBuffer(1000, DefaultTTL, nil)
+	b := newEventBuffer(1000, nil)
 
 	// Start a write goroutine that will publish 10000 messages with sequential
 	// indexes and some jitter in timing (to allow clients to "catch up" and block
@@ -85,7 +85,7 @@ func TestEventBufferFuzz(t *testing.T) {
 }
 
 func TestEventBuffer_Slow_Reader(t *testing.T) {
-	b := newEventBuffer(10, DefaultTTL, nil)
+	b := newEventBuffer(10, nil)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
@@ -114,7 +114,7 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 }
 
 func TestEventBuffer_Size(t *testing.T) {
-	b := newEventBuffer(100, DefaultTTL, nil)
+	b := newEventBuffer(100, nil)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
@@ -126,11 +126,11 @@ func TestEventBuffer_Size(t *testing.T) {
 	require.Equal(t, 10, b.Len())
 }
 
-// TestEventBuffer_Prune_AllOld tests the behavior when all items
-// are past their TTL, the event buffer should prune down to the last message
-// and hold onto the last item.
-func TestEventBuffer_Prune_AllOld(t *testing.T) {
-	b := newEventBuffer(100, 1*time.Second, nil)
+// TestEventBuffer_Emptying_Buffer tests the behavior when all items
+// are removed, the event buffer should advance its head down to the last message
+// and insert a placeholder sentinel value.
+func TestEventBuffer_Emptying_Buffer(t *testing.T) {
+	b := newEventBuffer(10, nil)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
@@ -141,11 +141,11 @@ func TestEventBuffer_Prune_AllOld(t *testing.T) {
 
 	require.Equal(t, 10, int(b.Len()))
 
-	time.Sleep(1 * time.Second)
-
-	// prune old messages, which will bring the event buffer down
+	// empty the buffer, which will bring the event buffer down
 	// to a single sentinel value
-	b.prune()
+	for i := 0; i < 11; i++ {
+		b.advanceHead()
+	}
 
 	// head and tail are now a sentinel value
 	head := b.Head()
@@ -203,7 +203,7 @@ func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
 	}
 
 	// buffer starts at index 11 goes to 100
-	b := newEventBuffer(100, 1*time.Hour, nil)
+	b := newEventBuffer(100, nil)
 
 	for i := 11; i <= 100; i++ {
 		e := structs.Event{
@@ -226,7 +226,7 @@ func TestEventBuffer_OnEvict(t *testing.T) {
 	testOnEvict := func(events *structs.Events) {
 		close(called)
 	}
-	b := newEventBuffer(2, DefaultTTL, testOnEvict)
+	b := newEventBuffer(2, testOnEvict)
 
 	// start at 1 since new event buffer is built with a starting sentinel value
 	for i := 1; i < 4; i++ {

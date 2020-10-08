@@ -78,12 +78,16 @@ type Config struct {
 	// in the absence of ACLs
 	EnableDebug bool
 
-	// EnableEventPublisher is used to enable or disable state store
+	// EnableEventBroker is used to enable or disable state store
 	// event publishing
-	EnableEventPublisher bool
+	EnableEventBroker bool
 
 	// EventBufferSize is the amount of events to hold in memory.
 	EventBufferSize int64
+
+	// DurableEventCount is the amount of events to save to disk when
+	// snapshotting
+	DurableEventCount int64
 
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
@@ -420,7 +424,9 @@ func DefaultConfig() *Config {
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
 		LicenseConfig:                    &LicenseConfig{},
-		EnableEventPublisher:             true,
+		EnableEventBroker:                true,
+		EventBufferSize:                  100,
+		DurableEventCount:                100,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,

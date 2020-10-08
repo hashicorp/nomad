@@ -50,19 +50,17 @@ type eventBuffer struct {
 	head atomic.Value
 	tail atomic.Value
 
-	maxSize    int64
-	maxItemTTL time.Duration
-	onEvict    EvictCallbackFn
+	maxSize int64
+	onEvict EvictCallbackFn
 }
 
 // newEventBuffer creates an eventBuffer ready for use.
-func newEventBuffer(size int64, maxItemTTL time.Duration, onEvict EvictCallbackFn) *eventBuffer {
+func newEventBuffer(size int64, onEvict EvictCallbackFn) *eventBuffer {
 	zero := int64(0)
 	b := &eventBuffer{
-		maxSize:    size,
-		size:       &zero,
-		maxItemTTL: maxItemTTL,
-		onEvict:    onEvict,
+		maxSize: size,
+		size:    &zero,
+		onEvict: onEvict,
 	}
 
 	item := newBufferItem(&structs.Events{Index: 0, Events: nil})
@@ -77,7 +75,7 @@ func newEventBuffer(size int64, maxItemTTL time.Duration, onEvict EvictCallbackF
 // watchers. After calling append, the caller must not make any further
 // mutations to the events as they may have been exposed to subscribers in other
 // goroutines. Append only supports a single concurrent caller and must be
-// externally synchronized with other Append, or prune calls.
+// externally synchronized with other Append calls.
 func (b *eventBuffer) Append(events *structs.Events) {
 	b.appendItem(newBufferItem(events))
 }
@@ -104,7 +102,7 @@ func (b *eventBuffer) appendItem(item *bufferItem) {
 }
 
 func newSentinelItem() *bufferItem {
-	return newBufferItem(&structs.Events{Index: 0, Events: nil})
+	return newBufferItem(&structs.Events{})
 }
 
 // advanceHead drops the current Head buffer item and notifies readers
@@ -189,25 +187,6 @@ func (b *eventBuffer) StartAtClosest(index uint64) (*bufferItem, int) {
 // Len returns the current length of the buffer
 func (b *eventBuffer) Len() int {
 	return int(atomic.LoadInt64(b.size))
-}
-
-// prune advances the head of the buffer until the head buffer item TTL
-// is no longer expired. It should be externally synchronized as it mutates
-// the buffer of items.
-func (b *eventBuffer) prune() {
-	now := time.Now()
-	for {
-		head := b.Head()
-		if b.Len() == 0 {
-			return
-		}
-
-		if now.Sub(head.createdAt) > b.maxItemTTL {
-			b.advanceHead()
-		} else {
-			return
-		}
-	}
 }
 
 // bufferItem represents a set of events published by a single raft operation.

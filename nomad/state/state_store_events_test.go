@@ -27,7 +27,7 @@ func TestStateStore_Events_OnEvict(t *testing.T) {
 	}
 	s := TestStateStoreCfg(t, cfg)
 
-	_, err := s.EventPublisher()
+	_, err := s.EventBroker()
 	require.NoError(t, err)
 
 	// force 3 evictions
@@ -85,7 +85,7 @@ func TestStateStore_Events_OnEvict_Missing(t *testing.T) {
 	}
 	s := TestStateStoreCfg(t, cfg)
 
-	_, err := s.EventPublisher()
+	_, err := s.EventBroker()
 	require.NoError(t, err)
 
 	getEvents := func() []*structs.Events {

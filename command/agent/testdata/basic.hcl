@@ -130,9 +130,9 @@ server {
   upgrade_version               = "0.8.0"
   encrypt                       = "abc"
   raft_multiplier               = 4
-  enable_event_publisher        = false
+  enable_event_broker           = false
   event_buffer_size             = 200
-  durable_event_count           = 100
+  durable_event_count           = 0
 
   server_join {
     retry_join     = ["1.1.1.1", "2.2.2.2"]

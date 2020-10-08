@@ -19,7 +19,7 @@ func NodeDeregisterEventFromChanges(tx ReadTxn, changes Changes) (*structs.Event
 			}
 
 			event := structs.Event{
-				Topic: TopicNode,
+				Topic: structs.TopicNode,
 				Type:  TypeNodeDeregistration,
 				Index: changes.Index,
 				Key:   before.ID,
@@ -66,7 +66,7 @@ func NodeDrainEventFromChanges(tx ReadTxn, changes Changes) (*structs.Events, er
 			}
 
 			event := structs.Event{
-				Topic: TopicNode,
+				Topic: structs.TopicNode,
 				Type:  TypeNodeDrain,
 				Index: changes.Index,
 				Key:   after.ID,

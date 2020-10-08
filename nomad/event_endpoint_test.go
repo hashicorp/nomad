@@ -23,7 +23,7 @@ func TestEventStream(t *testing.T) {
 	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.EnableEventPublisher = true
+		c.EnableEventBroker = true
 	})
 	defer cleanupS1()
 
@@ -65,7 +65,7 @@ func TestEventStream(t *testing.T) {
 	}()
 
 	// retrieve publisher for server, send event
-	publisher, err := s1.State().EventPublisher()
+	publisher, err := s1.State().EventBroker()
 	require.NoError(t, err)
 
 	node := mock.Node()
@@ -75,7 +75,12 @@ func TestEventStream(t *testing.T) {
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(t, encoder.Encode(req))
 
+	publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{Index: uint64(3), Events: []structs.Event{{Topic: "test", Payload: node}}})
+
 	timeout := time.After(3 * time.Second)
+	got := 0
+	want := 3
 OUTER:
 	for {
 		select {
@@ -89,7 +94,7 @@ OUTER:
 			}
 
 			// ignore heartbeat
-			if msg.Event == stream.NDJsonHeartbeat {
+			if msg.Event == stream.JsonHeartbeat {
 				continue
 			}
 
@@ -107,7 +112,11 @@ OUTER:
 			dec.Decode(event.Events[0].Payload)
 			require.NoError(t, err)
 			require.Equal(t, node.ID, out.ID)
-			break OUTER
+
+			got++
+			if got == want {
+				break OUTER
+			}
 		}
 	}
 }
@@ -118,7 +127,7 @@ func TestEventStream_StreamErr(t *testing.T) {
 	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.EnableEventPublisher = true
+		c.EnableEventBroker = true
 	})
 	defer cleanupS1()
 
@@ -158,7 +167,7 @@ func TestEventStream_StreamErr(t *testing.T) {
 		}
 	}()
 
-	publisher, err := s1.State().EventPublisher()
+	publisher, err := s1.State().EventBroker()
 	require.NoError(t, err)
 
 	node := mock.Node()
@@ -200,12 +209,12 @@ func TestEventStream_RegionForward(t *testing.T) {
 	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.EnableEventPublisher = true
+		c.EnableEventBroker = true
 	})
 	defer cleanupS1()
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.EnableEventPublisher = true
+		c.EnableEventBroker = true
 		c.Region = "foo"
 	})
 	defer cleanupS2()
@@ -249,7 +258,7 @@ func TestEventStream_RegionForward(t *testing.T) {
 	}()
 
 	// publish with server 2
-	publisher, err := s2.State().EventPublisher()
+	publisher, err := s2.State().EventBroker()
 	require.NoError(t, err)
 
 	node := mock.Node()
@@ -272,7 +281,7 @@ OUTER:
 				t.Fatalf("Got error: %v", msg.Error.Error())
 			}
 
-			if msg.Event == stream.NDJsonHeartbeat {
+			if msg.Event == stream.JsonHeartbeat {
 				continue
 			}
 
@@ -306,35 +315,124 @@ func TestEventStream_ACL(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
+	policyNsGood := mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob})
+	tokenNsFoo := mock.CreatePolicyAndToken(t, s.State(), 1006, "valid", policyNsGood)
+
+	policyNsNode := mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob})
+	policyNsNode += "\n" + mock.NodePolicy("read")
+	tokenNsNode := mock.CreatePolicyAndToken(t, s.State(), 1007, "validnNsNode", policyNsNode)
+
 	cases := []struct {
 		Name        string
 		Token       string
+		Topics      map[structs.Topic][]string
+		Namespace   string
 		ExpectedErr string
+		PublishFn   func(p *stream.EventBroker)
 	}{
 		{
-			Name:        "no token",
-			Token:       "",
+			Name:  "no token",
+			Token: "",
+			Topics: map[structs.Topic][]string{
+				"*": {"*"},
+			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:        "bad token",
-			Token:       tokenBad.SecretID,
+			Name:  "bad token",
+			Token: tokenBad.SecretID,
+			Topics: map[structs.Topic][]string{
+				"*": {"*"},
+			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:        "root token",
-			Token:       root.SecretID,
+			Name:  "root token",
+			Token: root.SecretID,
+			Topics: map[structs.Topic][]string{
+				"*": {"*"},
+			},
 			ExpectedErr: "subscription closed by server",
+		},
+		{
+			Name:  "job namespace token - correct ns",
+			Token: tokenNsFoo.SecretID,
+			Topics: map[structs.Topic][]string{
+				"Job":        {"*"},
+				"Eval":       {"*"},
+				"Alloc":      {"*"},
+				"Deployment": {"*"},
+			},
+			Namespace:   "foo",
+			ExpectedErr: "subscription closed by server",
+			PublishFn: func(p *stream.EventBroker) {
+				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
+			},
+		},
+		{
+			Name:  "job namespace token - incorrect ns",
+			Token: tokenNsFoo.SecretID,
+			Topics: map[structs.Topic][]string{
+				"Job": {"*"}, // good
+			},
+			Namespace:   "bar", // bad
+			ExpectedErr: structs.ErrPermissionDenied.Error(),
+			PublishFn: func(p *stream.EventBroker) {
+				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
+			},
+		},
+		{
+			Name:  "job namespace token - request management topic",
+			Token: tokenNsFoo.SecretID,
+			Topics: map[structs.Topic][]string{
+				"*": {"*"}, // bad
+			},
+			Namespace:   "foo",
+			ExpectedErr: structs.ErrPermissionDenied.Error(),
+			PublishFn: func(p *stream.EventBroker) {
+				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
+			},
+		},
+		{
+			Name:  "job namespace token - request invalid node topic",
+			Token: tokenNsFoo.SecretID,
+			Topics: map[structs.Topic][]string{
+				"Eval": {"*"}, // good
+				"Node": {"*"}, // bad
+			},
+			Namespace:   "foo",
+			ExpectedErr: structs.ErrPermissionDenied.Error(),
+			PublishFn: func(p *stream.EventBroker) {
+				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
+			},
+		},
+		{
+			Name:  "job+node namespace token, valid",
+			Token: tokenNsNode.SecretID,
+			Topics: map[structs.Topic][]string{
+				"Eval": {"*"}, // good
+				"Node": {"*"}, // good
+			},
+			Namespace:   "foo",
+			ExpectedErr: "subscription closed by server",
+			PublishFn: func(p *stream.EventBroker) {
+				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Node", Payload: mock.Node()}}})
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
+			var ns string
+			if tc.Namespace != "" {
+				ns = tc.Namespace
+			}
 			// Create request for all topics and keys
 			req := structs.EventStreamRequest{
-				Topics: map[structs.Topic][]string{"*": {"*"}},
+				Topics: tc.Topics,
 				QueryOptions: structs.QueryOptions{
 					Region:    s.Region(),
+					Namespace: ns,
 					AuthToken: tc.Token,
 				},
 			}
@@ -372,20 +470,25 @@ func TestEventStream_ACL(t *testing.T) {
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 			require.Nil(encoder.Encode(req))
 
-			publisher, err := s.State().EventPublisher()
+			publisher, err := s.State().EventBroker()
 			require.NoError(err)
 
 			// publish some events
 			node := mock.Node()
+
 			publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
 			publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: "test", Payload: node}}})
+
+			if tc.PublishFn != nil {
+				tc.PublishFn(publisher)
+			}
 
 			timeout := time.After(5 * time.Second)
 		OUTER:
 			for {
 				select {
 				case <-timeout:
-					require.Fail("timeout waiting for response")
+					t.Fatal("timeout waiting for events")
 				case err := <-errCh:
 					t.Fatal(err)
 				case msg := <-streamMsg:
@@ -398,7 +501,7 @@ func TestEventStream_ACL(t *testing.T) {
 					if strings.Contains(msg.Error.Error(), tc.ExpectedErr) {
 						break OUTER
 					} else {
-						require.Fail("Unexpected error", msg.Error)
+						t.Fatalf("unexpected error %v", msg.Error)
 					}
 				}
 			}

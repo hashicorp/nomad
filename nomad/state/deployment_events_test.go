@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,7 +14,7 @@ import (
 func TestDeploymentEventFromChanges(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
-	defer s.StopEventPublisher()
+	defer s.StopEventBroker()
 
 	// setup
 	setupTx := s.db.WriteTxn(10)
@@ -59,82 +58,6 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 
 }
 
-func TestDeploymentEventFromChanges_Promotion(t *testing.T) {
-	t.Parallel()
-	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
-	defer s.StopEventPublisher()
-
-	// setup
-	setupTx := s.db.WriteTxn(10)
-
-	j := mock.Job()
-	tg1 := j.TaskGroups[0]
-	tg2 := tg1.Copy()
-	tg2.Name = "foo"
-	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
-
-	d := mock.Deployment()
-	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
-	d.JobID = j.ID
-	d.TaskGroups = map[string]*structs.DeploymentState{
-		"web": {
-			DesiredTotal:    10,
-			DesiredCanaries: 1,
-		},
-		"foo": {
-			DesiredTotal:    10,
-			DesiredCanaries: 1,
-		},
-	}
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
-
-	// create set of allocs
-	c1 := mock.Alloc()
-	c1.JobID = j.ID
-	c1.DeploymentID = d.ID
-	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
-	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
-	}
-	c2 := mock.Alloc()
-	c2.JobID = j.ID
-	c2.DeploymentID = d.ID
-	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
-	c2.TaskGroup = tg2.Name
-	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: helper.BoolToPtr(true),
-	}
-
-	require.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
-
-	// commit setup transaction
-	setupTx.Txn.Commit()
-
-	e := mock.Eval()
-	// Request to promote canaries
-	msgType := structs.DeploymentPromoteRequestType
-	req := &structs.ApplyDeploymentPromoteRequest{
-		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
-			DeploymentID: d.ID,
-			All:          true,
-		},
-		Eval: e,
-	}
-
-	require.NoError(t, s.UpdateDeploymentPromotion(msgType, 100, req))
-
-	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 4)
-
-	got := events[0]
-	require.Equal(t, uint64(100), got.Index)
-	require.Equal(t, d.ID, got.Key)
-
-	de := got.Payload.(*DeploymentEvent)
-	require.Equal(t, structs.DeploymentStatusRunning, de.Deployment.Status)
-}
-
 func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, timeout time.Duration) []structs.Event {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -163,15 +86,19 @@ func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, tim
 }
 
 func EventsForIndex(t *testing.T, s *StateStore, index uint64) []structs.Event {
-	pub, err := s.EventPublisher()
+	pub, err := s.EventBroker()
 	require.NoError(t, err)
 
 	sub, err := pub.Subscribe(&stream.SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"*": []string{"*"},
+			"*": {"*"},
 		},
-		Index: index,
+		Index:               index,
+		StartExactlyAtIndex: true,
 	})
+	if err != nil {
+		return []structs.Event{}
+	}
 	defer sub.Unsubscribe()
 
 	require.NoError(t, err)

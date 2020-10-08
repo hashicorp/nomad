@@ -1,81 +1,63 @@
 package stream
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
-	// NDJsonHeartbeat is the NDJson to send as a heartbeat
+	// JsonHeartbeat is an empty JSON object to send as a heartbeat
 	// Avoids creating many heartbeat instances
-	NDJsonHeartbeat = &structs.NDJson{Data: []byte("{}\n")}
+	JsonHeartbeat = &structs.EventJson{Data: []byte("{}")}
 )
 
-// NDJsonStream is used to send new line delimited JSON and heartbeats
+// JsonStream is used to send new line delimited JSON and heartbeats
 // to a destination (out channel)
-type NDJsonStream struct {
-	out chan<- *structs.NDJson
+type JsonStream struct {
+	// ctx is a passed in context used to notify the json stream
+	// when it should terminate
+	ctx context.Context
+
+	outCh chan *structs.EventJson
 
 	// heartbeat is the interval to send heartbeat messages to keep a connection
 	// open.
-	heartbeat *time.Ticker
-
-	publishCh chan structs.NDJson
-	exitCh    chan struct{}
-
-	l       sync.Mutex
-	running bool
+	heartbeatTick *time.Ticker
 }
 
-// NewNNewNDJsonStream creates a new NDJson stream that will output NDJson structs
-// to the passed output channel
-func NewNDJsonStream(out chan<- *structs.NDJson, heartbeat time.Duration) *NDJsonStream {
-	return &NDJsonStream{
-		out:       out,
-		heartbeat: time.NewTicker(heartbeat),
-		exitCh:    make(chan struct{}),
-		publishCh: make(chan structs.NDJson),
+// NewJsonStream creates a new json stream that will output Json structs
+// to the passed output channel. The constructor starts a goroutine
+// to begin heartbeating on its set interval.
+func NewJsonStream(ctx context.Context, heartbeat time.Duration) *JsonStream {
+	s := &JsonStream{
+		ctx:           ctx,
+		outCh:         make(chan *structs.EventJson, 10),
+		heartbeatTick: time.NewTicker(heartbeat),
 	}
+
+	go s.heartbeat()
+
+	return s
 }
 
-// Run starts a long lived goroutine that handles sending
-// heartbeats and processed json objects to the streams out channel as well
-func (n *NDJsonStream) Run(ctx context.Context) {
-	n.l.Lock()
-	if n.running {
-		return
-	}
-	n.running = true
-	n.l.Unlock()
-
-	go n.run(ctx)
+func (n *JsonStream) OutCh() chan *structs.EventJson {
+	return n.outCh
 }
 
-func (n *NDJsonStream) run(ctx context.Context) {
-	defer func() {
-		n.l.Lock()
-		n.running = false
-		n.l.Unlock()
-		close(n.exitCh)
-	}()
-
+func (n *JsonStream) heartbeat() {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-n.ctx.Done():
 			return
-		case msg := <-n.publishCh:
-			n.out <- msg.Copy()
-		case <-n.heartbeat.C:
+		case <-n.heartbeatTick.C:
 			// Send a heartbeat frame
 			select {
-			case n.out <- NDJsonHeartbeat:
-			case <-ctx.Done():
+			case n.outCh <- JsonHeartbeat:
+			case <-n.ctx.Done():
 				return
 			}
 		}
@@ -84,19 +66,20 @@ func (n *NDJsonStream) run(ctx context.Context) {
 
 // Send encodes an object into Newline delimited json. An error is returned
 // if json encoding fails or if the stream is no longer running.
-func (n *NDJsonStream) Send(obj interface{}) error {
-	n.l.Lock()
-	defer n.l.Unlock()
+func (n *JsonStream) Send(v interface{}) error {
+	if n.ctx.Err() != nil {
+		return n.ctx.Err()
+	}
 
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(buf).Encode(obj); err != nil {
-		return fmt.Errorf("marshaling json for stream: %w", err)
+	buf, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("error marshaling json for stream: %w", err)
 	}
 
 	select {
-	case n.publishCh <- structs.NDJson{Data: buf.Bytes()}:
-	case <-n.exitCh:
-		return fmt.Errorf("stream is no longer running")
+	case <-n.ctx.Done():
+		return fmt.Errorf("error stream is no longer running: %w", err)
+	case n.outCh <- &structs.EventJson{Data: buf}:
 	}
 
 	return nil
