@@ -395,7 +395,7 @@ There is still one caveat though: redirects do not apply to client-side navigati
 Let's look at an example. Say you have a page called `/docs/foo` which needs to be moved to `/docs/nested/foo`. Additionally, this is a page that has been around for a while and we know there are links into `/docs/foo.html` left over from our previous website structure. First, we move the page, then adjust the docs sidenav, in `data/docs-navigation.js`. Find the category the page is in, and move it into the appropriate subcategory. Next, we add to redirects as such:
 
 ```js
-{ source: '/foo(.html)?', destination: '/nested/foo', permanent: true }
+{ source: '/foo', destination: '/nested/foo', permanent: true }
 ```
 
 Next, we run a global search for internal links to `/foo`, and make sure to adjust them to be `/nested/foo` - this is to ensure that client-side navigation still works correctly. _Adding a redirect alone is not enough_.
