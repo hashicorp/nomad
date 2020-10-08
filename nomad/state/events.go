@@ -33,6 +33,7 @@ const (
 	TypeJobRegistered            = "JobRegistered"
 	TypeJobDeregistered          = "JobDeregistered"
 	TypeJobBatchDeregistered     = "JobBatchDeregistered"
+	TypePlanResult               = "PlanResult"
 )
 
 type JobEvent struct {
@@ -100,6 +101,14 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 		eventType = TypeNodeDrain
 	case structs.BatchNodeUpdateDrainRequestType:
 		eventType = TypeNodeDrain
+	case structs.DeploymentStatusUpdateRequestType:
+		eventType = TypeDeploymentUpdate
+	case structs.DeploymentPromoteRequestType:
+		eventType = TypeDeploymentPromotion
+	case structs.DeploymentAllocHealthRequestType:
+		eventType = TypeDeploymentAllocHealth
+	case structs.ApplyPlanResultsRequestType:
+		eventType = TypePlanResult
 	default:
 		// unknown request type
 		return nil, nil
@@ -118,10 +127,11 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic: TopicEval,
-				Type:  eventType,
-				Index: changes.Index,
-				Key:   after.ID,
+				Topic:     TopicEval,
+				Type:      eventType,
+				Index:     changes.Index,
+				Key:       after.ID,
+				Namespace: after.Namespace,
 				Payload: &EvalEvent{
 					Eval: after,
 				},
@@ -143,10 +153,11 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			alloc.Job = nil
 
 			event := structs.Event{
-				Topic: TopicAlloc,
-				Type:  eventType,
-				Index: changes.Index,
-				Key:   after.ID,
+				Topic:     TopicAlloc,
+				Type:      eventType,
+				Index:     changes.Index,
+				Key:       after.ID,
+				Namespace: after.Namespace,
 				Payload: &AllocEvent{
 					Alloc: alloc,
 				},
@@ -163,10 +174,11 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic: TopicAlloc,
-				Type:  eventType,
-				Index: changes.Index,
-				Key:   after.ID,
+				Topic:     TopicAlloc,
+				Type:      eventType,
+				Index:     changes.Index,
+				Key:       after.ID,
+				Namespace: after.Namespace,
 				Payload: &JobEvent{
 					Job: after,
 				},
@@ -189,6 +201,27 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 				Key:   after.ID,
 				Payload: &NodeEvent{
 					Node: after,
+				},
+			}
+			events = append(events, event)
+		case "deployment":
+			if change.Deleted() {
+				return nil, nil
+			}
+			after, ok := change.After.(*structs.Deployment)
+			if !ok {
+				return nil, fmt.Errorf("transaction change was not a Node")
+			}
+
+			event := structs.Event{
+				Topic:      TopicNode,
+				Type:       eventType,
+				Index:      changes.Index,
+				Key:        after.ID,
+				Namespace:  after.Namespace,
+				FilterKeys: []string{after.JobID},
+				Payload: &DeploymentEvent{
+					Deployment: after,
 				},
 			}
 			events = append(events, event)

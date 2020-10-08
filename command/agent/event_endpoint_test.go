@@ -66,6 +66,57 @@ func TestEventStream(t *testing.T) {
 	})
 }
 
+func TestEventStream_NamespaceQuery(t *testing.T) {
+	t.Parallel()
+
+	httpTest(t, nil, func(s *TestAgent) {
+		ctx, cancel := context.WithCancel(context.Background())
+		req, err := http.NewRequestWithContext(ctx, "GET", "/v1/event/stream?namespace=foo", nil)
+		require.Nil(t, err)
+		resp := httptest.NewRecorder()
+
+		respErrCh := make(chan error)
+		go func() {
+			_, err = s.Server.EventStream(resp, req)
+			respErrCh <- err
+			assert.NoError(t, err)
+		}()
+
+		pub, err := s.Agent.server.State().EventPublisher()
+		require.NoError(t, err)
+
+		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Namespace: "bar", Payload: testEvent{ID: "123"}}}})
+		pub.Publish(&structs.Events{Index: 101, Events: []structs.Event{{Namespace: "foo", Payload: testEvent{ID: "456"}}}})
+
+		testutil.WaitForResult(func() (bool, error) {
+			got := resp.Body.String()
+			want := `"Namespace":"foo"`
+			bad := `123`
+			if strings.Contains(got, bad) {
+				return false, fmt.Errorf("expected non matching namespace to be filtered, got:%v", got)
+			}
+			if strings.Contains(got, want) {
+				return true, nil
+			}
+
+			return false, fmt.Errorf("missing expected json, got: %v, want: %v", got, want)
+		}, func(err error) {
+			cancel()
+			require.Fail(t, err.Error())
+		})
+
+		// wait for response to close to prevent race between subscription
+		// shutdown and server shutdown returning subscription closed by server err
+		cancel()
+		select {
+		case err := <-respErrCh:
+			require.Nil(t, err)
+		case <-time.After(1 * time.Second):
+			require.Fail(t, "waiting for request cancellation")
+		}
+	})
+}
+
 func TestEventStream_QueryParse(t *testing.T) {
 	t.Parallel()
 

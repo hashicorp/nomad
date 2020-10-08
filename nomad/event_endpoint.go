@@ -64,9 +64,10 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		authToken = uuid.Generate()
 	}
 	subReq := &stream.SubscribeRequest{
-		Token:  authToken,
-		Topics: args.Topics,
-		Index:  uint64(args.Index),
+		Token:     authToken,
+		Topics:    args.Topics,
+		Index:     uint64(args.Index),
+		Namespace: args.Namespace,
 	}
 	publisher, err := e.srv.State().EventPublisher()
 	if err != nil {

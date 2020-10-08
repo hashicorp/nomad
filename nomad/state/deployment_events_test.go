@@ -125,7 +125,7 @@ func TestDeploymentEventFromChanges_Promotion(t *testing.T) {
 	require.NoError(t, s.UpdateDeploymentPromotion(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 2)
+	require.Len(t, events, 4)
 
 	got := events[0]
 	require.Equal(t, uint64(100), got.Index)

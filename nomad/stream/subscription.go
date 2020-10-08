@@ -46,8 +46,9 @@ type Subscription struct {
 }
 
 type SubscribeRequest struct {
-	Token string
-	Index uint64
+	Token     string
+	Index     uint64
+	Namespace string
 
 	Topics map[structs.Topic][]string
 }
@@ -115,7 +116,7 @@ func (s *Subscription) Unsubscribe() {
 	s.unsub()
 }
 
-// filter events to only those that match a subscriptions topic/keys
+// filter events to only those that match a subscriptions topic/keys/namespace
 func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 	if len(events) == 0 {
 		return events
@@ -131,7 +132,12 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 			} else {
 				keys = req.Topics[e.Topic]
 			}
+			if req.Namespace != "" && e.Namespace != "" && e.Namespace != req.Namespace {
+				continue
+			}
 			for _, k := range keys {
+				// if req.Namespace != "" && e.Namespace != "" && e.Namespace ==
+				// if e.Namespace != "" && e.Namespace
 				if e.Key == k || k == AllKeys {
 					count++
 				}
@@ -157,6 +163,10 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 				keys = req.Topics[AllKeys]
 			} else {
 				keys = req.Topics[e.Topic]
+			}
+			// filter out non matching namespaces
+			if req.Namespace != "" && e.Namespace != "" && e.Namespace != req.Namespace {
+				continue
 			}
 			for _, k := range keys {
 				if e.Key == k || k == AllKeys {

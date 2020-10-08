@@ -207,13 +207,14 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	case structs.UpsertNodeEventsType:
 		return GenericEventsFromChanges(tx, changes)
 	case structs.DeploymentStatusUpdateRequestType:
-		return DeploymentEventFromChanges(changes.MsgType, tx, changes)
+		return GenericEventsFromChanges(tx, changes)
 	case structs.DeploymentPromoteRequestType:
-		return DeploymentEventFromChanges(changes.MsgType, tx, changes)
+		return GenericEventsFromChanges(tx, changes)
 	case structs.DeploymentAllocHealthRequestType:
-		return DeploymentEventFromChanges(changes.MsgType, tx, changes)
+		return GenericEventsFromChanges(tx, changes)
 	case structs.ApplyPlanResultsRequestType:
-		return ApplyPlanResultEventsFromChanges(tx, changes)
+		// TODO test
+		return GenericEventsFromChanges(tx, changes)
 	case structs.EvalUpdateRequestType:
 		return GenericEventsFromChanges(tx, changes)
 	case structs.AllocClientUpdateRequestType:
@@ -224,12 +225,12 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	case structs.AllocUpdateRequestType:
 		// TODO(drew) test
 		return GenericEventsFromChanges(tx, changes)
-	// case structs.JobDeregisterRequestType:
-	// TODO(drew) test / handle delete
-	// return GenericEventsFromChanges(tx, changes)
-	// case structs.JobBatchDeregisterRequestType:
-	// TODO(drew) test & handle delete
-	// return GenericEventsFromChanges(tx, changes)
+	case structs.JobDeregisterRequestType:
+		// TODO(drew) test / handle delete
+		return GenericEventsFromChanges(tx, changes)
+	case structs.JobBatchDeregisterRequestType:
+		// TODO(drew) test & handle delete
+		return GenericEventsFromChanges(tx, changes)
 	case structs.AllocUpdateDesiredTransitionRequestType:
 		// TODO(drew) drain
 		return GenericEventsFromChanges(tx, changes)

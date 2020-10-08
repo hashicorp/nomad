@@ -1,8 +1,9 @@
 package stream
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
 	"testing"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ func TestFilter_AllTopics(t *testing.T) {
 
 	req := &SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"*": []string{"*"},
+			"*": {"*"},
 		},
 	}
 	actual := filter(req, events)
@@ -33,7 +34,7 @@ func TestFilter_AllKeys(t *testing.T) {
 
 	req := &SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"Test": []string{"*"},
+			"Test": {"*"},
 		},
 	}
 	actual := filter(req, events)
@@ -49,7 +50,7 @@ func TestFilter_PartialMatch_Topic(t *testing.T) {
 
 	req := &SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"Test": []string{"*"},
+			"Test": {"*"},
 		},
 	}
 	actual := filter(req, events)
@@ -65,7 +66,7 @@ func TestFilter_PartialMatch_Key(t *testing.T) {
 
 	req := &SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"Test": []string{"One"},
+			"Test": {"One"},
 		},
 	}
 	actual := filter(req, events)
@@ -81,8 +82,8 @@ func TestFilter_NoMatch(t *testing.T) {
 
 	req := &SubscribeRequest{
 		Topics: map[structs.Topic][]string{
-			"NodeEvents": []string{"*"},
-			"Test":       []string{"Highly-Specific-Key"},
+			"NodeEvents": {"*"},
+			"Test":       {"Highly-Specific-Key"},
 		},
 	}
 	actual := filter(req, events)
@@ -90,4 +91,24 @@ func TestFilter_NoMatch(t *testing.T) {
 	require.Equal(t, expected, actual)
 
 	require.Equal(t, cap(actual), 0)
+}
+
+func TestFilter_Namespace(t *testing.T) {
+	events := make([]structs.Event, 0, 5)
+	events = append(events, structs.Event{Topic: "Test", Key: "One", Namespace: "foo"}, structs.Event{Topic: "Test", Key: "Two"}, structs.Event{Topic: "Test", Key: "Two", Namespace: "bar"})
+
+	req := &SubscribeRequest{
+		Topics: map[structs.Topic][]string{
+			"*": {"*"},
+		},
+		Namespace: "foo",
+	}
+	actual := filter(req, events)
+	expected := []structs.Event{
+		{Topic: "Test", Key: "One", Namespace: "foo"},
+		{Topic: "Test", Key: "Two"},
+	}
+	require.Equal(t, expected, actual)
+
+	require.Equal(t, cap(actual), 2)
 }
