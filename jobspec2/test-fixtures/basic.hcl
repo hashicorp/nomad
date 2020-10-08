@@ -55,17 +55,17 @@ job "binstore-storagelocker" {
     canary            = 1
   }
 
-  #task "outside" {
-  #  driver = "java"
+  task "outside" {
+    driver = "java"
 
-  #  #config {
-  #  #  jar_path = "s3://my-cool-store/foo.jar"
-  #  #}
+    config {
+      jar_path = "s3://my-cool-store/foo.jar"
+    }
 
-  #  meta {
-  #    my-cool-key = "foobar"
-  #  }
-  #}
+    meta {
+      my-cool-key = "foobar"
+    }
+  }
 
   group "binsl" {
     count = 5
@@ -78,6 +78,7 @@ job "binstore-storagelocker" {
     volume "bar" {
       type   = "csi"
       source = "bar-vol"
+      read_only = true
 
       mount_options {
         fs_type = "ext4"
@@ -318,7 +319,6 @@ job "binstore-storagelocker" {
     task "storagelocker" {
       driver = "docker"
 
-      # env { } # TODO: FIXME
       lifecycle {
         hook    = "prestart"
         sidecar = true

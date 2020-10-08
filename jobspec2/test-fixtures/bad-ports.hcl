@@ -24,9 +24,9 @@ job "binstore-storagelocker" {
   task "outside" {
     driver = "java"
 
-    #config {
-    #  jar_path = "s3://my-cool-store/foo.jar"
-    #}
+    config {
+      jar_path = "s3://my-cool-store/foo.jar"
+    }
 
     meta {
       my-cool-key = "foobar"
@@ -39,9 +39,9 @@ job "binstore-storagelocker" {
     task "binstore" {
       driver = "docker"
 
-      #config {
-      #  image = "hashicorp/binstore"
-      #}
+      config {
+        image = "hashicorp/binstore"
+      }
 
       resources {
         cpu    = 500
@@ -72,9 +72,9 @@ job "binstore-storagelocker" {
     task "storagelocker" {
       driver = "docker"
 
-      #config {
-      #  image = "hashicorp/storagelocker"
-      #}
+      config {
+        image = "hashicorp/storagelocker"
+      }
 
       resources {
         cpu    = 500
