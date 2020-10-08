@@ -55,11 +55,11 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
 
-- `mount_options` <code>([mount_options][]:nil)</code> - Options for mounting
-  CSI volumes that have the `file-system` [attachment mode]. These options
-  override the `mount_options` field from [volume registration].  Consult
-  the documentation for your storage provider and CSI plugin as to whether
-  these options are required or neccessary.
+- `mount_options` - Options for mounting CSI volumes that have the
+  `file-system` [attachment mode]. These options override the `mount_options`
+  field from [volume registration]. Consult the documentation for your storage
+  provider and CSI plugin as to whether these options are required or
+  neccessary.
 
   - `fs_type`: file system type (ex. `"ext4"`)
   - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)

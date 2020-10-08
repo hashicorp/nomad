@@ -85,13 +85,13 @@ context {
 - `attachment_mode` `(string: <required>)` - The storage API that will be used
   by the volume. Most storage providers will support `"file-system"`, to mount
   volumes using the CSI filesystem API. Some storage providers will support
-  `"block-device"`, which mount the volume with the CSI block device API
+  `"block-device"`, which will mount the volume with the CSI block device API
   within the container.
 
-- `mount_options` <code>([mount_options][]:nil)</code> - Options for mounting
-  `file-system` volumes that don't already have a pre-formatted file system.
-  Consult the documentation for your storage provider and CSI plugin as to
-  whether these options are required or neccessary.
+- `mount_options` - Options for mounting `file-system` volumes that don't
+  already have a pre-formatted file system. Consult the documentation for your
+  storage provider and CSI plugin as to whether these options are required or
+  neccessary.
 
   - `fs_type`: file system type (ex. `"ext4"`)
   - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
