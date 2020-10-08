@@ -55,7 +55,7 @@ If your local development environment has a supported version (v10.0.0+) of [nod
 
 ...and then visit `http://localhost:3000`.
 
-If you pull down new code from github, you should run `npm install` again. Otherwise, there's no need to re-run `npm install` each time the site is run, you can just run `npm start` to get it going.
+There's no need to re-run `npm install` each time the site is run, only the first time. Going forward, you can just run `npm start` to get it going.
 
 <!-- END: local-development -->
 
@@ -64,9 +64,9 @@ If you pull down new code from github, you should run `npm install` again. Other
 
 ## Editing Markdown Content
 
-Documentation content is written in [Markdown](https://www.markdownguide.org/cheat-sheet/) and you'll find all files listed under the `/pages` directory.
+Documentation content is written in [Markdown](https://www.markdownguide.org/cheat-sheet/) and you'll find all files listed under the `/content` directory.
 
-To create a new page with Markdown, create a file ending in `.mdx` in the `pages/` directory. The path in the pages directory will be the URL route. For example, `pages/hello/world.mdx` will be served from the `/hello/world` URL.
+To create a new page with Markdown, create a file ending in `.mdx` in a `content/<subdir>` directory. The path in the content directory will be the URL route. For example, `content/docs/hello.mdx` will be served from the `/docs/hello` URL.
 
 This file can be standard Markdown and also supports [YAML frontmatter](https://middlemanapp.com/basics/frontmatter/). YAML frontmatter is optional, there are defaults for all keys.
 
@@ -85,16 +85,12 @@ The significant keys in the YAML frontmatter are:
 
 > ⚠️ Since `api` is a reserved directory within NextJS, all `/api/**` pages are listed under the `/pages/api-docs` path.
 
-### Creating New Pages
-
-There is currently a small bug with new page creation - if you create a new page and link it up via subnav data while the server is running, it will report an error saying the page was not found. This can be resolved by restarting the server.
-
 ### Markdown Enhancements
 
 There are several custom markdown plugins that are available by default that enhance [standard markdown](https://commonmark.org/) to fit our use cases. This set of plugins introduces a couple instances of custom syntax, and a couple specific pitfalls that are not present by default with markdown, detailed below:
 
 - If you see the symbols `~>`, `->`, `=>`, or `!>`, these represent [custom alerts](https://github.com/hashicorp/remark-plugins/tree/master/plugins/paragraph-custom-alerts#paragraph-custom-alerts). These render as colored boxes to draw the user's attention to some type of aside.
-- If you see `@include '/some/path.mdx'`, this is a [markdown include](https://github.com/hashicorp/remark-plugins/tree/master/plugins/include-markdown#include-markdown-plugin). It's worth noting as well that all includes resolve from `website/pages/partials` by default, and that changes to partials will not live-reload the website.
+- If you see `@include '/some/path.mdx'`, this is a [markdown include](https://github.com/hashicorp/remark-plugins/tree/master/plugins/include-markdown#include-markdown-plugin). It's worth noting as well that all includes resolve from `website/content/partials` by default, and that changes to partials will not live-reload the website.
 - If you see `# Headline ((#slug))`, this is an example of an [anchor link alias](https://github.com/hashicorp/remark-plugins/tree/je.anchor-link-adjustments/plugins/anchor-links#anchor-link-aliases). It adds an extra permalink to a headline for compatibility and is removed from the output.
 - Due to [automatically generated permalinks](https://github.com/hashicorp/remark-plugins/tree/je.anchor-link-adjustments/plugins/anchor-links#anchor-links), any text changes to _headlines_ or _list items that begin with inline code_ can and will break existing permalinks. Be very cautious when changing either of these two text items.
 
@@ -272,7 +268,7 @@ export default {
 }
 ```
 
-- `category` values will be **directory names** within the `pages/<section>` directory
+- `category` values will be **directory names** within the `content/<section>` directory
 - `content` values will be **file names** within their appropriately nested directory
 
 A couple more important notes:

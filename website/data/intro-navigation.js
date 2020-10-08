@@ -1,4 +1,4 @@
-// The root folder for this documentation category is `pages/intro`
+// The root folder for this documentation category is `content/intro`
 //
 // - A string refers to the name of a file
 // - A "category" value refers to the name of a directory

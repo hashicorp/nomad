@@ -1,5 +1,4 @@
 const withHashicorp = require('@hashicorp/nextjs-scripts')
-const path = require('path')
 const dotenv = require('dotenv')
 const redirects = require('./redirects')
 const rewrites = require('./rewrites')
@@ -8,8 +7,12 @@ dotenv.config()
 
 module.exports = withHashicorp({
   defaultLayout: true,
-  transpileModules: ['is-absolute-url', '@hashicorp/react-.*'],
-  mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') },
+  transpileModules: [
+    'is-absolute-url',
+    '@hashicorp/react-.*',
+    'next-mdx-remote',
+  ],
+  mdx: { disable: true },
 })({
   redirects() {
     return redirects

@@ -1,4 +1,4 @@
-// The root folder for this documentation category is `pages/api-docs`
+// The root folder for this documentation category is `content/api-docs`
 //
 // - A string refers to the name of a file
 // - A "category" value refers to the name of a directory
