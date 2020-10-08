@@ -118,6 +118,10 @@ func (e *EventPublisher) Subscribe(req *SubscribeRequest) (*Subscription, error)
 	return sub, nil
 }
 
+func (e *EventPublisher) CloseAll() {
+	e.subscriptions.closeAll()
+}
+
 func (e *EventPublisher) handleUpdates(ctx context.Context) {
 	for {
 		select {

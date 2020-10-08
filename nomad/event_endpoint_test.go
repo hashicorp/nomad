@@ -160,14 +160,14 @@ func TestEventStream_StreamErr(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	publisher.Publish(&structs.Events{uint64(1), []structs.Event{{Topic: "test", Payload: node}}})
 
 	// send req
 	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 	require.Nil(t, encoder.Encode(req))
 
-	// stop the publisher to force an error on subscription side
-	s1.State().StopEventPublisher()
+	// publish some events
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
+	publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: "test", Payload: node}}})
 
 	timeout := time.After(5 * time.Second)
 OUTER:
@@ -178,8 +178,10 @@ OUTER:
 		case err := <-errCh:
 			t.Fatal(err)
 		case msg := <-streamMsg:
+			// close the publishers subscriptions forcing an error
+			// after an initial event is received
+			publisher.CloseAll()
 			if msg.Error == nil {
-				// race between error and receiving an event
 				// continue trying for error
 				continue
 			}
