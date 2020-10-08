@@ -172,7 +172,7 @@ func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
 	}
 }
 
-// VolumeMountOptions implements the Stringer and GoStringer interfaces to prevent
+// CSIMountOptions implements the Stringer and GoStringer interfaces to prevent
 // accidental leakage of sensitive mount flags via logs.
 var _ fmt.Stringer = &CSIMountOptions{}
 var _ fmt.GoStringer = &CSIMountOptions{}
@@ -577,6 +577,16 @@ func (v *CSIVolume) Validate() error {
 	}
 	if v.AttachmentMode == "" {
 		errs = append(errs, "missing attachment mode")
+	}
+	if v.AttachmentMode == CSIVolumeAttachmentModeBlockDevice {
+		if v.MountOptions != nil {
+			if v.MountOptions.FSType != "" {
+				errs = append(errs, "mount options not allowed for block-device")
+			}
+			if v.MountOptions.MountFlags != nil && len(v.MountOptions.MountFlags) != 0 {
+				errs = append(errs, "mount options not allowed for block-device")
+			}
+		}
 	}
 
 	// TODO: Volume Topologies are optional - We should check to see if the plugin
