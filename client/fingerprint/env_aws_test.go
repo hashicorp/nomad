@@ -177,7 +177,7 @@ func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
 
 	require.Equal(t, "ami-1234", response.Attributes["platform.aws.ami-id"])
 
-	require.Nil(t, response.NodeResources)
+	require.Nil(t, response.NodeResources.Networks)
 }
 
 func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
@@ -344,28 +344,6 @@ var awsStubs = []endpoint{
 		Uri:         "/latest/meta-data/mac",
 		ContentType: "text/plain",
 		Body:        "0a:20:d2:42:b3:55",
-	},
-	{
-		Uri:         "/latest/dynamic/instance-identity/document",
-		ContentType: "text/plain",
-		Body: `
-		{
-			"devpayProductCodes" : null,
-			"marketplaceProductCodes" : [ "1abc2defghijklm3nopqrs4tu" ],
-			"availabilityZone" : "us-west-2a",
-			"privateIp" : "10.0.0.207",
-			"version" : "2017-09-30",
-			"instanceId" : "i-b3ba3875",
-			"billingProducts" : null,
-			"instanceType" : "t3a.2xlarge",
-			"accountId" : "123456789012",
-			"imageId" : "ami-1234",
-			"pendingTime" : "2016-11-19T16:32:11Z",
-			"architecture" : "x86_64",
-			"kernelId" : null,
-			"ramdiskId" : null,
-			"region" : "us-west-2"
-		}`,
 	},
 }
 
