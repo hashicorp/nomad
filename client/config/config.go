@@ -452,6 +452,21 @@ func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string
 	return list
 }
 
+// ReadFloatDefault tries to parse the specifieed option as a float. If there
+// is an error in parsing, the default is returned.
+func (c *Config) ReadFloatDefault(key string, defaultValue float64) float64 {
+	valStr, ok := c.Options[key]
+	if !ok {
+		return defaultValue
+	}
+
+	val, err := strconv.ParseFloat(valStr, 64)
+	if err != nil {
+		return defaultValue
+	}
+	return val
+}
+
 // NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
 func (c *Config) NomadPluginConfig() *base.AgentConfig {
 	return &base.AgentConfig{

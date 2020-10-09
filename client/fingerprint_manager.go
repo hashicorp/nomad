@@ -18,7 +18,7 @@ type FingerprintManager struct {
 	getConfig       func() *config.Config
 	node            *structs.Node
 	nodeLock        sync.Mutex
-	shutdownCh      chan struct{}
+	shutdownCh      <-chan struct{}
 
 	// updateNodeAttributes is a callback to the client to update the state of its
 	// associated node
@@ -35,7 +35,7 @@ func NewFingerprintManager(
 	singletonLoader loader.PluginCatalog,
 	getConfig func() *config.Config,
 	node *structs.Node,
-	shutdownCh chan struct{},
+	shutdownCh <-chan struct{},
 	updateNodeAttributes func(*fingerprint.FingerprintResponse) *structs.Node,
 	logger log.Logger) *FingerprintManager {
 
