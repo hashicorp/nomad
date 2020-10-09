@@ -14,6 +14,7 @@ import (
 
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
@@ -379,12 +380,18 @@ READ:
 }
 
 type JobGetter struct {
+	hcl1 bool
+
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
 }
 
 // StructJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
+	return j.ApiJobWithArgs(jpath, nil)
+}
+
+func (j *JobGetter) ApiJobWithArgs(jpath string, vars map[string]string) (*api.Job, error) {
 	var jobfile io.Reader
 	pathName := filepath.Base(jpath)
 	switch jpath {
@@ -435,7 +442,14 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	}
 
 	// Parse the JobFile
-	jobStruct, err := jobspec2.Parse(pathName, jobfile)
+	var jobStruct *api.Job
+	var err error
+	if j.hcl1 {
+		jobStruct, err = jobspec.Parse(jobfile)
+
+	} else {
+		jobStruct, err = jobspec2.Parse(pathName, jobfile)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
 	}

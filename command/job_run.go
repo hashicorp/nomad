@@ -147,6 +147,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.BoolVar(&output, "output", false, "")
 	flags.BoolVar(&override, "policy-override", false, "")
 	flags.BoolVar(&preserveCounts, "preserve-counts", false, "")
+	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
