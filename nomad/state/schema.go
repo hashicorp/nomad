@@ -271,13 +271,16 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return true, nil
 	}
 
-	// Otherwise, only batch jobs are eligible because they complete on their
-	// own without a user stopping them.
-	if j.Type != structs.JobTypeBatch {
+	switch j.Type {
+	// Otherwise, batch and sysbatch jobs are eligible because they complete on
+	// their own without a user stopping them.
+	case structs.JobTypeBatch, structs.JobTypeSysBatch:
+		return true, nil
+
+	default:
+		// other job types may not be GC until stopped
 		return false, nil
 	}
-
-	return true, nil
 }
 
 // jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index

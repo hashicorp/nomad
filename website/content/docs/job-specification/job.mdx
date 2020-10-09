@@ -113,7 +113,7 @@ job "docs" {
   node if any of its allocation statuses become "failed".
 
 - `type` `(string: "service")` - Specifies the [Nomad scheduler][scheduler] to
-  use. Nomad provides the `service`, `system` and `batch` schedulers.
+  use. Nomad provides the `service`, `system`, `batch`, and `sysbatch` schedulers.
 
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
   strategy. When omitted, a default update strategy is applied.
