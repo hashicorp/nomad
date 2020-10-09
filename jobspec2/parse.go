@@ -2,12 +2,15 @@ package jobspec2
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
@@ -57,6 +60,19 @@ func (m *JobWrapper) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnost
 }
 
 func Parse(path string, r io.Reader) (*api.Job, error) {
+	return ParseWithArgs(path, r, nil)
+}
+
+func toVars(vars map[string]string) cty.Value {
+	attrs := make(map[string]cty.Value, len(vars))
+	for k, v := range vars {
+		attrs[k] = cty.StringVal(v)
+	}
+
+	return cty.ObjectVal(attrs)
+}
+
+func ParseWithArgs(path string, r io.Reader, vars map[string]string) (*api.Job, error) {
 	if path == "" {
 		if f, ok := r.(*os.File); ok {
 			path = f.Name()
@@ -72,6 +88,9 @@ func Parse(path string, r io.Reader) (*api.Job, error) {
 
 	evalContext := &hcl.EvalContext{
 		Functions: Functions(basedir),
+		Variables: map[string]cty.Value{
+			"vars": toVars(vars),
+		},
 		UnknownVariable: func(expr string) (cty.Value, error) {
 			v := "${" + expr + "}"
 			return cty.StringVal(v), nil
@@ -102,10 +121,17 @@ func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{
 		return diags
 	}
 
-	//return decoder.DecodeBody(job, ctx, m.Job)
-	diags = hclDecoder.DecodeBody(file.Body, ctx, target)
+	body := dynblock.Expand(file.Body, ctx)
+	diags = hclDecoder.DecodeBody(body, ctx, target)
 	if diags.HasErrors() {
-		return diags
+		var str strings.Builder
+		for i, diag := range diags {
+			if i != 0 {
+				str.WriteByte('\n')
+			}
+			str.WriteString(diag.Error())
+		}
+		return errors.New(str.String())
 	}
 	diags = append(diags, fixMapInterfaceType(target, ctx)...)
 	return nil

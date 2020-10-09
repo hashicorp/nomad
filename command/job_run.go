@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	cflags "github.com/hashicorp/consul/command/flags"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
@@ -139,6 +140,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts bool
 	var checkIndexStr, consulToken, vaultToken, vaultNamespace string
+	var varArgs cflags.AppendSliceValue
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -152,6 +154,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 	flags.StringVar(&vaultNamespace, "vault-namespace", "", "")
+	flags.Var(&varArgs, "var", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -172,7 +175,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJob(args[0])
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], parseVars(varArgs))
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
@@ -319,4 +322,23 @@ func parseCheckIndex(input string) (uint64, bool, error) {
 
 	u, err := strconv.ParseUint(input, 10, 64)
 	return u, true, err
+}
+
+func parseVars(vars []string) map[string]string {
+	if len(vars) == 0 {
+		return nil
+	}
+
+	result := make(map[string]string, len(vars))
+	for _, v := range vars {
+		parts := strings.SplitN(v, "=", 2)
+		k := parts[0]
+		if len(parts) == 2 {
+			result[k] = parts[1]
+		} else {
+			result[k] = os.Getenv(k)
+		}
+	}
+
+	return result
 }
