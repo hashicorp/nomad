@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
@@ -12,8 +13,6 @@ import (
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/hashicorp/nomad/api"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
-	"github.com/zclconf/go-cty/cty/function/stdlib"
 )
 
 type JobWrapper struct {
@@ -57,12 +56,14 @@ func (m *JobWrapper) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnost
 	return hclDecoder.DecodeBody(job, ctx, m.Job)
 }
 
-func Parse(filename string, r io.Reader) (*api.Job, error) {
-	if filename == "" {
+func Parse(path string, r io.Reader) (*api.Job, error) {
+	if path == "" {
 		if f, ok := r.(*os.File); ok {
-			filename = f.Name()
+			path = f.Name()
 		}
 	}
+	basedir := filepath.Dir(path)
+
 	// Copy the reader into an in-memory buffer first since HCL requires it.
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {
@@ -70,9 +71,7 @@ func Parse(filename string, r io.Reader) (*api.Job, error) {
 	}
 
 	evalContext := &hcl.EvalContext{
-		Functions: map[string]function.Function{
-			"upper": stdlib.UpperFunc,
-		},
+		Functions: Functions(basedir),
 		UnknownVariable: func(expr string) (cty.Value, error) {
 			v := "${" + expr + "}"
 			return cty.StringVal(v), nil
