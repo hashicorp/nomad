@@ -65,10 +65,11 @@ func RemoveAllocs(alloc []*Allocation, remove []*Allocation) []*Allocation {
 }
 
 // FilterTerminalAllocs filters out all allocations in a terminal state and
-// returns the latest terminal allocations
+// returns the latest terminal allocations.
 func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allocation) {
 	terminalAllocsByName := make(map[string]*Allocation)
 	n := len(allocs)
+
 	for i := 0; i < n; i++ {
 		if allocs[i].TerminalStatus() {
 
@@ -86,7 +87,57 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 			n--
 		}
 	}
+
 	return allocs[:n], terminalAllocsByName
+}
+
+// SplitTerminalAllocs splits allocs into non-terminal and terminal allocs, with
+// the terminal allocs indexed by node->alloc.name.
+func SplitTerminalAllocs(allocs []*Allocation) ([]*Allocation, TerminalByNodeByName) {
+	var alive []*Allocation
+	var terminal = make(TerminalByNodeByName)
+
+	for _, alloc := range allocs {
+		if alloc.TerminalStatus() {
+			terminal.Set(alloc)
+		} else {
+			alive = append(alive, alloc)
+		}
+	}
+
+	return alive, terminal
+}
+
+// TerminalByNodeByName is a map of NodeID->Allocation.Name->Allocation used by
+// the sysbatch scheduler for locating the most up-to-date terminal allocations.
+type TerminalByNodeByName map[string]map[string]*Allocation
+
+func (a TerminalByNodeByName) Set(allocation *Allocation) {
+	node := allocation.NodeID
+	name := allocation.Name
+
+	if _, exists := a[node]; !exists {
+		a[node] = make(map[string]*Allocation)
+	}
+
+	if previous, exists := a[node][name]; !exists {
+		a[node][name] = allocation
+	} else if previous.CreateIndex < allocation.CreateIndex {
+		// keep the newest version of the terminal alloc for the coordinate
+		a[node][name] = allocation
+	}
+}
+
+func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
+	if _, exists := a[nodeID]; !exists {
+		return nil, false
+	}
+
+	if _, exists := a[nodeID][name]; !exists {
+		return nil, false
+	}
+
+	return a[nodeID][name], true
 }
 
 // AllocsFit checks if a given set of allocations will fit on a node.

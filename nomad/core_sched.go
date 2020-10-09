@@ -140,9 +140,7 @@ OUTER:
 			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
 			if err != nil {
 				continue OUTER
-			}
-
-			if gc {
+			} else if gc {
 				jobEval = append(jobEval, eval.ID)
 				jobAlloc = append(jobAlloc, allocs...)
 			} else {
@@ -164,6 +162,7 @@ OUTER:
 	if len(gcEval) == 0 && len(gcAlloc) == 0 && len(gcJob) == 0 {
 		return nil
 	}
+
 	c.logger.Debug("job GC found eligible objects",
 		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
 

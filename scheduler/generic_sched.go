@@ -36,7 +36,7 @@ const (
 	// allocInPlace is the status used when speculating on an in-place update
 	allocInPlace = "alloc updating in-place"
 
-	// allocNodeTainted is the status used when stopping an alloc because it's
+	// allocNodeTainted is the status used when stopping an alloc because its
 	// node is tainted.
 	allocNodeTainted = "alloc not needed as node is tainted"
 

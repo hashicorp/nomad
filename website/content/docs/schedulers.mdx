@@ -6,9 +6,9 @@ description: Learn about Nomad's various schedulers.
 
 # Schedulers
 
-Nomad has three scheduler types that can be used when creating your job:
-`service`, `batch` and `system`. Here we will describe the differences between
-each of these schedulers.
+Nomad has four scheduler types that can be used when creating your job:
+`service`, `batch`, `system` and `sysbatch`. Here we will describe the differences
+between each of these schedulers.
 
 ## Service
 
@@ -60,8 +60,30 @@ Systems jobs are intended to run until explicitly stopped either by an operator
 or [preemption]. If a system task exits it is considered a failure and handled
 according to the job's [restart] stanza; system jobs do not have rescheduling.
 
+## System Batch
+
+The `sysbatch` scheduler is used to register jobs that should be run to completion
+on all clients that meet the job's constraints. The `sysbatch` scheduler will
+schedule jobs similarly to the `system` scheduler, but like a `batch` job once a
+task exists successfully it is not restarted on that client.
+
+This scheduler type is useful for issuing "one off" commands to be run on every
+node in the cluster. Sysbatch jobs can also be created as [periodic] and [parameterized]
+jobs. Since these tasks are managed by Nomad, they can take advantage of job
+updating, service discovery, monitoring, and more.
+
+The `sysbatch` scheduler will preempt lower priority tasks running on a node if there
+is not enough capacity to place the job. See preemption details on how tasks that
+get preempted are chosen.
+
+Sysbatch jobs are intended to run until successful completion, explicitly stopped
+by an operator, or evicted through [preemption]. Sysbatch tasks that exit with an
+error are handled according to the job's [restart] stanza.
+
 [borg]: https://research.google.com/pubs/pub43438.html
-[sparrow]: https://cs.stanford.edu/~matei/papers/2013/sosp_sparrow.pdf
+[parameterized]: /docs/job-specification/parameterized
+[periodic]: /docs/job-specification/periodic
 [preemption]: /docs/internals/scheduling/preemption
 [restart]: /docs/job-specification/restart
 [reschedule]: /docs/job-specification/reschedule
+[sparrow]: https://cs.stanford.edu/~matei/papers/2013/sosp_sparrow.pdf

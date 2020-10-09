@@ -14,15 +14,21 @@ const (
 	// we will attempt to schedule if we continue to hit conflicts for system
 	// jobs.
 	maxSystemScheduleAttempts = 5
+
+	// maxSysBatchScheduleAttempts is used to limit the number of times we will
+	// attempt to schedule if we continue to hit conflicts for sysbatch jobs.
+	maxSysBatchScheduleAttempts = 2
 )
 
-// SystemScheduler is used for 'system' jobs. This scheduler is
-// designed for services that should be run on every client.
-// One for each job, containing an allocation for each node
+// SystemScheduler is used for 'system' and 'sysbatch' jobs. This scheduler is
+// designed for jobs that should be run on every client. The 'system' mode
+// will ensure those jobs continuously run regardless of successful task exits,
+// whereas 'sysbatch' considers the task complete on success.
 type SystemScheduler struct {
-	logger  log.Logger
-	state   State
-	planner Planner
+	logger   log.Logger
+	state    State
+	planner  Planner
+	sysbatch bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
@@ -30,8 +36,9 @@ type SystemScheduler struct {
 	planResult *structs.PlanResult
 	ctx        *EvalContext
 	stack      *SystemStack
-	nodes      []*structs.Node
-	nodesByDC  map[string]int
+
+	nodes     []*structs.Node
+	nodesByDC map[string]int
 
 	limitReached bool
 	nextEval     *structs.Evaluation
@@ -44,14 +51,25 @@ type SystemScheduler struct {
 // scheduler.
 func NewSystemScheduler(logger log.Logger, state State, planner Planner) Scheduler {
 	return &SystemScheduler{
-		logger:  logger.Named("system_sched"),
-		state:   state,
-		planner: planner,
+		logger:   logger.Named("system_sched"),
+		state:    state,
+		planner:  planner,
+		sysbatch: false,
+	}
+}
+
+func NewSysBatchScheduler(logger log.Logger, state State, planner Planner) Scheduler {
+	return &SystemScheduler{
+		logger:   logger.Named("sysbatch_sched"),
+		state:    state,
+		planner:  planner,
+		sysbatch: true,
 	}
 }
 
 // Process is used to handle a single evaluation.
 func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
+
 	// Store the evaluation
 	s.eval = eval
 
@@ -59,21 +77,20 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	s.logger = s.logger.With("eval_id", eval.ID, "job_id", eval.JobID, "namespace", eval.Namespace)
 
 	// Verify the evaluation trigger reason is understood
-	switch eval.TriggeredBy {
-	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate, structs.EvalTriggerFailedFollowUp,
-		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate, structs.EvalTriggerPreemption,
-		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain, structs.EvalTriggerAllocStop,
-		structs.EvalTriggerQueuedAllocs, structs.EvalTriggerScaling:
-	default:
-		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
-			eval.TriggeredBy)
+	if !s.canHandle(eval.TriggeredBy) {
+		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
 			s.queuedAllocs, "")
 	}
 
+	limit := maxSystemScheduleAttempts
+	if s.sysbatch {
+		limit = maxSysBatchScheduleAttempts
+	}
+
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
 	progress := func() bool { return progressMade(s.planResult) }
-	if err := retryMax(maxSystemScheduleAttempts, s.process, progress); err != nil {
+	if err := retryMax(limit, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
 			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, "")
@@ -94,9 +111,9 @@ func (s *SystemScheduler) process() (bool, error) {
 	ws := memdb.NewWatchSet()
 	s.job, err = s.state.JobByID(ws, s.eval.Namespace, s.eval.JobID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get job '%s': %v",
-			s.eval.JobID, err)
+		return false, fmt.Errorf("failed to get job '%s': %v", s.eval.JobID, err)
 	}
+
 	numTaskGroups := 0
 	if !s.job.Stopped() {
 		numTaskGroups = len(s.job.TaskGroups)
@@ -121,7 +138,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = NewSystemStack(s.ctx)
+	s.stack = NewSystemStack(s.sysbatch, s.ctx)
 	if !s.job.Stopped() {
 		s.stack.SetJob(s.job)
 	}
@@ -185,26 +202,24 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	ws := memdb.NewWatchSet()
 	allocs, err := s.state.AllocsByJob(ws, s.eval.Namespace, s.eval.JobID, true)
 	if err != nil {
-		return fmt.Errorf("failed to get allocs for job '%s': %v",
-			s.eval.JobID, err)
+		return fmt.Errorf("failed to get allocs for job '%s': %v", s.eval.JobID, err)
 	}
 
 	// Determine the tainted nodes containing job allocs
 	tainted, err := taintedNodes(s.state, allocs)
 	if err != nil {
-		return fmt.Errorf("failed to get tainted nodes for job '%s': %v",
-			s.eval.JobID, err)
+		return fmt.Errorf("failed to get tainted nodes for job '%s': %v", s.eval.JobID, err)
 	}
 
 	// Update the allocations which are in pending/running state on tainted
-	// nodes to lost
+	// nodes to lost.
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
-	// Filter out the allocations in a terminal state
-	allocs, terminalAllocs := structs.FilterTerminalAllocs(allocs)
+	// Split out terminal allocations
+	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	diff := diffSystemAllocs(s.job, s.nodes, tainted, allocs, terminalAllocs)
+	diff := diffSystemAllocs(s.job, s.nodes, tainted, live, term)
 	s.logger.Debug("reconciled current state with desired state",
 		"place", len(diff.place), "update", len(diff.update),
 		"migrate", len(diff.migrate), "stop", len(diff.stop),
@@ -426,4 +441,28 @@ func (s *SystemScheduler) addBlocked(node *structs.Node) error {
 	blocked.NodeID = node.ID
 
 	return s.planner.CreateEval(blocked)
+}
+
+func (s *SystemScheduler) canHandle(trigger string) bool {
+	switch trigger {
+	case structs.EvalTriggerJobRegister:
+	case structs.EvalTriggerNodeUpdate:
+	case structs.EvalTriggerFailedFollowUp:
+	case structs.EvalTriggerJobDeregister:
+	case structs.EvalTriggerRollingUpdate:
+	case structs.EvalTriggerPreemption:
+	case structs.EvalTriggerDeploymentWatcher:
+	case structs.EvalTriggerNodeDrain:
+	case structs.EvalTriggerAllocStop:
+	case structs.EvalTriggerQueuedAllocs:
+	case structs.EvalTriggerScaling:
+	default:
+		switch s.sysbatch {
+		case true:
+			return trigger == structs.EvalTriggerPeriodicJob
+		case false:
+			return false
+		}
+	}
+	return true
 }

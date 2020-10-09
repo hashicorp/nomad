@@ -207,6 +207,9 @@ type PreemptionConfig struct {
 	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs
 	SystemSchedulerEnabled bool `hcl:"system_scheduler_enabled"`
 
+	// SysBatchSchedulerEnabled specifies if preemption is enabled for sysbatch jobs
+	SysBatchSchedulerEnabled bool `hcl:"sysbatch_scheduler_enabled"`
+
 	// BatchSchedulerEnabled specifies if preemption is enabled for batch jobs
 	BatchSchedulerEnabled bool `hcl:"batch_scheduler_enabled"`
 
