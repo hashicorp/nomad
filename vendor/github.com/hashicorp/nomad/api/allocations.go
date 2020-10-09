@@ -432,6 +432,7 @@ type AllocationListStub struct {
 	JobType               string
 	JobVersion            uint64
 	TaskGroup             string
+	AllocatedResources    *AllocatedResources `json:",omitempty"`
 	DesiredStatus         string
 	DesiredDescription    string
 	ClientStatus          string

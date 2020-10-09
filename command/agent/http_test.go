@@ -515,6 +515,96 @@ func TestParseToken(t *testing.T) {
 	}
 }
 
+func TestParseResources(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Value     string
+		Resources bool
+		Err       bool // true if an error should be expected
+	}{
+		{
+			Value:     "",
+			Resources: false,
+		},
+		{
+			Value:     "true",
+			Resources: true,
+		},
+		{
+			Value:     "false",
+			Resources: false,
+		},
+		{
+			Value: "1234",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Value-"+tc.Value, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?resources=" + tc.Value)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseResources(req)
+			if tc.Err {
+				require.Error(t, err)
+			} else {
+				require.Equal(t, tc.Resources, result)
+			}
+		})
+	}
+}
+
+func TestParseTaskStates(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Value      string
+		TaskStates bool
+		Err        bool // true if an error should be expected
+	}{
+		{
+			Value:      "",
+			TaskStates: false,
+		},
+		{
+			Value:      "true",
+			TaskStates: true,
+		},
+		{
+			Value:      "false",
+			TaskStates: false,
+		},
+		{
+			Value: "1234",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Value-"+tc.Value, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?task_states=" + tc.Value)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseTaskStates(req)
+			if tc.Err {
+				require.Error(t, err)
+			} else {
+				require.Equal(t, tc.TaskStates, result)
+			}
+		})
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {

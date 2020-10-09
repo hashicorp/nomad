@@ -20,6 +20,15 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 		return nil, nil
 	}
 
+	// Parse resources field selection
+	if resources, err := parseResources(req); err != nil {
+		return nil, err
+	} else if resources {
+		args.Fields = &structs.NodeStubFields{
+			Resources: true,
+		}
+	}
+
 	var out structs.NodeListResponse
 	if err := s.agent.RPC("Node.List", &args, &out); err != nil {
 		return nil, err

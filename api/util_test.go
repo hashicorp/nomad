@@ -24,7 +24,7 @@ func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 }
 
 func testJob() *Job {
-	task := NewTask("task1", "exec").
+	task := NewTask("task1", "raw_exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
 			CPU:      intToPtr(100),

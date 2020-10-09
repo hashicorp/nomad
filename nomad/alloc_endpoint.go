@@ -72,7 +72,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 					break
 				}
 				alloc := raw.(*structs.Allocation)
-				allocs = append(allocs, alloc.Stub())
+				allocs = append(allocs, alloc.Stub(args.Fields))
 			}
 			reply.Allocations = allocs
 
