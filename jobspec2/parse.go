@@ -80,7 +80,7 @@ func Parse(path string, r io.Reader) (*api.Job, error) {
 	var result struct {
 		Job JobWrapper `hcl:"job,block"`
 	}
-	err := decode(filename, buf.Bytes(), evalContext, &result)
+	err := decode(path, buf.Bytes(), evalContext, &result)
 	if err != nil {
 		return nil, err
 	}
