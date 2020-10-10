@@ -1,4 +1,4 @@
-.chart.topo-viz-node {
+.topo-viz-node {
   display: block;
 
   .label {
@@ -85,7 +85,7 @@
   }
 }
 
-.flex-masonry-columns-2 > .flex-masonry-item > .chart.topo-viz-node svg,
-.flex-masonry-columns-2 > .flex-masonry-item > .chart.topo-viz-node .label {
+.flex-masonry-columns-2 > .flex-masonry-item > .topo-viz-node .chart,
+.flex-masonry-columns-2 > .flex-masonry-item > .topo-viz-node .label {
   width: calc(100% - 0.75em);
 }
