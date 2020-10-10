@@ -5,8 +5,14 @@ import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
 
 @classic
 export default class TopologyControllers extends Controller {
+  @computed('model.nodes.@each.datacenter')
   get datacenters() {
     return Array.from(new Set(this.model.nodes.mapBy('datacenter'))).compact();
+  }
+
+  @computed('model.allocations.@each.isScheduled')
+  get scheduledAllocations() {
+    return this.model.allocations.filterBy('isScheduled');
   }
 
   @computed('model.nodes.@each.resources')
