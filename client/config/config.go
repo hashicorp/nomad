@@ -344,11 +344,20 @@ func (c *Config) Read(id string) string {
 // ReadDefault returns the specified configuration value, or the specified
 // default value if none is set.
 func (c *Config) ReadDefault(id string, defaultValue string) string {
-	val, ok := c.Options[id]
-	if !ok {
-		return defaultValue
+	return c.ReadAlternativeDefault([]string{id}, defaultValue)
+}
+
+// ReadAlternativeDefault returns the specified configuration value, or the
+// specified value if none is set.
+func (c *Config) ReadAlternativeDefault(ids []string, defaultValue string) string {
+	for _, id := range ids {
+		val, ok := c.Options[id]
+		if ok {
+			return val
+		}
 	}
-	return val
+
+	return defaultValue
 }
 
 // ReadBool parses the specified option as a boolean.
@@ -423,27 +432,27 @@ func (c *Config) ReadDurationDefault(id string, defaultValue time.Duration) time
 // ReadStringListToMap tries to parse the specified option(s) as a comma separated list.
 // If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMap(keys ...string) map[string]struct{} {
-	list := make(map[string]struct{})
-	for _, key := range keys {
-		s := strings.TrimSpace(c.Read(key))
-		if s != "" {
-			for _, e := range strings.Split(s, ",") {
-				trimmed := strings.TrimSpace(e)
-				list[trimmed] = struct{}{}
-			}
-		}
-	}
-	return list
+	val := c.ReadAlternativeDefault(keys, "")
+
+	return splitValue(val)
 }
 
 // ReadStringListToMap tries to parse the specified option as a comma separated list.
 // If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string]struct{} {
-	val, ok := c.Options[key]
-	if !ok {
-		val = defaultValue
-	}
+	return c.ReadStringListAlternativeToMapDefault([]string{key}, defaultValue)
+}
 
+// ReadStringListAlternativeToMapDefault tries to parse the specified options as a comma sparated list.
+// If there is an error in parsing, an empty list is returned.
+func (c *Config) ReadStringListAlternativeToMapDefault(keys []string, defaultValue string) map[string]struct{} {
+	val := c.ReadAlternativeDefault(keys, defaultValue)
+
+	return splitValue(val)
+}
+
+// splitValue parses the value as a comma separated list.
+func splitValue(val string) map[string]struct{} {
 	list := make(map[string]struct{})
 	if val != "" {
 		for _, e := range strings.Split(val, ",") {
