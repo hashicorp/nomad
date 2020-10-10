@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/armon/go-metrics"
 )
 
 // Operator can be used to perform low-level operator tasks for Nomad.
@@ -322,4 +324,15 @@ func (op *Operator) Metrics(q *QueryOptions) ([]byte, error) {
 	}
 
 	return metricsBytes, nil
+}
+
+// MetricsSummary returns a MetricsSummary struct and query metadata
+func (op *Operator) MetricsSummary(q *QueryOptions) (*metrics.MetricsSummary, *QueryMeta, error) {
+	var resp *metrics.MetricsSummary
+	qm, err := op.c.query("/v1/metrics", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, qm, nil
 }
