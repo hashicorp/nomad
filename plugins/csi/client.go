@@ -383,8 +383,16 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, req *Contro
 	return nil
 }
 
-// compareCapabilities returns an error if the 'got' capabilities does not
-// contain the 'expected' capability
+// compareCapabilities returns an error if the 'got' capabilities aren't found
+// within the 'expected' capability.
+//
+// Note that plugins in the wild are known to return incomplete
+// VolumeCapability responses, so we can't require that all capabilities we
+// expect have been validated, only that the ones that have been validated
+// match. This appears to violate the CSI specification but until that's been
+// resolved in upstream we have to loosen our validation requirements. The
+// tradeoff is that we're more likely to have runtime errors during
+// NodeStageVolume.
 func compareCapabilities(expected *csipbv1.VolumeCapability, got []*csipbv1.VolumeCapability) error {
 	var err multierror.Error
 NEXT_CAP:
@@ -393,36 +401,40 @@ NEXT_CAP:
 		expectedMode := expected.GetAccessMode().GetMode()
 		capMode := cap.GetAccessMode().GetMode()
 
-		if expectedMode != capMode {
-			multierror.Append(&err,
-				fmt.Errorf("requested AccessMode %v, got %v", expectedMode, capMode))
-			continue NEXT_CAP
+		// The plugin may not validate AccessMode, in which case we'll
+		// get UNKNOWN as our response
+		if capMode != csipbv1.VolumeCapability_AccessMode_UNKNOWN {
+			if expectedMode != capMode {
+				multierror.Append(&err,
+					fmt.Errorf("requested access mode %v, got %v", expectedMode, capMode))
+				continue NEXT_CAP
+			}
 		}
 
-		// AccessType Block is an empty struct even if set, so the
-		// only way to test for it is to check that the AccessType
-		// isn't Mount.
-		expectedMount := expected.GetMount()
+		capBlock := cap.GetBlock()
 		capMount := cap.GetMount()
+		expectedBlock := expected.GetBlock()
+		expectedMount := expected.GetMount()
 
-		if expectedMount == nil {
-			if capMount == nil {
-				return nil
-			}
+		if capBlock != nil && expectedBlock == nil {
 			multierror.Append(&err, fmt.Errorf(
-				"requested AccessType Block but got AccessType Mount"))
+				"'block-device' access type was not requested but was validated by the controller"))
 			continue NEXT_CAP
 		}
 
 		if capMount == nil {
+			continue NEXT_CAP
+		}
+
+		if expectedMount == nil {
 			multierror.Append(&err, fmt.Errorf(
-				"requested AccessType Mount but got AccessType Block"))
+				"'file-system' access type was not requested but was validated by the controller"))
 			continue NEXT_CAP
 		}
 
 		if expectedMount.FsType != capMount.FsType {
 			multierror.Append(&err, fmt.Errorf(
-				"requested AccessType mount filesystem type %v, got %v",
+				"requested filesystem type %v, got %v",
 				expectedMount.FsType, capMount.FsType))
 			continue NEXT_CAP
 		}
@@ -442,6 +454,7 @@ NEXT_CAP:
 				continue NEXT_CAP
 			}
 		}
+
 		return nil
 	}
 	return err.ErrorOrNil()

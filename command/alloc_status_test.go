@@ -30,7 +30,7 @@ func TestAllocStatusCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -108,7 +108,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	state := srv.Agent.Server().State()
 
@@ -172,7 +172,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"
@@ -268,7 +268,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	// Test reschedule attempt info
 	require := require.New(t)
@@ -317,7 +317,7 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	// Test node metrics
 	require := require.New(t)
@@ -365,7 +365,7 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
@@ -439,7 +439,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
 	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
@@ -514,7 +514,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
 	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", alloc.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)

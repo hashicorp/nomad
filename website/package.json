@@ -4,20 +4,20 @@
   "version": "0.0.1",
   "author": "HashiCorp",
   "dependencies": {
-    "@hashicorp/nextjs-scripts": "10.0.2",
+    "@hashicorp/nextjs-scripts": "13.0.0",
     "@hashicorp/react-alert-banner": "3.1.0",
-    "@hashicorp/react-button": "2.2.1",
+    "@hashicorp/react-button": "3.0.2",
     "@hashicorp/react-call-to-action": "0.2.1",
     "@hashicorp/react-case-study-slider": "2.1.1",
     "@hashicorp/react-content": "4.0.0",
     "@hashicorp/react-docs-page": "5.0.1",
     "@hashicorp/react-docs-sidenav": "4.0.1",
     "@hashicorp/react-global-styles": "4.4.0",
+    "@hashicorp/react-hashi-stack-menu": "^1.0.3",
     "@hashicorp/react-head": "1.1.1",
     "@hashicorp/react-hero": "3.1.2",
     "@hashicorp/react-image": "2.0.1",
     "@hashicorp/react-inline-svg": "1.0.0",
-    "@hashicorp/react-mega-nav": "4.0.1-2",
     "@hashicorp/react-product-downloader": "4.0.2",
     "@hashicorp/react-search": "^2.1.0",
     "@hashicorp/react-section-header": "2.0.0",
@@ -34,7 +34,7 @@
     "imagemin-optipng": "8.0.0",
     "imagemin-svgo": "8.0.0",
     "marked": "0.7.0",
-    "next": "9.4.4",
+    "next": "9.5.3",
     "nuka-carousel": "4.7.0",
     "react": "16.13.1",
     "react-device-detect": "1.13.1",
@@ -59,7 +59,7 @@
     "generate:readme": "next-hashicorp markdown-blocks README.md",
     "lint": "next-hashicorp lint",
     "start": "rm -rf .next/cache/next-babel-loader/ && next dev",
-    "static": "npm run build && npm run export && cp _redirects out/.",
-    "linkcheck": "linkcheck https://nomadproject.io"
+    "static": "npm run build && npm run export",
+    "linkcheck": "linkcheck https://www.nomadproject.io"
   }
 }

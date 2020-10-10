@@ -10,12 +10,12 @@ export default function PlacementTable({ groups = [] }) {
           </td>
           <td>
             {Array.isArray(groups[0]) ? (
-              groups.map(subgroup => {
+              groups.map((subgroup) => {
                 return (
                   <Fragment key={subgroup.join('')}>
                     <code
                       dangerouslySetInnerHTML={{
-                        __html: wrapLastItem(subgroup, 'strong').join(' -> ')
+                        __html: wrapLastItem(subgroup, 'strong').join(' -> '),
                       }}
                     />
                     <br />
@@ -25,7 +25,7 @@ export default function PlacementTable({ groups = [] }) {
             ) : (
               <code
                 dangerouslySetInnerHTML={{
-                  __html: wrapLastItem(groups, 'strong').join(' -> ')
+                  __html: wrapLastItem(groups, 'strong').join(' -> '),
                 }}
               />
             )}

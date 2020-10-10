@@ -696,7 +696,7 @@ func (c *ConsulConnect) Copy() *ConsulConnect {
 	}
 }
 
-// Equals returns true if the structs are recursively equal.
+// Equals returns true if the connect blocks are deeply equal.
 func (c *ConsulConnect) Equals(o *ConsulConnect) bool {
 	if c == nil || o == nil {
 		return c == o
@@ -710,7 +710,9 @@ func (c *ConsulConnect) Equals(o *ConsulConnect) bool {
 		return false
 	}
 
-	// todo(shoenig) task has never been compared, should it be?
+	if !c.SidecarTask.Equals(o.SidecarTask) {
+		return false
+	}
 
 	if !c.Gateway.Equals(o.Gateway) {
 		return false
@@ -862,6 +864,59 @@ type SidecarTask struct {
 	// KillSignal is the kill signal to use for the task. This is an optional
 	// specification and defaults to SIGINT
 	KillSignal string
+}
+
+func (t *SidecarTask) Equals(o *SidecarTask) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
+
+	if t.Name != o.Name {
+		return false
+	}
+
+	if t.Driver != o.Driver {
+		return false
+	}
+
+	if t.User != o.User {
+		return false
+	}
+
+	// config compare
+	if !opaqueMapsEqual(t.Config, o.Config) {
+		return false
+	}
+
+	if !helper.CompareMapStringString(t.Env, o.Env) {
+		return false
+	}
+
+	if !t.Resources.Equals(o.Resources) {
+		return false
+	}
+
+	if !helper.CompareMapStringString(t.Meta, o.Meta) {
+		return false
+	}
+
+	if !helper.CompareTimePtrs(t.KillTimeout, o.KillTimeout) {
+		return false
+	}
+
+	if !t.LogConfig.Equals(o.LogConfig) {
+		return false
+	}
+
+	if !helper.CompareTimePtrs(t.ShutdownDelay, o.ShutdownDelay) {
+		return false
+	}
+
+	if t.KillSignal != o.KillSignal {
+		return false
+	}
+
+	return true
 }
 
 func (t *SidecarTask) Copy() *SidecarTask {

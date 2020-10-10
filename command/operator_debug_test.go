@@ -32,12 +32,35 @@ func TestDebugUtils(t *testing.T) {
 	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
 }
 
+func TestDebugSuccesses(t *testing.T) {
+	t.Parallel()
+	srv, _, _ := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// NOTE -- duration must be shorter than default 2m to prevent testify from timing out
+
+	// Debug on the leader
+	code := cmd.Run([]string{"-duration", "250ms", "-server-id", "leader"})
+	require.Equal(t, 0, code)
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	ui.OutputWriter.Reset()
+
+	// Debug on all servers
+	code = cmd.Run([]string{"-duration", "250ms", "-server-id", "all"})
+	require.Equal(t, 0, code)
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	ui.OutputWriter.Reset()
+}
+
 func TestDebugFails(t *testing.T) {
 	t.Parallel()
 	srv, _, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	// Fails incorrect args
@@ -75,7 +98,7 @@ func TestDebugCapturedFiles(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{
@@ -111,8 +134,10 @@ func TestDebugCapturedFiles(t *testing.T) {
 	// Multiple snapshots are collected, 00 is always created
 	require.FileExists(t, filepath.Join(path, "nomad", "0000", "jobs.json"))
 	require.FileExists(t, filepath.Join(path, "nomad", "0000", "nodes.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0000", "metrics.json"))
 
 	// Multiple snapshots are collected, 01 requires two intervals
 	require.FileExists(t, filepath.Join(path, "nomad", "0001", "jobs.json"))
 	require.FileExists(t, filepath.Join(path, "nomad", "0001", "nodes.json"))
+	require.FileExists(t, filepath.Join(path, "nomad", "0001", "metrics.json"))
 }

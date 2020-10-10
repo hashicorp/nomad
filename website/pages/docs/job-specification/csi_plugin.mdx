@@ -44,7 +44,6 @@ csi_plugin {
   container where the plugin will expect a Unix domain socket for
   bidirectional communication with Nomad.
 
-
 ~> **Note:** Plugins running as `node` or `monolith` require root
 privileges (or `CAP_SYS_ADMIN` on Linux) to mount volumes on the
 host. With the Docker task driver, you can use the `privileged = true`
@@ -57,6 +56,11 @@ the `node` or `monolith` plugin for those volumes. You should run `node` or
 flag on `nomad node drain` to ensure that the plugins are running while the
 node is being drained.
 
+~> **Note:** Only one plugin instance of a given plugin ID and type
+(controller or node) should be deployed on any given client node. Use a
+constraint as shown below.
+
+
 ## `csi_plugin` Examples
 
 ```hcl
@@ -66,6 +70,13 @@ job "plugin-efs" {
   # you can run node plugins as service jobs as well, but running
   # as a system job ensures all nodes in the DC have a copy.
   type = "system"
+
+  # only one plugin of a given type and ID should be deployed on
+  # any given client node
+  constraint {
+    operator = "distinct_hosts"
+    value = true
+  }
 
   group "nodes" {
     task "plugin" {

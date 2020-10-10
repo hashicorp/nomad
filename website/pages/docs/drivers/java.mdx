@@ -101,13 +101,13 @@ task "web" {
 
 The `java` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
-| Feature | Implementation |
-| --- | --- |
-| `nomad alloc signal` | false |
-| `nomad alloc exec` | false |
+| Feature              | Implementation                |
+| -------------------- | ----------------------------- |
+| `nomad alloc signal` | false                         |
+| `nomad alloc exec`   | false                         |
 | filesystem isolation | none, chroot (only for linux) |
-| network isolation | host, group |
-| volume mounting | none, all (only for linux) |
+| network isolation    | host, group                   |
+| volume mounting      | none, all (only for linux)    |
 
 ## Client Requirements
 

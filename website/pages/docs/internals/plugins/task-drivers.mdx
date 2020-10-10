@@ -80,12 +80,14 @@ Capabilities {
 ```
 
 The file system isolation options are:
+
 - `FSIsolationImage`: The task driver isolates tasks as machine images.
 - `FSIsolationChroot`: The task driver isolates tasks with `chroot` or
   `pivot_root`.
 - `FSIsolationNone`: The task driver has no filesystem isolation.
 
 The network isolation modes are:
+
 - `NetIsolationModeHost`: The task driver supports disabling network isolation
   and using the host network.
 - `NetIsolationModeGroup`: The task driver supports using the task group

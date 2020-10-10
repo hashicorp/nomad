@@ -28,7 +28,6 @@ serve as initialization that occurs before the main services are started.
 
 Learn more about Nomad's task dependencies on the [HashiCorp Learn website][learn-taskdeps].
 
-
 ```hcl
 job "docs" {
   group "example" {
@@ -62,8 +61,7 @@ job "docs" {
   the lifecycle of a group. Currently only Prestart Hooks are supported.
 
 - `sidecar` `(bool: false)` - Controls whether or not a task is ephemeral or
-  long-lived within the task group. If a lifecycle task is ephemeral (`sidecar =
-  false`), the task will not be restarted after it completes successfully. If a
+  long-lived within the task group. If a lifecycle task is ephemeral (`sidecar = false`), the task will not be restarted after it completes successfully. If a
   lifecycle task is long-lived (`sidecar = true`) and it terminates, it will be
   restarted as long as the task group is running in its allocation.
 

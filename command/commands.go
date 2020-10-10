@@ -357,6 +357,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job scale": func() (cli.Command, error) {
+			return &JobScaleCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job scaling-events": func() (cli.Command, error) {
+			return &JobScalingEventsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job status": func() (cli.Command, error) {
 			return &JobStatusCommand{
 				Meta: meta,
@@ -500,6 +510,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator metrics": func() (cli.Command, error) {
+			return &OperatorMetricsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator raft": func() (cli.Command, error) {
 			return &OperatorRaftCommand{
 				Meta: meta,
@@ -615,6 +630,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 
 		"run": func() (cli.Command, error) {
 			return &JobRunCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling": func() (cli.Command, error) {
+			return &ScalingCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy": func() (cli.Command, error) {
+			return &ScalingPolicyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy info": func() (cli.Command, error) {
+			return &ScalingPolicyInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy list": func() (cli.Command, error) {
+			return &ScalingPolicyListCommand{
 				Meta: meta,
 			}, nil
 		},

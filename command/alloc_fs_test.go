@@ -21,7 +21,7 @@ func TestFSCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocFSCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on lack of job ID
@@ -94,7 +94,7 @@ func TestFSCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocFSCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc

@@ -3943,9 +3943,13 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job ID"))
 	} else if strings.Contains(j.ID, " ") {
 		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a space"))
+	} else if strings.Contains(j.ID, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a null chararacter"))
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	} else if strings.Contains(j.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job Name contains a null chararacter"))
 	}
 	if j.Namespace == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
@@ -5740,6 +5744,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	var mErr multierror.Error
 	if tg.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
+	} else if strings.Contains(tg.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group name contains null character"))
 	}
 	if tg.Count < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Task group count can't be negative"))
@@ -6225,6 +6231,22 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
+func (l *LogConfig) Equals(o *LogConfig) bool {
+	if l == nil || o == nil {
+		return l == o
+	}
+
+	if l.MaxFiles != o.MaxFiles {
+		return false
+	}
+
+	if l.MaxFileSizeMB != o.MaxFileSizeMB {
+		return false
+	}
+
+	return true
+}
+
 func (l *LogConfig) Copy() *LogConfig {
 	if l == nil {
 		return nil
@@ -6462,6 +6484,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		// We enforce this so that when creating the directory on disk it will
 		// not have any slashes.
 		mErr.Errors = append(mErr.Errors, errors.New("Task name cannot include slashes"))
+	} else if strings.Contains(t.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Task name cannot include null characters"))
 	}
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))

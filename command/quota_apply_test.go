@@ -14,7 +14,7 @@ func TestQuotaApplyCommand_Implements(t *testing.T) {
 
 func TestQuotaApplyCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaApplyCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

@@ -1291,7 +1291,7 @@ func TestJobs_Info(t *testing.T) {
 
 	// Trying to retrieve a job by ID before it exists
 	// returns an error
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	_, _, err := jobs.Info(id, nil)
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got: %#v", err)
@@ -1993,7 +1993,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
@@ -2054,7 +2054,7 @@ func TestJobs_ScaleAction_Error(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
@@ -2106,7 +2106,7 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	job := testJobWithScalingPolicy()
 	job.ID = &id
 	groupName := *job.TaskGroups[0].Name
@@ -2161,7 +2161,7 @@ func TestJobs_ScaleStatus(t *testing.T) {
 	jobs := c.Jobs()
 
 	// Trying to retrieve a status before it exists returns an error
-	id := "job-id/with\\troublesome:characters\n?&字\000"
+	id := "job-id/with\\troublesome:characters\n?&字"
 	_, _, err := jobs.ScaleStatus(id, nil)
 	require.Error(err)
 	require.Contains(err.Error(), "not found")

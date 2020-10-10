@@ -437,7 +437,7 @@ server state is authoritative.
 ```
 
 - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler
-  binpacks or spreads allocations on available nodes.  Possible values are
+  binpacks or spreads allocations on available nodes. Possible values are
   `"binpack"` and `"spread"`
 
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for
@@ -470,7 +470,6 @@ server state is authoritative.
 
 - `Index` - Current Raft index when the request was received.
 
-
 ## Get Nomad Enterprise License Info
 
 This endpoint gets information about the current license.
@@ -479,7 +478,6 @@ This endpoint gets information about the current license.
 | ------ | ---------------------- | ------------------ |
 | `GET`  | `/v1/operator/license` | `application/json` |
 
-
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
 [required ACLs](/api-docs#acls).
@@ -487,7 +485,6 @@ The table below shows this endpoint's support for
 | Blocking Queries | ACL Required    |
 | ---------------- | --------------- |
 | `NO`             | `operator:read` |
-
 
 ### Sample Request
 
@@ -517,16 +514,12 @@ $ curl \
       "Setinel Policies"
     ],
     "Flags": {
-      "modules": [
-        "governance-policy"
-      ]
+      "modules": ["governance-policy"]
     },
     "InstallationID": "*",
     "IssueTime": "2020-06-01T08:50:16.581304556-04:00",
     "LicenseID": "temporary-license",
-    "Modules": [
-      "governance-policy"
-    ],
+    "Modules": ["governance-policy"],
     "Product": "nomad",
     "StartTime": "2020-06-01T08:50:16.581304556-04:00",
     "TerminationTime": "2020-06-01T14:50:16.581304556-04:00"
@@ -539,12 +532,9 @@ $ curl \
 
 This endpoint updates the Nomad license.
 
-
 | Method | Path                   | Produces           |
 | ------ | ---------------------- | ------------------ |
 | `PUT`  | `/v1/operator/license` | `application/json` |
-
-
 
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
@@ -553,7 +543,6 @@ The table below shows this endpoint's support for
 | Blocking Queries | ACL Required     |
 | ---------------- | ---------------- |
 | `NO`             | `operator:write` |
-
 
 ### Sample Payload
 
@@ -578,13 +567,11 @@ $ curl \
 
 [`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config
 
-
 ## Generate Snapshot
 
 This endpoint generates and returns an atomic, point-in-time snapshot of the
 Nomad server state for disaster recovery. Snapshots include all state managed by Nomad's
 Raft [consensus protocol](/docs/internals/consensus).
-
 
 Snapshots are exposed as gzipped tar archives which internally contain the Raft
 metadata required to restore, as well as a binary serialized version of the
@@ -597,7 +584,6 @@ restore.
 | Method | Path                    | Produces                 |
 | :----- | :---------------------- | ------------------------ |
 | `GET`  | `/v1/operator/snapshot` | `200 application/x-gzip` |
-
 
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and

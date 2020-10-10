@@ -33,7 +33,7 @@ func TestACLTokenListCommand(t *testing.T) {
 	mockToken.SetHash()
 	assert.Nil(state.UpsertACLTokens(1000, []*structs.ACLToken{mockToken}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenListCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Attempt to list tokens without a valid management token

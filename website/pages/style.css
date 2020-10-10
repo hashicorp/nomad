@@ -13,7 +13,7 @@
 
 /* Global Transpiled Components */
 @import '~@hashicorp/react-alert/dist/style.css';
-@import '~@hashicorp/react-button/dist/style.css';
+@import '~@hashicorp/react-button/styles/index.css';
 @import '~@hashicorp/react-call-to-action/dist/style.css';
 @import '~@hashicorp/react-code-block/dist/style.css';
 @import '~@hashicorp/react-consent-manager/dist/style.css';
@@ -23,7 +23,6 @@
 @import '~@hashicorp/react-enterprise-alert/dist/style.css';
 @import '~@hashicorp/react-hero/dist/style.css';
 @import '~@hashicorp/react-logo-grid/dist/style.css';
-@import '~@hashicorp/react-mega-nav/style.css';
 @import '~@hashicorp/react-product-downloader/dist/style.css';
 @import '~@hashicorp/react-search/dist/style.css';
 @import '~@hashicorp/react-section-header/dist/style.css';

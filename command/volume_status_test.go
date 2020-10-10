@@ -17,7 +17,7 @@ func TestCSIVolumeStatusCommand_Implements(t *testing.T) {
 
 func TestCSIVolumeStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &VolumeStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -35,7 +35,7 @@ func TestCSIVolumeStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &VolumeStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	state := srv.Agent.Server().State()

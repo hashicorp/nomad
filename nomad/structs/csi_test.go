@@ -36,6 +36,11 @@ func TestCSIVolumeClaim(t *testing.T) {
 	vol.ClaimRelease(claim)
 	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteFreeClaims())
+
+	vol.AccessMode = CSIVolumeAccessModeMultiNodeMultiWriter
+	require.NoError(t, vol.ClaimWrite(claim, alloc))
+	require.NoError(t, vol.ClaimWrite(claim, alloc))
+	require.True(t, vol.WriteFreeClaims())
 }
 
 func TestCSIPluginJobs(t *testing.T) {

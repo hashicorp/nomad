@@ -4,16 +4,12 @@ page_title: network Stanza - Job Specification
 sidebar_title: network
 description: |-
   The "network" stanza specifies the networking requirements for the task group,
-  including networking mode and port allocations. 
+  including networking mode and port allocations.
 ---
 
 # `network` Stanza
 
-<Placement
-  groups={[
-    ['job', 'group', 'network'],
-  ]}
-/>
+<Placement groups={[['job', 'group', 'network']]} />
 
 The `network` stanza specifies the networking requirements for the task group,
 including the network mode and port allocations. When scheduling jobs in
@@ -50,7 +46,7 @@ job "docs" {
 
 ## `network` Parameters
 
-- `mbits` <code>([*deprecated*](/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
+- `mbits` <code>([_deprecated_](/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
 
 - `port` <code>([Port](#port-parameters): nil)</code> - Specifies a TCP/UDP port
   allocation and can be used to specify both dynamic ports and reserved ports.
@@ -67,9 +63,9 @@ job "docs" {
   - `cni/<cni network name>` - Task group will have an isolated network namespace
     with the network configured by CNI.
 
- - `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
-   for the allocations. By default all DNS configuration is inherited from the client host.
-   DNS configuration is only supported on Linux clients at this time.
+- `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
+  for the allocations. By default all DNS configuration is inherited from the client host.
+  DNS configuration is only supported on Linux clients at this time.
 
 ### `port` Parameters
 
@@ -161,16 +157,16 @@ will be mapped to the port in your container or virtual machine.
 ```hcl
 group "app" {
   network {
-    port "http" {}
+    port "http" {
+      to = 8080
+    }
   }
 
   task "example" {
     driver = "docker"
 
     config {
-      port_map = {
-        http = 8080
-      }
+      ports = ["http"]
     }
   }
 }
@@ -243,11 +239,12 @@ As an example if the following CNI configuration was on a node the proceeding ne
     },
     {
       "type": "portmap",
-      "capabilities": {"portMappings": true},
+      "capabilities": { "portMappings": true }
     }
   ]
 }
 ```
+
 ```hcl
 network {
   mode = "cni/mynet"
@@ -268,13 +265,12 @@ If not set the "default" host network is used which is commonly the address with
 
 When Nomad does port mapping for ports with a defined `host_network`, the port mapping rule will use the host address as the destination address.
 
-*Host networks does not currently support task based mapped ports such as the Docker driver's `port_map` configuration.
-
+\*Host networks does not currently support task based mapped ports such as the Docker driver's `port_map` configuration.
 
 ```hcl
 network {
   mode = "bridge"
-  
+
   # define a port to use for public https traffic
   port "https" {
     static       = 443

@@ -3,19 +3,27 @@
 IMPROVEMENTS:
  * core: Improved job deregistration error logging. [[GH-8745](https://github.com/hashicorp/nomad/issues/8745)]
  * api: Added support for cancellation contexts to HTTP API. [[GH-8836](https://github.com/hashicorp/nomad/issues/8836)]
+ * cli: Added `scale` and `scaling-events` subcommands to the `job` command. [[GH-9023](https://github.com/hashicorp/nomad/pull/9023)]
+ * cli: Added `scaling` command for interaction with the scaling API endpoint. [[GH-9025](https://github.com/hashicorp/nomad/pull/9025)]
  * client: Added support for Azure fingerprinting. [[GH-8979](https://github.com/hashicorp/nomad/issues/8979)]
+ * client: Added support for fingerprinting the client node's Consul segment. [[GH-7214](https://github.com/hashicorp/nomad/issues/7214)]
  * client: Updated consul-template to v0.25.0 - config function_blacklist deprecated and replaced with function_denylist [[GH-8988](https://github.com/hashicorp/nomad/pull/8988)]
  * consul: Support Consul namespace (Consul Enterprise) in client configuration. [[GH-8849](https://github.com/hashicorp/nomad/pull/8849)]
+ * csi: Relaxed validation requirements when checking volume capabilities with controller plugins, to accommodate existing plugin behaviors. [[GH-9049](https://github.com/hashicorp/nomad/issues/9049)]
  * driver/docker: Upgrade pause container and detect architecture [[GH-8957](https://github.com/hashicorp/nomad/pull/8957)]
  * jobspec: Lowered minimum CPU allowed from 10 to 1. [[GH-8996](https://github.com/hashicorp/nomad/issues/8996)]
 
 __BACKWARDS INCOMPATIBILITIES:__
+ * core: null characters are prohibited in region, datacenter, job name/ID, task group name, and task name [[GH-9020](https://github.com/hashicorp/nomad/issues/9020)]
+ * csi: registering a CSI volume with a `block-device` attachment mode and `mount_options` now returns a validation error, instead of silently dropping the `mount_options`. [[GH-9044](https://github.com/hashicorp/nomad/issues/9044)]
  * driver/docker: Tasks are now issued SIGTERM instead of SIGINT when stopping [[GH-8932](https://github.com/hashicorp/nomad/issues/8932)]
 
 BUG FIXES:
 
  * core: Fixed a bug where blocking queries would not include the query's maximum wait time when calculating whether it was safe to retry. [[GH-8921](https://github.com/hashicorp/nomad/issues/8921)]
  * consul: Fixed a bug to correctly validate task when using script-checks in group-level services [[GH-8952](https://github.com/hashicorp/nomad/issues/8952)]
+ * csi: Fixed a bug where multi-writer volumes were allowed only 1 write claim. [[GH-9040](https://github.com/hashicorp/nomad/issues/9040)]
+ * csi: Fixed a bug where `nomad volume detach` would not accept prefixes for the node ID parameter. [[GH-9041](https://github.com/hashicorp/nomad/issues/9041)]
 
 ## 0.12.5 (September 17, 2020)
 

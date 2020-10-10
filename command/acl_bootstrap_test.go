@@ -23,7 +23,7 @@ func TestACLBootstrapCommand(t *testing.T) {
 
 	assert.Nil(srv.RootToken)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	code := cmd.Run([]string{"-address=" + url})
@@ -48,7 +48,7 @@ func TestACLBootstrapCommand_ExistingBootstrapToken(t *testing.T) {
 
 	assert.NotNil(srv.RootToken)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	code := cmd.Run([]string{"-address=" + url})
@@ -66,7 +66,7 @@ func TestACLBootstrapCommand_NonACLServer(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLBootstrapCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	code := cmd.Run([]string{"-address=" + url})

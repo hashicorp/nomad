@@ -79,13 +79,13 @@ periodic {
 
 Though Nomad supports configuring `time_zone`, we strongly recommend that periodic
 jobs are specified with respect to UTC `time_zone`. Only customize `time_zone`
-when the following daylight saving time behavior is *desired:*
+when the following daylight saving time behavior is _desired:_
 
 - When leaping forward, periodic jobs scheduled for the skipped hour (eg 2:30am
-  in `America/New_York`) will be *skipped* for that day (eg March 10th).
+  in `America/New_York`) will be _skipped_ for that day (eg March 10th).
 
 - When falling back, periodic jobs scheduled for the duplicated hour (eg 1:30am
-  in `America/New_York`) will be *run twice* for that day (eg November 3rd).
+  in `America/New_York`) will be _run twice_ for that day (eg November 3rd).
 
 [batch-type]: /docs/job-specification/job#type 'Batch scheduler type'
 [cron]: https://github.com/hashicorp/cronexpr#implementation 'List of cron expressions'

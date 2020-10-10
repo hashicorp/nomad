@@ -302,6 +302,18 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	// Check that the region does not contain invalid characters
+	if strings.ContainsAny(config.Region, "\000") {
+		c.Ui.Error("Region contains invalid characters")
+		return false
+	}
+
+	// Check that the datacenter name does not contain invalid characters
+	if strings.ContainsAny(config.Datacenter, "\000") {
+		c.Ui.Error("Datacenter contains invalid characters")
+		return false
+	}
+
 	// Set up the TLS configuration properly if we have one.
 	// XXX chelseakomlo: set up a TLSConfig New method which would wrap
 	// constructor-type actions like this.

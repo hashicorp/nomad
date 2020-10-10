@@ -9,15 +9,7 @@ description: |-
 
 # `gateway` Stanza
 
-<Placement
-  groups={[
-    'job',
-    'group',
-    'service',
-    'connect',
-    'gateway',
-  ]}
-/>
+<Placement groups={['job', 'group', 'service', 'connect', 'gateway']} />
 
 The `gateway` stanza allows configuration of [Consul Connect Gateways](https://www.consul.io/docs/connect/gateways). Nomad will
 automatically create the necessary Gateway [Configuration Entry](https://www.consul.io/docs/agent/config-entries)
@@ -137,7 +129,6 @@ envoy_gateway_bind_addresses "<service>" {
 - `listener` <code>(array<[listener]> : required)</code> - One or more listeners that the
   ingress gateway should setup, uniquely identified by their port number.
 
-
 #### `tls` Parameters
 
 - `enabled` `(bool: false)` - Set this configuration to enable TLS for every listener
@@ -167,7 +158,7 @@ envoy_gateway_bind_addresses "<service>" {
 - `hosts` `(array<string>: nil)` - A list of hosts that specify what requests will
   match this service. This cannot be used with a `tcp` listener, and cannot be
   specified alongside a wildcard (`*`) service name. If not specified, the default
-  domain `<service-name>.ingress.*` will be used to match services. Requests *must*
+  domain `<service-name>.ingress.*` will be used to match services. Requests _must_
   send the correct host to be routed to the defined service.
 
   The wildcard specifier `*` can be used by itself to match all traffic coming to
@@ -204,4 +195,4 @@ are enabled.
 [service-default]: https://www.consul.io/docs/agent/config-entries/service-defaults
 [connect_timeout_ms]: https://www.consul.io/docs/agent/config-entries/service-resolver#connecttimeout
 [address]: /docs/job-specification/gateway#address-parameters
-[Advanced Configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
+[advanced configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
