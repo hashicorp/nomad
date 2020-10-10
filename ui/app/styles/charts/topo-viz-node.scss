@@ -1,7 +1,11 @@
 .chart.topo-viz-node {
   display: block;
 
-  svg {
+  .label {
+    font-weight: $weight-normal;
+  }
+
+  .chart {
     display: inline-block;
     height: 100%;
     width: 100%;
@@ -57,6 +61,13 @@
     }
   }
 
+  .empty-text {
+    fill: $red;
+    transform: translate(50%, 50%);
+    text-anchor: middle;
+    alignment-baseline: central;
+  }
+
   & + .topo-viz-node {
     margin-top: 1em;
   }
@@ -74,6 +85,7 @@
   }
 }
 
-.flex-masonry-columns-2 > .flex-masonry-item > .chart.topo-viz-node svg {
+.flex-masonry-columns-2 > .flex-masonry-item > .chart.topo-viz-node svg,
+.flex-masonry-columns-2 > .flex-masonry-item > .chart.topo-viz-node .label {
   width: calc(100% - 0.75em);
 }
