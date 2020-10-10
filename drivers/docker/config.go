@@ -96,19 +96,11 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf["volumes"] = volConf
 
 	// capabilities
+	// COMPAT(0.13) uses inclusive language. whitelist is used for backward compatibility.
 	if v, ok := opts["docker.caps.allowlist"]; ok {
 		conf["allow_caps"] = strings.Split(v, ",")
-	}
-
-	// backward compatible configuration
-	if v, ok := opts["docker.caps.whitelist"]; ok {
-		vs := strings.Split(v, ",")
-		switch conf["allow_caps"].(type) {
-		case []string:
-			conf["allow_caps"] = append(conf["allow_caps"].([]string), vs...)
-		default:
-			conf["allow_caps"] = vs
-		}
+	} else if v, ok := opts["docker.caps.whitelist"]; ok {
+		conf["allow_caps"] = strings.Split(v, ",")
 	}
 
 	// privileged containers
@@ -508,7 +500,7 @@ type DockerMount struct {
 
 func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
 	if m.Type == "" {
-		// for backward compatbility, as type is optional
+		// for backward compatibility, as type is optional
 		m.Type = "volume"
 	}
 
