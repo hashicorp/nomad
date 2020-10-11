@@ -311,7 +311,7 @@ type ClientTemplateConfig struct {
 	// are unsafe because they expose information from the client host.
 	FunctionDenylist []string `hcl:"function_denylist"`
 
-	// COMPAT(0.13) consul-template uses inclusive language from v0.25.0 - function_blacklist is kept for compatibility
+	// Deprecated: COMPAT(0.13) consul-template uses inclusive language from v0.25.0 - function_blacklist is kept for compatibility
 	FunctionBlacklist []string `hcl:"function_blacklist"`
 
 	// DisableSandbox allows templates to access arbitrary files on the
