@@ -1,11 +1,12 @@
 <div
+  data-test-flex-masonry
   class="flex-masonry {{if @withSpacing "with-spacing"}} flex-masonry-columns-{{@columns}}"
   {{did-insert this.captureElement}}
   {{did-insert this.reflow}}
   {{did-update this.reflow}}
   {{window-resize this.reflow}}>
   {{#each @items as |item|}}
-    <div class="flex-masonry-item">
+    <div data-test-flex-masonry-item class="flex-masonry-item">
       {{yield item (action this.reflow)}}
     </div>
   {{/each}}
