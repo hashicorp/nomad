@@ -29,21 +29,35 @@
           </div>
           <div class="boxed-section-body">
             {{#if this.activeNode}}
+              {{#let this.activeNode.node as |node|}}
               <div class="dashboard-metric">
                 <p class="metric">{{this.activeNode.allocations.length}} <span class="metric-label">Allocations</span></p>
               </div>
               <div class="dashboard-metric">
                 <h3 class="pair">
                   <strong>Client:</strong>
-                  <LinkTo @route="clients.client" @model={{this.activeNode.node}}>
-                    {{this.activeNode.node.shortId}}
+                  <LinkTo @route="clients.client" @model={{node}}>
+                    {{node.shortId}}
                   </LinkTo>
                 </h3>
-                <p><strong>Name:</strong> {{this.activeNode.node.name}}</p>
-                <p><strong>Address:</strong> {{this.activeNode.node.httpAddr}}</p>
+                <p><strong>Name:</strong> {{node.name}}</p>
+                <p><strong>Address:</strong> {{node.httpAddr}}</p>
+                <p><strong>Status:</strong> {{node.status}}</p>
+              </div>
+              <div class="dashboard-metric">
+                <h3 class="pair">
+                  <strong>Draining?</strong> <span class="{{if node.isDraining "status-text is-info"}}">{{if node.isDraining "Yes" "No"}}</span>
+                </h3>
+                <h3 class="pair">
+                  <strong>Eligible?</strong> <span class="{{unless node.isEligible "status-text is-warning"}}">{{if node.isEligible "Yes" "No"}}</span>
+                </h3>
               </div>
               <div class="dashboard-metric with-divider">
-                <p class="metric">{{this.nodeUtilization.totalMemoryFormatted}} <span class="metric-units">{{this.nodeUtilization.totalMemoryUnits}}</span> <span class="metric-label">of memory</span></p>
+                <p class="metric">
+                  {{this.nodeUtilization.totalMemoryFormatted}}
+                  <span class="metric-units">{{this.nodeUtilization.totalMemoryUnits}}</span>
+                  <span class="metric-label">of memory</span>
+                </p>
                 <div class="columns graphic">
                   <div class="column">
                     <div class="inline-chart" data-test-percentage-bar>
@@ -84,6 +98,7 @@
                   <strong>{{this.nodeUtilization.totalReservedCPU}} Mhz</strong> / {{this.nodeUtilization.totalCPU}} Mhz reserved
                 </div>
               </div>
+              {{/let}}
             {{else if this.activeAllocation}}
               <div class="dashboard-metric">
                 <h3 class="pair">
