@@ -1123,9 +1123,6 @@ func (c *Client) restoreState() error {
 		// Restore state
 		if err := ar.Restore(); err != nil {
 			c.logger.Error("error restoring alloc", "error", err, "alloc_id", alloc.ID)
-			// Override the status of the alloc to failed
-			ar.SetClientStatus(structs.AllocClientStatusFailed)
-			// Destroy the alloc runner since this is a failed restore
 			ar.Destroy()
 			continue
 		}

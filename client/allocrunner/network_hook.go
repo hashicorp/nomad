@@ -20,11 +20,7 @@ type allocNetworkIsolationSetter struct {
 	ar *allocRunner
 }
 
-func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
-	for _, tr := range a.ar.tasks {
-		tr.SetNetworkIsolation(n)
-	}
-}
+func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {}
 
 type networkStatusSetter interface {
 	SetNetworkStatus(*structs.AllocNetworkStatus)
