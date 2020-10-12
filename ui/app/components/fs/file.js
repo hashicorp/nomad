@@ -160,4 +160,32 @@ export default class File extends Component {
   failoverToServer() {
     this.set('useServer', true);
   }
+
+  @action
+  downloadFile() {
+    const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
+    const fileDownload = url =>
+      RSVP.race([this.token.authorizedRequest(url), timeout(timing)])
+        .then(
+          response => {
+            if (!response || !response.ok) {
+              this.nextErrorState(response);
+            }
+            return response;
+          },
+          error => this.nextErrorState(error)
+        )
+        .then(response => response.blob())
+        .then(blob => {
+          var url = window.URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = this.file;
+          document.body.appendChild(a); // we need to append the element to the dom -> otherwise it will not work in firefox
+          a.click();
+          a.remove(); //afterwards we remove the element again
+        });
+
+    fileDownload(this.catUrl);
+  }
 }
