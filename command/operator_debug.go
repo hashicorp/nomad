@@ -253,8 +253,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	// Resolve servers
 	members, err := client.Agent().Members()
-	c.writeJSON(c.collectDir, "members.json", members, err)
-	// we always write the error to the file, but don't range if no members found
+	c.writeJSON("version", "members.json", members, err)
+	// We always write the error to the file, but don't range if no members found
 	if members != nil { // members
 		if serverIDs == "all" {
 			// Special case to capture from all servers
@@ -667,12 +667,24 @@ func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
 
 // writeBytes writes a file to the archive, recording it in the manifest
 func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
-	path := filepath.Join(dir, file)
-	c.manifest = append(c.manifest, path)
-	path = filepath.Join(c.collectDir, path)
+	relativePath := filepath.Join(dir, file)
+	c.manifest = append(c.manifest, relativePath)
+	dirPath := filepath.Join(c.collectDir, dir)
+	filePath := filepath.Join(dirPath, file)
 
-	fh, err := os.Create(path)
+	// Ensure parent directories exist
+	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
+		// Display error immediately -- may not see this if files aren't written
+		c.Ui.Error(fmt.Sprintf("failed to create parent directories of \"%s\": %s", dirPath, err.Error()))
+		return err
+	}
+
+	// Create the file
+	fh, err := os.Create(filePath)
+	if err != nil {
+		// Display error immediately -- may not see this if files aren't written
+		c.Ui.Error(fmt.Sprintf("failed to create file \"%s\": %s", filePath, err.Error()))
 		return err
 	}
 	defer fh.Close()
