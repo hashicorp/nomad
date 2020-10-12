@@ -95,8 +95,7 @@ func TestDebugFails(t *testing.T) {
 
 	// Fails bad address
 	code = cmd.Run([]string{"-address", url + "bogus"})
-	assert.Equal(t, 1, code) // take note of failed return code, but continue to see why
-	require.NotContains(t, ui.OutputWriter.String(), "Starting debugger")
+	assert.Equal(t, 1, code)
 	ui.OutputWriter.Reset()
 }
 
