@@ -32,6 +32,18 @@ jobs meeting this requirement should be modified before an update to v0.13.0. Si
 client and server config validation will prohibit either the region or the datacenter
 from containing null characters.
 
+### EC2 CPU characteristics may be different
+
+Starting with Nomad v0.13.0, the AWS fingerprinter uses data derived from the
+official AWS EC2 API to determine default CPU performance characteristics, including
+core count and core speed. This data should be accurate for each instance type
+per region. Previously, Nomad used a hand-made lookup table that was not region
+aware and may have contained inaccurate or incomplete data. As part of this change,
+the AWS fingerprinter no longer sets the `cpu.modelname` attribute.
+
+As before, `cpu_total_compute` can be used to override the discovered CPU resources
+available to the Nomad client.
+
 ## Nomad 0.12.0
 
 ### `mbits` and Task Network Resource deprecation

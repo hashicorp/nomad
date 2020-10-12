@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/a8m/tree v0.0.0-20181222104329-6a0b80129de4
+	github.com/aws/aws-sdk-go v1.35.5
 	github.com/client9/misspell v0.3.4
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/golang/protobuf v1.3.4
@@ -20,6 +21,5 @@ require (
 	github.com/stretchr/testify v1.5.1 // indirect
 	golang.org/x/tools v0.0.0-20200502202811-ed308ab3e770 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
-	gopkg.in/yaml.v2 v2.2.8 // indirect
 	gotest.tools/gotestsum v0.4.2
 )
