@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/armon/go-metrics"
 )
 
 // Operator can be used to perform low-level operator tasks for Nomad.
@@ -305,34 +303,4 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 		return nil, nil, err
 	}
 	return &reply, qm, nil
-}
-
-// Metrics returns a slice of bytes containing metrics, optionally formatted as either json or prometheus
-func (op *Operator) Metrics(q *QueryOptions) ([]byte, error) {
-	if q == nil {
-		q = &QueryOptions{}
-	}
-
-	metricsReader, err := op.c.rawQuery("/v1/metrics", q)
-	if err != nil {
-		return nil, err
-	}
-
-	metricsBytes, err := ioutil.ReadAll(metricsReader)
-	if err != nil {
-		return nil, err
-	}
-
-	return metricsBytes, nil
-}
-
-// MetricsSummary returns a MetricsSummary struct and query metadata
-func (op *Operator) MetricsSummary(q *QueryOptions) (*metrics.MetricsSummary, *QueryMeta, error) {
-	var resp *metrics.MetricsSummary
-	qm, err := op.c.query("/v1/metrics", &resp, q)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return resp, qm, nil
 }
