@@ -52,6 +52,7 @@ export default class TopoViz extends Component {
       memory: node.resources.memory,
       cpu: node.resources.cpu,
       allocations: [],
+      isSelected: false,
     };
   }
 

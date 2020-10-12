@@ -1,10 +1,10 @@
-<div class="topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
+<div data-topo-viz-node class="topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
   {{#unless @isDense}}
-    <p class="label">
+    <p data-test-label class="label">
       {{#if @node.node.isDraining}}
-        <span class="tooltip" aria-label="Client is draining">{{x-icon "clock-outline" class="is-info"}}</span>
+        <span data-test-status-icon class="tooltip" aria-label="Client is draining">{{x-icon "clock-outline" class="is-info"}}</span>
       {{else if (not @node.node.isEligible)}}
-        <span class="tooltip" aria-label="Client is ineligible">{{x-icon "lock-closed" class="is-warning"}}</span>
+        <span data-test-status-icon class="tooltip" aria-label="Client is ineligible">{{x-icon "lock-closed" class="is-warning"}}</span>
       {{/if}}
       <strong>{{@node.node.name}}</strong>
       <span class="bumper-left">{{this.count}} Allocs</span>
@@ -17,7 +17,14 @@
         <rect class="mask" x="0" y="0" width="{{this.dimensionsWidth}}px" height="{{this.maskHeight}}px" rx="2px" ry="2px" />
       </clipPath>
     </defs>
-    <rect class="node-background {{if @node.isSelected "is-selected"}} {{if @isDense "is-interactive"}}" width="100%" height="{{this.totalHeight}}px" rx="2px" ry="2px" {{on "click" this.selectNode}} />
+    <rect
+      data-test-node-background
+      class="node-background {{if @node.isSelected "is-selected"}} {{if @isDense "is-interactive"}}"
+      width="100%"
+      height="{{this.totalHeight}}px"
+      rx="2px"
+      ry="2px"
+      {{on "click" this.selectNode}} />
     {{#if this.allocations.length}}
       <g
         class="dimensions {{if this.activeAllocation "is-active"}}"
@@ -40,6 +47,7 @@
           {{/if}}
           {{#each this.data.memory key="allocation.id" as |memory|}}
             <g
+              data-test-memory-rect="{{memory.allocation.allocation.id}}"
               class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}} {{if memory.allocation.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"
               data-allocation-id="{{memory.allocation.allocation.id}}"
@@ -76,6 +84,7 @@
           {{/if}}
           {{#each this.data.cpu key="allocation.id" as |cpu|}}
             <g
+              data-test-cpu-rect="{{cpu.allocation.allocation.id}}"
               class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}} {{if cpu.allocation.isSelected "is-selected"}}"
               clip-path="url(#{{this.maskId}})"
               data-allocation-id="{{cpu.allocation.allocation.id}}"
@@ -100,7 +109,7 @@
         </g>
       </g>
     {{else}}
-      <text class="empty-text">Empty Client</text>
+      <text data-test-empty-message class="empty-text">Empty Client</text>
     {{/if}}
   </svg>
 </div>
