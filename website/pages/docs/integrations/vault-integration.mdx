@@ -50,7 +50,7 @@ Vault's [Token Authentication Backend][auth] supports a concept called "roles".
 Token roles allow policies to be grouped together and token creation to be
 delegated to a trusted service such as Nomad. By creating a token role, the set
 of policies that tasks managed by Nomad can access may be limited compared to
-giving Nomad a root token. Token roles allow both white-list and blacklist
+giving Nomad a root token. Token roles allow both allowlist and denylist
 management of policies accessible to the role.
 
 To configure Nomad and Vault to create tokens against a role, the following must
@@ -129,13 +129,13 @@ $ vault policy write nomad-server nomad-server-policy.hcl
 
 A Vault token role must be created for use by Nomad. The token role can be used
 to manage what Vault policies are accessible by jobs submitted to Nomad. The
-policies can be managed as a whitelist by using `allowed_policies` in the token
-role definition or as a blacklist by using `disallowed_policies`.
+policies can be managed as a allowlist by using `allowed_policies` in the token
+role definition or as a denylist by using `disallowed_policies`.
 
 If using `allowed_policies`, tasks may only request Vault policies that are in
 the list. If `disallowed_policies` is used, task may request any policy that is
 not in the `disallowed_policies` list. There are trade-offs to both approaches
-but generally it is easier to use the blacklist approach and add policies that
+but generally it is easier to use the denylist approach and add policies that
 you would not like tasks to have access to into the `disallowed_policies` list.
 
 An example token role definition is given below:
