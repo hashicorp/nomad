@@ -2952,6 +2952,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 	copyAlloc.ClientStatus = alloc.ClientStatus
 	copyAlloc.ClientDescription = alloc.ClientDescription
 	copyAlloc.TaskStates = alloc.TaskStates
+	copyAlloc.NetworkStatus = alloc.NetworkStatus
 
 	// The client can only set its deployment health and timestamp, so just take
 	// those

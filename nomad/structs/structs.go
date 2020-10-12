@@ -2385,6 +2385,20 @@ type DNSConfig struct {
 	Options  []string
 }
 
+func (d *DNSConfig) Copy() *DNSConfig {
+	if d == nil {
+		return nil
+	}
+	newD := new(DNSConfig)
+	newD.Servers = make([]string, len(d.Servers))
+	copy(newD.Servers, d.Servers)
+	newD.Searches = make([]string, len(d.Searches))
+	copy(newD.Searches, d.Searches)
+	newD.Options = make([]string, len(d.Options))
+	copy(newD.Options, d.Options)
+	return newD
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
@@ -8743,6 +8757,9 @@ type Allocation struct {
 	// RescheduleTrackers captures details of previous reschedule attempts of the allocation
 	RescheduleTracker *RescheduleTracker
 
+	// NetworkStatus captures networking details of an allocation known at runtime
+	NetworkStatus *AllocNetworkStatus
+
 	// FollowupEvalID captures a follow up evaluation created to handle a failed allocation
 	// that can be rescheduled in the future
 	FollowupEvalID string
@@ -9501,6 +9518,26 @@ func (s *NodeScoreMeta) Score() float64 {
 
 func (s *NodeScoreMeta) Data() interface{} {
 	return s
+}
+
+// AllocNetworkStatus captures the status of an allocation's network during runtime.
+// Depending on the network mode, an allocation's address may need to be known to other
+// systems in Nomad such as service registration.
+type AllocNetworkStatus struct {
+	InterfaceName string
+	Address       string
+	DNS           *DNSConfig
+}
+
+func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
+	if a == nil {
+		return nil
+	}
+	return &AllocNetworkStatus{
+		InterfaceName: a.InterfaceName,
+		Address:       a.Address,
+		DNS:           a.DNS.Copy(),
+	}
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the

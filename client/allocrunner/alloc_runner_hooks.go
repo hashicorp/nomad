@@ -10,7 +10,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type hookResourceSetter interface {
@@ -39,23 +38,6 @@ func (a *allocHookResourceSetter) SetAllocHookResources(res *cstructs.AllocHookR
 	// TODO: Refactor so TR's pull state from AR?
 	for _, tr := range a.ar.tasks {
 		tr.SetAllocHookResources(res)
-	}
-}
-
-type networkIsolationSetter interface {
-	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
-}
-
-// allocNetworkIsolationSetter is a shim to allow the alloc network hook to
-// set the alloc network isolation configuration without full access
-// to the alloc runner
-type allocNetworkIsolationSetter struct {
-	ar *allocRunner
-}
-
-func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
-	for _, tr := range a.ar.tasks {
-		tr.SetNetworkIsolation(n)
 	}
 }
 
@@ -159,7 +141,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(hookLogger, ns, alloc, nm, nc),
+		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar),
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:          alloc,
 			consul:         ar.consulClient,

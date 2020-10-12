@@ -78,9 +78,9 @@ func newCNINetworkConfiguratorWithConf(logger log.Logger, cniPath, cniInterfaceP
 }
 
 // Setup calls the CNI plugins with the add action
-func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := c.ensureCNIInitialized(); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Depending on the version of bridge cni plugin used, a known race could occure
@@ -88,15 +88,16 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	// in one of them to fail. This rety attempts to overcome those erroneous failures.
 	const retry = 3
 	var firstError error
+	var res *cni.CNIResult
 	for attempt := 1; ; attempt++ {
-		//TODO eventually returning the IP from the result would be nice to have in the alloc
-		if _, err := c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
+		var err error
+		if res, err = c.cni.Setup(ctx, alloc.ID, spec.Path, cni.WithCapabilityPortMap(getPortMapping(alloc, c.ignorePortMappingHostIP))); err != nil {
 			c.logger.Warn("failed to configure network", "err", err, "attempt", attempt)
 			switch attempt {
 			case 1:
 				firstError = err
 			case retry:
-				return fmt.Errorf("failed to configure network: %v", firstError)
+				return nil, fmt.Errorf("failed to configure network: %v", firstError)
 			}
 
 			// Sleep for 1 second + jitter
@@ -106,7 +107,30 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		break
 	}
 
-	return nil
+	netStatus := new(structs.AllocNetworkStatus)
+
+	if len(res.Interfaces) > 0 {
+		iface, name := func(r *cni.CNIResult) (*cni.Config, string) {
+			for i := range r.Interfaces {
+				return r.Interfaces[i], i
+			}
+			return nil, ""
+		}(res)
+
+		netStatus.InterfaceName = name
+		if len(iface.IPConfigs) > 0 {
+			netStatus.Address = iface.IPConfigs[0].IP.String()
+		}
+	}
+	if len(res.DNS) > 0 {
+		netStatus.DNS = &structs.DNSConfig{
+			Servers:  res.DNS[0].Nameservers,
+			Searches: res.DNS[0].Search,
+			Options:  res.DNS[0].Options,
+		}
+	}
+
+	return netStatus, nil
 
 }
 

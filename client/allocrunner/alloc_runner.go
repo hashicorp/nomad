@@ -386,8 +386,14 @@ func (ar *allocRunner) Restore() error {
 		return err
 	}
 
+	ns, err := ar.stateDB.GetNetworkStatus(ar.id)
+	if err != nil {
+		return err
+	}
+
 	ar.stateLock.Lock()
 	ar.state.DeploymentStatus = ds
+	ar.state.NetworkStatus = ns
 	ar.stateLock.Unlock()
 
 	states := make(map[string]*structs.TaskState)
@@ -655,6 +661,22 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 		}
 	}
 
+	// Set the NetworkStatus and default DNSConfig if one is not returned from the client
+	netStatus := ar.state.NetworkStatus
+	if netStatus != nil {
+		a.NetworkStatus = netStatus
+	} else {
+		a.NetworkStatus = new(structs.AllocNetworkStatus)
+	}
+
+	if a.NetworkStatus.DNS == nil {
+		alloc := ar.Alloc()
+		nws := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Networks
+		if len(nws) > 0 {
+			a.NetworkStatus.DNS = nws[0].DNS.Copy()
+		}
+	}
+
 	return a
 }
 
@@ -698,6 +720,12 @@ func (ar *allocRunner) SetClientStatus(clientStatus string) {
 	ar.stateLock.Lock()
 	defer ar.stateLock.Unlock()
 	ar.state.ClientStatus = clientStatus
+}
+
+func (ar *allocRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	ar.state.NetworkStatus = s.Copy()
 }
 
 // AllocState returns a copy of allocation state including a snapshot of task
@@ -853,6 +881,20 @@ func (ar *allocRunner) PersistState() error {
 			ar.logger.Warn("failed to delete allocation bucket", "error", err)
 		}
 		return nil
+	}
+
+	// persist network status, wrapping in a func to release state lock as early as possible
+	if err := func() error {
+		ar.stateLock.Lock()
+		defer ar.stateLock.Unlock()
+		if ar.state.NetworkStatus != nil {
+			if err := ar.stateDB.PutNetworkStatus(ar.id, ar.state.NetworkStatus); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return err
 	}
 
 	// TODO: consider persisting deployment state along with task status.

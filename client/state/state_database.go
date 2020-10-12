@@ -25,8 +25,9 @@ meta/
 |--> upgraded -> time.Now().Format(timeRFC3339)
 allocations/
 |--> <alloc-id>/
-   |--> alloc         -> allocEntry{*structs.Allocation}
-   |--> deploy_status -> deployStatusEntry{*structs.AllocDeploymentStatus}
+   |--> alloc          -> allocEntry{*structs.Allocation}
+	 |--> deploy_status  -> deployStatusEntry{*structs.AllocDeploymentStatus}
+	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Sync'd to servers
@@ -68,6 +69,10 @@ var (
 	// allocDeployStatusKey is the key *structs.AllocDeploymentStatus is
 	// stored under.
 	allocDeployStatusKey = []byte("deploy_status")
+
+	// allocNetworkStatusKey is the key *structs.AllocNetworkStatus is
+	// stored under
+	allocNetworkStatusKey = []byte("network_status")
 
 	// allocations -> $allocid -> task-$taskname -> the keys below
 	taskLocalStateKey = []byte("local_state")
@@ -307,6 +312,64 @@ func (s *BoltStateDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploym
 	}
 
 	return entry.DeploymentStatus, nil
+}
+
+// networkStatusEntry wraps values for NetworkStatus keys.
+type networkStatusEntry struct {
+	NetworkStatus *structs.AllocNetworkStatus
+}
+
+// PutDeploymentStatus stores an allocation's DeploymentStatus or returns an
+// error.
+func (s *BoltStateDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		return putNetworkStatusImpl(tx, allocID, ds)
+	})
+}
+
+func putNetworkStatusImpl(tx *boltdd.Tx, allocID string, ds *structs.AllocNetworkStatus) error {
+	allocBkt, err := getAllocationBucket(tx, allocID)
+	if err != nil {
+		return err
+	}
+
+	entry := networkStatusEntry{
+		NetworkStatus: ds,
+	}
+	return allocBkt.Put(allocNetworkStatusKey, &entry)
+}
+
+// GetNetworkStatus retrieves an allocation's NetworkStatus or returns an
+// error.
+func (s *BoltStateDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error) {
+	var entry networkStatusEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			// No state for alloc, return
+			return nil
+		}
+
+		return allocBkt.Get(allocNetworkStatusKey, &entry)
+	})
+
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.NetworkStatus, nil
 }
 
 // GetTaskRunnerState returns the LocalState and TaskState for a
