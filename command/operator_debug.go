@@ -251,17 +251,20 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		}
 	}
 
-	// Resolve server prefixes
+	// Resolve servers
 	members, err := client.Agent().Members()
-	c.writeJSON("/tmp", "members.json", members, err)
-	if serverIDs == "all" {
-		// Special case to capture from all servers
-		for _, member := range members.Members {
-			c.serverIDs = append(c.serverIDs, member.Name)
-		}
-	} else {
-		for _, id := range argNodes(serverIDs) {
-			c.serverIDs = append(c.serverIDs, id)
+	c.writeJSON(c.collectDir, "members.json", members, err)
+	// we always write the error to the file, but don't range if no members found
+	if members != nil { // members
+		if serverIDs == "all" {
+			// Special case to capture from all servers
+			for _, member := range members.Members {
+				c.serverIDs = append(c.serverIDs, member.Name)
+			}
+		} else {
+			for _, id := range argNodes(serverIDs) {
+				c.serverIDs = append(c.serverIDs, id)
+			}
 		}
 	}
 
