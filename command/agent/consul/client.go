@@ -105,6 +105,15 @@ type AgentAPI interface {
 	UpdateTTL(id, output, status string) error
 }
 
+// ConfigAPI is the consul/api.ConfigEntries API subset used by Nomad Server.
+//
+// ACL requirements
+// - operator:write (server only)
+type ConfigAPI interface {
+	Set(entry api.ConfigEntry, w *api.WriteOptions) (bool, *api.WriteMeta, error)
+	// Delete(kind, name string, w *api.WriteOptions) (*api.WriteMeta, error) (not used)
+}
+
 // ACLsAPI is the consul/api.ACL API subset used by Nomad Server.
 //
 // ACL requirements
@@ -582,12 +591,6 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		return fmt.Errorf("error querying Consul services: %v", err)
 	}
 
-	consulChecks, err := c.client.Checks()
-	if err != nil {
-		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-		return fmt.Errorf("error querying Consul checks: %v", err)
-	}
-
 	inProbation := time.Now().Before(c.deregisterProbationExpiry)
 
 	// Remove Nomad services in Consul but unknown locally
@@ -645,6 +648,12 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
 		}
 
+	}
+
+	consulChecks, err := c.client.Checks()
+	if err != nil {
+		metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
+		return fmt.Errorf("error querying Consul checks: %v", err)
 	}
 
 	// Remove Nomad checks in Consul but unknown locally
@@ -835,6 +844,9 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
 
+	// newConnectGateway returns nil if there's no Connect gateway.
+	gateway := newConnectGateway(service.Name, service.Connect)
+
 	// Determine whether to use meta or canary_meta
 	var meta map[string]string
 	if workload.Canary && len(service.CanaryMeta) > 0 {
@@ -852,8 +864,15 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	// This enables the consul UI to show that Nomad registered this service
 	meta["external-source"] = "nomad"
 
+	// Explicitly set the service kind in case this service represents a Connect gateway.
+	kind := api.ServiceKindTypical
+	if service.Connect.IsGateway() {
+		kind = api.ServiceKindIngressGateway
+	}
+
 	// Build the Consul Service registration request
 	serviceReg := &api.AgentServiceRegistration{
+		Kind:              kind,
 		ID:                id,
 		Name:              service.Name,
 		Tags:              tags,
@@ -862,6 +881,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		Port:              port,
 		Meta:              meta,
 		Connect:           connect, // will be nil if no Connect stanza
+		Proxy:             gateway, // will be nil if no Connect Gateway stanza
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1207,9 +1227,28 @@ func (c *ServiceClient) Shutdown() error {
 			c.logger.Error("failed deregistering agent service", "service_id", id, "error", err)
 		}
 	}
+
+	remainingChecks, err := c.client.Checks()
+	if err != nil {
+		c.logger.Error("failed listing remaining checks after deregistering services", "error", err)
+	}
+
+	checkRemains := func(id string) bool {
+		for _, c := range remainingChecks {
+			if c.CheckID == id {
+				return true
+			}
+		}
+		return false
+	}
+
 	for id := range c.agentChecks {
-		if err := c.client.CheckDeregister(id); err != nil {
-			c.logger.Error("failed deregistering agent check", "check_id", id, "error", err)
+		// if we couldn't populate remainingChecks it is unlikely that CheckDeregister will work, but try anyway
+		// if we could list the remaining checks, verify that the check we store still exists before removing it.
+		if remainingChecks == nil || checkRemains(id) {
+			if err := c.client.CheckDeregister(id); err != nil {
+				c.logger.Error("failed deregistering agent check", "check_id", id, "error", err)
+			}
 		}
 	}
 
@@ -1290,6 +1329,8 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 	chkReg.Status = check.InitialStatus
 	chkReg.Timeout = check.Timeout.String()
 	chkReg.Interval = check.Interval.String()
+	chkReg.SuccessBeforePassing = check.SuccessBeforePassing
+	chkReg.FailuresBeforeCritical = check.FailuresBeforeCritical
 
 	// Require an address for http or tcp checks
 	if port == 0 && check.RequiresPort() {

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -63,6 +64,10 @@ type QueryOptions struct {
 
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
+
+	// ctx is an optional context pass through to the underlying HTTP
+	// request layer. Use Context() and WithContext() to manage this.
+	ctx context.Context
 }
 
 // WriteOptions are used to parametrize a write
@@ -76,6 +81,10 @@ type WriteOptions struct {
 
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
+
+	// ctx is an optional context pass through to the underlying HTTP
+	// request layer. Use Context() and WithContext() to manage this.
+	ctx context.Context
 }
 
 // QueryMeta is used to return meta data about a query
@@ -517,6 +526,7 @@ type request struct {
 	token  string
 	body   io.Reader
 	obj    interface{}
+	ctx    context.Context
 }
 
 // setQueryOptions is used to annotate the request with
@@ -549,6 +559,7 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	for k, v := range q.Params {
 		r.params.Set(k, v)
 	}
+	r.ctx = q.Context()
 }
 
 // durToMsec converts a duration to a millisecond specified string
@@ -571,6 +582,7 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	if q.AuthToken != "" {
 		r.token = q.AuthToken
 	}
+	r.ctx = q.Context()
 }
 
 // toHTTP converts the request to an HTTP request
@@ -587,8 +599,15 @@ func (r *request) toHTTP() (*http.Request, error) {
 		}
 	}
 
+	ctx := func() context.Context {
+		if r.ctx != nil {
+			return r.ctx
+		}
+		return context.Background()
+	}()
+
 	// Create the HTTP request
-	req, err := http.NewRequest(r.method, r.url.RequestURI(), r.body)
+	req, err := http.NewRequestWithContext(ctx, r.method, r.url.RequestURI(), r.body)
 	if err != nil {
 		return nil, err
 	}
@@ -981,4 +1000,40 @@ func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *h
 		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
 	}
 	return d, resp, nil
+}
+
+// Context returns the context used for canceling HTTP requests related to this query
+func (o *QueryOptions) Context() context.Context {
+	if o != nil && o.ctx != nil {
+		return o.ctx
+	}
+	return context.Background()
+}
+
+// WithContext creates a copy of the query options using the provided context to cancel related HTTP requests
+func (o *QueryOptions) WithContext(ctx context.Context) *QueryOptions {
+	o2 := new(QueryOptions)
+	if o != nil {
+		*o2 = *o
+	}
+	o2.ctx = ctx
+	return o2
+}
+
+// Context returns the context used for canceling HTTP requests related to this write
+func (o *WriteOptions) Context() context.Context {
+	if o != nil && o.ctx != nil {
+		return o.ctx
+	}
+	return context.Background()
+}
+
+// WithContext creates a copy of the write options using the provided context to cancel related HTTP requests
+func (o *WriteOptions) WithContext(ctx context.Context) *WriteOptions {
+	o2 := new(WriteOptions)
+	if o != nil {
+		*o2 = *o
+	}
+	o2.ctx = ctx
+	return o2
 }

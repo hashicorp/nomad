@@ -9,14 +9,10 @@ export default class DeploymentSerializer extends ApplicationSerializer {
     versionNumber: 'JobVersion',
   };
 
+  mapToArray = [{ beforeName: 'TaskGroups', afterName: 'TaskGroupSummaries' }];
+
   normalize(typeHash, hash) {
     if (hash) {
-      const taskGroups = hash.TaskGroups || {};
-      hash.TaskGroupSummaries = Object.keys(taskGroups).map(key => {
-        const deploymentStats = taskGroups[key];
-        return assign({ Name: key }, deploymentStats);
-      });
-
       hash.PlainJobId = hash.JobID;
       hash.Namespace =
         hash.Namespace ||

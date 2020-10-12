@@ -482,7 +482,32 @@ func setupRootfsBinary(t *testing.T, rootfs, path string) {
 	)
 
 	err = os.Link(src, dst)
-	require.NoError(t, err)
+	if err != nil {
+		// On failure, fallback to copying the file directly.
+		// Linking may fail if the test source code lives on a separate
+		// volume/partition from the temp dir used for testing
+		copyFile(t, src, dst)
+	}
+}
+
+func copyFile(t *testing.T, src, dst string) {
+	in, err := os.Open(src)
+	require.NoErrorf(t, err, "copying %v -> %v", src, dst)
+	defer in.Close()
+
+	ins, err := in.Stat()
+	require.NoErrorf(t, err, "copying %v -> %v", src, dst)
+
+	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, ins.Mode())
+	require.NoErrorf(t, err, "copying %v -> %v", src, dst)
+	defer func() {
+		if err := out.Close(); err != nil {
+			t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
+		}
+	}()
+
+	_, err = io.Copy(out, in)
+	require.NoErrorf(t, err, "copying %v -> %v", src, dst)
 }
 
 // TestExecutor_Start_Kill_Immediately_NoGrace asserts that executors shutdown
@@ -611,6 +636,8 @@ func TestExecutor_Start_NonExecutableBinaries(pt *testing.T) {
 				}
 				return true, nil
 			}, func(err error) {
+				stderr := strings.TrimSpace(string(testExecCmd.stderr.String()))
+				t.Logf("stderr: %v", stderr)
 				require.NoError(err)
 			})
 		})

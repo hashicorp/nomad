@@ -576,7 +576,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		ct.Contents = &tmpl.EmbeddedTmpl
 		ct.LeftDelim = &tmpl.LeftDelim
 		ct.RightDelim = &tmpl.RightDelim
-		ct.FunctionBlacklist = config.ClientConfig.TemplateConfig.FunctionBlacklist
+		ct.FunctionDenylist = config.ClientConfig.TemplateConfig.FunctionDenylist
 		if !config.ClientConfig.TemplateConfig.DisableSandbox {
 			ct.SandboxPath = &config.TaskDir
 		}
@@ -624,6 +624,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	if cc.ConsulConfig != nil {
 		conf.Consul.Address = &cc.ConsulConfig.Addr
 		conf.Consul.Token = &cc.ConsulConfig.Token
+		conf.Consul.Namespace = &cc.ConsulConfig.Namespace
 
 		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
 			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL

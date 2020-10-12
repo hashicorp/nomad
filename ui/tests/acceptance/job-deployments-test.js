@@ -36,8 +36,7 @@ module('Acceptance | job deployments', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await Deployments.visit({ id: job.id });
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('/jobs/:id/deployments should list all job deployments', async function(assert) {
@@ -179,7 +178,7 @@ module('Acceptance | job deployments', function(hooks) {
     );
 
     const taskGroup = taskGroupSummaries[0];
-    const taskGroupRow = deploymentRow.taskGroups.objectAt(0);
+    const taskGroupRow = deploymentRow.taskGroups.findOneBy('name', taskGroup.name);
 
     assert.equal(taskGroupRow.name, taskGroup.name, 'Name');
     assert.equal(taskGroupRow.promotion, promotionTestForTaskGroup(taskGroup), 'Needs Promotion');

@@ -19,10 +19,10 @@ import (
 )
 
 var (
-	// DefaultEnvBlacklist is the default set of environment variables that are
+	// DefaultEnvDenylist is the default set of environment variables that are
 	// filtered when passing the environment variables of the host to a task.
 	// duplicated in command/agent/host, update that if this changes.
-	DefaultEnvBlacklist = strings.Join([]string{
+	DefaultEnvDenylist = strings.Join([]string{
 		"CONSUL_TOKEN",
 		"CONSUL_HTTP_TOKEN",
 		"VAULT_TOKEN",
@@ -30,15 +30,15 @@ var (
 		"GOOGLE_APPLICATION_CREDENTIALS",
 	}, ",")
 
-	// DefaultUserBlacklist is the default set of users that tasks are not
+	// DefaultUserDenylist is the default set of users that tasks are not
 	// allowed to run as when using a driver in "user.checked_drivers"
-	DefaultUserBlacklist = strings.Join([]string{
+	DefaultUserDenylist = strings.Join([]string{
 		"root",
 		"Administrator",
 	}, ",")
 
 	// DefaultUserCheckedDrivers is the set of drivers we apply the user
-	// blacklist onto. For virtualized drivers it often doesn't make sense to
+	// denylist onto. For virtualized drivers it often doesn't make sense to
 	// make this stipulation so by default they are ignored.
 	DefaultUserCheckedDrivers = strings.Join([]string{
 		"exec",
@@ -57,6 +57,11 @@ var (
 		"/run/resolvconf": "/run/resolvconf",
 		"/sbin":           "/sbin",
 		"/usr":            "/usr",
+
+		// embed systemd-resolved paths for systemd-resolved paths:
+		// /etc/resolv.conf is a symlink to /run/systemd/resolve/stub-resolv.conf in such systems.
+		// In non-systemd systems, this mount is a no-op and the path is ignored if not present.
+		"/run/systemd/resolve": "/run/systemd/resolve",
 	}
 )
 
@@ -271,8 +276,8 @@ type Config struct {
 }
 
 type ClientTemplateConfig struct {
-	FunctionBlacklist []string
-	DisableSandbox    bool
+	FunctionDenylist []string
+	DisableSandbox   bool
 }
 
 func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
@@ -282,7 +287,7 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 
 	nc := new(ClientTemplateConfig)
 	*nc = *c
-	nc.FunctionBlacklist = helper.CopySliceString(nc.FunctionBlacklist)
+	nc.FunctionDenylist = helper.CopySliceString(nc.FunctionDenylist)
 	return nc
 }
 
@@ -319,8 +324,8 @@ func DefaultConfig() *Config {
 		DisableTaggedMetrics:    false,
 		DisableRemoteExec:       false,
 		TemplateConfig: &ClientTemplateConfig{
-			FunctionBlacklist: []string{"plugin"},
-			DisableSandbox:    false,
+			FunctionDenylist: []string{"plugin"},
+			DisableSandbox:   false,
 		},
 		BackwardsCompatibleMetrics: false,
 		RPCHoldTimeout:             5 * time.Second,
@@ -339,11 +344,20 @@ func (c *Config) Read(id string) string {
 // ReadDefault returns the specified configuration value, or the specified
 // default value if none is set.
 func (c *Config) ReadDefault(id string, defaultValue string) string {
-	val, ok := c.Options[id]
-	if !ok {
-		return defaultValue
+	return c.ReadAlternativeDefault([]string{id}, defaultValue)
+}
+
+// ReadAlternativeDefault returns the specified configuration value, or the
+// specified value if none is set.
+func (c *Config) ReadAlternativeDefault(ids []string, defaultValue string) string {
+	for _, id := range ids {
+		val, ok := c.Options[id]
+		if ok {
+			return val
+		}
 	}
-	return val
+
+	return defaultValue
 }
 
 // ReadBool parses the specified option as a boolean.
@@ -415,28 +429,30 @@ func (c *Config) ReadDurationDefault(id string, defaultValue time.Duration) time
 	return val
 }
 
-// ReadStringListToMap tries to parse the specified option as a comma separated list.
+// ReadStringListToMap tries to parse the specified option(s) as a comma separated list.
 // If there is an error in parsing, an empty list is returned.
-func (c *Config) ReadStringListToMap(key string) map[string]struct{} {
-	s := strings.TrimSpace(c.Read(key))
-	list := make(map[string]struct{})
-	if s != "" {
-		for _, e := range strings.Split(s, ",") {
-			trimmed := strings.TrimSpace(e)
-			list[trimmed] = struct{}{}
-		}
-	}
-	return list
+func (c *Config) ReadStringListToMap(keys ...string) map[string]struct{} {
+	val := c.ReadAlternativeDefault(keys, "")
+
+	return splitValue(val)
 }
 
 // ReadStringListToMap tries to parse the specified option as a comma separated list.
 // If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string]struct{} {
-	val, ok := c.Options[key]
-	if !ok {
-		val = defaultValue
-	}
+	return c.ReadStringListAlternativeToMapDefault([]string{key}, defaultValue)
+}
 
+// ReadStringListAlternativeToMapDefault tries to parse the specified options as a comma sparated list.
+// If there is an error in parsing, an empty list is returned.
+func (c *Config) ReadStringListAlternativeToMapDefault(keys []string, defaultValue string) map[string]struct{} {
+	val := c.ReadAlternativeDefault(keys, defaultValue)
+
+	return splitValue(val)
+}
+
+// splitValue parses the value as a comma separated list.
+func splitValue(val string) map[string]struct{} {
 	list := make(map[string]struct{})
 	if val != "" {
 		for _, e := range strings.Split(val, ",") {

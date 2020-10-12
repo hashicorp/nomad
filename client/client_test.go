@@ -1211,7 +1211,7 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	client, cleanup = TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
 		c.Node.Name = name
-		c.Options["fingerprint.blacklist"] = "network"
+		c.Options["fingerprint.denylist"] = "network"
 		// Node is already a mock.Node, with a device
 		c.Node.NodeResources.Networks[0].Device = dev
 	})
@@ -1265,7 +1265,7 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
-		c.Options["fingerprint.blacklist"] = "network,cni,bridge"
+		c.Options["fingerprint.denylist"] = "network,cni,bridge"
 		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()

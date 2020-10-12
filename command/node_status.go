@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -326,7 +327,9 @@ func nodeCSIVolumeNames(n *api.Node, allocs []*api.Allocation) []string {
 		}
 
 		for _, v := range tg.Volumes {
-			names = append(names, v.Name)
+			if v.Type == structs.VolumeTypeCSI {
+				names = append(names, v.Name)
+			}
 		}
 	}
 	sort.Strings(names)
@@ -550,8 +553,10 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 		}
 
 		for _, v := range tg.Volumes {
-			names = append(names, v.Name)
-			requests[v.Source] = v
+			if v.Type == structs.VolumeTypeCSI {
+				names = append(names, v.Name)
+				requests[v.Source] = v
+			}
 		}
 	}
 	if len(names) == 0 {
@@ -577,16 +582,18 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 		output := make([]string, 0, len(names)+1)
 		output = append(output, "ID|Name|Plugin ID|Schedulable|Provider|Access Mode")
 		for _, name := range names {
-			v := volumes[name]
-			output = append(output, fmt.Sprintf(
-				"%s|%s|%s|%t|%s|%s",
-				v.ID,
-				name,
-				v.PluginID,
-				v.Schedulable,
-				v.Provider,
-				v.AccessMode,
-			))
+			v, ok := volumes[name]
+			if ok {
+				output = append(output, fmt.Sprintf(
+					"%s|%s|%s|%t|%s|%s",
+					v.ID,
+					name,
+					v.PluginID,
+					v.Schedulable,
+					v.Provider,
+					v.AccessMode,
+				))
+			}
 		}
 
 		c.Ui.Output(formatList(output))

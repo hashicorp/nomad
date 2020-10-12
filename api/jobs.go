@@ -277,6 +277,30 @@ func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *W
 	return resp.EvalID, wm, nil
 }
 
+// DeregisterOptions is used to pass through job deregistration parameters
+type DeregisterOptions struct {
+	// If Purge is set to true, the job is deregistered and purged from the
+	// system versus still being queryable and eventually GC'ed from the
+	// system. Most callers should not specify purge.
+	Purge bool
+
+	// If Global is set to true, all regions of a multiregion job will be
+	// stopped.
+	Global bool
+}
+
+// DeregisterOpts is used to remove an existing job. See DeregisterOptions
+// for parameters.
+func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOptions) (string, *WriteMeta, error) {
+	var resp JobDeregisterResponse
+	wm, err := j.client.delete(fmt.Sprintf("/v1/job/%v?purge=%t&global=%t",
+		url.PathEscape(jobID), opts.Purge, opts.Global), &resp, q)
+	if err != nil {
+		return "", nil, err
+	}
+	return resp.EvalID, wm, nil
+}
+
 // ForceEvaluate is used to force-evaluate an existing job.
 func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobRegisterResponse

@@ -349,6 +349,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		if option.AllocResources != nil {
 			resources.Shared.Networks = option.AllocResources.Networks
+			resources.Shared.Ports = option.AllocResources.Ports
 		}
 
 		// Create an allocation for this
@@ -398,7 +399,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			alloc.PreemptedAllocations = preemptedAllocIDs
 		}
 
-		s.plan.AppendAlloc(alloc)
+		s.plan.AppendAlloc(alloc, nil)
 	}
 
 	return nil

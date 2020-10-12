@@ -1,0 +1,4 @@
+{
+  "recursors": ["172.31.0.2"],
+  "retry_join": ["provider=aws tag_key=ConsulAutoJoin tag_value=auto-join"]
+}

@@ -570,7 +570,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		}
 		// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
 		// don't isolate it by default.
-		if strings.Contains(line, ":rdma:") {
+		if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
 			continue
 		}
 		if !strings.Contains(line, ":/nomad/") {

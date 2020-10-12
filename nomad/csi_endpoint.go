@@ -521,8 +521,6 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, metricsStart)
 
-	// TODO(tgross): ensure we have pass-thru of token for client-driven RPC
-	// ref https://github.com/hashicorp/nomad/issues/8373
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
 	if err != nil {
@@ -589,6 +587,66 @@ RELEASE_CLAIM:
 }
 
 func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
+	if claim.AllocationID != "" {
+		err := v.nodeUnpublishVolumeImpl(vol, claim)
+		if err != nil {
+			return err
+		}
+		claim.State = structs.CSIVolumeClaimStateNodeDetached
+		return v.checkpointClaim(vol, claim)
+	}
+
+	// The RPC sent from the 'nomad node detach' command won't have an
+	// allocation ID set so we try to unpublish every terminal or invalid
+	// alloc on the node
+	allocIDs := []string{}
+	state := v.srv.fsm.State()
+	vol, err := state.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
+	if err != nil {
+		return err
+	}
+	for allocID, alloc := range vol.ReadAllocs {
+		if alloc == nil {
+			rclaim, ok := vol.ReadClaims[allocID]
+			if ok && rclaim.NodeID == claim.NodeID {
+				allocIDs = append(allocIDs, allocID)
+			}
+		} else {
+			if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
+				allocIDs = append(allocIDs, allocID)
+			}
+		}
+	}
+	for allocID, alloc := range vol.WriteAllocs {
+		if alloc == nil {
+			wclaim, ok := vol.WriteClaims[allocID]
+			if ok && wclaim.NodeID == claim.NodeID {
+				allocIDs = append(allocIDs, allocID)
+			}
+		} else {
+			if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
+				allocIDs = append(allocIDs, allocID)
+			}
+		}
+	}
+	var merr multierror.Error
+	for _, allocID := range allocIDs {
+		claim.AllocationID = allocID
+		err := v.nodeUnpublishVolumeImpl(vol, claim)
+		if err != nil {
+			merr.Errors = append(merr.Errors, err)
+		}
+	}
+	err = merr.ErrorOrNil()
+	if err != nil {
+		return err
+	}
+
+	claim.State = structs.CSIVolumeClaimStateNodeDetached
+	return v.checkpointClaim(vol, claim)
+}
+
+func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	req := &cstructs.ClientCSINodeDetachVolumeRequest{
 		PluginID:       vol.PluginID,
 		VolumeID:       vol.ID,
@@ -609,8 +667,7 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 			return fmt.Errorf("could not detach from node: %w", err)
 		}
 	}
-	claim.State = structs.CSIVolumeClaimStateNodeDetached
-	return v.checkpointClaim(vol, claim)
+	return nil
 }
 
 func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {

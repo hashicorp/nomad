@@ -19,7 +19,7 @@ func TestNamespaceInspectCommand_Implements(t *testing.T) {
 
 func TestNamespaceInspectCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -47,7 +47,7 @@ func TestNamespaceInspectCommand_Good(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Create a namespace
@@ -75,7 +75,7 @@ func TestNamespaceInspectCommand_AutocompleteArgs(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceInspectCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a namespace
@@ -104,7 +104,7 @@ func TestNamespaceInspectCommand_NamespaceMatchesPrefix(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Create a namespace that uses foo as a prefix

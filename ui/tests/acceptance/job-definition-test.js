@@ -21,8 +21,7 @@ module('Acceptance | job definition', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await a11yAudit('scrollable-region-focusable');
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert, 'scrollable-region-focusable');
   });
 
   test('visiting /jobs/:job_id/definition', async function(assert) {

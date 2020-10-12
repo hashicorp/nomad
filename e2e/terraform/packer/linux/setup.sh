@@ -1,43 +1,39 @@
 #!/bin/bash
+# setup script for Ubuntu Linux 18.04. Assumes that Packer has placed
+# build-time config files at /tmp/linux
 
 set -e
+
+# Will be overwritten at test time with the version specified
+NOMADVERSION=0.9.1
+CONSULVERSION=1.8.3
+VAULTVERSION=1.5.4
+
+NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
+
+mkdir_for_root() {
+    sudo mkdir -p "$1"
+    sudo chmod 755 "$1"
+}
 
 # Disable interactive apt prompts
 export DEBIAN_FRONTEND=noninteractive
 echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
-
 sudo mkdir -p /ops/shared
 sudo chown -R ubuntu:ubuntu /ops/shared
-cd /ops
 
-CONSULVERSION=1.7.3
-CONSULDOWNLOAD=https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip
-CONSULCONFIGDIR=/etc/consul.d
-CONSULDIR=/opt/consul
-VAULTVERSION=1.1.1
-VAULTDOWNLOAD=https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip
-VAULTCONFIGDIR=/etc/vault.d
-VAULTDIR=/opt/vault
-
-# Will be overwritten by sha specified
-NOMADVERSION=0.9.1
-NOMADDOWNLOAD=https://releases.hashicorp.com/nomad/${NOMADVERSION}/nomad_${NOMADVERSION}_linux_amd64.zip
-NOMADCONFIGDIR=/etc/nomad.d
-NOMADDIR=/opt/nomad
-NOMADPLUGINDIR=/opt/nomad/plugins
+mkdir_for_root /opt
 
 # Dependencies
-sudo apt-get install -y software-properties-common
 sudo apt-get update
-sudo apt-get install -y dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common
-
-# Numpy (for Spark)
-sudo apt-get install -y python-setuptools python-pip
-sudo pip install numpy
+sudo apt-get install -y \
+     software-properties-common \
+     dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
+     apt-transport-https ca-certificates gnupg2
 
 # Install sockaddr
-aws s3 cp "s3://nomad-team-test-binary/tools/sockaddr_linux_amd64" /tmp/sockaddr
+aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
 sudo mv /tmp/sockaddr /usr/local/bin
 sudo chmod +x /usr/local/bin/sockaddr
 sudo chown root:root /usr/local/bin/sockaddr
@@ -46,106 +42,102 @@ sudo chown root:root /usr/local/bin/sockaddr
 sudo ufw disable || echo "ufw not installed"
 
 echo "Install Consul"
-curl -L -o /tmp/consul.zip $CONSULDOWNLOAD
-sudo unzip /tmp/consul.zip -d /usr/local/bin
+curl -fsL -o /tmp/consul.zip \
+     "https://releases.hashicorp.com/consul/${CONSULVERSION}/consul_${CONSULVERSION}_linux_amd64.zip"
+sudo unzip -q /tmp/consul.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/consul
 sudo chown root:root /usr/local/bin/consul
 
 echo "Configure Consul"
-sudo mkdir -p $CONSULCONFIGDIR
-sudo chmod 755 $CONSULCONFIGDIR
-sudo mkdir -p $CONSULDIR
-sudo chmod 755 $CONSULDIR
+mkdir_for_root /etc/consul.d
+mkdir_for_root /opt/consul
+sudo mv /tmp/linux/consul.service /etc/systemd/system/consul.service
 
 echo "Install Vault"
-curl -L -o /tmp/vault.zip $VAULTDOWNLOAD
-sudo unzip /tmp/vault.zip -d /usr/local/bin
+curl -fsL -o /tmp/vault.zip \
+     "https://releases.hashicorp.com/vault/${VAULTVERSION}/vault_${VAULTVERSION}_linux_amd64.zip"
+sudo unzip -q /tmp/vault.zip -d /usr/local/bin
 sudo chmod 0755 /usr/local/bin/vault
 sudo chown root:root /usr/local/bin/vault
 
 echo "Configure Vault"
-sudo mkdir -p $VAULTCONFIGDIR
-sudo chmod 755 $VAULTCONFIGDIR
-sudo mkdir -p $VAULTDIR
-sudo chmod 755 $VAULTDIR
+mkdir_for_root /etc/vault.d
+mkdir_for_root /opt/vault
+sudo mv /tmp/linux/vault.service /etc/systemd/system/vault.service
 
-echo "Install Nomad"
-curl -L -o /tmp/nomad.zip $NOMADDOWNLOAD
-sudo unzip /tmp/nomad.zip -d /usr/local/bin
-sudo chmod 0755 /usr/local/bin/nomad
-sudo chown root:root /usr/local/bin/nomad
+sudo setcap cap_ipc_lock=+ep /usr/local/bin/vault
+sudo useradd --system --home /etc/vault.d --shell /bin/false vault
 
 echo "Configure Nomad"
-sudo mkdir -p $NOMADCONFIGDIR
-sudo chmod 755 $NOMADCONFIGDIR
-sudo mkdir -p $NOMADDIR
-sudo chmod 755 $NOMADDIR
-sudo mkdir -p $NOMADPLUGINDIR
-sudo chmod 755 $NOMADPLUGINDIR
+mkdir_for_root /etc/nomad.d
+mkdir_for_root /opt/nomad
+mkdir_for_root $NOMAD_PLUGIN_DIR
+sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
-echo "Install Docker"
+echo "Install Nomad"
+sudo mv /tmp/config /opt/
+sudo mv /tmp/linux/provision.sh /opt/provision.sh
+sudo chmod +x /opt/provision.sh
+/opt/provision.sh --nomad_version $NOMADVERSION --nostart
+
+echo "Installing third-party apt repositories"
+
+# Docker
 distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
-sudo apt-get install -y apt-transport-https ca-certificates gnupg2
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable"
+
+# Java
+sudo add-apt-repository -y ppa:openjdk-r/ppa
+
+# Podman
+. /etc/os-release
+curl -fsSL "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
+sudo add-apt-repository "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /"
+
 sudo apt-get update
+
+echo "Installing Docker"
 sudo apt-get install -y docker-ce
 
-echo "Install Java"
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-sudo apt-get update
+echo "Installing Java"
 sudo apt-get install -y openjdk-8-jdk
-JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:bin/java::")
 
-echo "Install Spark"
-sudo wget -P /ops/examples/spark https://nomad-spark.s3.amazonaws.com/spark-2.2.0-bin-nomad-0.7.0.tgz
-sudo tar -xvf /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0.tgz --directory /ops/examples/spark
-sudo mv /ops/examples/spark/spark-2.2.0-bin-nomad-0.7.0 /usr/local/bin/spark
-sudo chown -R root:root /usr/local/bin/spark
+echo "Installing CNI plugins"
+sudo mkdir -p /opt/cni/bin
+wget -q -O - \
+     https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz \
+    | sudo tar -C /opt/cni/bin -xz
 
-echo "Install HDFS CLI"
-HADOOP_VERSION=2.7.7
-HADOOPCONFIGDIR=/usr/local/$HADOOP_VERSION/etc/hadoop
-sudo mkdir -p "$HADOOPCONFIGDIR"
-
-wget -O - http://apache.mirror.iphh.net/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz | sudo tar xz -C /usr/local/
-
-echo "Install Podman"
-. /etc/os-release
-sudo sh -c "echo 'deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key | sudo apt-key add -
-sudo apt-get update -qq
-sudo apt-get -qq -y install podman
+echo "Installing Podman"
+sudo apt-get -y install podman
 
 # get catatonit (to check podman --init switch)
-cd /tmp
-wget https://github.com/openSUSE/catatonit/releases/download/v0.1.4/catatonit.x86_64
+wget -q -P /tmp https://github.com/openSUSE/catatonit/releases/download/v0.1.4/catatonit.x86_64
 mkdir -p /usr/libexec/podman
-sudo mv catatonit* /usr/libexec/podman/catatonit
+sudo mv /tmp/catatonit* /usr/libexec/podman/catatonit
 sudo chmod +x /usr/libexec/podman/catatonit
 
-echo "Install latest podman task driver"
+echo "Installing latest podman task driver"
 # install nomad-podman-driver and move to plugin dir
 latest_podman=$(curl -s https://releases.hashicorp.com/nomad-driver-podman/index.json | jq --raw-output '.versions |= with_entries(select(.key|match("^\\d+\\.\\d+\\.\\d+$"))) | .versions | keys[]' | sort -rV | head -n1)
 
-wget -P /tmp https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip
-sudo unzip /tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip -d $NOMADPLUGINDIR
-sudo chmod +x $NOMADPLUGINDIR/nomad-driver-podman
+wget -q -P /tmp "https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip"
+sudo unzip -q "/tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip" -d "$NOMAD_PLUGIN_DIR"
+sudo chmod +x "${NOMAD_PLUGIN_DIR}/nomad-driver-podman"
+
+# enable varlink socket (not included in ubuntu package)
+sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
+sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
+
+echo "Configuring dnsmasq"
 
 # disable systemd-resolved and configure dnsmasq to forward local requests to
 # consul. the resolver files need to dynamic configuration based on the VPC
 # address and docker bridge IP, so those will be rewritten at boot time.
 sudo systemctl disable systemd-resolved.service
-echo '
-port=53
-resolv-file=/var/run/dnsmasq/resolv.conf
-bind-interfaces
-interface=docker0
-interface=lo
-interface=eth0
-listen-address=127.0.0.1
-server=/consul/127.0.0.1#8600
-' | sudo tee /etc/dnsmasq.d/default
+sudo mv /tmp/linux/dnsmasq /etc/dnsmasq.d/default
+sudo chown root:root /etc/dnsmasq.d/default
 
 # this is going to be overwritten at provisioning time, but we need something
 # here or we can't fetch binaries to do the provisioning
@@ -154,23 +146,13 @@ sudo mv /tmp/resolv.conf /etc/resolv.conf
 
 sudo systemctl restart dnsmasq
 
+echo "Updating boot parameters"
+
 # enable cgroup_memory and swap
 sudo sed -i 's/GRUB_CMDLINE_LINUX="[^"]*/& cgroup_enable=memory swapaccount=1/' /etc/default/grub
 sudo update-grub
 
-# note this 'EOF' syntax avoids expansion in the heredoc
-sudo tee "$HADOOPCONFIGDIR/core-site.xml" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-<configuration>
-    <property>
-        <name>fs.defaultFS</name>
-        <value>hdfs://hdfs.service.consul/</value>
-    </property>
-</configuration>
-EOF
-
-echo "Configure user shell"
+echo "Configuring user shell"
 sudo tee -a /home/ubuntu/.bashrc << 'EOF'
 IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
 export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
@@ -179,6 +161,4 @@ export VAULT_ADDR=http://$IP_ADDRESS:8200
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
 
-# Update PATH
-export PATH=$PATH:/usr/local/bin/spark/bin:/usr/local/$HADOOP_VERSION/bin
 EOF

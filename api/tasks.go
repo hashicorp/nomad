@@ -632,6 +632,7 @@ type DispatchPayloadConfig struct {
 
 const (
 	TaskLifecycleHookPrestart = "prestart"
+	TaskLifecycleHookPoststart = "poststart"
 )
 
 type TaskLifecycle struct {
@@ -925,6 +926,7 @@ type TaskEvent struct {
 	Time           int64
 	DisplayMessage string
 	Details        map[string]string
+	Message        string
 	// DEPRECATION NOTICE: The following fields are all deprecated. see TaskEvent struct in structs.go for details.
 	FailsTask        bool
 	RestartReason    string
@@ -933,7 +935,6 @@ type TaskEvent struct {
 	DriverMessage    string
 	ExitCode         int
 	Signal           int
-	Message          string
 	KillReason       string
 	KillTimeout      time.Duration
 	KillError        string

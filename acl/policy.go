@@ -238,7 +238,7 @@ func Parse(rules string) (*Policy, error) {
 	}
 
 	// Attempt to parse
-	if err := hcl.Decode(p, rules); err != nil {
+	if err := hclDecode(p, rules); err != nil {
 		return nil, fmt.Errorf("Failed to parse ACL Policy: %v", err)
 	}
 
@@ -311,4 +311,15 @@ func Parse(rules string) (*Policy, error) {
 		return nil, fmt.Errorf("Invalid plugin policy: %#v", p.Plugin)
 	}
 	return p, nil
+}
+
+// hclDecode wraps hcl.Decode function but handles any unexpected panics
+func hclDecode(p *Policy, rules string) (err error) {
+	defer func() {
+		if rerr := recover(); rerr != nil {
+			err = fmt.Errorf("invalid acl policy: %v", rerr)
+		}
+	}()
+
+	return hcl.Decode(p, rules)
 }

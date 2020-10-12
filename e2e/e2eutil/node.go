@@ -144,3 +144,43 @@ func listClientNodesByOS(client *api.Client, osName string) ([]string, error) {
 	}
 	return nodeIDs, nil
 }
+
+func NodeStatusList() ([]map[string]string, error) {
+
+	out, err := Command("nomad", "node", "status", "-verbose")
+	if err != nil {
+		return nil, fmt.Errorf("'nomad node status' failed: %w", err)
+	}
+
+	nodes, err := ParseColumns(out)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse node status output: %w", err)
+	}
+	return nodes, nil
+}
+
+func NodeStatusListFiltered(filterFn func(string) bool) ([]map[string]string, error) {
+
+	out, err := Command("nomad", "node", "status", "-verbose")
+	if err != nil {
+		return nil, fmt.Errorf("'nomad node status' failed: %w", err)
+	}
+
+	allNodes, err := ParseColumns(out)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse node status output: %w", err)
+	}
+	nodes := []map[string]string{}
+
+	for _, node := range allNodes {
+		out, err := Command("nomad", "node", "status", "-verbose", node["ID"])
+		if err != nil {
+			return nil, fmt.Errorf("could not node status output: %w", err)
+		}
+		if filterFn(out) {
+			nodes = append(nodes, node)
+		}
+	}
+
+	return nodes, nil
+}

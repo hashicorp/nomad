@@ -1,5 +1,10 @@
 package api
 
+const (
+	// ScalingPolicyTypeHorizontal indicates a policy that does horizontal scaling.
+	ScalingPolicyTypeHorizontal = "horizontal"
+)
+
 // Scaling is used to query scaling-related API endpoints
 type Scaling struct {
 	client *Client
@@ -36,6 +41,9 @@ func (p *ScalingPolicy) Canonicalize(taskGroupCount int) {
 		var m int64 = int64(taskGroupCount)
 		p.Min = &m
 	}
+	if p.Type == "" {
+		p.Type = ScalingPolicyTypeHorizontal
+	}
 }
 
 // ScalingRequest is the payload for a generic scaling action
@@ -54,6 +62,7 @@ type ScalingRequest struct {
 type ScalingPolicy struct {
 	ID          string
 	Namespace   string
+	Type        string
 	Target      map[string]string
 	Min         *int64
 	Max         *int64
@@ -68,6 +77,7 @@ type ScalingPolicy struct {
 type ScalingPolicyListStub struct {
 	ID          string
 	Enabled     bool
+	Type        string
 	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64

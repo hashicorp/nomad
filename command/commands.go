@@ -201,8 +201,9 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		// operator debug was released in 0.12 as debug. This top-level alias preserves compatibility
 		"debug": func() (cli.Command, error) {
-			return &DebugCommand{
+			return &OperatorDebugCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -356,6 +357,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job scale": func() (cli.Command, error) {
+			return &JobScaleCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job scaling-events": func() (cli.Command, error) {
+			return &JobScalingEventsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job status": func() (cli.Command, error) {
 			return &JobStatusCommand{
 				Meta: meta,
@@ -484,6 +495,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator debug": func() (cli.Command, error) {
+			return &OperatorDebugCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator keygen": func() (cli.Command, error) {
 			return &OperatorKeygenCommand{
 				Meta: meta,
@@ -491,6 +507,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator keyring": func() (cli.Command, error) {
 			return &OperatorKeyringCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator metrics": func() (cli.Command, error) {
+			return &OperatorMetricsCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -508,6 +529,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 
 		"operator raft remove-peer": func() (cli.Command, error) {
 			return &OperatorRaftRemoveCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft _info": func() (cli.Command, error) {
+			return &OperatorRaftInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft _logs": func() (cli.Command, error) {
+			return &OperatorRaftLogsCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft _state": func() (cli.Command, error) {
+			return &OperatorRaftStateCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -594,6 +630,26 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 
 		"run": func() (cli.Command, error) {
 			return &JobRunCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling": func() (cli.Command, error) {
+			return &ScalingCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy": func() (cli.Command, error) {
+			return &ScalingPolicyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy info": func() (cli.Command, error) {
+			return &ScalingPolicyInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"scaling policy list": func() (cli.Command, error) {
+			return &ScalingPolicyListCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -720,6 +776,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"volume deregister": func() (cli.Command, error) {
 			return &VolumeDeregisterCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume detach": func() (cli.Command, error) {
+			return &VolumeDetachCommand{
 				Meta: meta,
 			}, nil
 		},

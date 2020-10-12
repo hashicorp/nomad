@@ -31,7 +31,7 @@ func TestOperatorSnapshotSave_Works(t *testing.T) {
 
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotSaveCommand{Meta: Meta{Ui: ui}}
 
 	dest := filepath.Join(tmpDir, "backup.snap")
@@ -53,7 +53,7 @@ func TestOperatorSnapshotSave_Works(t *testing.T) {
 func TestOperatorSnapshotSave_Fails(t *testing.T) {
 	t.Parallel()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotSaveCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

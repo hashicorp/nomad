@@ -23,4 +23,17 @@ export default class LifecycleChartRow extends Component {
 
     return undefined;
   }
+
+  @computed('task.lifecycleName')
+  get lifecycleLabel() {
+    const name = this.task.lifecycleName;
+
+    if (name.includes('sidecar')) {
+      return 'sidecar';
+    } else if (name.includes('ephemeral')) {
+      return name.substr(0, name.indexOf('-'));
+    } else {
+      return name;
+    }
+  }
 }

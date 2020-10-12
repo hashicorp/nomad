@@ -134,8 +134,8 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		config: &config.Config{
 			Region: region,
 			TemplateConfig: &config.ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			}},
 		emitRate: DefaultMaxTemplateEventRate,
 	}
@@ -154,7 +154,9 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	harness.taskDir = d
 
 	if consul {
-		harness.consul, err = ctestutil.NewTestServer()
+		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
+			// defaults
+		})
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)
 		}

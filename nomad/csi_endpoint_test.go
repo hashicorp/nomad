@@ -141,8 +141,12 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		Namespace:      "notTheNamespace",
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
+		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+		MountOptions: &structs.CSIMountOptions{
+			FSType: "ext4", MountFlags: []string{"sensitive"}},
+		Secrets:    structs.CSISecrets{"mysecret": "secretvalue"},
+		Parameters: map[string]string{"myparam": "paramvalue"},
+		Context:    map[string]string{"mycontext": "contextvalue"},
 	}}
 
 	// Create the register request
@@ -155,6 +159,11 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	}
 	resp1 := &structs.CSIVolumeRegisterResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
+	require.Error(t, err, "expected validation error")
+
+	// Fix the registration so that it passes validation
+	vols[0].AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), resp1.Index)
 
@@ -170,6 +179,10 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, resp1.Index, resp2.Index)
 	require.Equal(t, vols[0].ID, resp2.Volume.ID)
+	require.Equal(t, "csi.CSISecrets(map[mysecret:[REDACTED]])",
+		resp2.Volume.Secrets.String())
+	require.Equal(t, "csi.CSIOptions(FSType: ext4, MountFlags: [REDACTED])",
+		resp2.Volume.MountOptions.String())
 
 	// Registration does not update
 	req1.Volumes[0].PluginID = "adam"
@@ -325,6 +338,25 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.Equal(t, id0, volGetResp.Volume.ID)
 	require.Len(t, volGetResp.Volume.ReadAllocs, 1)
 	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
+
+	// Make a second reader claim
+	alloc3 := mock.Alloc()
+	alloc3.JobID = uuid.Generate()
+	summary = mock.JobSummary(alloc3.JobID)
+	index++
+	require.NoError(t, state.UpsertJobSummary(index, summary))
+	index++
+	require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc3}))
+	claimReq.AllocationID = alloc3.ID
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	require.NoError(t, err)
+
+	// Verify the new claim was set
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", volGetReq, volGetResp)
+	require.NoError(t, err)
+	require.Equal(t, id0, volGetResp.Volume.ID)
+	require.Len(t, volGetResp.Volume.ReadAllocs, 2)
+	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
 }
 
 // TestCSIVolumeEndpoint_ClaimWithController exercises the VolumeClaim RPC
@@ -404,6 +436,13 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	// Because the node is not registered
 	require.EqualError(t, err, "controller publish: attach volume: No path to node")
+
+	// The node SecretID is authorized for all policies
+	claimReq.AuthToken = node.SecretID
+	claimReq.Namespace = ""
+	claimResp = &structs.CSIVolumeClaimResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	require.EqualError(t, err, "controller publish: attach volume: No path to node")
 }
 
 func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
@@ -425,48 +464,51 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 	codec := rpcClient(t, srv)
 
+	// setup: create a client node with a controller and node plugin
+	node := mock.Node()
+	node.Attributes["nomad.version"] = "0.11.0"
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {PluginID: "minnie",
+			Healthy:                  true,
+			ControllerInfo:           &structs.CSIControllerInfo{SupportsAttachDetach: true},
+			RequiresControllerPlugin: true,
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(index, node))
+
 	type tc struct {
 		name           string
 		startingState  structs.CSIVolumeClaimState
-		hasController  bool
 		expectedErrMsg string
 	}
-
 	testCases := []tc{
-		{
-			name:           "no path to node plugin",
-			startingState:  structs.CSIVolumeClaimStateTaken,
-			hasController:  true,
-			expectedErrMsg: "could not detach from node: Unknown node ",
-		},
-		{
-			name:           "no registered controller plugin",
-			startingState:  structs.CSIVolumeClaimStateNodeDetached,
-			hasController:  true,
-			expectedErrMsg: "could not detach from controller: controller detach volume: plugin missing: minnie",
-		},
 		{
 			name:          "success",
 			startingState: structs.CSIVolumeClaimStateControllerDetached,
-			hasController: true,
+		},
+		{
+			name:           "unpublish previously detached node",
+			startingState:  structs.CSIVolumeClaimStateNodeDetached,
+			expectedErrMsg: "could not detach from controller: No path to node",
+		},
+		{
+			name:           "first unpublish",
+			startingState:  structs.CSIVolumeClaimStateTaken,
+			expectedErrMsg: "could not detach from node: No path to node",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-
+			// setup: register a volume
 			volID := uuid.Generate()
-			nodeID := uuid.Generate()
-			allocID := uuid.Generate()
-
-			claim := &structs.CSIVolumeClaim{
-				AllocationID:   allocID,
-				NodeID:         nodeID,
-				ExternalNodeID: "i-example",
-				Mode:           structs.CSIVolumeClaimRead,
-				State:          tc.startingState,
-			}
-
 			vol := &structs.CSIVolume{
 				ID:                 volID,
 				Namespace:          ns,
@@ -474,13 +516,36 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 				AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
 				PluginID:           "minnie",
 				Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
-				ControllerRequired: tc.hasController,
+				ControllerRequired: true,
 			}
 
 			index++
 			err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 			require.NoError(t, err)
 
+			// setup: create an alloc that will claim our volume
+			alloc := mock.BatchAlloc()
+			alloc.NodeID = node.ID
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+
+			index++
+			require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc}))
+
+			// setup: claim the volume for our alloc
+			claim := &structs.CSIVolumeClaim{
+				AllocationID:   alloc.ID,
+				NodeID:         node.ID,
+				ExternalNodeID: "i-example",
+				Mode:           structs.CSIVolumeClaimRead,
+			}
+
+			index++
+			claim.State = structs.CSIVolumeClaimStateTaken
+			err = state.CSIVolumeClaim(index, ns, volID, claim)
+			require.NoError(t, err)
+
+			// test: unpublish and check the results
+			claim.State = tc.startingState
 			req := &structs.CSIVolumeUnpublishRequest{
 				VolumeID: volID,
 				Claim:    claim,
@@ -497,6 +562,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			if tc.expectedErrMsg == "" {
 				require.NoError(t, err)
 			} else {
+				require.Error(t, err)
 				require.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
 					"error message %q did not contain %q", err.Error(), tc.expectedErrMsg)
 			}
@@ -650,6 +716,83 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 
 	// Plugin is missing
 	req2.AuthToken = getToken.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.Nil(t, resp2.Plugin)
+}
+
+func TestCSIPluginEndpoint_RegisterViaJob(t *testing.T) {
+	t.Parallel()
+	srv, shutdown := TestServer(t, nil)
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	codec := rpcClient(t, srv)
+
+	// Register a job that creates the plugin
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].CSIPluginConfig = &structs.TaskCSIPluginConfig{
+		ID:   "foo",
+		Type: structs.CSIPluginTypeNode,
+	}
+
+	req1 := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	resp1 := &structs.JobRegisterResponse{}
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req1, resp1)
+	require.NoError(t, err)
+
+	// Verify that the plugin exists and is unhealthy
+	req2 := &structs.CSIPluginGetRequest{
+		ID:           "foo",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	resp2 := &structs.CSIPluginGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2.Plugin)
+	require.Zero(t, resp2.Plugin.ControllersHealthy)
+	require.Zero(t, resp2.Plugin.NodesHealthy)
+	require.Equal(t, job.ID, resp2.Plugin.NodeJobs[structs.DefaultNamespace][job.ID].ID)
+
+	// Health depends on node fingerprints
+	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
+	defer deleteNodes()
+
+	resp2.Plugin = nil
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2.Plugin)
+	require.NotZero(t, resp2.Plugin.ControllersHealthy)
+	require.NotZero(t, resp2.Plugin.NodesHealthy)
+	require.Equal(t, job.ID, resp2.Plugin.NodeJobs[structs.DefaultNamespace][job.ID].ID)
+
+	// All fingerprints failing makes the plugin unhealthy, but does not delete it
+	deleteNodes()
+	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2.Plugin)
+	require.Zero(t, resp2.Plugin.ControllersHealthy)
+	require.Zero(t, resp2.Plugin.NodesHealthy)
+	require.Equal(t, job.ID, resp2.Plugin.NodeJobs[structs.DefaultNamespace][job.ID].ID)
+
+	// Job deregistration is necessary to gc the plugin
+	req3 := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	resp3 := &structs.JobDeregisterResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req3, resp3)
+	require.NoError(t, err)
+
+	// Plugin has been gc'ed
+	resp2.Plugin = nil
 	err = msgpackrpc.CallWithCodec(codec, "CSIPlugin.Get", req2, resp2)
 	require.NoError(t, err)
 	require.Nil(t, resp2.Plugin)

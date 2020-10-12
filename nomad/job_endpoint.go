@@ -34,6 +34,9 @@ const (
 	DispatchPayloadSizeLimit = 16 * 1024
 )
 
+// ErrMultipleNamespaces is send when multiple namespaces are used in the OSS setup
+var ErrMultipleNamespaces = errors.New("multiple Vault namespaces requires Nomad Enterprise")
+
 var (
 	// allowRescheduleTransition is the transition that allows failed
 	// allocations to be force rescheduled. We create a one off
@@ -252,15 +255,16 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// helper function that checks if the "operator token" supplied with the
 	// job has sufficient ACL permissions for establishing consul connect services
-	checkOperatorToken := func(task string) error {
+	checkOperatorToken := func(kind structs.TaskKind) error {
 		if j.srv.config.ConsulConfig.AllowsUnauthenticated() {
 			// if consul.allow_unauthenticated is enabled (which is the default)
 			// just let the Job through without checking anything.
 			return nil
 		}
-		proxiedTask := strings.TrimPrefix(task, structs.ConnectProxyPrefix+"-")
+
+		service := kind.Value()
 		ctx := context.Background()
-		if err := j.srv.consulACLs.CheckSIPolicy(ctx, proxiedTask, args.Job.ConsulToken); err != nil {
+		if err := j.srv.consulACLs.CheckSIPolicy(ctx, service, args.Job.ConsulToken); err != nil {
 			// not much in the way of exported error types, we could parse
 			// the content, but all errors are going to be failures anyway
 			return errors.Wrap(err, "operator token denied")
@@ -269,11 +273,25 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Enforce that the operator has necessary Consul ACL permissions
-	for _, tg := range args.Job.ConnectTasks() {
-		for _, task := range tg {
-			if err := checkOperatorToken(task); err != nil {
-				return err
-			}
+	for _, taskKind := range args.Job.ConnectTasks() {
+		if err := checkOperatorToken(taskKind); err != nil {
+			return err
+		}
+	}
+
+	// Create or Update Consul Configuration Entries defined in the job. For now
+	// Nomad only supports Configuration Entries of type "ingress-gateway" for managing
+	// Consul Connect Ingress Gateway tasks derived from TaskGroup services.
+	//
+	// This is done as a blocking operation that prevents the job from being
+	// submitted if the configuration entries cannot be set in Consul.
+	//
+	// Every job update will re-write the Configuration Entry into Consul.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for service, entry := range args.Job.ConfigEntries() {
+		if err := j.srv.consulConfigEntries.SetIngressGatewayConfigEntry(ctx, service, entry); err != nil {
+			return err
 		}
 	}
 
@@ -379,6 +397,12 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	args.Job.JobModifyIndex = reply.JobModifyIndex
 
 	if eval == nil {
+		// For dispatch jobs we return early, so we need to drop regions
+		// here rather than after eval for deployments is kicked off
+		err = j.multiregionDrop(args, reply)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -405,6 +429,14 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Kick off a multiregion deployment (enterprise only).
 	if isRunner {
 		err = j.multiregionStart(args, reply)
+		if err != nil {
+			return err
+		}
+		// We drop any unwanted regions only once we know all jobs have
+		// been registered and we've kicked off the deployment. This keeps
+		// dropping regions close in semantics to dropping task groups in
+		// single-region deployments
+		err = j.multiregionDrop(args, reply)
 		if err != nil {
 			return err
 		}
@@ -838,6 +870,11 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 		reply.EvalCreateIndex = evalIndex
 		reply.Index = evalIndex
+	}
+
+	err = j.multiregionStop(job, args, reply)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -1930,7 +1967,7 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 
 	// Check if the metadata is a set
 	keys := make(map[string]struct{}, len(req.Meta))
-	for k := range keys {
+	for k := range req.Meta {
 		if _, ok := keys[k]; ok {
 			return fmt.Errorf("Duplicate key %q in passed metadata", k)
 		}

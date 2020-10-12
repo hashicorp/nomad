@@ -39,7 +39,7 @@ job "snapshot-test-job" {
 
 }`
 
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 		cmd.JobGetter.testStdin = strings.NewReader(sampleJob)
 
@@ -63,7 +63,7 @@ job "snapshot-test-job" {
 	require.NoError(t, err)
 	require.Nil(t, j)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotRestoreCommand{Meta: Meta{Ui: ui}}
 
 	code := cmd.Run([]string{"--address=" + url, snapshotPath})
@@ -79,7 +79,7 @@ job "snapshot-test-job" {
 func TestOperatorSnapshotRestore_Fails(t *testing.T) {
 	t.Parallel()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &OperatorSnapshotRestoreCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse

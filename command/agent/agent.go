@@ -77,6 +77,9 @@ type Agent struct {
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
+	// consulConfigEntries is the subset of Consul's Configuration Entires API Nomad uses.
+	consulConfigEntries consul.ConfigAPI
+
 	// consulACLs is Nomad's subset of Consul's ACL API Nomad uses.
 	consulACLs consul.ACLsAPI
 
@@ -550,7 +553,11 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
-	conf.TemplateConfig.FunctionBlacklist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	if agentConfig.Client.TemplateConfig.FunctionBlacklist != nil {
+		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	} else {
+		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionDenylist
+	}
 	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
@@ -669,7 +676,7 @@ func (a *Agent) setupServer() error {
 	}
 
 	// Create the server
-	server, err := nomad.NewServer(conf, a.consulCatalog, a.consulACLs)
+	server, err := nomad.NewServer(conf, a.consulCatalog, a.consulConfigEntries, a.consulACLs)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)
 	}
@@ -804,7 +811,7 @@ func (a *Agent) setupKeyrings(config *nomad.Config) error {
 		goto LOAD
 	}
 	if _, err := os.Stat(file); err != nil {
-		if err := initKeyring(file, a.config.Server.EncryptKey); err != nil {
+		if err := initKeyring(file, a.config.Server.EncryptKey, a.logger); err != nil {
 			return err
 		}
 	}
@@ -1123,6 +1130,9 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 
 	// Create Consul Catalog client for service discovery.
 	a.consulCatalog = client.Catalog()
+
+	// Create Consul ConfigEntries client for managing Config Entries.
+	a.consulConfigEntries = client.ConfigEntries()
 
 	// Create Consul ACL client for managing tokens.
 	a.consulACLs = client.ACL()

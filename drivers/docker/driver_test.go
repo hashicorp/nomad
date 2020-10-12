@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -452,8 +453,9 @@ func TestDockerDriver_Start_BadPull_Recoverable(t *testing.T) {
 	testutil.DockerCompatible(t)
 
 	taskCfg := TaskConfig{
-		Image:   "127.0.0.1:32121/foo", // bad path
-		Command: "echo",
+		Image:            "127.0.0.1:32121/foo", // bad path
+		ImagePullTimeout: "5m",
+		Command:          "echo",
 		Args: []string{
 			"hello",
 		},
@@ -1233,50 +1235,50 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		Name       string
 		CapAdd     []string
 		CapDrop    []string
-		Whitelist  string
+		Allowlist  string
 		StartError string
 	}{
 		{
-			Name:    "default-whitelist-add-allowed",
+			Name:    "default-allowlist-add-allowed",
 			CapAdd:  []string{"fowner", "mknod"},
 			CapDrop: []string{"all"},
 		},
 		{
-			Name:       "default-whitelist-add-forbidden",
+			Name:       "default-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin"},
 			StartError: "net_admin",
 		},
 		{
-			Name:    "default-whitelist-drop-existing",
+			Name:    "default-allowlist-drop-existing",
 			CapDrop: []string{"fowner", "mknod"},
 		},
 		{
-			Name:      "restrictive-whitelist-drop-all",
+			Name:      "restrictive-allowlist-drop-all",
 			CapDrop:   []string{"all"},
-			Whitelist: "fowner,mknod",
+			Allowlist: "fowner,mknod",
 		},
 		{
-			Name:      "restrictive-whitelist-add-allowed",
+			Name:      "restrictive-allowlist-add-allowed",
 			CapAdd:    []string{"fowner", "mknod"},
 			CapDrop:   []string{"all"},
-			Whitelist: "fowner,mknod",
+			Allowlist: "fowner,mknod",
 		},
 		{
-			Name:       "restrictive-whitelist-add-forbidden",
+			Name:       "restrictive-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin", "mknod"},
 			CapDrop:    []string{"all"},
-			Whitelist:  "fowner,mknod",
+			Allowlist:  "fowner,mknod",
 			StartError: "net_admin",
 		},
 		{
-			Name:      "permissive-whitelist",
+			Name:      "permissive-allowlist",
 			CapAdd:    []string{"net_admin", "mknod"},
-			Whitelist: "all",
+			Allowlist: "all",
 		},
 		{
-			Name:      "permissive-whitelist-add-all",
+			Name:      "permissive-allowlist-add-all",
 			CapAdd:    []string{"all"},
-			Whitelist: "all",
+			Allowlist: "all",
 		},
 	}
 
@@ -1297,8 +1299,8 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			d := dockerDriverHarness(t, nil)
 			dockerDriver, ok := d.Impl().(*Driver)
 			require.True(t, ok)
-			if tc.Whitelist != "" {
-				dockerDriver.config.AllowCaps = strings.Split(tc.Whitelist, ",")
+			if tc.Allowlist != "" {
+				dockerDriver.config.AllowCaps = strings.Split(tc.Allowlist, ",")
 			}
 
 			cleanup := d.MkAllocDir(task, true)
@@ -1337,25 +1339,46 @@ func TestDockerDriver_DNS(t *testing.T) {
 		t.Parallel()
 	}
 	testutil.DockerCompatible(t)
+	testutil.ExecCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
-	cfg.DNSServers = []string{"8.8.8.8", "8.8.4.4"}
-	cfg.DNSSearchDomains = []string{"example.com", "example.org", "example.net"}
-	cfg.DNSOptions = []string{"ndots:1"}
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
 
-	client, d, handle, cleanup := dockerSetup(t, task, nil)
-	defer cleanup()
+	for _, c := range cases {
+		task, cfg, ports := dockerTask(t)
+		defer freeport.Return(ports)
+		task.DNS = c.cfg
+		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+		_, d, _, cleanup := dockerSetup(t, task, nil)
+		defer cleanup()
 
-	container, err := client.InspectContainer(handle.containerID)
-	require.NoError(t, err)
+		require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+		defer d.DestroyTask(task.ID, true)
 
-	require.Exactly(t, cfg.DNSServers, container.HostConfig.DNS)
-	require.Exactly(t, cfg.DNSSearchDomains, container.HostConfig.DNSSearch)
-	require.Exactly(t, cfg.DNSOptions, container.HostConfig.DNSOptions)
+		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
+	}
+
 }
 
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
@@ -1533,6 +1556,49 @@ func TestDockerDriver_PortsMapping(t *testing.T) {
 	require.Exactly(t, expectedPortBindings, container.HostConfig.PortBindings)
 }
 
+func TestDockerDriver_CreateContainerConfig_Ports(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+	hostIP := "127.0.0.1"
+	if runtime.GOOS == "windows" {
+		hostIP = ""
+	}
+	portmappings := structs.AllocatedPorts(make([]structs.AllocatedPortMapping, len(ports)))
+	portmappings[0] = structs.AllocatedPortMapping{
+		Label:  "main",
+		Value:  ports[0],
+		HostIP: hostIP,
+		To:     8080,
+	}
+	portmappings[1] = structs.AllocatedPortMapping{
+		Label:  "REDIS",
+		Value:  ports[1],
+		HostIP: hostIP,
+		To:     6379,
+	}
+	task.Resources.Ports = &portmappings
+	cfg.Ports = []string{"main", "REDIS"}
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	require.Equal(t, "org/repo:0.1", c.Config.Image)
+
+	// Verify that the correct ports are FORWARDED
+	expectedPortBindings := map[docker.Port][]docker.PortBinding{
+		docker.Port("8080/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("8080/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[0])}},
+		docker.Port("6379/tcp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+		docker.Port("6379/udp"): {{HostIP: hostIP, HostPort: fmt.Sprintf("%d", ports[1])}},
+	}
+	require.Exactly(t, expectedPortBindings, c.HostConfig.PortBindings)
+
+}
 func TestDockerDriver_CreateContainerConfig_PortsMapping(t *testing.T) {
 	t.Parallel()
 
@@ -2595,5 +2661,34 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
 		require.Equal(t, int64(512*1024*1024), memory)
 		require.Equal(t, int64(256*1024*1024), memoryReservation)
+	})
+}
+
+func TestDockerDriver_parseSignal(t *testing.T) {
+	t.Parallel()
+
+	d := new(Driver)
+
+	t.Run("default", func(t *testing.T) {
+		s, err := d.parseSignal(runtime.GOOS, "")
+		require.NoError(t, err)
+		require.Equal(t, syscall.SIGTERM, s)
+	})
+
+	t.Run("set", func(t *testing.T) {
+		s, err := d.parseSignal(runtime.GOOS, "SIGHUP")
+		require.NoError(t, err)
+		require.Equal(t, syscall.SIGHUP, s)
+	})
+
+	t.Run("windows conversion", func(t *testing.T) {
+		s, err := d.parseSignal("windows", "SIGINT")
+		require.NoError(t, err)
+		require.Equal(t, syscall.SIGTERM, s)
+	})
+
+	t.Run("not a signal", func(t *testing.T) {
+		_, err := d.parseSignal(runtime.GOOS, "SIGDOESNOTEXIST")
+		require.Error(t, err)
 	})
 }

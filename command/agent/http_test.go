@@ -602,7 +602,9 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
 	}
-	opErr, ok := urlErr.Err.(*net.OpError)
+
+	var opErr *net.OpError
+	ok = errors.As(urlErr.Err, &opErr)
 	if !ok {
 		t.Fatalf("expected a *net.OpErr but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}

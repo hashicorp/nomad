@@ -13,7 +13,7 @@ class FeaturedSlider extends Component {
       timing: timing,
       numFrames: this.props.features.length,
       measure: true,
-      containerWidth: 0
+      containerWidth: 0,
     }
 
     this.frames = []
@@ -44,7 +44,7 @@ class FeaturedSlider extends Component {
         this.setState(
           {
             numFrames: this.props.features.length,
-            measure: true
+            measure: true,
           },
           () => {
             if (this.props.features.length === 1) {
@@ -63,7 +63,7 @@ class FeaturedSlider extends Component {
       this.setState(
         {
           timing: parseInt(this.props.timing),
-          active: 0
+          active: 0,
         },
         this.resetTimer
       )
@@ -105,7 +105,7 @@ class FeaturedSlider extends Component {
       this.setState({
         frameSize: width,
         containerWidth: width * this.state.numFrames,
-        measure: false
+        measure: false,
       })
     }
   }
@@ -125,7 +125,7 @@ class FeaturedSlider extends Component {
         ? {}
         : {
             width: `${containerWidth}px`,
-            transform: `translateX(-${(containerWidth / numFrames) * active}px`
+            transform: `translateX(-${(containerWidth / numFrames) * active}px`,
           }
 
     // Create inline styling to apply to each frame
@@ -162,11 +162,11 @@ class FeaturedSlider extends Component {
           <div className="slider-container" style={containerStyle}>
             {/* React pushes a null ref the first time, so we're filtering those out. */}
             {/* see https://reactjs.org/docs/refs-and-the-dom.html#caveats-with-callback-refs */}
-            {features.map(feature => (
+            {features.map((feature) => (
               <div
                 className={`slider-frame${single ? ' single' : ''}`}
                 style={frameStyle}
-                ref={el => el && this.frames.push(el)}
+                ref={(el) => el && this.frames.push(el)}
                 key={feature.heading}
               >
                 <div className="feature">
@@ -188,20 +188,20 @@ class FeaturedSlider extends Component {
                     <h3
                       className="g-type-display-4"
                       dangerouslySetInnerHTML={{
-                        __html: marked.inlineLexer(feature.heading, [])
+                        __html: marked.inlineLexer(feature.heading, []),
                       }}
                     />
                     <p
                       className="g-type-body"
                       dangerouslySetInnerHTML={{
-                        __html: marked.inlineLexer(feature.content, [])
+                        __html: marked.inlineLexer(feature.content, []),
                       }}
                     />
                     <Button
                       theme={{
                         brand,
                         variant: 'secondary',
-                        background: theme
+                        background: theme,
                       }}
                       linkType={feature.link.type}
                       title={feature.link.text}

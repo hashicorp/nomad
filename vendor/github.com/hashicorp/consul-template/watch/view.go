@@ -11,11 +11,6 @@ import (
 	dep "github.com/hashicorp/consul-template/dependency"
 )
 
-const (
-	// The amount of time to do a blocking query for
-	defaultWaitTime = 60 * time.Second
-)
-
 // View is a representation of a Dependency and the most recent data it has
 // received from Consul.
 type View struct {
@@ -32,6 +27,9 @@ type View struct {
 	data         interface{}
 	receivedData bool
 	lastIndex    uint64
+
+	// blockQueryWaitTime is amount of time in seconds to do a blocking query for
+	blockQueryWaitTime time.Duration
 
 	// maxStale is the maximum amount of time to allow a query to be stale.
 	maxStale time.Duration
@@ -56,6 +54,9 @@ type NewViewInput struct {
 	// directly to the dependency.
 	Clients *dep.ClientSet
 
+	// BlockQueryWaitTime is amount of time in seconds to do a blocking query for
+	BlockQueryWaitTime time.Duration
+
 	// MaxStale is the maximum amount a time a query response is allowed to be
 	// stale before forcing a read from the leader.
 	MaxStale time.Duration
@@ -71,12 +72,13 @@ type NewViewInput struct {
 // NewView constructs a new view with the given inputs.
 func NewView(i *NewViewInput) (*View, error) {
 	return &View{
-		dependency: i.Dependency,
-		clients:    i.Clients,
-		maxStale:   i.MaxStale,
-		once:       i.Once,
-		retryFunc:  i.RetryFunc,
-		stopCh:     make(chan struct{}, 1),
+		dependency:         i.Dependency,
+		clients:            i.Clients,
+		blockQueryWaitTime: i.BlockQueryWaitTime,
+		maxStale:           i.MaxStale,
+		once:               i.Once,
+		retryFunc:          i.RetryFunc,
+		stopCh:             make(chan struct{}, 1),
 	}, nil
 }
 
@@ -201,7 +203,7 @@ func (v *View) fetch(doneCh, successCh chan<- struct{}, errCh chan<- error) {
 
 		data, rm, err := v.dependency.Fetch(v.clients, &dep.QueryOptions{
 			AllowStale: allowStale,
-			WaitTime:   defaultWaitTime,
+			WaitTime:   v.blockQueryWaitTime,
 			WaitIndex:  v.lastIndex,
 		})
 		if err != nil {

@@ -35,7 +35,7 @@ func TestACLPolicyListCommand(t *testing.T) {
 	policy.SetHash()
 	assert.Nil(state.UpsertACLPolicies(1000, []*structs.ACLPolicy{policy}))
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLPolicyListCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Attempt to list policies without a valid management token

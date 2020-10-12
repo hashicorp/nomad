@@ -11,8 +11,8 @@ Try {
     $version = "1.2.3"
     $url = "${releases}/vault/${version}/vault_${version}_windows_amd64.zip"
 
-    $configDir = "C:\opt\vault.d"
-    md $configDir
+    New-Item -ItemType Directory -Force -Path C:\opt\vault
+    New-Item -ItemType Directory -Force -Path C:\opt\vault.d
 
     # TODO: check sha!
     Write-Output "Downloading Vault from: $url"

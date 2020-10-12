@@ -21,7 +21,7 @@ func (c *OperatorKeygenCommand) Help() string {
 	helpText := `
 Usage: nomad operator keygen
 
-  Generates a new encryption key that can be used to configure the
+  Generates a new 32-byte encryption key that can be used to configure the
   agent to encrypt traffic. The output of this command is already
   in the proper format that the agent expects.
 `
@@ -31,13 +31,13 @@ Usage: nomad operator keygen
 func (c *OperatorKeygenCommand) Name() string { return "operator keygen" }
 
 func (c *OperatorKeygenCommand) Run(_ []string) int {
-	key := make([]byte, 16)
+	key := make([]byte, 32)
 	n, err := rand.Reader.Read(key)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error reading random data: %s", err))
 		return 1
 	}
-	if n != 16 {
+	if n != 32 {
 		c.Ui.Error(fmt.Sprintf("Couldn't read enough entropy. Generate more entropy!"))
 		return 1
 	}

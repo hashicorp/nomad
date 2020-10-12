@@ -12,24 +12,66 @@ import (
 // Connect struct. If the nomad Connect struct is nil, nil will be returned to
 // disable Connect for this service.
 func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.Networks) (*api.AgentServiceConnect, error) {
-	if nc == nil {
+	switch {
+	case nc == nil:
 		// no connect stanza means there is no connect service to register
 		return nil, nil
-	}
 
-	if nc.IsNative() {
+	case nc.IsGateway():
+		// gateway settings are configured on the service block on the consul side
+		return nil, nil
+
+	case nc.IsNative():
+		// the service is connect native
 		return &api.AgentServiceConnect{Native: true}, nil
+
+	case nc.HasSidecar():
+		sidecarReg, err := connectSidecarRegistration(serviceName, nc.SidecarService, networks)
+		if err != nil {
+			return nil, err
+		}
+		return &api.AgentServiceConnect{SidecarService: sidecarReg}, nil
+
+	default:
+		return nil, fmt.Errorf("Connect configuration empty for service %s", serviceName)
+	}
+}
+
+// newConnectGateway creates a new Consul AgentServiceConnectProxyConfig struct based on
+// a Nomad Connect struct. If the Nomad Connect struct does not contain a gateway, nil
+// will be returned as this service is not a gateway.
+func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.AgentServiceConnectProxyConfig {
+	if !connect.IsGateway() {
+		return nil
 	}
 
-	sidecarReg, err := connectSidecarRegistration(serviceName, nc.SidecarService, networks)
-	if err != nil {
-		return nil, err
+	proxy := connect.Gateway.Proxy
+
+	envoyConfig := make(map[string]interface{})
+
+	if len(proxy.EnvoyGatewayBindAddresses) > 0 {
+		envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
 	}
 
-	return &api.AgentServiceConnect{
-		Native:         false,
-		SidecarService: sidecarReg,
-	}, nil
+	if proxy.EnvoyGatewayNoDefaultBind {
+		envoyConfig["envoy_gateway_no_default_bind"] = true
+	}
+
+	if proxy.EnvoyGatewayBindTaggedAddresses {
+		envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
+	}
+
+	if proxy.ConnectTimeout != nil {
+		envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
+	}
+
+	if len(proxy.Config) > 0 {
+		for k, v := range proxy.Config {
+			envoyConfig[k] = v
+		}
+	}
+
+	return &api.AgentServiceConnectProxyConfig{Config: envoyConfig}
 }
 
 func connectSidecarRegistration(serviceName string, css *structs.ConsulSidecarService, networks structs.Networks) (*api.AgentServiceRegistration, error) {

@@ -12,7 +12,7 @@ description: |-
 <Placement
   groups={[
     ['job', 'group', 'service'],
-    ['job', 'group', 'task', 'service']
+    ['job', 'group', 'task', 'service'],
   ]}
 />
 
@@ -126,7 +126,7 @@ Connect][connect] integration.
 - `enable_tag_override` `(bool: false)` - Enables users of Consul's Catalog API
   to make changes to the tags of a service without having those changes be
   overwritten by Consul's anti-entropy mechanism. See Consul
-  [documentation](https://www.consul.io/docs/internals/anti-entropy.html#enable-tag-override)
+  [documentation](https://www.consul.io/docs/internals/anti-entropy#enable-tag-override)
   for more information.
 
 - `address_mode` `(string: "auto")` - Specifies what address (host or
@@ -202,6 +202,12 @@ scripts.
   service. Valid options are the empty string, `passing`, `warning`, and
   `critical`.
 
+- `success_before_passing` `(int:0)` - The number of consecutive successful checks
+  required before Consul will transition the service status to [`passing`][consul_passfail].
+
+- `failures_before_critical` `(int:0)` - The number of consecutive failing checks
+  required before Consul will transition the service status to [`critical`][consul_passfail].
+
 - `interval` `(string: <required>)` - Specifies the frequency of the health checks
   that Consul will perform. This is specified using a label suffix like "30s"
   or "1h". This must be greater than or equal to "1s"
@@ -240,7 +246,8 @@ scripts.
 - `task` `(string: <required>)` - Specifies the task associated with this
   check. Scripts are executed within the task's environment, and
   `check_restart` stanzas will apply to the specified task. For `checks` on group
-  level `services` only.
+  level `services` only. Inherits the [`service.task`][service_task] value if not
+  set.
 
 - `timeout` `(string: <required>)` - Specifies how long Consul will wait for a
   health check query to succeed. This is specified using a label suffix like
@@ -290,9 +297,9 @@ Nomad manages registering, updating, and deregistering services with Consul. It
 is important to understand when each of these steps happens and how they can be
 customized.
 
-**Registration**: Nomad will register `group` services and checks *before*
+**Registration**: Nomad will register `group` services and checks _before_
 starting any tasks. Services and checks for a specific `task` are registered
-*after* the task has started.
+_after_ the task has started.
 
 **Updating**: If a service or check definition is updated, Nomad will update
 the service in Consul as well. Consul is updated without restarting a task.
@@ -695,8 +702,9 @@ advertise and check directly since Nomad isn't managing any port assignments.
   client does not have access to the file system of a task for that driver.
 </small>
 
-[check_restart_stanza]: /docs/job-specification/check_restart 'check_restart stanza'
-[consul_grpc]: https://www.consul.io/api/agent/check.html#grpc
+[check_restart_stanza]: /docs/job-specification/check_restart
+[consul_grpc]: https://www.consul.io/api/agent/check#grpc
+[consul_passfail]: https://www.consul.io/docs/agent/checks#success-failures-before-passing-critical
 [service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
@@ -707,3 +715,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [shutdowndelay]: /docs/job-specification/task#shutdown_delay
 [killsignal]: /docs/job-specification/task#kill_signal
 [killtimeout]: /docs/job-specification/task#kill_timeout
+[service_task]: /docs/job-specification/service#task-1

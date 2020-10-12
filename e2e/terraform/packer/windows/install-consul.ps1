@@ -11,9 +11,8 @@ Try {
     $version = "1.7.3"
     $url = "${releases}/consul/${version}/consul_${version}_windows_amd64.zip"
 
-    $configDir = "C:\opt\consul.d"
-    md $configDir
-    md C:\opt\consul
+    New-Item -ItemType Directory -Force -Path C:\opt\consul
+    New-Item -ItemType Directory -Force -Path C:\opt\consul.d
 
     # TODO: check sha!
     Write-Output "Downloading Consul from: $url"

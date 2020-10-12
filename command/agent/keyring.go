@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
 )
@@ -17,13 +18,26 @@ const (
 )
 
 // initKeyring will create a keyring file at a given path.
-func initKeyring(path, key string) error {
+func initKeyring(path, key string, l log.Logger) error {
 	var keys []string
 
 	if keyBytes, err := base64.StdEncoding.DecodeString(key); err != nil {
 		return fmt.Errorf("Invalid key: %s", err)
 	} else if err := memberlist.ValidateKey(keyBytes); err != nil {
 		return fmt.Errorf("Invalid key: %s", err)
+	}
+
+	// Check for AES-256 key size (32-bytes)
+	if len(key) < 32 {
+		var encMethod string
+		switch len(key) {
+		case 16:
+			encMethod = "AES-128"
+		case 24:
+			encMethod = "AES-192"
+		}
+		msg := fmt.Sprintf("given %d-byte gossip key enables %s encryption, generate a 32-byte key to enable AES-256", len(key), encMethod)
+		l.Info(msg)
 	}
 
 	// Just exit if the file already exists.

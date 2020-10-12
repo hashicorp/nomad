@@ -101,6 +101,10 @@ const (
 	// Update sidecar_task.html when updating this.
 	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
 
+	// defaultConnectGatewayImage is the image set in the node meta by default
+	// to be used by Consul Connect Gateway tasks.
+	defaultConnectGatewayImage = defaultConnectSidecarImage
+
 	// defaultConnectLogLevel is the log level set in the node meta by default
 	// to be used by Consul Connect sidecar tasks
 	defaultConnectLogLevel = "info"
@@ -405,9 +409,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
-	// Build the white/blacklists of drivers.
-	allowlistDrivers := cfg.ReadStringListToMap("driver.whitelist")
-	blocklistDrivers := cfg.ReadStringListToMap("driver.blacklist")
+	// Build the allow/denylists of drivers.
+	// COMPAT(0.13) uses inclusive language. white/blacklist are there for backward compatible reasons only.
+	allowlistDrivers := cfg.ReadStringListToMap("driver.allowlist", "driver.whitelist")
+	blocklistDrivers := cfg.ReadStringListToMap("driver.denylist", "driver.blacklist")
 
 	// Setup the csi manager
 	csiConfig := &csimanager.Config{
@@ -1385,6 +1390,9 @@ func (c *Client) setupNode() error {
 	// Setup default meta
 	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
 		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
+	}
+	if _, ok := node.Meta["connect.gateway_image"]; !ok {
+		node.Meta["connect.gateway_image"] = defaultConnectGatewayImage
 	}
 	if _, ok := node.Meta["connect.log_level"]; !ok {
 		node.Meta["connect.log_level"] = defaultConnectLogLevel
@@ -2836,7 +2844,7 @@ func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats, ba
 }
 
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
-func (c *Client) setGaugeForAllocationStats(nodeID string) {
+func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.Label) {
 	c.configLock.RLock()
 	node := c.configCopy.Node
 	c.configLock.RUnlock()
@@ -2846,9 +2854,9 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 
 	// Emit allocated
 	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.Flattened.Memory.MemoryMB), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.Shared.DiskMB), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.Flattened.Memory.MemoryMB), baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.Shared.DiskMB), baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
@@ -2859,7 +2867,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 
 	for _, n := range allocated.Flattened.Networks {
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{
+			labels := append(baseLabels, metrics.Label{
 				Name:  "device",
 				Value: n.Device,
 			})
@@ -2877,9 +2885,9 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 	unallocatedCpu := total.Cpu.CpuShares - res.Cpu.CpuShares - allocated.Flattened.Cpu.CpuShares
 
 	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), baseLabels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
@@ -2899,7 +2907,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string) {
 
 		unallocatedMbits := n.MBits - usedMbits
 		if !c.config.DisableTaggedMetrics {
-			labels := append(c.baseLabels, metrics.Label{
+			labels := append(baseLabels, metrics.Label{
 				Name:  "device",
 				Value: n.Device,
 			})
@@ -2926,16 +2934,7 @@ func (c *Client) setGaugeForUptime(hStats *stats.HostStats, baseLabels []metrics
 func (c *Client) emitHostStats() {
 	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
-
-	c.configLock.RLock()
-	nodeStatus := c.configCopy.Node.Status
-	nodeEligibility := c.configCopy.Node.SchedulingEligibility
-	c.configLock.RUnlock()
-
-	labels := append(c.baseLabels,
-		metrics.Label{Name: "node_status", Value: nodeStatus},
-		metrics.Label{Name: "node_scheduling_eligibility", Value: nodeEligibility},
-	)
+	labels := c.labels()
 
 	c.setGaugeForMemoryStats(nodeID, hStats, labels)
 	c.setGaugeForUptime(hStats, labels)
@@ -2946,8 +2945,9 @@ func (c *Client) emitHostStats() {
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
 	nodeID := c.NodeID()
+	labels := c.labels()
 
-	c.setGaugeForAllocationStats(nodeID)
+	c.setGaugeForAllocationStats(nodeID, labels)
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
@@ -2970,11 +2970,11 @@ func (c *Client) emitClientMetrics() {
 	}
 
 	if !c.config.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "migrating"}, float32(migrating), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "blocked"}, float32(blocked), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), c.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), c.baseLabels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "migrating"}, float32(migrating), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "blocked"}, float32(blocked), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "pending"}, float32(pending), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "running"}, float32(running), labels)
+		metrics.SetGaugeWithLabels([]string{"client", "allocations", "terminal"}, float32(terminal), labels)
 	}
 
 	if c.config.BackwardsCompatibleMetrics {
@@ -2984,6 +2984,19 @@ func (c *Client) emitClientMetrics() {
 		metrics.SetGauge([]string{"client", "allocations", "running", nodeID}, float32(running))
 		metrics.SetGauge([]string{"client", "allocations", "terminal", nodeID}, float32(terminal))
 	}
+}
+
+// labels takes the base labels and appends the node state
+func (c *Client) labels() []metrics.Label {
+	c.configLock.RLock()
+	nodeStatus := c.configCopy.Node.Status
+	nodeEligibility := c.configCopy.Node.SchedulingEligibility
+	c.configLock.RUnlock()
+
+	return append(c.baseLabels,
+		metrics.Label{Name: "node_status", Value: nodeStatus},
+		metrics.Label{Name: "node_scheduling_eligibility", Value: nodeEligibility},
+	)
 }
 
 func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.ComparableResources {

@@ -28,6 +28,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
@@ -599,7 +600,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 	}
 
-	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	cfg.Devices = specconv.AllowedDevices
 	if len(command.Devices) > 0 {
 		devs, err := cmdDevices(command.Devices)
 		if err != nil {
@@ -732,12 +733,13 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{
-				AllowAllDevices:  nil,
 				MemorySwappiness: nil,
-				AllowedDevices:   lconfigs.DefaultAllowedDevices,
 			},
 		},
 		Version: "1.0.0",
+	}
+	for _, device := range specconv.AllowedDevices {
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.DeviceRule)
 	}
 
 	if err := configureCapabilities(cfg, command); err != nil {

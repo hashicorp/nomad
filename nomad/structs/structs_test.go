@@ -128,6 +128,7 @@ func TestJob_ValidateScaling(t *testing.T) {
 
 	p := &ScalingPolicy{
 		Policy:  nil, // allowed to be nil
+		Type:    ScalingPolicyTypeHorizontal,
 		Min:     5,
 		Max:     5,
 		Enabled: true,
@@ -145,7 +146,6 @@ func TestJob_ValidateScaling(t *testing.T) {
 	require.Error(err)
 	mErr := err.(*multierror.Error)
 	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
 
@@ -157,7 +157,6 @@ func TestJob_ValidateScaling(t *testing.T) {
 	require.Error(err)
 	mErr = err.(*multierror.Error)
 	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "maximum count must not be less than minimum count")
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
 
 	// min <= count
@@ -169,6 +168,30 @@ func TestJob_ValidateScaling(t *testing.T) {
 	mErr = err.(*multierror.Error)
 	require.Len(mErr.Errors, 1)
 	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
+}
+
+func TestJob_ValidateNullChar(t *testing.T) {
+	assert := assert.New(t)
+
+	// job id should not allow null characters
+	job := testJob()
+	job.ID = "id_with\000null_character"
+	assert.Error(job.Validate(), "null character in job ID should not validate")
+
+	// job name should not allow null characters
+	job.ID = "happy_little_job_id"
+	job.Name = "my job name with \000 characters"
+	assert.Error(job.Validate(), "null character in job name should not validate")
+
+	// task group name should not allow null characters
+	job.Name = "my job"
+	job.TaskGroups[0].Name = "oh_no_another_\000_char"
+	assert.Error(job.Validate(), "null character in task group name should not validate")
+
+	// task name should not allow null characters
+	job.TaskGroups[0].Name = "so_much_better"
+	job.TaskGroups[0].Tasks[0].Name = "ive_had_it_with_these_\000_chars_in_these_names"
+	assert.Error(job.Validate(), "null character in task name should not validate")
 }
 
 func TestJob_Warnings(t *testing.T) {
@@ -608,9 +631,6 @@ func TestJob_ConnectTasks(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
 
-	// todo(shoenig): this will need some updates when we support connect native
-	//  tasks, which will have a different Kind format, probably.
-
 	j0 := &Job{
 		TaskGroups: []*TaskGroup{{
 			Name: "tg1",
@@ -633,15 +653,35 @@ func TestJob_ConnectTasks(t *testing.T) {
 				Name: "connect-proxy-task2",
 				Kind: "connect-proxy:task2",
 			}},
+		}, {
+			Name: "tg3",
+			Tasks: []*Task{{
+				Name: "ingress",
+				Kind: "connect-ingress:ingress",
+			}},
+		}, {
+			Name: "tg4",
+			Tasks: []*Task{{
+				Name: "frontend",
+				Kind: "connect-native:uuid-fe",
+			}, {
+				Name: "generator",
+				Kind: "connect-native:uuid-api",
+			}},
 		}},
 	}
 
 	connectTasks := j0.ConnectTasks()
 
-	exp := map[string][]string{
-		"tg1": {"connect-proxy-task1", "connect-proxy-task3"},
-		"tg2": {"connect-proxy-task2"},
+	exp := []TaskKind{
+		NewTaskKind(ConnectProxyPrefix, "task1"),
+		NewTaskKind(ConnectProxyPrefix, "task3"),
+		NewTaskKind(ConnectProxyPrefix, "task2"),
+		NewTaskKind(ConnectIngressPrefix, "ingress"),
+		NewTaskKind(ConnectNativePrefix, "uuid-fe"),
+		NewTaskKind(ConnectNativePrefix, "uuid-api"),
 	}
+
 	r.Equal(exp, connectTasks)
 }
 
@@ -828,6 +868,15 @@ func TestTask_UsesConnect(t *testing.T) {
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
 	})
+
+	t.Run("ingress gateway", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectIngressPrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
 }
 
 func TestTaskGroup_UsesConnect(t *testing.T) {
@@ -854,6 +903,16 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 					SidecarService: &ConsulSidecarService{
 						Port: "9090",
 					},
+				},
+			}},
+		}, true)
+	})
+
+	t.Run("tg uses gateway", func(t *testing.T) {
+		try(t, &TaskGroup{
+			Services: []*Service{{
+				Connect: &ConsulConnect{
+					Gateway: consulIngressGateway1,
 				},
 			}},
 		}, true)
@@ -1340,6 +1399,67 @@ func TestTask_Validate(t *testing.T) {
 	}
 	if !strings.Contains(mErr.Errors[1].Error(), "task level: distinct_property") {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+func TestTask_Validate_Resources(t *testing.T) {
+	cases := []struct {
+		name string
+		res  *Resources
+	}{
+		{
+			name: "Minimum",
+			res:  MinResources(),
+		},
+		{
+			name: "Default",
+			res:  DefaultResources(),
+		},
+		{
+			name: "Full",
+			res: &Resources{
+				CPU:      1000,
+				MemoryMB: 1000,
+				IOPS:     1000,
+				Networks: []*NetworkResource{
+					{
+						Mode:   "host",
+						Device: "localhost",
+						CIDR:   "127.0.0.0/8",
+						IP:     "127.0.0.1",
+						MBits:  1000,
+						DNS: &DNSConfig{
+							Servers:  []string{"localhost"},
+							Searches: []string{"localdomain"},
+							Options:  []string{"ndots:5"},
+						},
+						ReservedPorts: []Port{
+							{
+								Label:       "reserved",
+								Value:       1234,
+								To:          1234,
+								HostNetwork: "loopback",
+							},
+						},
+						DynamicPorts: []Port{
+							{
+								Label:       "dynamic",
+								Value:       5678,
+								To:          5678,
+								HostNetwork: "loopback",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, tc.res.Validate())
+		})
 	}
 }
 
@@ -2001,6 +2121,38 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
 		t.Fatalf("err: %s", err)
 	}
+}
+
+func TestLogConfig_Equals(t *testing.T) {
+	t.Run("both nil", func(t *testing.T) {
+		a := (*LogConfig)(nil)
+		b := (*LogConfig)(nil)
+		require.True(t, a.Equals(b))
+	})
+
+	t.Run("one nil", func(t *testing.T) {
+		a := new(LogConfig)
+		b := (*LogConfig)(nil)
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("max files", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		b := &LogConfig{MaxFiles: 2, MaxFileSizeMB: 200}
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("max file size", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 100}
+		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		require.False(t, a.Equals(b))
+	})
+
+	t.Run("same", func(t *testing.T) {
+		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
+		require.True(t, a.Equals(b))
+	})
 }
 
 func TestTask_Validate_CSIPluginConfig(t *testing.T) {
@@ -4800,6 +4952,175 @@ func TestDispatchPayloadConfig_Validate(t *testing.T) {
 	}
 }
 
+func TestScalingPolicy_Canonicalize(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    *ScalingPolicy
+		expected *ScalingPolicy
+	}{
+		{
+			name:     "empty policy",
+			input:    &ScalingPolicy{},
+			expected: &ScalingPolicy{Type: ScalingPolicyTypeHorizontal},
+		},
+		{
+			name:     "policy with type",
+			input:    &ScalingPolicy{Type: "other-type"},
+			expected: &ScalingPolicy{Type: "other-type"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require := require.New(t)
+
+			c.input.Canonicalize()
+			require.Equal(c.expected, c.input)
+		})
+	}
+}
+
+func TestScalingPolicy_Validate(t *testing.T) {
+	type testCase struct {
+		name        string
+		input       *ScalingPolicy
+		expectedErr string
+	}
+
+	cases := []testCase{
+		{
+			name: "full horizontal policy",
+			input: &ScalingPolicy{
+				Policy: map[string]interface{}{
+					"key": "value",
+				},
+				Type:    ScalingPolicyTypeHorizontal,
+				Min:     5,
+				Max:     5,
+				Enabled: true,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetJob:       "my-job",
+					ScalingTargetGroup:     "my-task-group",
+				},
+			},
+		},
+		{
+			name:        "missing type",
+			input:       &ScalingPolicy{},
+			expectedErr: "missing scaling policy type",
+		},
+		{
+			name: "invalid type",
+			input: &ScalingPolicy{
+				Type: "not valid",
+			},
+			expectedErr: `scaling policy type "not valid" is not valid`,
+		},
+		{
+			name: "min < 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  -1,
+				Max:  5,
+			},
+			expectedErr: "minimum count must be specified and non-negative",
+		},
+		{
+			name: "max < 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  5,
+				Max:  -1,
+			},
+			expectedErr: "maximum count must be specified and non-negative",
+		},
+		{
+			name: "min > max",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  10,
+				Max:  0,
+			},
+			expectedErr: "maximum count must not be less than minimum count",
+		},
+		{
+			name: "min == max",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  10,
+				Max:  10,
+			},
+		},
+		{
+			name: "min == 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  0,
+				Max:  10,
+			},
+		},
+		{
+			name: "max == 0",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Min:  0,
+				Max:  0,
+			},
+		},
+		{
+			name: "horizontal missing namespace",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetJob:   "my-job",
+					ScalingTargetGroup: "my-group",
+				},
+			},
+			expectedErr: "missing target namespace",
+		},
+		{
+			name: "horizontal missing job",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetGroup:     "my-group",
+				},
+			},
+			expectedErr: "missing target job",
+		},
+		{
+			name: "horizontal missing group",
+			input: &ScalingPolicy{
+				Type: ScalingPolicyTypeHorizontal,
+				Target: map[string]string{
+					ScalingTargetNamespace: "my-namespace",
+					ScalingTargetJob:       "my-job",
+				},
+			},
+			expectedErr: "missing target group",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require := require.New(t)
+
+			err := c.input.Validate()
+
+			if len(c.expectedErr) > 0 {
+				require.Error(err)
+				mErr := err.(*multierror.Error)
+				require.Len(mErr.Errors, 1)
+				require.Contains(mErr.Errors[0].Error(), c.expectedErr)
+			} else {
+				require.NoError(err)
+			}
+		})
+	}
+}
+
 func TestIsRecoverable(t *testing.T) {
 	if IsRecoverable(nil) {
 		t.Errorf("nil should not be recoverable")
@@ -5509,86 +5830,108 @@ func TestNodeResources_Merge(t *testing.T) {
 	}, res)
 }
 
-func TestMultiregion_Validate(t *testing.T) {
-	require := require.New(t)
-	cases := []struct {
-		Name    string
-		JobType string
-		Case    *Multiregion
-		Errors  []string
-	}{
-		{
-			Name:    "empty valid multiregion spec",
-			JobType: JobTypeService,
-			Case:    &Multiregion{},
-			Errors:  []string{},
-		},
-
-		{
-			Name:    "non-empty valid multiregion spec",
-			JobType: JobTypeService,
-			Case: &Multiregion{
-				Strategy: &MultiregionStrategy{
-					MaxParallel: 2,
-					OnFailure:   "fail_all",
-				},
-				Regions: []*MultiregionRegion{
+func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
+	a := &AllocatedSharedResources{
+		Networks: []*NetworkResource{
+			{
+				IP: "127.0.0.1",
+				DynamicPorts: []Port{
 					{
-
-						Count:       2,
-						Datacenters: []string{"west-1", "west-2"},
-						Meta:        map[string]string{},
-					},
-					{
-						Name:        "east",
-						Count:       1,
-						Datacenters: []string{"east-1"},
-						Meta:        map[string]string{},
+						Label: "http",
+						Value: 22222,
+						To:    8080,
 					},
 				},
-			},
-			Errors: []string{},
-		},
-
-		{
-			Name:    "repeated region, wrong strategy, missing DCs",
-			JobType: JobTypeBatch,
-			Case: &Multiregion{
-				Strategy: &MultiregionStrategy{
-					MaxParallel: 2,
-				},
-				Regions: []*MultiregionRegion{
+				ReservedPorts: []Port{
 					{
-						Name:        "west",
-						Datacenters: []string{"west-1", "west-2"},
-					},
-
-					{
-						Name: "west",
+						Label: "redis",
+						Value: 6783,
+						To:    6783,
 					},
 				},
-			},
-			Errors: []string{
-				"Multiregion region \"west\" can't be listed twice",
-				"Multiregion region \"west\" must have at least 1 datacenter",
-				"Multiregion batch jobs can't have an update strategy",
 			},
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.Case.Validate(tc.JobType, []string{})
-			if len(tc.Errors) == 0 {
-				require.NoError(err)
-			} else {
-				mErr := err.(*multierror.Error)
-				for i, expectedErr := range tc.Errors {
-					if !strings.Contains(mErr.Errors[i].Error(), expectedErr) {
-						t.Fatalf("err: %s, expected: %s", err, expectedErr)
-					}
-				}
-			}
-		})
-	}
+	a.Canonicalize()
+	require.Exactly(t, AllocatedPorts{
+		{
+			Label:  "http",
+			Value:  22222,
+			To:     8080,
+			HostIP: "127.0.0.1",
+		},
+		{
+			Label:  "redis",
+			Value:  6783,
+			To:     6783,
+			HostIP: "127.0.0.1",
+		},
+	}, a.Ports)
+}
+
+func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
+	t.Run("service task not set", func(t *testing.T) {
+		tg := &TaskGroup{
+			Name: "group1",
+			Services: []*Service{{
+				Name:     "service1",
+				TaskName: "", // unset
+				Checks: []*ServiceCheck{{
+					Name:     "check1",
+					Type:     "script",
+					TaskName: "", // unset
+				}, {
+					Name: "check2",
+					Type: "ttl", // not script
+				}, {
+					Name:     "check3",
+					Type:     "script",
+					TaskName: "", // unset
+				}},
+			}, {
+				Name: "service2",
+				Checks: []*ServiceCheck{{
+					Type:     "script",
+					TaskName: "task1", // set
+				}},
+			}, {
+				Name:     "service3",
+				TaskName: "", // unset
+				Checks: []*ServiceCheck{{
+					Name:     "check1",
+					Type:     "script",
+					TaskName: "", // unset
+				}},
+			}},
+		}
+
+		errStr := tg.validateScriptChecksInGroupServices().Error()
+		require.Contains(t, errStr, "Service [group1]->service1 or Check check1 must specify task parameter")
+		require.Contains(t, errStr, "Service [group1]->service1 or Check check3 must specify task parameter")
+		require.Contains(t, errStr, "Service [group1]->service3 or Check check1 must specify task parameter")
+	})
+
+	t.Run("service task set", func(t *testing.T) {
+		tgOK := &TaskGroup{
+			Name: "group1",
+			Services: []*Service{{
+				Name:     "service1",
+				TaskName: "task1",
+				Checks: []*ServiceCheck{{
+					Name: "check1",
+					Type: "script",
+				}, {
+					Name: "check2",
+					Type: "ttl",
+				}, {
+					Name: "check3",
+					Type: "script",
+				}},
+			}},
+		}
+
+		mErrOK := tgOK.validateScriptChecksInGroupServices()
+		require.Nil(t, mErrOK)
+	})
 }

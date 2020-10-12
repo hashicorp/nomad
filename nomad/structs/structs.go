@@ -203,6 +203,7 @@ type RPCInfo interface {
 	AllowStaleRead() bool
 	IsForwarded() bool
 	SetForwarded()
+	HasTimedOut(since time.Time, rpcHoldTimeout time.Duration) bool
 }
 
 // InternalRpcInfo allows adding internal RPC metadata to an RPC. This struct
@@ -280,6 +281,13 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
+}
+
+func (q QueryOptions) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
+	if q.MinQueryIndex > 0 {
+		return time.Since(start) > (q.MaxQueryTime + rpcHoldTimeout)
+	}
+	return time.Since(start) > rpcHoldTimeout
 }
 
 // AgentPprofRequest is used to request a pprof report for a given node.
@@ -366,6 +374,10 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
+}
+
+func (w WriteRequest) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
+	return time.Since(start) > rpcHoldTimeout
 }
 
 // QueryMeta allows a query response to include potentially
@@ -578,6 +590,10 @@ type JobDeregisterRequest struct {
 	// whether the job is just marked as stopped and will be removed by the
 	// garbage collector
 	Purge bool
+
+	// Global controls whether all regions of a multi-region job are
+	// deregistered. It is ignored for single-region jobs.
+	Global bool
 
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
@@ -2083,7 +2099,7 @@ func DefaultResources() *Resources {
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      20,
+		CPU:      1,
 		MemoryMB: 10,
 	}
 }
@@ -2206,11 +2222,6 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
-	}
-	for i, n := range r.Networks {
-		if err := n.MeetsMinResources(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("network resource at index %d failed: %v", i, err))
-		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -2440,16 +2451,6 @@ func (n *NetworkResource) Canonicalize() {
 			n.ReservedPorts[i].HostNetwork = "default"
 		}
 	}
-}
-
-// MeetsMinResources returns an error if the resources specified are less than
-// the minimum allowed.
-func (n *NetworkResource) MeetsMinResources() error {
-	var mErr multierror.Error
-	if n.MBits < 1 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MBits value is 1; got %d", n.MBits))
-	}
-	return mErr.ErrorOrNil()
 }
 
 // Copy returns a deep copy of the network resource
@@ -3500,6 +3501,23 @@ func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
 	a.DiskMB -= delta.DiskMB
 }
 
+func (a *AllocatedSharedResources) Canonicalize() {
+	if len(a.Networks) > 0 {
+		if len(a.Networks[0].DynamicPorts)+len(a.Networks[0].ReservedPorts) > 0 && len(a.Ports) == 0 {
+			for _, ports := range [][]Port{a.Networks[0].DynamicPorts, a.Networks[0].ReservedPorts} {
+				for _, p := range ports {
+					a.Ports = append(a.Ports, AllocatedPortMapping{
+						Label:  p.Label,
+						Value:  p.Value,
+						To:     p.To,
+						HostIP: a.Networks[0].IP,
+					})
+				}
+			}
+		}
+	}
+}
+
 // AllocatedCpuResources captures the allocated CPU resources.
 type AllocatedCpuResources struct {
 	CpuShares int64
@@ -3939,9 +3957,13 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job ID"))
 	} else if strings.Contains(j.ID, " ") {
 		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a space"))
+	} else if strings.Contains(j.ID, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a null chararacter"))
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	} else if strings.Contains(j.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job Name contains a null chararacter"))
 	}
 	if j.Namespace == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
@@ -4227,25 +4249,43 @@ func (j *Job) VaultPolicies() map[string]map[string]*Vault {
 	return policies
 }
 
-// Connect tasks returns the set of Consul Connect enabled tasks that will
-// require a Service Identity token, if Consul ACLs are enabled.
+// ConnectTasks returns the set of Consul Connect enabled tasks defined on the
+// job that will require a Service Identity token in the case that Consul ACLs
+// are enabled. The TaskKind.Value is the name of the Consul service.
 //
 // This method is meaningful only after the Job has passed through the job
 // submission Mutator functions.
-//
-// task group -> []task
-func (j *Job) ConnectTasks() map[string][]string {
-	m := make(map[string][]string)
+func (j *Job) ConnectTasks() []TaskKind {
+	var kinds []TaskKind
 	for _, tg := range j.TaskGroups {
 		for _, task := range tg.Tasks {
-			if task.Kind.IsConnectProxy() {
-				// todo(shoenig): when we support native, probably need to check
-				//  an additional TBD TaskKind as well.
-				m[tg.Name] = append(m[tg.Name], task.Name)
+			if task.Kind.IsConnectProxy() ||
+				task.Kind.IsConnectNative() ||
+				task.Kind.IsAnyConnectGateway() {
+				kinds = append(kinds, task.Kind)
 			}
 		}
 	}
-	return m
+	return kinds
+}
+
+// ConfigEntries accumulates the Consul Configuration Entries defined in task groups
+// of j.
+//
+// Currently Nomad only supports entries for connect ingress gateways.
+func (j *Job) ConfigEntries() map[string]*ConsulIngressConfigEntry {
+	igEntries := make(map[string]*ConsulIngressConfigEntry)
+	for _, tg := range j.TaskGroups {
+		for _, service := range tg.Services {
+			if service.Connect.IsGateway() {
+				if ig := service.Connect.Gateway.Ingress; ig != nil {
+					igEntries[service.Name] = ig
+				}
+				// imagine also accumulating other entry types in the future
+			}
+		}
+	}
+	return igEntries
 }
 
 // RequiredSignals returns a mapping of task groups to tasks to their required
@@ -4605,41 +4645,6 @@ func (m *Multiregion) Copy() *Multiregion {
 	return copy
 }
 
-func (m *Multiregion) Validate(jobType string, jobDatacenters []string) error {
-	var mErr multierror.Error
-	seen := map[string]struct{}{}
-	for _, region := range m.Regions {
-		if _, ok := seen[region.Name]; ok {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Multiregion region %q can't be listed twice",
-					region.Name))
-		}
-		seen[region.Name] = struct{}{}
-		if len(region.Datacenters) == 0 && len(jobDatacenters) == 0 {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Multiregion region %q must have at least 1 datacenter",
-					region.Name),
-			)
-		}
-	}
-	if m.Strategy != nil {
-		switch jobType {
-		case JobTypeBatch:
-			if m.Strategy.OnFailure != "" || m.Strategy.MaxParallel != 0 {
-				mErr.Errors = append(mErr.Errors,
-					errors.New("Multiregion batch jobs can't have an update strategy"))
-			}
-		case JobTypeSystem:
-			if m.Strategy.OnFailure != "" {
-				mErr.Errors = append(mErr.Errors,
-					errors.New("Multiregion system jobs can't have an on_failure setting"))
-			}
-		default: // service
-		}
-	}
-	return mErr.ErrorOrNil()
-}
-
 type MultiregionStrategy struct {
 	MaxParallel int
 	OnFailure   string
@@ -4910,7 +4915,8 @@ func (d *DispatchPayloadConfig) Validate() error {
 }
 
 const (
-	TaskLifecycleHookPrestart = "prestart"
+	TaskLifecycleHookPrestart  = "prestart"
+	TaskLifecycleHookPoststart = "poststart"
 )
 
 type TaskLifecycleConfig struct {
@@ -4934,6 +4940,7 @@ func (d *TaskLifecycleConfig) Validate() error {
 
 	switch d.Hook {
 	case TaskLifecycleHookPrestart:
+	case TaskLifecycleHookPoststart:
 	case "":
 		return fmt.Errorf("no lifecycle hook provided")
 	default:
@@ -5075,6 +5082,9 @@ type ScalingPolicy struct {
 	// ID is a generated UUID used for looking up the scaling policy
 	ID string
 
+	// Type is the type of scaling performed by the policy
+	Type string
+
 	// Target contains information about the target of the scaling policy, like job and group
 	Target map[string]string
 
@@ -5098,7 +5108,95 @@ const (
 	ScalingTargetNamespace = "Namespace"
 	ScalingTargetJob       = "Job"
 	ScalingTargetGroup     = "Group"
+	ScalingTargetTask      = "Task"
+
+	ScalingPolicyTypeHorizontal = "horizontal"
 )
+
+func (p *ScalingPolicy) Canonicalize() {
+	if p.Type == "" {
+		p.Type = ScalingPolicyTypeHorizontal
+	}
+}
+
+func (p *ScalingPolicy) Copy() *ScalingPolicy {
+	if p == nil {
+		return nil
+	}
+
+	opaquePolicyConfig, err := copystructure.Copy(p.Policy)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	c := ScalingPolicy{
+		ID:          p.ID,
+		Policy:      opaquePolicyConfig.(map[string]interface{}),
+		Enabled:     p.Enabled,
+		Type:        p.Type,
+		Min:         p.Min,
+		Max:         p.Max,
+		CreateIndex: p.CreateIndex,
+		ModifyIndex: p.ModifyIndex,
+	}
+	c.Target = make(map[string]string, len(p.Target))
+	for k, v := range p.Target {
+		c.Target[k] = v
+	}
+	return &c
+}
+
+func (p *ScalingPolicy) Validate() error {
+	if p == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+
+	// Check policy type and target
+	if p.Type == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing scaling policy type"))
+	} else {
+		mErr.Errors = append(mErr.Errors, p.validateType().Errors...)
+	}
+
+	// Check Min and Max
+	if p.Max < 0 {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("maximum count must be specified and non-negative"))
+	} else {
+		if p.Max < p.Min {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("maximum count must not be less than minimum count"))
+		}
+	}
+
+	if p.Min < 0 {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("minimum count must be specified and non-negative"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (p *ScalingPolicy) validateTargetHorizontal() (mErr multierror.Error) {
+	if len(p.Target) == 0 {
+		// This is probably not a Nomad horizontal policy
+		return
+	}
+
+	// Nomad horizontal policies should have Namespace, Job and TaskGroup
+	if p.Target[ScalingTargetNamespace] == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing target namespace"))
+	}
+	if p.Target[ScalingTargetJob] == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing target job"))
+	}
+	if p.Target[ScalingTargetGroup] == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing target group"))
+	}
+	return
+}
 
 // Diff indicates whether the specification for a given scaling policy has changed
 func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
@@ -5121,6 +5219,7 @@ func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy 
 func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
 	stub := &ScalingPolicyListStub{
 		ID:          p.ID,
+		Type:        p.Type,
 		Target:      make(map[string]string),
 		Enabled:     p.Enabled,
 		CreateIndex: p.CreateIndex,
@@ -5150,6 +5249,7 @@ func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 type ScalingPolicyListStub struct {
 	ID          string
 	Enabled     bool
+	Type        string
 	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -5566,7 +5666,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
-	ntg.Scaling = CopyScalingPolicy(ntg.Scaling)
+	ntg.Scaling = ntg.Scaling.Copy()
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -5636,6 +5736,10 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.EphemeralDisk = DefaultEphemeralDisk()
 	}
 
+	if tg.Scaling != nil {
+		tg.Scaling.Canonicalize()
+	}
+
 	for _, service := range tg.Services {
 		service.Canonicalize(job.Name, tg.Name, "group")
 	}
@@ -5654,13 +5758,17 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	var mErr multierror.Error
 	if tg.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
+	} else if strings.Contains(tg.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group name contains null character"))
 	}
 	if tg.Count < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Task group count can't be negative"))
 	}
 	if len(tg.Tasks) == 0 {
+		// could be a lone consul gateway inserted by the connect mutator
 		mErr.Errors = append(mErr.Errors, errors.New("Missing tasks for task group"))
 	}
+
 	for idx, constr := range tg.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
@@ -5792,6 +5900,12 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	// Validate task group and task services
 	if err := tg.validateServices(); err != nil {
 		outer := fmt.Errorf("Task group service validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
+	// Validate group service script-checks
+	if err := tg.validateScriptChecksInGroupServices(); err != nil {
+		outer := fmt.Errorf("Task group service check validation failed: %v", err)
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
@@ -5944,6 +6058,26 @@ func (tg *TaskGroup) validateServices() error {
 	return mErr.ErrorOrNil()
 }
 
+// validateScriptChecksInGroupServices ensures group-level services with script
+// checks know what task driver to use. Either the service.task or service.check.task
+// parameter must be configured.
+func (tg *TaskGroup) validateScriptChecksInGroupServices() error {
+	var mErr multierror.Error
+	for _, service := range tg.Services {
+		if service.TaskName == "" {
+			for _, check := range service.Checks {
+				if check.Type == "script" && check.TaskName == "" {
+					mErr.Errors = append(mErr.Errors,
+						fmt.Errorf("Service [%s]->%s or Check %s must specify task parameter",
+							tg.Name, service.Name, check.Name,
+						))
+				}
+			}
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
 // validateScalingPolicy ensures that the scaling policy has consistent
 // min and max, not in conflict with the task group count
 func (tg *TaskGroup) validateScalingPolicy(j *Job) error {
@@ -5953,19 +6087,19 @@ func (tg *TaskGroup) validateScalingPolicy(j *Job) error {
 
 	var mErr multierror.Error
 
-	// was invalid or not specified; don't bother testing anything else involving max
-	if tg.Scaling.Max < 0 {
+	err := tg.Scaling.Validate()
+	if err != nil {
+		// prefix scaling policy errors
+		if me, ok := err.(*multierror.Error); ok {
+			for _, e := range me.Errors {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Scaling policy invalid: %s", e))
+			}
+		}
+	}
+
+	if tg.Scaling.Max < int64(tg.Count) {
 		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("Scaling policy invalid: maximum count must be specified and non-negative"))
-	} else {
-		if tg.Scaling.Max < tg.Scaling.Min {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
-		}
-		if tg.Scaling.Max < int64(tg.Count) {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
-		}
+			fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
 	}
 
 	if int64(tg.Count) < tg.Scaling.Min && !(j.IsMultiregion() && tg.Count == 0 && j.Region == "global") {
@@ -6011,10 +6145,28 @@ func (tg *TaskGroup) LookupTask(name string) *Task {
 	return nil
 }
 
+// UsesConnect for convenience returns true if the TaskGroup contains at least
+// one service that makes use of Consul Connect features.
+//
+// Currently used for validating that the task group contains one or more connect
+// aware services before generating a service identity token.
 func (tg *TaskGroup) UsesConnect() bool {
 	for _, service := range tg.Services {
 		if service.Connect != nil {
-			if service.Connect.IsNative() || service.Connect.HasSidecar() {
+			if service.Connect.IsNative() || service.Connect.HasSidecar() || service.Connect.IsGateway() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// UsesConnectGateway for convenience returns true if the TaskGroup contains at
+// least one service that makes use of Consul Connect Gateway features.
+func (tg *TaskGroup) UsesConnectGateway() bool {
+	for _, service := range tg.Services {
+		if service.Connect != nil {
+			if service.Connect.IsGateway() {
 				return true
 			}
 		}
@@ -6091,6 +6243,22 @@ const (
 type LogConfig struct {
 	MaxFiles      int
 	MaxFileSizeMB int
+}
+
+func (l *LogConfig) Equals(o *LogConfig) bool {
+	if l == nil || o == nil {
+		return l == o
+	}
+
+	if l.MaxFiles != o.MaxFiles {
+		return false
+	}
+
+	if l.MaxFileSizeMB != o.MaxFileSizeMB {
+		return false
+	}
+
+	return true
 }
 
 func (l *LogConfig) Copy() *LogConfig {
@@ -6215,9 +6383,9 @@ type Task struct {
 // UsesConnect is for conveniently detecting if the Task is able to make use
 // of Consul Connect features. This will be indicated in the TaskKind of the
 // Task, which exports known types of Tasks. UsesConnect will be true if the
-// task is a connect proxy, or if the task is connect native.
+// task is a connect proxy, connect native, or is a connect gateway.
 func (t *Task) UsesConnect() bool {
-	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative()
+	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative() || t.Kind.IsAnyConnectGateway()
 }
 
 func (t *Task) Copy() *Task {
@@ -6330,6 +6498,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		// We enforce this so that when creating the directory on disk it will
 		// not have any slashes.
 		mErr.Errors = append(mErr.Errors, errors.New("Task name cannot include slashes"))
+	} else if strings.Contains(t.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Task name cannot include null characters"))
 	}
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
@@ -6653,13 +6823,31 @@ func (k TaskKind) Value() string {
 	return ""
 }
 
-// IsConnectProxy returns true if the TaskKind is connect-proxy
-func (k TaskKind) IsConnectProxy() bool {
-	return strings.HasPrefix(string(k), ConnectProxyPrefix+":") && len(k) > len(ConnectProxyPrefix)+1
+func (k TaskKind) hasPrefix(prefix string) bool {
+	return strings.HasPrefix(string(k), prefix+":") && len(k) > len(prefix)+1
 }
 
+// IsConnectProxy returns true if the TaskKind is connect-proxy.
+func (k TaskKind) IsConnectProxy() bool {
+	return k.hasPrefix(ConnectProxyPrefix)
+}
+
+// IsConnectNative returns true if the TaskKind is connect-native.
 func (k TaskKind) IsConnectNative() bool {
-	return strings.HasPrefix(string(k), ConnectNativePrefix+":") && len(k) > len(ConnectNativePrefix)+1
+	return k.hasPrefix(ConnectNativePrefix)
+}
+
+func (k TaskKind) IsConnectIngress() bool {
+	return k.hasPrefix(ConnectIngressPrefix)
+}
+
+func (k TaskKind) IsAnyConnectGateway() bool {
+	switch {
+	case k.IsConnectIngress():
+		return true
+	default:
+		return false
+	}
 }
 
 const (
@@ -6670,6 +6858,22 @@ const (
 	// ConnectNativePrefix is the prefix used for fields referencing a Connect
 	// Native Task
 	ConnectNativePrefix = "connect-native"
+
+	// ConnectIngressPrefix is the prefix used for fields referencing a Consul
+	// Connect Ingress Gateway Proxy.
+	ConnectIngressPrefix = "connect-ingress"
+
+	// ConnectTerminatingPrefix is the prefix used for fields referencing a Consul
+	// Connect Terminating Gateway Proxy.
+	//
+	// Not yet supported.
+	// ConnectTerminatingPrefix = "connect-terminating"
+
+	// ConnectMeshPrefix is the prefix used for fields referencing a Consul Connect
+	// Mesh Gateway Proxy.
+	//
+	// Not yet supported.
+	// ConnectMeshPrefix = "connect-mesh"
 )
 
 // ValidateConnectProxyService checks that the service that is being
@@ -7487,9 +7691,12 @@ func (ta *TaskArtifact) Hash() string {
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation
-// directory. The prefix allows adding a prefix if the path will be joined, for
-// example a "task/local" prefix may be provided if the path will be joined
-// against that prefix.
+// directory.
+//
+// The prefix is to joined to the path (e.g. "task/local"), and this function
+// checks if path escapes the alloc dir, NOT the prefix directory within the alloc dir.
+// With prefix="task/local", it will return false for "../secret", but
+// true for "../../../../../../root" path; only the latter escapes the alloc dir
 func PathEscapesAllocDir(prefix, path string) (bool, error) {
 	// Verify the destination doesn't escape the tasks directory
 	alloc, err := filepath.Abs(filepath.Join("/", "alloc-dir/", "alloc-id/"))
@@ -9902,12 +10109,14 @@ func (p *Plan) PopUpdate(alloc *Allocation) {
 	}
 }
 
-func (p *Plan) AppendAlloc(alloc *Allocation) {
+// AppendAlloc appends the alloc to the plan allocations.
+// Uses the passed job if explicitly passed, otherwise
+// it is assumed the alloc will use the plan Job version.
+func (p *Plan) AppendAlloc(alloc *Allocation, job *Job) {
 	node := alloc.NodeID
 	existing := p.NodeAllocation[node]
 
-	// Normalize the job
-	alloc.Job = nil
+	alloc.Job = job
 
 	p.NodeAllocation[node] = append(existing, alloc)
 }

@@ -18,8 +18,7 @@ module('Acceptance | server detail', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await a11yAudit();
-    assert.ok(true, 'a11y audit passes');
+    await a11yAudit(assert);
   });
 
   test('visiting /servers/:server_name', async function(assert) {

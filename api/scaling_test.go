@@ -49,6 +49,9 @@ func TestScalingPolicies_ListPolicies(t *testing.T) {
 
 	// Check that the scaling policy references the right group
 	require.Equal(policy.Target["Group"], *job.TaskGroups[0].Name)
+
+	// Check that the scaling policy has the right type
+	require.Equal(ScalingPolicyTypeHorizontal, policy.Type)
 }
 
 func TestScalingPolicies_GetPolicy(t *testing.T) {
@@ -117,4 +120,5 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	require.Equal(policy.Enabled, resp.Enabled)
 	require.Equal(*policy.Min, *resp.Min)
 	require.Equal(policy.Max, resp.Max)
+	require.Equal(ScalingPolicyTypeHorizontal, resp.Type)
 }

@@ -17,7 +17,7 @@ func TestInitCommand_Implements(t *testing.T) {
 
 func TestInitCommand_Run(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -91,7 +91,7 @@ func TestInitCommand_defaultJob(t *testing.T) {
 
 func TestInitCommand_customFilename(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobInitCommand{Meta: Meta{Ui: ui}}
 	filename := "custom.nomad"
 

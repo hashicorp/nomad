@@ -8,6 +8,128 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestServiceCheck_Hash(t *testing.T) {
+	t.Parallel()
+
+	original := &ServiceCheck{
+		Name:                   "check",
+		SuccessBeforePassing:   3,
+		FailuresBeforeCritical: 4,
+	}
+
+	type sc = ServiceCheck
+	type tweaker = func(check *sc)
+
+	hash := func(c *sc) string {
+		return c.Hash("ServiceID")
+	}
+
+	t.Run("reflexive", func(t *testing.T) {
+		require.Equal(t, hash(original), hash(original))
+	})
+
+	// these tests use tweaker to modify 1 field and make the false assertion
+	// on comparing the resulting hash output
+
+	try := func(t *testing.T, tweak tweaker) {
+		originalHash := hash(original)
+		modifiable := original.Copy()
+		tweak(modifiable)
+		tweakedHash := hash(modifiable)
+		require.NotEqual(t, originalHash, tweakedHash)
+	}
+
+	t.Run("name", func(t *testing.T) {
+		try(t, func(s *sc) { s.Name = "newName" })
+	})
+
+	t.Run("success_before_passing", func(t *testing.T) {
+		try(t, func(s *sc) { s.SuccessBeforePassing = 99 })
+	})
+
+	t.Run("failures_before_critical", func(t *testing.T) {
+		try(t, func(s *sc) { s.FailuresBeforeCritical = 99 })
+	})
+}
+
+func TestServiceCheck_validate_PassingTypes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid", func(t *testing.T) {
+		for _, checkType := range []string{"tcp", "http", "grpc"} {
+			err := (&ServiceCheck{
+				Name:                 "check",
+				Type:                 checkType,
+				Path:                 "/path",
+				Interval:             1 * time.Second,
+				Timeout:              2 * time.Second,
+				SuccessBeforePassing: 3,
+			}).validate()
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                 "check",
+			Type:                 "script",
+			Command:              "/nothing",
+			Interval:             1 * time.Second,
+			Timeout:              2 * time.Second,
+			SuccessBeforePassing: 3,
+		}).validate()
+		require.EqualError(t, err, `success_before_passing not supported for check of type "script"`)
+	})
+}
+
+func TestServiceCheck_validate_FailingTypes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid", func(t *testing.T) {
+		for _, checkType := range []string{"tcp", "http", "grpc"} {
+			err := (&ServiceCheck{
+				Name:                   "check",
+				Type:                   checkType,
+				Path:                   "/path",
+				Interval:               1 * time.Second,
+				Timeout:                2 * time.Second,
+				FailuresBeforeCritical: 3,
+			}).validate()
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                   "check",
+			Type:                   "script",
+			Command:                "/nothing",
+			Interval:               1 * time.Second,
+			Timeout:                2 * time.Second,
+			SuccessBeforePassing:   0,
+			FailuresBeforeCritical: 3,
+		}).validate()
+		require.EqualError(t, err, `failures_before_critical not supported for check of type "script"`)
+	})
+}
+
+func TestServiceCheck_validate_PassFailZero_on_scripts(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                   "check",
+			Type:                   "script",
+			Command:                "/nothing",
+			Interval:               1 * time.Second,
+			Timeout:                2 * time.Second,
+			SuccessBeforePassing:   0, // script checks should still pass validation
+			FailuresBeforeCritical: 0, // script checks should still pass validation
+		}).validate()
+		require.NoError(t, err)
+	})
+}
+
 func TestService_Hash(t *testing.T) {
 	t.Parallel()
 
@@ -227,6 +349,85 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 	require.Exactly(t, expected, task)
 }
 
+func TestSidecarTask_Equals(t *testing.T) {
+	t.Parallel()
+
+	original := &SidecarTask{
+		Name:        "sidecar-task-1",
+		Driver:      "docker",
+		User:        "nobody",
+		Config:      map[string]interface{}{"foo": 1},
+		Env:         map[string]string{"color": "blue"},
+		Resources:   &Resources{MemoryMB: 300},
+		Meta:        map[string]string{"index": "1"},
+		KillTimeout: helper.TimeToPtr(2 * time.Second),
+		LogConfig: &LogConfig{
+			MaxFiles:      2,
+			MaxFileSizeMB: 300,
+		},
+		ShutdownDelay: helper.TimeToPtr(10 * time.Second),
+		KillSignal:    "SIGTERM",
+	}
+
+	t.Run("unmodified", func(t *testing.T) {
+		duplicate := original.Copy()
+		require.True(t, duplicate.Equals(original))
+	})
+
+	type st = SidecarTask
+	type tweaker = func(task *st)
+
+	try := func(t *testing.T, tweak tweaker) {
+		modified := original.Copy()
+		tweak(modified)
+		require.NotEqual(t, original, modified)
+	}
+
+	t.Run("mod name", func(t *testing.T) {
+		try(t, func(s *st) { s.Name = "sidecar-task-2" })
+	})
+
+	t.Run("mod driver", func(t *testing.T) {
+		try(t, func(s *st) { s.Driver = "exec" })
+	})
+
+	t.Run("mod user", func(t *testing.T) {
+		try(t, func(s *st) { s.User = "root" })
+	})
+
+	t.Run("mod config", func(t *testing.T) {
+		try(t, func(s *st) { s.Config = map[string]interface{}{"foo": 2} })
+	})
+
+	t.Run("mod env", func(t *testing.T) {
+		try(t, func(s *st) { s.Env = map[string]string{"color": "red"} })
+	})
+
+	t.Run("mod resources", func(t *testing.T) {
+		try(t, func(s *st) { s.Resources = &Resources{MemoryMB: 200} })
+	})
+
+	t.Run("mod meta", func(t *testing.T) {
+		try(t, func(s *st) { s.Meta = map[string]string{"index": "2"} })
+	})
+
+	t.Run("mod kill timeout", func(t *testing.T) {
+		try(t, func(s *st) { s.KillTimeout = helper.TimeToPtr(3 * time.Second) })
+	})
+
+	t.Run("mod log config", func(t *testing.T) {
+		try(t, func(s *st) { s.LogConfig = &LogConfig{MaxFiles: 3} })
+	})
+
+	t.Run("mod shutdown delay", func(t *testing.T) {
+		try(t, func(s *st) { s.ShutdownDelay = helper.TimeToPtr(20 * time.Second) })
+	})
+
+	t.Run("mod kill signal", func(t *testing.T) {
+		try(t, func(s *st) { s.KillSignal = "SIGHUP" })
+	})
+}
+
 func TestConsulUpstream_upstreamEquals(t *testing.T) {
 	t.Parallel()
 
@@ -350,5 +551,424 @@ func TestConsulSidecarService_Copy(t *testing.T) {
 			Port:  "port1",
 			Proxy: &ConsulProxy{LocalServiceAddress: "10.0.0.1"},
 		}, result)
+	})
+}
+
+var (
+	consulIngressGateway1 = &ConsulGateway{
+		Proxy: &ConsulGatewayProxy{
+			ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+			EnvoyGatewayBindTaggedAddresses: true,
+			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+				"listener1": &ConsulGatewayBindAddress{Address: "10.0.0.1", Port: 2001},
+				"listener2": &ConsulGatewayBindAddress{Address: "10.0.0.1", Port: 2002},
+			},
+			EnvoyGatewayNoDefaultBind: true,
+			Config: map[string]interface{}{
+				"foo": 1,
+			},
+		},
+		Ingress: &ConsulIngressConfigEntry{
+			TLS: &ConsulGatewayTLSConfig{
+				Enabled: true,
+			},
+			Listeners: []*ConsulIngressListener{{
+				Port:     3000,
+				Protocol: "http",
+				Services: []*ConsulIngressService{{
+					Name:  "service1",
+					Hosts: []string{"10.0.0.1", "10.0.0.1:3000"},
+				}, {
+					Name:  "service2",
+					Hosts: []string{"10.0.0.2", "10.0.0.2:3000"},
+				}},
+			}, {
+				Port:     3001,
+				Protocol: "tcp",
+				Services: []*ConsulIngressService{{
+					Name: "service3",
+				}},
+			}},
+		},
+	}
+)
+
+func TestConsulGateway_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		g := (*ConsulGateway)(nil)
+		result := g.Copy()
+		require.Nil(t, result)
+	})
+
+	t.Run("as ingress", func(t *testing.T) {
+		result := consulIngressGateway1.Copy()
+		require.Equal(t, consulIngressGateway1, result)
+		require.True(t, result.Equals(consulIngressGateway1))
+		require.True(t, consulIngressGateway1.Equals(result))
+	})
+}
+
+func TestConsulGateway_Equals_ingress(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		a := (*ConsulGateway)(nil)
+		b := (*ConsulGateway)(nil)
+		require.True(t, a.Equals(b))
+		require.False(t, a.Equals(consulIngressGateway1))
+		require.False(t, consulIngressGateway1.Equals(a))
+	})
+
+	original := consulIngressGateway1.Copy()
+
+	type gway = ConsulGateway
+	type tweaker = func(g *gway)
+
+	t.Run("reflexive", func(t *testing.T) {
+		require.True(t, original.Equals(original))
+	})
+
+	try := func(t *testing.T, tweak tweaker) {
+		modifiable := original.Copy()
+		tweak(modifiable)
+		require.False(t, original.Equals(modifiable))
+		require.False(t, modifiable.Equals(original))
+		require.True(t, modifiable.Equals(modifiable))
+	}
+
+	// proxy stanza equality checks
+
+	t.Run("mod gateway timeout", func(t *testing.T) {
+		try(t, func(g *gway) { g.Proxy.ConnectTimeout = helper.TimeToPtr(9 * time.Second) })
+	})
+
+	t.Run("mod gateway envoy_gateway_bind_tagged_addresses", func(t *testing.T) {
+		try(t, func(g *gway) { g.Proxy.EnvoyGatewayBindTaggedAddresses = false })
+	})
+
+	t.Run("mod gateway envoy_gateway_bind_addresses", func(t *testing.T) {
+		try(t, func(g *gway) {
+			g.Proxy.EnvoyGatewayBindAddresses = map[string]*ConsulGatewayBindAddress{
+				"listener3": &ConsulGatewayBindAddress{Address: "9.9.9.9", Port: 9999},
+			}
+		})
+	})
+
+	t.Run("mod gateway envoy_gateway_no_default_bind", func(t *testing.T) {
+		try(t, func(g *gway) { g.Proxy.EnvoyGatewayNoDefaultBind = false })
+	})
+
+	t.Run("mod gateway config", func(t *testing.T) {
+		try(t, func(g *gway) {
+			g.Proxy.Config = map[string]interface{}{
+				"foo": 2,
+			}
+		})
+	})
+
+	// ingress config entry equality checks
+
+	t.Run("mod ingress tls", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.TLS = nil })
+		try(t, func(g *gway) { g.Ingress.TLS.Enabled = false })
+	})
+
+	t.Run("mod ingress listeners count", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.Listeners = g.Ingress.Listeners[:1] })
+	})
+
+	t.Run("mod ingress listeners port", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.Listeners[0].Port = 7777 })
+	})
+
+	t.Run("mod ingress listeners protocol", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.Listeners[0].Protocol = "tcp" })
+	})
+
+	t.Run("mod ingress listeners services count", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.Listeners[0].Services = g.Ingress.Listeners[0].Services[:1] })
+	})
+
+	t.Run("mod ingress listeners services name", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.Listeners[0].Services[0].Name = "serviceX" })
+	})
+
+	t.Run("mod ingress listeners services hosts count", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.Listeners[0].Services[0].Hosts = g.Ingress.Listeners[0].Services[0].Hosts[:1] })
+	})
+
+	t.Run("mod ingress listeners services hosts content", func(t *testing.T) {
+		try(t, func(g *gway) { g.Ingress.Listeners[0].Services[0].Hosts[0] = "255.255.255.255" })
+	})
+}
+
+func TestConsulGateway_ingressServicesEqual(t *testing.T) {
+	igs1 := []*ConsulIngressService{{
+		Name:  "service1",
+		Hosts: []string{"host1", "host2"},
+	}, {
+		Name:  "service2",
+		Hosts: []string{"host3"},
+	}}
+
+	require.False(t, ingressServicesEqual(igs1, nil))
+
+	reversed := []*ConsulIngressService{
+		igs1[1], igs1[0], // services reversed
+	}
+
+	require.True(t, ingressServicesEqual(igs1, reversed))
+
+	hostOrder := []*ConsulIngressService{{
+		Name:  "service1",
+		Hosts: []string{"host2", "host1"}, // hosts reversed
+	}, {
+		Name:  "service2",
+		Hosts: []string{"host3"},
+	}}
+
+	require.True(t, ingressServicesEqual(igs1, hostOrder))
+}
+
+func TestConsulGateway_ingressListenersEqual(t *testing.T) {
+	ils1 := []*ConsulIngressListener{{
+		Port:     2000,
+		Protocol: "http",
+		Services: []*ConsulIngressService{{
+			Name:  "service1",
+			Hosts: []string{"host1", "host2"},
+		}},
+	}, {
+		Port:     2001,
+		Protocol: "tcp",
+		Services: []*ConsulIngressService{{
+			Name: "service2",
+		}},
+	}}
+
+	require.False(t, ingressListenersEqual(ils1, nil))
+
+	reversed := []*ConsulIngressListener{
+		ils1[1], ils1[0],
+	}
+
+	require.True(t, ingressListenersEqual(ils1, reversed))
+}
+
+func TestConsulGateway_Validate(t *testing.T) {
+	t.Run("bad proxy", func(t *testing.T) {
+		err := (&ConsulGateway{
+			Proxy: &ConsulGatewayProxy{
+				ConnectTimeout: nil,
+			},
+			Ingress: nil,
+		}).Validate()
+		require.EqualError(t, err, "Consul Gateway Proxy connection_timeout must be set")
+	})
+
+	t.Run("bad ingress config entry", func(t *testing.T) {
+		err := (&ConsulGateway{
+			Ingress: &ConsulIngressConfigEntry{
+				Listeners: nil,
+			},
+		}).Validate()
+		require.EqualError(t, err, "Consul Ingress Gateway requires at least one listener")
+	})
+}
+
+func TestConsulGatewayBindAddress_Validate(t *testing.T) {
+	t.Run("no address", func(t *testing.T) {
+		err := (&ConsulGatewayBindAddress{
+			Address: "",
+			Port:    2000,
+		}).Validate()
+		require.EqualError(t, err, "Consul Gateway Bind Address must be set")
+	})
+
+	t.Run("invalid port", func(t *testing.T) {
+		err := (&ConsulGatewayBindAddress{
+			Address: "10.0.0.1",
+			Port:    0,
+		}).Validate()
+		require.EqualError(t, err, "Consul Gateway Bind Address must set valid Port")
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		err := (&ConsulGatewayBindAddress{
+			Address: "10.0.0.1",
+			Port:    2000,
+		}).Validate()
+		require.NoError(t, err)
+	})
+}
+
+func TestConsulGatewayProxy_Validate(t *testing.T) {
+	t.Run("no timeout", func(t *testing.T) {
+		err := (&ConsulGatewayProxy{
+			ConnectTimeout: nil,
+		}).Validate()
+		require.EqualError(t, err, "Consul Gateway Proxy connection_timeout must be set")
+	})
+
+	t.Run("invalid bind address", func(t *testing.T) {
+		err := (&ConsulGatewayProxy{
+			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+				"service1": {
+					Address: "10.0.0.1",
+					Port:    0,
+				}},
+		}).Validate()
+		require.EqualError(t, err, "Consul Gateway Bind Address must set valid Port")
+	})
+
+	t.Run("ok with nothing set", func(t *testing.T) {
+		err := (&ConsulGatewayProxy{
+			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+		}).Validate()
+		require.NoError(t, err)
+	})
+
+	t.Run("ok with everything set", func(t *testing.T) {
+		err := (&ConsulGatewayProxy{
+			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
+				"service1": {
+					Address: "10.0.0.1",
+					Port:    2000,
+				}},
+			EnvoyGatewayBindTaggedAddresses: true,
+			EnvoyGatewayNoDefaultBind:       true,
+		}).Validate()
+		require.NoError(t, err)
+	})
+}
+
+func TestConsulIngressService_Validate(t *testing.T) {
+	t.Run("invalid name", func(t *testing.T) {
+		err := (&ConsulIngressService{
+			Name: "",
+		}).Validate(true)
+		require.EqualError(t, err, "Consul Ingress Service requires a name")
+	})
+
+	t.Run("http missing hosts", func(t *testing.T) {
+		err := (&ConsulIngressService{
+			Name: "service1",
+		}).Validate(true)
+		require.EqualError(t, err, "Consul Ingress Service requires one or more hosts when using HTTP protocol")
+	})
+
+	t.Run("tcp extraneous hosts", func(t *testing.T) {
+		err := (&ConsulIngressService{
+			Name:  "service1",
+			Hosts: []string{"host1"},
+		}).Validate(false)
+		require.EqualError(t, err, "Consul Ingress Service supports hosts only when using HTTP protocol")
+	})
+
+	t.Run("ok tcp", func(t *testing.T) {
+		err := (&ConsulIngressService{
+			Name: "service1",
+		}).Validate(false)
+		require.NoError(t, err)
+	})
+
+	t.Run("ok http", func(t *testing.T) {
+		err := (&ConsulIngressService{
+			Name:  "service1",
+			Hosts: []string{"host1"},
+		}).Validate(true)
+		require.NoError(t, err)
+	})
+}
+
+func TestConsulIngressListener_Validate(t *testing.T) {
+	t.Run("invalid port", func(t *testing.T) {
+		err := (&ConsulIngressListener{
+			Port:     0,
+			Protocol: "tcp",
+			Services: []*ConsulIngressService{{
+				Name: "service1",
+			}},
+		}).Validate()
+		require.EqualError(t, err, "Consul Ingress Listener requires valid Port")
+	})
+
+	t.Run("invalid protocol", func(t *testing.T) {
+		err := (&ConsulIngressListener{
+			Port:     2000,
+			Protocol: "gopher",
+			Services: []*ConsulIngressService{{
+				Name: "service1",
+			}},
+		}).Validate()
+		require.EqualError(t, err, `Consul Ingress Listener requires protocol of "http" or "tcp", got "gopher"`)
+	})
+
+	t.Run("no services", func(t *testing.T) {
+		err := (&ConsulIngressListener{
+			Port:     2000,
+			Protocol: "tcp",
+			Services: nil,
+		}).Validate()
+		require.EqualError(t, err, "Consul Ingress Listener requires one or more services")
+	})
+
+	t.Run("invalid service", func(t *testing.T) {
+		err := (&ConsulIngressListener{
+			Port:     2000,
+			Protocol: "tcp",
+			Services: []*ConsulIngressService{{
+				Name: "",
+			}},
+		}).Validate()
+		require.EqualError(t, err, "Consul Ingress Service requires a name")
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		err := (&ConsulIngressListener{
+			Port:     2000,
+			Protocol: "tcp",
+			Services: []*ConsulIngressService{{
+				Name: "service1",
+			}},
+		}).Validate()
+		require.NoError(t, err)
+	})
+}
+
+func TestConsulIngressConfigEntry_Validate(t *testing.T) {
+	t.Run("no listeners", func(t *testing.T) {
+		err := (&ConsulIngressConfigEntry{}).Validate()
+		require.EqualError(t, err, "Consul Ingress Gateway requires at least one listener")
+	})
+
+	t.Run("invalid listener", func(t *testing.T) {
+		err := (&ConsulIngressConfigEntry{
+			Listeners: []*ConsulIngressListener{{
+				Port:     9000,
+				Protocol: "tcp",
+			}},
+		}).Validate()
+		require.EqualError(t, err, "Consul Ingress Listener requires one or more services")
+	})
+
+	t.Run("full", func(t *testing.T) {
+		err := (&ConsulIngressConfigEntry{
+			TLS: &ConsulGatewayTLSConfig{
+				Enabled: true,
+			},
+			Listeners: []*ConsulIngressListener{{
+				Port:     9000,
+				Protocol: "tcp",
+				Services: []*ConsulIngressService{{
+					Name: "service1",
+				}},
+			}},
+		}).Validate()
+		require.NoError(t, err)
 	})
 }

@@ -34,12 +34,10 @@ func (c *csiHook) Prerun() error {
 		return nil
 	}
 
-	// TODO(tgross): the contexts for the CSI RPC calls made during
-	// mounting can have very long timeouts. Until these are better
-	// tuned, there's not a good value to put here for a WithCancel
-	// without risking conflicts with the grpc retries/timeouts in the
-	// pluginmanager package.
-	ctx := context.TODO()
+	// We use this context only to attach hclog to the gRPC context. The
+	// lifetime is the lifetime of the gRPC stream, not specific RPC timeouts,
+	// but we manage the stream lifetime via Close in the pluginmanager.
+	ctx := context.Background()
 
 	volumes, err := c.claimVolumesFromAlloc()
 	if err != nil {
@@ -96,7 +94,10 @@ func (c *csiHook) Postrun() error {
 				Mode:         structs.CSIVolumeClaimRelease,
 			},
 			WriteRequest: structs.WriteRequest{
-				Region: c.alloc.Job.Region, Namespace: c.alloc.Job.Namespace},
+				Region:    c.alloc.Job.Region,
+				Namespace: c.alloc.Job.Namespace,
+				AuthToken: c.ar.clientConfig.Node.SecretID,
+			},
 		}
 		err := c.rpcClient.RPC("CSIVolume.Unpublish",
 			req, &structs.CSIVolumeUnpublishResponse{})
@@ -156,8 +157,12 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			AllocationID: c.alloc.ID,
 			NodeID:       c.alloc.NodeID,
 			Claim:        claimType,
+			WriteRequest: structs.WriteRequest{
+				Region:    c.alloc.Job.Region,
+				Namespace: c.alloc.Job.Namespace,
+				AuthToken: c.ar.clientConfig.Node.SecretID,
+			},
 		}
-		req.Region = c.alloc.Job.Region
 
 		var resp structs.CSIVolumeClaimResponse
 		if err := c.rpcClient.RPC("CSIVolume.Claim", req, &resp); err != nil {

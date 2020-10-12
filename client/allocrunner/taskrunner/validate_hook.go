@@ -43,7 +43,11 @@ func validateTask(task *structs.Task, taskEnv *taskenv.TaskEnv, conf *config.Con
 	var mErr multierror.Error
 
 	// Validate the user
-	unallowedUsers := conf.ReadStringListToMapDefault("user.blacklist", config.DefaultUserBlacklist)
+	// COMPAT(0.13) uses inclusive language. blacklist is kept for backward compatilibity.
+	unallowedUsers := conf.ReadStringListAlternativeToMapDefault(
+		[]string{"user.denylist", "user.blacklist"},
+		config.DefaultUserDenylist,
+	)
 	checkDrivers := conf.ReadStringListToMapDefault("user.checked_drivers", config.DefaultUserCheckedDrivers)
 	if _, driverMatch := checkDrivers[task.Driver]; driverMatch {
 		if _, unallowed := unallowedUsers[task.User]; unallowed {

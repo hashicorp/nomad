@@ -177,6 +177,7 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 	for _, claim := range vol.PastClaims {
 		if claim.AllocationID == "" {
 			vol = vw.collectPastClaims(vol)
+			break // only need to collect once
 		}
 	}
 
