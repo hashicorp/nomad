@@ -1434,7 +1434,6 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		job.CreateIndex = index
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
-		job.Version = 0
 
 		if err := s.setJobStatus(index, txn, job, false, ""); err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
