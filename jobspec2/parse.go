@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec2/hclutil"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -116,12 +117,14 @@ func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{
 		file, diags = hclsyntax.ParseConfig(src, filename, hcl.Pos{Line: 1, Column: 1})
 	} else {
 		file, diags = hcljson.Parse(src, filename)
+
 	}
 	if diags.HasErrors() {
 		return diags
 	}
 
-	body := dynblock.Expand(file.Body, ctx)
+	body := hclutil.BlocksAsAttrs(file.Body, ctx)
+	body = dynblock.Expand(body, ctx)
 	diags = hclDecoder.DecodeBody(body, ctx, target)
 	if diags.HasErrors() {
 		var str strings.Builder

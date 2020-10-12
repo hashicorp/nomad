@@ -251,20 +251,20 @@ func (b *Body) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
 	attrs := make(hcl.Attributes)
 	var diags hcl.Diagnostics
 
-	//if len(b.Blocks) > 0 {
-	//	example := b.Blocks[0]
-	//	diags = append(diags, &hcl.Diagnostic{
-	//		Severity: hcl.DiagError,
-	//		Summary:  fmt.Sprintf("Unexpected %q block", example.Type),
-	//		Detail:   "Blocks are not allowed here.",
-	//		Subject:  &example.TypeRange,
-	//	})
-	//	// we will continue processing anyway, and return the attributes
-	//	// we are able to find so that certain analyses can still be done
-	//	// in the face of errors.
-	//}
+	if len(b.Blocks) > 0 {
+		example := b.Blocks[0]
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Unexpected %q block", example.Type),
+			Detail:   "Blocks are not allowed here.",
+			Subject:  &example.TypeRange,
+		})
+		// we will continue processing anyway, and return the attributes
+		// we are able to find so that certain analyses can still be done
+		// in the face of errors.
+	}
 
-	if b.Attributes == nil && len(b.Blocks) == 0 {
+	if b.Attributes == nil {
 		return attrs, diags
 	}
 
@@ -273,14 +273,6 @@ func (b *Body) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
 			continue
 		}
 		attrs[name] = attr.AsHCLAttribute()
-	}
-
-	for _, blockS := range b.Blocks {
-		if _, hidden := b.hiddenBlocks[blockS.Type]; hidden {
-			continue
-		}
-
-		attrs[blockS.Type] = convertToAttribute(blockS).AsHCLAttribute()
 	}
 
 	return attrs, diags
