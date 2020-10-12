@@ -5,7 +5,7 @@ client {
 
   options {
     # Allow jobs to run as root
-    "user.blacklist" = ""
+    "user.denylist" = ""
 
     # Allow rawexec jobs
     "driver.raw_exec.enable" = "1"

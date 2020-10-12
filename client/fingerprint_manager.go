@@ -65,28 +65,30 @@ func (fm *FingerprintManager) getNode() *structs.Node {
 }
 
 // Run starts the process of fingerprinting the node. It does an initial pass,
-// identifying whitelisted and blacklisted fingerprints/drivers. Then, for
+// identifying allowlisted and denylisted fingerprints/drivers. Then, for
 // those which require periotic checking, it starts a periodic process for
 // each.
 func (fp *FingerprintManager) Run() error {
 	// First, set up all fingerprints
 	cfg := fp.getConfig()
-	whitelistFingerprints := cfg.ReadStringListToMap("fingerprint.whitelist")
-	whitelistFingerprintsEnabled := len(whitelistFingerprints) > 0
-	blacklistFingerprints := cfg.ReadStringListToMap("fingerprint.blacklist")
+	// COMPAT(0.13) using inclusive language, whitelist is kept for backward compatibility.
+	allowlistFingerprints := cfg.ReadStringListToMap("fingerprint.allowlist", "fingerprint.whitelist")
+	allowlistFingerprintsEnabled := len(allowlistFingerprints) > 0
+	// COMPAT(0.13) using inclusive language, blacklist is kept for backward compatibility.
+	denylistFingerprints := cfg.ReadStringListToMap("fingerprint.denylist", "fingerprint.blacklist")
 
 	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprint.BuiltinFingerprints())
 
 	var availableFingerprints []string
 	var skippedFingerprints []string
 	for _, name := range fingerprint.BuiltinFingerprints() {
-		// Skip modules that are not in the whitelist if it is enabled.
-		if _, ok := whitelistFingerprints[name]; whitelistFingerprintsEnabled && !ok {
+		// Skip modules that are not in the allowlist if it is enabled.
+		if _, ok := allowlistFingerprints[name]; allowlistFingerprintsEnabled && !ok {
 			skippedFingerprints = append(skippedFingerprints, name)
 			continue
 		}
-		// Skip modules that are in the blacklist
-		if _, ok := blacklistFingerprints[name]; ok {
+		// Skip modules that are in the denylist
+		if _, ok := denylistFingerprints[name]; ok {
 			skippedFingerprints = append(skippedFingerprints, name)
 			continue
 		}
@@ -99,7 +101,7 @@ func (fp *FingerprintManager) Run() error {
 	}
 
 	if len(skippedFingerprints) != 0 {
-		fp.logger.Debug("fingerprint modules skipped due to white/blacklist",
+		fp.logger.Debug("fingerprint modules skipped due to allow/denylist",
 			"skipped_fingerprinters", skippedFingerprints)
 	}
 
