@@ -63,10 +63,10 @@ export default class TopoViz extends Component {
       node,
       jobId,
       groupKey: JSON.stringify([jobId, allocation.taskGroupName]),
-      memory: allocation.resources.memory,
-      cpu: allocation.resources.cpu,
-      memoryPercent: allocation.resources.memory / node.memory,
-      cpuPercent: allocation.resources.cpu / node.cpu,
+      memory: allocation.allocatedResources.memory,
+      cpu: allocation.allocatedResources.cpu,
+      memoryPercent: allocation.allocatedResources.memory / node.memory,
+      cpuPercent: allocation.allocatedResources.cpu / node.cpu,
       isSelected: false,
     };
   }
