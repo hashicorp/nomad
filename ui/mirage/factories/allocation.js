@@ -42,15 +42,16 @@ export default Factory.extend({
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
       const resources = taskGroup.taskIds.map(id => {
         const task = server.db.tasks.find(id);
-        return server.create(
-          'task-resource',
-          {
-            allocation,
-            name: task.name,
-            resources: task.Resources,
-          },
-          'withReservedPorts'
-        );
+        return server.create('task-resource', {
+          allocation,
+          name: task.name,
+          resources: generateResources({
+            CPU: task.resources.CPU,
+            MemoryMB: task.resources.MemoryMB,
+            DiskMB: task.resources.DiskMB,
+            networks: { minPorts: 1 },
+          }),
+        });
       });
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
@@ -62,26 +63,19 @@ export default Factory.extend({
       const taskGroup = server.db.taskGroups.findBy({ name: allocation.taskGroup });
       const resources = taskGroup.taskIds.map(id => {
         const task = server.db.tasks.find(id);
-        return server.create(
-          'task-resource',
-          {
-            allocation,
-            name: task.name,
-            resources: task.Resources,
-          },
-          'withoutReservedPorts'
-        );
+        return server.create('task-resource', {
+          allocation,
+          name: task.name,
+          resources: generateResources({
+            CPU: task.resources.CPU,
+            MemoryMB: task.resources.MemoryMB,
+            DiskMB: task.resources.DiskMB,
+            networks: { minPorts: 0, maxPorts: 0 },
+          }),
+        });
       });
 
       allocation.update({ taskResourceIds: resources.mapBy('id') });
-    },
-  }),
-
-  withAllocatedResources: trait({
-    allocatedResources: () => {
-      return {
-        Shared: generateResources({ networks: { minPorts: 2 } }),
-      };
     },
   }),
 
@@ -200,7 +194,7 @@ export default Factory.extend({
         return server.create('task-resource', {
           allocation,
           name: task.name,
-          resources: task.Resources,
+          resources: task.originalResources,
         });
       });
 

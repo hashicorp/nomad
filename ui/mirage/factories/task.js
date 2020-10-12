@@ -16,7 +16,17 @@ export default Factory.extend({
   name: id => `task-${faker.hacker.noun().dasherize()}-${id}`,
   driver: () => faker.helpers.randomize(DRIVERS),
 
-  Resources: generateResources,
+  originalResources: generateResources,
+  resources: function() {
+    // Generate resources the usual way, but transform to the old
+    // shape because that's what the job spec uses.
+    const resources = this.originalResources;
+    return {
+      CPU: resources.Cpu.CpuShares,
+      MemoryMB: resources.Memory.MemoryMB,
+      DiskMB: resources.Disk.DiskMB,
+    };
+  },
 
   Lifecycle: i => {
     const cycle = i % 5;

@@ -74,7 +74,7 @@ export default Factory.extend({
 
   hostVolumes: makeHostVolumes,
 
-  resources: generateResources,
+  nodeResources: generateResources,
 
   attributes() {
     // TODO add variability to these
