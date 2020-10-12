@@ -521,6 +521,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	}
 
 	// Gather goroutine text output - debug type 1
+	// debug type 1 writes the legacy text format for human readable output
 	opts.Debug = 1
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
@@ -528,6 +529,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	}
 
 	// Gather goroutine text output - debug type 2
+	// When printing the "goroutine" profile, debug=2 means to print the goroutine
+	// stacks in the same form that a Go program uses when dying due to an unrecovered panic.
 	opts.Debug = 2
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
