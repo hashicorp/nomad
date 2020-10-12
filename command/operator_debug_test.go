@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +35,7 @@ func TestDebugUtils(t *testing.T) {
 
 func TestDebugSuccesses(t *testing.T) {
 	t.Parallel()
-	srv, _, _ := testServer(t, false, nil)
+	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
@@ -43,21 +44,21 @@ func TestDebugSuccesses(t *testing.T) {
 	// NOTE -- duration must be shorter than default 2m to prevent testify from timing out
 
 	// Debug on the leader
-	code := cmd.Run([]string{"-duration", "250ms", "-server-id", "leader"})
-	require.Equal(t, 0, code)
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader"})
+	assert.Equal(t, 0, code) // take note of failed return code, but continue to see why
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	ui.OutputWriter.Reset()
 
 	// Debug on all servers
-	code = cmd.Run([]string{"-duration", "250ms", "-server-id", "all"})
-	require.Equal(t, 0, code)
+	code = cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
+	assert.Equal(t, 0, code)
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	ui.OutputWriter.Reset()
 }
 
 func TestDebugFails(t *testing.T) {
 	t.Parallel()
-	srv, _, _ := testServer(t, false, nil)
+	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
@@ -91,6 +92,12 @@ func TestDebugFails(t *testing.T) {
 	defer os.Remove(path)
 	code = cmd.Run([]string{"-output", os.TempDir()})
 	require.Equal(t, 2, code)
+
+	// Fails bad address
+	code = cmd.Run([]string{"-address", url + "bogus"})
+	assert.Equal(t, 1, code) // take note of failed return code, but continue to see why
+	require.NotContains(t, ui.OutputWriter.String(), "Starting debugger")
+	ui.OutputWriter.Reset()
 }
 
 func TestDebugCapturedFiles(t *testing.T) {
