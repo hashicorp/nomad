@@ -91,6 +91,12 @@ variable "vault" {
   default     = false
 }
 
+variable "volumes" {
+  type        = bool
+  description = "Include external EBS and EFS volumes (for CSI)"
+  default     = false
+}
+
 # ----------------------------------------
 # If you want to deploy multiple versions you can use these variables to
 # provide a list of builds to override the values of nomad_sha, nomad_version,

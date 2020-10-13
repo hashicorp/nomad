@@ -7,3 +7,4 @@ profile              = "full-cluster"
 nomad_enterprise     = true
 nomad_acls           = true
 vault                = true
+volumes              = true

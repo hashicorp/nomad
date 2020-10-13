@@ -90,6 +90,7 @@ resource "aws_security_group" "primary" {
 }
 
 resource "aws_security_group" "nfs" {
+  count  = var.volumes ? 1 : 0
   name   = "${local.random_name}-nfs"
   vpc_id = data.aws_vpc.default.id
 
