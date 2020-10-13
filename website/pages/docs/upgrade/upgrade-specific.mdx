@@ -44,6 +44,22 @@ the AWS fingerprinter no longer sets the `cpu.modelname` attribute.
 As before, `cpu_total_compute` can be used to override the discovered CPU resources
 available to the Nomad client.
 
+### Inclusive language
+
+Starting with Nomad v0.13.0, the terms `blacklist` and `whitelist` have been
+deprecated from client configuration and driver configuration. The existing
+configuration values are permitted but will be removed in a future version of
+Nomad. The specific configuration values replaced are:
+
+* Client `driver.blacklist` is replaced with `driver.denylist`.
+* Client `driver.whitelist` is replaced with `driver.allowlist`.
+* Client `env.blacklist` is replaced with `env.denylist`.
+* Client `fingerprint.blacklist` is replaced with `fingerprint.denylist`.
+* Client `fingerprint.whitelist` is replaced with `fingerprint.allowlist`.
+* Client `user.blacklist` is replaced with `user.denylist`.
+* Client `template.function_blacklist` is replaced with `template.function_denylist`.
+* Docker driver `docker.caps.whitelist` is replaced with `docker.caps.allowlist`.
+
 ## Nomad 0.12.0
 
 ### `mbits` and Task Network Resource deprecation

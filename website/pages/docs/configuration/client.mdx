@@ -199,32 +199,32 @@ The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver, please
 see the [drivers documentation](/docs/drivers).
 
-- `"driver.whitelist"` `(string: "")` - Specifies a comma-separated list of
-  whitelisted drivers . If specified, drivers not in the whitelist will be
-  disabled. If the whitelist is empty, all drivers are fingerprinted and enabled
+- `"driver.allowlist"` `(string: "")` - Specifies a comma-separated list of
+  allowlisted drivers . If specified, drivers not in the allowlist will be
+  disabled. If the allowlist is empty, all drivers are fingerprinted and enabled
   where applicable.
 
   ```hcl
   client {
     options = {
-      "driver.whitelist" = "docker,qemu"
+      "driver.allowlist" = "docker,qemu"
     }
   }
   ```
 
-- `"driver.blacklist"` `(string: "")` - Specifies a comma-separated list of
-  blacklisted drivers . If specified, drivers in the blacklist will be
+- `"driver.denylist"` `(string: "")` - Specifies a comma-separated list of
+  denylisted drivers . If specified, drivers in the denylist will be
   disabled.
 
   ```hcl
   client {
     options = {
-      "driver.blacklist" = "docker,qemu"
+      "driver.denylist" = "docker,qemu"
     }
   }
   ```
 
-- `"env.blacklist"` `(string: see below)` - Specifies a comma-separated list of
+- `"env.denylist"` `(string: see below)` - Specifies a comma-separated list of
   environment variable keys not to pass to these tasks. Nomad passes the host
   environment variables to `exec`, `raw_exec` and `java` tasks. If specified,
   the defaults are overridden. If a value is provided, **all** defaults are
@@ -233,7 +233,7 @@ see the [drivers documentation](/docs/drivers).
   ```hcl
   client {
     options = {
-      "env.blacklist" = "MY_CUSTOM_ENVVAR"
+      "env.denylist" = "MY_CUSTOM_ENVVAR"
     }
   }
   ```
@@ -250,15 +250,15 @@ see the [drivers documentation](/docs/drivers).
   GOOGLE_APPLICATION_CREDENTIALS
   ```
 
-- `"user.blacklist"` `(string: see below)` - Specifies a comma-separated
-  blacklist of usernames for which a task is not allowed to run. This only
+- `"user.denylist"` `(string: see below)` - Specifies a comma-separated
+  denylist of usernames for which a task is not allowed to run. This only
   applies if the driver is included in `"user.checked_drivers"`. If a value is
   provided, **all** defaults are overridden (they are not merged).
 
   ```hcl
   client {
     options = {
-      "user.blacklist" = "root,ubuntu"
+      "user.denylist" = "root,ubuntu"
     }
   }
   ```
@@ -271,7 +271,7 @@ see the [drivers documentation](/docs/drivers).
   ```
 
 - `"user.checked_drivers"` `(string: see below)` - Specifies a comma-separated
-  list of drivers for which to enforce the `"user.blacklist"`. For drivers using
+  list of drivers for which to enforce the `"user.denylist"`. For drivers using
   containers, this enforcement is usually unnecessary. If a value is provided,
   **all** defaults are overridden (they are not merged).
 
@@ -291,27 +291,27 @@ see the [drivers documentation](/docs/drivers).
   java
   ```
 
-- `"fingerprint.whitelist"` `(string: "")` - Specifies a comma-separated list of
-  whitelisted fingerprinters. If specified, any fingerprinters not in the
-  whitelist will be disabled. If the whitelist is empty, all fingerprinters are
+- `"fingerprint.allowlist"` `(string: "")` - Specifies a comma-separated list of
+  allowlisted fingerprinters. If specified, any fingerprinters not in the
+  allowlist will be disabled. If the allowlist is empty, all fingerprinters are
   used.
 
   ```hcl
   client {
     options = {
-      "fingerprint.whitelist" = "network"
+      "fingerprint.allowlist" = "network"
     }
   }
   ```
 
-- `"fingerprint.blacklist"` `(string: "")` - Specifies a comma-separated list of
-  blacklisted fingerprinters. If specified, any fingerprinters in the blacklist
+- `"fingerprint.denylist"` `(string: "")` - Specifies a comma-separated list of
+  denylisted fingerprinters. If specified, any fingerprinters in the denylist
   will be disabled.
 
   ```hcl
   client {
     options = {
-      "fingerprint.blacklist" = "network"
+      "fingerprint.denylist" = "network"
     }
   }
   ```

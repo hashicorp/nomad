@@ -191,7 +191,7 @@ environment.
   kernel for other containers and the Nomad client agent itself. Docker driver
   allows [customizing runtimes](/docs/drivers/docker#runtime).
 
-- **[Disable Unused Drivers](/docs/configuration/client#driver-blacklist)** -
+- **[Disable Unused Drivers](/docs/configuration/client#driver-denylist)** -
   Each driver provides different degrees of isolation, and bugs may allow
   unintended privilege escalation. If a task driver is not needed, you can
   disable it to reduce risk.
