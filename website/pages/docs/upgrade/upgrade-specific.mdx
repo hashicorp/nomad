@@ -24,6 +24,12 @@ When stopping tasks running with the Docker task driver, Nomad documents that a
 versions of Nomad would issue `SIGINT` instead. Starting again with Nomad v0.13.0
 `SIGTERM` will be sent by default when stopping Docker tasks.
 
+### Deprecated metrics have been removed
+
+Nomad v0.7.0 added supported for tagged metrics and deprecated untagged metrics.
+There was support for configuring backwards-compatible metrics. This support has
+been removed with v0.13.0, and all metrics will be emitted with tags.
+
 ### Null characters in region, datacenter, job name/ID, task group name, and task names
 
 Starting with Nomad v0.13.0, jobs will fail validation if any of the following

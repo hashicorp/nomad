@@ -980,8 +980,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	metricsConf.EnableHostname = !telConfig.DisableHostname
 
 	// Prefer the hostname as a label.
-	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
-		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname
 
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName
