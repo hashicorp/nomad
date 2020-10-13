@@ -64,6 +64,10 @@ type allocRunner struct {
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
 
+	// consulProxiesClient is the client used by the envoy version hook for
+	// looking up supported envoy versions of the consul agent.
+	consulProxiesClient consul.SupportedProxiesAPI
+
 	// sidsClient is the client used by the service identity hook for
 	// managing SI tokens
 	sidsClient consul.ServiceIdentityAPI
@@ -186,6 +190,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		alloc:                    alloc,
 		clientConfig:             config.ClientConfig,
 		consulClient:             config.Consul,
+		consulProxiesClient:      config.ConsulProxies,
 		sidsClient:               config.ConsulSI,
 		vaultClient:              config.Vault,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
@@ -236,7 +241,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 // initTaskRunners creates task runners but does *not* run them.
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
-		config := &taskrunner.Config{
+		trConfig := &taskrunner.Config{
 			Alloc:                ar.alloc,
 			ClientConfig:         ar.clientConfig,
 			Task:                 task,
@@ -246,6 +251,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			StateUpdater:         ar,
 			DynamicRegistry:      ar.dynamicRegistry,
 			Consul:               ar.consulClient,
+			ConsulProxies:        ar.consulProxiesClient,
 			ConsulSI:             ar.sidsClient,
 			Vault:                ar.vaultClient,
 			DeviceStatsReporter:  ar.deviceStatsReporter,
@@ -257,7 +263,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 		}
 
 		// Create, but do not Run, the task runner
-		tr, err := taskrunner.NewTaskRunner(config)
+		tr, err := taskrunner.NewTaskRunner(trConfig)
 		if err != nil {
 			return fmt.Errorf("failed creating runner for task %q: %v", task.Name, err)
 		}

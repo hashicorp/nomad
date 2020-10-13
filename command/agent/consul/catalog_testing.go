@@ -95,6 +95,16 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 				"build": "0.8.1:'e9ca44d",
 			},
 		},
+		"xDS": {
+			"SupportedProxies": map[string]interface{}{
+				"envoy": []interface{}{
+					"1.14.2",
+					"1.13.2",
+					"1.12.4",
+					"1.11.2",
+				},
+			},
+		},
 	}
 	return s, nil
 }

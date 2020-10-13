@@ -6385,7 +6385,11 @@ type Task struct {
 // Task, which exports known types of Tasks. UsesConnect will be true if the
 // task is a connect proxy, connect native, or is a connect gateway.
 func (t *Task) UsesConnect() bool {
-	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative() || t.Kind.IsAnyConnectGateway()
+	return t.Kind.IsConnectNative() || t.UsesConnectSidecar()
+}
+
+func (t *Task) UsesConnectSidecar() bool {
+	return t.Kind.IsConnectProxy() || t.Kind.IsAnyConnectGateway()
 }
 
 func (t *Task) Copy() *Task {

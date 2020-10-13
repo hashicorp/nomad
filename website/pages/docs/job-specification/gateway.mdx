@@ -187,6 +187,18 @@ accessible to any workload running on the same Nomad client. The admin interface
 information about the proxy, including a Consul Service Identity token if Consul ACLs
 are enabled.
 
+### Specify Envoy image
+
+The Docker image used for Connect gateway tasks defaults to the official [Envoy
+Docker] image, `envoyproxy/envoy:v${NOMAD_envoy_version}`, where `${NOMAD_envoy_version}`
+is resolved automatically by a query to Consul. The image to use can be configured
+by setting `meta.connect.gateway_image` in the Nomad job. Custom images can still
+make use of the envoy version interpolation, e.g.
+
+```hcl
+meta.connect.gateway_image = custom/envoy-${NOMAD_envoy_version}:latest
+```
+
 [proxy]: /docs/job-specification/gateway#proxy-parameters
 [ingress]: /docs/job-specification/gateway#ingress-parameters
 [tls]: /docs/job-specification/gateway#tls-parameters
@@ -195,4 +207,6 @@ are enabled.
 [service-default]: https://www.consul.io/docs/agent/config-entries/service-defaults
 [connect_timeout_ms]: https://www.consul.io/docs/agent/config-entries/service-resolver#connecttimeout
 [address]: /docs/job-specification/gateway#address-parameters
-[advanced configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
+[Advanced Configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
+[Envoy Docker]: https://hub.docker.com/r/envoyproxy/envoy/tags
+

@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/version"
 )
@@ -149,10 +149,10 @@ type Config struct {
 	Version *version.VersionInfo
 
 	// ConsulConfig is this Agent's Consul configuration
-	ConsulConfig *config.ConsulConfig
+	ConsulConfig *structsc.ConsulConfig
 
 	// VaultConfig is this Agent's Vault configuration
-	VaultConfig *config.VaultConfig
+	VaultConfig *structsc.VaultConfig
 
 	// StatsCollectionInterval is the interval at which the Nomad client
 	// collects resource usage stats
@@ -167,7 +167,7 @@ type Config struct {
 	PublishAllocationMetrics bool
 
 	// TLSConfig holds various TLS related configurations
-	TLSConfig *config.TLSConfig
+	TLSConfig *structsc.TLSConfig
 
 	// GCInterval is the time interval at which the client triggers garbage
 	// collection
@@ -308,12 +308,12 @@ func (c *Config) Copy() *Config {
 func DefaultConfig() *Config {
 	return &Config{
 		Version:                 version.GetVersion(),
-		VaultConfig:             config.DefaultVaultConfig(),
-		ConsulConfig:            config.DefaultConsulConfig(),
+		VaultConfig:             structsc.DefaultVaultConfig(),
+		ConsulConfig:            structsc.DefaultConsulConfig(),
 		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
-		TLSConfig:               &config.TLSConfig{},
+		TLSConfig:               &structsc.TLSConfig{},
 		LogLevel:                "DEBUG",
 		GCInterval:              1 * time.Minute,
 		GCParallelDestroys:      2,

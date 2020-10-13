@@ -12,7 +12,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -152,7 +152,7 @@ func (h *envoyBootstrapHook) lookupService(svcKind, svcName, tgName string) (*st
 // Prestart creates an envoy bootstrap config file.
 //
 // Must be aware of both launching envoy as a sidecar proxy, as well as a connect gateway.
-func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestartRequest, resp *ifs.TaskPrestartResponse) error {
 	if !req.Task.Kind.IsConnectProxy() && !req.Task.Kind.IsAnyConnectGateway() {
 		// Not a Connect proxy sidecar
 		resp.Done = true

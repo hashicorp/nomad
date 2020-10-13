@@ -42,3 +42,11 @@ type ServiceIdentityAPI interface {
 	// identity tokens be generated for tasks in the allocation.
 	DeriveSITokens(alloc *structs.Allocation, tasks []string) (map[string]string, error)
 }
+
+// SupportedProxiesAPI is the interface the Nomad Client uses to request from
+// Consul the set of supported proxied to use for Consul Connect.
+//
+// No ACL requirements
+type SupportedProxiesAPI interface {
+	Proxies() (map[string][]string, error)
+}

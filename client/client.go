@@ -224,6 +224,10 @@ type Client struct {
 	// and checks.
 	consulService consulApi.ConsulServiceAPI
 
+	// consulProxies is Nomad's custom Consul client for looking up supported
+	// envoy versions
+	consulProxies consulApi.SupportedProxiesAPI
+
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
@@ -306,7 +310,7 @@ var (
 )
 
 // NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService consulApi.ConsulServiceAPI) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -331,6 +335,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	c := &Client{
 		config:               cfg,
 		consulCatalog:        consulCatalog,
+		consulProxies:        consulProxies,
 		consulService:        consulService,
 		start:                time.Now(),
 		connPool:             pool.NewPool(logger, clientRPCCache, clientMaxStreams, tlsWrap),
@@ -2384,6 +2389,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		ClientConfig:        c.configCopy,
 		StateDB:             c.stateDB,
 		Consul:              c.consulService,
+		ConsulProxies:       c.consulProxies,
 		ConsulSI:            c.tokensClient,
 		Vault:               c.vaultClient,
 		StateUpdater:        c,
