@@ -387,9 +387,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	// Setup telemetry related config
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
-	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
 	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
-	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	// Parse Limits timeout from a string into durations
 	if d, err := time.ParseDuration(agentConfig.Limits.RPCHandshakeTimeout); err != nil {
@@ -616,8 +614,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = agentConfig.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = agentConfig.Telemetry.PublishAllocationMetrics
-	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
-	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	// Set the TLS related configs
 	conf.TLSConfig = agentConfig.TLSConfig

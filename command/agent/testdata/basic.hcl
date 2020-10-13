@@ -177,15 +177,13 @@ audit {
 }
 
 telemetry {
-  statsite_address             = "127.0.0.1:1234"
-  statsd_address               = "127.0.0.1:2345"
-  prometheus_metrics           = true
-  disable_hostname             = true
-  collection_interval          = "3s"
-  publish_allocation_metrics   = true
-  publish_node_metrics         = true
-  disable_tagged_metrics       = true
-  backwards_compatible_metrics = true
+  statsite_address           = "127.0.0.1:1234"
+  statsd_address             = "127.0.0.1:2345"
+  prometheus_metrics         = true
+  disable_hostname           = true
+  collection_interval        = "3s"
+  publish_allocation_metrics = true
+  publish_node_metrics       = true
 }
 
 leave_on_interrupt = true

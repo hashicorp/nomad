@@ -674,7 +674,7 @@ func (tr *TaskRunner) emitExitResultEvent(result *drivers.ExitResult) {
 
 	tr.EmitEvent(event)
 
-	if result.OOMKilled && !tr.clientConfig.DisableTaggedMetrics {
+	if result.OOMKilled {
 		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
 	}
 }
@@ -1115,12 +1115,7 @@ func (tr *TaskRunner) updateStateImpl(state string) error {
 		// Capture the start time if it is just starting
 		if oldState != structs.TaskStateRunning {
 			taskState.StartedAt = time.Now().UTC()
-			if !tr.clientConfig.DisableTaggedMetrics {
-				metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"}, 1, tr.baseLabels)
-			}
-			//if r.config.BackwardsCompatibleMetrics {
-			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "running"}, 1)
-			//}
+			metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"}, 1, tr.baseLabels)
 		}
 	case structs.TaskStateDead:
 		// Capture the finished time if not already set
@@ -1130,19 +1125,9 @@ func (tr *TaskRunner) updateStateImpl(state string) error {
 
 		// Emitting metrics to indicate task complete and failures
 		if taskState.Failed {
-			if !tr.clientConfig.DisableTaggedMetrics {
-				metrics.IncrCounterWithLabels([]string{"client", "allocs", "failed"}, 1, tr.baseLabels)
-			}
-			//if r.config.BackwardsCompatibleMetrics {
-			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "failed"}, 1)
-			//}
+			metrics.IncrCounterWithLabels([]string{"client", "allocs", "failed"}, 1, tr.baseLabels)
 		} else {
-			if !tr.clientConfig.DisableTaggedMetrics {
-				metrics.IncrCounterWithLabels([]string{"client", "allocs", "complete"}, 1, tr.baseLabels)
-			}
-			//if r.config.BackwardsCompatibleMetrics {
-			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "complete"}, 1)
-			//}
+			metrics.IncrCounterWithLabels([]string{"client", "allocs", "complete"}, 1, tr.baseLabels)
 		}
 	}
 
@@ -1202,12 +1187,7 @@ func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
 	// XXX This seems like a super awkward spot for this? Why not shouldRestart?
 	// Update restart metrics
 	if event.Type == structs.TaskRestarting {
-		if !tr.clientConfig.DisableTaggedMetrics {
-			metrics.IncrCounterWithLabels([]string{"client", "allocs", "restart"}, 1, tr.baseLabels)
-		}
-		//if r.config.BackwardsCompatibleMetrics {
-		//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "restart"}, 1)
-		//}
+		metrics.IncrCounterWithLabels([]string{"client", "allocs", "restart"}, 1, tr.baseLabels)
 		tr.state.Restarts++
 		tr.state.LastRestart = time.Unix(0, event.Time)
 	}
@@ -1322,38 +1302,23 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
 	}
 
-	if !tr.clientConfig.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
-			float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
-			float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
-			float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
-			float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
-			float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
-			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
-		if allocatedMem > 0 {
-			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
-				allocatedMem, tr.baseLabels)
-		}
-	}
-
-	if tr.clientConfig.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
-		if allocatedMem > 0 {
-			metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "allocated"}, allocatedMem)
-		}
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+		float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
+		float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
+		float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
+		float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
+		float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
+		float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
+		float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+	if allocatedMem > 0 {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
+			allocatedMem, tr.baseLabels)
 	}
 }
 
@@ -1365,35 +1330,21 @@ func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 		allocatedCPU = float32(taskRes.Cpu.CpuShares)
 	}
 
-	if !tr.clientConfig.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
-			float32(ru.ResourceUsage.CpuStats.Percent), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
-			float32(ru.ResourceUsage.CpuStats.SystemMode), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
-			float32(ru.ResourceUsage.CpuStats.UserMode), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
-			float32(ru.ResourceUsage.CpuStats.ThrottledTime), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
-			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
-			float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
-		if allocatedCPU > 0 {
-			metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "allocated"},
-				allocatedCPU, tr.baseLabels)
-		}
-	}
-
-	if tr.clientConfig.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
-		if allocatedCPU > 0 {
-			metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "allocated"}, allocatedCPU)
-		}
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
+		float32(ru.ResourceUsage.CpuStats.Percent), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
+		float32(ru.ResourceUsage.CpuStats.SystemMode), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
+		float32(ru.ResourceUsage.CpuStats.UserMode), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
+		float32(ru.ResourceUsage.CpuStats.ThrottledTime), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
+		float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
+		float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
+	if allocatedCPU > 0 {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "allocated"},
+			allocatedCPU, tr.baseLabels)
 	}
 }
 

@@ -561,14 +561,6 @@ type Telemetry struct {
 	PublishAllocationMetrics bool          `hcl:"publish_allocation_metrics"`
 	PublishNodeMetrics       bool          `hcl:"publish_node_metrics"`
 
-	// DisableTaggedMetrics disables a new version of generating metrics which
-	// uses tags
-	DisableTaggedMetrics bool `hcl:"disable_tagged_metrics"`
-
-	// BackwardsCompatibleMetrics allows for generating metrics in a simple
-	// key/value structure as done in older versions of Nomad
-	BackwardsCompatibleMetrics bool `hcl:"backwards_compatible_metrics"`
-
 	// PrefixFilter allows for filtering out metrics from being collected
 	PrefixFilter []string `hcl:"prefix_filter"`
 
@@ -1640,14 +1632,6 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.CirconusBrokerSelectTag != "" {
 		result.CirconusBrokerSelectTag = b.CirconusBrokerSelectTag
-	}
-
-	if b.DisableTaggedMetrics {
-		result.DisableTaggedMetrics = b.DisableTaggedMetrics
-	}
-
-	if b.BackwardsCompatibleMetrics {
-		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
 	}
 
 	if b.PrefixFilter != nil {

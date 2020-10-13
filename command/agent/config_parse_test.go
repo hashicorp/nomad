@@ -180,8 +180,6 @@ var basicConfig = &Config{
 		collectionInterval:         3 * time.Second,
 		PublishAllocationMetrics:   true,
 		PublishNodeMetrics:         true,
-		DisableTaggedMetrics:       true,
-		BackwardsCompatibleMetrics: true,
 	},
 	LeaveOnInt:                true,
 	LeaveOnTerm:               true,

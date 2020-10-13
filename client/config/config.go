@@ -205,19 +205,11 @@ type Config struct {
 	// ACLPolicyTTL is how long we cache policy values for
 	ACLPolicyTTL time.Duration
 
-	// DisableTaggedMetrics determines whether metrics will be displayed via a
-	// key/value/tag format, or simply a key/value format
-	DisableTaggedMetrics bool
-
 	// DisableRemoteExec disables remote exec targeting tasks on this client
 	DisableRemoteExec bool
 
 	// TemplateConfig includes configuration for template rendering
 	TemplateConfig *ClientTemplateConfig
-
-	// BackwardsCompatibleMetrics determines whether to show methods of
-	// displaying metrics for older versions, or to only show the new format
-	BackwardsCompatibleMetrics bool
 
 	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
 	// This is used to paper over a loss of leadership by instead holding RPCs,
@@ -321,18 +313,16 @@ func DefaultConfig() *Config {
 		GCInodeUsageThreshold:   70,
 		GCMaxAllocs:             50,
 		NoHostUUID:              true,
-		DisableTaggedMetrics:    false,
 		DisableRemoteExec:       false,
 		TemplateConfig: &ClientTemplateConfig{
 			FunctionDenylist: []string{"plugin"},
 			DisableSandbox:   false,
 		},
-		BackwardsCompatibleMetrics: false,
-		RPCHoldTimeout:             5 * time.Second,
-		CNIPath:                    "/opt/cni/bin",
-		CNIConfigDir:               "/opt/cni/config",
-		CNIInterfacePrefix:         "eth",
-		HostNetworks:               map[string]*structs.ClientHostNetworkConfig{},
+		RPCHoldTimeout:     5 * time.Second,
+		CNIPath:            "/opt/cni/bin",
+		CNIConfigDir:       "/opt/cni/config",
+		CNIInterfacePrefix: "eth",
+		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
 	}
 }
 
