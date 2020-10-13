@@ -6,6 +6,7 @@ import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { guidFor } from '@ember/object/internals';
 import { run } from '@ember/runloop';
+import { htmlSafe } from '@ember/template';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
 import d3Axis from 'd3-axis';
@@ -306,7 +307,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
       prevX = x;
       return {
         annotation,
-        style: `transform:translate(${x}px,${y}px)`.htmlSafe(),
+        style: htmlSafe(`transform:translate(${x}px,${y}px)`),
         icon: iconFor[annotation.type],
         iconClass: iconClassFor[annotation.type],
         staggerClass: prevHigh ? 'is-staggered' : '',
