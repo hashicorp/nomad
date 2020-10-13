@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/fileperms"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
@@ -220,11 +221,8 @@ func createBinDir(binDir string) error {
 	}
 
 	// Create the directory
-	if err := os.Mkdir(binDir, 075); err != nil {
+	if err := os.Mkdir(binDir, fileperms.Oct755); err != nil {
 		return fmt.Errorf("failed to make directory: %v", err)
-	}
-	if err := os.Chmod(binDir, 0755); err != nil {
-		return fmt.Errorf("failed to chmod: %v", err)
 	}
 
 	return nil
@@ -280,7 +278,7 @@ func getVault(dst, url string) error {
 	}
 
 	// Copy the file to its destination
-	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0777)
+	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_EXCL, fileperms.Oct777)
 	if err != nil {
 		return err
 	}

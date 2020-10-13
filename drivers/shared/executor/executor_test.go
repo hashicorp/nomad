@@ -18,6 +18,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/fileperms"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -368,35 +369,27 @@ func TestExecutor_Shutdown_Exit(t *testing.T) {
 	require.NoError(allocDir.Destroy())
 }
 
-func TestUniversalExecutor_MakeExecutable(t *testing.T) {
+func TestUniversalExecutor_makeExecutable(t *testing.T) {
 	t.Parallel()
 	// Create a temp file
 	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	defer os.Remove(f.Name())
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		require.NoError(t, f.Close())
+		require.NoError(t, os.Remove(f.Name()))
+	})
 
 	// Set its permissions to be non-executable
-	f.Chmod(os.FileMode(0610))
+	err = f.Chmod(fileperms.Oct610)
+	require.NoError(t, err)
 
 	err = makeExecutable(f.Name())
-	if err != nil {
-		t.Fatalf("makeExecutable() failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Check the permissions
-	stat, err := f.Stat()
-	if err != nil {
-		t.Fatalf("Stat() failed: %v", err)
-	}
-
-	act := stat.Mode().Perm()
-	exp := os.FileMode(0755)
-	if act != exp {
-		t.Fatalf("expected permissions %v; got %v", exp, act)
-	}
+	err = fileperms.Check(f, fileperms.Oct755)
+	require.NoError(t, err)
 }
 
 func TestUniversalExecutor_LookupPath(t *testing.T) {
