@@ -38,17 +38,19 @@ export default class TopologyControllers extends Controller {
     return reduceToLargestUnit(this.totalMemory)[1];
   }
 
-  @computed('model.allocations.@each.resources')
+  @computed('model.allocations.@each.allocatedResources')
   get totalReservedMemory() {
     const mibs = this.model.allocations
-      .mapBy('resources.memory')
+      .mapBy('allocatedResources.memory')
       .reduce((sum, memory) => sum + (memory || 0), 0);
     return mibs * 1024 * 1024;
   }
 
-  @computed('model.allocations.@each.resources')
+  @computed('model.allocations.@each.allocatedResources')
   get totalReservedCPU() {
-    return this.model.allocations.mapBy('resources.cpu').reduce((sum, cpu) => sum + (cpu || 0), 0);
+    return this.model.allocations
+      .mapBy('allocatedResources.cpu')
+      .reduce((sum, cpu) => sum + (cpu || 0), 0);
   }
 
   @computed('totalMemory', 'totalReservedMemory')
@@ -105,11 +107,12 @@ export default class TopologyControllers extends Controller {
   }
 
   @action
-  setAllocation(allocation) {
-    this.set('activeAllocation', allocation);
+  async setAllocation(allocation) {
     if (allocation) {
-      allocation.reload();
+      await allocation.reload();
+      await allocation.job.reload();
     }
+    this.set('activeAllocation', allocation);
   }
 
   @action
