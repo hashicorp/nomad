@@ -255,16 +255,14 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	members, err := client.Agent().Members()
 	c.writeJSON("version", "members.json", members, err)
 	// We always write the error to the file, but don't range if no members found
-	if members != nil { // members
-		if serverIDs == "all" {
-			// Special case to capture from all servers
-			for _, member := range members.Members {
-				c.serverIDs = append(c.serverIDs, member.Name)
-			}
-		} else {
-			for _, id := range argNodes(serverIDs) {
-				c.serverIDs = append(c.serverIDs, id)
-			}
+	if serverIDs == "all" && members != nil {
+		// Special case to capture from all servers
+		for _, member := range members.Members {
+			c.serverIDs = append(c.serverIDs, member.Name)
+		}
+	} else {
+		for _, id := range argNodes(serverIDs) {
+			c.serverIDs = append(c.serverIDs, id)
 		}
 	}
 
