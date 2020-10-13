@@ -15,7 +15,7 @@ type heartbeatStop struct {
 	allocHookCh   chan *structs.Allocation
 	getRunner     func(string) (AllocRunner, error)
 	logger        hclog.InterceptLogger
-	shutdownCh    chan struct{}
+	shutdownCh    <-chan struct{}
 	lock          *sync.RWMutex
 }
 
@@ -23,7 +23,7 @@ func newHeartbeatStop(
 	getRunner func(string) (AllocRunner, error),
 	timeout time.Duration,
 	logger hclog.InterceptLogger,
-	shutdownCh chan struct{}) *heartbeatStop {
+	shutdownCh <-chan struct{}) *heartbeatStop {
 
 	h := &heartbeatStop{
 		startupGrace:  time.Now().Add(timeout),

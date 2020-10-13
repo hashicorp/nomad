@@ -142,7 +142,7 @@ type Manager struct {
 	rebalanceTimer *time.Timer
 
 	// shutdownCh is a copy of the channel in Nomad.Client
-	shutdownCh chan struct{}
+	shutdownCh <-chan struct{}
 
 	// numNodes is used to estimate the approximate number of nodes in
 	// a cluster and limit the rate at which it rebalances server
@@ -159,7 +159,7 @@ type Manager struct {
 }
 
 // New is the only way to safely create a new Manager struct.
-func New(logger hclog.Logger, shutdownCh chan struct{}, connPoolPinger Pinger) (m *Manager) {
+func New(logger hclog.Logger, shutdownCh <-chan struct{}, connPoolPinger Pinger) (m *Manager) {
 	logger = logger.Named("server_mgr")
 	return &Manager{
 		logger:         logger,

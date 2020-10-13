@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -50,6 +51,7 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -235,7 +237,9 @@ type Client struct {
 	shutdown bool
 
 	// shutdownCh is closed to signal the Client is shutting down.
-	shutdownCh chan struct{}
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
+	shutdownCh     <-chan struct{}
 
 	shutdownLock sync.Mutex
 
@@ -296,6 +300,8 @@ type Client struct {
 
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
+
+	addAllocLimiter *rate.Limiter
 }
 
 var (
@@ -327,6 +333,17 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the logger
 	logger := cfg.Logger.ResetNamedIntercept("client")
 
+	// Create a context for signalling the client should shutdown
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+
+	defaultAllocRateLimit := float64(rate.Inf)
+	allocRateLimit := cfg.ReadFloatDefault("alloc.rate_limit", defaultAllocRateLimit)
+	allocRateBurst := cfg.ReadIntDefault("alloc.rate_burst", 10)
+	if allocRateLimit != defaultAllocRateLimit {
+		logger.Info("rate limiting running allocations",
+			"limit", allocRateLimit, "burst", allocRateBurst)
+	}
+
 	// Create the client
 	c := &Client{
 		config:               cfg,
@@ -340,7 +357,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 		rpcLogger:            logger.Named("rpc"),
 		allocs:               make(map[string]AllocRunner),
 		allocUpdates:         make(chan *structs.Allocation, 64),
-		shutdownCh:           make(chan struct{}),
+		addAllocLimiter:      rate.NewLimiter(rate.Limit(allocRateLimit), allocRateBurst),
+		shutdownCtx:          shutdownCtx,
+		shutdownCancel:       shutdownCancel,
+		shutdownCh:           shutdownCtx.Done(),
 		triggerDiscoveryCh:   make(chan struct{}),
 		triggerNodeUpdate:    make(chan struct{}, 8),
 		triggerEmitNodeEvent: make(chan *structs.NodeEvent, 8),
@@ -759,7 +779,7 @@ func (c *Client) Shutdown() error {
 	c.pluginManagers.Shutdown()
 
 	c.shutdown = true
-	close(c.shutdownCh)
+	c.shutdownCancel()
 
 	// Must close connection pool to unblock alloc watcher
 	c.connPool.Shutdown()
@@ -2409,7 +2429,14 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	// Maybe mark the alloc for halt on missing server heartbeats
 	c.heartbeatStop.allocHook(alloc)
 
-	go ar.Run()
+	go func() {
+		if err := c.addAllocLimiter.Wait(c.shutdownCtx); err != nil {
+			c.logger.Debug("shutting down before rate limited allocation could run",
+				"error", err, "alloc_id", alloc.ID)
+			return
+		}
+		ar.Run()
+	}()
 	return nil
 }
 
