@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,30 +123,32 @@ func TestDebugCapturedFiles(t *testing.T) {
 	require.Equal(t, 0, code)
 	ui.ErrorWriter.Reset()
 
-	// Version is always captured
-	require.FileExists(t, filepath.Join(path, "version", "agent-self.json"))
+	serverFiles := []string{
+		// Version is always captured
+		filepath.Join(path, "version", "agent-self.json"),
 
-	// Consul and Vault contain results or errors
-	_, err := os.Stat(filepath.Join(path, "version", "consul-agent-self.json"))
-	require.NoError(t, err)
-	_, err = os.Stat(filepath.Join(path, "version", "vault-sys-health.json"))
-	require.NoError(t, err)
+		// Consul and Vault contain results or errors
+		filepath.Join(path, "version", "consul-agent-self.json"),
+		filepath.Join(path, "version", "vault-sys-health.json"),
 
-	// Monitor files are only created when selected
-	require.FileExists(t, filepath.Join(path, "server", "leader", "monitor.log"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "profile.prof"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "trace.prof"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine.prof"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine-debug1.txt"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine-debug2.txt"))
+		// Monitor files are only created when selected
+		filepath.Join(path, "server", "leader", "monitor.log"),
+		filepath.Join(path, "server", "leader", "profile.prof"),
+		filepath.Join(path, "server", "leader", "trace.prof"),
+		filepath.Join(path, "server", "leader", "goroutine.prof"),
+		filepath.Join(path, "server", "leader", "goroutine-debug1.txt"),
+		filepath.Join(path, "server", "leader", "goroutine-debug2.txt"),
 
-	// Multiple snapshots are collected, 00 is always created
-	require.FileExists(t, filepath.Join(path, "nomad", "0000", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0000", "nodes.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0000", "metrics.json"))
+		// Multiple snapshots are collected, 00 is always created
+		filepath.Join(path, "nomad", "0000", "jobs.json"),
+		filepath.Join(path, "nomad", "0000", "nodes.json"),
+		filepath.Join(path, "nomad", "0000", "metrics.json"),
 
-	// Multiple snapshots are collected, 01 requires two intervals
-	require.FileExists(t, filepath.Join(path, "nomad", "0001", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0001", "nodes.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0001", "metrics.json"))
+		// Multiple snapshots are collected, 01 requires two intervals
+		filepath.Join(path, "nomad", "0001", "jobs.json"),
+		filepath.Join(path, "nomad", "0001", "nodes.json"),
+		filepath.Join(path, "nomad", "0001", "metrics.json"),
+	}
+
+	testutil.WaitForFiles(t, serverFiles)
 }
