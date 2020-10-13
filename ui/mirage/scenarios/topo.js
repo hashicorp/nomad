@@ -1,19 +1,20 @@
 import faker from 'nomad-ui/mirage/faker';
 import { generateNetworks, generatePorts } from '../common';
 
+const genResources = (CPU, Memory) => ({
+  Cpu: { CpuShares: CPU },
+  Memory: { MemoryMB: Memory },
+  Disk: { DiskMB: 10000 },
+  Networks: generateNetworks(),
+  Ports: generatePorts(),
+});
+
 export function topoSmall(server) {
   server.createList('agent', 3);
   server.createList('node', 12, {
     datacenter: 'dc1',
     status: 'ready',
-    resources: {
-      CPU: 3000,
-      MemoryMB: 5192,
-      DiskMB: 10000,
-      IOPS: 100000,
-      Networks: generateNetworks(),
-      Ports: generatePorts(),
-    },
+    nodeResources: genResources(3000, 5192),
   });
 
   const jobResources = [
@@ -48,66 +49,31 @@ export function topoSmallProblems(server) {}
 
 export function topoMedium(server) {
   server.createList('agent', 3);
-  server.createList('node', 7, {
+  server.createList('node', 10, {
     datacenter: 'us-west-1',
     status: 'ready',
-    resources: {
-      CPU: 3000,
-      MemoryMB: 5192,
-      DiskMB: 10000,
-      IOPS: 100000,
-      Networks: generateNetworks(),
-      Ports: generatePorts(),
-    },
+    nodeResources: genResources(3000, 5192),
   });
-  server.createList('node', 7, {
+  server.createList('node', 12, {
     datacenter: 'us-east-1',
     status: 'ready',
-    resources: {
-      CPU: 3000,
-      MemoryMB: 5192,
-      DiskMB: 10000,
-      IOPS: 100000,
-      Networks: generateNetworks(),
-      Ports: generatePorts(),
-    },
+    nodeResources: genResources(3000, 5192),
   });
-  server.createList('node', 7, {
+  server.createList('node', 11, {
     datacenter: 'eu-west-1',
     status: 'ready',
-    resources: {
-      CPU: 3000,
-      MemoryMB: 5192,
-      DiskMB: 10000,
-      IOPS: 100000,
-      Networks: generateNetworks(),
-      Ports: generatePorts(),
-    },
+    nodeResources: genResources(3000, 5192),
   });
 
   server.createList('node', 8, {
     datacenter: 'us-west-1',
     status: 'ready',
-    resources: {
-      CPU: 8000,
-      MemoryMB: 12192,
-      DiskMB: 10000,
-      IOPS: 100000,
-      Networks: generateNetworks(),
-      Ports: generatePorts(),
-    },
+    nodeResources: genResources(8000, 12192),
   });
-  server.createList('node', 7, {
+  server.createList('node', 9, {
     datacenter: 'us-east-1',
     status: 'ready',
-    resources: {
-      CPU: 8000,
-      MemoryMB: 12192,
-      DiskMB: 10000,
-      IOPS: 100000,
-      Networks: generateNetworks(),
-      Ports: generatePorts(),
-    },
+    nodeResources: genResources(8000, 12192),
   });
 
   const jobResources = [
