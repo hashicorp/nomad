@@ -653,30 +653,18 @@ func parseNamespace(req *http.Request, n *string) {
 	}
 }
 
-// parseResources is used to parse the ?resources parameter
-func parseResources(req *http.Request) (bool, error) {
-	if resourcesStr := req.URL.Query().Get("resources"); resourcesStr != "" {
-		resources, err := strconv.ParseBool(resourcesStr)
-		if err != nil {
-			return false, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "resources", resourcesStr, err)
-		}
-		return resources, nil
-	}
-
-	return false, nil
-}
-
-// parseTaskStates is used to parse the ?task_states parameter
-func parseTaskStates(req *http.Request) (bool, error) {
-	if str := req.URL.Query().Get("task_states"); str != "" {
+// parseBool parses a query parameter to a boolean or returns (nil, nil) if the
+// parameter is not present.
+func parseBool(req *http.Request, field string) (*bool, error) {
+	if str := req.URL.Query().Get(field); str != "" {
 		param, err := strconv.ParseBool(str)
 		if err != nil {
-			return false, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "task_states", str, err)
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", field, str, err)
 		}
-		return param, nil
+		return &param, nil
 	}
 
-	return false, nil
+	return nil, nil
 }
 
 // parseToken is used to parse the X-Nomad-Token param

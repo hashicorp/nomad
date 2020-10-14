@@ -34,13 +34,23 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Parse resources and task_states field selection
-	var err error
-	args.Fields = structs.NewAllocStubFields()
-	if args.Fields.Resources, err = parseResources(req); err != nil {
+	resources, err := parseBool(req, "resources")
+	if err != nil {
 		return nil, err
 	}
-	if args.Fields.TaskStates, err = parseTaskStates(req); err != nil {
+	taskStates, err := parseBool(req, "task_states")
+	if err != nil {
 		return nil, err
+	}
+
+	if resources != nil || taskStates != nil {
+		args.Fields = structs.NewAllocStubFields()
+		if resources != nil {
+			args.Fields.Resources = *resources
+		}
+		if taskStates != nil {
+			args.Fields.TaskStates = *taskStates
+		}
 	}
 
 	var out structs.AllocListResponse

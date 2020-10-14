@@ -21,11 +21,13 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	// Parse resources field selection
-	if resources, err := parseResources(req); err != nil {
+	resources, err := parseBool(req, "resources")
+	if err != nil {
 		return nil, err
-	} else if resources {
+	}
+	if resources != nil {
 		args.Fields = &structs.NodeStubFields{
-			Resources: true,
+			Resources: *resources,
 		}
 	}
 

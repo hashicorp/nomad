@@ -515,91 +515,48 @@ func TestParseToken(t *testing.T) {
 	}
 }
 
-func TestParseResources(t *testing.T) {
+func TestParseBool(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		Value     string
-		Resources bool
-		Err       bool // true if an error should be expected
+		Input    string
+		Expected *bool
+		Err      bool // true if an error should be expected
 	}{
 		{
-			Value:     "",
-			Resources: false,
+			Input:    "",
+			Expected: nil,
 		},
 		{
-			Value:     "true",
-			Resources: true,
+			Input:    "true",
+			Expected: helper.BoolToPtr(true),
 		},
 		{
-			Value:     "false",
-			Resources: false,
+			Input:    "false",
+			Expected: helper.BoolToPtr(false),
 		},
 		{
-			Value: "1234",
+			Input: "1234",
 			Err:   true,
 		},
 	}
 
 	for i := range cases {
 		tc := cases[i]
-		t.Run("Value-"+tc.Value, func(t *testing.T) {
-			testURL, err := url.Parse("http://localhost/foo?resources=" + tc.Value)
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?resources=" + tc.Input)
 			require.NoError(t, err)
 			req := &http.Request{
 				URL: testURL,
 			}
 
-			result, err := parseResources(req)
+			result, err := parseBool(req, "resources")
 			if tc.Err {
 				require.Error(t, err)
+				require.Nil(t, result)
 			} else {
-				require.Equal(t, tc.Resources, result)
-			}
-		})
-	}
-}
-
-func TestParseTaskStates(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		Value      string
-		TaskStates bool
-		Err        bool // true if an error should be expected
-	}{
-		{
-			Value:      "",
-			TaskStates: false,
-		},
-		{
-			Value:      "true",
-			TaskStates: true,
-		},
-		{
-			Value:      "false",
-			TaskStates: false,
-		},
-		{
-			Value: "1234",
-			Err:   true,
-		},
-	}
-
-	for i := range cases {
-		tc := cases[i]
-		t.Run("Value-"+tc.Value, func(t *testing.T) {
-			testURL, err := url.Parse("http://localhost/foo?task_states=" + tc.Value)
-			require.NoError(t, err)
-			req := &http.Request{
-				URL: testURL,
-			}
-
-			result, err := parseTaskStates(req)
-			if tc.Err {
-				require.Error(t, err)
-			} else {
-				require.Equal(t, tc.TaskStates, result)
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
 			}
 		})
 	}
