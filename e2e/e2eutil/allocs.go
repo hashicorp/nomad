@@ -196,3 +196,24 @@ func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, err
 	})
 	return got, err
 }
+
+// WaitForAllocFile is a helper that grabs a file via alloc fs and tests its
+// contents; useful for checking the results of rendered templates
+func WaitForAllocFile(allocID, path string, test func(string) bool, wc *WaitConfig) error {
+	var err error
+	var out string
+	interval, retries := wc.OrDefault()
+
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(interval)
+		out, err = Command("nomad", "alloc", "fs", allocID, path)
+		if err != nil {
+			return false, fmt.Errorf("could not get file %q from allocation %q: %v",
+				path, allocID, err)
+		}
+		return test(out), nil
+	}, func(e error) {
+		err = fmt.Errorf("test for file content failed: got %#v\nerror: %v", out, e)
+	})
+	return err
+}
