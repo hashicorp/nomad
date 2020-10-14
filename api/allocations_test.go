@@ -7,15 +7,17 @@ import (
 	"reflect"
 	"sort"
 	"testing"
-
 	"time"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAllocations_List(t *testing.T) {
 	t.Parallel()
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 	a := c.Allocations()
 
@@ -31,33 +33,28 @@ func TestAllocations_List(t *testing.T) {
 		t.Fatalf("expected 0 allocs, got: %d", n)
 	}
 
-	// TODO: do something that causes an allocation to actually happen
-	// so we can query for them.
-	return
+	// Create a job and attempt to register it
+	job := testJob()
+	resp, wm, err := c.Jobs().Register(job, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.EvalID)
+	assertWriteMeta(t, wm)
 
-	//job := &Job{
-	//ID:   stringToPtr("job1"),
-	//Name: stringToPtr("Job #1"),
-	//Type: stringToPtr(JobTypeService),
-	//}
-	//eval, _, err := c.Jobs().Register(job, nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
+	// List the allocations again
+	qo := &QueryOptions{
+		WaitIndex: wm.LastIndex,
+	}
+	allocs, qm, err = a.List(qo)
+	require.NoError(t, err)
+	require.NotZero(t, qm.LastIndex)
 
-	//// List the allocations again
-	//allocs, qm, err = a.List(nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
-	//if qm.LastIndex == 0 {
-	//t.Fatalf("bad index: %d", qm.LastIndex)
-	//}
+	// Check that we got the allocation back
+	require.Len(t, allocs, 1)
+	require.Equal(t, resp.EvalID, allocs[0].EvalID)
 
-	//// Check that we got the allocation back
-	//if len(allocs) == 0 || allocs[0].EvalID != eval {
-	//t.Fatalf("bad: %#v", allocs)
-	//}
+	// Resources should be unset by default
+	require.Nil(t, allocs[0].AllocatedResources)
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
@@ -106,6 +103,37 @@ func TestAllocations_PrefixList(t *testing.T) {
 	//if len(allocs) == 0 || allocs[0].EvalID != eval {
 	//t.Fatalf("bad: %#v", allocs)
 	//}
+}
+
+func TestAllocations_List_Resources(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	a := c.Allocations()
+
+	// Create a job and register it
+	job := testJob()
+	resp, wm, err := c.Jobs().Register(job, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// List the allocations
+	qo := &QueryOptions{
+		Params:    map[string]string{"resources": "true"},
+		WaitIndex: wm.LastIndex,
+	}
+	allocs, qm, err := a.List(qo)
+	require.NoError(t, err)
+	require.NotZero(t, qm.LastIndex)
+
+	// Check that we got the allocation back with resources
+	require.Len(t, allocs, 1)
+	require.Equal(t, resp.EvalID, allocs[0].EvalID)
+	require.NotNil(t, allocs[0].AllocatedResources)
 }
 
 func TestAllocations_CreateIndexSort(t *testing.T) {

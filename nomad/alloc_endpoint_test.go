@@ -69,19 +69,111 @@ func TestAllocEndpoint_List(t *testing.T) {
 	}
 
 	var resp2 structs.AllocListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp2))
+	require.Equal(t, uint64(1000), resp2.Index)
+	require.Len(t, resp2.Allocations, 1)
+	require.Equal(t, alloc.ID, resp2.Allocations[0].ID)
+}
+
+func TestAllocEndpoint_List_Fields(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a running alloc
+	alloc := mock.Alloc()
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
 	}
-	if resp2.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	summary := mock.JobSummary(alloc.JobID)
+	state := s1.fsm.State()
+
+	require.NoError(t, state.UpsertJobSummary(999, summary))
+	require.NoError(t, state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
+
+	cases := []struct {
+		Name   string
+		Fields *structs.AllocStubFields
+		Assert func(t *testing.T, allocs []*structs.AllocListStub)
+	}{
+		{
+			Name:   "None",
+			Fields: nil,
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.Nil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 1)
+			},
+		},
+		{
+			Name:   "Default",
+			Fields: structs.NewAllocStubFields(),
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.Nil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 1)
+			},
+		},
+		{
+			Name: "Resources",
+			Fields: &structs.AllocStubFields{
+				Resources:  true,
+				TaskStates: false,
+			},
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.NotNil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 0)
+			},
+		},
+		{
+			Name: "NoTaskStates",
+			Fields: &structs.AllocStubFields{
+				Resources:  false,
+				TaskStates: false,
+			},
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.Nil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 0)
+			},
+		},
+		{
+			Name: "Both",
+			Fields: &structs.AllocStubFields{
+				Resources:  true,
+				TaskStates: true,
+			},
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.NotNil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 1)
+			},
+		},
 	}
 
-	if len(resp2.Allocations) != 1 {
-		t.Fatalf("bad: %#v", resp2.Allocations)
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			get := &structs.AllocListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+				Fields: tc.Fields,
+			}
+			var resp structs.AllocListResponse
+			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp))
+			require.Equal(t, uint64(1000), resp.Index)
+			require.Len(t, resp.Allocations, 1)
+			require.Equal(t, alloc.ID, resp.Allocations[0].ID)
+			tc.Assert(t, resp.Allocations)
+		})
 	}
-	if resp2.Allocations[0].ID != alloc.ID {
-		t.Fatalf("bad: %#v", resp2.Allocations[0])
-	}
+
 }
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
@@ -102,7 +194,7 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
 	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
 
-	stubAllocs := []*structs.AllocListStub{alloc.Stub()}
+	stubAllocs := []*structs.AllocListStub{alloc.Stub(nil)}
 	stubAllocs[0].CreateIndex = 1000
 	stubAllocs[0].ModifyIndex = 1000
 

@@ -344,13 +344,13 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 
 	for _, a := range vol.WriteAllocs {
 		if a != nil {
-			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
+			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub(nil)))
 		}
 	}
 
 	for _, a := range vol.ReadAllocs {
 		if a != nil {
-			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub()))
+			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub(nil)))
 		}
 	}
 
