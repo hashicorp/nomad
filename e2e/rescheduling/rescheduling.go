@@ -393,8 +393,10 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 		}
 	}
 
-	f.Equal(1, statuses["failed"], "expected only 1 failed deployment")
-	f.Equal(2, statuses["successful"], "expected 2 successful deployments")
+	f.Equal(1, statuses["failed"],
+		fmt.Sprintf("expected only 1 failed deployment, got:\n%s", out))
+	f.Equal(2, statuses["successful"],
+		fmt.Sprintf("expected 2 successful deployments, got:\n%s", out))
 }
 
 // TestRescheduleProgressDeadline verifies the progress deadline is reset with
