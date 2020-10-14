@@ -374,20 +374,29 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 		"should have one successful, one failed, and 3 reverted allocs",
 	)
 
+	// at this point the allocs have been checked but we need to wait for the
+	// deployment to be marked complete before we can assert that it's successful
+	// and verify the count of deployments
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"most recent deployment should be successful")
+
 	out, err := e2e.Command("nomad", "deployment", "status")
 	f.NoError(err, "could not get deployment status")
 
 	results, err := e2e.ParseColumns(out)
 	f.NoError(err, "could not parse deployment status")
-	statuses := []string{}
+	statuses := map[string]int{}
 	for _, row := range results {
 		if row["Job ID"] == jobID {
-			statuses = append(statuses, row["Status"])
+			statuses[row["Status"]]++
 		}
 	}
-	f.True(reflect.DeepEqual([]string{"running", "failed", "successful"}, statuses),
-		fmt.Sprintf("deployment status was: %#v", statuses),
-	)
+
+	f.Equal(1, statuses["failed"],
+		fmt.Sprintf("expected only 1 failed deployment, got:\n%s", out))
+	f.Equal(2, statuses["successful"],
+		fmt.Sprintf("expected 2 successful deployments, got:\n%s", out))
 }
 
 // TestRescheduleProgressDeadline verifies the progress deadline is reset with
