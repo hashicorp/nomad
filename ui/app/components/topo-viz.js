@@ -71,13 +71,10 @@ export default class TopoViz extends Component {
     };
   }
 
-  @task(function*() {
+  @action
+  buildTopology() {
     const nodes = this.args.nodes;
     const allocations = this.args.allocations;
-
-    // Nodes are probably partials and we'll need the resources on them
-    // TODO: this is an API update waiting to happen.
-    yield RSVP.all(nodes.map(node => (node.isPartial ? node.reload() : RSVP.resolve(node))));
 
     // Wrap nodes in a topo viz specific data structure and build an index to speed up allocation assignment
     const nodeContainers = [];
@@ -95,7 +92,7 @@ export default class TopoViz extends Component {
       const nodeId = allocation.belongsTo('node').id();
       const nodeContainer = nodeIndex[nodeId];
       if (!nodeContainer)
-        throw new Error(`Node ${nodeId} for alloc ${allocation.id} not in index???`);
+        throw new Error(`Node ${nodeId} for alloc ${allocation.id} not in index.`);
 
       const allocationContainer = this.dataForAllocation(allocation, nodeContainer);
       nodeContainer.allocations.push(allocationContainer);
@@ -126,14 +123,12 @@ export default class TopoViz extends Component {
         .domain(extent(nodeContainers.mapBy('memory'))),
     };
     this.topology = topology;
-  })
-  buildTopology;
+  }
 
   @action
   async loadNodes() {
     await RSVP.all(this.args.nodes.map(node => node.reload()));
 
-    // TODO: Make the range dynamic based on the extent of the domain
     this.heightScale = scaleLinear()
       .range([15, 40])
       .domain(extent(this.args.nodes.map(node => node.resources.memory)));
@@ -207,7 +202,6 @@ export default class TopoViz extends Component {
   computedActiveEdges() {
     // Wait a render cycle
     run.next(() => {
-      // const path = line().curve(curveCardinal.tension(0.5));
       const path = line().curve(curveBasis);
       // 1. Get the active element
       const allocation = this.activeAllocation.allocation;

@@ -1,33 +1,25 @@
-<div class="topo-viz {{if (or this.buildTopology.isRunning this.isSingleColumn) "is-single-column"}}" {{did-insert (perform this.buildTopology)}} {{did-insert this.captureElement}}>
-  {{#if this.buildTopology.isRunning}}
-    <div class="has-text-centered">
-      <h2 class="title">Loading. If you have a lot of clients this may take awhile</h2>
-      <p>Every client needs to be loaded individually. This is a shortcoming of the prototype and will be fixed before this is graduated to the actual Nomad project.</p>
-      <LoadingSpinner />
-    </div>
-  {{else}}
-    <FlexMasonry
-      @columns={{if this.isSingleColumn 1 2}}
-      @items={{this.topology.datacenters}}
-      @withSpacing={{true}} as |dc reflow|>
-      <TopoViz::Datacenter
-          @datacenter={{dc}}
-          @isSingleColumn={{this.datacenterIsSingleColumn}}
-          @isDense={{this.isDense}}
-          @heightScale={{this.topology.heightScale}}
-          @onAllocationSelect={{this.associateAllocations}}
-          @onNodeSelect={{this.showNodeDetails}}
-          @onLoad={{action reflow}}/>
-    </FlexMasonry>
+<div class="topo-viz {{if this.isSingleColumn "is-single-column"}}" {{did-insert this.buildTopology}} {{did-insert this.captureElement}}>
+  <FlexMasonry
+    @columns={{if this.isSingleColumn 1 2}}
+    @items={{this.topology.datacenters}}
+    @withSpacing={{true}} as |dc reflow|>
+    <TopoViz::Datacenter
+        @datacenter={{dc}}
+        @isSingleColumn={{this.datacenterIsSingleColumn}}
+        @isDense={{this.isDense}}
+        @heightScale={{this.topology.heightScale}}
+        @onAllocationSelect={{this.associateAllocations}}
+        @onNodeSelect={{this.showNodeDetails}}
+        @onLoad={{action reflow}}/>
+  </FlexMasonry>
 
-    {{#if this.activeAllocation}}
-      <svg class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>
-        <g transform="translate({{this.edgeOffset.x}},{{this.edgeOffset.y}})">
-          {{#each this.activeEdges as |edge|}}
-            <path class="edge" d={{edge}} />
-          {{/each}}
-        </g>
-      </svg>
-    {{/if}}
+  {{#if this.activeAllocation}}
+    <svg class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>
+      <g transform="translate({{this.edgeOffset.x}},{{this.edgeOffset.y}})">
+        {{#each this.activeEdges as |edge|}}
+          <path class="edge" d={{edge}} />
+        {{/each}}
+      </g>
+    </svg>
   {{/if}}
 </div>
