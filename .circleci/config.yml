@@ -807,7 +807,7 @@ jobs:
     - PAGER: cat
     - GOTEST_MOD: ''
     - GOTEST_PKGS: ''
-    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices
+    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices|./e2e
     - GOTESTARCH: amd64
     steps:
     - checkout
@@ -1234,6 +1234,8 @@ jobs:
         name: prepare non-root user
     - run:
         command: sudo -E -H -u circleci PATH=${PATH} make deps
+    - run:
+        command: sudo -E -H -u circleci PATH=${PATH} make integration-test
     - run:
         command: sudo -E -H -u circleci PATH=${PATH} make e2e-test
     environment:
