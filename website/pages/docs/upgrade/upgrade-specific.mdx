@@ -15,32 +15,32 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
-## Nomad 0.13.0
+## Nomad 1.0.0
 
 ### Signal used when stopping Docker tasks
 
 When stopping tasks running with the Docker task driver, Nomad documents that a
 `SIGTERM` will be issued (unless configured with `kill_signal`). However, recent
-versions of Nomad would issue `SIGINT` instead. Starting again with Nomad v0.13.0
+versions of Nomad would issue `SIGINT` instead. Starting again with Nomad v1.0.0
 `SIGTERM` will be sent by default when stopping Docker tasks.
 
 ### Deprecated metrics have been removed
 
 Nomad v0.7.0 added supported for tagged metrics and deprecated untagged metrics.
 There was support for configuring backwards-compatible metrics. This support has
-been removed with v0.13.0, and all metrics will be emitted with tags.
+been removed with v1.0.0, and all metrics will be emitted with tags.
 
 ### Null characters in region, datacenter, job name/ID, task group name, and task names
 
-Starting with Nomad v0.13.0, jobs will fail validation if any of the following
+Starting with Nomad v1.0.0, jobs will fail validation if any of the following
 contain null character: the job ID or name, the task group name, or the task name. Any
-jobs meeting this requirement should be modified before an update to v0.13.0. Similarly,
+jobs meeting this requirement should be modified before an update to v1.0.0. Similarly,
 client and server config validation will prohibit either the region or the datacenter
 from containing null characters.
 
 ### EC2 CPU characteristics may be different
 
-Starting with Nomad v0.13.0, the AWS fingerprinter uses data derived from the
+Starting with Nomad v1.0.0, the AWS fingerprinter uses data derived from the
 official AWS EC2 API to determine default CPU performance characteristics, including
 core count and core speed. This data should be accurate for each instance type
 per region. Previously, Nomad used a hand-made lookup table that was not region
@@ -52,7 +52,7 @@ available to the Nomad client.
 
 ### Inclusive language
 
-Starting with Nomad v0.13.0, the terms `blacklist` and `whitelist` have been
+Starting with Nomad v1.0.0, the terms `blacklist` and `whitelist` have been
 deprecated from client configuration and driver configuration. The existing
 configuration values are permitted but will be removed in a future version of
 Nomad. The specific configuration values replaced are:
@@ -68,12 +68,12 @@ Nomad. The specific configuration values replaced are:
 
 ### Envoy proxy versions
 
-Nomad 0.13.0 changes the behavior around the selection of Envoy version used
+Nomad 1.0.0 changes the behavior around the selection of Envoy version used
 for Connect sidecar proxies. Previously, Nomad always defaulted to Envoy v1.11.2
 if neither the `meta.connect.sidecar_image` parameter or `sidecar_task` stanza
 were explicitly configured. Likewise the same version of Envoy would be used for
 Connect ingress gateways if `meta.connect.gateway_image` was unset. Starting with
-Nomad 0.13.0, each Nomad Client will query Consul for a list of supported Envoy
+Nomad 1.0.0, each Nomad Client will query Consul for a list of supported Envoy
 versions. Nomad will make use of the latest version of Envoy supported by the
 Consul agent when launching Envoy as a Connect sidecar proxy. If the version of
 the Consul agent is older than v1.7.8, v1.8.4, or v1.9.0, Nomad will fallback to
@@ -81,7 +81,7 @@ the v1.11.2 version of Envoy. As before, if the `meta.connect.sidecar_image`,
  `meta.connect.gateway_image`, or `sidecar_task` stanza are set, those settings
 take precedence.
 
-When upgrading Nomad Clients from a previous version to v0.13.0 and above, it is
+When upgrading Nomad Clients from a previous version to v1.0.0 and above, it is
 recommended to also upgrade the Consul agents to v1.7.8, 1.8.4, or v1.9.0 or newer.
 Upgrading Nomad and Consul to versions that support the new behaviour while also doing a
 full [node drain](https://www.nomadproject.io/docs/upgrade#5-upgrade-clients) at

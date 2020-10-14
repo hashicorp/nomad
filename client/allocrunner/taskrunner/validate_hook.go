@@ -43,7 +43,7 @@ func validateTask(task *structs.Task, taskEnv *taskenv.TaskEnv, conf *config.Con
 	var mErr multierror.Error
 
 	// Validate the user
-	// COMPAT(0.13) uses inclusive language. blacklist is kept for backward compatilibity.
+	// COMPAT(1.0) uses inclusive language. blacklist is kept for backward compatilibity.
 	unallowedUsers := conf.ReadStringListAlternativeToMapDefault(
 		[]string{"user.denylist", "user.blacklist"},
 		config.DefaultUserDenylist,

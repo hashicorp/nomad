@@ -71,10 +71,10 @@ func (fm *FingerprintManager) getNode() *structs.Node {
 func (fp *FingerprintManager) Run() error {
 	// First, set up all fingerprints
 	cfg := fp.getConfig()
-	// COMPAT(0.13) using inclusive language, whitelist is kept for backward compatibility.
+	// COMPAT(1.0) using inclusive language, whitelist is kept for backward compatibility.
 	allowlistFingerprints := cfg.ReadStringListToMap("fingerprint.allowlist", "fingerprint.whitelist")
 	allowlistFingerprintsEnabled := len(allowlistFingerprints) > 0
-	// COMPAT(0.13) using inclusive language, blacklist is kept for backward compatibility.
+	// COMPAT(1.0) using inclusive language, blacklist is kept for backward compatibility.
 	denylistFingerprints := cfg.ReadStringListToMap("fingerprint.denylist", "fingerprint.blacklist")
 
 	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprint.BuiltinFingerprints())
