@@ -617,7 +617,6 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 		c.writeBytes(dir, "metrics.json", metricBytes)
 	}
 
-
 	return nil
 }
 
