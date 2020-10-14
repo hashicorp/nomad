@@ -1,4 +1,4 @@
-<div data-topo-viz-node class="topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
+<div data-test-topo-viz-node class="topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
   {{#unless @isDense}}
     <p data-test-label class="label">
       {{#if @node.node.isDraining}}

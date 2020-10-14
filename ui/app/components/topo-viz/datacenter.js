@@ -1,10 +1,12 @@
 import Component from '@glimmer/component';
-import { tracked } from '@glimmer/tracking';
-import { action } from '@ember/object';
 
 export default class TopoVizDatacenter extends Component {
-  @tracked scheduledAllocations = [];
-  @tracked aggregatedNodeResources = { cpu: 0, memory: 0 };
+  get scheduledAllocations() {
+    return this.args.datacenter.nodes.reduce(
+      (all, node) => all.concat(node.allocations.filterBy('allocation.isScheduled')),
+      []
+    );
+  }
 
   get aggregatedAllocationResources() {
     return this.scheduledAllocations.reduce(
@@ -17,14 +19,8 @@ export default class TopoVizDatacenter extends Component {
     );
   }
 
-  @action
-  loadAllocations() {
-    this.scheduledAllocations = this.args.datacenter.nodes.reduce(
-      (all, node) => all.concat(node.allocations.filterBy('allocation.isScheduled')),
-      []
-    );
-
-    this.aggregatedNodeResources = this.args.datacenter.nodes.reduce(
+  get aggregatedNodeResources() {
+    return this.args.datacenter.nodes.reduce(
       (totals, node) => {
         totals.cpu += node.cpu;
         totals.memory += node.memory;
@@ -32,7 +28,5 @@ export default class TopoVizDatacenter extends Component {
       },
       { cpu: 0, memory: 0 }
     );
-
-    this.args.onLoad && this.args.onLoad();
   }
 }

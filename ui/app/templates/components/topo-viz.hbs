@@ -2,15 +2,14 @@
   <FlexMasonry
     @columns={{if this.isSingleColumn 1 2}}
     @items={{this.topology.datacenters}}
-    @withSpacing={{true}} as |dc reflow|>
+    @withSpacing={{true}} as |dc|>
     <TopoViz::Datacenter
         @datacenter={{dc}}
         @isSingleColumn={{this.datacenterIsSingleColumn}}
         @isDense={{this.isDense}}
         @heightScale={{this.topology.heightScale}}
         @onAllocationSelect={{this.associateAllocations}}
-        @onNodeSelect={{this.showNodeDetails}}
-        @onLoad={{action reflow}}/>
+        @onNodeSelect={{this.showNodeDetails}} />
   </FlexMasonry>
 
   {{#if this.activeAllocation}}

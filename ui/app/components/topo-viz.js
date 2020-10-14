@@ -2,7 +2,6 @@ import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action, set } from '@ember/object';
 import { run } from '@ember/runloop';
-import { task } from 'ember-concurrency';
 import { scaleLinear } from 'd3-scale';
 import { extent, deviation, mean } from 'd3-array';
 import { line, curveBasis } from 'd3-shape';

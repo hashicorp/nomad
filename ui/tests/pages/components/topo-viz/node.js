@@ -1,4 +1,4 @@
-import { attribute, collection, clickable, hasClass, text } from 'ember-cli-page-object';
+import { attribute, collection, clickable, hasClass, isPresent, text } from 'ember-cli-page-object';
 
 const allocationRect = {
   select: clickable(),
@@ -15,6 +15,7 @@ export default scope => ({
   scope,
 
   label: text('[data-test-label]'),
+  labelIsPresent: isPresent('[data-test-label]'),
   statusIcon: attribute('class', '[data-test-status-icon] .icon'),
   statusIconLabel: attribute('aria-label', '[data-test-status-icon]'),
 
