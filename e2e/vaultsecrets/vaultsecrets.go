@@ -251,7 +251,7 @@ func runJob(jobID, testID string, index int) error {
 	}
 	jobspec := string(raw)
 	jobspec = strings.ReplaceAll(jobspec, "TESTID", testID)
-	jobspec = strings.ReplaceAll(jobspec, "DEPLOYNUMBER", string(index))
+	jobspec = strings.ReplaceAll(jobspec, "DEPLOYNUMBER", string(rune(index)))
 
 	return e2e.RegisterFromJobspec(jobID, jobspec)
 }
