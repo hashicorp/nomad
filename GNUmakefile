@@ -353,6 +353,15 @@ e2e-test: dev ## Run the Nomad e2e test suite
 	@echo "==> Running Nomad E2E test suites:"
 	go test \
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
+		-timeout=900s \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e
+
+.PHONY: integration-test
+integration-test: dev ## Run Nomad integration tests
+	@echo "==> Running Nomad integration test suites:"
+	go test \
+		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-cover \
 		-timeout=900s \
 		-tags "$(GO_TAGS)" \
