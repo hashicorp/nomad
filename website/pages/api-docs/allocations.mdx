@@ -35,6 +35,15 @@ The table below shows this endpoint's support for
 - `namespace` `(string: "default")` - Specifies the namespace to search. Specifying
   `*` would return all allocations across all the authorized namespaces.
 
+- `resources` `(bool: false)` - Specifies whether or not to include the
+  `AllocatedResources` field in the response.
+
+- `task_states` `(bool: true)` - Specifies whether or not to include the
+  `TaskStates` field in the response. TaskStates are included by default but
+  can represent a large percentage of the overall response size. Clusters with
+  a large number of allocations may set `task_states=false` to significantly
+  reduce the size of the response.
+
 ### Sample Request
 
 ```shell-session
