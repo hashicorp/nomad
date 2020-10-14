@@ -1,6 +1,6 @@
 //e2e:service script=validate.sh
 job "networking" {
-  datacenters = ["nick-east-1"]
+  datacenters = ["dc1"]
   group "basic" {
     network {
       mode = "bridge"
