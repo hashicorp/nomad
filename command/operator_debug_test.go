@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +36,7 @@ func TestDebugUtils(t *testing.T) {
 
 func TestDebugSuccesses(t *testing.T) {
 	t.Parallel()
-	srv, _, _ := testServer(t, false, nil)
+	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
@@ -43,21 +45,21 @@ func TestDebugSuccesses(t *testing.T) {
 	// NOTE -- duration must be shorter than default 2m to prevent testify from timing out
 
 	// Debug on the leader
-	code := cmd.Run([]string{"-duration", "250ms", "-server-id", "leader"})
-	require.Equal(t, 0, code)
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader"})
+	assert.Equal(t, 0, code) // take note of failed return code, but continue to see why
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	ui.OutputWriter.Reset()
 
 	// Debug on all servers
-	code = cmd.Run([]string{"-duration", "250ms", "-server-id", "all"})
-	require.Equal(t, 0, code)
+	code = cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
+	assert.Equal(t, 0, code)
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	ui.OutputWriter.Reset()
 }
 
 func TestDebugFails(t *testing.T) {
 	t.Parallel()
-	srv, _, _ := testServer(t, false, nil)
+	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
@@ -91,6 +93,11 @@ func TestDebugFails(t *testing.T) {
 	defer os.Remove(path)
 	code = cmd.Run([]string{"-output", os.TempDir()})
 	require.Equal(t, 2, code)
+
+	// Fails bad address
+	code = cmd.Run([]string{"-address", url + "bogus"})
+	assert.Equal(t, 1, code)
+	ui.OutputWriter.Reset()
 }
 
 func TestDebugCapturedFiles(t *testing.T) {
@@ -116,28 +123,32 @@ func TestDebugCapturedFiles(t *testing.T) {
 	require.Equal(t, 0, code)
 	ui.ErrorWriter.Reset()
 
-	// Version is always captured
-	require.FileExists(t, filepath.Join(path, "version", "agent-self.json"))
+	serverFiles := []string{
+		// Version is always captured
+		filepath.Join(path, "version", "agent-self.json"),
 
-	// Consul and Vault contain results or errors
-	_, err := os.Stat(filepath.Join(path, "version", "consul-agent-self.json"))
-	require.NoError(t, err)
-	_, err = os.Stat(filepath.Join(path, "version", "vault-sys-health.json"))
-	require.NoError(t, err)
+		// Consul and Vault contain results or errors
+		filepath.Join(path, "version", "consul-agent-self.json"),
+		filepath.Join(path, "version", "vault-sys-health.json"),
 
-	// Monitor files are only created when selected
-	require.FileExists(t, filepath.Join(path, "server", "leader", "monitor.log"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "profile.prof"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "trace.prof"))
-	require.FileExists(t, filepath.Join(path, "server", "leader", "goroutine.prof"))
+		// Monitor files are only created when selected
+		filepath.Join(path, "server", "leader", "monitor.log"),
+		filepath.Join(path, "server", "leader", "profile.prof"),
+		filepath.Join(path, "server", "leader", "trace.prof"),
+		filepath.Join(path, "server", "leader", "goroutine.prof"),
+		filepath.Join(path, "server", "leader", "goroutine-debug1.txt"),
+		filepath.Join(path, "server", "leader", "goroutine-debug2.txt"),
 
-	// Multiple snapshots are collected, 00 is always created
-	require.FileExists(t, filepath.Join(path, "nomad", "0000", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0000", "nodes.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0000", "metrics.json"))
+		// Multiple snapshots are collected, 00 is always created
+		filepath.Join(path, "nomad", "0000", "jobs.json"),
+		filepath.Join(path, "nomad", "0000", "nodes.json"),
+		filepath.Join(path, "nomad", "0000", "metrics.json"),
 
-	// Multiple snapshots are collected, 01 requires two intervals
-	require.FileExists(t, filepath.Join(path, "nomad", "0001", "jobs.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0001", "nodes.json"))
-	require.FileExists(t, filepath.Join(path, "nomad", "0001", "metrics.json"))
+		// Multiple snapshots are collected, 01 requires two intervals
+		filepath.Join(path, "nomad", "0001", "jobs.json"),
+		filepath.Join(path, "nomad", "0001", "nodes.json"),
+		filepath.Join(path, "nomad", "0001", "metrics.json"),
+	}
+
+	testutil.WaitForFiles(t, serverFiles)
 }

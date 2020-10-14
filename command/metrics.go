@@ -28,6 +28,13 @@ Metrics Specific Options
 
   -format <format>
     Specify output format (prometheus)
+
+  -json
+    Output the allocation in its JSON format.
+
+  -t
+    Format and display allocation using a Go template.
+
 `
 
 	return strings.TrimSpace(helpText)
@@ -42,19 +49,23 @@ func (c *OperatorMetricsCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-pretty": complete.PredictAnything,
 			"-format": complete.PredictAnything,
+			"-json":   complete.PredictNothing,
+			"-t":      complete.PredictAnything,
 		})
 }
 
 func (c *OperatorMetricsCommand) Name() string { return "metrics" }
 
 func (c *OperatorMetricsCommand) Run(args []string) int {
-	var pretty bool
-	var format string
+	var pretty, json bool
+	var format, tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&pretty, "pretty", false, "")
 	flags.StringVar(&format, "format", "", "")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
@@ -88,14 +99,31 @@ func (c *OperatorMetricsCommand) Run(args []string) int {
 		Params: params,
 	}
 
-	bs, err := client.Operator().Metrics(query)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error getting metrics: %v", err))
-		return 1
-	}
+	if json || len(tmpl) > 0 {
+		metrics, _, err := client.Operator().MetricsSummary(query)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying metrics: %v", err))
+			return 1
+		}
 
-	resp := string(bs[:])
-	c.Ui.Output(resp)
+		out, err := Format(json, tmpl, metrics)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
+	} else {
+		bs, err := client.Operator().Metrics(query)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error getting metrics: %v", err))
+			return 1
+		}
+
+		resp := string(bs[:])
+		c.Ui.Output(resp)
+	}
 
 	return 0
 }

@@ -26,6 +26,20 @@ func TestCommand_Metrics_Cases(t *testing.T) {
 		expectedError  string
 	}{
 		{
+			"gotemplate MetricsSummary",
+			[]string{"-address=" + url, "-t", "'{{ .Timestamp }}'"},
+			0,
+			"UTC",
+			"",
+		},
+		{
+			"json formatted MetricsSummary",
+			[]string{"-address=" + url, "-json"},
+			0,
+			"{",
+			"",
+		},
+		{
 			"pretty print json",
 			[]string{"-address=" + url, "-pretty"},
 			0,

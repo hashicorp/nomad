@@ -74,7 +74,7 @@ Debug Options:
     profiles. Accepts id prefixes.
 
   -server-id=<server>,<server>
-    Comma separated list of Nomad server names, or "leader" to monitor for logs and include pprof
+    Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
     profiles.
 
   -stale=<true|false>
@@ -251,9 +251,25 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		}
 	}
 
-	// Resolve server prefixes
-	for _, id := range argNodes(serverIDs) {
-		c.serverIDs = append(c.serverIDs, id)
+	// Resolve servers
+	members, err := client.Agent().Members()
+	c.writeJSON("version", "members.json", members, err)
+	// We always write the error to the file, but don't range if no members found
+	if serverIDs == "all" && members != nil {
+		// Special case to capture from all servers
+		for _, member := range members.Members {
+			c.serverIDs = append(c.serverIDs, member.Name)
+		}
+	} else {
+		for _, id := range argNodes(serverIDs) {
+			c.serverIDs = append(c.serverIDs, id)
+		}
+	}
+
+	// Return error if servers were specified but not found
+	if len(serverIDs) > 0 && len(c.serverIDs) == 0 {
+		c.Ui.Error(fmt.Sprintf("Failed to retrieve servers, 0 members found in list: %s", serverIDs))
+		return 1
 	}
 
 	c.manifest = make([]string, 0)
@@ -267,6 +283,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	stamped := "nomad-debug-" + c.timestamp
 
 	c.Ui.Output("Starting debugger and capturing cluster data...")
+	c.Ui.Output(fmt.Sprintf("Capturing from servers: %v", c.serverIDs))
+	c.Ui.Output(fmt.Sprintf("Capturing from client nodes: %v", c.nodeIDs))
 
 	c.Ui.Output(fmt.Sprintf("    Interval: '%s'", interval))
 	c.Ui.Output(fmt.Sprintf("    Duration: '%s'", duration))
@@ -499,6 +517,23 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err == nil {
 		c.writeBytes(path, "goroutine.prof", bs)
 	}
+
+	// Gather goroutine text output - debug type 1
+	// debug type 1 writes the legacy text format for human readable output
+	opts.Debug = 1
+	bs, err = client.Agent().Lookup("goroutine", opts, nil)
+	if err == nil {
+		c.writeBytes(path, "goroutine-debug1.txt", bs)
+	}
+
+	// Gather goroutine text output - debug type 2
+	// When printing the "goroutine" profile, debug=2 means to print the goroutine
+	// stacks in the same form that a Go program uses when dying due to an unrecovered panic.
+	opts.Debug = 2
+	bs, err = client.Agent().Lookup("goroutine", opts, nil)
+	if err == nil {
+		c.writeBytes(path, "goroutine-debug2.txt", bs)
+	}
 }
 
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
@@ -576,8 +611,11 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	vs, _, err := client.CSIVolumes().List(qo)
 	c.writeJSON(dir, "volumes.json", vs, err)
 
-	metrics, err := client.Operator().Metrics(qo)
-	c.writeJSON(dir, "metrics.json", metrics, err)
+	if metricBytes, err := client.Operator().Metrics(qo); err != nil {
+		c.writeError(dir, "metrics.json", err)
+	} else {
+		c.writeBytes(dir, "metrics.json", metricBytes)
+	}
 
 	return nil
 }
@@ -628,12 +666,24 @@ func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
 
 // writeBytes writes a file to the archive, recording it in the manifest
 func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
-	path := filepath.Join(dir, file)
-	c.manifest = append(c.manifest, path)
-	path = filepath.Join(c.collectDir, path)
+	relativePath := filepath.Join(dir, file)
+	c.manifest = append(c.manifest, relativePath)
+	dirPath := filepath.Join(c.collectDir, dir)
+	filePath := filepath.Join(dirPath, file)
 
-	fh, err := os.Create(path)
+	// Ensure parent directories exist
+	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
+		// Display error immediately -- may not see this if files aren't written
+		c.Ui.Error(fmt.Sprintf("failed to create parent directories of \"%s\": %s", dirPath, err.Error()))
+		return err
+	}
+
+	// Create the file
+	fh, err := os.Create(filePath)
+	if err != nil {
+		// Display error immediately -- may not see this if files aren't written
+		c.Ui.Error(fmt.Sprintf("failed to create file \"%s\": %s", filePath, err.Error()))
 		return err
 	}
 	defer fh.Close()

@@ -304,22 +304,3 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	}
 	return &reply, qm, nil
 }
-
-// Metrics returns a slice of bytes containing metrics, optionally formatted as either json or prometheus
-func (op *Operator) Metrics(q *QueryOptions) ([]byte, error) {
-	if q == nil {
-		q = &QueryOptions{}
-	}
-
-	metricsReader, err := op.c.rawQuery("/v1/metrics", q)
-	if err != nil {
-		return nil, err
-	}
-
-	metricsBytes, err := ioutil.ReadAll(metricsReader)
-	if err != nil {
-		return nil, err
-	}
-
-	return metricsBytes, nil
-}
