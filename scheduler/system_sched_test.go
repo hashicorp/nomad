@@ -132,7 +132,7 @@ func TestSystemSched_JobRegister_StickyAllocs(t *testing.T) {
 	// Get an allocation and mark it as failed
 	alloc := planned[4].Copy()
 	alloc.ClientStatus = structs.AllocClientStatusFailed
-	require.NoError(t, h.State.UpdateAllocsFromClient(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to handle the update
 	eval = &structs.Evaluation{

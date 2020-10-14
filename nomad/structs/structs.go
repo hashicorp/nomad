@@ -106,6 +106,10 @@ const (
 	// old servers to crash when the FSM attempts to process them.
 	IgnoreUnknownTypeFlag MessageType = 128
 
+	// MsgTypeTestSetup is used during testing when calling state store
+	// methods directly that require an FSM MessageType
+	MsgTypeTestSetup MessageType = IgnoreUnknownTypeFlag
+
 	// ApiMajorVersion is returned as part of the Status.Version request.
 	// It should be incremented anytime the APIs are changed in a way
 	// that would break clients for sane client versioning.
@@ -8988,6 +8992,15 @@ func (a *Allocation) ReschedulePolicy() *ReschedulePolicy {
 	return tg.ReschedulePolicy
 }
 
+// MigrateStrategy returns the migrate strategy based on the task group
+func (a *Allocation) MigrateStrategy() *MigrateStrategy {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+	return tg.Migrate
+}
+
 // NextRescheduleTime returns a time on or after which the allocation is eligible to be rescheduled,
 // and whether the next reschedule time is within policy's interval if the policy doesn't allow unlimited reschedules
 func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
@@ -10693,4 +10706,90 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// EventStreamRequest is used to stream events from a servers EventBroker
+type EventStreamRequest struct {
+	Topics map[Topic][]string
+	Index  int
+
+	QueryOptions
+}
+
+type EventStreamWrapper struct {
+	Error *RpcError
+	Event *EventJson
+}
+
+// RpcError is used for serializing errors with a potential error code
+type RpcError struct {
+	Message string
+	Code    *int64
+}
+
+func NewRpcError(err error, code *int64) *RpcError {
+	return &RpcError{
+		Message: err.Error(),
+		Code:    code,
+	}
+}
+
+func (r *RpcError) Error() string {
+	return r.Message
+}
+
+type Topic string
+
+const (
+	TopicDeployment Topic = "Deployment"
+	TopicEval       Topic = "Eval"
+	TopicAlloc      Topic = "Alloc"
+	TopicJob        Topic = "Job"
+	TopicNode       Topic = "Node"
+	TopicAll        Topic = "*"
+)
+
+// Event represents a change in Nomads state.
+type Event struct {
+	// Topic represeents the primary object for the event
+	Topic Topic
+
+	// Type is a short string representing the reason for the event
+	Type string
+
+	// Key is the primary identifier of the Event, The involved objects ID
+	Key string
+
+	// Namespace is the namespace of the object, If the object is not namespace
+	// aware (Node) it is left blank
+	Namespace string
+
+	// FilterKeys are a set of additional related keys that are used to include
+	// events during filtering.
+	FilterKeys []string
+
+	// Index is the raft index that corresponds to the event
+	Index uint64
+
+	// Payload is the Event itself see state/events.go for a list of events
+	Payload interface{}
+}
+
+// Events is a wrapper that contains a set of events for a given index.
+type Events struct {
+	Index  uint64
+	Events []Event
+}
+
+// EventJson is a wrapper for a JSON object
+type EventJson struct {
+	Data []byte
+}
+
+func (j *EventJson) Copy() *EventJson {
+	n := new(EventJson)
+	*n = *j
+	n.Data = make([]byte, len(j.Data))
+	copy(n.Data, j.Data)
+	return n
 }

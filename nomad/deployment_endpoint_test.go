@@ -1300,7 +1300,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	a2.ClientStatus = structs.AllocClientStatusRunning
 	time.AfterFunc(100*time.Millisecond, func() {
 		assert.Nil(state.UpsertJobSummary(5, mock.JobSummary(a2.JobID)), "UpsertJobSummary")
-		assert.Nil(state.UpdateAllocsFromClient(6, []*structs.Allocation{a2}), "updateAllocsFromClient")
+		assert.Nil(state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 6, []*structs.Allocation{a2}), "updateAllocsFromClient")
 	})
 
 	req.MinQueryIndex = 4

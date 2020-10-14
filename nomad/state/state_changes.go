@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/nomad/event"
+	"github.com/hashicorp/nomad/nomad/stream"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // ReadTxn is implemented by memdb.Txn to perform read operations.
@@ -21,36 +22,31 @@ type Changes struct {
 	// Index is the latest index at the time these changes were committed.
 	Index   uint64
 	Changes memdb.Changes
+	MsgType structs.MessageType
 }
 
 // changeTrackerDB is a thin wrapper around memdb.DB which enables TrackChanges on
 // all write transactions. When the transaction is committed the changes are
-// sent to the eventPublisher which will create and emit change events.
+// sent to the EventBroker which will create and emit change events.
 type changeTrackerDB struct {
-	db             *memdb.MemDB
-	publisher      eventPublisher
-	processChanges func(ReadTxn, Changes) ([]event.Event, error)
+	memdb          *memdb.MemDB
+	durableCount   int64
+	publisher      *stream.EventBroker
+	processChanges func(ReadTxn, Changes) (*structs.Events, error)
 }
 
-func NewChangeTrackerDB(db *memdb.MemDB, publisher eventPublisher, changesFn changeProcessor) *changeTrackerDB {
+func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventBroker, changesFn changeProcessor, durableCount int64) *changeTrackerDB {
 	return &changeTrackerDB{
-		db:             db,
-		publisher:      event.NewPublisher(),
+		memdb:          db,
+		publisher:      publisher,
 		processChanges: changesFn,
+		durableCount:   durableCount,
 	}
 }
 
-type changeProcessor func(ReadTxn, Changes) ([]event.Event, error)
+type changeProcessor func(ReadTxn, Changes) (*structs.Events, error)
 
-type eventPublisher interface {
-	Publish(events []event.Event)
-}
-
-// noOpPublisher satisfies the eventPublisher interface and does nothing
-type noOpPublisher struct{}
-
-func (n *noOpPublisher) Publish(events []event.Event)            {}
-func noOpProcessChanges(ReadTxn, Changes) ([]event.Event, error) { return []event.Event{}, nil }
+func noOpProcessChanges(ReadTxn, Changes) (*structs.Events, error) { return nil, nil }
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn
@@ -58,7 +54,7 @@ func noOpProcessChanges(ReadTxn, Changes) ([]event.Event, error) { return []even
 // TODO: this could return a regular memdb.Txn if all the state functions accepted
 // the ReadTxn interface
 func (c *changeTrackerDB) ReadTxn() *txn {
-	return &txn{Txn: c.db.Txn(false)}
+	return &txn{Txn: c.memdb.Txn(false)}
 }
 
 // WriteTxn returns a wrapped memdb.Txn suitable for writes to the state store.
@@ -73,7 +69,7 @@ func (c *changeTrackerDB) ReadTxn() *txn {
 // data directly into the DB. These cases may use WriteTxnRestore.
 func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 	t := &txn{
-		Txn:     c.db.Txn(true),
+		Txn:     c.memdb.Txn(true),
 		Index:   idx,
 		publish: c.publish,
 	}
@@ -81,16 +77,33 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 	return t
 }
 
-func (c *changeTrackerDB) publish(changes Changes) error {
-	readOnlyTx := c.db.Txn(false)
+func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) *txn {
+	persistChanges := c.durableCount > 0
+
+	t := &txn{
+		msgType:        msgType,
+		Txn:            c.memdb.Txn(true),
+		Index:          idx,
+		publish:        c.publish,
+		persistChanges: persistChanges,
+	}
+	t.Txn.TrackChanges()
+	return t
+}
+
+func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
+	readOnlyTx := c.memdb.Txn(false)
 	defer readOnlyTx.Abort()
 
 	events, err := c.processChanges(readOnlyTx, changes)
 	if err != nil {
-		return fmt.Errorf("failed generating events from changes: %v", err)
+		return nil, fmt.Errorf("failed generating events from changes: %v", err)
 	}
-	c.publisher.Publish(events)
-	return nil
+
+	if events != nil {
+		c.publisher.Publish(events)
+	}
+	return events, nil
 }
 
 // WriteTxnRestore returns a wrapped RW transaction that does NOT have change
@@ -101,28 +114,33 @@ func (c *changeTrackerDB) publish(changes Changes) error {
 // written across many indexes.
 func (c *changeTrackerDB) WriteTxnRestore() *txn {
 	return &txn{
-		Txn:   c.db.Txn(true),
+		Txn:   c.memdb.Txn(true),
 		Index: 0,
 	}
 }
 
-// txn wraps a memdb.Txn to capture changes and send them to the EventPublisher.
+// txn wraps a memdb.Txn to capture changes and send them to the EventBroker.
 //
 // This can not be done with txn.Defer because the callback passed to Defer is
 // invoked after commit completes, and because the callback can not return an
 // error. Any errors from the callback would be lost,  which would result in a
 // missing change event, even though the state store had changed.
 type txn struct {
+	// msgType is used to inform event sourcing which type of event to create
+	msgType structs.MessageType
+
+	persistChanges bool
+
 	*memdb.Txn
 	// Index in raft where the write is occurring. The value is zero for a
 	// read-only, or WriteTxnRestore transaction.
 	// Index is stored so that it may be passed along to any subscribers as part
 	// of a change event.
 	Index   uint64
-	publish func(changes Changes) error
+	publish func(changes Changes) (*structs.Events, error)
 }
 
-// Commit first pushes changes to EventPublisher, then calls Commit on the
+// Commit first pushes changes to EventBroker, then calls Commit on the
 // underlying transaction.
 //
 // Note that this function, unlike memdb.Txn, returns an error which must be checked
@@ -136,9 +154,19 @@ func (tx *txn) Commit() error {
 		changes := Changes{
 			Index:   tx.Index,
 			Changes: tx.Txn.Changes(),
+			MsgType: tx.MsgType(),
 		}
-		if err := tx.publish(changes); err != nil {
+		events, err := tx.publish(changes)
+		if err != nil {
 			return err
+		}
+
+		if tx.persistChanges && events != nil {
+			// persist events after processing changes
+			err := tx.Txn.Insert("events", events)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -146,7 +174,23 @@ func (tx *txn) Commit() error {
 	return nil
 }
 
-func processDBChanges(tx ReadTxn, changes Changes) ([]event.Event, error) {
-	// TODO: add  handlers here.
-	return []event.Event{}, nil
+// MsgType returns a MessageType from the txn's context.
+// If the context is empty or the value isn't set IgnoreUnknownTypeFlag will
+// be returned to signal that the MsgType is unknown.
+func (tx *txn) MsgType() structs.MessageType {
+	return tx.msgType
+}
+
+func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
+	switch changes.MsgType {
+	case structs.IgnoreUnknownTypeFlag:
+		// unknown event type
+		return nil, nil
+	case structs.NodeDeregisterRequestType:
+		return NodeDeregisterEventFromChanges(tx, changes)
+	case structs.NodeUpdateDrainRequestType:
+		return NodeDrainEventFromChanges(tx, changes)
+	default:
+		return GenericEventsFromChanges(tx, changes)
+	}
 }

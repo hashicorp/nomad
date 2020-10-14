@@ -38,7 +38,7 @@ func (m *mockBackend) nextIndex() uint64 {
 func (m *mockBackend) UpdateAllocDesiredTransition(u *structs.AllocUpdateDesiredTransitionRequest) (uint64, error) {
 	m.Called(u)
 	i := m.nextIndex()
-	return i, m.state.UpdateAllocsDesiredTransitions(i, u.Allocs, u.Evals)
+	return i, m.state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, i, u.Allocs, u.Evals)
 }
 
 // matchUpdateAllocDesiredTransitions is used to match an upsert request
@@ -95,7 +95,7 @@ func (m *mockBackend) UpsertJob(job *structs.Job) (uint64, error) {
 func (m *mockBackend) UpdateDeploymentStatus(u *structs.DeploymentStatusUpdateRequest) (uint64, error) {
 	m.Called(u)
 	i := m.nextIndex()
-	return i, m.state.UpdateDeploymentStatus(i, u)
+	return i, m.state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, i, u)
 }
 
 // matchDeploymentStatusUpdateConfig is used to configure the matching
@@ -149,7 +149,7 @@ func matchDeploymentStatusUpdateRequest(c *matchDeploymentStatusUpdateConfig) fu
 func (m *mockBackend) UpdateDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
 	m.Called(req)
 	i := m.nextIndex()
-	return i, m.state.UpdateDeploymentPromotion(i, req)
+	return i, m.state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, i, req)
 }
 
 // matchDeploymentPromoteRequestConfig is used to configure the matching
@@ -179,7 +179,7 @@ func matchDeploymentPromoteRequest(c *matchDeploymentPromoteRequestConfig) func(
 func (m *mockBackend) UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
 	m.Called(req)
 	i := m.nextIndex()
-	return i, m.state.UpdateDeploymentAllocHealth(i, req)
+	return i, m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, i, req)
 }
 
 // matchDeploymentAllocHealthRequestConfig is used to configure the matching

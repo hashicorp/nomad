@@ -917,7 +917,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+		require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -945,7 +945,7 @@ func TestDeploymentWatcher_Watch_NoProgressDeadline(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -1024,7 +1024,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 		Healthy:   helper.BoolToPtr(false),
 		Timestamp: now,
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(100, []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 100, []*structs.Allocation{a2}))
 
 	// Wait for the deployment to be failed
 	testutil.WaitForResult(func() (bool, error) {
@@ -1208,7 +1208,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 		Healthy:   helper.BoolToPtr(true),
 		Timestamp: now,
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
 
 	// Wait for the deployment to cross the deadline
 	dout, err := m.state.DeploymentByID(nil, d.ID)
@@ -1381,7 +1381,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 		Healthy:   helper.BoolToPtr(false),
 		Timestamp: time.Now(),
 	}
-	require.Nil(m.state.UpdateAllocsFromClient(m.nextIndex(), []*structs.Allocation{a2}))
+	require.Nil(m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
 
 	// Wait for the alloc's DesiredState to set reschedule
 	testutil.WaitForResult(func() (bool, error) {
@@ -1453,7 +1453,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 				HealthyAllocationIDs: []string{a.ID},
 			},
 		}
-		require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+		require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 	}
 
 	// Wait for there to be one eval
@@ -1481,7 +1481,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 			UnhealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval
 	testutil.WaitForResult(func() (bool, error) {
@@ -1562,7 +1562,7 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 			HealthyAllocationIDs: []string{a1.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req), "UpsertDeploymentAllocHealth")
 
 	req2 := &structs.ApplyDeploymentAllocHealthRequest{
 		DeploymentAllocHealthRequest: structs.DeploymentAllocHealthRequest{
@@ -1570,7 +1570,7 @@ func TestWatcher_BatchAllocUpdates(t *testing.T) {
 			HealthyAllocationIDs: []string{a2.ID},
 		},
 	}
-	require.Nil(m.state.UpdateDeploymentAllocHealth(m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
+	require.Nil(m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, m.nextIndex(), req2), "UpsertDeploymentAllocHealth")
 
 	// Wait for there to be one eval for each job
 	testutil.WaitForResult(func() (bool, error) {

@@ -127,7 +127,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 		EvalID: eval.ID,
 	}
 	assert := assert.New(t)
-	err := state.UpsertPlanResults(1000, &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	assert.Nil(err)
 
 	ws := memdb.NewWatchSet()
@@ -203,7 +203,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	}
 	assert := assert.New(t)
 	planModifyIndex := uint64(1000)
-	err := state.UpsertPlanResults(planModifyIndex, &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, planModifyIndex, &res)
 	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
@@ -284,7 +284,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 		EvalID:     eval.ID,
 	}
 
-	err := state.UpsertPlanResults(1000, &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -332,7 +332,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 		EvalID:     eval.ID,
 	}
 
-	err = state.UpsertPlanResults(1001, &res)
+	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1001, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 		PreemptionEvals: []*structs.Evaluation{eval2},
 	}
 
-	err = state.UpsertPlanResults(1000, &res)
+	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
@@ -486,7 +486,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 		EvalID:            eval.ID,
 	}
 
-	err := state.UpsertPlanResults(1000, &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -898,7 +898,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	require.NoError(state.UpdateNodeStatus(801, node.ID, structs.NodeStatusReady, 70, event))
+	require.NoError(state.UpdateNodeStatus(structs.MsgTypeTestSetup, 801, node.ID, structs.NodeStatusReady, 70, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -956,7 +956,7 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		n2.ID: event,
 	}
 
-	require.Nil(state.BatchUpdateNodeDrain(1002, 7, update, events))
+	require.Nil(state.BatchUpdateNodeDrain(structs.MsgTypeTestSetup, 1002, 7, update, events))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -1190,7 +1190,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemCluster,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeEligibility(1001, node.ID, expectedEligibility, 7, event))
+	require.Nil(state.UpdateNodeEligibility(structs.MsgTypeTestSetup, 1001, node.ID, expectedEligibility, 7, event))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -1216,7 +1216,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 	require.Nil(state.UpdateNodeDrain(1002, node.ID, expectedDrain, false, 7, nil))
 
 	// Try to set the node to eligible
-	err = state.UpdateNodeEligibility(1003, node.ID, structs.NodeSchedulingEligible, 9, nil)
+	err = state.UpdateNodeEligibility(structs.MsgTypeTestSetup, 1003, node.ID, structs.NodeSchedulingEligible, 9, nil)
 	require.NotNil(err)
 	require.Contains(err.Error(), "while it is draining")
 }
@@ -1368,7 +1368,7 @@ func TestStateStore_RestoreNode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
@@ -1903,7 +1903,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 
 	// Actually delete
 	const deletionIndex = uint64(10001)
-	err = state.WithWriteTransaction(deletionIndex, func(txn Txn) error {
+	err = state.WithWriteTransaction(structs.MsgTypeTestSetup, deletionIndex, func(txn Txn) error {
 		for i, job := range jobs {
 			err := state.DeleteJobTxn(deletionIndex, job.Namespace, job.ID, txn)
 			require.NoError(t, err, "failed at %d %e", i, err)
@@ -2441,7 +2441,7 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
@@ -2711,7 +2711,7 @@ func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.PeriodicLaunchByID(ws, job.Namespace, job.ID)
@@ -2743,7 +2743,7 @@ func TestStateStore_RestoreJobVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByIDAndVersion(ws, job.Namespace, job.ID, job.Version)
@@ -2775,7 +2775,7 @@ func TestStateStore_RestoreDeployment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.DeploymentByID(ws, d.ID)
@@ -2815,7 +2815,7 @@ func TestStateStore_RestoreJobSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
@@ -3617,7 +3617,7 @@ func TestStateStore_RestoreCSIPlugin(t *testing.T) {
 
 	err = restore.CSIPluginRestore(plugin)
 	require.NoError(err)
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.CSIPluginByID(ws, plugin.ID)
@@ -3731,7 +3731,7 @@ func TestStateStore_RestoreIndex(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	out, err := state.Index("jobs")
 	if err != nil {
@@ -4397,7 +4397,7 @@ func TestStateStore_RestoreEval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.EvalByID(ws, eval.ID)
@@ -4467,7 +4467,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 	}
-	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update})
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4565,7 +4565,7 @@ func TestStateStore_UpdateAllocsFromClient_ChildJob(t *testing.T) {
 		TaskGroup:    alloc2.TaskGroup,
 	}
 
-	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update, update2})
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update, update2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4666,7 +4666,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 		TaskGroup:    alloc.TaskGroup,
 	}
 
-	err = state.UpdateAllocsFromClient(1001, []*structs.Allocation{update, update2})
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update, update2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4735,7 +4735,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 			Timestamp: healthy,
 		},
 	}
-	require.Nil(state.UpdateAllocsFromClient(1001, []*structs.Allocation{update}))
+	require.Nil(state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update}))
 
 	// Check that the deployment state was updated because the healthy
 	// deployment
@@ -4780,7 +4780,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 			Canary:  false,
 		},
 	}
-	require.Nil(state.UpdateAllocsFromClient(1001, []*structs.Allocation{update}))
+	require.Nil(state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update}))
 
 	// Check that the merging of the deployment status was correct
 	out, err := state.AllocByID(nil, alloc.ID)
@@ -5161,7 +5161,7 @@ func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
 	// Update the client state of the allocation to complete
 	allocCopy1 := allocCopy.Copy()
 	allocCopy1.ClientStatus = structs.AllocClientStatusComplete
-	if err := state.UpdateAllocsFromClient(1003, []*structs.Allocation{allocCopy1}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{allocCopy1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -5203,7 +5203,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	evals := []*structs.Evaluation{eval}
 
 	m := map[string]*structs.DesiredTransition{alloc.ID: t1}
-	require.Nil(state.UpdateAllocsDesiredTransitions(1001, m, evals))
+	require.Nil(state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, 1001, m, evals))
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
@@ -5223,7 +5223,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	require.NotNil(eout)
 
 	m = map[string]*structs.DesiredTransition{alloc.ID: t2}
-	require.Nil(state.UpdateAllocsDesiredTransitions(1002, m, evals))
+	require.Nil(state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, 1002, m, evals))
 
 	ws = memdb.NewWatchSet()
 	out, err = state.AllocByID(ws, alloc.ID)
@@ -5239,7 +5239,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 
 	// Try with a bogus alloc id
 	m = map[string]*structs.DesiredTransition{uuid.Generate(): t2}
-	require.Nil(state.UpdateAllocsDesiredTransitions(1003, m, evals))
+	require.Nil(state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, 1003, m, evals))
 }
 
 func TestStateStore_JobSummary(t *testing.T) {
@@ -5272,12 +5272,12 @@ func TestStateStore_JobSummary(t *testing.T) {
 	alloc1 := alloc.Copy()
 	alloc1.ClientStatus = structs.AllocClientStatusPending
 	alloc1.DesiredStatus = ""
-	state.UpdateAllocsFromClient(920, []*structs.Allocation{alloc})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 920, []*structs.Allocation{alloc})
 
 	alloc3 := alloc.Copy()
 	alloc3.ClientStatus = structs.AllocClientStatusRunning
 	alloc3.DesiredStatus = ""
-	state.UpdateAllocsFromClient(930, []*structs.Allocation{alloc3})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 930, []*structs.Allocation{alloc3})
 
 	// Upsert the alloc
 	alloc4 := alloc.Copy()
@@ -5320,7 +5320,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 	alloc6 := alloc.Copy()
 	alloc6.ClientStatus = structs.AllocClientStatusRunning
 	alloc6.DesiredStatus = ""
-	state.UpdateAllocsFromClient(990, []*structs.Allocation{alloc6})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 990, []*structs.Allocation{alloc6})
 
 	// We shouldn't have any summary at this point
 	summary, _ = state.JobSummaryByID(ws, job.Namespace, job.ID)
@@ -5347,7 +5347,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 	alloc7.Job = outJob
 	alloc7.ClientStatus = structs.AllocClientStatusComplete
 	alloc7.DesiredStatus = structs.AllocDesiredStatusRun
-	state.UpdateAllocsFromClient(1020, []*structs.Allocation{alloc7})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1020, []*structs.Allocation{alloc7})
 
 	expectedSummary = structs.JobSummary{
 		JobID:     job.ID,
@@ -5392,7 +5392,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	// Change the state of the first alloc to running
 	alloc3 := alloc.Copy()
 	alloc3.ClientStatus = structs.AllocClientStatusRunning
-	state.UpdateAllocsFromClient(120, []*structs.Allocation{alloc3})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 120, []*structs.Allocation{alloc3})
 
 	//Add some more allocs to the second tg
 	alloc4 := mock.Alloc()
@@ -5425,7 +5425,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 
 	state.UpsertAllocs(130, []*structs.Allocation{alloc4, alloc6, alloc8, alloc10})
 
-	state.UpdateAllocsFromClient(150, []*structs.Allocation{alloc5, alloc7, alloc9, alloc11})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 150, []*structs.Allocation{alloc5, alloc7, alloc9, alloc11})
 
 	// DeleteJobSummary is a helper method and doesn't modify the indexes table
 	state.DeleteJobSummary(130, alloc.Namespace, alloc.Job.ID)
@@ -5564,7 +5564,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
 
 	// Updating allocation should not throw any error
-	if err := state.UpdateAllocsFromClient(400, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 400, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("expect err: %v", err)
 	}
 
@@ -5574,7 +5574,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	// Update the alloc again
 	alloc2 := alloc.Copy()
 	alloc2.ClientStatus = structs.AllocClientStatusComplete
-	if err := state.UpdateAllocsFromClient(400, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 400, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("expect err: %v", err)
 	}
 
@@ -6033,7 +6033,7 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.AllocByID(ws, alloc.ID)
@@ -6484,7 +6484,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	alloc5.JobID = alloc3.JobID
 	alloc5.ClientStatus = structs.AllocClientStatusComplete
 
-	if err := state.UpdateAllocsFromClient(1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6561,7 +6561,7 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 	alloc6.JobID = alloc.JobID
 	alloc6.ClientStatus = structs.AllocClientStatusRunning
 
-	if err := state.UpdateAllocsFromClient(1002, []*structs.Allocation{alloc4, alloc5, alloc6}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc4, alloc5, alloc6}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6600,7 +6600,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Nonexistent(t *testing.T) {
 			Status:       structs.DeploymentStatusRunning,
 		},
 	}
-	err := state.UpdateDeploymentStatus(2, req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error updating the status because the deployment doesn't exist")
 	}
@@ -6627,7 +6627,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
 			Status:       structs.DeploymentStatusRunning,
 		},
 	}
-	err := state.UpdateDeploymentStatus(2, req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error updating the status because the deployment is terminal")
 	}
@@ -6661,7 +6661,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
 		Job:  j,
 		Eval: e,
 	}
-	err := state.UpdateDeploymentStatus(2, req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -6722,7 +6722,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
 		},
 	}
-	err := state.UpdateDeploymentStatus(3, req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 3, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -6820,7 +6820,7 @@ func TestStateStore_UpsertDeploymentPromotion_Nonexistent(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(2, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error promoting because the deployment doesn't exist")
 	}
@@ -6847,7 +6847,7 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(2, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error updating the status because the deployment is terminal: %v", err)
 	}
@@ -6897,7 +6897,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(4, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
 	require.NotNil(err)
 	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
@@ -6926,7 +6926,7 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(4, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
 	require.NotNil(err)
 	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
@@ -6997,7 +6997,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpdateDeploymentPromotion(4, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -7103,7 +7103,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		},
 		Eval: e,
 	}
-	require.Nil(state.UpdateDeploymentPromotion(4, req))
+	require.Nil(state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req))
 
 	// Check that the status per task group was updated properly
 	ws := memdb.NewWatchSet()
@@ -7146,7 +7146,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Nonexistent(t *testing.T) {
 			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(2, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error because the deployment doesn't exist: %v", err)
 	}
@@ -7173,7 +7173,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(2, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error because the deployment is terminal: %v", err)
 	}
@@ -7198,7 +7198,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_Nonexistent(t *testing.
 			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(2, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "unknown alloc") {
 		t.Fatalf("expected error because the alloc doesn't exist: %v", err)
 	}
@@ -7338,7 +7338,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 			HealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(4, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 4, req)
 	if err == nil || !strings.Contains(err.Error(), "not part of deployment") {
 		t.Fatalf("expected error because the alloc isn't part of the deployment: %v", err)
 	}
@@ -7395,7 +7395,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 		DeploymentUpdate: u,
 		Timestamp:        ts,
 	}
-	err := state.UpdateDeploymentAllocHealth(3, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 3, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -7701,7 +7701,7 @@ func TestStateStore_RestoreVaultAccessor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.VaultAccessor(ws, a.Accessor)
@@ -7902,7 +7902,7 @@ func TestStateStore_RestoreSITokenAccessor(t *testing.T) {
 	err = restore.SITokenAccessorRestore(a1)
 	r.NoError(err)
 
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	result, err := state.SITokenAccessor(ws, a1.AccessorID)
@@ -8382,7 +8382,7 @@ func TestStateStore_RestoreACLPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ACLPolicyByName(ws, policy.Name)
@@ -8441,7 +8441,7 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	restore.Commit()
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ACLTokenByAccessorID(ws, token.AccessorID)
@@ -8470,7 +8470,7 @@ func TestStateStore_SchedulerConfig(t *testing.T) {
 	err = restore.SchedulerConfigRestore(schedConfig)
 	require.Nil(err)
 
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	modIndex, out, err := state.SchedulerConfig()
 	require.Nil(err)
@@ -8510,7 +8510,7 @@ func TestStateStore_ClusterMetadataRestore(t *testing.T) {
 	err = restore.ClusterMetadataRestore(meta)
 	require.NoError(err)
 
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	out, err := state.ClusterMetadata(nil)
 	require.NoError(err)
@@ -8530,7 +8530,7 @@ func TestStateStore_RestoreScalingPolicy(t *testing.T) {
 
 	err = restore.ScalingPolicyRestore(scalingPolicy)
 	require.NoError(err)
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.ScalingPolicyByID(ws, scalingPolicy.ID)
@@ -9543,7 +9543,7 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 
 	err = restore.ScalingEventsRestore(jobScalingEvents)
 	require.NoError(err)
-	restore.Commit()
+	require.NoError(restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, _, err := state.ScalingEventsByJob(ws, jobScalingEvents.Namespace,

@@ -484,6 +484,19 @@ type ServerConfig struct {
 	// This value is ignored.
 	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
+	// EnableEventBroker configures whether this server's state store
+	// will generate events for its event stream.
+	EnableEventBroker *bool `hcl:"enable_event_broker"`
+
+	// EventBufferSize configure the amount of events to be held in memory.
+	// If EnableEventBroker is set to true, the minimum allowable value
+	// for the EventBufferSize is 1.
+	EventBufferSize *int `hcl:"event_buffer_size"`
+
+	// DurableEventCount specifies the amount of events to persist during snapshot generation.
+	// A count of 0 signals that no events should be persisted.
+	DurableEventCount *int `hcl:"durable_event_count"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -874,8 +887,11 @@ func DefaultConfig() *Config {
 			BindWildcardDefaultHostNetwork: true,
 		},
 		Server: &ServerConfig{
-			Enabled:   false,
-			StartJoin: []string{},
+			Enabled:           false,
+			EnableEventBroker: helper.BoolToPtr(true),
+			EventBufferSize:   helper.IntToPtr(100),
+			DurableEventCount: helper.IntToPtr(100),
+			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1397,6 +1413,18 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
+	if b.EnableEventBroker != nil {
+		result.EnableEventBroker = b.EnableEventBroker
+	}
+
+	if b.EventBufferSize != nil {
+		result.EventBufferSize = b.EventBufferSize
+	}
+
+	if b.DurableEventCount != nil {
+		result.DurableEventCount = b.DurableEventCount
 	}
 
 	if b.DefaultSchedulerConfig != nil {
