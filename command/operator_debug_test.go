@@ -34,10 +34,35 @@ func TestDebugUtils(t *testing.T) {
 	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
 }
 
+func TestDebugClient(t *testing.T) {
+	t.Parallel()
+	srv, client, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+	// testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// NOTE -- duration must be shorter than default 2m to prevent testify from timing out
+
+	clientAddr := client.Address()
+	assert.NotEmpty(t, clientAddr, "client address")
+
+	nodeID := "" // need to lookup the nodeID
+
+	// Debug on the leader
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader", "-node-id", nodeID})
+	assert.Equal(t, 0, code) // take note of failed return code, but continue to see why
+	assert.Empty(t, ui.ErrorWriter.String(), "empty errorwriter")
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	ui.OutputWriter.Reset()
+}
+
 func TestDebugSuccesses(t *testing.T) {
 	t.Parallel()
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
+	// testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
@@ -47,14 +72,17 @@ func TestDebugSuccesses(t *testing.T) {
 	// Debug on the leader
 	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader"})
 	assert.Equal(t, 0, code) // take note of failed return code, but continue to see why
+	assert.Empty(t, ui.ErrorWriter.String(), "errorwriter should be empty")
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
 
 	// Debug on all servers
 	code = cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
 	assert.Equal(t, 0, code)
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
 }
 
 func TestDebugFails(t *testing.T) {
@@ -96,14 +124,17 @@ func TestDebugFails(t *testing.T) {
 
 	// Fails bad address
 	code = cmd.Run([]string{"-address", url + "bogus"})
-	assert.Equal(t, 1, code)
+	assert.Equal(t, 1, code) // take note of failed return code, but continue to see why in the OutputWriter
+	require.NotContains(t, ui.OutputWriter.String(), "Starting debugger")
 	ui.OutputWriter.Reset()
 }
 
 func TestDebugCapturedFiles(t *testing.T) {
-	t.Parallel()
+	// NOTE: pprof tracing/profiling cannot be run in parallel
+
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
+	// testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}

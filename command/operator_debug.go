@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -40,6 +41,16 @@ type OperatorDebugCommand struct {
 	manifest   []string
 	ctx        context.Context
 	cancel     context.CancelFunc
+	errors     []*captureError
+	errLock    sync.Mutex
+}
+
+// captureError holds an error entry that can occur during polling capture.
+// It includes the timestamp, the target, and the error itself.
+type captureError struct {
+	TargetError string    `json:"error"`
+	Target      string    `json:"target"`
+	Timestamp   time.Time `json:"timestamp"`
 }
 
 const (
@@ -204,7 +215,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the time durations
+	// Parse the capture duration
 	d, err := time.ParseDuration(duration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing duration: %s: %s", duration, err.Error()))
@@ -212,6 +223,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.duration = d
 
+	// Parse the capture interval
 	i, err := time.ParseDuration(interval)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing interval: %s: %s", interval, err.Error()))
@@ -219,6 +231,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.interval = i
 
+	// Verify there are no extra arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
@@ -226,6 +239,40 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Initialize capture variables and structs
+	c.manifest = make([]string, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	c.ctx = ctx
+	c.cancel = cancel
+	c.trap()
+
+	// Generate timestamped file name
+	format := "2006-01-02-150405Z"
+	c.timestamp = time.Now().UTC().Format(format)
+	stamped := "nomad-debug-" + c.timestamp
+
+	// Create the output directory
+	var tmp string
+	if output != "" {
+		// User specified output directory
+		tmp = filepath.Join(output, stamped)
+		_, err := os.Stat(tmp)
+		if !os.IsNotExist(err) {
+			c.Ui.Error("Output directory already exists")
+			return 2
+		}
+	} else {
+		// Generate temp directory
+		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error creating tmp directory: %s", err.Error()))
+			return 2
+		}
+		defer os.RemoveAll(tmp)
+	}
+	c.collectDir = tmp
+
+	// Create an instance of the API client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err.Error()))
@@ -253,10 +300,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	// Resolve servers
 	members, err := client.Agent().Members()
-	c.writeJSON("version", "members.json", members, err)
-	// We always write the error to the file, but don't range if no members found
+	c.writeJSON("cluster", "members.json", members, err)
 	if serverIDs == "all" && members != nil {
-		// Special case to capture from all servers
+		// Capture from all servers
 		for _, member := range members.Members {
 			c.serverIDs = append(c.serverIDs, member.Name)
 		}
@@ -272,56 +318,39 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.manifest = make([]string, 0)
-	ctx, cancel := context.WithCancel(context.Background())
-	c.ctx = ctx
-	c.cancel = cancel
-	c.trap()
+	// Display general info about the capture
+	c.Ui.Output("Starting debugger...")
+	c.Ui.Output("")
+	c.Ui.Output(fmt.Sprintf("    Servers:  %v", c.serverIDs))
+	c.Ui.Output(fmt.Sprintf("    Clients:  %v", c.nodeIDs))
+	c.Ui.Output(fmt.Sprintf("    Interval: %s", interval))
+	c.Ui.Output(fmt.Sprintf("    Duration: %s", duration))
+	c.Ui.Output("")
+	c.Ui.Output("Capturing cluster data...")
 
-	format := "2006-01-02-150405Z"
-	c.timestamp = time.Now().UTC().Format(format)
-	stamped := "nomad-debug-" + c.timestamp
-
-	c.Ui.Output("Starting debugger and capturing cluster data...")
-	c.Ui.Output(fmt.Sprintf("Capturing from servers: %v", c.serverIDs))
-	c.Ui.Output(fmt.Sprintf("Capturing from client nodes: %v", c.nodeIDs))
-
-	c.Ui.Output(fmt.Sprintf("    Interval: '%s'", interval))
-	c.Ui.Output(fmt.Sprintf("    Duration: '%s'", duration))
-
-	// Create the output path
-	var tmp string
-	if output != "" {
-		tmp = filepath.Join(output, stamped)
-		_, err := os.Stat(tmp)
-		if !os.IsNotExist(err) {
-			c.Ui.Error("Output directory already exists")
-			return 2
-		}
-	} else {
-		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error creating tmp directory: %s", err.Error()))
-			return 2
-		}
-		defer os.RemoveAll(tmp)
-	}
-
-	c.collectDir = tmp
-
+	// Start collecting data
 	err = c.collect(client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
 	}
 
+	// Display error summary
+	c.displayErrors()
+
+	// Write errors to file
+	c.writeJSON("", "errors.json", c.errors, err)
+
+	// Write index json/html manifest files
 	c.writeManifest()
 
+	// Exit before archive if output directory was specified
 	if output != "" {
 		c.Ui.Output(fmt.Sprintf("Created debug directory: %s", c.collectDir))
 		return 0
 	}
 
+	// Create archive tarball
 	archiveFile := stamped + ".tar.gz"
 	err = TarCZF(archiveFile, tmp, stamped)
 	if err != nil {
@@ -329,14 +358,15 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 2
 	}
 
+	// Final output with name of tarball
 	c.Ui.Output(fmt.Sprintf("Created debug archive: %s", archiveFile))
 	return 0
 }
 
 // collect collects data from our endpoints and writes the archive bundle
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
-	// Version contains cluster meta information
-	dir := "version"
+	// Cluster meta information
+	dir := "cluster"
 	err := c.mkdir(dir)
 	if err != nil {
 		return err
@@ -381,6 +411,8 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectAgentHosts(client)
 	c.collectPprofs(client)
 
+	c.collectNodes(client)
+
 	c.startMonitors(client)
 	c.collectPeriodic(client)
 
@@ -402,11 +434,11 @@ func (c *OperatorDebugCommand) mkdir(paths ...string) error {
 // startMonitors starts go routines for each node and client
 func (c *OperatorDebugCommand) startMonitors(client *api.Client) {
 	for _, id := range c.nodeIDs {
-		go c.startMonitor("client", "node_id", id, client)
+		go c.startMonitor("nomad-client", "node_id", id, client)
 	}
 
 	for _, id := range c.serverIDs {
-		go c.startMonitor("server", "server_id", id, client)
+		go c.startMonitor("nomad-server", "server_id", id, client)
 	}
 }
 
@@ -417,6 +449,7 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 	c.mkdir(path, nodeID)
 	fh, err := os.Create(c.path(path, nodeID, "monitor.log"))
 	if err != nil {
+		c.storeError("monitor", fmt.Errorf("failed to create monitor.log file, path=%s, nodeID=%s", path, nodeID))
 		return
 	}
 	defer fh.Close()
@@ -439,6 +472,7 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 			fh.WriteString("\n")
 
 		case err := <-errCh:
+			c.storeError("monitor", fmt.Errorf("error encountered while monitoring nodeID=%s, path=%s: %v", nodeID, path, err))
 			fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
 			return
 
@@ -451,20 +485,72 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 // collectAgentHosts calls collectAgentHost for each selected node
 func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 	for _, n := range c.nodeIDs {
-		c.collectAgentHost("client", n, client)
+		c.collectAgentHost("nomad-client", n, client)
 	}
 
 	for _, n := range c.serverIDs {
-		c.collectAgentHost("server", n, client)
+		c.collectAgentHost("nomad-server", n, client)
 	}
 
 }
+
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+func (c *OperatorDebugCommand) collectNodes(client *api.Client) {
+	if c.nodeIDs != nil {
+		for _, n := range c.nodeIDs {
+			c.collectNodeByID("nomad-client", n, client)
+			// c.collectAgentHost("nomad-client", n, client)
+		}
+	}
+}
+
+func (c *OperatorDebugCommand) collectNodeByID(path, nodeID string, client *api.Client) {
+	// qo reference
+	//	 region, namespace, stale, index, wait, prefix, Params, AuthToken
+	var qo *api.QueryOptions
+	var err error
+
+	client, err = client.GetNodeClient(nodeID, qo)
+	if err != nil {
+		c.storeError("GetNodeClient", err)
+		return
+	}
+
+	path = filepath.Join(path, nodeID)
+
+	self, err := client.Agent().Self()
+	c.writeJSON(path, "agent-self.json", self, err)
+
+	health, err := client.Agent().Health()
+	c.writeJSON(path, "health.json", health, err)
+}
+
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 
 // collectAgentHost gets the agent host data
 func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Client) {
 	var host *api.HostDataResponse
 	var err error
-	if path == "server" {
+	if path == "nomad-server" {
 		host, err = client.Agent().Host(id, "", nil)
 	} else {
 		host, err = client.Agent().Host("", id, nil)
@@ -479,11 +565,11 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 // collectPprofs captures the /agent/pprof for each listed node
 func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
 	for _, n := range c.nodeIDs {
-		c.collectPprof("client", n, client)
+		c.collectPprof("nomad-client", n, client)
 	}
 
 	for _, n := range c.serverIDs {
-		c.collectPprof("server", n, client)
+		c.collectPprof("nomad-server", n, client)
 	}
 
 }
@@ -491,7 +577,7 @@ func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
 // collectPprof captures pprof data for the node
 func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
 	opts := api.PprofOptions{Seconds: 1}
-	if path == "server" {
+	if path == "nomad-server" {
 		opts.ServerID = id
 	} else {
 		opts.NodeID = id
@@ -506,16 +592,22 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err := client.Agent().CPUProfile(opts, nil)
 	if err == nil {
 		c.writeBytes(path, "profile.prof", bs)
+	} else {
+		c.storeError("pprof", err)
 	}
 
 	bs, err = client.Agent().Trace(opts, nil)
 	if err == nil {
 		c.writeBytes(path, "trace.prof", bs)
+	} else {
+		c.storeError("pprof", err)
 	}
 
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
 		c.writeBytes(path, "goroutine.prof", bs)
+	} else {
+		c.storeError("pprof", err)
 	}
 
 	// Gather goroutine text output - debug type 1
@@ -524,6 +616,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
 		c.writeBytes(path, "goroutine-debug1.txt", bs)
+	} else {
+		c.storeError("pprof", err)
 	}
 
 	// Gather goroutine text output - debug type 2
@@ -533,6 +627,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
 		c.writeBytes(path, "goroutine-debug2.txt", bs)
+	} else {
+		c.storeError("pprof", err)
 	}
 }
 
@@ -553,8 +649,8 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 
 		case <-interval:
 			name = fmt.Sprintf("%04d", intervalCount)
-			dir = filepath.Join("nomad", name)
-			c.Ui.Output(fmt.Sprintf("    Capture interval %s", name))
+			dir = filepath.Join("intervals", name)
+			c.Ui.Output(fmt.Sprintf("    Capture interval %s - %s", name, time.Now().Format("2006-01-02T15:04:05.000Z")))
 			c.collectNomad(dir, client)
 			c.collectOperator(dir, client)
 			interval = time.After(c.interval)
@@ -611,11 +707,8 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	vs, _, err := client.CSIVolumes().List(qo)
 	c.writeJSON(dir, "volumes.json", vs, err)
 
-	if metricBytes, err := client.Operator().Metrics(qo); err != nil {
-		c.writeError(dir, "metrics.json", err)
-	} else {
-		c.writeBytes(dir, "metrics.json", metricBytes)
-	}
+	metrics, _, err := client.Operator().MetricsSummary(qo)
+	c.writeJSON(dir, "metrics.json", metrics, err)
 
 	return nil
 }
@@ -707,15 +800,75 @@ func (c *OperatorDebugCommand) writeJSON(dir, file string, data interface{}, err
 // writeError writes a JSON error object to capture errors in the debug bundle without
 // reporting
 func (c *OperatorDebugCommand) writeError(dir, file string, err error) error {
-	bytes, err := json.Marshal(errorWrapper{Error: err.Error()})
-	if err != nil {
-		return err
+	// Add error to slice
+	c.storeError(file, err)
+
+	writeErrorsToFile := false // make this a flag
+	// Write error to file
+	if writeErrorsToFile {
+		bytes, err := json.Marshal(errorWrapper{Error: err.Error()})
+		if err != nil {
+			return err
+		}
+		return c.writeBytes(dir, file, bytes)
 	}
-	return c.writeBytes(dir, file, bytes)
+
+	return nil
 }
 
 type errorWrapper struct {
 	Error string
+}
+
+// displayErrors displays a summmary of all errors encountered during capture
+func (c *OperatorDebugCommand) displayErrors() {
+	displayText := ""
+
+	errCount := len(c.errors)
+	if errCount == 0 {
+		displayText = "\n[green]No errors encountered[reset]\n"
+	} else {
+		displayText = fmt.Sprintf("\n[red]Error count: %d[reset]\n\n%s\n", len(c.errors), c.formatErrors())
+	}
+
+	// Display error summary
+	c.Ui.Output(c.Colorize().Color(displayText))
+}
+
+// formatErrors returns a string containing a formatted table of all errors
+func (c *OperatorDebugCommand) formatErrors() string {
+	if len(c.errors) > 0 {
+		errs := make([]string, len(c.errors)+1)
+		errs[0] = "Time|Target|Error"
+		for i, singleErr := range c.errors {
+			errs[i+1] = fmt.Sprintf("%s|%s|%v",
+				// formatTime(singleErr.timestamp),
+				singleErr.Timestamp.Format("2006-01-02T15:04:05.000Z"),
+				singleErr.Target,
+				singleErr.TargetError,
+			)
+		}
+		return formatList(errs)
+	}
+	return ""
+}
+
+// storeError appends a new captureError to the c.errors slice (thread safe)
+func (c *OperatorDebugCommand) storeError(target string, err error) {
+	c.errLock.Lock()
+
+	errorString := ""
+	if err != nil {
+		errorString = err.Error()
+	}
+
+	c.errors = append(c.errors, &captureError{
+		TargetError: errorString,
+		Target:      target,
+		Timestamp:   time.Now().UTC(),
+	})
+
+	c.errLock.Unlock()
 }
 
 // writeBody is a helper that writes the body of an http.Response to the archive
