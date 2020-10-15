@@ -64,8 +64,11 @@
   .empty-text {
     fill: $red;
     transform: translate(50%, 50%);
-    text-anchor: middle;
-    alignment-baseline: central;
+
+    text {
+      text-anchor: middle;
+      alignment-baseline: central;
+    }
   }
 
   & + .topo-viz-node {
