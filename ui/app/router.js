@@ -37,6 +37,8 @@ Router.map(function() {
     });
   });
 
+  this.route('topology');
+
   this.route('csi', function() {
     this.route('volumes', function() {
       this.route('volume', { path: '/:volume_name' });

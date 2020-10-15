@@ -24,8 +24,13 @@ module('Unit | Helper | format-bytes', function() {
     assert.equal(formatBytes([128974848]), '123 MiB');
   });
 
-  test('formats x > 1024 * 1024 * 1024 as MiB, since it is the highest allowed unit', function(assert) {
-    assert.equal(formatBytes([1024 * 1024 * 1024]), '1024 MiB');
-    assert.equal(formatBytes([1024 * 1024 * 1024 * 4]), '4096 MiB');
+  test('formats 1024 * 1024 * 1024 <= x < 1024 * 1024 * 1024 * 1024 as GiB', function(assert) {
+    assert.equal(formatBytes([1024 * 1024 * 1024]), '1 GiB');
+    assert.equal(formatBytes([1024 * 1024 * 1024 * 4]), '4 GiB');
+  });
+
+  test('formats x > 1024 * 1024 * 1024 * 1024 as GiB, since it is the highest allowed unit', function(assert) {
+    assert.equal(formatBytes([1024 * 1024 * 1024 * 1024]), '1024 GiB');
+    assert.equal(formatBytes([1024 * 1024 * 1024 * 1024 * 4]), '4096 GiB');
   });
 });

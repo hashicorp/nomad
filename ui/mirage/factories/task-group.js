@@ -79,7 +79,7 @@ export default Factory.extend({
 
         const maybeResources = {};
         if (resources) {
-          maybeResources.Resources = generateResources(resources[idx]);
+          maybeResources.originalResources = generateResources(resources[idx]);
         }
         return server.create('task', {
           taskGroup: group,

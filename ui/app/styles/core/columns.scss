@@ -23,4 +23,8 @@
     margin-left: auto;
     margin-right: auto;
   }
+
+  &.is-flush {
+    margin-bottom: 0;
+  }
 }

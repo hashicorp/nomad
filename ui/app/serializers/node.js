@@ -7,6 +7,8 @@ export default class NodeSerializer extends ApplicationSerializer {
   attrs = {
     isDraining: 'Drain',
     httpAddr: 'HTTPAddr',
+    resources: 'NodeResources',
+    reserved: 'ReservedResources',
   };
 
   mapToArray = ['Drivers', 'HostVolumes'];

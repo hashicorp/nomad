@@ -1,4 +1,5 @@
 import config from 'nomad-ui/config/environment';
+import * as topoScenarios from './topo';
 import { pickOne } from '../utils';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
@@ -14,6 +15,7 @@ const allScenarios = {
   allNodeTypes,
   everyFeature,
   emptyCluster,
+  ...topoScenarios,
 };
 
 const scenario = getConfigValue('mirageScenario', 'emptyCluster');
