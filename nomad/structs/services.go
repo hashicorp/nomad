@@ -246,7 +246,7 @@ func (sc *ServiceCheck) validate() error {
 
 	// Validate AddressMode
 	switch sc.AddressMode {
-	case "", AddressModeHost, AddressModeDriver:
+	case "", AddressModeHost, AddressModeDriver, AddressModeAlloc:
 		// Ok
 	case AddressModeAuto:
 		return fmt.Errorf("invalid address_mode %q - %s only valid for services", sc.AddressMode, AddressModeAuto)

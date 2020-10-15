@@ -734,6 +734,12 @@ func (ar *allocRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
 	ar.state.NetworkStatus = s.Copy()
 }
 
+func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	return ar.state.NetworkStatus.Copy()
+}
+
 // AllocState returns a copy of allocation state including a snapshot of task
 // states.
 func (ar *allocRunner) AllocState() *state.State {

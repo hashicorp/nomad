@@ -39,14 +39,13 @@ type serviceHook struct {
 	logger    log.Logger
 
 	// The following fields may be updated
-	driverExec    tinterfaces.ScriptExecutor
-	driverNet     *drivers.DriverNetwork
-	canary        bool
-	services      []*structs.Service
-	networks      structs.Networks
-	networkStatus *structs.AllocNetworkStatus
-	ports         structs.AllocatedPorts
-	taskEnv       *taskenv.TaskEnv
+	driverExec tinterfaces.ScriptExecutor
+	driverNet  *drivers.DriverNetwork
+	canary     bool
+	services   []*structs.Service
+	networks   structs.Networks
+	ports      structs.AllocatedPorts
+	taskEnv    *taskenv.TaskEnv
 
 	// initialRegistrations tracks if Poststart has completed, initializing
 	// fields required in other lifecycle funcs
@@ -59,13 +58,12 @@ type serviceHook struct {
 
 func newServiceHook(c serviceHookConfig) *serviceHook {
 	h := &serviceHook{
-		consul:        c.consul,
-		allocID:       c.alloc.ID,
-		taskName:      c.task.Name,
-		services:      c.task.Services,
-		restarter:     c.restarter,
-		networkStatus: c.alloc.NetworkStatus,
-		ports:         c.alloc.AllocatedResources.Shared.Ports,
+		consul:    c.consul,
+		allocID:   c.alloc.ID,
+		taskName:  c.task.Name,
+		services:  c.task.Services,
+		restarter: c.restarter,
+		ports:     c.alloc.AllocatedResources.Shared.Ports,
 	}
 
 	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
@@ -145,7 +143,6 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 	h.services = task.Services
 	h.networks = networks
 	h.canary = canary
-	h.networkStatus = req.Alloc.NetworkStatus
 	h.ports = req.Alloc.AllocatedResources.Shared.Ports
 
 	return nil
@@ -201,7 +198,6 @@ func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 		DriverNetwork: h.driverNet,
 		Networks:      h.networks,
 		Canary:        h.canary,
-		NetworkStatus: h.networkStatus,
 		Ports:         h.ports,
 	}
 }

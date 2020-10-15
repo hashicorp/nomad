@@ -13,16 +13,21 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+type networkStatusGetter interface {
+	NetworkStatus() *structs.AllocNetworkStatus
+}
+
 // groupServiceHook manages task group Consul service registration and
 // deregistration.
 type groupServiceHook struct {
-	allocID      string
-	group        string
-	restarter    agentconsul.WorkloadRestarter
-	consulClient consul.ConsulServiceAPI
-	prerun       bool
-	delay        time.Duration
-	deregistered bool
+	allocID             string
+	group               string
+	restarter           agentconsul.WorkloadRestarter
+	consulClient        consul.ConsulServiceAPI
+	prerun              bool
+	delay               time.Duration
+	deregistered        bool
+	networkStatusGetter networkStatusGetter
 
 	logger log.Logger
 
@@ -30,7 +35,6 @@ type groupServiceHook struct {
 	canary         bool
 	services       []*structs.Service
 	networks       structs.Networks
-	networkStatus  *structs.AllocNetworkStatus
 	ports          structs.AllocatedPorts
 	taskEnvBuilder *taskenv.Builder
 
@@ -40,11 +44,12 @@ type groupServiceHook struct {
 }
 
 type groupServiceHookConfig struct {
-	alloc          *structs.Allocation
-	consul         consul.ConsulServiceAPI
-	restarter      agentconsul.WorkloadRestarter
-	taskEnvBuilder *taskenv.Builder
-	logger         log.Logger
+	alloc               *structs.Allocation
+	consul              consul.ConsulServiceAPI
+	restarter           agentconsul.WorkloadRestarter
+	taskEnvBuilder      *taskenv.Builder
+	networkStatusGetter networkStatusGetter
+	logger              log.Logger
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
@@ -56,13 +61,13 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	}
 
 	h := &groupServiceHook{
-		allocID:        cfg.alloc.ID,
-		group:          cfg.alloc.TaskGroup,
-		restarter:      cfg.restarter,
-		consulClient:   cfg.consul,
-		taskEnvBuilder: cfg.taskEnvBuilder,
-		delay:          shutdownDelay,
-		networkStatus:  cfg.alloc.NetworkStatus,
+		allocID:             cfg.alloc.ID,
+		group:               cfg.alloc.TaskGroup,
+		restarter:           cfg.restarter,
+		consulClient:        cfg.consul,
+		taskEnvBuilder:      cfg.taskEnvBuilder,
+		delay:               shutdownDelay,
+		networkStatusGetter: cfg.networkStatusGetter,
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
@@ -124,7 +129,6 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 
 	// Update group service hook fields
 	h.networks = networks
-	h.networkStatus = req.Alloc.NetworkStatus
 	h.services = tg.Services
 	h.canary = canary
 	h.delay = shutdown
@@ -214,7 +218,8 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 		Services:      interpolatedServices,
 		DriverNetwork: h.driverNet(),
 		Networks:      h.networks,
-		NetworkStatus: h.networkStatus,
+		NetworkStatus: h.networkStatusGetter.NetworkStatus(),
+		Ports:         h.ports,
 		Canary:        h.canary,
 	}
 }
