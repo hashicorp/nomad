@@ -5,11 +5,8 @@ import { run } from '@ember/runloop';
 import { scaleLinear } from 'd3-scale';
 import { extent, deviation, mean } from 'd3-array';
 import { line, curveBasis } from 'd3-shape';
-import RSVP from 'rsvp';
 
 export default class TopoViz extends Component {
-  @tracked heightScale = null;
-  @tracked isLoaded = false;
   @tracked element = null;
   @tracked topology = { datacenters: [] };
 
@@ -122,16 +119,6 @@ export default class TopoViz extends Component {
         .domain(extent(nodeContainers.mapBy('memory'))),
     };
     this.topology = topology;
-  }
-
-  @action
-  async loadNodes() {
-    await RSVP.all(this.args.nodes.map(node => node.reload()));
-
-    this.heightScale = scaleLinear()
-      .range([15, 40])
-      .domain(extent(this.args.nodes.map(node => node.resources.memory)));
-    this.isLoaded = true;
   }
 
   @action

@@ -1,4 +1,4 @@
-<div class="topo-viz {{if this.isSingleColumn "is-single-column"}}" {{did-insert this.buildTopology}} {{did-insert this.captureElement}}>
+<div data-test-topo-viz class="topo-viz {{if this.isSingleColumn "is-single-column"}}" {{did-insert this.buildTopology}} {{did-insert this.captureElement}}>
   <FlexMasonry
     @columns={{if this.isSingleColumn 1 2}}
     @items={{this.topology.datacenters}}
@@ -13,10 +13,10 @@
   </FlexMasonry>
 
   {{#if this.activeAllocation}}
-    <svg class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>
+    <svg data-test-allocation-associations class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>
       <g transform="translate({{this.edgeOffset.x}},{{this.edgeOffset.y}})">
         {{#each this.activeEdges as |edge|}}
-          <path class="edge" d={{edge}} />
+          <path data-test-allocation-association class="edge" d={{edge}} />
         {{/each}}
       </g>
     </svg>

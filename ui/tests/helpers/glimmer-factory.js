@@ -1,0 +1,25 @@
+// Look up the component class in the glimmer component manager and return a
+// function to construct components as if they were functions.
+const glimmerComponentInstantiator = (owner, componentKey) => args => {
+  const componentManager = owner.lookup('component-manager:glimmer');
+  const componentClass = owner.factoryFor(`component:${componentKey}`).class;
+  return componentManager.createComponent(componentClass, { named: args });
+};
+
+// Use like
+//
+// setupGlimmerComponentFactory(hooks, 'my-component')
+//
+// test('testing my component', function(assert) {
+//   const component = this.createComponent({ hello: 'world' });
+//   assert.equal(component.args.hello, 'world');
+// });
+export default function setupGlimmerComponentFactory(hooks, componentKey) {
+  hooks.beforeEach(function() {
+    this.createComponent = glimmerComponentInstantiator(this.owner, componentKey);
+  });
+
+  hooks.afterEach(function() {
+    delete this.createComponent;
+  });
+}
