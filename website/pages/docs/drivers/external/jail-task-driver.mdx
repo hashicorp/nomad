@@ -43,7 +43,7 @@ task "http-echo-jail" {
 The Jail task driver supports most of [JAIL(8)][jail(8)] parameters, for a list of the currently supported parameters, please refer to the [Parameter Documentation][parameter-doc].
 
 - `Path` - (Optional) The directory which is to be the root of the jail.
-  Defaults to nomad's allocation directory.
+  Defaults to the [allocation working directory].
 
 - `Ip4` - (Optional) Control the availability of IPv4 addresses. Possible values are
   **"inherit"** to allow unrestricted access to all system addresses,
@@ -147,3 +147,4 @@ startup or the `Vnet` parameter to create a virtual network stack. Please refer 
 [rctl-doc]: https://www.freebsd.org/doc/handbook/security-resourcelimits.html
 [parameter-doc]: https://github.com/cneira/jail-task-driver/blob/master/Parameters.md
 [plugin_dir]: /docs/configuration#plugin_dir
+[allocation working directory]: /docs/runtime/environment 'Task Directories'

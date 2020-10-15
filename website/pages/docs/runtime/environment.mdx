@@ -59,7 +59,12 @@ details.
 
 ### Task Directories
 
-Nomad makes the following directories available to tasks:
+Nomad creates a working directory for each allocation on a client. The
+allocation working directory contains a task working directory for each task
+in the allocation.
+
+Nomad makes the following directories available to tasks, relative to the task
+working directory:
 
 - `alloc/`: This directory is shared across all tasks in a task group and can be
   used to store data that needs to be used by multiple tasks, such as a log
@@ -75,9 +80,10 @@ These directories are persisted until the allocation is removed, which occurs
 hours after all the tasks in the task group enter terminal states. This gives
 time to view the data produced by tasks.
 
-Depending on the driver and operating system being targeted, the directories are
-made available in various ways. For example, on `docker` the directories are
-bound to the container, while on `exec` on Linux the directories are mounted into the
+Depending on the driver and operating system being targeted, the directories
+are made available in various ways. For example, on `docker` the directories
+are bound to the container, while on `exec` on Linux the chroot is built in
+the task working directory, and the directories are mounted into that
 chroot. Regardless of how the directories are made available, the path to the
 directories can be read through the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
 `NOMAD_SECRETS_DIR` environment variables.

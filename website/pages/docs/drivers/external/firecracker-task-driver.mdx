@@ -34,10 +34,10 @@ task "test01" {
 The firecracker task driver supports the following parameters:
 
 - `KernelImage` - (Optional) Path to the kernel image to be used on the microvm.
-  Defaults to 'vmlinux' on nomad's allocation directory.
+  Defaults to 'vmlinux' in the [allocation working directory].
 
 - `BootDisk` - (Optional) Path to the ext4 rootfs to boot from.
-  Defaults to 'rootfs.ext4' on nomad's allocation directory.
+  Defaults to 'rootfs.ext4' in the [allocation working directory].
 
 - `BootOptions` - (Optional) Kernel command line options to boot the microvm.
   Defaults to "ro console=ttyS0 reboot=k panic=1 pci=off"
@@ -129,3 +129,4 @@ match the name of the network, and use the .conflist extension.
 [container network plugins]: https://github.com/containernetworking/plugins
 [firecracker binary]: https://github.com/firecracker-microvm/firecracker/releases
 [firecracker-task-guide]: https://github.com/cneira/firecracker-task-driver
+[allocation working directory]: /docs/runtime/environment 'Task Directories'

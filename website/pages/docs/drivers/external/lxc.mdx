@@ -71,7 +71,11 @@ The `lxc` driver supports the following configuration in the job spec:
   }
   ```
 
-- `volumes` - (Optional) A list of `host_path:container_path` strings to bind-mount host paths to container paths. Mounting host paths outside of the allocation directory can be disabled on clients by setting the [`volumes_enabled`](#volumes_enabled) option set to false. This will limit volumes to directories that exist inside the allocation directory.
+- `volumes` - (Optional) A list of `host_path:container_path` strings to
+bind-mount host paths to container paths. Mounting host paths outside of the
+[allocation working directory] can be disabled on clients by setting the
+[`volumes_enabled`](#volumes_enabled) option set to false. This will limit
+volumes to directories that exist inside the allocation directory.
 
   ~> **Note:** Unlike the similar option for the docker driver, this
   option must not have an absolute path as the `container_path`
@@ -187,3 +191,4 @@ isolation is not supported as of now.
 [plugin_dir]: /docs/configuration#plugin_dir
 [plugin-options]: #plugin-options
 [client_options]: /docs/configuration/client#options
+[allocation working directory]: /docs/runtime/environment 'Task Directories'

@@ -10,9 +10,9 @@ description: |
 
 **Alias: `nomad fs`**
 
-The `alloc fs` command allows a user to navigate an allocation directory on a Nomad
-client. The following functionalities are available - `cat`, `tail`, `ls` and
-`stat`.
+The `alloc fs` command allows a user to navigate an [allocation working
+directory] on a Nomad client. The following functionalities are available -
+`cat`, `tail`, `ls` and `stat`.
 
 - `cat`: If the target path is a file, Nomad will `cat` the file.
 
@@ -32,9 +32,10 @@ nomad alloc fs [options] <allocation> <path>
 ```
 
 This command accepts a single allocation ID (unless the `-job` flag is
-specified, in which case an allocation is chosen from the given job) and a path.
-The path is relative to the root of the allocation directory. The path is
-optional and it defaults to `/` of the allocation directory.
+specified, in which case an allocation is chosen from the given job) and a
+path.  The path is relative to the root of the [allocation working
+directory]. The path is optional and it defaults to `/` of the allocation
+directory.
 
 ## General Options
 
@@ -108,3 +109,5 @@ nomad alloc fs -job <job-id> <path>
 
 This can be useful for debugging a job that has multiple allocations, and it is
 not required to observe a specific allocation.
+
+[allocation working directory]: /docs/runtime/environment 'Task Directories'

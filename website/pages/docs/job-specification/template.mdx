@@ -59,7 +59,10 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   templates, but we recommend using `source` for larger templates.
 
 - `destination` `(string: <required>)` - Specifies the location where the
-  resulting template should be rendered, relative to the task directory.
+  resulting template should be rendered, relative to the [task working
+  directory]. Only drivers that build a chroot into the task working directory
+  (such as `exec` or `raw_exec`) can render templates outside of the
+  `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or `NOMAD_SECRETS_DIR`.
 
 - `env` `(bool: false)` - Specifies the template should be read back in as
   environment variables for the task. ([See below](#environment-variables))
@@ -220,6 +223,37 @@ DB_PASSWD={{ .Data.data.DB_PASSWD | toJSON }}
 
 For more details see [go-envparser's README][go-envparse].
 
+### Template Destinations
+
+Templates are rendered into the task working directory. Some drivers such as
+`exec` or `raw_exec` build a chroot in the task working directory, so
+templates can be rendered to arbitrary paths in the task. But task drivers
+such as `docker` can only access templates rendered into the
+`NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or `NOMAD_SECRETS_DIR`. To workaround
+this restriction, you can create a mount from the template `destination` to
+another location in the task.
+
+```hcl
+task "task" {
+  driver = "docker"
+
+  config {
+    image = "redis:6.0"
+    mounts = [
+      {
+        type   = "bind"
+        source = "local"
+        target = "/etc/redis.d"
+      }
+    ]
+  }
+
+  template {
+    destination = "local/redis.conf"
+  }
+}
+```
+
 ## Vault Integration
 
 ### PKI Certificate
@@ -343,3 +377,4 @@ options](/docs/configuration/client#options):
 [env]: /docs/runtime/environment 'Nomad Runtime Environment'
 [nodevars]: /docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'
 [go-envparse]: https://github.com/hashicorp/go-envparse#readme 'The go-envparse Readme'
+[task working directory]: /docs/runtime/environment 'Task Directories'

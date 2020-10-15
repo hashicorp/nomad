@@ -267,11 +267,12 @@ The `docker` driver supports the following configuration in the job spec. Only
   docker daemon.
 
 - `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Mounting host paths outside of the allocation
-  directory can be disabled on clients by setting the `docker.volumes.enabled`
-  option set to false. This will limit volumes to directories that exist inside
-  the allocation directory. We recommend using [`mounts`](#mounts) if you wish
-  to have more control over volume definitions.
+  host paths to container paths. Mounting host paths outside of the
+  [allocation working directory] can be disabled on clients by setting the
+  `docker.volumes.enabled` option set to false. This will limit volumes to
+  directories that exist inside the allocation working directory. We recommend
+  using [`mounts`](#mounts) if you wish to have more control over volume
+  definitions.
 
   ```hcl
   config {
@@ -1022,3 +1023,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Adriver%2Fdocker+label%3Aplatform-windows
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin
+[allocation working directory]: /docs/runtime/environment 'Task Directories'
