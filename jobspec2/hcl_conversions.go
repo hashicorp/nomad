@@ -15,19 +15,23 @@ import (
 
 var hclDecoder *gohcl.Decoder
 
-func init() {
-	hclDecoder = &gohcl.Decoder{}
-
+func newHCLDecoder() *gohcl.Decoder {
+	decoder := &gohcl.Decoder{}
 	// time conversion
 	d := time.Duration(0)
-	hclDecoder.RegisterExprDecoder(reflect.TypeOf(d), decodeDuration)
-	hclDecoder.RegisterExprDecoder(reflect.TypeOf(&d), decodeDuration)
+	decoder.RegisterExprDecoder(reflect.TypeOf(d), decodeDuration)
+	decoder.RegisterExprDecoder(reflect.TypeOf(&d), decodeDuration)
 
 	// affinity
-	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(jobWrapper{}), decodeJob)
 
-	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
-
+	return decoder
+}
+func init() {
+	hclDecoder = newHCLDecoder()
+	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.TaskGroup{}), decodeTaskGroup)
 }
 
 func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
@@ -241,4 +245,39 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 		c.Operand = "="
 	}
 	return diags
+}
+
+func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	tg := val.(*api.TaskGroup)
+	tgExtra := struct {
+		Vault *api.Vault `hcl:"vault,block"`
+	}{}
+
+	extra, _ := gohcl.ImpliedBodySchema(tgExtra)
+	content, tgBody, diags := body.PartialContent(extra)
+	if len(diags) != 0 {
+		return diags
+	}
+
+	for _, b := range content.Blocks {
+		if b.Type == "vault" {
+			v := &api.Vault{}
+			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, v)...)
+			tgExtra.Vault = v
+		}
+	}
+
+	d := newHCLDecoder()
+	diags = d.DecodeBody(tgBody, ctx, tg)
+
+	if tgExtra.Vault != nil {
+		for _, t := range tg.Tasks {
+			if t.Vault == nil {
+				t.Vault = tgExtra.Vault
+			}
+		}
+	}
+
+	return diags
+
 }

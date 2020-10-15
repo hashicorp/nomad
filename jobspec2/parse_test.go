@@ -185,6 +185,6 @@ duration = "1m"
 }
 
 func TestHCLSchema(t *testing.T) {
-	s, _ := gohcl.ImpliedBodySchema(JobWrapper{})
+	s, _ := gohcl.ImpliedBodySchema(jobWrapper{})
 	pretty.Println(s)
 }

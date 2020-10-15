@@ -19,7 +19,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-type JobWrapper struct {
+type jobWrapper struct {
 	JobID string `hcl:",label"`
 	Job   *api.Job
 
@@ -29,12 +29,8 @@ type JobWrapper struct {
 	}
 }
 
-func (m JobWrapper) HCLSchema() (schema *hcl.BodySchema, partial bool) {
-	s, _ := gohcl.ImpliedBodySchema(m.Job)
-	return s, true
-}
-
-func (m *JobWrapper) DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnostics {
+func decodeJob(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	m := val.(*jobWrapper)
 	extra, _ := gohcl.ImpliedBodySchema(m.Extra)
 	content, job, diags := body.PartialContent(extra)
 	if len(diags) != 0 {
@@ -98,7 +94,7 @@ func ParseWithArgs(path string, r io.Reader, vars map[string]string) (*api.Job, 
 		},
 	}
 	var result struct {
-		Job JobWrapper `hcl:"job,block"`
+		Job jobWrapper `hcl:"job,block"`
 	}
 	err := decode(path, buf.Bytes(), evalContext, &result)
 	if err != nil {
@@ -123,7 +119,7 @@ func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{
 		return diags
 	}
 
-	body := hclutil.BlocksAsAttrs(file.Body, ctx)
+	body := hclutil.BlocksAsAttrs(file.Body)
 	body = dynblock.Expand(body, ctx)
 	diags = hclDecoder.DecodeBody(body, ctx, target)
 	if diags.HasErrors() {
@@ -140,7 +136,7 @@ func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{
 	return nil
 }
 
-func normalizeJob(jw *JobWrapper) {
+func normalizeJob(jw *jobWrapper) {
 	j := jw.Job
 	if j.Name == nil {
 		j.Name = &jw.JobID

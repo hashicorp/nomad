@@ -92,7 +92,7 @@ func expandBlocks(blocks hcl.Blocks) hcl.Blocks {
 	r := make([]*hcl.Block, len(blocks))
 	for i, b := range blocks {
 		nb := *b
-		nb.Body = blocksAsAttrs(b.Body)
+		nb.Body = BlocksAsAttrs(b.Body)
 		r[i] = &nb
 	}
 	return r
