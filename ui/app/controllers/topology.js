@@ -3,6 +3,8 @@ import { computed, action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
 
+const sumAggregator = (sum, value) => sum + (value || 0);
+
 @classic
 export default class TopologyControllers extends Controller {
   @computed('model.nodes.@each.datacenter')
@@ -17,9 +19,7 @@ export default class TopologyControllers extends Controller {
 
   @computed('model.nodes.@each.resources')
   get totalMemory() {
-    const mibs = this.model.nodes
-      .mapBy('resources.memory')
-      .reduce((sum, memory) => sum + (memory || 0), 0);
+    const mibs = this.model.nodes.mapBy('resources.memory').reduce(sumAggregator, 0);
     return mibs * 1024 * 1024;
   }
 
@@ -40,17 +40,13 @@ export default class TopologyControllers extends Controller {
 
   @computed('model.allocations.@each.allocatedResources')
   get totalReservedMemory() {
-    const mibs = this.model.allocations
-      .mapBy('allocatedResources.memory')
-      .reduce((sum, memory) => sum + (memory || 0), 0);
+    const mibs = this.model.allocations.mapBy('allocatedResources.memory').reduce(sumAggregator, 0);
     return mibs * 1024 * 1024;
   }
 
   @computed('model.allocations.@each.allocatedResources')
   get totalReservedCPU() {
-    return this.model.allocations
-      .mapBy('allocatedResources.cpu')
-      .reduce((sum, cpu) => sum + (cpu || 0), 0);
+    return this.model.allocations.mapBy('allocatedResources.cpu').reduce(sumAggregator, 0);
   }
 
   @computed('totalMemory', 'totalReservedMemory')
@@ -80,12 +76,8 @@ export default class TopologyControllers extends Controller {
   get nodeUtilization() {
     const node = this.activeNode;
     const [formattedMemory, memoryUnits] = reduceToLargestUnit(node.memory * 1024 * 1024);
-    const totalReservedMemory = node.allocations
-      .mapBy('memory')
-      .reduce((sum, memory) => sum + (memory || 0), 0);
-    const totalReservedCPU = node.allocations
-      .mapBy('cpu')
-      .reduce((sum, cpu) => sum + (cpu || 0), 0);
+    const totalReservedMemory = node.allocations.mapBy('memory').reduce(sumAggregator, 0);
+    const totalReservedCPU = node.allocations.mapBy('cpu').reduce(sumAggregator, 0);
 
     return {
       totalMemoryFormatted: formattedMemory.toFixed(2),
