@@ -45,8 +45,6 @@ export function topoSmall(server) {
   });
 }
 
-export function topoSmallProblems(server) {}
-
 export function topoMedium(server) {
   server.createList('agent', 3);
   server.createList('node', 10, {
@@ -109,7 +107,3 @@ export function topoMedium(server) {
     forceRunningClientStatus: true,
   });
 }
-
-export function topoMediumBatch(server) {}
-
-export function topoMediumVariadic(server) {}
