@@ -210,6 +210,11 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
+	var netStatus *structs.AllocNetworkStatus
+	if h.networkStatusGetter != nil {
+		netStatus = h.networkStatusGetter.NetworkStatus()
+	}
+
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
 		AllocID:       h.allocID,
@@ -218,7 +223,7 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 		Services:      interpolatedServices,
 		DriverNetwork: h.driverNet(),
 		Networks:      h.networks,
-		NetworkStatus: h.networkStatusGetter.NetworkStatus(),
+		NetworkStatus: netStatus,
 		Ports:         h.ports,
 		Canary:        h.canary,
 	}
