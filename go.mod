@@ -60,7 +60,7 @@ require (
 	github.com/hashicorp/go-connlimit v0.2.0
 	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
-	github.com/hashicorp/go-getter v1.3.1-0.20190822194507-f5101da01173
+	github.com/hashicorp/go-getter v1.5.0
 	github.com/hashicorp/go-hclog v0.12.0
 	github.com/hashicorp/go-immutable-radix v1.3.0
 	github.com/hashicorp/go-memdb v1.3.0
@@ -122,7 +122,7 @@ require (
 	golang.org/x/exp v0.0.0-20191030013958-a1ab85dbe136 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/mod v0.3.0 // indirect
-	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1
 	golang.org/x/text v0.3.3-0.20200306154105-06d492aade88 // indirect

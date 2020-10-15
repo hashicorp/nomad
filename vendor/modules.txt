@@ -315,7 +315,7 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/go-querystring v1.0.0
+# github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135
 github.com/google/go-querystring/query
 # github.com/googleapis/gax-go/v2 v2.0.5
 github.com/googleapis/gax-go/v2
@@ -401,7 +401,7 @@ github.com/hashicorp/go-discover/provider/vsphere
 # github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 ## explicit
 github.com/hashicorp/go-envparse
-# github.com/hashicorp/go-getter v1.3.1-0.20190822194507-f5101da01173
+# github.com/hashicorp/go-getter v1.5.0
 ## explicit
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
@@ -720,7 +720,7 @@ github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile
 github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312
 # github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926
 github.com/tv42/httpunix
-# github.com/ulikunitz/xz v0.5.5
+# github.com/ulikunitz/xz v0.5.8
 github.com/ulikunitz/xz
 github.com/ulikunitz/xz/internal/hash
 github.com/ulikunitz/xz/internal/xlog
@@ -809,7 +809,7 @@ golang.org/x/lint/golint
 ## explicit
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
+# golang.org/x/net v0.0.0-20200602114024-627f9648deb9
 ## explicit
 golang.org/x/net/bpf
 golang.org/x/net/context
