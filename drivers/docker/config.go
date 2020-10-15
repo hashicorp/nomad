@@ -229,6 +229,7 @@ var (
 			),
 		})), hclspec.NewLiteral(`{
 			image = true
+			image_delay = "3m"
 			container = true
 			dangling_containers = {
 				enabled = true
