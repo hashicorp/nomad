@@ -33,6 +33,7 @@ type WorkloadServices struct {
 	Networks structs.Networks
 
 	// NetworkStatus from alloc if network namespace is created
+	// Can be nil
 	NetworkStatus *structs.AllocNetworkStatus
 
 	// AllocatedPorts is the list of port mappings
