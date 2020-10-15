@@ -15,7 +15,7 @@ export default class FlexMasonry extends Component {
   @action
   reflow() {
     run.next(() => {
-      // There's nothing to do if this is  single column layout
+      // There's nothing to do if this is a single column layout
       if (!this.element || this.args.columns === 1 || !this.args.columns) return;
 
       const columns = new Array(this.args.columns).fill(null).map(() => ({
