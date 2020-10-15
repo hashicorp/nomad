@@ -24,11 +24,11 @@ module.exports = function(environment) {
     },
 
     APP: {
-      blockingQueries: false,
-      mirageScenario: 'topoSmall',
+      blockingQueries: true,
+      mirageScenario: 'topoMedium',
       mirageWithNamespaces: false,
       mirageWithTokens: true,
-      mirageWithRegions: false,
+      mirageWithRegions: true,
     },
   };
 
