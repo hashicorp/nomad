@@ -30,6 +30,8 @@ type groupServiceHook struct {
 	canary         bool
 	services       []*structs.Service
 	networks       structs.Networks
+	networkStatus  *structs.AllocNetworkStatus
+	ports          structs.AllocatedPorts
 	taskEnvBuilder *taskenv.Builder
 
 	// Since Update() may be called concurrently with any other hook all
@@ -60,12 +62,14 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		consulClient:   cfg.consul,
 		taskEnvBuilder: cfg.taskEnvBuilder,
 		delay:          shutdownDelay,
+		networkStatus:  cfg.alloc.NetworkStatus,
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
 
 	if cfg.alloc.AllocatedResources != nil {
 		h.networks = cfg.alloc.AllocatedResources.Shared.Networks
+		h.ports = cfg.alloc.AllocatedResources.Shared.Ports
 	}
 
 	if cfg.alloc.DeploymentStatus != nil {
@@ -109,6 +113,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	var networks structs.Networks
 	if req.Alloc.AllocatedResources != nil {
 		networks = req.Alloc.AllocatedResources.Shared.Networks
+		h.ports = req.Alloc.AllocatedResources.Shared.Ports
 	}
 
 	tg := req.Alloc.Job.LookupTaskGroup(h.group)
@@ -119,6 +124,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 
 	// Update group service hook fields
 	h.networks = networks
+	h.networkStatus = req.Alloc.NetworkStatus
 	h.services = tg.Services
 	h.canary = canary
 	h.delay = shutdown
@@ -208,6 +214,7 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 		Services:      interpolatedServices,
 		DriverNetwork: h.driverNet(),
 		Networks:      h.networks,
+		NetworkStatus: h.networkStatus,
 		Canary:        h.canary,
 	}
 }

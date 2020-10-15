@@ -378,6 +378,7 @@ const (
 	AddressModeAuto   = "auto"
 	AddressModeHost   = "host"
 	AddressModeDriver = "driver"
+	AddressModeAlloc  = "alloc"
 )
 
 // Service represents a Consul service definition
