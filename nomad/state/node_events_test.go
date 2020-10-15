@@ -255,7 +255,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	require.Equal(t, TypeNodeDrain, got.Events[0].Type)
 	require.Equal(t, uint64(100), got.Events[0].Index)
 
-	nodeEvent, ok := got.Events[0].Payload.(*NodeDrainEvent)
+	nodeEvent, ok := got.Events[0].Payload.(*NodeEvent)
 	require.True(t, ok)
 
 	require.Equal(t, structs.NodeSchedulingIneligible, nodeEvent.Node.SchedulingEligibility)

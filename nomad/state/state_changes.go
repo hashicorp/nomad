@@ -188,8 +188,6 @@ func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 		return nil, nil
 	case structs.NodeDeregisterRequestType:
 		return NodeDeregisterEventFromChanges(tx, changes)
-	case structs.NodeUpdateDrainRequestType:
-		return NodeDrainEventFromChanges(tx, changes)
 	default:
 		return GenericEventsFromChanges(tx, changes)
 	}

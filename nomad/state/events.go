@@ -51,14 +51,6 @@ type NodeEvent struct {
 	Node *structs.Node
 }
 
-// NNodeDrainEvent is the Payload for a NodeDrain event. It contains
-// information related to the Node being drained as well as high level
-// information about the current allocations on the Node
-type NodeDrainEvent struct {
-	Node      *structs.Node
-	JobAllocs map[string]*JobDrainDetails
-}
-
 type NodeDrainAllocDetails struct {
 	ID      string
 	Migrate *structs.MigrateStrategy
@@ -81,6 +73,7 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.JobBatchDeregisterRequestType:           TypeJobBatchDeregistered,
 	structs.AllocUpdateDesiredTransitionRequestType: TypeAllocUpdateDesiredStatus,
 	structs.NodeUpdateEligibilityRequestType:        TypeNodeDrain,
+	structs.NodeUpdateDrainRequestType:              TypeNodeDrain,
 	structs.BatchNodeUpdateDrainRequestType:         TypeNodeDrain,
 	structs.DeploymentStatusUpdateRequestType:       TypeDeploymentUpdate,
 	structs.DeploymentPromoteRequestType:            TypeDeploymentPromotion,
