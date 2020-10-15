@@ -475,6 +475,7 @@ github.com/hashicorp/hcl/json/token
 ## explicit
 github.com/hashicorp/hcl/v2
 github.com/hashicorp/hcl/v2/ext/customdecode
+github.com/hashicorp/hcl/v2/ext/dynblock
 github.com/hashicorp/hcl/v2/ext/tryfunc
 github.com/hashicorp/hcl/v2/ext/typeexpr
 github.com/hashicorp/hcl/v2/gohcl
@@ -594,6 +595,7 @@ github.com/mitchellh/hashstructure
 ## explicit
 github.com/mitchellh/mapstructure
 # github.com/mitchellh/reflectwalk v1.0.1
+## explicit
 github.com/mitchellh/reflectwalk
 # github.com/moby/sys/mountinfo v0.1.3
 github.com/moby/sys/mountinfo
