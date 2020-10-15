@@ -11,10 +11,6 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-type SelfDecoder interface {
-	DecodeHCL(body hcl.Body, ctx *hcl.EvalContext) hcl.Diagnostics
-}
-
 type ExprDecoderFunc func(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics
 type BodyDecoderFunc func(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics
 
@@ -94,9 +90,6 @@ func (d *Decoder) decodeBodyToValue(body hcl.Body, ctx *hcl.EvalContext, val ref
 }
 
 func (d *Decoder) decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val reflect.Value) hcl.Diagnostics {
-	if decoder, ok := val.Addr().Interface().(SelfDecoder); ok {
-		return decoder.DecodeHCL(body, ctx)
-	}
 	if fn, ok := d.bodyConvertors[val.Type()]; ok {
 		return fn(body, ctx, val.Addr().Interface())
 	}
