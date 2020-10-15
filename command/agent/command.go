@@ -225,7 +225,7 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Merge in the enterprise overlay
-	config.Merge(DefaultEntConfig())
+	config = config.Merge(DefaultEntConfig())
 
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
