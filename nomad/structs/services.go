@@ -486,7 +486,7 @@ func (s *Service) Validate() error {
 	}
 
 	switch s.AddressMode {
-	case "", AddressModeAuto, AddressModeHost, AddressModeDriver:
+	case "", AddressModeAuto, AddressModeHost, AddressModeDriver, AddressModeAlloc:
 		// OK
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
