@@ -19,7 +19,7 @@ const (
 	// envoyLegacyImage is used when the version of Consul is too old to support
 	// the SupportedProxies field in the self API.
 	//
-	// This is the version defaulted by Nomad before v0.13.0 and/or when using versions
+	// This is the version defaulted by Nomad before v1.0 and/or when using versions
 	// of Consul before v1.7.8, v1.8.5, and v1.9.0.
 	envoyLegacyImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
 )
@@ -140,7 +140,7 @@ func (h *envoyVersionHook) needsVersion(config map[string]interface{}) bool {
 }
 
 // image determines the best Envoy version to use. If supported is nil or empty
-// Nomad will fallback to the legacy envoy image used before Nomad v0.13.
+// Nomad will fallback to the legacy envoy image used before Nomad v1.0.
 func (_ *envoyVersionHook) tweakImage(configured string, supported map[string][]string) (string, error) {
 	versions := supported["envoy"]
 	if len(versions) == 0 {

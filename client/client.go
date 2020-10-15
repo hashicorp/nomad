@@ -416,7 +416,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	// Build the allow/denylists of drivers.
-	// COMPAT(0.13) uses inclusive language. white/blacklist are there for backward compatible reasons only.
+	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
 	allowlistDrivers := cfg.ReadStringListToMap("driver.allowlist", "driver.whitelist")
 	blocklistDrivers := cfg.ReadStringListToMap("driver.denylist", "driver.blacklist")
 
