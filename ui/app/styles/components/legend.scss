@@ -20,8 +20,14 @@
       margin-left: 0.5em;
     }
 
-    dd + dt {
-      margin-left: 1.5em;
+    .legend-term {
+      display: inline-block;
+      whitespace: nowrap;
+      margin-right: 1.5em;
+
+      &:last-child {
+        margin-right: 0;
+      }
     }
   }
 }
