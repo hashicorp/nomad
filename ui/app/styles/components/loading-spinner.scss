@@ -1,71 +1,154 @@
+$duration: 5s;
+
+$side-length: 50px;
+$cube-length: $side-length * 5;
+
+$lighter-side: $grey-blue;
+$darker-side: darken($lighter-side, 15%);
+
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  margin: 100px auto;
+  width: 100%;
 
-  .loading-spinner-square {
-    width: 33%;
-    height: 33%;
-    background-color: $primary;
-    float: left;
-    animation: loading-spinner-squareGridScaleDelay 1.3s infinite ease-in-out;
+  .cube-and-logo {
+    position: relative;
+    margin: 100px auto;
+    width: $cube-length;
+    height: $cube-length;
   }
 
-  .loading-spinner-square1 {
-    animation-delay: 0.2s;
+  .logo-container {
+    position: absolute;
+    width: $cube-length;
+    height: $cube-length;
+    top: 0;
+    left: 0;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .icon {
+      width: 32%;
+      height: 32%;
+      transform: translateY(-20px);
+      fill: white;
+      animation: n-fade $duration forwards infinite;
+    }
   }
 
-  .loading-spinner-square2 {
-    animation-delay: 0.3s;
+  .cube {
+    width: $cube-length;
+    height: $cube-length;
+    transform-style: preserve-3d;
+    animation: cube-spin $duration forwards infinite;
   }
 
-  .loading-spinner-square3 {
-    animation-delay: 0.4s;
+  &.paused {
+    .cube,
+    .side-4,
+    .logo-container .icon {
+      animation-play-state: paused;
+    }
   }
 
-  .loading-spinner-square4 {
-    animation-delay: 0.1s;
+  .side {
+    width: $side-length;
+    height: $side-length;
+    position: absolute;
+    background: $lighter-side;
   }
 
-  .loading-spinner-square5 {
-    animation-delay: 0.2s;
+  .side-1 {
+    top: $side-length;
+    left: $side-length * 2;
+    transform-origin: 50% 100%;
+    transform: rotateX(-90deg);
   }
 
-  .loading-spinner-square6 {
-    animation-delay: 0.3s;
+  .side-2 {
+    top: $side-length * 3;
+    left: $side-length * 2;
+    transform-origin: 50% 0%;
+    transform: rotateX(90deg);
   }
 
-  .loading-spinner-square7 {
-    animation-delay: 0s;
+  .side-3 {
+    top: $side-length * 2;
+    left: $side-length;
+    transform-origin: 100% 50%;
+    transform: rotateY(90deg);
   }
 
-  .loading-spinner-square8 {
-    animation-delay: 0.1s;
-  }
-
-  .loading-spinner-square9 {
-    animation-delay: 0.2s;
+  .side-4 {
+    top: $side-length * 2;
+    left: $side-length * 2;
+    transform-origin: 100% 50%;
+    transform: rotateY(90deg);
+    animation: darker-side-fade $duration forwards infinite;
   }
 }
 
-@-webkit-keyframes loading-spinner-squareGridScaleDelay {
-  0%,
-  70%,
-  100% {
-    transform: scale3D(1, 1, 1);
+$rotateX: 55deg;
+$rotateY: 45deg;
+
+@keyframes cube-spin {
+  0% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(360deg);
   }
-  35% {
-    transform: scale3D(0, 0, 1);
+
+  30% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(0deg);
+  }
+
+  70% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(0deg);
+  }
+
+  100% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(360deg);
   }
 }
 
-@keyframes loading-spinner-squareGridScaleDelay {
-  0%,
-  70%,
-  100% {
-    transform: scale3D(1, 1, 1);
+@keyframes darker-side-fade {
+  30% {
+    background: $lighter-side;
   }
+
   35% {
-    transform: scale3D(0, 0, 1);
+    background: $darker-side;
+  }
+
+  65% {
+    background: $darker-side;
+  }
+
+  70% {
+    background: $lighter-side;
+  }
+}
+
+@keyframes n-fade {
+  0% {
+    opacity: 0;
+  }
+
+  40% {
+    opacity: 0;
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  65% {
+    opacity: 1;
+  }
+
+  70% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0;
   }
 }
