@@ -247,9 +247,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.EnableEventBroker = *agentConfig.Server.EnableEventBroker
 	}
 	if agentConfig.Server.EventBufferSize != nil {
+		if *agentConfig.Server.EventBufferSize < 0 {
+			return nil, fmt.Errorf("Invalid Config, event_buffer_size must be non-negative")
+		}
 		conf.EventBufferSize = int64(*agentConfig.Server.EventBufferSize)
 	}
 	if agentConfig.Server.DurableEventCount != nil {
+		if *agentConfig.Server.DurableEventCount < 0 {
+			return nil, fmt.Errorf("Invalid Config, durable_event_count must be non-negative")
+		}
 		conf.DurableEventCount = int64(*agentConfig.Server.DurableEventCount)
 	}
 	if agentConfig.Autopilot != nil {
