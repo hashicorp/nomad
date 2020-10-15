@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -163,6 +164,13 @@ const (
 
 	// Normalized scorer name
 	NormScorerName = "normalized-score"
+
+	// MaxBlockingRPCQueryTime is used to bound the limit of a blocking query
+	MaxBlockingRPCQueryTime = 300 * time.Second
+
+	// DefaultBlockingRPCQueryTime is the amount of time we block waiting for a change
+	// if no time is specified. Previously we would wait the MaxBlockingRPCQueryTime.
+	DefaultBlockingRPCQueryTime = 300 * time.Second
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -289,6 +297,14 @@ func (q QueryOptions) AllowStaleRead() bool {
 
 func (q QueryOptions) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
 	if q.MinQueryIndex > 0 {
+		// Restrict the max query time, and ensure there is always one
+		if q.MaxQueryTime > MaxBlockingRPCQueryTime {
+			q.MaxQueryTime = MaxBlockingRPCQueryTime
+		} else if q.MaxQueryTime <= 0 {
+			q.MaxQueryTime = DefaultBlockingRPCQueryTime
+		}
+		q.MaxQueryTime += lib.RandomStagger(q.MaxQueryTime / JitterFraction)
+
 		return time.Since(start) > (q.MaxQueryTime + rpcHoldTimeout)
 	}
 	return time.Since(start) > rpcHoldTimeout
