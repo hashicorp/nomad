@@ -246,7 +246,7 @@ func (sc *ServiceCheck) validate() error {
 
 	// Validate AddressMode
 	switch sc.AddressMode {
-	case "", AddressModeHost, AddressModeDriver:
+	case "", AddressModeHost, AddressModeDriver, AddressModeAlloc:
 		// Ok
 	case AddressModeAuto:
 		return fmt.Errorf("invalid address_mode %q - %s only valid for services", sc.AddressMode, AddressModeAuto)
@@ -378,6 +378,7 @@ const (
 	AddressModeAuto   = "auto"
 	AddressModeHost   = "host"
 	AddressModeDriver = "driver"
+	AddressModeAlloc  = "alloc"
 )
 
 // Service represents a Consul service definition
@@ -485,7 +486,7 @@ func (s *Service) Validate() error {
 	}
 
 	switch s.AddressMode {
-	case "", AddressModeAuto, AddressModeHost, AddressModeDriver:
+	case "", AddressModeAuto, AddressModeHost, AddressModeDriver, AddressModeAlloc:
 		// OK
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))

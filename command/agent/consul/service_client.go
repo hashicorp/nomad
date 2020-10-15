@@ -823,7 +823,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 
 	// Determine the address to advertise based on the mode
-	ip, port, err := getAddress(addrMode, service.PortLabel, workload.Networks, workload.DriverNetwork)
+	ip, port, err := getAddress(addrMode, service.PortLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get address for service %q: %v", service.Name, err)
 	}
@@ -934,7 +934,7 @@ func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *st
 			addrMode = structs.AddressModeHost
 		}
 
-		ip, port, err := getAddress(addrMode, portLabel, workload.Networks, workload.DriverNetwork)
+		ip, port, err := getAddress(addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
 		if err != nil {
 			return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
 		}
@@ -1448,7 +1448,7 @@ func getNomadSidecar(id string, services map[string]*api.AgentService) *api.Agen
 // getAddress returns the IP and port to use for a service or check. If no port
 // label is specified (an empty value), zero values are returned because no
 // address could be resolved.
-func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *drivers.DriverNetwork) (string, int, error) {
+func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet *drivers.DriverNetwork, ports structs.AllocatedPorts, netStatus *structs.AllocNetworkStatus) (string, int, error) {
 	switch addrMode {
 	case structs.AddressModeAuto:
 		if driverNet.Advertise() {
@@ -1456,7 +1456,7 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		} else {
 			addrMode = structs.AddressModeHost
 		}
-		return getAddress(addrMode, portLabel, networks, driverNet)
+		return getAddress(addrMode, portLabel, networks, driverNet, ports, netStatus)
 	case structs.AddressModeHost:
 		if portLabel == "" {
 			if len(networks) != 1 {
@@ -1471,11 +1471,17 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		}
 
 		// Default path: use host ip:port
-		ip, port := networks.Port(portLabel)
-		if ip == "" && port <= 0 {
-			return "", 0, fmt.Errorf("invalid port %q: port label not found", portLabel)
+		// Try finding port in the AllocatedPorts struct first
+		// Check in Networks struct for backwards compatibility if not found
+		mapping, ok := ports.Get(portLabel)
+		if !ok {
+			ip, port := networks.Port(portLabel)
+			if ip == "" && port <= 0 {
+				return "", 0, fmt.Errorf("invalid port %q: port label not found", portLabel)
+			}
+			return ip, port, nil
 		}
-		return ip, port, nil
+		return mapping.HostIP, mapping.Value, nil
 
 	case structs.AddressModeDriver:
 		// Require a driver network if driver address mode is used
@@ -1489,6 +1495,11 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		}
 
 		// If the port is a label, use the driver's port (not the host's)
+		if port, ok := ports.Get(portLabel); ok {
+			return driverNet.IP, port.To, nil
+		}
+
+		// Check if old style driver portmap is used
 		if port, ok := driverNet.PortMap[portLabel]; ok {
 			return driverNet.IP, port, nil
 		}
@@ -1506,6 +1517,32 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		}
 
 		return driverNet.IP, port, nil
+
+	case "alloc":
+		if netStatus == nil {
+			return "", 0, fmt.Errorf(`cannot use address_mode="alloc": no allocation network status reported`)
+		}
+
+		// If no port label is specified just return the IP
+		if portLabel == "" {
+			return netStatus.Address, 0, nil
+		}
+
+		// If port is a label and is found then return it
+		if port, ok := ports.Get(portLabel); ok {
+			return netStatus.Address, port.Value, nil
+		}
+
+		// Check if port is a literal number
+		port, err := strconv.Atoi(portLabel)
+		if err != nil {
+			// User likely specified wrong port label here
+			return "", 0, fmt.Errorf("invalid port %q: port label not found or is not numeric", portLabel)
+		}
+		if port <= 0 {
+			return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
+		}
+		return netStatus.Address, port, nil
 
 	default:
 		// Shouldn't happen due to validation, but enforce invariants

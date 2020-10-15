@@ -129,10 +129,16 @@ Connect][connect] integration.
   [documentation](https://www.consul.io/docs/internals/anti-entropy#enable-tag-override)
   for more information.
 
-- `address_mode` `(string: "auto")` - Specifies what address (host or
+- `address_mode` `(string: "auto")` - Specifies what address (host, alloc or
   driver-specific) this service should advertise. This setting is supported in
   Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
   examples.](#using-driver-address-mode) Valid options are:
+
+  - `alloc` - For allocations which create a network namespace, this address mode
+    uses the IP address inside the namespace. Can only be used with "bridge" and "cni"
+    [networking modes][network_mode]. A numeric port may be specified for situations
+    where no port mapping is necessary. This mode can only be set for services which
+    are defined in a "group" block.
 
   - `auto` - Allows the driver to determine whether the host or driver address
     should be used. Defaults to `host` and only implemented by Docker. If you
@@ -143,7 +149,8 @@ Connect][connect] integration.
     port map. A numeric port may be specified since port maps aren't required
     by all network plugins. Useful for advertising SDN and overlay network
     addresses. Task will fail if driver network cannot be determined. Only
-    implemented for Docker and rkt.
+    implemented for Docker and rkt. This mode can only be set for services
+    which are defined in a "task" block.
 
   - `host` - Use the host IP and port.
 
@@ -716,3 +723,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [killsignal]: /docs/job-specification/task#kill_signal
 [killtimeout]: /docs/job-specification/task#kill_timeout
 [service_task]: /docs/job-specification/service#task-1
+[network_mode]: /docs/job-specification/network#mode

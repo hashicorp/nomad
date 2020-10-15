@@ -6079,6 +6079,9 @@ func (tg *TaskGroup) validateServices() error {
 			// error messages to provide the user.
 			continue
 		}
+		if service.AddressMode == AddressModeDriver {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"driver\", only services defined in a \"task\" block can use this mode", service.Name))
+		}
 		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
 		}
@@ -6088,6 +6091,9 @@ func (tg *TaskGroup) validateServices() error {
 				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
 					mErr.Errors = append(mErr.Errors,
 						fmt.Errorf("Check %s invalid: only script and gRPC checks should have tasks", check.Name))
+				}
+				if check.AddressMode == AddressModeDriver {
+					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %q invalid: cannot use address_mode=\"driver\", only checks defined in a \"task\" service block can use this mode", service.Name))
 				}
 				if _, ok := knownTasks[check.TaskName]; !ok {
 					mErr.Errors = append(mErr.Errors,
@@ -6714,6 +6720,10 @@ func validateServices(t *Task) error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 
+		if service.AddressMode == AddressModeAlloc {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"alloc\", only services defined in a \"group\" block can use this mode", service.Name))
+		}
+
 		// Ensure that services with the same name are not being registered for
 		// the same port
 		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
@@ -6741,6 +6751,10 @@ func validateServices(t *Task) error {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is duplicate", check.Name))
 			}
 			knownChecks[check.Name] = struct{}{}
+
+			if check.AddressMode == AddressModeAlloc {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q cannot use address_mode=\"alloc\", only checks defined in a \"group\" service block can use this mode", service.Name))
+			}
 
 			if !check.RequiresPort() {
 				// No need to continue validating check if it doesn't need a port
