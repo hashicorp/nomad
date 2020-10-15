@@ -5,7 +5,7 @@ import (
 	hcls "github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
-func BlocksAsAttrs(body hcl.Body, ctx *hcl.EvalContext) hcl.Body {
+func BlocksAsAttrs(body hcl.Body) hcl.Body {
 	if hclb, ok := body.(*hcls.Body); ok {
 		return &blockAttrs{body: hclb}
 	}
@@ -14,6 +14,9 @@ func BlocksAsAttrs(body hcl.Body, ctx *hcl.EvalContext) hcl.Body {
 
 type blockAttrs struct {
 	body hcl.Body
+
+	hiddenAttrs  map[string]struct{}
+	hiddenBlocks map[string]struct{}
 }
 
 func (b *blockAttrs) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagnostics) {
@@ -22,9 +25,28 @@ func (b *blockAttrs) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diag
 	return bc, diags
 }
 func (b *blockAttrs) PartialContent(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Body, hcl.Diagnostics) {
-	bc, remain, diags := b.body.PartialContent(schema)
+	bc, remainBody, diags := b.body.PartialContent(schema)
 	bc.Blocks = expandBlocks(bc.Blocks)
-	return bc, &blockAttrs{remain}, diags
+
+	remain := &blockAttrs{
+		body:         remainBody,
+		hiddenAttrs:  map[string]struct{}{},
+		hiddenBlocks: map[string]struct{}{},
+	}
+	for name := range b.hiddenAttrs {
+		remain.hiddenAttrs[name] = struct{}{}
+	}
+	for typeName := range b.hiddenBlocks {
+		remain.hiddenBlocks[typeName] = struct{}{}
+	}
+	for _, attrS := range schema.Attributes {
+		remain.hiddenAttrs[attrS.Name] = struct{}{}
+	}
+	for _, blockS := range schema.Blocks {
+		remain.hiddenBlocks[blockS.Type] = struct{}{}
+	}
+
+	return bc, remain, diags
 }
 
 func (b *blockAttrs) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
@@ -41,16 +63,16 @@ func (b *blockAttrs) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
 	}
 
 	for name, attr := range body.Attributes {
-		//if _, hidden := b.hiddenAttrs[name]; hidden {
-		//        continue
-		//}
+		if _, hidden := b.hiddenAttrs[name]; hidden {
+			continue
+		}
 		attrs[name] = attr.AsHCLAttribute()
 	}
 
 	for _, blockS := range body.Blocks {
-		//if _, hidden := b.hiddenBlocks[blockS.Type]; hidden {
-		//	continue
-		//}
+		if _, hidden := b.hiddenBlocks[blockS.Type]; hidden {
+			continue
+		}
 
 		attrs[blockS.Type] = convertToAttribute(blockS).AsHCLAttribute()
 	}
@@ -70,7 +92,7 @@ func expandBlocks(blocks hcl.Blocks) hcl.Blocks {
 	r := make([]*hcl.Block, len(blocks))
 	for i, b := range blocks {
 		nb := *b
-		nb.Body = &blockAttrs{b.Body}
+		nb.Body = blocksAsAttrs(b.Body)
 		r[i] = &nb
 	}
 	return r
