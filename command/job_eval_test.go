@@ -74,7 +74,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 	// Create a job
 	job := mock.Job()
-	err := state.UpsertJob(11, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, job)
 	require.Nil(err)
 
 	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
@@ -115,7 +115,7 @@ func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}

@@ -49,7 +49,7 @@ func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job, not periodic
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	require.NoError(t, state.UpsertJob(1000, j))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	predictor := cmd.AutocompleteArgs()
 
@@ -66,7 +66,7 @@ func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
 		ProhibitOverlap: true,
 		TimeZone:        "test zone",
 	}
-	require.NoError(t, state.UpsertJob(1000, j2))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, j2))
 
 	res = predictor.Predict(complete.Args{Last: j2.ID[:len(j.ID)-5]})
 	require.Equal(t, []string{j2.ID}, res)

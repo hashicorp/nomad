@@ -111,7 +111,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	alloc2.Job = alloc1.Job
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 	index++
-	err := srv.State().UpsertJob(index, alloc1.Job)
+	err := srv.State().UpsertJob(structs.MsgTypeTestSetup, index, alloc1.Job)
 	require.NoError(err)
 	index++
 	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1, alloc2})

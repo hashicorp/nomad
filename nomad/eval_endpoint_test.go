@@ -29,7 +29,7 @@ func TestEvalEndpoint_GetEval(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 
 	// Lookup the eval
 	get := &structs.EvalSpecificRequest{
@@ -73,7 +73,7 @@ func TestEvalEndpoint_GetEval_ACL(t *testing.T) {
 	// Create the register request
 	eval1 := mock.Eval()
 	state := s1.fsm.State()
-	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
+	state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 
 	// Create ACL tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
@@ -137,7 +137,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 
 	// First create an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertEvals(100, []*structs.Evaluation{eval1})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 100, []*structs.Evaluation{eval1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -145,7 +145,7 @@ func TestEvalEndpoint_GetEval_Blocking(t *testing.T) {
 
 	// Upsert the eval we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertEvals(200, []*structs.Evaluation{eval2})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 200, []*structs.Evaluation{eval2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -260,9 +260,9 @@ func TestEvalEndpoint_Dequeue_WaitIndex_Snapshot(t *testing.T) {
 	eval1 := mock.Eval()
 	eval2 := mock.Eval()
 	eval2.JobID = eval1.JobID
-	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 	s1.evalBroker.Enqueue(eval1)
-	s1.fsm.State().UpsertEvals(1001, []*structs.Evaluation{eval2})
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval2})
 
 	// Dequeue the eval
 	get := &structs.EvalDequeueRequest{
@@ -310,7 +310,7 @@ func TestEvalEndpoint_Dequeue_WaitIndex_Eval(t *testing.T) {
 	eval1 := mock.Eval()
 	eval2 := mock.Eval()
 	eval2.JobID = eval1.JobID
-	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 	eval2.ModifyIndex = 1001
 	s1.evalBroker.Enqueue(eval2)
 
@@ -351,7 +351,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 
 	state := s1.fsm.State()
 
-	if err := state.UpsertJob(999, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -359,7 +359,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 	eval.JobID = job.ID
 
 	// Create an eval
-	if err := state.UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -636,7 +636,7 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 
 	// Create the register request
 	eval1 := mock.Eval()
-	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 
 	// Reap the eval
 	get := &structs.EvalDeleteRequest{
@@ -675,7 +675,7 @@ func TestEvalEndpoint_List(t *testing.T) {
 	eval1.ID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	eval2 := mock.Eval()
 	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
-	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1, eval2})
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
 
 	// Lookup the eval
 	get := &structs.EvalListRequest{
@@ -733,7 +733,7 @@ func TestEvalEndpoint_List_ACL(t *testing.T) {
 	eval2 := mock.Eval()
 	eval2.ID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertEvals(1000, []*structs.Evaluation{eval1, eval2}))
+	assert.Nil(state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2}))
 
 	// Create ACL tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
@@ -798,7 +798,7 @@ func TestEvalEndpoint_List_Blocking(t *testing.T) {
 
 	// Upsert eval triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertEvals(2, []*structs.Evaluation{eval}); err != nil {
+		if err := state.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1067,7 +1067,7 @@ func TestEvalEndpoint_Reblock_NonBlocked(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Insert it into the state store
-	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+	if err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1111,7 +1111,7 @@ func TestEvalEndpoint_Reblock(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Insert it into the state store
-	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+	if err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatal(err)
 	}
 

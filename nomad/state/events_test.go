@@ -263,7 +263,7 @@ func TestGenericEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, s.UpsertNodeEventsMsgType(msgType, 100, req.NodeEvents))
+	require.NoError(t, s.UpsertNodeEvents(msgType, 100, req.NodeEvents))
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 2)
 
@@ -315,7 +315,7 @@ func TestGenericEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	// setup
 	e1 := mock.Eval()
 
-	require.NoError(t, s.UpsertEvals(10, []*structs.Evaluation{e1}))
+	require.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{e1}))
 
 	e2 := mock.Eval()
 	e2.ID = e1.ID
@@ -327,7 +327,7 @@ func TestGenericEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 		Evals: []*structs.Evaluation{e2},
 	}
 
-	require.NoError(t, s.UpsertEvalsMsgType(msgType, 100, req.Evals))
+	require.NoError(t, s.UpsertEvals(msgType, 100, req.Evals))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 1)
@@ -355,13 +355,13 @@ func TestGenericEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	require.NoError(t, s.UpsertJob(9, job))
+	require.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, job))
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
 
 	// Create an eval
-	require.NoError(t, s.UpsertEvals(10, []*structs.Evaluation{eval}))
+	require.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{eval}))
 
 	msgType := structs.ApplyPlanResultsRequestType
 	req := &structs.ApplyPlanResultsRequest{
@@ -502,7 +502,7 @@ func TestGenericEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *tes
 
 	alloc := mock.Alloc()
 
-	require.Nil(t, s.UpsertJob(10, alloc.Job))
+	require.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, alloc.Job))
 	require.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc}))
 
 	msgType := structs.AllocUpdateDesiredTransitionRequestType

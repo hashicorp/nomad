@@ -433,7 +433,7 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		}
 	}
 
-	if err := n.state.UpdateNodeDrainMsgType(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
@@ -500,7 +500,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJobMsgType(msgType, index, req.Job); err != nil {
+	if err := n.state.UpsertJob(msgType, index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -708,7 +708,7 @@ func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, inde
 }
 
 func (n *nomadFSM) upsertEvals(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
-	if err := n.state.UpsertEvalsMsgType(msgType, index, evals); err != nil {
+	if err := n.state.UpsertEvals(msgType, index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
@@ -892,7 +892,7 @@ func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte,
 		panic(fmt.Errorf("failed to decode EmitNodeEventsRequest: %v", err))
 	}
 
-	if err := n.state.UpsertNodeEventsMsgType(msgType, index, req.NodeEvents); err != nil {
+	if err := n.state.UpsertNodeEvents(msgType, index, req.NodeEvents); err != nil {
 		n.logger.Error("failed to add node events", "error", err)
 		return err
 	}
@@ -1711,7 +1711,8 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
-		snap.UpsertEvals(100, []*structs.Evaluation{eval})
+		// Ignore eval event creation during snapshot restore
+		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
 		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
 		if err != nil {

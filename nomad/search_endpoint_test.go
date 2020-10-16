@@ -22,7 +22,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) *
 	job := mock.Job()
 	job.ID = prefix + strconv.Itoa(counter)
 	state := s.fsm.State()
-	if err := state.UpsertJob(jobIndex, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -319,7 +319,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 
 	eval1 := mock.Eval()
 	eval1.ID = job.ID
-	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
+	s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1})
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -354,7 +354,7 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	eval1 := mock.Eval()
-	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
+	s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1})
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
@@ -453,7 +453,7 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval1}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -575,7 +575,7 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	if err := state.UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

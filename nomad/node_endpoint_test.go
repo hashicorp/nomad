@@ -584,7 +584,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -679,7 +679,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -938,7 +938,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(10, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 	// Update the eligibility and expect evals
 	dereg.DrainStrategy = nil
@@ -1200,7 +1200,7 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(10, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 	// Update the eligibility and expect evals
 	elig.Eligibility = structs.NodeSchedulingEligible
@@ -2103,7 +2103,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = "mytestjob"
-	err := state.UpsertJob(101, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 	require.Nil(err)
 
 	// Inject fake allocations
@@ -2271,7 +2271,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = alloc.JobID
-	err := state.UpsertJob(101, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2330,7 +2330,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 
 	// Inject a fake system job.
 	job := mock.SystemJob()
-	if err := state.UpsertJob(3, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 3, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2762,7 +2762,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 				Deadline: 10 * time.Second,
 			},
 		}
-		errCh <- state.UpdateNodeDrain(3, node.ID, s, false, 0, nil)
+		errCh <- state.UpdateNodeDrain(structs.MsgTypeTestSetup, 3, node.ID, s, false, 0, nil)
 	})
 
 	req.MinQueryIndex = 2

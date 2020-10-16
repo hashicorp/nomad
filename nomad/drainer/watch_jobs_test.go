@@ -128,7 +128,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		jnss[i] = structs.NamespacedID{Namespace: job.Namespace, ID: job.ID}
 		job.TaskGroups[0].Migrate.MaxParallel = 3
 		job.TaskGroups[0].Count = count
-		require.Nil(state.UpsertJob(index, job))
+		require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, index, job))
 		index++
 
 		var allocs []*structs.Allocation
@@ -562,7 +562,7 @@ func testHandleTaskGroup(t *testing.T, tc handleTaskGroupTestCase) {
 	if tc.MaxParallel > 0 {
 		job.TaskGroups[0].Migrate.MaxParallel = tc.MaxParallel
 	}
-	require.Nil(state.UpsertJob(102, job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 102, job))
 
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -614,7 +614,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n, 100))
 
 	job := mock.Job()
-	require.Nil(state.UpsertJob(101, job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 101, job))
 
 	// Create 10 done allocs
 	var allocs []*structs.Allocation
@@ -683,7 +683,7 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n, 100))
 
 	job := mock.Job()
-	require.Nil(state.UpsertJob(101, job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 101, job))
 
 	// Create 10 done allocs
 	var allocs []*structs.Allocation

@@ -74,7 +74,7 @@ func TestEvalStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake eval
 	state := srv.Agent.Server().State()
 	e := mock.Eval()
-	assert.Nil(state.UpsertEvals(1000, []*structs.Evaluation{e}))
+	assert.Nil(state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{e}))
 
 	prefix := e.ID[:5]
 	args := complete.Args{Last: prefix}

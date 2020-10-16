@@ -1817,7 +1817,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
-	fsm.State().UpsertEvals(1, []*structs.Evaluation{eval})
+	fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval})
 
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 
@@ -1908,7 +1908,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	eval = mock.Eval()
 	eval.JobID = job.ID
 
-	fsm.State().UpsertEvals(2, []*structs.Evaluation{eval})
+	fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval})
 
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
@@ -2018,7 +2018,7 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 
 	// Upsert a deployment
 	job := mock.Job()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2063,7 +2063,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(1, j); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, j); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2521,9 +2521,9 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2545,9 +2545,9 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	eval1 := mock.Eval()
-	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
+	state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 	eval2 := mock.Eval()
-	state.UpsertEvals(1001, []*structs.Evaluation{eval2})
+	state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2701,12 +2701,12 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	state := fsm.State()
 
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	ws := memdb.NewWatchSet()
 	js1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 
 	job2 := mock.Job()
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 	js2, _ := state.JobSummaryByID(ws, job2.Namespace, job2.ID)
 
 	// Verify the contents
@@ -2751,10 +2751,10 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
 	job2.ID = job1.ID
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2785,7 +2785,7 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	d1.JobID = j.ID
 	d2.JobID = j.ID
 
-	state.UpsertJob(999, j)
+	state.UpsertJob(structs.MsgTypeTestSetup, 999, j)
 	state.UpsertDeployment(1000, d1)
 	state.UpsertDeployment(1001, d2)
 
@@ -2896,12 +2896,12 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// Make a job so that none of the tasks can be placed
 	job1 := mock.Job()
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
-	require.NoError(t, state.UpsertJob(1000, job1))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1))
 
 	// make a job which can make partial progress
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.NoError(t, state.UpsertJob(1010, alloc.Job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1010, alloc.Job))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	// Delete the summaries
@@ -2982,7 +2982,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 		Payload: "random",
 	}
 	job1.TaskGroups[0].Count = 1
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 
 	// Make a child job
 	childJob := job1.Copy()
@@ -2998,7 +2998,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	alloc.JobID = childJob.ID
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 
-	state.UpsertJob(1010, childJob)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1010, childJob)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc})
 
 	// Make the summary incorrect in the state store

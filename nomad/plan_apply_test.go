@@ -100,7 +100,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
-	if err := s1.State().UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+	if err := s1.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -288,7 +288,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
-	if err := s1.State().UpsertEvals(1, []*structs.Evaluation{eval}); err != nil {
+	if err := s1.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

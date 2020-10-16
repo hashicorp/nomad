@@ -407,7 +407,7 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 
 		// Directly manipulate the state
 		state := s.Agent.server.State()
-		if err := state.UpsertJob(1000, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 			t.Fatalf("Failed to upsert job: %v", err)
 		}
 
