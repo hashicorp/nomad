@@ -43,9 +43,10 @@ the nature of this endpoint different topics require different policies.
   filter on. By default all topics are subscribed to. Multiple topics should be
   specified by passing multiple `topic` parameters. A valid topic parameter
   includes a `topic` type and an optional `filter_key` separated by a colon
-  `:`. As an example `Deployment:redis` would subscribe to all `Deployment`
-  events for a job redis. To only subscribe to `Node` events a topic parameter
-  or `Node` without a separator value would be used.
+  `:`. As an example `?topic=Deployment:redis` would subscribe to all
+  `Deployment` events for a job redis. To only subscribe to `Node` events a
+  topic parameter of `?topic=Node` without a separator value would be used.
+  `?topic=Node:*` is also valid.
 
 ### Event Topics
 
