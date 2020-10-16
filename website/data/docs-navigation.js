@@ -49,8 +49,9 @@ export default [
         content: ['scheduling', 'preemption'],
       },
       'consensus',
+      'filesystem',
       'gossip',
-      'security',
+      'security'
     ],
   },
   {

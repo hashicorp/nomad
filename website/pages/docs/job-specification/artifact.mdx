@@ -43,7 +43,9 @@ automatically unarchived before the starting the task.
   download the artifact, relative to the root of the [task's working
   directory]. If omitted, the default value is to place the artifact in
   `local/`. The destination is treated as a directory unless `mode` is set to
-  `file`. Source files will be downloaded into that directory path.
+  `file`. Source files will be downloaded into that directory path. For more
+  details on how the `destination` interacts with task drivers, see the
+  [Filesystem internals] documentation.
 
 - `mode` `(string: "any")` - One of `any`, `file`, or `dir`. If set to `file`
   the `destination` must be a file, not a directory. By default the
@@ -189,3 +191,4 @@ artifact {
 [s3-region-endpoints]: http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region 'Amazon S3 Region Endpoints'
 [iam-instance-profiles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html 'EC2 IAM instance profiles'
 [task's working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[Filesystem internals]: /docs/internals/filesystem#templates-artifacts-and-dispatch-payloads
