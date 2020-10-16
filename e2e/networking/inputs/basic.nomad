@@ -1,6 +1,12 @@
 //e2e:service script=validate.sh
 job "networking" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "basic" {
     network {
       mode = "bridge"
@@ -11,7 +17,7 @@ job "networking" {
       config {
         image   = "busybox:1"
         command = "/bin/sleep"
-        args    = ["5"]
+        args    = ["300"]
       }
     }
   }
