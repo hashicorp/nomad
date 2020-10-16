@@ -3,8 +3,7 @@ layout: api
 page_title: Events - HTTP API
 sidebar_title: Events
 description: |-
-  The /event endpoints interact with the local Nomad agent to interact with
-  members and servers.
+  The /event endpoints are used to query for and stream Nomad events.
 ---
 
 # Events HTTP API
@@ -21,7 +20,7 @@ The stream will be kept alive until the connection is closed.
 | `GET`  | `/v1/event/stream` | `application/json` |
 
 
-The Table below shows this endpoint's [required ACLs](/api-docs#acls). Due to
+The table below shows this endpoint's [required ACLs](/api-docs#acls). Due to
 the nature of this endpoint individual topics require specific policies.
 
 | Topic        | ACL Required         |
@@ -36,17 +35,18 @@ the nature of this endpoint individual topics require specific policies.
 ### Parameters
 
 - `index` `(int: 0)` - Specifies the index to start streaming events from. If
-  the requeste index is no longer in the buffer the stream will start at the
-  nearest index.
+  the requested index is no longer in the buffer the stream will start at the
+  next available index.
 
 - `topic` `(topic:filter_key: "*:*")` - Specifies a topic to subscribe to and
-  filter on. By default all topics are subscribed to. Multiple topics should be
+  filter on. The default is to subscrive to all topics. Multiple topics may be
   specified by passing multiple `topic` parameters. A valid topic parameter
   includes a `topic` type and an optional `filter_key` separated by a colon
   `:`. As an example `?topic=Deployment:redis` would subscribe to all
-  `Deployment` events for a job redis. To only subscribe to `Node` events a
-  topic parameter of `?topic=Node` without a separator value would be used.
-  `?topic=Node:*` is also valid.
+  `Deployment` events for a job redis. an additional topic
+  `&topic=Deployment:web` would include deployment events for redis and web. To
+  only subscribe to `Node` events a topic parameter of `?topic=Node` without a
+  separator value would be used.  `?topic=Node:*` is also valid.
 
 ### Event Topics
 
