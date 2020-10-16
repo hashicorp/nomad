@@ -28,10 +28,6 @@ const (
 	// consulTemplateSourceName is the source name when using the TaskHooks.
 	consulTemplateSourceName = "Template"
 
-	// hostSrcOption is the Client option that determines whether the template
-	// source may be from the host
-	hostSrcOption = "template.allow_host_source"
-
 	// missingDepEventLimit is the number of missing dependencies that will be
 	// logged before we switch to showing just the number of missing
 	// dependencies.
@@ -549,25 +545,27 @@ func maskProcessEnv(env map[string]string) map[string]string {
 // parseTemplateConfigs converts the tasks templates in the config into
 // consul-templates
 func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.TemplateConfig]*structs.Template, error) {
-	allowAbs := config.ClientConfig.ReadBoolDefault(hostSrcOption, true)
+	sandboxEnabled := !config.ClientConfig.TemplateConfig.DisableSandbox
 	taskEnv := config.EnvBuilder.Build()
 
 	ctmpls := make(map[*ctconf.TemplateConfig]*structs.Template, len(config.Templates))
 	for _, tmpl := range config.Templates {
 		var src, dest string
+		var err error
 		if tmpl.SourcePath != "" {
-			if filepath.IsAbs(tmpl.SourcePath) {
-				if !allowAbs {
-					return nil, fmt.Errorf("Specifying absolute template paths disallowed by client config: %q", tmpl.SourcePath)
-				}
-
-				src = tmpl.SourcePath
-			} else {
-				src = filepath.Join(config.TaskDir, taskEnv.ReplaceEnv(tmpl.SourcePath))
+			src = taskEnv.ReplaceEnv(tmpl.SourcePath)
+			src, err = helper.GetPathInSandbox(config.TaskDir, src)
+			if err != nil && sandboxEnabled {
+				return nil, fmt.Errorf("template source path escapes alloc directory")
 			}
 		}
+
 		if tmpl.DestPath != "" {
-			dest = filepath.Join(config.TaskDir, taskEnv.ReplaceEnv(tmpl.DestPath))
+			dest = taskEnv.ReplaceEnv(tmpl.DestPath)
+			dest, err = helper.GetPathInSandbox(config.TaskDir, dest)
+			if err != nil && sandboxEnabled {
+				return nil, fmt.Errorf("template destination path escapes alloc directory")
+			}
 		}
 
 		ct := ctconf.DefaultTemplateConfig()
@@ -577,7 +575,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		ct.LeftDelim = &tmpl.LeftDelim
 		ct.RightDelim = &tmpl.RightDelim
 		ct.FunctionDenylist = config.ClientConfig.TemplateConfig.FunctionDenylist
-		if !config.ClientConfig.TemplateConfig.DisableSandbox {
+		if sandboxEnabled {
 			ct.SandboxPath = &config.TaskDir
 		}
 

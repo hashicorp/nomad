@@ -382,7 +382,11 @@ func TestTaskTemplateManager_HostPath(t *testing.T) {
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
-	harness.start(t)
+	harness.config.TemplateConfig.DisableSandbox = true
+	err = harness.startWithErr()
+	if err != nil {
+		t.Fatalf("couldn't setup initial harness: %v", err)
+	}
 	defer harness.stop()
 
 	// Wait for the unblock
@@ -405,12 +409,46 @@ func TestTaskTemplateManager_HostPath(t *testing.T) {
 
 	// Change the config to disallow host sources
 	harness = newTestHarness(t, []*structs.Template{template}, false, false)
-	harness.config.Options = map[string]string{
-		hostSrcOption: "false",
+	err = harness.startWithErr()
+	if err == nil || !strings.Contains(err.Error(), "escapes alloc directory") {
+		t.Fatalf("Expected absolute template path disallowed for %q: %v",
+			template.SourcePath, err)
 	}
-	if err := harness.startWithErr(); err == nil || !strings.Contains(err.Error(), "absolute") {
-		t.Fatalf("Expected absolute template path disallowed: %v", err)
+
+	template.SourcePath = "../../../../../../" + file
+	harness = newTestHarness(t, []*structs.Template{template}, false, false)
+	err = harness.startWithErr()
+	if err == nil || !strings.Contains(err.Error(), "escapes alloc directory") {
+		t.Fatalf("Expected directory traversal out of %q disallowed for %q: %v",
+			harness.taskDir, template.SourcePath, err)
 	}
+
+	// Build a new task environment
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+	task.Meta = map[string]string{"ESCAPE": "../"}
+
+	template.SourcePath = "${NOMAD_META_ESCAPE}${NOMAD_META_ESCAPE}${NOMAD_META_ESCAPE}${NOMAD_META_ESCAPE}${NOMAD_META_ESCAPE}${NOMAD_META_ESCAPE}" + file
+	harness = newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	err = harness.startWithErr()
+	if err == nil || !strings.Contains(err.Error(), "escapes alloc directory") {
+		t.Fatalf("Expected directory traversal out of %q via interpolation disallowed for %q: %v",
+			harness.taskDir, template.SourcePath, err)
+	}
+
+	// Test with desination too
+	template.SourcePath = f.Name()
+	template.DestPath = "../../../../../../" + file
+	harness = newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	err = harness.startWithErr()
+	if err == nil || !strings.Contains(err.Error(), "escapes alloc directory") {
+		t.Fatalf("Expected directory traversal out of %q via interpolation disallowed for %q: %v",
+			harness.taskDir, template.SourcePath, err)
+	}
+
 }
 
 func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
