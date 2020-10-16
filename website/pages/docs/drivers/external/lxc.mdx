@@ -72,10 +72,11 @@ The `lxc` driver supports the following configuration in the job spec:
   ```
 
 - `volumes` - (Optional) A list of `host_path:container_path` strings to
-bind-mount host paths to container paths. Mounting host paths outside of the
-[allocation working directory] can be disabled on clients by setting the
-[`volumes_enabled`](#volumes_enabled) option set to false. This will limit
-volumes to directories that exist inside the allocation directory.
+  bind-mount host paths to container paths. Mounting host paths outside of the
+  [allocation working directory] is allowed by default. You can prevent
+  mounting host paths outside of the [allocation working directory] on
+  individual clients by setting the [`volumes_enabled`](#volumes_enabled)
+  option to `false` in the client's configuration```
 
   ~> **Note:** Unlike the similar option for the docker driver, this
   option must not have an absolute path as the `container_path`
