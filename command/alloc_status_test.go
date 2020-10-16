@@ -466,7 +466,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	err := state.UpsertNode(1001, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1001)
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{

@@ -267,10 +267,10 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 	node := mock.Node()
 	node1 := mock.Node()
 	state := s1.fsm.State()
-	if err := state.UpsertNode(1, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertNode(2, node1); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, node1, 2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -978,7 +978,7 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	node := mock.Node()
 	state := s1.fsm.State()
 
-	require.Nil(state.UpsertNode(1, node), "UpsertNode")
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
@@ -1229,7 +1229,7 @@ func TestClientEndpoint_UpdateEligibility_ACL(t *testing.T) {
 	node := mock.Node()
 	state := s1.fsm.State()
 
-	require.Nil(state.UpsertNode(1, node), "UpsertNode")
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
@@ -1353,7 +1353,7 @@ func TestClientEndpoint_GetNode_ACL(t *testing.T) {
 	// Create the node
 	node := mock.Node()
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
@@ -1420,14 +1420,14 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 
 	// First create an unrelated node.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertNode(100, node1); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, node1, 100); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Upsert the node we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertNode(200, node2); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, node2, 200); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1461,7 +1461,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 		nodeUpdate := mock.Node()
 		nodeUpdate.ID = node2.ID
 		nodeUpdate.Status = structs.NodeStatusDown
-		if err := state.UpsertNode(300, nodeUpdate); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, nodeUpdate, 300); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1585,7 +1585,7 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 	node := mock.Node()
 	allocDefaultNS.NodeID = node.ID
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
 	allocs := []*structs.Allocation{allocDefaultNS}
 	assert.Nil(state.UpsertAllocs(5, allocs), "UpsertAllocs")
@@ -1661,7 +1661,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Create the register request
 	node := mock.Node()
 	state := s1.fsm.State()
-	require.Nil(state.UpsertNode(98, node))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 98))
 
 	// Inject fake evaluations
 	alloc := mock.Alloc()
@@ -2411,7 +2411,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 	node := mock.Node()
 	node.ID = alloc.NodeID
 	state := s1.fsm.State()
-	err := state.UpsertNode(1, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2499,7 +2499,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 	node.ID = alloc.NodeID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID)), "UpsertJobSummary")
 	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
 
@@ -2664,7 +2664,7 @@ func TestClientEndpoint_ListNodes_ACL(t *testing.T) {
 	// Create the node
 	node := mock.Node()
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertNode(1, node), "UpsertNode")
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyRead))
@@ -2725,7 +2725,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	// Node upsert triggers watches
 	errCh := make(chan error, 1)
 	timer := time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.UpsertNode(2, node)
+		errCh <- state.UpsertNode(structs.MsgTypeTestSetup, node, 2)
 	})
 	defer timer.Stop()
 
@@ -2850,7 +2850,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	if err := state.UpsertNode(2, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, node, 2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2941,7 +2941,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	if err := state.UpsertNode(2, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, node, 2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3034,7 +3034,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	if err := state.UpsertNode(2, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, node, 2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3168,7 +3168,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	err := state.UpsertNode(2, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 2)
 	r.NoError(err)
 
 	// Create an alloc with a typical connect service (sidecar) defined
@@ -3220,7 +3220,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 
 	// Create the node
 	node := mock.Node()
-	err := state.UpsertNode(2, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 2)
 	r.NoError(err)
 
 	// Create an alloc with a typical connect service (sidecar) defined
@@ -3265,7 +3265,7 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 
 	// create a node that we can register our event to
 	node := mock.Node()
-	err := state.UpsertNode(2, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 2)
 	require.Nil(err)
 
 	nodeEvent := &structs.NodeEvent{

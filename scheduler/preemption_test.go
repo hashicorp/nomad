@@ -1337,7 +1337,7 @@ func TestPreemption(t *testing.T) {
 					Node: node,
 				},
 			}
-			state.UpsertNode(1000, node)
+			state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
 			for _, alloc := range tc.currentAllocations {
 				alloc.NodeID = node.ID
 			}

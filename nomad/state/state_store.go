@@ -782,26 +782,11 @@ func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID stri
 	return nil, 0, nil
 }
 
-// UpsertNodeMsgType is used to register a node or update a node definition
-// This is assumed to be triggered by the client, so we retain the value
-// of drain/eligibility which is set by the scheduler.
-// TODO(drew) remove this and update all test callers of UpsertNode to use msgType
-func (s *StateStore) UpsertNodeMsgType(msgType structs.MessageType, index uint64, node *structs.Node) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
-	defer txn.Abort()
-
-	err := upsertNodeTxn(txn, index, node)
-	if err != nil {
-		return nil
-	}
-	return txn.Commit()
-}
-
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
-func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpsertNode(msgType structs.MessageType, node *structs.Node, index uint64) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	err := upsertNodeTxn(txn, index, node)

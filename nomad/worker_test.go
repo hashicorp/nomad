@@ -297,7 +297,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 	go func() {
 		time.Sleep(10 * time.Millisecond)
 		n := mock.Node()
-		errCh <- s1.fsm.state.UpsertNode(index+1, n)
+		errCh <- s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, n, index+1)
 	}()
 
 	// Wait for a future index

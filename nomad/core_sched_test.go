@@ -837,7 +837,7 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 			state := server.fsm.State()
 			node := mock.Node()
 			node.Status = structs.NodeStatusDown
-			err := state.UpsertNode(1000, node)
+			err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
@@ -887,7 +887,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	state := s1.fsm.State()
 	node := mock.Node()
 	node.Status = structs.NodeStatusDown
-	err := state.UpsertNode(1000, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -943,7 +943,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	state := s1.fsm.State()
 	node := mock.Node()
 	node.Status = structs.NodeStatusDown
-	err := state.UpsertNode(1000, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1001,7 +1001,7 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	state := s1.fsm.State()
 	node := mock.Node()
 	node.Status = structs.NodeStatusDown
-	err := state.UpsertNode(1000, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2283,7 +2283,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 		},
 	}
 	index++
-	err := state.UpsertNode(index, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, index)
 	require.NoError(err)
 
 	// Note that for volume writes in this test we need to use the

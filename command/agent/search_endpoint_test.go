@@ -215,7 +215,7 @@ func TestHTTP_Search_Nodes(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		node := mock.Node()
-		err := state.UpsertNode(6000, node)
+		err := state.UpsertNode(structs.MsgTypeTestSetup, node, 6000)
 		assert.Nil(err)
 
 		prefix := node.ID[:len(node.ID)-2]

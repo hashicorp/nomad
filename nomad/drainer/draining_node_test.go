@@ -23,7 +23,7 @@ func testDrainingNode(t *testing.T) *drainingNode {
 		ForceDeadline: time.Now().Add(time.Hour),
 	}
 
-	require.Nil(t, state.UpsertNode(100, node))
+	require.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, node, 100))
 	return NewDrainingNode(node, state)
 }
 

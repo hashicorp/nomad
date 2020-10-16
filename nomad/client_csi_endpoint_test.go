@@ -141,11 +141,11 @@ func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 	node3 := mock.Node()
 	node3.ID = uuid.Generate()
 
-	err := state.UpsertNode(1002, node1)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node1, 1002)
 	require.NoError(t, err)
-	err = state.UpsertNode(1003, node2)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, node2, 1003)
 	require.NoError(t, err)
-	err = state.UpsertNode(1004, node3)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, node3, 1004)
 	require.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
@@ -221,7 +221,7 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 	node1.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
 	node1.CSIControllerPlugins = plugins
 
-	s1.fsm.state.UpsertNode(1000, node1)
+	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000)
 
 	cleanup := func() {
 		cleanupS1()
@@ -270,7 +270,7 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	node1.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
 	node1.CSIControllerPlugins = plugins
 
-	s1.fsm.state.UpsertNode(1000, node1)
+	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000)
 
 	cleanup := func() {
 		cleanupS1()

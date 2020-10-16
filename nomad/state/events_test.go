@@ -244,8 +244,8 @@ func TestGenericEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 	n1 := mock.Node()
 	n2 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(10, n1))
-	require.NoError(t, s.UpsertNode(12, n2))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, n1, 10))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, n2, 12))
 
 	msgType := structs.UpsertNodeEventsType
 	req := &structs.EmitNodeEventsRequest{
@@ -284,7 +284,7 @@ func TestGenericEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 	// setup
 	n1 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(10, n1))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, n1, 10))
 
 	updated := time.Now()
 	msgType := structs.NodeUpdateStatusRequestType
@@ -409,8 +409,8 @@ func TestGenericEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) 
 	n1 := mock.Node()
 	n2 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(10, n1))
-	require.NoError(t, s.UpsertNode(11, n2))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, n1, 10))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, n2, 11))
 
 	updated := time.Now()
 	msgType := structs.BatchNodeUpdateDrainRequestType
@@ -463,7 +463,7 @@ func TestGenericEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T)
 	// setup
 	n1 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(10, n1))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, n1, 10))
 
 	msgType := structs.NodeUpdateEligibilityRequestType
 

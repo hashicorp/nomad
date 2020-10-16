@@ -335,10 +335,10 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node4 := mock.Node()
 	node4.Drain = true
 
-	require.NoError(t, state.UpsertNode(1000, node1))
-	require.NoError(t, state.UpsertNode(1001, node2))
-	require.NoError(t, state.UpsertNode(1002, node3))
-	require.NoError(t, state.UpsertNode(1003, node4))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node2, 1001))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node3, 1002))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node4, 1003))
 
 	nodes, dc, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
 	require.NoError(t, err)
@@ -394,10 +394,10 @@ func TestTaintedNodes(t *testing.T) {
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.Node()
 	node4.Drain = true
-	require.NoError(t, state.UpsertNode(1000, node1))
-	require.NoError(t, state.UpsertNode(1001, node2))
-	require.NoError(t, state.UpsertNode(1002, node3))
-	require.NoError(t, state.UpsertNode(1003, node4))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node2, 1001))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node3, 1002))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node4, 1003))
 
 	allocs := []*structs.Allocation{
 		{NodeID: node1.ID},
@@ -868,7 +868,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node, 900))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -923,7 +923,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node, 900))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -974,7 +974,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node, 900))
 
 	// Register an alloc
 	alloc := &structs.Allocation{

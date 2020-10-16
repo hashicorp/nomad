@@ -85,7 +85,7 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 
 	node := mock.Node()
 
-	err := state.UpsertNode(1000, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -408,7 +408,7 @@ func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
 	// Force a node into the state store without eligiblity
 	node := mock.Node()
 	node.SchedulingEligibility = ""
-	require.Nil(fsm.State().UpsertNode(1, node))
+	require.Nil(fsm.State().UpsertNode(structs.MsgTypeTestSetup, node, 1))
 
 	// Do an old style drain
 	req := structs.NodeUpdateDrainRequest{
@@ -1449,7 +1449,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	state := fsm.State()
 
 	node := mock.Node()
-	state.UpsertNode(1, node)
+	state.UpsertNode(structs.MsgTypeTestSetup, node, 1)
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
@@ -2494,12 +2494,12 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.UpsertNode(1000, node1)
+	state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000)
 
 	// Upgrade this node
 	node2 := mock.Node()
 	node2.SchedulingEligibility = ""
-	state.UpsertNode(1001, node2)
+	state.UpsertNode(structs.MsgTypeTestSetup, node2, 1001)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2622,7 +2622,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.UpsertNode(1000, node1)
+	state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2891,7 +2891,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(800, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node, 800))
 
 	// Make a job so that none of the tasks can be placed
 	job1 := mock.Job()
@@ -2973,7 +2973,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	state.UpsertNode(800, node)
+	state.UpsertNode(structs.MsgTypeTestSetup, node, 800)
 
 	// Make a parameterized job
 	job1 := mock.BatchJob()

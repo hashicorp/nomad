@@ -25,12 +25,12 @@ func testNodes(t *testing.T, state *state.StateStore) (drainingNode, runningNode
 		},
 		ForceDeadline: time.Now().Add(time.Minute),
 	}
-	require.Nil(t, state.UpsertNode(100, n1))
+	require.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, n1, 100))
 
 	// Create a non-draining node
 	n2 := mock.Node()
 	n2.Name = "running"
-	require.Nil(t, state.UpsertNode(101, n2))
+	require.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, n2, 101))
 	return n1, n2
 }
 
@@ -611,7 +611,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 		},
 		ForceDeadline: time.Now().Add(1 * time.Minute),
 	}
-	require.Nil(state.UpsertNode(100, n))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n, 100))
 
 	job := mock.Job()
 	require.Nil(state.UpsertJob(101, job))
@@ -680,7 +680,7 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 		},
 		ForceDeadline: time.Now().Add(1 * time.Minute),
 	}
-	require.Nil(state.UpsertNode(100, n))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n, 100))
 
 	job := mock.Job()
 	require.Nil(state.UpsertJob(101, job))
