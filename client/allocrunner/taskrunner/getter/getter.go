@@ -1,13 +1,14 @@
 package getter
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -96,8 +97,12 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 		return newGetError(artifact.GetterSource, err, false)
 	}
 
-	// Download the artifact
-	dest := filepath.Join(taskDir, artifact.RelativeDest)
+	// Verify the destination is still in the task sandbox after interpolation
+	dest, err := helper.GetPathInSandbox(taskDir, artifact.RelativeDest)
+	if err != nil {
+		return newGetError(artifact.RelativeDest,
+			errors.New("artifact destination path escapes the alloc directory"), false)
+	}
 
 	// Convert from string getter mode to go-getter const
 	mode := gg.ClientModeAny

@@ -93,6 +93,36 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	}
 }
 
+func TestGetArtifact_File_EscapeDest(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+	defer ts.Close()
+
+	// Create a temp directory to download into
+	taskDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(taskDir)
+
+	// Create the artifact
+	file := "test.sh"
+	relative := "../../../../foo/"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "md5:bce963762aa2dbfed13caf492a45fb72",
+		},
+		RelativeDest: relative,
+	}
+
+	// attempt to download the artifact
+	err = GetArtifact(taskEnv, artifact, taskDir)
+	if err == nil || !strings.Contains(err.Error(), "escapes") {
+		t.Fatalf("expected GetArtifact to disallow sandbox escape: %v", err)
+	}
+}
+
 func TestGetGetterUrl_Interpolation(t *testing.T) {
 	// Create the artifact
 	artifact := &structs.TaskArtifact{
