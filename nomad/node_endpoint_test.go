@@ -1485,7 +1485,7 @@ func TestClientEndpoint_GetNode_Blocking(t *testing.T) {
 
 	// Node delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteNode(400, []string{node2.ID}); err != nil {
+		if err := state.DeleteNode(structs.MsgTypeTestSetup, 400, []string{node2.ID}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -2814,7 +2814,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 
 	// Node delete triggers watches.
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.DeleteNode(50, []string{node.ID})
+		errCh <- state.DeleteNode(structs.MsgTypeTestSetup, 50, []string{node.ID})
 	})
 
 	req.MinQueryIndex = 45

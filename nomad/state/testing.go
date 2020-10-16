@@ -119,6 +119,6 @@ func createTestCSIPlugin(s *StateStore, id string, requiresController bool) func
 	// Return cleanup function that deletes the nodes
 	return func() {
 		index++
-		s.DeleteNode(index, ids)
+		s.DeleteNode(structs.MsgTypeTestSetup, index, ids)
 	}
 }

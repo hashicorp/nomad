@@ -276,7 +276,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.SchedulerConfigRequestType:
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
-		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
+		return n.applyDeregisterNodeBatch(msgType, buf[1:], log.Index)
 	case structs.ClusterMetadataRequestType:
 		return n.applyClusterMetadata(buf[1:], log.Index)
 	case structs.ServiceIdentityAccessorRegisterRequestType:
@@ -360,7 +360,7 @@ func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNodeMsgType(reqType, index, []string{req.NodeID}); err != nil {
+	if err := n.state.DeleteNode(reqType, index, []string{req.NodeID}); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
@@ -368,14 +368,14 @@ func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, 
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterNodeBatch(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterNodeBatch(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_node"}, time.Now())
 	var req structs.NodeBatchDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNode(index, req.NodeIDs); err != nil {
+	if err := n.state.DeleteNode(reqType, index, req.NodeIDs); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
@@ -788,7 +788,7 @@ func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, ind
 		alloc.Canonicalize()
 	}
 
-	if err := n.state.UpsertAllocsMsgType(msgType, index, req.Alloc); err != nil {
+	if err := n.state.UpsertAllocs(msgType, index, req.Alloc); err != nil {
 		n.logger.Error("UpsertAllocs failed", "error", err)
 		return err
 	}

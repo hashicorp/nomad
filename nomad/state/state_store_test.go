@@ -858,7 +858,7 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 	require.NotNil(t, out)
 
 	// Delete both nodes in a batch, fires the watch
-	err = state.DeleteNode(1002, []string{node0.ID, node1.ID})
+	err = state.DeleteNode(structs.MsgTypeTestSetup, 1002, []string{node0.ID, node1.ID})
 	require.NoError(t, err)
 	require.True(t, watchFired(ws))
 
@@ -2870,7 +2870,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	index++
 	err := state.UpsertNode(structs.MsgTypeTestSetup, node, index)
 	require.NoError(t, err)
-	defer state.DeleteNode(9999, []string{pluginID})
+	defer state.DeleteNode(structs.MsgTypeTestSetup, 9999, []string{pluginID})
 
 	index++
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})

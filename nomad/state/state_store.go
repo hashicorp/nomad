@@ -849,19 +849,7 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 }
 
 // DeleteNode deregisters a batch of nodes
-func (s *StateStore) DeleteNodeMsgType(msgType structs.MessageType, index uint64, nodes []string) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
-	defer txn.Abort()
-
-	err := deleteNodeTxn(txn, index, nodes)
-	if err != nil {
-		return nil
-	}
-	return txn.Commit()
-}
-
-// DeleteNode deregisters a batch of nodes
-func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
+func (s *StateStore) DeleteNode(msgType structs.MessageType, index uint64, nodes []string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -3139,19 +3127,8 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 
 // UpsertAllocs is used to evict a set of allocations and allocate new ones at
 // the same time.
-func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpsertAllocs(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
-		return err
-	}
-	return txn.Commit()
-}
-
-// UpsertAllocsMsgType is used to evict a set of allocations and allocate new ones at
-// the same time.
-func (s *StateStore) UpsertAllocsMsgType(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
 		return err
