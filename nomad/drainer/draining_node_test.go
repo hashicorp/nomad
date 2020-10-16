@@ -67,7 +67,7 @@ func TestDrainingNode_Table(t *testing.T) {
 				alloc := mock.BatchAlloc()
 				alloc.NodeID = dn.node.ID
 				require.Nil(t, dn.state.UpsertJob(101, alloc.Job))
-				require.Nil(t, dn.state.UpsertAllocs(102, []*structs.Allocation{alloc}))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
 			},
 		},
 		{
@@ -79,7 +79,7 @@ func TestDrainingNode_Table(t *testing.T) {
 				alloc := mock.Alloc()
 				alloc.NodeID = dn.node.ID
 				require.Nil(t, dn.state.UpsertJob(101, alloc.Job))
-				require.Nil(t, dn.state.UpsertAllocs(102, []*structs.Allocation{alloc}))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
 			},
 		},
 		{
@@ -91,7 +91,7 @@ func TestDrainingNode_Table(t *testing.T) {
 				alloc := mock.SystemAlloc()
 				alloc.NodeID = dn.node.ID
 				require.Nil(t, dn.state.UpsertJob(101, alloc.Job))
-				require.Nil(t, dn.state.UpsertAllocs(102, []*structs.Allocation{alloc}))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
 			},
 		},
 		{
@@ -105,7 +105,7 @@ func TestDrainingNode_Table(t *testing.T) {
 					a.NodeID = dn.node.ID
 					require.Nil(t, dn.state.UpsertJob(101, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(102, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// StateStore doesn't like inserting new allocs
 				// with a terminal status, so set the status in
@@ -113,7 +113,7 @@ func TestDrainingNode_Table(t *testing.T) {
 				for _, a := range allocs {
 					a.ClientStatus = structs.AllocClientStatusComplete
 				}
-				require.Nil(t, dn.state.UpsertAllocs(103, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -127,11 +127,11 @@ func TestDrainingNode_Table(t *testing.T) {
 					a.NodeID = dn.node.ID
 					require.Nil(t, dn.state.UpsertJob(101, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(102, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service job as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(103, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -145,12 +145,12 @@ func TestDrainingNode_Table(t *testing.T) {
 					a.NodeID = dn.node.ID
 					require.Nil(t, dn.state.UpsertJob(101, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(102, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service and batch jobs as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[2].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(103, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -164,12 +164,12 @@ func TestDrainingNode_Table(t *testing.T) {
 					a.NodeID = dn.node.ID
 					require.Nil(t, dn.state.UpsertJob(101, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(102, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service and batch jobs as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[1].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(103, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -190,13 +190,13 @@ func TestDrainingNode_Table(t *testing.T) {
 					a.NodeID = dn.node.ID
 					require.Nil(t, dn.state.UpsertJob(101, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(102, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service and batch jobs as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[1].ClientStatus = structs.AllocClientStatusComplete
 				allocs[2].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(103, allocs))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 	}

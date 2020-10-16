@@ -392,7 +392,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertAllocFn := func(server *nomad.Server, a *structs.Allocation) {
 		state := server.State()
-		require.NoError(state.UpsertAllocs(nextIndex(), []*structs.Allocation{a}))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(), []*structs.Allocation{a}))
 	}
 
 	upsertNewAllocFn := func(server *nomad.Server, j *structs.Job) *structs.Allocation {

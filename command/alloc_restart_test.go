@@ -163,7 +163,7 @@ func TestAllocRestartCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}

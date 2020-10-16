@@ -1468,7 +1468,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	alloc2.NodeID = node.ID
 	state.UpsertJobSummary(8, mock.JobSummary(alloc.JobID))
 	state.UpsertJobSummary(9, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1535,7 +1535,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 
 	alloc := mock.Alloc()
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1586,7 +1586,7 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
 
 	t1 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(true),
@@ -1835,7 +1835,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	alloc2.JobID = job2.ID
 	alloc2.PreemptedByAllocation = alloc.ID
 
-	fsm.State().UpsertAllocs(1, []*structs.Allocation{alloc1, alloc2})
+	fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1, []*structs.Allocation{alloc1, alloc2})
 
 	// evals for preempted jobs
 	eval1 := mock.Eval()
@@ -2101,7 +2101,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 		Healthy: helper.BoolToPtr(true),
 	}
 
-	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2173,7 +2173,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 	a1.DeploymentID = d.ID
 	a2 := mock.Alloc()
 	a2.DeploymentID = d.ID
-	if err := state.UpsertAllocs(2, []*structs.Allocation{a1, a2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{a1, a2}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2572,8 +2572,8 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	alloc2 := mock.Alloc()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
-	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2600,7 +2600,7 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 	alloc.AllocatedResources = nil
 
 	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2902,7 +2902,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	require.NoError(t, state.UpsertJob(1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	// Delete the summaries
 	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
@@ -2999,7 +2999,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 
 	state.UpsertJob(1010, childJob)
-	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc})
 
 	// Make the summary incorrect in the state store
 	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)

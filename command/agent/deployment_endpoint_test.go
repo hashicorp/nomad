@@ -109,7 +109,7 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 
 		assert.Nil(state.UpsertJob(998, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
-		assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a1, a2}), "UpsertAllocs")
+		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a1, a2}), "UpsertAllocs")
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/deployment/allocations/"+d.ID, nil)
@@ -261,7 +261,7 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 		a.DeploymentID = d.ID
 		assert.Nil(state.UpsertJob(998, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
-		assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}), "UpsertAllocs")
+		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}), "UpsertAllocs")
 
 		// Create the pause request
 		args := structs.DeploymentAllocHealthRequest{

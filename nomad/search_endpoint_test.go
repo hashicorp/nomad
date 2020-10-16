@@ -197,7 +197,7 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -242,7 +242,7 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -397,7 +397,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(90, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -442,7 +442,7 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

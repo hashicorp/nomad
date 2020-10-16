@@ -54,7 +54,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -214,7 +214,7 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 

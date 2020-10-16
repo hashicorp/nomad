@@ -147,7 +147,7 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	alloc := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	if code := cmd.Run([]string{"-address=" + url, alloc.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)

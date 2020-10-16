@@ -1007,7 +1007,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 		state := s.Agent.server.State()
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

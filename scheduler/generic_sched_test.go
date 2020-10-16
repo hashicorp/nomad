@@ -563,7 +563,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	assert.Nil(h.State.UpsertAllocs(h.NextIndex(), allocs), "UpsertAllocs")
+	assert.Nil(h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs), "UpsertAllocs")
 
 	// Update the count
 	job2 := job.Copy()
@@ -1432,7 +1432,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Add a few terminal status allocations, these should be ignored
 	var terminal []*structs.Allocation
@@ -1445,7 +1445,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), terminal))
 
 	// Update the job
 	job2 := mock.Job()
@@ -1535,7 +1535,7 @@ func TestServiceSched_JobModify_IncrCount_NodeLimit(t *testing.T) {
 	alloc.Name = "my-job.web[0]"
 	alloc.AllocatedResources.Tasks["web"].Cpu.CpuShares = 256
 	allocs = append(allocs, alloc)
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job to count 3
 	job2.TaskGroups[0].Count = 3
@@ -1629,7 +1629,7 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 		alloc.Name = structs.AllocName(alloc.JobID, alloc.TaskGroup, uint(i))
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Add a few terminal status allocations, these should be ignored
 	var terminal []*structs.Allocation
@@ -1642,7 +1642,7 @@ func TestServiceSched_JobModify_CountZero(t *testing.T) {
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), terminal))
 
 	// Update the job to be count zero
 	job2 := mock.Job()
@@ -1729,7 +1729,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -1853,7 +1853,7 @@ func TestServiceSched_JobModify_Rolling_FullNode(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Update the job to place more versions of the task group, drop the count
 	// and force destructive updates
@@ -1955,7 +1955,7 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -2095,7 +2095,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		alloc.AllocatedResources.Tasks[taskName].Devices = []*structs.AllocatedDeviceResource{&adr}
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -2216,7 +2216,7 @@ func TestServiceSched_JobModify_InPlace08(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = nil // 0.8 didn't have this
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Update the job inplace
 	job2 := job.Copy()
@@ -2312,7 +2312,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -2432,7 +2432,7 @@ func TestServiceSched_JobModify_NodeReschedulePenalty(t *testing.T) {
 	failedAllocID := failedAlloc.ID
 	successAllocID := allocs[0].ID
 
-	require.NoError(h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create and process a mock evaluation
 	eval := &structs.Evaluation{
@@ -2530,7 +2530,7 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 	for _, alloc := range allocs {
 		h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID))
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -2597,7 +2597,7 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 		alloc.JobID = job.ID
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a summary where the queued allocs are set as we want to assert
 	// they get zeroed out.
@@ -2724,7 +2724,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 			alloc.DesiredTransition.Migrate = helper.BoolToPtr(tc.migrate)
 
 			allocs := []*structs.Allocation{alloc}
-			require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 			// Create a mock evaluation to deal with drain
 			eval := &structs.Evaluation{
@@ -2825,7 +2825,7 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 				}}
 			}
 			allocs := []*structs.Allocation{alloc}
-			require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 			// Create a mock evaluation to deal with drain
 			evals := []*structs.Evaluation{{
@@ -2950,7 +2950,7 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Mark some allocs as running
 	ws := memdb.NewWatchSet()
@@ -3012,7 +3012,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -3088,7 +3088,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Set the desired state of the allocs to stop
 	var stop []*structs.Allocation
@@ -3098,7 +3098,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 		newAlloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		stop = append(stop, newAlloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), stop))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), stop))
 
 	// Mark some of the allocations as running
 	var running []*structs.Allocation
@@ -3201,7 +3201,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	node.Drain = true
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
@@ -3323,7 +3323,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	failedAllocID := allocs[1].ID
 	successAllocID := allocs[0].ID
 
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -3368,7 +3368,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	// Mark this alloc as failed again, should not get rescheduled
 	newAlloc.ClientStatus = structs.AllocClientStatusFailed
 
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{newAlloc}))
 
 	// Create another mock evaluation
 	eval = &structs.Evaluation{
@@ -3435,7 +3435,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 		FinishedAt: now}}
 	failedAllocID := allocs[1].ID
 
-	require.NoError(h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -3522,7 +3522,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
 
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -3593,7 +3593,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		failedAllocId = newAlloc.ID
 		failedNodeID = newAlloc.NodeID
 
-		require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{newAlloc}))
+		require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{newAlloc}))
 
 		// Create another mock evaluation
 		eval = &structs.Evaluation{
@@ -3698,7 +3698,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 	failedAllocID := allocs[1].ID
 	successAllocID := allocs[0].ID
 
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -3802,7 +3802,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 				FinishedAt: time.Now().Add(-10 * time.Hour)}}
 			allocs[1].DesiredTransition.Reschedule = helper.BoolToPtr(true)
 
-			require.Nil(h.State.UpsertAllocs(h.NextIndex(), allocs))
+			require.Nil(h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 			// Create a mock evaluation
 			eval := &structs.Evaluation{
@@ -3858,7 +3858,7 @@ func TestBatchSched_Run_CompleteAlloc(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusComplete
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -3921,7 +3921,7 @@ func TestBatchSched_Run_FailedAlloc(t *testing.T) {
 	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4004,7 +4004,7 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 	allocs = append(allocs, alloc)
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4079,7 +4079,7 @@ func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
 		StartedAt:  now.Add(-1 * time.Hour),
 		FinishedAt: now.Add(-10 * time.Second)}}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4141,7 +4141,7 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to rerun the job
 	eval := &structs.Evaluation{
@@ -4206,7 +4206,7 @@ func TestBatchSched_JobModify_InPlace_Terminal(t *testing.T) {
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to trigger the job
 	eval := &structs.Evaluation{
@@ -4258,7 +4258,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.Job()
@@ -4289,7 +4289,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 		}
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -4340,7 +4340,7 @@ func TestBatchSched_NodeDrain_Running_OldJob(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create an update job
 	job2 := job.Copy()
@@ -4422,7 +4422,7 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -4490,7 +4490,7 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 		alloc.Metrics = scoreMetric
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job's modify index to force an inplace upgrade
 	updatedJob := job.Copy()
@@ -4758,7 +4758,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
 	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 	require.NoError(t, h.State.UpsertJob(h.NextIndex(), alloc.Job))
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -5384,7 +5384,7 @@ func TestServiceSched_Migrate_NonCanary(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation
 	eval := &structs.Evaluation{
@@ -5458,7 +5458,7 @@ func TestServiceSched_Migrate_CanaryStatus(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// new update with new task group
 	job2 := job.Copy()
@@ -5609,7 +5609,7 @@ func TestServiceSched_RunningWithNextAllocation(t *testing.T) {
 	// simulate a case where .NextAllocation is set but alloc is still running
 	allocs[2].PreviousAllocation = allocs[0].ID
 	allocs[0].NextAllocation = allocs[2].ID
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// new update with new task group
 	job2 := job.Copy()

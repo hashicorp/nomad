@@ -1536,7 +1536,7 @@ func TestClientEndpoint_GetAllocs(t *testing.T) {
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1588,7 +1588,7 @@ func TestClientEndpoint_GetAllocs_ACL_Basic(t *testing.T) {
 	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(allocDefaultNS.JobID)), "UpsertJobSummary")
 	allocs := []*structs.Allocation{allocDefaultNS}
-	assert.Nil(state.UpsertAllocs(5, allocs), "UpsertAllocs")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 5, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
 	validDefaultToken := mock.CreatePolicyAndToken(t, state, 1001, "test-default-valid", mock.NodePolicy(acl.PolicyRead)+
@@ -1667,7 +1667,7 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1758,7 +1758,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1825,7 +1825,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		allocUpdate.ID = alloc.ID
 		allocUpdate.ClientStatus = structs.AllocClientStatusRunning
 		state.UpsertJobSummary(199, mock.JobSummary(allocUpdate.JobID))
-		err := state.UpsertAllocs(200, []*structs.Allocation{allocUpdate})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{allocUpdate})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1879,7 +1879,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 	state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertAllocs(100, []*structs.Allocation{alloc1, alloc2}))
+		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1, alloc2}))
 	})
 
 	// Lookup the allocs in a blocking query
@@ -1958,7 +1958,7 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocClientStatusComplete
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{prevAlloc, alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{prevAlloc, alloc})
 	assert.Nil(err)
 
 	// Lookup the allocs
@@ -2008,7 +2008,7 @@ func TestClientEndpoint_GetAllocs_Blocking(t *testing.T) {
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
 	start := time.Now()
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2121,7 +2121,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	require.Nil(err)
 	alloc2.TaskGroup = job.TaskGroups[0].Name
 
-	err = state.UpsertAllocs(100, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc, alloc2})
 	require.Nil(err)
 
 	// Attempt updates of more than one alloc for the same job
@@ -2195,7 +2195,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2257,7 +2257,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	alloc.NodeID = node.ID
 	state := s1.fsm.State()
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(100, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2324,7 +2324,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	alloc := mock.Alloc()
 	state := s1.fsm.State()
 	state.UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(2, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2416,7 +2416,7 @@ func TestClientEndpoint_Evaluate(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID))
-	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2501,7 +2501,7 @@ func TestClientEndpoint_Evaluate_ACL(t *testing.T) {
 
 	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1), "UpsertNode")
 	assert.Nil(state.UpsertJobSummary(2, mock.JobSummary(alloc.JobID)), "UpsertJobSummary")
-	assert.Nil(state.UpsertAllocs(3, []*structs.Allocation{alloc}), "UpsertAllocs")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}), "UpsertAllocs")
 
 	// Create the policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid", mock.NodePolicy(acl.PolicyWrite))
@@ -2858,7 +2858,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	tasks := []string{task.Name}
-	if err := state.UpsertAllocs(3, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2894,7 +2894,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	// Update to be running on the node
 	alloc.NodeID = node.ID
-	if err := state.UpsertAllocs(4, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2908,7 +2908,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 
 	// Update to be terminal
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(5, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2951,7 +2951,7 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	tasks := []string{task.Name}
 	task.Vault = &structs.Vault{Policies: []string{"a", "b"}}
-	if err := state.UpsertAllocs(3, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3044,7 +3044,7 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	tasks := []string{task.Name}
 	task.Vault = &structs.Vault{Policies: []string{"a", "b"}}
-	if err := state.UpsertAllocs(3, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -3177,7 +3177,7 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 	mutateConnectJob(t, alloc.Job) // appends sidecar task
 	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
 
-	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
 	r.NoError(err)
 
 	request := &structs.DeriveSITokenRequest{
@@ -3235,7 +3235,7 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 	m := NewConsulACLsAPI(mockACLsAPI, s1.logger, nil)
 	s1.consulACLs = m
 
-	err = state.UpsertAllocs(3, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
 	r.NoError(err)
 
 	request := &structs.DeriveSITokenRequest{

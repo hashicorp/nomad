@@ -65,7 +65,7 @@ func TestClientFS_List_Local(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -125,7 +125,7 @@ func TestClientFS_List_ACL(t *testing.T) {
 	state := s.State()
 	alloc := mock.Alloc()
 	require.NoError(t, state.UpsertJob(1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -225,9 +225,9 @@ func TestClientFS_List_Remote(t *testing.T) {
 	state1 := s1.State()
 	state2 := s2.State()
 	require.Nil(state1.UpsertJob(999, a.Job))
-	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -284,7 +284,7 @@ func TestClientFS_Stat_OldNode(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc}))
 
 	req := &cstructs.FsStatRequest{
 		AllocID:      alloc.ID,
@@ -341,7 +341,7 @@ func TestClientFS_Stat_Local(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -401,7 +401,7 @@ func TestClientFS_Stat_ACL(t *testing.T) {
 	state := s.State()
 	alloc := mock.Alloc()
 	require.NoError(t, state.UpsertJob(1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -501,9 +501,9 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 	state1 := s1.State()
 	state2 := s2.State()
 	require.Nil(state1.UpsertJob(999, a.Job))
-	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -633,7 +633,7 @@ func TestClientFS_Streaming_ACL(t *testing.T) {
 	state := s.State()
 	alloc := mock.Alloc()
 	require.NoError(t, state.UpsertJob(1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -774,7 +774,7 @@ func TestClientFS_Streaming_Local(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -910,7 +910,7 @@ func TestClientFS_Streaming_Local_Follow(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1053,9 +1053,9 @@ func TestClientFS_Streaming_Remote_Server(t *testing.T) {
 	state1 := s1.State()
 	state2 := s2.State()
 	require.Nil(state1.UpsertJob(999, a.Job))
-	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1199,7 +1199,7 @@ func TestClientFS_Streaming_Remote_Region(t *testing.T) {
 	// Upsert the allocation
 	state2 := s2.State()
 	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1379,7 +1379,7 @@ func TestClientFS_Logs_OldNode(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc}))
 
 	req := &cstructs.FsLogsRequest{
 		AllocID:      alloc.ID,
@@ -1462,7 +1462,7 @@ func TestClientFS_Logs_ACL(t *testing.T) {
 	state := s.State()
 	alloc := mock.Alloc()
 	require.NoError(t, state.UpsertJob(1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -1603,7 +1603,7 @@ func TestClientFS_Logs_Local(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1740,7 +1740,7 @@ func TestClientFS_Logs_Local_Follow(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1884,9 +1884,9 @@ func TestClientFS_Logs_Remote_Server(t *testing.T) {
 	state1 := s1.State()
 	state2 := s2.State()
 	require.Nil(state1.UpsertJob(999, a.Job))
-	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -2031,7 +2031,7 @@ func TestClientFS_Logs_Remote_Region(t *testing.T) {
 	// Upsert the allocation
 	state2 := s2.State()
 	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {

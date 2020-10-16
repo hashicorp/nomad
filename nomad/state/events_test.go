@@ -503,7 +503,7 @@ func TestGenericEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *tes
 	alloc := mock.Alloc()
 
 	require.Nil(t, s.UpsertJob(10, alloc.Job))
-	require.Nil(t, s.UpsertAllocs(11, []*structs.Allocation{alloc}))
+	require.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc}))
 
 	msgType := structs.AllocUpdateDesiredTransitionRequestType
 

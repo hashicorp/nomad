@@ -324,7 +324,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	err = state.UpsertAllocs(index, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
 	require.NoError(t, err)
 	index++
 
@@ -1418,7 +1418,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 			NodeID:    nodes[4].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1625,7 +1625,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1710,7 +1710,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 			NodeID:    nodes[0].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1787,7 +1787,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1882,7 +1882,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1997,7 +1997,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 			NodeID:    nodes[2].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 

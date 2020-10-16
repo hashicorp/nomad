@@ -798,7 +798,7 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		badAllocs = append(badAllocs, alloc)
 	}
-	require.NoError(state.UpsertAllocs(1, badAllocs))
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1, badAllocs))
 
 	// Create the second node
 	nodeReg = &structs.NodeRegisterRequest{

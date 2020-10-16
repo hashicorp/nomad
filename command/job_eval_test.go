@@ -87,7 +87,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 	alloc.TaskGroup = job.TaskGroups[0].Name
 	alloc.Namespace = job.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusFailed
-	err = state.UpsertAllocs(12, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 12, []*structs.Allocation{alloc})
 	require.Nil(err)
 
 	if code := cmd.Run([]string{"-address=" + url, "-force-reschedule", "-detach", job.ID}); code != 0 {

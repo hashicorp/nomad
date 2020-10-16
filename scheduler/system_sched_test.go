@@ -432,7 +432,7 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Add a new node.
 	node := mock.Node()
@@ -554,7 +554,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Add a few terminal status allocations, these should be ignored
 	var terminal []*structs.Allocation
@@ -567,7 +567,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
 		terminal = append(terminal, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), terminal))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), terminal))
 
 	// Update the job
 	job2 := mock.SystemJob()
@@ -656,7 +656,7 @@ func TestSystemSched_JobModify_Rolling(t *testing.T) {
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.SystemJob()
@@ -759,7 +759,7 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 		alloc.Name = "my-job.web[0]"
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the job
 	job2 := mock.SystemJob()
@@ -860,7 +860,7 @@ func TestSystemSched_JobDeregister_Purged(t *testing.T) {
 	for _, alloc := range allocs {
 		require.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -934,7 +934,7 @@ func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
 	for _, alloc := range allocs {
 		require.NoError(t, h.State.UpsertJobSummary(h.NextIndex(), mock.JobSummary(alloc.JobID)))
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -998,7 +998,7 @@ func TestSystemSched_NodeDown(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1065,7 +1065,7 @@ func TestSystemSched_NodeDrain_Down(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with the node update
 	eval := &structs.Evaluation{
@@ -1127,7 +1127,7 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
 	alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1192,7 +1192,7 @@ func TestSystemSched_NodeUpdate(t *testing.T) {
 	alloc.JobID = job.ID
 	alloc.NodeID = node.ID
 	alloc.Name = "my-job.web[0]"
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal
 	eval := &structs.Evaluation{
@@ -1750,7 +1750,7 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 	alloc2.NodeID = node2.ID
 	alloc2.Name = "my-job.web2[0]"
 	alloc2.TaskGroup = "web2"
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc, alloc2}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc, alloc2}))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -2057,7 +2057,7 @@ func TestSystemSched_Preemption(t *testing.T) {
 			DiskMB: 5 * 1024,
 		},
 	}
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc1, alloc2, alloc3}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc1, alloc2, alloc3}))
 
 	// Create a high priority job and allocs for it
 	// These allocs should not be preempted
@@ -2105,7 +2105,7 @@ func TestSystemSched_Preemption(t *testing.T) {
 		},
 	}
 	require.NoError(t, h.State.UpsertJob(h.NextIndex(), job4))
-	require.NoError(t, h.State.UpsertAllocs(h.NextIndex(), []*structs.Allocation{alloc4}))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc4}))
 
 	// Create a system job such that it would need to preempt both allocs to succeed
 	job := mock.SystemJob()

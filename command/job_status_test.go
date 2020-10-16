@@ -374,7 +374,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 	a.Metrics = &structs.AllocMetric{}
 	a.DesiredStatus = structs.AllocDesiredStatusRun
 	a.ClientStatus = structs.AllocClientStatusRunning
-	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	// Query jobs with prefix match
 	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {

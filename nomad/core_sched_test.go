@@ -59,7 +59,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 	alloc2.JobID = eval.JobID
 	alloc2.TaskGroup = job.TaskGroups[0].Name
-	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 			},
 		},
 	}
-	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2})
 	require.Nil(err)
 
 	// Update the time tables to make this work
@@ -258,7 +258,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 			},
 		},
 	}
-	err = state.UpsertAllocs(1001, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
 	require.Nil(err)
 
 	// Update the time tables to make this work
@@ -336,7 +336,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -451,7 +451,7 @@ func TestCoreScheduler_EvalGC_Batch_OldVersion(t *testing.T) {
 	alloc3.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc3.ClientStatus = structs.AllocClientStatusLost
 
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2, alloc3})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2, alloc3})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -565,7 +565,7 @@ func TestCoreScheduler_EvalGC_BatchStopped(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 	alloc2.TaskGroup = job.TaskGroups[0].Name
 
-	err = state.UpsertAllocs(1003, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -655,7 +655,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -665,7 +665,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	alloc3.EvalID = eval.ID
 	alloc3.JobID = job.ID
 	state.UpsertJobSummary(1003, mock.JobSummary(alloc3.JobID))
-	err = state.UpsertAllocs(1004, []*structs.Allocation{alloc3})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1004, []*structs.Allocation{alloc3})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -776,7 +776,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			alloc.DesiredStatus = structs.AllocDesiredStatusStop
 			alloc.TaskGroup = job.TaskGroups[0].Name
 			state.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
-			err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
+			err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc})
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
@@ -896,7 +896,7 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	state.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(1002, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -954,7 +954,7 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 	state.UpsertJobSummary(1001, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(1002, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1203,7 +1203,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 	alloc2.TaskGroup = job.TaskGroups[0].Name
 
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1254,7 +1254,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 
 	// Update the second alloc to be terminal
 	alloc2.ClientStatus = structs.AllocClientStatusComplete
-	err = state.UpsertAllocs(1003, []*structs.Allocation{alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1345,7 +1345,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	alloc2.EvalID = eval2.ID
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
 
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc, alloc2})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1457,7 +1457,7 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.TaskGroup = job.TaskGroups[0].Name
-	err = state.UpsertAllocs(1002, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1764,7 +1764,7 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	a := mock.Alloc()
 	a.JobID = d3.JobID
 	a.DeploymentID = d3.ID
-	assert.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Update the time tables to make this work
 	tt := s1.fsm.TimeTable()
@@ -2348,8 +2348,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	index++
 	require.NoError(state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(state.UpsertAllocs(index,
-		[]*structs.Allocation{alloc1, alloc2}))
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1, alloc2}))
 
 	// Claim the volume for the alloc
 	req := &structs.CSIVolumeClaimRequest{

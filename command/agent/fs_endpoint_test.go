@@ -63,7 +63,7 @@ func addAllocToClient(agent *TestAgent, alloc *structs.Allocation, wait clientAl
 	// Upsert the allocation
 	state := agent.server.State()
 	require.Nil(state.UpsertJob(999, alloc.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc}))
 
 	if wait == noWaitClientAlloc {
 		return

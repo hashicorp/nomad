@@ -2833,7 +2833,7 @@ func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
 	alloc.TaskGroup = job.TaskGroups[0].Name
 	alloc.Namespace = job.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusFailed
-	err = s1.State().UpsertAllocs(resp.Index+1, []*structs.Allocation{alloc})
+	err = s1.State().UpsertAllocs(structs.MsgTypeTestSetup, resp.Index+1, []*structs.Allocation{alloc})
 	require.Nil(err)
 
 	// Force a re-evaluation
@@ -4463,7 +4463,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.JobID = job1.ID
 		alloc.Job = job1
-		if err := state.UpsertAllocs(200, []*structs.Allocation{alloc}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -4786,8 +4786,7 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	state := s1.fsm.State()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(1000,
-		[]*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4829,8 +4828,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	alloc2.JobID = alloc1.JobID
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(1000,
-		[]*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	require.Nil(err)
 
 	// Look up allocations for that job
@@ -4893,7 +4891,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -4902,7 +4900,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
 		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -6759,7 +6757,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a0.Namespace = jobV1.Namespace
 	a0.JobID = jobV1.ID
 	a0.ClientStatus = structs.AllocClientStatusComplete
-	require.NoError(state.UpsertAllocs(1010, []*structs.Allocation{a0}), "UpsertAllocs")
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1010, []*structs.Allocation{a0}), "UpsertAllocs")
 
 	jobV2 := jobV1.Copy()
 	require.NoError(state.UpsertJob(1100, jobV2), "UpsertJob")
@@ -6798,7 +6796,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a4.JobID = jobV2.ID
 	a4.ClientStatus = structs.AllocClientStatusRunning
 	// upsert allocations
-	require.NoError(state.UpsertAllocs(1110, []*structs.Allocation{a1, a2, a3, a4}), "UpsertAllocs")
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1110, []*structs.Allocation{a1, a2, a3, a4}), "UpsertAllocs")
 
 	event := &structs.ScalingEvent{
 		Time:    time.Now().Unix(),

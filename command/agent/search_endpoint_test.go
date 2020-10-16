@@ -182,7 +182,7 @@ func TestHTTP_Search_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		err := state.UpsertAllocs(7000, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
 		assert.Nil(err)
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
