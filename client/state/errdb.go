@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -27,7 +28,7 @@ func (m *ErrDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, er
 	return m.Allocs, nil, nil
 }
 
-func (m *ErrDB) PutAllocation(alloc *structs.Allocation) error {
+func (m *ErrDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
 	return fmt.Errorf("Error!")
 }
 
@@ -43,7 +44,7 @@ func (m *ErrDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, e
 	return nil, fmt.Errorf("Error!")
 }
 
-func (m *ErrDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus) error {
+func (m *ErrDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error {
 	return fmt.Errorf("Error!")
 }
 
@@ -63,11 +64,19 @@ func (m *ErrDB) DeleteTaskBucket(allocID, taskName string) error {
 	return fmt.Errorf("Error!")
 }
 
-func (m *ErrDB) DeleteAllocationBucket(allocID string) error {
+func (m *ErrDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
 	return fmt.Errorf("Error!")
 }
 
 func (m *ErrDB) PutDevicePluginState(ps *dmstate.PluginState) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryState, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutDynamicPluginRegistryState(state *dynamicplugins.RegistryState) error {
 	return fmt.Errorf("Error!")
 }
 
@@ -88,3 +97,6 @@ func (m *ErrDB) PutDriverPluginState(ps *driverstate.PluginState) error {
 func (m *ErrDB) Close() error {
 	return fmt.Errorf("Error!")
 }
+
+// Ensure *ErrDB implements StateDB
+var _ StateDB = (*ErrDB)(nil)

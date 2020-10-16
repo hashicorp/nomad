@@ -1493,3 +1493,15 @@ func Events(index uint64) *structs.Events {
 		},
 	}
 }
+
+func AllocNetworkStatus() *structs.AllocNetworkStatus {
+	return &structs.AllocNetworkStatus{
+		InterfaceName: "eth0",
+		Address:       "192.168.0.100",
+		DNS: &structs.DNSConfig{
+			Servers:  []string{"1.1.1.1"},
+			Searches: []string{"localdomain"},
+			Options:  []string{"ndots:5"},
+		},
+	}
+}
