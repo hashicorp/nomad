@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad
 
-go 1.14
+go 1.15
 
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
