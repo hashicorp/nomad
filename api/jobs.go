@@ -641,7 +641,7 @@ func (u *UpdateStrategy) Empty() bool {
 
 type Multiregion struct {
 	Strategy *MultiregionStrategy `hcl:"strategy,block"`
-	Regions  []*MultiregionRegion `hcl:"regions,block"`
+	Regions  []*MultiregionRegion `hcl:"region,block"`
 }
 
 func (m *Multiregion) Canonicalize() {
@@ -708,14 +708,14 @@ type MultiregionRegion struct {
 	Name        string            `hcl:",label"`
 	Count       *int              `hcl:"count,optional"`
 	Datacenters []string          `hcl:"datacenters,optional"`
-	Meta        map[string]string `hcl:"meta,optional"`
+	Meta        map[string]string `hcl:"meta,block"`
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
 	Enabled         *bool   `hcl:"enabled,optional"`
-	Spec            *string `hcl:"spec,optional"`
-	SpecType        *string `hcl:"spec_type,optional"`
+	Spec            *string `hcl:"cron,optional"`
+	SpecType        *string
 	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
 	TimeZone        *string `mapstructure:"time_zone" hcl:"time_zone,optional"`
 }
@@ -789,7 +789,7 @@ type Job struct {
 	Stop              *bool                   `hcl:"stop,optional"`
 	Region            *string                 `hcl:"region,optional"`
 	Namespace         *string                 `hcl:"namespace,optional"`
-	ID                *string                 `hcl:"id,label"`
+	ID                *string                 `hcl:"id,optional"`
 	ParentID          *string                 `hcl:"parent_id,optional"`
 	Name              *string                 `hcl:"name,optional"`
 	Type              *string                 `hcl:"type,optional"`
@@ -797,13 +797,13 @@ type Job struct {
 	AllAtOnce         *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
 	Datacenters       []string                `hcl:"datacenters,optional"`
 	Constraints       []*Constraint           `hcl:"constraint,block"`
-	Affinities        []*Affinity             `hcl:"affinities,block"`
+	Affinities        []*Affinity             `hcl:"affinity,block"`
 	TaskGroups        []*TaskGroup            `hcl:"group,block"`
 	Update            *UpdateStrategy         `hcl:"update,block"`
 	Multiregion       *Multiregion            `hcl:"multiregion,block"`
-	Spreads           []*Spread               `hcl:"spreads,block"`
+	Spreads           []*Spread               `hcl:"spread,block"`
 	Periodic          *PeriodicConfig         `hcl:"periodic,block"`
-	ParameterizedJob  *ParameterizedJobConfig `hcl:"parameterized_job,block"`
+	ParameterizedJob  *ParameterizedJobConfig `hcl:"parameterized,block"`
 	Dispatched        bool                    `hcl:"dispatched,optional"`
 	Payload           []byte                  `hcl:"payload,optional"`
 	Reschedule        *ReschedulePolicy       `hcl:"reschedule,block"`

@@ -89,9 +89,9 @@ const (
 )
 
 type CSIMountOptions struct {
-	FSType       string   `hcl:"fs_type"`
-	MountFlags   []string `hcl:"mount_flags"`
-	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"` // report unexpected keys
+	FSType       string   `hcl:"fs_type,optional"`
+	MountFlags   []string `hcl:"mount_flags,optional"`
+	ExtraKeysHCL []string `hcl1:",unusedKeys" json:"-"` // report unexpected keys
 }
 
 type CSISecrets map[string]string
@@ -133,7 +133,7 @@ type CSIVolume struct {
 	ModifyIndex uint64
 
 	// ExtraKeysHCL is used by the hcl parser to report unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+	ExtraKeysHCL []string `hcl1:",unusedKeys" json:"-"`
 }
 
 // allocs is called after we query the volume (creating this CSIVolume struct) to collapse

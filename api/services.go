@@ -87,9 +87,9 @@ type ServiceCheck struct {
 	Timeout                time.Duration       `hcl:"timeout,optional"`
 	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
 	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
-	Header                 map[string][]string `hcl:"header,optional"`
+	Header                 map[string][]string `hcl:"header,block"`
 	Method                 string              `hcl:"method,optional"`
-	CheckRestart           *CheckRestart       `mapstructure:"check_restart" hcl:"check_restart,optional"`
+	CheckRestart           *CheckRestart       `mapstructure:"check_restart" hcl:"check_restart,block"`
 	GRPCService            string              `mapstructure:"grpc_service" hcl:"grpc_service,optional"`
 	GRPCUseTLS             bool                `mapstructure:"grpc_use_tls" hcl:"grpc_use_tls,optional"`
 	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
@@ -107,11 +107,11 @@ type Service struct {
 	EnableTagOverride bool              `mapstructure:"enable_tag_override" hcl:"enable_tag_override,optional"`
 	PortLabel         string            `mapstructure:"port" hcl:"port,optional"`
 	AddressMode       string            `mapstructure:"address_mode" hcl:"address_mode,optional"`
-	Checks            []ServiceCheck    `hcl:"checks,block"`
+	Checks            []ServiceCheck    `hcl:"check,block"`
 	CheckRestart      *CheckRestart     `mapstructure:"check_restart" hcl:"check_restart,block"`
 	Connect           *ConsulConnect    `hcl:"connect,block"`
-	Meta              map[string]string `hcl:"meta,optional"`
-	CanaryMeta        map[string]string `hcl:"canary_meta,optional"`
+	Meta              map[string]string `hcl:"meta,block"`
+	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 }
 
@@ -193,10 +193,10 @@ type SidecarTask struct {
 	Name          string                 `hcl:"name,optional"`
 	Driver        string                 `hcl:"driver,optional"`
 	User          string                 `hcl:"user,optional"`
-	Config        map[string]interface{} `hcl:"config,optional"`
-	Env           map[string]string      `hcl:"env,optional"`
+	Config        map[string]interface{} `hcl:"config,block"`
+	Env           map[string]string      `hcl:"env,block"`
 	Resources     *Resources             `hcl:"resources,block"`
-	Meta          map[string]string      `hcl:"meta,optional"`
+	Meta          map[string]string      `hcl:"meta,block"`
 	KillTimeout   *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
 	LogConfig     *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
 	ShutdownDelay *time.Duration         `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
@@ -247,7 +247,7 @@ type ConsulProxy struct {
 	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
 	ExposeConfig        *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,block"`
 	Upstreams           []*ConsulUpstream      `hcl:"upstreams,block"`
-	Config              map[string]interface{} `hcl:"config,optional"`
+	Config              map[string]interface{} `hcl:"config,block"`
 }
 
 func (cp *ConsulProxy) Canonicalize() {
@@ -328,8 +328,9 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 }
 
 type ConsulGatewayBindAddress struct {
-	Address string `mapstructure:"address"`
-	Port    int    `mapstructure:"port"`
+	Name    string `hcl:",label"`
+	Address string `mapstructure:"address" hcl:"address,optional"`
+	Port    int    `mapstructure:"port" hcl:"port,optional"`
 }
 
 var (
@@ -343,9 +344,9 @@ var (
 type ConsulGatewayProxy struct {
 	ConnectTimeout                  *time.Duration                       `mapstructure:"connect_timeout" hcl:"connect_timeout,optional"`
 	EnvoyGatewayBindTaggedAddresses bool                                 `mapstructure:"envoy_gateway_bind_tagged_addresses" hcl:"envoy_gateway_bind_tagged_addresses,optional"`
-	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses" hcl:"envoy_gateway_bind_addresses,optional"`
+	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses" hcl:"envoy_gateway_bind_addresses,block"`
 	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind" hcl:"envoy_gateway_no_default_bind,optional"`
-	Config                          map[string]interface{}               `hcl:"config,optional"` // escape hatch envoy config
+	Config                          map[string]interface{}               `hcl:"config,block"` // escape hatch envoy config
 }
 
 func (p *ConsulGatewayProxy) Canonicalize() {
@@ -460,7 +461,7 @@ const (
 type ConsulIngressListener struct {
 	Port     int                     `hcl:"port,optional"`
 	Protocol string                  `hcl:"protocol,optional"`
-	Services []*ConsulIngressService `hcl:"services,block"`
+	Services []*ConsulIngressService `hcl:"service,block"`
 }
 
 func (l *ConsulIngressListener) Canonicalize() {
@@ -507,7 +508,7 @@ type ConsulIngressConfigEntry struct {
 	// Namespace string
 
 	TLS       *ConsulGatewayTLSConfig  `hcl:"tls,block"`
-	Listeners []*ConsulIngressListener `hcl:"listeners,block"`
+	Listeners []*ConsulIngressListener `hcl:"listener,block"`
 }
 
 func (e *ConsulIngressConfigEntry) Canonicalize() {
