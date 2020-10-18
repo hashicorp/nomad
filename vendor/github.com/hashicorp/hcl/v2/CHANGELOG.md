@@ -1,6 +1,6 @@
 # HCL Changelog
 
-## v2.7.0 (Unreleased)
+## v2.7.0 (October 14, 2020)
 
 ### Enhancements
 
@@ -11,6 +11,7 @@
 ### Bugs Fixed
 
 * hclsyntax: Fix confusing error message for bitwise OR operator ([#380](https://github.com/hashicorp/hcl/pull/380))
+* hclsyntax: Several bug fixes for using HCL with values containing cty "marks" ([#404](https://github.com/hashicorp/hcl/pull/404), [#406](https://github.com/hashicorp/hcl/pull/404), [#407](https://github.com/hashicorp/hcl/pull/404))
 
 ## v2.6.0 (June 4, 2020)
 

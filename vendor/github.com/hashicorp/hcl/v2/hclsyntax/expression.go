@@ -971,6 +971,9 @@ func (e *ForExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 	if collVal.Type() == cty.DynamicPseudoType {
 		return cty.DynamicVal, diags
 	}
+	// Unmark collection before checking for iterability, because marked
+	// values cannot be iterated
+	collVal, marks := collVal.Unmark()
 	if !collVal.CanIterateElements() {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -1178,7 +1181,7 @@ func (e *ForExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 			}
 		}
 
-		return cty.ObjectVal(vals), diags
+		return cty.ObjectVal(vals).WithMarks(marks), diags
 
 	} else {
 		// Producing a tuple
@@ -1254,7 +1257,7 @@ func (e *ForExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 			return cty.DynamicVal, diags
 		}
 
-		return cty.TupleVal(vals), diags
+		return cty.TupleVal(vals).WithMarks(marks), diags
 	}
 }
 

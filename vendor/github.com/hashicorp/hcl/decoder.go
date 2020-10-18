@@ -547,14 +547,6 @@ func (d *decoder) decodeString(name string, node ast.Node, result reflect.Value)
 	}
 }
 
-func fieldTag(fieldType reflect.StructField) string {
-	tag := fieldType.Tag.Get("hcl1")
-	if tag == "" {
-		tag = fieldType.Tag.Get("hcl")
-	}
-	return tag
-}
-
 func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value) error {
 	var item *ast.ObjectItem
 	if it, ok := node.(*ast.ObjectItem); ok {
@@ -602,9 +594,7 @@ func (d *decoder) decodeStruct(name string, node ast.Node, result reflect.Value)
 		structType := structVal.Type()
 		for i := 0; i < structType.NumField(); i++ {
 			fieldType := structType.Field(i)
-
-			tag := fieldTag(fieldType)
-			tagParts := strings.Split(tag, ",")
+			tagParts := strings.Split(fieldTag(fieldType), ",")
 
 			// Ignore fields with tag name "-"
 			if tagParts[0] == "-" {
@@ -771,4 +761,13 @@ func removeCaseFold(xs []string, y string) []string {
 		}
 	}
 	return xs
+}
+
+// read the tag for HCL settings: check `hcl1` first and fallback to `hcl`
+func fieldTag(fieldType reflect.StructField) string {
+	tag := fieldType.Tag.Get("hcl1")
+	if tag == "" {
+		tag = fieldType.Tag.Get("hcl")
+	}
+	return tag
 }
