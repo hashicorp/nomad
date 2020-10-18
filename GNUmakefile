@@ -244,7 +244,7 @@ generate-structs: ## Update generated code
 proto:
 	@echo "--> Generating proto bindings..."
 	@for file in $$(git ls-files "*.proto" | grep -E -v -- "vendor\/.*.proto|demo\/.*.proto"); do \
-		protoc -I . -I ../../.. --go_out=plugins=grpc:. $$file; \
+		protoc -I . -I $(shell go env GOPATH)/src --go_out=plugins=grpc:. $$file; \
 	done
 
 .PHONY: generate-examples
