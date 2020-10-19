@@ -1,5 +1,5 @@
 job "deployment_auto.nomad" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"

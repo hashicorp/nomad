@@ -106,7 +106,7 @@ func (tc *EventsTest) TestDeploymentEvents(f *framework.F) {
 		}
 		return false, fmt.Errorf("expected to receive deployment promotion event, got: %#v", got)
 	}, func(e error) {
-		require.NoError(t, e)
+		f.NoError(e)
 	})
 }
 
