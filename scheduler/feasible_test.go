@@ -282,7 +282,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	// Create the plugins in the state store
 	index := uint64(999)
 	for _, node := range nodes {
-		err := state.UpsertNode(structs.MsgTypeTestSetup, node, index)
+		err := state.UpsertNode(structs.MsgTypeTestSetup, index, node)
 		require.NoError(t, err)
 		index++
 	}
@@ -1273,7 +1273,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(structs.MsgTypeTestSetup, n, uint64(100+i)); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1451,7 +1451,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(structs.MsgTypeTestSetup, n, uint64(100+i)); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1655,7 +1655,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	nodes[0].Meta["rack"] = "1"
 
 	// Add to state store
-	if err := state.UpsertNode(structs.MsgTypeTestSetup, nodes[0], uint64(100)); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100), nodes[0]); err != nil {
 		t.Fatalf("failed to upsert node: %v", err)
 	}
 
@@ -1739,7 +1739,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(structs.MsgTypeTestSetup, n, uint64(100+i)); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1816,7 +1816,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(structs.MsgTypeTestSetup, n, uint64(100+i)); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1912,7 +1912,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(structs.MsgTypeTestSetup, n, uint64(100+i)); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}

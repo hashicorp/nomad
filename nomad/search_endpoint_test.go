@@ -76,7 +76,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	state := s.fsm.State()
 
 	job := registerAndVerifyJob(s, t, jobID, 0)
-	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, mock.Node(), 1001))
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
@@ -447,7 +447,7 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	}
 
 	node := mock.Node()
-	if err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1001); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 1001, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -490,7 +490,7 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	state := s.fsm.State()
 	node := mock.Node()
 
-	if err := state.UpsertNode(structs.MsgTypeTestSetup, node, 100); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 100, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -569,7 +569,7 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	state := s.fsm.State()
 	node := mock.Node()
 
-	if err := state.UpsertNode(structs.MsgTypeTestSetup, node, 100); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 100, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

@@ -85,7 +85,7 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 
 	node := mock.Node()
 
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -408,7 +408,7 @@ func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
 	// Force a node into the state store without eligiblity
 	node := mock.Node()
 	node.SchedulingEligibility = ""
-	require.Nil(fsm.State().UpsertNode(structs.MsgTypeTestSetup, node, 1))
+	require.Nil(fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 	// Do an old style drain
 	req := structs.NodeUpdateDrainRequest{
@@ -1449,7 +1449,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	state := fsm.State()
 
 	node := mock.Node()
-	state.UpsertNode(structs.MsgTypeTestSetup, node, 1)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1, node)
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
@@ -2494,12 +2494,12 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	// Upgrade this node
 	node2 := mock.Node()
 	node2.SchedulingEligibility = ""
-	state.UpsertNode(structs.MsgTypeTestSetup, node2, 1001)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2622,7 +2622,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.UpsertNode(structs.MsgTypeTestSetup, node1, 1000)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2891,7 +2891,7 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node, 800))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 800, node))
 
 	// Make a job so that none of the tasks can be placed
 	job1 := mock.Job()
@@ -2973,7 +2973,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	state.UpsertNode(structs.MsgTypeTestSetup, node, 800)
+	state.UpsertNode(structs.MsgTypeTestSetup, 800, node)
 
 	// Make a parameterized job
 	job1 := mock.BatchJob()

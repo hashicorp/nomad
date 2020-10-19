@@ -11,7 +11,7 @@ func TestEvaluatePool(t *testing.T) {
 	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
-	state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()

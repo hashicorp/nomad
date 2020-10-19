@@ -133,7 +133,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node, 1000))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 	// Create the volume
 	vols := []*structs.CSIVolume{{
@@ -260,7 +260,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, node, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, node)
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
@@ -401,7 +401,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1002)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1002, node)
 	require.NoError(t, err)
 	vols := []*structs.CSIVolume{{
 		ID:                 id0,
@@ -481,7 +481,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 		},
 	}
 	index++
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node, index))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	type tc struct {
 		name           string
@@ -899,7 +899,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
 		"adam": {PluginID: "adam", Healthy: true},
 	}
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 3)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 3, node)
 	require.NoError(t, err)
 
 	// Create 2 volumes

@@ -108,7 +108,7 @@ func createTestCSIPlugin(s *StateStore, id string, requiresController bool) func
 	index := uint64(999)
 	for _, n := range ns {
 		index++
-		s.UpsertNode(structs.MsgTypeTestSetup, n, index)
+		s.UpsertNode(structs.MsgTypeTestSetup, index, n)
 	}
 
 	ids := make([]string, len(ns))

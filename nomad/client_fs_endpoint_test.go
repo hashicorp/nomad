@@ -280,7 +280,7 @@ func TestClientFS_Stat_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1005))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1005, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
@@ -1375,7 +1375,7 @@ func TestClientFS_Logs_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1005))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1005, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID

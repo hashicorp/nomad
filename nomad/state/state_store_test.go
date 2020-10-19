@@ -83,7 +83,7 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 	defer cancel()
 
 	time.AfterFunc(5*time.Millisecond, func() {
-		state.UpsertNode(structs.MsgTypeTestSetup, node, 11)
+		state.UpsertNode(structs.MsgTypeTestSetup, 11, node)
 	})
 
 	resp, idx, err := state.BlockingQuery(queryFn, 10, deadlineCtx)
@@ -801,7 +801,7 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 	_, err := state.NodeByID(ws, node.ID)
 	require.NoError(err)
 
-	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, node, 1000))
+	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -824,8 +824,8 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 	// event
 	down := out.Copy()
 	down.Status = structs.NodeStatusDown
-	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, down, 1001))
-	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, out, 1002))
+	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, 1001, down))
+	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, 1002, out))
 
 	out, err = state.NodeByID(ws, node.ID)
 	require.NoError(err)
@@ -841,9 +841,9 @@ func TestStateStore_DeleteNode_Node(t *testing.T) {
 	// Create and insert two nodes, which we'll delete
 	node0 := mock.Node()
 	node1 := mock.Node()
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node0, 1000)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node0)
 	require.NoError(t, err)
-	err = state.UpsertNode(structs.MsgTypeTestSetup, node1, 1001)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, 1001, node1)
 	require.NoError(t, err)
 
 	// Create a watchset so we can test that delete fires the watch
@@ -885,7 +885,7 @@ func TestStateStore_UpdateNodeStatus_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, node, 800))
+	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, 800, node))
 
 	// Create a watchset so we can test that update node status fires the watch
 	ws := memdb.NewWatchSet()
@@ -923,8 +923,8 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 	state := testStateStore(t)
 
 	n1, n2 := mock.Node(), mock.Node()
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n1, 1000))
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n2, 1001))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1000, n1))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1001, n2))
 
 	// Create a watchset so we can test that update node drain fires the watch
 	ws := memdb.NewWatchSet()
@@ -984,7 +984,7 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1000))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 	// Create a watchset so we can test that update node drain fires the watch
 	ws := memdb.NewWatchSet()
@@ -1030,7 +1030,7 @@ func TestStateStore_AddSingleNodeEvent(t *testing.T) {
 	node := mock.Node()
 
 	// We create a new node event every time we register a node
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	require.Nil(err)
 
 	require.Equal(1, len(node.Events))
@@ -1073,7 +1073,7 @@ func TestStateStore_NodeEvents_RetentionWindow(t *testing.T) {
 
 	node := mock.Node()
 
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1120,7 +1120,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 
 	state := testStateStore(t)
 	node := mock.Node()
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1000))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 	// Create a watchset so we can test that update node drain fires the watch
 	ws := memdb.NewWatchSet()
@@ -1172,7 +1172,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1231,7 +1231,7 @@ func TestStateStore_Nodes(t *testing.T) {
 		node := mock.Node()
 		nodes = append(nodes, node)
 
-		err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000+uint64(i))
+		err := state.UpsertNode(structs.MsgTypeTestSetup, 1000+uint64(i), node)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1272,7 +1272,7 @@ func TestStateStore_NodesByIDPrefix(t *testing.T) {
 	node := mock.Node()
 
 	node.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1318,7 +1318,7 @@ func TestStateStore_NodesByIDPrefix(t *testing.T) {
 
 	node = mock.Node()
 	node.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
-	err = state.UpsertNode(structs.MsgTypeTestSetup, node, 1001)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, 1001, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2868,7 +2868,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	}
 
 	index++
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, index)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, index, node)
 	require.NoError(t, err)
 	defer state.DeleteNode(structs.MsgTypeTestSetup, 9999, []string{pluginID})
 
@@ -3039,7 +3039,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	ns := []*structs.Node{mock.Node(), mock.Node()}
 	for _, n := range ns {
 		index++
-		err := state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+		err := state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 		require.NoError(t, err)
 	}
 
@@ -3059,7 +3059,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 		},
 	}
 	index++
-	err := state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	// Fingerprint two running node plugins
@@ -3076,7 +3076,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 			},
 		}
 		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 		require.NoError(t, err)
 	}
 
@@ -3119,7 +3119,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	}
 
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	plug, err = state.CSIPluginByID(ws, plugID)
@@ -3137,7 +3137,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	n1, _ := state.NodeByID(ws, ns[1].ID)
 	n1.CSINodePlugins = map[string]*structs.CSIInfo{}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n1, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n1)
 	require.NoError(t, err)
 
 	plug, err = state.CSIPluginByID(ws, plugID)
@@ -3151,7 +3151,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	n0, _ = state.NodeByID(ws, ns[0].ID)
 	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	// Nodes plugins should be gone but controllers left
@@ -3175,7 +3175,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	// Nodes plugin should be replaced and healthy
@@ -3190,7 +3190,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	n0, _ = state.NodeByID(ws, ns[0].ID)
 	n0.CSINodePlugins = map[string]*structs.CSIInfo{}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	// Nodes plugins should be gone but controllers left
@@ -3205,7 +3205,7 @@ func TestStateStore_CSIPluginNodes(t *testing.T) {
 	n0, _ = state.NodeByID(ws, ns[0].ID)
 	n0.CSIControllerPlugins = map[string]*structs.CSIInfo{}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	// Plugin has been removed entirely
@@ -3230,7 +3230,7 @@ func TestStateStore_CSIPluginAllocUpdates(t *testing.T) {
 
 	n := mock.Node()
 	index++
-	err := state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 	require.NoError(t, err)
 
 	// (1) unhealthy fingerprint, then terminal alloc, then healthy node update
@@ -3257,7 +3257,7 @@ func TestStateStore_CSIPluginAllocUpdates(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 	require.NoError(t, err)
 
 	plug, err := state.CSIPluginByID(ws, plugID0)
@@ -3278,7 +3278,7 @@ func TestStateStore_CSIPluginAllocUpdates(t *testing.T) {
 	n.CSINodePlugins[plugID0].Healthy = true
 	n.CSINodePlugins[plugID0].UpdateTime = time.Now()
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 	require.NoError(t, err)
 
 	plug, err = state.CSIPluginByID(ws, plugID0)
@@ -3301,7 +3301,7 @@ func TestStateStore_CSIPluginAllocUpdates(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 	require.NoError(t, err)
 
 	plug, err = state.CSIPluginByID(ws, plugID1)
@@ -3348,7 +3348,7 @@ func TestStateStore_CSIPluginAllocUpdates(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 	require.NoError(t, err)
 
 	plug, err = state.CSIPluginByID(ws, plugID2)
@@ -3372,7 +3372,7 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 	ns := []*structs.Node{mock.Node(), mock.Node()}
 	for _, n := range ns {
 		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 		require.NoError(t, err)
 	}
 
@@ -3397,7 +3397,7 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 			},
 		}
 		index++
-		err = state.UpsertNode(structs.MsgTypeTestSetup, n, index)
+		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
 		require.NoError(t, err)
 
 		nAlloc.NodeID = n.ID
@@ -3428,7 +3428,7 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	plug, err := state.CSIPluginByID(ws, plugID)
@@ -3489,7 +3489,7 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n0, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n0)
 	require.NoError(t, err)
 
 	n1.CSIControllerPlugins = map[string]*structs.CSIInfo{
@@ -3507,7 +3507,7 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, n1, index)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, n1)
 	require.NoError(t, err)
 
 	plug, err = state.CSIPluginByID(ws, plugID)
@@ -3652,7 +3652,7 @@ func TestStateStore_Indexes(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 
-	err := state.UpsertNode(structs.MsgTypeTestSetup, node, 1000)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3696,7 +3696,7 @@ func TestStateStore_LatestIndex(t *testing.T) {
 
 	state := testStateStore(t)
 
-	if err := state.UpsertNode(structs.MsgTypeTestSetup, mock.Node(), 1000); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, mock.Node()); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -5465,7 +5465,7 @@ func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	state.UpsertNode(structs.MsgTypeTestSetup, node, 80)
+	state.UpsertNode(structs.MsgTypeTestSetup, 80, node)
 
 	// Make a parameterized job
 	job1 := mock.BatchJob()
@@ -9603,7 +9603,7 @@ func TestStateStore_SnapshotMinIndex_OK(t *testing.T) {
 	require.NoError(t, err)
 
 	node := mock.Node()
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, node, index+1))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, index+1, node))
 
 	// Assert SnapshotMinIndex returns immediately if index < latest index
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
@@ -9660,7 +9660,7 @@ func TestStateStore_SnapshotMinIndex_OK(t *testing.T) {
 	}
 
 	node.Name = "hal"
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, node, index+2))
+	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, index+2, node))
 
 	select {
 	case err := <-errCh:

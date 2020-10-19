@@ -494,7 +494,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 			Name: "valid-node-secret",
 			F: func(t *testing.T) {
 				node := mock.Node()
-				assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, node, 1005))
+				assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1005, node))
 				get := getReq()
 				get.AuthToken = node.SecretID
 				get.AllocID = alloc.ID

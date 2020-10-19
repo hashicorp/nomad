@@ -785,7 +785,7 @@ func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID stri
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
-func (s *StateStore) UpsertNode(msgType structs.MessageType, node *structs.Node, index uint64) error {
+func (s *StateStore) UpsertNode(msgType structs.MessageType, index uint64, node *structs.Node) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 

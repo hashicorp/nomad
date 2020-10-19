@@ -21,7 +21,7 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Create a job
@@ -95,7 +95,7 @@ func TestSystemSched_JobRegister_StickyAllocs(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Create a job
@@ -170,7 +170,7 @@ func TestSystemSched_JobRegister_EphemeralDiskConstraint(t *testing.T) {
 
 	// Create a nodes
 	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create a job
 	job := mock.SystemJob()
@@ -239,7 +239,7 @@ func TestSystemSched_ExhaustResources(t *testing.T) {
 
 	// Create a nodes
 	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Enable Preemption
 	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
@@ -324,7 +324,7 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 			node.NodeClass = "bar"
 		}
 		node.ComputeClass()
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Create a job constraining on node class
@@ -416,7 +416,7 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
@@ -436,7 +436,7 @@ func TestSystemSched_JobRegister_AddNode(t *testing.T) {
 
 	// Add a new node.
 	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create a mock evaluation to deal with the node update
 	eval := &structs.Evaluation{
@@ -538,7 +538,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
@@ -640,7 +640,7 @@ func TestSystemSched_JobModify_Rolling(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
@@ -743,7 +743,7 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
@@ -842,7 +842,7 @@ func TestSystemSched_JobDeregister_Purged(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
@@ -914,7 +914,7 @@ func TestSystemSched_JobDeregister_Stopped(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Generate a fake job with allocations
@@ -986,7 +986,7 @@ func TestSystemSched_NodeDown(t *testing.T) {
 	// Register a down node
 	node := mock.Node()
 	node.Status = structs.NodeStatusDown
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Generate a fake job allocated on that node.
 	job := mock.SystemJob()
@@ -1054,7 +1054,7 @@ func TestSystemSched_NodeDrain_Down(t *testing.T) {
 	node := mock.Node()
 	node.Drain = true
 	node.Status = structs.NodeStatusDown
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Generate a fake job allocated on that node.
 	job := mock.SystemJob()
@@ -1115,7 +1115,7 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	// Register a draining node
 	node := mock.Node()
 	node.Drain = true
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Generate a fake job allocated on that node.
 	job := mock.SystemJob()
@@ -1181,7 +1181,7 @@ func TestSystemSched_NodeUpdate(t *testing.T) {
 
 	// Register a node
 	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Generate a fake job allocated on that node.
 	job := mock.SystemJob()
@@ -1227,7 +1227,7 @@ func TestSystemSched_RetryLimit(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Create a job
@@ -1279,7 +1279,7 @@ func TestSystemSched_Queued_With_Constraints(t *testing.T) {
 	// Register a node
 	node := mock.Node()
 	node.Attributes["kernel.name"] = "darwin"
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Generate a system job which can't be placed on the node
 	job := mock.SystemJob()
@@ -1323,13 +1323,13 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	node = mock.Node()
 	node.NodeClass = "Class-A"
 	node.ComputeClass()
-	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	var nodeB *structs.Node
 	nodeB = mock.Node()
 	nodeB.NodeClass = "Class-B"
 	nodeB.ComputeClass()
-	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, nodeB, h.NextIndex()))
+	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), nodeB))
 
 	// Make a job with two task groups, each constraint to a node class
 	job := mock.SystemJob()
@@ -1416,7 +1416,7 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	nodeBTwo = mock.Node()
 	nodeBTwo.ComputeClass()
 	nodeBTwo.NodeClass = "Class-B"
-	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, nodeBTwo, h.NextIndex()))
+	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), nodeBTwo))
 
 	// Evaluate the new node
 	eval3 := &structs.Evaluation{
@@ -1468,7 +1468,7 @@ func TestSystemSched_ExistingAllocNoNodes(t *testing.T) {
 	// Create a node
 	node = mock.Node()
 	node.ComputeClass()
-	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Make a job
 	job := mock.SystemJob()
@@ -1550,7 +1550,7 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 		node = mock.Node()
 		node.Meta["tag"] = tag
 		node.ComputeClass()
-		require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Mark the last node as ineligible
@@ -1616,7 +1616,7 @@ func TestSystemSched_ChainedAlloc(t *testing.T) {
 	// Create some nodes
 	for i := 0; i < 10; i++ {
 		node := mock.Node()
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Create a job
@@ -1657,7 +1657,7 @@ func TestSystemSched_ChainedAlloc(t *testing.T) {
 	// Insert two more nodes
 	for i := 0; i < 2; i++ {
 		node := mock.Node()
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Create a mock evaluation to update the job
@@ -1712,12 +1712,12 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 	node.NodeClass = "green"
 	node.Drain = true
 	node.ComputeClass()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	node2 := mock.Node()
 	node2.NodeClass = "blue"
 	node2.ComputeClass()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node2, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
 
 	// Create a Job with two task groups, each constrained on node class
 	job := mock.SystemJob()
@@ -1802,12 +1802,12 @@ func TestSystemSched_QueuedAllocsMultTG(t *testing.T) {
 	node := mock.Node()
 	node.NodeClass = "green"
 	node.ComputeClass()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	node2 := mock.Node()
 	node2.NodeClass = "blue"
 	node2.ComputeClass()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node2, h.NextIndex()))
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
 
 	// Create a Job with two task groups, each constrained on node class
 	job := mock.SystemJob()
@@ -1907,7 +1907,7 @@ func TestSystemSched_Preemption(t *testing.T) {
 				},
 			},
 		}
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, node, h.NextIndex()))
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 		nodes = append(nodes, node)
 	}
 

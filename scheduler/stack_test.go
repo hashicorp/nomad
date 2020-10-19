@@ -272,7 +272,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	}}
 
 	// Add the node to the state store to index the healthy plugins and mark the volume "foo" healthy
-	err = state.UpsertNode(structs.MsgTypeTestSetup, zero, 1000)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, 1000, zero)
 	require.NoError(t, err)
 
 	// Use the node to build the stack and test

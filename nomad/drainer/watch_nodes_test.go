@@ -45,8 +45,8 @@ func TestNodeDrainWatcher_AddDraining(t *testing.T) {
 		ForceDeadline: time.Now().Add(time.Hour),
 	}
 
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n1, 100))
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n2, 101))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 100, n1))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 101, n2))
 
 	testutil.WaitForResult(func() (bool, error) {
 		return len(m.events()) == 1, nil
@@ -76,7 +76,7 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 	}
 
 	// Wait for it to be tracked
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n, 100))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 100, n))
 	testutil.WaitForResult(func() (bool, error) {
 		return len(m.events()) == 1, nil
 	}, func(err error) {
@@ -114,7 +114,7 @@ func TestNodeDrainWatcher_Remove_Nonexistent(t *testing.T) {
 	}
 
 	// Wait for it to be tracked
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n, 100))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 100, n))
 	testutil.WaitForResult(func() (bool, error) {
 		return len(m.events()) == 1, nil
 	}, func(err error) {
@@ -152,7 +152,7 @@ func TestNodeDrainWatcher_Update(t *testing.T) {
 	}
 
 	// Wait for it to be tracked
-	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, n, 100))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 100, n))
 	testutil.WaitForResult(func() (bool, error) {
 		return len(m.events()) == 1, nil
 	}, func(err error) {

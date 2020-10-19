@@ -1771,12 +1771,12 @@ func TestJobEndpoint_Register_SemverConstraint(t *testing.T) {
 	node1 := mock.Node()
 	node1.Attributes["vault.version"] = "1.3.0-beta1+ent"
 	node1.ComputeClass()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node1, 1))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node1))
 
 	node2 := mock.Node()
 	delete(node2.Attributes, "vault.version")
 	node2.ComputeClass()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, node2, 2))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, node2))
 
 	// Create the register request
 	req := &structs.JobRegisterRequest{

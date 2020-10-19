@@ -162,7 +162,7 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, node, 1005))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	req := &structs.NodeSpecificRequest{
 		NodeID:       node.ID,
@@ -175,7 +175,7 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, node, 1006))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1006, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
 	require.True(structs.IsErrUnknownNomadVersion(err))
@@ -255,7 +255,7 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, node, 1005))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
@@ -275,7 +275,7 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, node, 1007))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
 	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())
@@ -546,7 +546,7 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, node, 1005))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
@@ -565,7 +565,7 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, node, 1007))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
 	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())

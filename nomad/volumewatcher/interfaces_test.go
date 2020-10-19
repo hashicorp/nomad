@@ -35,7 +35,7 @@ func testNode(plugin *structs.CSIPlugin, s *state.StateStore) *structs.Node {
 	} else {
 		node.CSIControllerPlugins = map[string]*structs.CSIInfo{}
 	}
-	s.UpsertNode(structs.MsgTypeTestSetup, node, 99)
+	s.UpsertNode(structs.MsgTypeTestSetup, 99, node)
 	return node
 }
 
