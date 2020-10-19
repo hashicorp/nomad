@@ -33,7 +33,7 @@ func TestStateStore_Events_OnEvict(t *testing.T) {
 	// force 3 evictions
 	for i := 1; i < 13; i++ {
 		require.NoError(t,
-			s.UpsertNodeMsgType(structs.NodeRegisterRequestType, uint64(i), mock.Node()),
+			s.UpsertNode(structs.NodeRegisterRequestType, uint64(i), mock.Node()),
 		)
 	}
 
@@ -107,7 +107,7 @@ func TestStateStore_Events_OnEvict_Missing(t *testing.T) {
 	// Publish 13 events to fill buffer and force 3 evictions
 	for i := 1; i < 13; i++ {
 		require.NoError(t,
-			s.UpsertNodeMsgType(structs.NodeRegisterRequestType, uint64(i), mock.Node()),
+			s.UpsertNode(structs.NodeRegisterRequestType, uint64(i), mock.Node()),
 		)
 	}
 

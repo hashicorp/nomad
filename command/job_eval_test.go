@@ -74,7 +74,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 	// Create a job
 	job := mock.Job()
-	err := state.UpsertJob(11, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, job)
 	require.Nil(err)
 
 	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
@@ -87,7 +87,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 	alloc.TaskGroup = job.TaskGroups[0].Name
 	alloc.Namespace = job.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusFailed
-	err = state.UpsertAllocs(12, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 12, []*structs.Allocation{alloc})
 	require.Nil(err)
 
 	if code := cmd.Run([]string{"-address=" + url, "-force-reschedule", "-detach", job.ID}); code != 0 {
@@ -115,7 +115,7 @@ func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}

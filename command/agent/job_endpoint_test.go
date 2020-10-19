@@ -407,7 +407,7 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 
 		// Directly manipulate the state
 		state := s.Agent.server.State()
-		if err := state.UpsertJob(1000, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 			t.Fatalf("Failed to upsert job: %v", err)
 		}
 
@@ -1007,7 +1007,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 		state := s.Agent.server.State()
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

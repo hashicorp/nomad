@@ -276,7 +276,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.SchedulerConfigRequestType:
 		return n.applySchedulerConfigUpdate(buf[1:], log.Index)
 	case structs.NodeBatchDeregisterRequestType:
-		return n.applyDeregisterNodeBatch(buf[1:], log.Index)
+		return n.applyDeregisterNodeBatch(msgType, buf[1:], log.Index)
 	case structs.ClusterMetadataRequestType:
 		return n.applyClusterMetadata(buf[1:], log.Index)
 	case structs.ServiceIdentityAccessorRegisterRequestType:
@@ -339,7 +339,7 @@ func (n *nomadFSM) applyUpsertNode(reqType structs.MessageType, buf []byte, inde
 	// Handle upgrade paths
 	req.Node.Canonicalize()
 
-	if err := n.state.UpsertNodeMsgType(reqType, index, req.Node); err != nil {
+	if err := n.state.UpsertNode(reqType, index, req.Node); err != nil {
 		n.logger.Error("UpsertNode failed", "error", err)
 		return err
 	}
@@ -360,7 +360,7 @@ func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNodeMsgType(reqType, index, []string{req.NodeID}); err != nil {
+	if err := n.state.DeleteNode(reqType, index, []string{req.NodeID}); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
@@ -368,14 +368,14 @@ func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, 
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterNodeBatch(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterNodeBatch(reqType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_node"}, time.Now())
 	var req structs.NodeBatchDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteNode(index, req.NodeIDs); err != nil {
+	if err := n.state.DeleteNode(reqType, index, req.NodeIDs); err != nil {
 		n.logger.Error("DeleteNode failed", "error", err)
 		return err
 	}
@@ -433,7 +433,7 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		}
 	}
 
-	if err := n.state.UpdateNodeDrainMsgType(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
@@ -500,7 +500,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJobMsgType(msgType, index, req.Job); err != nil {
+	if err := n.state.UpsertJob(msgType, index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -708,7 +708,7 @@ func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, inde
 }
 
 func (n *nomadFSM) upsertEvals(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
-	if err := n.state.UpsertEvalsMsgType(msgType, index, evals); err != nil {
+	if err := n.state.UpsertEvals(msgType, index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
@@ -788,7 +788,7 @@ func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, ind
 		alloc.Canonicalize()
 	}
 
-	if err := n.state.UpsertAllocsMsgType(msgType, index, req.Alloc); err != nil {
+	if err := n.state.UpsertAllocs(msgType, index, req.Alloc); err != nil {
 		n.logger.Error("UpsertAllocs failed", "error", err)
 		return err
 	}
@@ -892,7 +892,7 @@ func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte,
 		panic(fmt.Errorf("failed to decode EmitNodeEventsRequest: %v", err))
 	}
 
-	if err := n.state.UpsertNodeEventsMsgType(msgType, index, req.NodeEvents); err != nil {
+	if err := n.state.UpsertNodeEvents(msgType, index, req.NodeEvents); err != nil {
 		n.logger.Error("failed to add node events", "error", err)
 		return err
 	}
@@ -1711,7 +1711,8 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
-		snap.UpsertEvals(100, []*structs.Evaluation{eval})
+		// Ignore eval event creation during snapshot restore
+		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
 		sched, err := scheduler.NewScheduler(eval.Type, n.logger, snap, planner)
 		if err != nil {

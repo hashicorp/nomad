@@ -85,7 +85,7 @@ func TestFSM_UpsertNodeEvents(t *testing.T) {
 
 	node := mock.Node()
 
-	err := state.UpsertNode(1000, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -408,7 +408,7 @@ func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
 	// Force a node into the state store without eligiblity
 	node := mock.Node()
 	node.SchedulingEligibility = ""
-	require.Nil(fsm.State().UpsertNode(1, node))
+	require.Nil(fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 	// Do an old style drain
 	req := structs.NodeUpdateDrainRequest{
@@ -1449,7 +1449,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	state := fsm.State()
 
 	node := mock.Node()
-	state.UpsertNode(1, node)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1, node)
 
 	// Mark an eval as blocked.
 	eval := mock.Eval()
@@ -1468,7 +1468,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	alloc2.NodeID = node.ID
 	state.UpsertJobSummary(8, mock.JobSummary(alloc.JobID))
 	state.UpsertJobSummary(9, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1535,7 +1535,7 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 
 	alloc := mock.Alloc()
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc})
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1586,7 +1586,7 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
 	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(10, []*structs.Allocation{alloc, alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
 
 	t1 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(true),
@@ -1817,7 +1817,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
-	fsm.State().UpsertEvals(1, []*structs.Evaluation{eval})
+	fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval})
 
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
 
@@ -1835,7 +1835,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	alloc2.JobID = job2.ID
 	alloc2.PreemptedByAllocation = alloc.ID
 
-	fsm.State().UpsertAllocs(1, []*structs.Allocation{alloc1, alloc2})
+	fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1, []*structs.Allocation{alloc1, alloc2})
 
 	// evals for preempted jobs
 	eval1 := mock.Eval()
@@ -1908,7 +1908,7 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	eval = mock.Eval()
 	eval.JobID = job.ID
 
-	fsm.State().UpsertEvals(2, []*structs.Evaluation{eval})
+	fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval})
 
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
@@ -2018,7 +2018,7 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 
 	// Upsert a deployment
 	job := mock.Job()
-	if err := state.UpsertJob(1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2063,7 +2063,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(1, j); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, j); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2101,7 +2101,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 		Healthy: helper.BoolToPtr(true),
 	}
 
-	if err := state.UpsertAllocs(3, []*structs.Allocation{c1, c2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2173,7 +2173,7 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 	a1.DeploymentID = d.ID
 	a2 := mock.Alloc()
 	a2.DeploymentID = d.ID
-	if err := state.UpsertAllocs(2, []*structs.Allocation{a1, a2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{a1, a2}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2494,12 +2494,12 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.UpsertNode(1000, node1)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	// Upgrade this node
 	node2 := mock.Node()
 	node2.SchedulingEligibility = ""
-	state.UpsertNode(1001, node2)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2521,9 +2521,9 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2545,9 +2545,9 @@ func TestFSM_SnapshotRestore_Evals(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	eval1 := mock.Eval()
-	state.UpsertEvals(1000, []*structs.Evaluation{eval1})
+	state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 	eval2 := mock.Eval()
-	state.UpsertEvals(1001, []*structs.Evaluation{eval2})
+	state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2572,8 +2572,8 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	alloc2 := mock.Alloc()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
-	state.UpsertAllocs(1001, []*structs.Allocation{alloc2})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2600,7 +2600,7 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 	alloc.AllocatedResources = nil
 
 	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2622,7 +2622,7 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	node1 := mock.Node()
-	state.UpsertNode(1000, node1)
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -2701,12 +2701,12 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	state := fsm.State()
 
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	ws := memdb.NewWatchSet()
 	js1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 
 	job2 := mock.Job()
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 	js2, _ := state.JobSummaryByID(ws, job2.Namespace, job2.ID)
 
 	// Verify the contents
@@ -2751,10 +2751,10 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
 	job2.ID = job1.ID
-	state.UpsertJob(1001, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2785,7 +2785,7 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	d1.JobID = j.ID
 	d2.JobID = j.ID
 
-	state.UpsertJob(999, j)
+	state.UpsertJob(structs.MsgTypeTestSetup, 999, j)
 	state.UpsertDeployment(1000, d1)
 	state.UpsertDeployment(1001, d2)
 
@@ -2891,18 +2891,18 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(800, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 800, node))
 
 	// Make a job so that none of the tasks can be placed
 	job1 := mock.Job()
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
-	require.NoError(t, state.UpsertJob(1000, job1))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1))
 
 	// make a job which can make partial progress
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.NoError(t, state.UpsertJob(1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	// Delete the summaries
 	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
@@ -2973,7 +2973,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 
 	// Add a node
 	node := mock.Node()
-	state.UpsertNode(800, node)
+	state.UpsertNode(structs.MsgTypeTestSetup, 800, node)
 
 	// Make a parameterized job
 	job1 := mock.BatchJob()
@@ -2982,7 +2982,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 		Payload: "random",
 	}
 	job1.TaskGroups[0].Count = 1
-	state.UpsertJob(1000, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 
 	// Make a child job
 	childJob := job1.Copy()
@@ -2998,8 +2998,8 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	alloc.JobID = childJob.ID
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 
-	state.UpsertJob(1010, childJob)
-	state.UpsertAllocs(1011, []*structs.Allocation{alloc})
+	state.UpsertJob(structs.MsgTypeTestSetup, 1010, childJob)
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc})
 
 	// Make the summary incorrect in the state store
 	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)

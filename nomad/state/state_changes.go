@@ -72,6 +72,7 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 		Txn:     c.memdb.Txn(true),
 		Index:   idx,
 		publish: c.publish,
+		msgType: structs.IgnoreUnknownTypeFlag, // The zero value of structs.MessageType is noderegistration.
 	}
 	t.Txn.TrackChanges()
 	return t

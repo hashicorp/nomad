@@ -1704,13 +1704,13 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if oldJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
 			updatedIndex = oldJob.JobModifyIndex + 1
-			if err := snap.UpsertJob(updatedIndex, args.Job); err != nil {
+			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, args.Job); err != nil {
 				return err
 			}
 		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
-		err := snap.UpsertJob(100, args.Job)
+		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, args.Job)
 		if err != nil {
 			return err
 		}
@@ -1733,7 +1733,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		ModifyTime: now,
 	}
 
-	snap.UpsertEvals(100, []*structs.Evaluation{eval})
+	// Ignore eval event creation during snapshot eval creation
+	snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 
 	// Create an in-memory Planner that returns no errors and stores the
 	// submitted plan and created evals.

@@ -335,10 +335,10 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node4 := mock.Node()
 	node4.Drain = true
 
-	require.NoError(t, state.UpsertNode(1000, node1))
-	require.NoError(t, state.UpsertNode(1001, node2))
-	require.NoError(t, state.UpsertNode(1002, node3))
-	require.NoError(t, state.UpsertNode(1003, node4))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4))
 
 	nodes, dc, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
 	require.NoError(t, err)
@@ -394,10 +394,10 @@ func TestTaintedNodes(t *testing.T) {
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.Node()
 	node4.Drain = true
-	require.NoError(t, state.UpsertNode(1000, node1))
-	require.NoError(t, state.UpsertNode(1001, node2))
-	require.NoError(t, state.UpsertNode(1002, node3))
-	require.NoError(t, state.UpsertNode(1003, node4))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4))
 
 	allocs := []*structs.Allocation{
 		{NodeID: node1.ID},
@@ -868,7 +868,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -895,7 +895,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that prevents in-place updates.
 	tg := &structs.TaskGroup{}
@@ -923,7 +923,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -950,7 +950,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that requires too much resources.
 	tg := &structs.TaskGroup{}
@@ -974,7 +974,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(900, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -1001,7 +1001,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.
 	tg := &structs.TaskGroup{}

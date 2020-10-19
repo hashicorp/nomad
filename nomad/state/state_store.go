@@ -782,26 +782,11 @@ func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID stri
 	return nil, 0, nil
 }
 
-// UpsertNodeMsgType is used to register a node or update a node definition
-// This is assumed to be triggered by the client, so we retain the value
-// of drain/eligibility which is set by the scheduler.
-// TODO(drew) remove this and update all test callers of UpsertNode to use msgType
-func (s *StateStore) UpsertNodeMsgType(msgType structs.MessageType, index uint64, node *structs.Node) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
-	defer txn.Abort()
-
-	err := upsertNodeTxn(txn, index, node)
-	if err != nil {
-		return nil
-	}
-	return txn.Commit()
-}
-
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
-func (s *StateStore) UpsertNode(index uint64, node *structs.Node) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpsertNode(msgType structs.MessageType, index uint64, node *structs.Node) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	err := upsertNodeTxn(txn, index, node)
@@ -864,19 +849,7 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 }
 
 // DeleteNode deregisters a batch of nodes
-func (s *StateStore) DeleteNodeMsgType(msgType structs.MessageType, index uint64, nodes []string) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
-	defer txn.Abort()
-
-	err := deleteNodeTxn(txn, index, nodes)
-	if err != nil {
-		return nil
-	}
-	return txn.Commit()
-}
-
-// DeleteNode deregisters a batch of nodes
-func (s *StateStore) DeleteNode(index uint64, nodes []string) error {
+func (s *StateStore) DeleteNode(msgType structs.MessageType, index uint64, nodes []string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -979,20 +952,7 @@ func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uin
 }
 
 // UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrainMsgType(msgType structs.MessageType, index uint64, nodeID string,
-	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
-
-	txn := s.db.WriteTxnMsgT(msgType, index)
-	defer txn.Abort()
-	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
-		return err
-	}
-	return txn.Commit()
-}
-
-// UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrain(index uint64, nodeID string,
-	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeDrain(msgType structs.MessageType, index uint64, nodeID string, drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
@@ -1091,23 +1051,10 @@ func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index ui
 	return txn.Commit()
 }
 
-func (s *StateStore) UpsertNodeEventsMsgType(msgType structs.MessageType, index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
-	defer txn.Abort()
-
-	for nodeID, events := range nodeEvents {
-		if err := s.upsertNodeEvents(index, nodeID, events, txn); err != nil {
-			return err
-		}
-	}
-
-	return txn.Commit()
-}
-
 // UpsertNodeEvents adds the node events to the nodes, rotating events as
 // necessary.
-func (s *StateStore) UpsertNodeEvents(index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpsertNodeEvents(msgType structs.MessageType, index uint64, nodeEvents map[string][]*structs.NodeEvent) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	for nodeID, events := range nodeEvents {
@@ -1496,18 +1443,8 @@ func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 }
 
 // UpsertJob is used to register a job or update a job definition
-func (s *StateStore) UpsertJob(index uint64, job *structs.Job) error {
+func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, job *structs.Job) error {
 	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
-		return err
-	}
-	return txn.Commit()
-}
-
-// UpsertJob is used to register a job or update a job definition
-func (s *StateStore) UpsertJobMsgType(msgType structs.MessageType, index uint64, job *structs.Job) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
 		return err
@@ -2711,19 +2648,7 @@ func (s *StateStore) PeriodicLaunches(ws memdb.WatchSet) (memdb.ResultIterator, 
 }
 
 // UpsertEvals is used to upsert a set of evaluations
-func (s *StateStore) UpsertEvals(index uint64, evals []*structs.Evaluation) error {
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-
-	err := s.UpsertEvalsTxn(index, evals, txn)
-	if err == nil {
-		return txn.Commit()
-	}
-	return err
-}
-
-// UpsertEvals is used to upsert a set of evaluations
-func (s *StateStore) UpsertEvalsMsgType(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
+func (s *StateStore) UpsertEvals(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
@@ -3154,19 +3079,8 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 
 // UpsertAllocs is used to evict a set of allocations and allocate new ones at
 // the same time.
-func (s *StateStore) UpsertAllocs(index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpsertAllocs(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
-		return err
-	}
-	return txn.Commit()
-}
-
-// UpsertAllocsMsgType is used to evict a set of allocations and allocate new ones at
-// the same time.
-func (s *StateStore) UpsertAllocsMsgType(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
-	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
 		return err

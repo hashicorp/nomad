@@ -133,7 +133,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	require.NoError(t, state.UpsertNode(1000, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 	// Create the volume
 	vols := []*structs.CSIVolume{{
@@ -232,7 +232,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
 
 	// Create an initial volume claim request; we expect it to fail
 	// because there's no such volume yet.
@@ -260,7 +260,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(index, node)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, node)
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
@@ -312,7 +312,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc2}))
 	claimReq.AllocationID = alloc2.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	require.EqualError(t, err, "volume max claim reached",
@@ -346,7 +346,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc3}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc3}))
 	claimReq.AllocationID = alloc3.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	require.NoError(t, err)
@@ -401,7 +401,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	err := state.UpsertNode(1002, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1002, node)
 	require.NoError(t, err)
 	vols := []*structs.CSIVolume{{
 		ID:                 id0,
@@ -419,7 +419,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	alloc.NodeID = node.ID
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	// Make the volume claim
 	claimReq := &structs.CSIVolumeClaimRequest{
@@ -481,7 +481,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 		},
 	}
 	index++
-	require.NoError(t, state.UpsertNode(index, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	type tc struct {
 		name           string
@@ -529,7 +529,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			alloc.ClientStatus = structs.AllocClientStatusFailed
 
 			index++
-			require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc}))
+			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
 
 			// setup: claim the volume for our alloc
 			claim := &structs.CSIVolumeClaim{
@@ -899,7 +899,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
 		"adam": {PluginID: "adam", Healthy: true},
 	}
-	err := state.UpsertNode(3, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 3, node)
 	require.NoError(t, err)
 
 	// Create 2 volumes

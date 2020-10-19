@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
@@ -63,7 +64,7 @@ func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}

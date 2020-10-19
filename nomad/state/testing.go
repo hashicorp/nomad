@@ -108,7 +108,7 @@ func createTestCSIPlugin(s *StateStore, id string, requiresController bool) func
 	index := uint64(999)
 	for _, n := range ns {
 		index++
-		s.UpsertNode(index, n)
+		s.UpsertNode(structs.MsgTypeTestSetup, index, n)
 	}
 
 	ids := make([]string, len(ns))
@@ -119,6 +119,6 @@ func createTestCSIPlugin(s *StateStore, id string, requiresController bool) func
 	// Return cleanup function that deletes the nodes
 	return func() {
 		index++
-		s.DeleteNode(index, ids)
+		s.DeleteNode(structs.MsgTypeTestSetup, index, ids)
 	}
 }

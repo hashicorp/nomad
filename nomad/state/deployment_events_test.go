@@ -79,7 +79,7 @@ func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, tim
 		}
 		maxAttempts--
 		if maxAttempts == 0 {
-			require.Fail(t, "reached max attempts waiting for desired event count")
+			require.Failf(t, "reached max attempts waiting for desired event count", "count %d", len(got))
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
