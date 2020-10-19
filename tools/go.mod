@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad/tools
 
-go 1.14
+go 1.15
 
 require (
 	github.com/a8m/tree v0.0.0-20201019170308-9f4249a434f8
