@@ -102,10 +102,14 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			event := structs.Event{
-				Topic:     structs.TopicEval,
-				Type:      eventType,
-				Index:     changes.Index,
-				Key:       after.ID,
+				Topic: structs.TopicEval,
+				Type:  eventType,
+				Index: changes.Index,
+				Key:   after.ID,
+				FilterKeys: []string{
+					after.JobID,
+					after.DeploymentID,
+				},
 				Namespace: after.Namespace,
 				Payload: &EvalEvent{
 					Eval: after,

@@ -335,6 +335,8 @@ func TestGenericEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	e := events[0]
 	require.Equal(t, structs.TopicEval, e.Topic)
 	require.Equal(t, TypeEvalUpdated, e.Type)
+	require.Contains(t, e.FilterKeys, e2.JobID)
+	require.Contains(t, e.FilterKeys, e2.DeploymentID)
 	event := e.Payload.(*EvalEvent)
 	require.Equal(t, "blocked", event.Eval.Status)
 }
