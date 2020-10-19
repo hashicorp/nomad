@@ -39,6 +39,8 @@ func (tc *EventsTest) AfterEach(f *framework.F) {
 	for _, id := range tc.jobIDs {
 		j.Deregister(id, true, nil)
 	}
+	_, err := e2eutil.Command("nomad", "system", "gc")
+	f.NoError(err)
 }
 
 // TestDeploymentEvents registers a job then applies a change
