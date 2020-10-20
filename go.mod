@@ -4,8 +4,6 @@ go 1.14
 
 replace github.com/hashicorp/hcl/v2 => ../hcl/v2
 
-replace github.com/hashicorp/hcl => ../hcl1
-
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 	github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
@@ -16,6 +14,7 @@ replace (
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
 	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
+	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
 require (

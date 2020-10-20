@@ -427,6 +427,8 @@ github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatibl
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
 github.com/hashicorp/hcl v1.0.1-0.20191016231534-914dc3f8dd7c h1:PdZEHcpa3117kJ1Wa5EYupzCzn9QlBby8Fx2YpZPYvo=
 github.com/hashicorp/hcl v1.0.1-0.20191016231534-914dc3f8dd7c/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
+github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee h1:8B4HqvMUtYSjsGkYjiQGStc9pXffY2J+Z2SPQAj+wMY=
+github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee/go.mod h1:gwlu9+/P9MmKtYrMsHeFRZPXj2CTPm11TDnMeaRHS7g=
 github.com/hashicorp/hil v0.0.0-20160711231837-1e86c6b523c5 h1:uk280DXEbQiCOZgCOI3elFSeNxf8YIZiNsbr2pQLYD0=
 github.com/hashicorp/hil v0.0.0-20160711231837-1e86c6b523c5/go.mod h1:KHvg/R2/dPtaePb16oW4qIyzkMxXOL38xjRN64adsts=
 github.com/hashicorp/logutils v1.0.0 h1:dLEQVugN8vlakKOUE3ihGLTZJRB4j+M2cdTm/ORI65Y=
