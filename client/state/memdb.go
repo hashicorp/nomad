@@ -73,7 +73,7 @@ func (m *MemDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, er
 	return allocs, map[string]error{}, nil
 }
 
-func (m *MemDB) PutAllocation(alloc *structs.Allocation) error {
+func (m *MemDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.allocs[alloc.ID] = alloc
@@ -99,7 +99,7 @@ func (m *MemDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, e
 	return m.networkStatus[allocID], nil
 }
 
-func (m *MemDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus) error {
+func (m *MemDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error {
 	m.mu.Lock()
 	m.networkStatus[allocID] = ns
 	defer m.mu.Unlock()
@@ -175,7 +175,7 @@ func (m *MemDB) DeleteTaskBucket(allocID, taskName string) error {
 	return nil
 }
 
-func (m *MemDB) DeleteAllocationBucket(allocID string) error {
+func (m *MemDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

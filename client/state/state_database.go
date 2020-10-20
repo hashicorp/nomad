@@ -234,8 +234,8 @@ func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, m
 }
 
 // PutAllocation stores an allocation or returns an error.
-func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		// Retrieve the root allocations bucket
 		allocsBkt, err := tx.CreateBucketIfNotExists(allocationsBucketName)
 		if err != nil {
@@ -321,8 +321,8 @@ type networkStatusEntry struct {
 
 // PutDeploymentStatus stores an allocation's DeploymentStatus or returns an
 // error.
-func (s *BoltStateDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		return putNetworkStatusImpl(tx, allocID, ds)
 	})
 }
@@ -493,8 +493,8 @@ func (s *BoltStateDB) DeleteTaskBucket(allocID, taskName string) error {
 }
 
 // DeleteAllocationBucket is used to delete an allocation bucket if it exists.
-func (s *BoltStateDB) DeleteAllocationBucket(allocID string) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		// Retrieve the root allocations bucket
 		allocations := tx.Bucket(allocationsBucketName)
 		if allocations == nil {
@@ -723,6 +723,19 @@ func (s *BoltStateDB) init() error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		return addMeta(tx.BoltTx())
 	})
+}
+
+// updateWithOptions enables adjustments to db.Update operation, including Batch mode.
+func (s *BoltStateDB) updateWithOptions(opts []WriteOption, updateFn func(tx *boltdd.Tx) error) error {
+	writeOpts := mergeWriteOptions(opts)
+
+	if writeOpts.BatchMode {
+		// In Batch mode, BoltDB opportunistically combines multiple concurrent writes into one or
+		// several transactions. See boltdb.Batch() documentation for details.
+		return s.db.Batch(updateFn)
+	} else {
+		return s.db.Update(updateFn)
+	}
 }
 
 // Upgrade bolt state db from 0.8 schema to 0.9 schema. Noop if already using

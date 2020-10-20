@@ -23,7 +23,7 @@ func (n NoopDB) GetAllAllocations() ([]*structs.Allocation, map[string]error, er
 	return nil, nil, nil
 }
 
-func (n NoopDB) PutAllocation(*structs.Allocation) error {
+func (n NoopDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
 	return nil
 }
 
@@ -39,7 +39,7 @@ func (n NoopDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, e
 	return nil, nil
 }
 
-func (n NoopDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus) error {
+func (n NoopDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus, opts ...WriteOption) error {
 	return nil
 }
 
@@ -59,7 +59,7 @@ func (n NoopDB) DeleteTaskBucket(allocID, taskName string) error {
 	return nil
 }
 
-func (n NoopDB) DeleteAllocationBucket(allocID string) error {
+func (n NoopDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
 	return nil
 }
 

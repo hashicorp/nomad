@@ -24,9 +24,9 @@ type StateDB interface {
 	// If a single error is returned then both allocations and the map will be nil.
 	GetAllAllocations() ([]*structs.Allocation, map[string]error, error)
 
-	// PulAllocation stores an allocation or returns an error if it could
+	// PutAllocation stores an allocation or returns an error if it could
 	// not be stored.
-	PutAllocation(*structs.Allocation) error
+	PutAllocation(*structs.Allocation, ...WriteOption) error
 
 	// Get/Put DeploymentStatus get and put the allocation's deployment
 	// status. It may be nil.
@@ -36,7 +36,7 @@ type StateDB interface {
 	// Get/Put NetworkStatus get and put the allocation's network
 	// status. It may be nil.
 	GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error)
-	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus) error
+	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error
 
 	// GetTaskRunnerState returns the LocalState and TaskState for a
 	// TaskRunner. Either state may be nil if it is not found, but if an
@@ -57,7 +57,7 @@ type StateDB interface {
 
 	// DeleteAllocationBucket deletes an allocation's state bucket if it
 	// exists. No error is returned if it does not exist.
-	DeleteAllocationBucket(allocID string) error
+	DeleteAllocationBucket(allocID string, opts ...WriteOption) error
 
 	// GetDevicePluginState is used to retrieve the device manager's plugin
 	// state.
@@ -78,10 +78,43 @@ type StateDB interface {
 	// GetDynamicPluginRegistryState is used to retrieve a dynamic plugin manager's state.
 	GetDynamicPluginRegistryState() (*dynamicplugins.RegistryState, error)
 
-	// PutDynamicPluginRegistryState is used to store the dynamic plugin managers's state.
+	// PutDynamicPluginRegistryState is used to store the dynamic plugin manager's state.
 	PutDynamicPluginRegistryState(state *dynamicplugins.RegistryState) error
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.
 	Close() error
+}
+
+// WriteOptions adjusts the way the data is persisted by the StateDB above. Default is
+// zero/false values for all fields. To provide different values, use With* functions
+// below, like this: statedb.PutAllocation(alloc, WithBatchMode())
+type WriteOptions struct {
+	// In Batch mode, concurrent writes (Put* and Delete* operations above) are
+	// coalesced into a single transaction, increasing write performance. To benefit
+	// from this mode, writes must happen concurrently in goroutines, as every write
+	// request still waits for the shared transaction to commit before returning.
+	// See https://github.com/boltdb/bolt#batch-read-write-transactions for details.
+	// This mode is only supported for BoltDB state backend and is ignored in other backends.
+	BatchMode bool
+}
+
+// WriteOption is a function that modifies WriteOptions struct above.
+type WriteOption func(*WriteOptions)
+
+// mergeWriteOptions creates a final WriteOptions struct to be used by the write methods above
+// from a list of WriteOption-s provided as variadic arguments.
+func mergeWriteOptions(opts []WriteOption) WriteOptions {
+	writeOptions := WriteOptions{} // Default WriteOptions is zero value.
+	for _, opt := range opts {
+		opt(&writeOptions)
+	}
+	return writeOptions
+}
+
+// Enable Batch mode for write requests (Put* and Delete* operations above).
+func WithBatchMode() WriteOption {
+	return func(s *WriteOptions) {
+		s.BatchMode = true
+	}
 }

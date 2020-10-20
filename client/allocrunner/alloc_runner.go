@@ -888,7 +888,7 @@ func (ar *allocRunner) PersistState() error {
 	defer ar.destroyedLock.Unlock()
 
 	if ar.destroyed {
-		err := ar.stateDB.DeleteAllocationBucket(ar.id)
+		err := ar.stateDB.DeleteAllocationBucket(ar.id, cstate.WithBatchMode())
 		if err != nil {
 			ar.logger.Warn("failed to delete allocation bucket", "error", err)
 		}
@@ -896,23 +896,25 @@ func (ar *allocRunner) PersistState() error {
 	}
 
 	// persist network status, wrapping in a func to release state lock as early as possible
-	if err := func() error {
+	err := func() error {
 		ar.stateLock.Lock()
 		defer ar.stateLock.Unlock()
 		if ar.state.NetworkStatus != nil {
-			if err := ar.stateDB.PutNetworkStatus(ar.id, ar.state.NetworkStatus); err != nil {
+			err := ar.stateDB.PutNetworkStatus(ar.id, ar.state.NetworkStatus, cstate.WithBatchMode())
+			if err != nil {
 				return err
 			}
 		}
 		return nil
-	}(); err != nil {
+	}()
+	if err != nil {
 		return err
 	}
 
 	// TODO: consider persisting deployment state along with task status.
 	// While we study why only the alloc is persisted, I opted to maintain current
 	// behavior and not risk adding yet more IO calls unnecessarily.
-	return ar.stateDB.PutAllocation(ar.Alloc())
+	return ar.stateDB.PutAllocation(ar.Alloc(), cstate.WithBatchMode())
 }
 
 // Destroy the alloc runner by stopping it if it is still running and cleaning
