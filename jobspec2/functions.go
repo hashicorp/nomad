@@ -23,12 +23,9 @@ import (
 // using local path. Usually basedir is the directory in which the config file
 // is located
 //
-func Functions(basedir string) map[string]function.Function {
-
+func Functions(basedir string, allowFS bool) map[string]function.Function {
 	funcs := map[string]function.Function{
 		"abs":             stdlib.AbsoluteFunc,
-		"abspath":         filesystem.AbsPathFunc,
-		"basename":        filesystem.BasenameFunc,
 		"base64decode":    encoding.Base64DecodeFunc,
 		"base64encode":    encoding.Base64EncodeFunc,
 		"bcrypt":          crypto.BcryptFunc,
@@ -47,12 +44,8 @@ func Functions(basedir string) map[string]function.Function {
 		"contains":        stdlib.ContainsFunc,
 		"convert":         typeexpr.ConvertFunc,
 		"csvdecode":       stdlib.CSVDecodeFunc,
-		"dirname":         filesystem.DirnameFunc,
 		"distinct":        stdlib.DistinctFunc,
 		"element":         stdlib.ElementFunc,
-		"file":            filesystem.MakeFileFunc(basedir, false),
-		"fileexists":      filesystem.MakeFileExistsFunc(basedir),
-		"fileset":         filesystem.MakeFileSetFunc(basedir),
 		"flatten":         stdlib.FlattenFunc,
 		"floor":           stdlib.FloorFunc,
 		"format":          stdlib.FormatFunc,
@@ -73,7 +66,6 @@ func Functions(basedir string) map[string]function.Function {
 		"merge":           stdlib.MergeFunc,
 		"min":             stdlib.MinFunc,
 		"parseint":        stdlib.ParseIntFunc,
-		"pathexpand":      filesystem.PathExpandFunc,
 		"pow":             stdlib.PowFunc,
 		"range":           stdlib.RangeFunc,
 		"reverse":         stdlib.ReverseFunc,
@@ -109,6 +101,16 @@ func Functions(basedir string) map[string]function.Function {
 		"yamldecode": ctyyaml.YAMLDecodeFunc,
 		"yamlencode": ctyyaml.YAMLEncodeFunc,
 		"zipmap":     stdlib.ZipmapFunc,
+	}
+
+	if allowFS {
+		funcs["abspath"] = filesystem.AbsPathFunc
+		funcs["basename"] = filesystem.BasenameFunc
+		funcs["dirname"] = filesystem.DirnameFunc
+		funcs["file"] = filesystem.MakeFileFunc(basedir, false)
+		funcs["fileexists"] = filesystem.MakeFileExistsFunc(basedir)
+		funcs["fileset"] = filesystem.MakeFileSetFunc(basedir)
+		funcs["pathexpand"] = filesystem.PathExpandFunc
 	}
 
 	return funcs

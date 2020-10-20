@@ -18,7 +18,7 @@ import (
 )
 
 func Parse(path string, r io.Reader) (*api.Job, error) {
-	return ParseWithArgs(path, r, nil)
+	return ParseWithArgs(path, r, nil, false)
 }
 
 func toVars(vars map[string]string) cty.Value {
@@ -30,7 +30,7 @@ func toVars(vars map[string]string) cty.Value {
 	return cty.ObjectVal(attrs)
 }
 
-func ParseWithArgs(path string, r io.Reader, vars map[string]string) (*api.Job, error) {
+func ParseWithArgs(path string, r io.Reader, vars map[string]string, allowFS bool) (*api.Job, error) {
 	if path == "" {
 		if f, ok := r.(*os.File); ok {
 			path = f.Name()
@@ -45,7 +45,7 @@ func ParseWithArgs(path string, r io.Reader, vars map[string]string) (*api.Job, 
 	}
 
 	evalContext := &hcl.EvalContext{
-		Functions: Functions(basedir),
+		Functions: Functions(basedir, allowFS),
 		Variables: map[string]cty.Value{
 			"vars": toVars(vars),
 		},

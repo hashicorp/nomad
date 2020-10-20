@@ -447,7 +447,7 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars map[string]string) (*api.J
 	if j.hcl1 {
 		jobStruct, err = jobspec.Parse(jobfile)
 	} else {
-		jobStruct, err = jobspec2.ParseWithArgs(pathName, jobfile, vars)
+		jobStruct, err = jobspec2.ParseWithArgs(pathName, jobfile, vars, true)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
