@@ -15,6 +15,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/consultemplate"
 	_ "github.com/hashicorp/nomad/e2e/csi"
 	_ "github.com/hashicorp/nomad/e2e/deployment"
+	_ "github.com/hashicorp/nomad/e2e/events"
 	_ "github.com/hashicorp/nomad/e2e/example"
 	_ "github.com/hashicorp/nomad/e2e/lifecycle"
 	_ "github.com/hashicorp/nomad/e2e/metrics"
