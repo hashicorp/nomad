@@ -50,6 +50,8 @@ type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
 
+	HCLv1 bool `json:"hclv1,omitempty"`
+
 	// Canonicalize is a flag as to if the server should return default values
 	// for unset fields
 	Canonicalize bool
