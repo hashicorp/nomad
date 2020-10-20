@@ -328,12 +328,8 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 
 - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
   proxy sidecar on client nodes.
-- Changes to the `connect` stanza may not properly trigger a job update
-  ([#6459][gh6459]). Changing a `meta` variable is the suggested workaround as
-  this will always cause an update to occur.
 - Consul Connect using network namespaces is only supported on Linux.
 
 [count-dashboard]: /img/count-dashboard.png
 [gh6120]: https://github.com/hashicorp/nomad/issues/6120
 [gh6701]: https://github.com/hashicorp/nomad/issues/6701
-[gh6459]: https://github.com/hashicorp/nomad/issues/6459
