@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
@@ -138,6 +139,11 @@ func TestStateDB_Allocations(t *testing.T) {
 	})
 }
 
+// Integer division, rounded up.
+func ceilDiv(a, b int) int {
+	return (a + b - 1) / b
+}
+
 // TestStateDB_Batch asserts the behavior of PutAllocation, PutNetworkStatus and
 // DeleteAllocationBucket in batch mode, for all operational StateDB implementations.
 func TestStateDB_Batch(t *testing.T) {
@@ -149,6 +155,8 @@ func TestStateDB_Batch(t *testing.T) {
 		// For BoltDB, get initial tx_id
 		var getTxID func() int
 		var prevTxID int
+		var batchDelay time.Duration
+		var batchSize int
 		if boltStateDB, ok := db.(*BoltStateDB); ok {
 			boltdb := boltStateDB.DB().BoltDB()
 			getTxID = func() int {
@@ -158,11 +166,15 @@ func TestStateDB_Batch(t *testing.T) {
 				return tx.ID()
 			}
 			prevTxID = getTxID()
+			batchDelay = boltdb.MaxBatchDelay
+			batchSize = boltdb.MaxBatchSize
 		}
 
 		// Write 1000 allocations and network statuses in batch mode
+		startTime := time.Now()
+		const numAllocs = 1000
 		var allocs []*structs.Allocation
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < numAllocs; i++ {
 			allocs = append(allocs, mock.Alloc())
 		}
 		var wg sync.WaitGroup
@@ -178,11 +190,14 @@ func TestStateDB_Batch(t *testing.T) {
 
 		// Check BoltDB actually combined PutAllocation calls into much fewer transactions.
 		// The actual number of transactions depends on how fast the goroutines are spawned,
-		// with every 10ms period saved in a separate transaction (see boltdb MaxBatchDelay
-		// and MaxBatchSize parameters).
+		// with every batchDelay (10ms by default) period saved in a separate transaction,
+		// plus each transaction is limited to batchSize writes (1000 by default).
+		// See boltdb MaxBatchDelay and MaxBatchSize parameters for more details.
 		if getTxID != nil {
 			numTransactions := getTxID() - prevTxID
-			require.Less(numTransactions, 10)
+			writeTime := time.Now().Sub(startTime)
+			expectedNumTransactions := ceilDiv(2 * numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
+			require.LessOrEqual(numTransactions, expectedNumTransactions)
 			prevTxID = getTxID()
 		}
 
@@ -210,6 +225,7 @@ func TestStateDB_Batch(t *testing.T) {
 		}
 
 		// Delete all allocs in batch mode
+		startTime = time.Now()
 		for _, alloc := range allocs {
 			wg.Add(1)
 			go func(alloc *structs.Allocation) {
@@ -222,7 +238,9 @@ func TestStateDB_Batch(t *testing.T) {
 		// Check BoltDB combined DeleteAllocationBucket calls into much fewer transactions.
 		if getTxID != nil {
 			numTransactions := getTxID() - prevTxID
-			require.Less(numTransactions, 10)
+			writeTime := time.Now().Sub(startTime)
+			expectedNumTransactions := ceilDiv(numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
+			require.LessOrEqual(numTransactions, expectedNumTransactions)
 			prevTxID = getTxID()
 		}
 
