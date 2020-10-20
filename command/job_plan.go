@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	cflags "github.com/hashicorp/consul/command/flags"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
@@ -101,12 +102,15 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
+	var varArgs cflags.AppendSliceValue
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&diff, "diff", true, "")
 	flags.BoolVar(&policyOverride, "policy-override", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flags.Var(&varArgs, "var", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 255
@@ -122,7 +126,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJob(args[0])
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], parseVars(varArgs))
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
