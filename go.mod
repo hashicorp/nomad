@@ -11,7 +11,6 @@ replace (
 	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
-	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
 )
 
 require (
@@ -111,7 +110,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200314001724-bdab42bd5128 // indirect
-	github.com/shirou/gopsutil v2.20.2+incompatible
+	github.com/shirou/gopsutil v2.20.9+incompatible
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
