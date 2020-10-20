@@ -101,19 +101,37 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"yamldecode": ctyyaml.YAMLDecodeFunc,
 		"yamlencode": ctyyaml.YAMLEncodeFunc,
 		"zipmap":     stdlib.ZipmapFunc,
-	}
 
-	if allowFS {
-		funcs["abspath"] = filesystem.AbsPathFunc
-		funcs["basename"] = filesystem.BasenameFunc
-		funcs["dirname"] = filesystem.DirnameFunc
-		funcs["file"] = filesystem.MakeFileFunc(basedir, false)
-		funcs["fileexists"] = filesystem.MakeFileExistsFunc(basedir)
-		funcs["fileset"] = filesystem.MakeFileSetFunc(basedir)
-		funcs["pathexpand"] = filesystem.PathExpandFunc
+		// filesystem calls
+		"abspath":    guardFS(allowFS, filesystem.AbsPathFunc),
+		"basename":   guardFS(allowFS, filesystem.BasenameFunc),
+		"dirname":    guardFS(allowFS, filesystem.DirnameFunc),
+		"file":       guardFS(allowFS, filesystem.MakeFileFunc(basedir, false)),
+		"fileexists": guardFS(allowFS, filesystem.MakeFileExistsFunc(basedir)),
+		"fileset":    guardFS(allowFS, filesystem.MakeFileSetFunc(basedir)),
+		"pathexpand": guardFS(allowFS, filesystem.PathExpandFunc),
 	}
 
 	return funcs
+}
+
+func guardFS(allowFS bool, fn function.Function) function.Function {
+	if allowFS {
+		return fn
+	}
+
+	spec := &function.Spec{
+		Params:   fn.Params(),
+		VarParam: fn.VarParam(),
+		Type: func([]cty.Value) (cty.Type, error) {
+			return cty.DynamicPseudoType, fmt.Errorf("filesystem function disabled")
+		},
+		Impl: func([]cty.Value, cty.Type) (cty.Value, error) {
+			return cty.DynamicVal, fmt.Errorf("filesystem functions disabled")
+		},
+	}
+
+	return function.New(spec)
 }
 
 var unimplFunc = function.New(&function.Spec{
@@ -122,5 +140,18 @@ var unimplFunc = function.New(&function.Spec{
 	},
 	Impl: func([]cty.Value, cty.Type) (cty.Value, error) {
 		return cty.DynamicVal, fmt.Errorf("function not yet implemented")
+	},
+})
+
+var disabledFSFunc = function.New(&function.Spec{
+	VarParam: &function.Parameter{
+		Name: "args",
+		Type: cty.DynamicPseudoType,
+	},
+	Type: func([]cty.Value) (cty.Type, error) {
+		return cty.DynamicPseudoType, fmt.Errorf("filesystem function disabled")
+	},
+	Impl: func([]cty.Value, cty.Type) (cty.Value, error) {
+		return cty.DynamicVal, fmt.Errorf("filesystem functions disabled")
 	},
 })

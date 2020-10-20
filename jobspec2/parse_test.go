@@ -76,12 +76,20 @@ job "example" {
 }
 `
 
-	out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), nil, true)
-	require.NoError(t, err)
+	t.Run("enabled", func(t *testing.T) {
+		out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), nil, true)
+		require.NoError(t, err)
 
-	expected, err := ioutil.ReadFile("parse_test.go")
-	require.NoError(t, err)
+		expected, err := ioutil.ReadFile("parse_test.go")
+		require.NoError(t, err)
 
-	require.NotNil(t, out.Region)
-	require.Equal(t, string(expected), *out.Region)
+		require.NotNil(t, out.Region)
+		require.Equal(t, string(expected), *out.Region)
+	})
+
+	t.Run("disabled", func(t *testing.T) {
+		_, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), nil, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "filesystem function disabled")
+	})
 }
