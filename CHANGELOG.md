@@ -1,3 +1,11 @@
+## 0.11.5 (October 21, 2020)
+
+SECURITY:
+
+ * artifact: Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+
 ## 0.11.4 (August 7, 2020)
 
 SECURITY:
@@ -139,6 +147,14 @@ BUG FIXES:
  * driver/docker: Fixed a bug causing docker containers to use swap memory unexpectedly [[GH-7550](https://github.com/hashicorp/nomad/issues/7550)]
  * scheduler: Fixed a bug where changes to task group `shutdown_delay` were not persisted or displayed in plan output [[GH-7618](https://github.com/hashicorp/nomad/issues/7618)]
  * ui: Fixed handling of multi-byte unicode characters in allocation log view [[GH-7470](https://github.com/hashicorp/nomad/issues/7470)] [[GH-7551](https://github.com/hashicorp/nomad/pull/7551)]
+
+## 0.10.6 (October 21, 2020)
+
+SECURITY:
+
+ * artifact: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: _Backport from v0.12.6_ - Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
 
 ## 0.10.5 (March 24, 2020)
 

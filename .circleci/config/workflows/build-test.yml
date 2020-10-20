@@ -15,8 +15,6 @@ jobs:
             - /^docs-.*/
             - stable-website
 
-  - build-darwin-binaries:
-      filters: *backend_branches_filter
   - test-windows:
       filters: *backend_branches_filter
 
