@@ -43,6 +43,12 @@ $darker-side: darken($lighter-side, 15%);
     animation: cube-spin $duration forwards infinite;
   }
 
+  @media (prefers-reduced-motion) {
+    .cube {
+      animation-iteration-count: 0;
+    }
+  }
+
   &.paused {
     .cube,
     .side-4,
