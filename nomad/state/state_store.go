@@ -112,6 +112,15 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	return s, nil
 }
 
+// NewWatchSet returns a new memdb.WatchSet that adds the state stores abandonCh
+// as a watcher. This is important in that it will notify when this specific
+// state store is no longer valid, usually due to a new snapshot being loaded
+func (s *StateStore) NewWatchSet() memdb.WatchSet {
+	ws := memdb.NewWatchSet()
+	ws.Add(s.AbandonCh())
+	return ws
+}
+
 func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
 	if s.db.publisher == nil {
 		return nil, fmt.Errorf("EventBroker not configured")

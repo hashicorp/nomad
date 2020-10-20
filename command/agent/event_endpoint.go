@@ -19,7 +19,7 @@ import (
 
 func (s *HTTPServer) EventSinksRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodGet {
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.EventSinkListRequest{}
@@ -42,7 +42,7 @@ func (s *HTTPServer) EventSinksRequest(resp http.ResponseWriter, req *http.Reque
 func (s *HTTPServer) EventSinkSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	name := strings.TrimPrefix(req.URL.Path, "/v1/event/sink/")
 	if len(name) == 0 {
-		return nil, CodedError(400, "Missing Policy Name")
+		return nil, CodedError(http.StatusBadRequest, "Missing Policy Name")
 	}
 	switch req.Method {
 	case http.MethodGet:

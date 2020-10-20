@@ -306,6 +306,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically publish job status metrics
 	go s.publishJobStatusMetrics(stopCh)
 
+	// Send events to configured network sinks
+	go s.publishEventsForSinks(stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -988,6 +991,27 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 			s.iterateJobStatusMetrics(&iter)
 		}
 	}
+}
+
+func (s *Server) publishEventsForSinks(stopCh chan struct{}) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// cancel context when stopCh is closed
+	go func() {
+		<-stopCh
+		cancel()
+	}()
+
+	manager, err := NewSinkManager(ctx, s.State, s.logger)
+	if err != nil {
+		s.logger.Warn("unable to create sink manager for server", "error", err)
+		return
+	}
+
+	// Start the manager
+	manager.Run()
+
 }
 
 func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {

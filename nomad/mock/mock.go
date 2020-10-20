@@ -1522,5 +1522,8 @@ func EventSink() *structs.EventSink {
 		ID:      fmt.Sprintf("webhook-sink-%s", uuid.Generate()[0:8]),
 		Type:    structs.SinkWebhook,
 		Address: "http://127.0.0.1/",
+		Topics: map[structs.Topic][]string{
+			structs.TopicAll: {"*"},
+		},
 	}
 }
