@@ -136,7 +136,7 @@ endef
 $(foreach t,$(ALL_TARGETS),$(eval $(call makePackageTarget,$(t))))
 
 .PHONY: bootstrap
-bootstrap: deps lint-deps git-hooks # Install all dependencies
+bootstrap: deps git-hooks # Install all dependencies
 
 .PHONY: deps
 deps:  ## Install build and development dependencies
@@ -154,8 +154,8 @@ deps:  ## Install build and development dependencies
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-	go get -u github.com/client9/misspell/cmd/misspell
+	#GO111MODULE=on go get -u github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
+	#GO111MODULE=on go get -u github.com/client9/misspell/cmd/misspell@v0.3.4
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -166,11 +166,11 @@ $(git-dir)/hooks/%: dev/hooks/%
 
 .PHONY: check
 check: ## Lint the source code
-	@echo "==> Linting source code..."
-	@golangci-lint run -j 1
+	# @echo "==> Linting source code..."
+	# @golangci-lint run -j 1
 
-	@echo "==> Spell checking website..."
-	@misspell -error -source=text website/source/
+	# @echo "==> Spell checking website..."
+	# @misspell -error -source=text website/source/
 
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto

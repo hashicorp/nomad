@@ -3,7 +3,9 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -386,4 +388,23 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 	}
 
 	return result
+}
+
+// GetPathInSandbox returns a cleaned path inside the sandbox directory
+// (typically this will be the allocation directory). Relative paths will be
+// joined to the sandbox directory. Returns an error if the path escapes the
+// sandbox directory.
+func GetPathInSandbox(sandboxDir, path string) (string, error) {
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(sandboxDir, path)
+	}
+	path = filepath.Clean(path)
+	rel, err := filepath.Rel(sandboxDir, path)
+	if err != nil {
+		return path, err
+	}
+	if strings.HasPrefix(rel, "..") {
+		return path, fmt.Errorf("%q escapes sandbox directory", path)
+	}
+	return path, nil
 }
