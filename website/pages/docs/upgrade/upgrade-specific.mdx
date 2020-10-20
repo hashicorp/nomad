@@ -89,6 +89,24 @@ the time of the upgrade for each node will ensure Connect workloads are properly
 rescheduled onto nodes in such a way that the Nomad Clients, Consul agents, and
 Envoy sidecar tasks maintain compatibility with one another.
 
+## Nomad 0.12.6
+
+### Artifact and Template Paths
+
+Nomad 0.12.6 includes security fixes for privilege escalation vulnerabilities
+in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
 
 ## Nomad 0.12.0
 
@@ -164,6 +182,25 @@ plugin "qemu" {
 }
 ```
 
+## Nomad 0.11.5
+
+### Artifact and Template Paths
+
+Nomad 0.11.5 includes backported security fixes for privilege escalation
+vulnerabilities in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
+
 ## Nomad 0.11.3
 
 Nomad 0.11.3 fixes a critical bug causing the nomad agent to become
@@ -218,6 +255,25 @@ code is available in an external repository,
 it will not be maintained as `rkt` is [no longer being developed
 upstream](https://github.com/rkt/rkt). We encourage all `rkt` users to find a
 new task driver as soon as possible.
+
+## Nomad 0.10.6
+
+### Artifact and Template Paths
+
+Nomad 0.10.6 includes backported security fixes for privilege escalation
+vulnerabilities in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
 
 ## Nomad 0.10.4
 
