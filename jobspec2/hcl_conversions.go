@@ -15,6 +15,11 @@ import (
 
 var hclDecoder *gohcl.Decoder
 
+func init() {
+	hclDecoder = newHCLDecoder()
+	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.TaskGroup{}), decodeTaskGroup)
+}
+
 func newHCLDecoder() *gohcl.Decoder {
 	decoder := &gohcl.Decoder{}
 	// time conversion
@@ -28,10 +33,6 @@ func newHCLDecoder() *gohcl.Decoder {
 	decoder.RegisterBlockDecoder(reflect.TypeOf(jobWrapper{}), decodeJob)
 
 	return decoder
-}
-func init() {
-	hclDecoder = newHCLDecoder()
-	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.TaskGroup{}), decodeTaskGroup)
 }
 
 func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
