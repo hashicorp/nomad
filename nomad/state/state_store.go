@@ -102,7 +102,6 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		broker := stream.NewEventBroker(ctx, stream.EventBrokerCfg{
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
-			OnEvict:         s.eventBrokerEvict,
 		})
 		s.db = NewChangeTrackerDB(db, broker, processDBChanges, config.DurableEventCount)
 	} else {
@@ -122,30 +121,6 @@ func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
 		return nil, fmt.Errorf("EventBroker not configured")
 	}
 	return s.db.publisher, nil
-}
-
-// eventBrokerEvict is used as a callback to delete an evicted events
-// entry from go-memdb.
-func (s *StateStore) eventBrokerEvict(events *structs.Events) {
-	if err := s.deleteEvent(events); err != nil {
-		if err == memdb.ErrNotFound {
-			s.logger.Info("Evicted event was not found in go-memdb table", "event index", events.Index)
-		} else {
-			s.logger.Error("Error deleting event from events table", "error", err)
-		}
-	}
-}
-
-func (s *StateStore) deleteEvent(events *structs.Events) error {
-	txn := s.db.memdb.Txn(true)
-	defer txn.Abort()
-
-	if err := txn.Delete("events", events); err != nil {
-		return err
-	}
-
-	txn.Commit()
-	return nil
 }
 
 // Config returns the state store configuration.
@@ -5707,6 +5682,44 @@ func (s *StateStore) UpsertEvents(index uint64, events *structs.Events) error {
 		return err
 	}
 	return txn.Commit()
+}
+
+func insertAndPruneEvents(txn *txn, keep int, events *structs.Events) error {
+	// Insert new events
+	if err := txn.Insert("events", events); err != nil {
+		return err
+	}
+
+	// Reverse iterator starting from newest to oldest
+	iter, err := txn.GetReverse("events", "id")
+	if err != nil {
+		return fmt.Errorf("events lookup failed: %v", err)
+	}
+
+	var count int
+	var oldEvents []*structs.Events
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		e := raw.(*structs.Events)
+
+		count += len(e.Events)
+
+		// Count is greater than amount to keep, mark for deletion
+		if count > keep {
+			oldEvents = append(oldEvents, e)
+		}
+	}
+
+	for _, e := range oldEvents {
+		if err := txn.Delete("events", e); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot

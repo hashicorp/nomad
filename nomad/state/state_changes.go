@@ -79,14 +79,12 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 }
 
 func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) *txn {
-	persistChanges := c.durableCount > 0
-
 	t := &txn{
-		msgType:        msgType,
-		Txn:            c.memdb.Txn(true),
-		Index:          idx,
-		publish:        c.publish,
-		persistChanges: persistChanges,
+		msgType:           msgType,
+		Txn:               c.memdb.Txn(true),
+		Index:             idx,
+		publish:           c.publish,
+		durableEventCount: int(c.durableCount),
 	}
 	t.Txn.TrackChanges()
 	return t
@@ -130,7 +128,7 @@ type txn struct {
 	// msgType is used to inform event sourcing which type of event to create
 	msgType structs.MessageType
 
-	persistChanges bool
+	durableEventCount int
 
 	*memdb.Txn
 	// Index in raft where the write is occurring. The value is zero for a
@@ -162,9 +160,9 @@ func (tx *txn) Commit() error {
 			return err
 		}
 
-		if tx.persistChanges && events != nil {
+		if tx.durableEventCount > 0 && events != nil {
 			// persist events after processing changes
-			err := tx.Txn.Insert("events", events)
+			err := insertAndPruneEvents(tx, tx.durableEventCount, events)
 			if err != nil {
 				return err
 			}

@@ -595,7 +595,6 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			if index, ok := getLatest(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
 			}
-
 		case <-stopCh:
 			return
 		}

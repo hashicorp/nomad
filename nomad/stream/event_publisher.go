@@ -19,7 +19,6 @@ const (
 type EventBrokerCfg struct {
 	EventBufferSize int64
 	Logger          hclog.Logger
-	OnEvict         EvictCallbackFn
 }
 
 type EventBroker struct {
@@ -53,7 +52,7 @@ func NewEventBroker(ctx context.Context, cfg EventBrokerCfg) *EventBroker {
 		cfg.EventBufferSize = 100
 	}
 
-	buffer := newEventBuffer(cfg.EventBufferSize, cfg.OnEvict)
+	buffer := newEventBuffer(cfg.EventBufferSize)
 	e := &EventBroker{
 		logger:    cfg.Logger.Named("event_broker"),
 		eventBuf:  buffer,

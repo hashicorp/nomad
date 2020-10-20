@@ -9523,6 +9523,98 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 	require.Equal(expectedEvents, actualEvents)
 }
 
+func TestStateStore_InsertAndPruneEvents(t *testing.T) {
+	t.Parallel()
+
+	s := testStateStore(t)
+
+	for i := 1; i < 101; i++ {
+		txn := s.db.WriteTxn(uint64(i))
+		e := structs.Events{
+			Index:  uint64(i),
+			Events: []structs.Event{{}}, // single event
+		}
+		require.NoError(t, insertAndPruneEvents(txn, 100, &e))
+		txn.Commit()
+	}
+
+	getEvents := func() []*structs.Events {
+		iter, err := s.Events(nil)
+		require.NoError(t, err)
+
+		var out []*structs.Events
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			e := raw.(*structs.Events)
+			out = append(out, e)
+		}
+		return out
+	}
+
+	total := getEvents()
+	require.Len(t, total, 100)
+
+	for i := 101; i < 201; i++ {
+		txn := s.db.WriteTxn(uint64(i))
+		e := structs.Events{
+			Index:  uint64(i),
+			Events: []structs.Event{{}, {}}, // two events
+		}
+		require.NoError(t, insertAndPruneEvents(txn, 100, &e))
+		txn.Commit()
+	}
+
+	total = getEvents()
+	require.Len(t, total, 50)
+}
+
+// TestStateStore_Changes_InsertAndPruneEvents tests insert and prune events
+// behavior when invoked through state store change publishing functionality
+// instead of being called directly
+func TestStateStore_Changes_InsertAndPruneEvents(t *testing.T) {
+	t.Parallel()
+
+	cfg := TestStateStorePublisher(t)
+	cfg.DurableEventCount = 100
+	cfg.EventBufferSize = 100
+	cfg.EnablePublisher = true
+
+	s := TestStateStoreCfg(t, cfg)
+
+	for i := 1; i < 101; i++ {
+		require.NoError(t, s.UpsertNode(structs.NodeRegisterRequestType, uint64(i), mock.Node()))
+	}
+
+	getEvents := func() []*structs.Events {
+		iter, err := s.Events(nil)
+		require.NoError(t, err)
+
+		var out []*structs.Events
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			e := raw.(*structs.Events)
+			out = append(out, e)
+		}
+		return out
+	}
+
+	total := getEvents()
+	require.Len(t, total, 100)
+
+	for i := 101; i < 201; i++ {
+		require.NoError(t, s.UpsertNode(structs.NodeRegisterRequestType, uint64(i), mock.Node()))
+	}
+
+	total = getEvents()
+	require.Len(t, total, 100)
+}
+
 func TestStateStore_RestoreScalingEvents(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

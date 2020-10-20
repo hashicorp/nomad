@@ -220,26 +220,3 @@ func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
 		})
 	}
 }
-
-func TestEventBuffer_OnEvict(t *testing.T) {
-	called := make(chan struct{})
-	testOnEvict := func(events *structs.Events) {
-		close(called)
-	}
-	b := newEventBuffer(2, testOnEvict)
-
-	// start at 1 since new event buffer is built with a starting sentinel value
-	for i := 1; i < 4; i++ {
-		e := structs.Event{
-			Index: uint64(i), // Indexes should be contiguous
-		}
-		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
-	}
-
-	select {
-	case <-called:
-		// testOnEvict called
-	case <-time.After(100 * time.Millisecond):
-		require.Fail(t, "expected testOnEvict to be called")
-	}
-}
