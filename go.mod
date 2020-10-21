@@ -2,8 +2,6 @@ module github.com/hashicorp/nomad
 
 go 1.14
 
-replace github.com/hashicorp/hcl/v2 => ../hcl/v2
-
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 	github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
@@ -14,7 +12,6 @@ replace (
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
 	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
-	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
 require (
@@ -76,8 +73,8 @@ require (
 	github.com/hashicorp/go-uuid v1.0.1
 	github.com/hashicorp/go-version v1.2.1-0.20191009193637-2046c9d0f0b0
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/hashicorp/hcl v1.0.1-0.20191016231534-914dc3f8dd7c
-	github.com/hashicorp/hcl/v2 v2.6.0
+	github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
+	github.com/hashicorp/hcl/v2 v2.7.1-0.20201020204811-68a97f93bb48
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/memberlist v0.2.2
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69

@@ -11,36 +11,28 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-type ExprDecoderFunc func(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics
+// ExpressionDecoderFunc represents custom expression decoder for a specific type
+type ExpressionDecoderFunc func(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics
+
+// BodyDecoderFunc represents custom body decoder for a specific type
 type BodyDecoderFunc func(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics
 
-type typeSchema struct {
-	schema  *hcl.BodySchema
-	partial bool
-}
 type Decoder struct {
-	exprConvertors map[reflect.Type]ExprDecoderFunc
+	exprConvertors map[reflect.Type]ExpressionDecoderFunc
 	bodyConvertors map[reflect.Type]BodyDecoderFunc
-	typeSchemas    map[reflect.Type]*typeSchema
 }
 
 var global = &Decoder{}
 
-func (d *Decoder) RegisterSchema(typ reflect.Type, schema *hcl.BodySchema, partial bool) {
-	if d.typeSchemas == nil {
-		d.typeSchemas = map[reflect.Type]*typeSchema{}
-	}
-
-	d.typeSchemas[typ] = &typeSchema{schema, partial}
-}
-
-func (d *Decoder) RegisterExprDecoder(typ reflect.Type, fn ExprDecoderFunc) {
+// RegisterExpressionDecoder registers a custom expression decoder for a target type.
+func (d *Decoder) RegisterExpressionDecoder(typ reflect.Type, fn ExpressionDecoderFunc) {
 	if d.exprConvertors == nil {
-		d.exprConvertors = map[reflect.Type]ExprDecoderFunc{}
+		d.exprConvertors = map[reflect.Type]ExpressionDecoderFunc{}
 	}
 	d.exprConvertors[typ] = fn
 }
 
+// RegisterBlockDecoder registers a custom block decoder for a target type.
 func (d *Decoder) RegisterBlockDecoder(typ reflect.Type, fn BodyDecoderFunc) {
 	if d.bodyConvertors == nil {
 		d.bodyConvertors = map[reflect.Type]BodyDecoderFunc{}
@@ -68,6 +60,22 @@ func DecodeBody(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagno
 	return global.DecodeBody(body, ctx, val)
 }
 
+// DecodeBody extracts the configuration within the given body into the given
+// value. This value must be a non-nil pointer to either a struct or
+// a map, where in the former case the configuration will be decoded using
+// struct tags and in the latter case only attributes are allowed and their
+// values are decoded into the map.
+//
+// The given EvalContext is used to resolve any variables or functions in
+// expressions encountered while decoding. This may be nil to require only
+// constant values, for simple applications that do not support variables or
+// functions.
+//
+// The returned diagnostics should be inspected with its HasErrors method to
+// determine if the populated value is valid and complete. If error diagnostics
+// are returned then the given value may have been partially-populated but
+// may still be accessed by a careful caller for static analysis and editor
+// integration use-cases.
 func (d *Decoder) DecodeBody(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	rv := reflect.ValueOf(val)
 	if rv.Kind() != reflect.Ptr {
@@ -376,16 +384,20 @@ func DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}
 	return global.DecodeExpression(expr, ctx, val)
 }
 
-func (d *Decoder) decodeCustomExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) (hcl.Diagnostics, bool) {
-	ty := reflect.TypeOf(val).Elem()
-	fn, ok := d.exprConvertors[ty]
-	if !ok {
-		return nil, false
-	}
-	diags := fn(expr, ctx, val)
-	return diags, true
-}
-
+// DecodeExpression extracts the value of the given expression into the given
+// value. This value must be something that gocty is able to decode into,
+// since the final decoding is delegated to that package.
+//
+// The given EvalContext is used to resolve any variables or functions in
+// expressions encountered while decoding. This may be nil to require only
+// constant values, for simple applications that do not support variables or
+// functions.
+//
+// The returned diagnostics should be inspected with its HasErrors method to
+// determine if the populated value is valid and complete. If error diagnostics
+// are returned then the given value may have been partially-populated but
+// may still be accessed by a careful caller for static analysis and editor
+// integration use-cases.
 func (d *Decoder) DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	if diags, ok := d.decodeCustomExpression(expr, ctx, val); ok {
 		return diags
@@ -422,4 +434,14 @@ func (d *Decoder) DecodeExpression(expr hcl.Expression, ctx *hcl.EvalContext, va
 	}
 
 	return diags
+}
+
+func (d *Decoder) decodeCustomExpression(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) (hcl.Diagnostics, bool) {
+	ty := reflect.TypeOf(val).Elem()
+	fn, ok := d.exprConvertors[ty]
+	if !ok {
+		return nil, false
+	}
+	diags := fn(expr, ctx, val)
+	return diags, true
 }

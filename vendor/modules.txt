@@ -460,7 +460,7 @@ github.com/hashicorp/go-version
 ## explicit
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
-# github.com/hashicorp/hcl v1.0.1-0.20191016231534-914dc3f8dd7c => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
+# github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 ## explicit
 github.com/hashicorp/hcl
 github.com/hashicorp/hcl/hcl/ast
@@ -471,7 +471,7 @@ github.com/hashicorp/hcl/hcl/token
 github.com/hashicorp/hcl/json/parser
 github.com/hashicorp/hcl/json/scanner
 github.com/hashicorp/hcl/json/token
-# github.com/hashicorp/hcl/v2 v2.6.0 => ../hcl/v2
+# github.com/hashicorp/hcl/v2 v2.7.1-0.20201020204811-68a97f93bb48
 ## explicit
 github.com/hashicorp/hcl/v2
 github.com/hashicorp/hcl/v2/ext/customdecode
@@ -1034,7 +1034,6 @@ honnef.co/go/tools/staticcheck
 honnef.co/go/tools/stylecheck
 honnef.co/go/tools/unused
 honnef.co/go/tools/version
-# github.com/hashicorp/hcl/v2 => ../hcl/v2
 # github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 # github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.0.0
 # github.com/apparentlymart/go-textseg/v12 => github.com/apparentlymart/go-textseg/v12 v12.0.0
@@ -1044,4 +1043,3 @@ honnef.co/go/tools/version
 # github.com/hashicorp/nomad/api => ./api
 # github.com/kr/pty => github.com/kr/pty v1.1.5
 # github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
-# github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
