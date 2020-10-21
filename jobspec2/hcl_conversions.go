@@ -24,8 +24,8 @@ func newHCLDecoder() *gohcl.Decoder {
 	decoder := &gohcl.Decoder{}
 	// time conversion
 	d := time.Duration(0)
-	decoder.RegisterExprDecoder(reflect.TypeOf(d), decodeDuration)
-	decoder.RegisterExprDecoder(reflect.TypeOf(&d), decodeDuration)
+	decoder.RegisterExpressionDecoder(reflect.TypeOf(d), decodeDuration)
+	decoder.RegisterExpressionDecoder(reflect.TypeOf(&d), decodeDuration)
 
 	// affinity
 	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
