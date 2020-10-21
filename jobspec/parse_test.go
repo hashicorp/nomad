@@ -135,9 +135,10 @@ func TestParse(t *testing.T) {
 								ExtraKeysHCL: nil,
 							},
 							"bar": {
-								Name:   "bar",
-								Type:   "csi",
-								Source: "bar-vol",
+								Name:     "bar",
+								Type:     "csi",
+								Source:   "bar-vol",
+								ReadOnly: true,
 								MountOptions: &api.CSIMountOptions{
 									FSType: "ext4",
 								},

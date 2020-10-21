@@ -209,20 +209,20 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 
 const (
 	job = `job "job1" {
-        type = "service"
-        datacenters = [ "dc1" ]
-        group "group1" {
-                count = 1
-                task "task1" {
-                        driver = "exec"
-                        resources = {}
-                }
-                restart{
-                        attempts = 10
-                        mode = "delay"
-						interval = "15s"
-                }
-        }
+  type        = "service"
+  datacenters = ["dc1"]
+  group "group1" {
+    count = 1
+    task "task1" {
+      driver = "exec"
+      resources {}
+    }
+    restart {
+      attempts = 10
+      mode     = "delay"
+      interval = "15s"
+    }
+  }
 }`
 )
 
