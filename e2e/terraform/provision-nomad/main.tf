@@ -58,7 +58,7 @@ data "template_file" "arg_nomad_version" {
 }
 
 data "template_file" "arg_nomad_binary" {
-  template = var.nomad_local_binary != "" ? " ${local._arg}nomad_binary ${var.nomad_local_binary}" : ""
+  template = var.nomad_local_binary != "" ? " ${local._arg}nomad_binary /tmp/nomad" : ""
 }
 
 data "template_file" "arg_nomad_enterprise" {
@@ -94,7 +94,7 @@ resource "null_resource" "upload_nomad_binary" {
     user        = var.connection.user
     host        = var.connection.host
     port        = var.connection.port
-    private_key = var.connection.private_key
+    private_key = file(var.connection.private_key)
     timeout     = "15m"
   }
 
@@ -116,7 +116,7 @@ resource "null_resource" "upload_custom_configs" {
     user        = var.connection.user
     host        = var.connection.host
     port        = var.connection.port
-    private_key = var.connection.private_key
+    private_key = file(var.connection.private_key)
     timeout     = "15m"
   }
 
