@@ -93,3 +93,29 @@ job "example" {
 		require.Contains(t, err.Error(), "filesystem function disabled")
 	})
 }
+
+func TestParseDynamic(t *testing.T) {
+	hcl := `
+job "example" {
+
+dynamic "group" {
+  for_each = ["groupA", "groupB", "groupC"]
+  labels   = [group.value]
+
+  content {
+    task "simple" {
+      driver = "raw_exec"
+
+    }
+  }
+}
+}
+`
+	out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), nil, true)
+	require.NoError(t, err)
+
+	require.Len(t, out.TaskGroups, 3)
+	require.Equal(t, "groupA", *out.TaskGroups[0].Name)
+	require.Equal(t, "groupB", *out.TaskGroups[1].Name)
+	require.Equal(t, "groupC", *out.TaskGroups[2].Name)
+}
