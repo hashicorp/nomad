@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -675,7 +676,14 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	jobfile := strings.NewReader(args.JobHCL)
-	jobStruct, err := jobspec.Parse(jobfile)
+
+	var jobStruct *api.Job
+	var err error
+	if args.HCLv1 {
+		jobStruct, err = jobspec.Parse(jobfile)
+	} else {
+		jobStruct, err = jobspec2.ParseWithArgs("input.hcl", jobfile, nil, false)
+	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
 	}
