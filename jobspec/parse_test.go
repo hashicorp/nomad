@@ -1422,8 +1422,8 @@ func TestParse(t *testing.T) {
 									ConnectTimeout:                  timeToPtr(3 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: true,
 									EnvoyGatewayBindAddresses: map[string]*api.ConsulGatewayBindAddress{
-										"listener1": {Address: "10.0.0.1", Port: 8888},
-										"listener2": {Address: "10.0.0.2", Port: 8889},
+										"listener1": {Name: "listener1", Address: "10.0.0.1", Port: 8888},
+										"listener2": {Name: "listener2", Address: "10.0.0.2", Port: 8889},
 									},
 									EnvoyGatewayNoDefaultBind: true,
 									Config:                    map[string]interface{}{"foo": "bar"},

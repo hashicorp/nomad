@@ -328,6 +328,7 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 }
 
 type ConsulGatewayBindAddress struct {
+	Name    string `hcl:",label"`
 	Address string `mapstructure:"address" hcl:"address,optional"`
 	Port    int    `mapstructure:"port" hcl:"port,optional"`
 }
