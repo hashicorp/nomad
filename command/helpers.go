@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -378,6 +379,9 @@ READ:
 }
 
 type JobGetter struct {
+	// Optional context path for loading additional files
+	// Defaults to jpath
+	ContextPath string
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
 }
@@ -385,6 +389,7 @@ type JobGetter struct {
 // StructJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	var jobfile io.Reader
+	var path string
 	switch jpath {
 	case "-":
 		if j.testStdin != nil {
@@ -435,6 +440,27 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	jobStruct, err := jobspec.Parse(jobfile)
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
+	}
+
+	if j.ContextPath != "" {
+		// Use the specified directory
+		path = j.ContextPath
+	} else if jpath != "-" {
+		// use the path of the jobfile, if it's an actual path
+		_, err := os.Stat(jpath)
+		if err == nil {
+			path = filepath.Dir(jpath)
+		} else {
+			path, err = os.Getwd()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Load additional context files, such as local templates
+	if err = jobspec.LoadContext(jobStruct, path); err != nil {
+		return nil, fmt.Errorf("Error loading job context in %s: %v", path, err)
 	}
 
 	return jobStruct, nil

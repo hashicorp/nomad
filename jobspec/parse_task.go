@@ -422,6 +422,7 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"data",
 			"destination",
 			"left_delimiter",
+			"local_source",
 			"perms",
 			"right_delimiter",
 			"source",
