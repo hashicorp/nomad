@@ -1,5 +1,29 @@
 # HCL Changelog
 
+## v2.7.0 (October 14, 2020)
+
+### Enhancements
+
+* json: There is a new function `ParseWithStartPos`, which allows overriding the starting position for parsing in case the given JSON bytes are a fragment of a larger document, such as might happen when decoding with `encoding/json` into a `json.RawMessage`. ([#389](https://github.com/hashicorp/hcl/pull/389))
+* json: There is a new function `ParseExpression`, which allows parsing a JSON string directly in expression mode, whereas previously it was only possible to parse a JSON string in body mode. ([#381](https://github.com/hashicorp/hcl/pull/381))
+* hclwrite: `Block` type now supports `SetType` and `SetLabels`, allowing surgical changes to the type and labels of an existing block without having to reconstruct the entire block. ([#340](https://github.com/hashicorp/hcl/pull/340))
+
+### Bugs Fixed
+
+* hclsyntax: Fix confusing error message for bitwise OR operator ([#380](https://github.com/hashicorp/hcl/pull/380))
+* hclsyntax: Several bug fixes for using HCL with values containing cty "marks" ([#404](https://github.com/hashicorp/hcl/pull/404), [#406](https://github.com/hashicorp/hcl/pull/404), [#407](https://github.com/hashicorp/hcl/pull/404))
+
+## v2.6.0 (June 4, 2020)
+
+### Enhancements
+
+* hcldec: Add a new `Spec`, `ValidateSpec`, which allows custom validation of values at decode-time. ([#387](https://github.com/hashicorp/hcl/pull/387))
+
+### Bugs Fixed
+
+* hclsyntax: Fix panic with combination of sequences and null arguments ([#386](https://github.com/hashicorp/hcl/pull/386))
+* hclsyntax: Fix handling of unknown values and sequences ([#386](https://github.com/hashicorp/hcl/pull/386))
+
 ## v2.5.1 (May 14, 2020)
 
 ### Bugs Fixed

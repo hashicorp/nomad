@@ -11,6 +11,8 @@ type EvalContext struct {
 	Variables map[string]cty.Value
 	Functions map[string]function.Function
 	parent    *EvalContext
+
+	UnknownVariable func(expr string) (cty.Value, error)
 }
 
 // NewChild returns a new EvalContext that is a child of the receiver.

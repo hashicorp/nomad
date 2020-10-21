@@ -60,16 +60,16 @@ type ScalingRequest struct {
 
 // ScalingPolicy is the user-specified API object for an autoscaling policy
 type ScalingPolicy struct {
-	ID          string
-	Namespace   string
-	Type        string
-	Target      map[string]string
-	Min         *int64
-	Max         *int64
-	Policy      map[string]interface{}
-	Enabled     *bool
-	CreateIndex uint64
-	ModifyIndex uint64
+	ID          string                 `hcl:"id,optional"`
+	Namespace   string                 `hcl:"namespace,optional"`
+	Type        string                 `hcl:"type,optional"`
+	Target      map[string]string      `hcl:"target,optional"`
+	Min         *int64                 `hcl:"min,optional"`
+	Max         *int64                 `hcl:"max,optional"`
+	Policy      map[string]interface{} `hcl:"policy,block"`
+	Enabled     *bool                  `hcl:"enabled,optional"`
+	CreateIndex uint64                 `hcl:"create_index,optional"`
+	ModifyIndex uint64                 `hcl:"modify_index,optional"`
 }
 
 // ScalingPolicyListStub is used to return a subset of scaling policy information

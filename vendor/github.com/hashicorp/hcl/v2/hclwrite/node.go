@@ -130,6 +130,36 @@ func (ns *nodes) AppendNode(n *node) {
 	}
 }
 
+// Insert inserts a nodeContent at a given position.
+// This is just a wrapper for InsertNode. See InsertNode for details.
+func (ns *nodes) Insert(pos *node, c nodeContent) *node {
+	n := &node{
+		content: c,
+	}
+	ns.InsertNode(pos, n)
+	n.list = ns
+	return n
+}
+
+// InsertNode inserts a node at a given position.
+// The first argument is a node reference before which to insert.
+// To insert it to an empty list, set position to nil.
+func (ns *nodes) InsertNode(pos *node, n *node) {
+	if pos == nil {
+		// inserts n to empty list.
+		ns.first = n
+		ns.last = n
+	} else {
+		// inserts n before pos.
+		pos.before.after = n
+		n.before = pos.before
+		pos.before = n
+		n.after = pos
+	}
+
+	n.list = ns
+}
+
 func (ns *nodes) AppendUnstructuredTokens(tokens Tokens) *node {
 	if len(tokens) == 0 {
 		return nil
@@ -175,6 +205,12 @@ func (ns nodeSet) Add(n *node) {
 
 func (ns nodeSet) Remove(n *node) {
 	delete(ns, n)
+}
+
+func (ns nodeSet) Clear() {
+	for n := range ns {
+		delete(ns, n)
+	}
 }
 
 func (ns nodeSet) List() []*node {

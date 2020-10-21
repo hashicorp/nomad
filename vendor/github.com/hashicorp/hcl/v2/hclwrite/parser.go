@@ -289,7 +289,6 @@ func parseAttribute(nativeAttr *hclsyntax.Attribute, from, leadComments, lineCom
 func parseBlock(nativeBlock *hclsyntax.Block, from, leadComments, lineComments, newline inputTokens) *node {
 	block := &Block{
 		inTree: newInTree(),
-		labels: newNodeSet(),
 	}
 	children := block.inTree.children
 
@@ -312,24 +311,13 @@ func parseBlock(nativeBlock *hclsyntax.Block, from, leadComments, lineComments, 
 		children.AppendNode(in)
 	}
 
-	for _, rng := range nativeBlock.LabelRanges {
-		var labelTokens inputTokens
-		before, labelTokens, from = from.Partition(rng)
-		children.AppendUnstructuredTokens(before.Tokens())
-		tokens := labelTokens.Tokens()
-		var ln *node
-		if len(tokens) == 1 && tokens[0].Type == hclsyntax.TokenIdent {
-			ln = newNode(newIdentifier(tokens[0]))
-		} else {
-			ln = newNode(newQuoted(tokens))
-		}
-		block.labels.Add(ln)
-		children.AppendNode(ln)
-	}
+	before, labelsNode, from := parseBlockLabels(nativeBlock, from)
+	block.labels = labelsNode
+	children.AppendNode(labelsNode)
 
 	before, oBrace, from := from.Partition(nativeBlock.OpenBraceRange)
 	children.AppendUnstructuredTokens(before.Tokens())
-	children.AppendUnstructuredTokens(oBrace.Tokens())
+	block.open = children.AppendUnstructuredTokens(oBrace.Tokens())
 
 	// We go a bit out of order here: we go hunting for the closing brace
 	// so that we have a delimited body, but then we'll deal with the body
@@ -342,7 +330,7 @@ func parseBlock(nativeBlock *hclsyntax.Block, from, leadComments, lineComments, 
 	children.AppendNode(body)
 	children.AppendUnstructuredTokens(after.Tokens())
 
-	children.AppendUnstructuredTokens(cBrace.Tokens())
+	block.close = children.AppendUnstructuredTokens(cBrace.Tokens())
 
 	// stragglers
 	children.AppendUnstructuredTokens(from.Tokens())
@@ -354,6 +342,34 @@ func parseBlock(nativeBlock *hclsyntax.Block, from, leadComments, lineComments, 
 	children.AppendUnstructuredTokens(newline.Tokens())
 
 	return newNode(block)
+}
+
+func parseBlockLabels(nativeBlock *hclsyntax.Block, from inputTokens) (inputTokens, *node, inputTokens) {
+	labelsObj := newBlockLabels(nil)
+	children := labelsObj.children
+
+	var beforeAll inputTokens
+	for i, rng := range nativeBlock.LabelRanges {
+		var before, labelTokens inputTokens
+		before, labelTokens, from = from.Partition(rng)
+		if i == 0 {
+			beforeAll = before
+		} else {
+			children.AppendUnstructuredTokens(before.Tokens())
+		}
+		tokens := labelTokens.Tokens()
+		var ln *node
+		if len(tokens) == 1 && tokens[0].Type == hclsyntax.TokenIdent {
+			ln = newNode(newIdentifier(tokens[0]))
+		} else {
+			ln = newNode(newQuoted(tokens))
+		}
+		labelsObj.items.Add(ln)
+		children.AppendNode(ln)
+	}
+
+	after := from
+	return beforeAll, newNode(labelsObj), after
 }
 
 func parseExpression(nativeExpr hclsyntax.Expression, from inputTokens) *node {
@@ -521,8 +537,8 @@ func writerTokens(nativeTokens hclsyntax.Tokens) Tokens {
 // The tokens are assumed to be in source order and non-overlapping, which
 // will be true if the token sequence from the scanner is used directly.
 func partitionTokens(toks hclsyntax.Tokens, rng hcl.Range) (start, end int) {
-	// We us a linear search here because we assume tha in most cases our
-	// target range is close to the beginning of the sequence, and the seqences
+	// We use a linear search here because we assume that in most cases our
+	// target range is close to the beginning of the sequence, and the sequences
 	// are generally small for most reasonable files anyway.
 	for i := 0; ; i++ {
 		if i >= len(toks) {

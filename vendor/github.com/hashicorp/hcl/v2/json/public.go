@@ -18,7 +18,16 @@ import (
 // from its HasErrors method. If HasErrors returns true, the file represents
 // the subset of data that was able to be parsed, which may be none.
 func Parse(src []byte, filename string) (*hcl.File, hcl.Diagnostics) {
-	rootNode, diags := parseFileContent(src, filename)
+	return ParseWithStartPos(src, filename, hcl.Pos{Byte: 0, Line: 1, Column: 1})
+}
+
+// ParseWithStartPos attempts to parse like json.Parse, but unlike json.Parse
+// you can pass a start position of the given JSON as a hcl.Pos.
+//
+// In most cases json.Parse should be sufficient, but it can be useful for parsing
+// a part of JSON with correct positions.
+func ParseWithStartPos(src []byte, filename string, start hcl.Pos) (*hcl.File, hcl.Diagnostics) {
+	rootNode, diags := parseFileContent(src, filename, start)
 
 	switch rootNode.(type) {
 	case *objectVal, *arrayVal:
@@ -60,6 +69,20 @@ func Parse(src []byte, filename string) (*hcl.File, hcl.Diagnostics) {
 		Nav:   navigation{rootNode},
 	}
 	return file, diags
+}
+
+// ParseExpression parses the given buffer as a standalone JSON expression,
+// returning it as an instance of Expression.
+func ParseExpression(src []byte, filename string) (hcl.Expression, hcl.Diagnostics) {
+	return ParseExpressionWithStartPos(src, filename, hcl.Pos{Byte: 0, Line: 1, Column: 1})
+}
+
+// ParseExpressionWithStartPos parses like json.ParseExpression, but unlike
+// json.ParseExpression you can pass a start position of the given JSON
+// expression as a hcl.Pos.
+func ParseExpressionWithStartPos(src []byte, filename string, start hcl.Pos) (hcl.Expression, hcl.Diagnostics) {
+	node, diags := parseExpression(src, filename, start)
+	return &expression{src: node}, diags
 }
 
 // ParseFile is a convenience wrapper around Parse that first attempts to load
