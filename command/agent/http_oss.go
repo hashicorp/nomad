@@ -8,10 +8,6 @@ import (
 
 // registerEnterpriseHandlers is a no-op for the oss release
 func (s *HTTPServer) registerEnterpriseHandlers() {
-	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.entOnly))
-	s.mux.HandleFunc("/v1/namespace", s.wrap(s.entOnly))
-	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.entOnly))
-
 	s.mux.HandleFunc("/v1/sentinel/policies", s.wrap(s.entOnly))
 	s.mux.HandleFunc("/v1/sentinel/policy/", s.wrap(s.entOnly))
 

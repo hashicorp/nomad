@@ -32,26 +32,29 @@ const (
 type SnapshotType byte
 
 const (
-	NodeSnapshot SnapshotType = iota
-	JobSnapshot
-	IndexSnapshot
-	EvalSnapshot
-	AllocSnapshot
-	TimeTableSnapshot
-	PeriodicLaunchSnapshot
-	JobSummarySnapshot
-	VaultAccessorSnapshot
-	JobVersionSnapshot
-	DeploymentSnapshot
-	ACLPolicySnapshot
-	ACLTokenSnapshot
-	SchedulerConfigSnapshot
-	ClusterMetadataSnapshot
-	ServiceIdentityTokenAccessorSnapshot
-	ScalingPolicySnapshot
-	CSIPluginSnapshot
-	CSIVolumeSnapshot
-	ScalingEventsSnapshot
+	NodeSnapshot                         SnapshotType = 0
+	JobSnapshot                          SnapshotType = 1
+	IndexSnapshot                        SnapshotType = 2
+	EvalSnapshot                         SnapshotType = 3
+	AllocSnapshot                        SnapshotType = 4
+	TimeTableSnapshot                    SnapshotType = 5
+	PeriodicLaunchSnapshot               SnapshotType = 6
+	JobSummarySnapshot                   SnapshotType = 7
+	VaultAccessorSnapshot                SnapshotType = 8
+	JobVersionSnapshot                   SnapshotType = 9
+	DeploymentSnapshot                   SnapshotType = 10
+	ACLPolicySnapshot                    SnapshotType = 11
+	ACLTokenSnapshot                     SnapshotType = 12
+	SchedulerConfigSnapshot              SnapshotType = 13
+	ClusterMetadataSnapshot              SnapshotType = 14
+	ServiceIdentityTokenAccessorSnapshot SnapshotType = 15
+	ScalingPolicySnapshot                SnapshotType = 16
+	CSIPluginSnapshot                    SnapshotType = 17
+	CSIVolumeSnapshot                    SnapshotType = 18
+	ScalingEventsSnapshot                SnapshotType = 19
+
+	// Namespace appliers were moved from enterprise and therefore start at 64
+	NamespaceSnapshot SnapshotType = 64
 )
 
 // LogApplier is the definition of a function that can apply a Raft log
@@ -286,6 +289,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyCSIVolumeBatchClaim(buf[1:], log.Index)
 	case structs.CSIPluginDeleteRequestType:
 		return n.applyCSIPluginDelete(buf[1:], log.Index)
+	case structs.NamespaceUpsertRequestType:
+		return n.applyNamespaceUpsert(buf[1:], log.Index)
+	case structs.NamespaceDeleteRequestType:
+		return n.applyNamespaceDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1248,6 +1255,58 @@ func (n *nomadFSM) applyCSIPluginDelete(buf []byte, index uint64) interface{} {
 	return nil
 }
 
+// applyNamespaceUpsert is used to upsert a set of namespaces
+func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_upsert"}, time.Now())
+	var req structs.NamespaceUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	var trigger []string
+	for _, ns := range req.Namespaces {
+		old, err := n.state.NamespaceByName(nil, ns.Name)
+		if err != nil {
+			n.logger.Error("namespace lookup failed", "error", err)
+			return err
+		}
+
+		// If we are changing the quota on a namespace trigger evals for the
+		// older quota.
+		if old != nil && old.Quota != "" && old.Quota != ns.Quota {
+			trigger = append(trigger, old.Quota)
+		}
+	}
+
+	if err := n.state.UpsertNamespaces(index, req.Namespaces); err != nil {
+		n.logger.Error("UpsertNamespaces failed", "error", err)
+		return err
+	}
+
+	// Send the unblocks
+	for _, quota := range trigger {
+		n.blockedEvals.UnblockQuota(quota, index)
+	}
+
+	return nil
+}
+
+// applyNamespaceDelete is used to delete a set of namespaces
+func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_delete"}, time.Now())
+	var req structs.NamespaceDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
+		n.logger.Error("DeleteNamespaces failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -1514,6 +1573,16 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 			if err := restore.CSIVolumeRestore(plugin); err != nil {
 				return err
 			}
+
+		case NamespaceSnapshot:
+			namespace := new(structs.Namespace)
+			if err := dec.Decode(namespace); err != nil {
+				return err
+			}
+			if err := restore.NamespaceRestore(namespace); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1814,6 +1883,9 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	}
 	if err := s.persistACLTokens(sink, encoder); err != nil {
 		sink.Cancel()
+		return err
+	}
+	if err := s.persistNamespaces(sink, encoder); err != nil {
 		return err
 	}
 	if err := s.persistEnterpriseTables(sink, encoder); err != nil {
@@ -2171,6 +2243,34 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		// Write out a token registration
 		sink.Write([]byte{byte(ACLTokenSnapshot)})
 		if err := encoder.Encode(token); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// persistNamespaces persists all the namespaces.
+func (s *nomadSnapshot) persistNamespaces(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	// Get all the jobs
+	ws := memdb.NewWatchSet()
+	namespaces, err := s.snap.Namespaces(ws)
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Get the next item
+		raw := namespaces.Next()
+		if raw == nil {
+			break
+		}
+
+		// Prepare the request struct
+		namespace := raw.(*structs.Namespace)
+
+		// Write out a namespace registration
+		sink.Write([]byte{byte(NamespaceSnapshot)})
+		if err := encoder.Encode(namespace); err != nil {
 			return err
 		}
 	}
