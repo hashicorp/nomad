@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	cflags "github.com/hashicorp/consul/command/flags"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
@@ -27,6 +28,11 @@ Alias: nomad validate
   If the supplied path is "-", the jobfile is read from stdin. Otherwise
   it is read from the file at the supplied path or downloaded and
   read from URL specified.
+
+Validate Options:
+
+  -hcl1
+    Parses the job file as HCLv1.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -36,7 +42,10 @@ func (c *JobValidateCommand) Synopsis() string {
 }
 
 func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
-	return nil
+	return complete.Flags{
+		"-hcl1": complete.PredictNothing,
+		"-var":  complete.PredictAnything,
+	}
 }
 
 func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
@@ -46,8 +55,13 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
+	var varArgs cflags.AppendSliceValue
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetNone)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flags.Var(&varArgs, "var", "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -61,7 +75,7 @@ func (c *JobValidateCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJob(args[0])
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], parseVars(varArgs))
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1

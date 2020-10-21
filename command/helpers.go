@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -378,13 +380,20 @@ READ:
 }
 
 type JobGetter struct {
+	hcl1 bool
+
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
 }
 
 // StructJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
+	return j.ApiJobWithArgs(jpath, nil)
+}
+
+func (j *JobGetter) ApiJobWithArgs(jpath string, vars map[string]string) (*api.Job, error) {
 	var jobfile io.Reader
+	pathName := filepath.Base(jpath)
 	switch jpath {
 	case "-":
 		if j.testStdin != nil {
@@ -392,6 +401,7 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 		} else {
 			jobfile = os.Stdin
 		}
+		pathName = "stdin.hcl"
 	default:
 		if len(jpath) == 0 {
 			return nil, fmt.Errorf("Error jobfile path has to be specified.")
@@ -432,9 +442,15 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	}
 
 	// Parse the JobFile
-	jobStruct, err := jobspec.Parse(jobfile)
+	var jobStruct *api.Job
+	var err error
+	if j.hcl1 {
+		jobStruct, err = jobspec.Parse(jobfile)
+	} else {
+		jobStruct, err = jobspec2.ParseWithArgs(pathName, jobfile, vars, true)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
+		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}
 
 	return jobStruct, nil
