@@ -1508,7 +1508,7 @@ func AllocNetworkStatus() *structs.AllocNetworkStatus {
 
 func EventSink() *structs.EventSink {
 	return &structs.EventSink{
-		ID:        "webhook-sink",
+		ID:        fmt.Sprintf("webhook-sink-%s", uuid.Generate()[0:8]),
 		Namespace: structs.DefaultNamespace,
 		Type:      structs.SinkWebhook,
 		Address:   "http://127.0.0.1/",

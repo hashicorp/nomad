@@ -21,7 +21,22 @@ func (s *HTTPServer) EventSinksRequest(resp http.ResponseWriter, req *http.Reque
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	return nil, nil
+
+	args := structs.EventSinkListRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.EventSinkListResponse
+	if err := s.agent.RPC("Event.ListSinks", &args, &out); err != nil {
+		return nil, err
+	}
+
+	if out.Sinks == nil {
+		out.Sinks = make([]*structs.EventSink, 0)
+	}
+	setMeta(resp, &out.QueryMeta)
+	return out.Sinks, nil
 }
 
 func (s *HTTPServer) EventSinkSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -32,7 +47,7 @@ func (s *HTTPServer) EventSinkSpecificRequest(resp http.ResponseWriter, req *htt
 	switch req.Method {
 	case http.MethodGet:
 		return s.eventSinkGet(resp, req, name)
-	case http.MethodPost:
+	case http.MethodPost, http.MethodPut:
 		return s.eventSinkUpdate(resp, req, name)
 	case http.MethodDelete:
 		return s.eventSinkDelete(resp, req, name)
@@ -42,7 +57,6 @@ func (s *HTTPServer) EventSinkSpecificRequest(resp http.ResponseWriter, req *htt
 }
 
 func (s *HTTPServer) eventSinkGet(resp http.ResponseWriter, req *http.Request, sink string) (interface{}, error) {
-
 	args := structs.EventSinkSpecificRequest{
 		ID: sink,
 	}
@@ -76,15 +90,31 @@ func (s *HTTPServer) eventSinkUpdate(resp http.ResponseWriter, req *http.Request
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
+	if args.Sink.Namespace == "" {
+		args.Sink.Namespace = args.WriteRequest.Namespace
+	}
+
 	var out structs.GenericResponse
 	if err := s.agent.RPC("Event.UpsertSink", &args, &out); err != nil {
 		return nil, err
 	}
+
 	setIndex(resp, out.Index)
 	return nil, nil
 }
 
 func (s *HTTPServer) eventSinkDelete(resp http.ResponseWriter, req *http.Request, sink string) (interface{}, error) {
+
+	args := structs.EventSinkDeleteRequest{
+		IDs: []string{sink},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.GenericResponse
+	if err := s.agent.RPC("Event.DeleteSink", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
 	return nil, nil
 }
 

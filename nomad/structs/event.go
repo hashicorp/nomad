@@ -89,6 +89,15 @@ type EventSinkDeleteRequest struct {
 	WriteRequest
 }
 
+type EventSinkListRequest struct {
+	QueryOptions
+}
+
+type EventSinkListResponse struct {
+	Sinks []*EventSink
+	QueryMeta
+}
+
 type SinkType string
 
 const (

@@ -605,3 +605,30 @@ func TestEvent_DeleteSink(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, out)
 }
+
+func TestEvent_ListSinks(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	sink := mock.EventSink()
+	sink2 := mock.EventSink()
+
+	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, structs.DefaultNamespace, sink))
+	require.NoError(t, s1.fsm.State().UpsertEventSink(1001, structs.DefaultNamespace, sink2))
+
+	get := &structs.EventSinkListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	var resp structs.EventSinkListResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.ListSinks", get, &resp))
+	require.Len(t, resp.Sinks, 2)
+
+}

@@ -327,6 +327,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
 
 	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
+	s.mux.HandleFunc("/v1/event/sinks", s.wrap(s.EventSinksRequest))
+	s.mux.HandleFunc("/v1/event/sink/", s.wrap(s.EventSinkSpecificRequest))
 
 	if uiEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))

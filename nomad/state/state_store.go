@@ -5656,6 +5656,20 @@ func (s *StateStore) eventSinkByIDTxn(ws memdb.WatchSet, namespace, id string, t
 	return nil, nil
 }
 
+func (s *StateStore) EventSinksByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire event sink table
+	iter, err := txn.Get("event_sink", "id_prefix", namespace, "")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 func (s *StateStore) UpsertEventSink(idx uint64, namespace string, sink *structs.EventSink) error {
 	txn := s.db.WriteTxn(idx)
 	defer txn.Abort()
