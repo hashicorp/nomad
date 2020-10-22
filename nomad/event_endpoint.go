@@ -8,9 +8,11 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -45,6 +47,46 @@ func (e *Event) UpsertSink(args *structs.EventSinkUpsertRequest, reply *structs.
 
 	reply.Index = index
 	return nil
+}
+
+func (e *Event) GetSink(args *structs.EventSinkSpecificRequest, reply *structs.EventSinkResponse) error {
+	if done, err := e.srv.forward("Event.GetSink", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "event", "upsert_sink"}, time.Now())
+
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			s, err := state.EventSinkByID(ws, args.RequestNamespace(), args.ID)
+			if err != nil {
+				return nil
+			}
+
+			reply.Sink = s
+
+			index, err := state.Index("event_sink")
+			if err != nil {
+				return err
+			}
+
+			if index == 0 {
+				index = 1
+			}
+
+			reply.Index = index
+			return nil
+		},
+	}
+
+	return e.srv.blockingRPC(&opts)
 }
 
 func (e *Event) stream(conn io.ReadWriteCloser) {

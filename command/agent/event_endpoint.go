@@ -43,7 +43,22 @@ func (s *HTTPServer) EventSinkSpecificRequest(resp http.ResponseWriter, req *htt
 
 func (s *HTTPServer) eventSinkGet(resp http.ResponseWriter, req *http.Request, sink string) (interface{}, error) {
 
-	return nil, nil
+	args := structs.EventSinkSpecificRequest{
+		ID: sink,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.EventSinkResponse
+	if err := s.agent.RPC("Event.GetSink", &args, &out); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &out.QueryMeta)
+	if out.Sink == nil {
+		return nil, CodedError(404, "event sink not found")
+	}
+	return out.Sink, nil
 }
 
 func (s *HTTPServer) eventSinkUpdate(resp http.ResponseWriter, req *http.Request, sinkName string) (interface{}, error) {

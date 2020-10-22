@@ -75,6 +75,17 @@ type EventSinkUpsertRequest struct {
 	WriteRequest
 }
 
+type EventSinkSpecificRequest struct {
+	ID string
+
+	QueryOptions
+}
+
+type EventSinkResponse struct {
+	Sink *EventSink
+	QueryMeta
+}
+
 type SinkType string
 
 const (

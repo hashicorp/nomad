@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -540,4 +541,38 @@ func TestEvent_UpsertSink(t *testing.T) {
 	sink.ModifyIndex = resp.Index
 
 	require.EqualValues(t, sink, out)
+}
+
+func TestEvent_GetSink(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	sink := mock.EventSink()
+
+	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, structs.DefaultNamespace, sink))
+
+	get := &structs.EventSinkSpecificRequest{
+		ID: sink.ID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	var resp structs.EventSinkResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.GetSink", get, &resp))
+	require.EqualValues(t, 1000, resp.Index)
+	require.Equal(t, sink.ID, resp.Sink.ID)
+
+	// Query for a non-existent sink
+	get.ID = uuid.Generate()
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.GetSink", get, &resp))
+
+	require.EqualValues(t, 1000, resp.Index)
+	require.Nil(t, resp.Sink)
+
 }
