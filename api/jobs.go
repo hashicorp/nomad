@@ -789,41 +789,46 @@ type ParameterizedJobConfig struct {
 
 // Job is used to serialize a job.
 type Job struct {
-	Stop              *bool                   `hcl:"stop,optional"`
-	Region            *string                 `hcl:"region,optional"`
-	Namespace         *string                 `hcl:"namespace,optional"`
-	ID                *string                 `hcl:"id,optional"`
-	ParentID          *string                 `hcl:"parent_id,optional"`
-	Name              *string                 `hcl:"name,optional"`
-	Type              *string                 `hcl:"type,optional"`
-	Priority          *int                    `hcl:"priority,optional"`
-	AllAtOnce         *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
-	Datacenters       []string                `hcl:"datacenters,optional"`
-	Constraints       []*Constraint           `hcl:"constraint,block"`
-	Affinities        []*Affinity             `hcl:"affinity,block"`
-	TaskGroups        []*TaskGroup            `hcl:"group,block"`
-	Update            *UpdateStrategy         `hcl:"update,block"`
-	Multiregion       *Multiregion            `hcl:"multiregion,block"`
-	Spreads           []*Spread               `hcl:"spread,block"`
-	Periodic          *PeriodicConfig         `hcl:"periodic,block"`
-	ParameterizedJob  *ParameterizedJobConfig `hcl:"parameterized,block"`
-	Dispatched        bool                    `hcl:"dispatched,optional"`
-	Payload           []byte                  `hcl:"payload,optional"`
-	Reschedule        *ReschedulePolicy       `hcl:"reschedule,block"`
-	Migrate           *MigrateStrategy        `hcl:"migrate,block"`
-	Meta              map[string]string       `hcl:"meta,block"`
-	ConsulToken       *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
-	VaultToken        *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
-	VaultNamespace    *string                 `mapstructure:"vault_namespace" hcl:"vault_namespace,optional"`
-	NomadTokenID      *string                 `mapstructure:"nomad_token_id" hcl:"nomad_token_id,optional"`
-	Status            *string                 `hcl:"status,optional"`
-	StatusDescription *string                 `hcl:"status_description,optional"`
-	Stable            *bool                   `hcl:"stable,optional"`
-	Version           *uint64                 `hcl:"version,optional"`
-	SubmitTime        *int64                  `hcl:"submit_time,optional"`
-	CreateIndex       *uint64                 `hcl:"create_index,optional"`
-	ModifyIndex       *uint64                 `hcl:"modify_index,optional"`
-	JobModifyIndex    *uint64                 `hcl:"job_modify_index,optional"`
+	/* Fields parsed from HCL config */
+
+	Region           *string                 `hcl:"region,optional"`
+	Namespace        *string                 `hcl:"namespace,optional"`
+	ID               *string                 `hcl:"id,optional"`
+	Name             *string                 `hcl:"name,optional"`
+	Type             *string                 `hcl:"type,optional"`
+	Priority         *int                    `hcl:"priority,optional"`
+	AllAtOnce        *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
+	Datacenters      []string                `hcl:"datacenters,optional"`
+	Constraints      []*Constraint           `hcl:"constraint,block"`
+	Affinities       []*Affinity             `hcl:"affinity,block"`
+	TaskGroups       []*TaskGroup            `hcl:"group,block"`
+	Update           *UpdateStrategy         `hcl:"update,block"`
+	Multiregion      *Multiregion            `hcl:"multiregion,block"`
+	Spreads          []*Spread               `hcl:"spread,block"`
+	Periodic         *PeriodicConfig         `hcl:"periodic,block"`
+	ParameterizedJob *ParameterizedJobConfig `hcl:"parameterized,block"`
+	Reschedule       *ReschedulePolicy       `hcl:"reschedule,block"`
+	Migrate          *MigrateStrategy        `hcl:"migrate,block"`
+	Meta             map[string]string       `hcl:"meta,block"`
+	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
+	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+
+	/* Fields set by server, not sourced from job config file */
+
+	Stop              *bool
+	ParentID          *string
+	Dispatched        bool
+	Payload           []byte
+	VaultNamespace    *string `mapstructure:"vault_namespace"`
+	NomadTokenID      *string `mapstructure:"nomad_token_id"`
+	Status            *string
+	StatusDescription *string
+	Stable            *bool
+	Version           *uint64
+	SubmitTime        *int64
+	CreateIndex       *uint64
+	ModifyIndex       *uint64
+	JobModifyIndex    *uint64
 }
 
 // IsPeriodic returns whether a job is periodic.
