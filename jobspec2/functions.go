@@ -84,23 +84,21 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"split":           stdlib.SplitFunc,
 		"strrev":          stdlib.ReverseFunc,
 		"substr":          stdlib.SubstrFunc,
-		//"timestamp":       pkrfunction.TimestampFunc,
-		"timeadd":    stdlib.TimeAddFunc,
-		"title":      stdlib.TitleFunc,
-		"trim":       stdlib.TrimFunc,
-		"trimprefix": stdlib.TrimPrefixFunc,
-		"trimspace":  stdlib.TrimSpaceFunc,
-		"trimsuffix": stdlib.TrimSuffixFunc,
-		"try":        tryfunc.TryFunc,
-		"upper":      stdlib.UpperFunc,
-		"urlencode":  encoding.URLEncodeFunc,
-		"uuidv4":     uuid.V4Func,
-		"uuidv5":     uuid.V5Func,
-		"values":     stdlib.ValuesFunc,
-		//"vault":           pkrfunction.VaultFunc,
-		"yamldecode": ctyyaml.YAMLDecodeFunc,
-		"yamlencode": ctyyaml.YAMLEncodeFunc,
-		"zipmap":     stdlib.ZipmapFunc,
+		"timeadd":         stdlib.TimeAddFunc,
+		"title":           stdlib.TitleFunc,
+		"trim":            stdlib.TrimFunc,
+		"trimprefix":      stdlib.TrimPrefixFunc,
+		"trimspace":       stdlib.TrimSpaceFunc,
+		"trimsuffix":      stdlib.TrimSuffixFunc,
+		"try":             tryfunc.TryFunc,
+		"upper":           stdlib.UpperFunc,
+		"urlencode":       encoding.URLEncodeFunc,
+		"uuidv4":          uuid.V4Func,
+		"uuidv5":          uuid.V5Func,
+		"values":          stdlib.ValuesFunc,
+		"yamldecode":      ctyyaml.YAMLDecodeFunc,
+		"yamlencode":      ctyyaml.YAMLEncodeFunc,
+		"zipmap":          stdlib.ZipmapFunc,
 
 		// filesystem calls
 		"abspath":    guardFS(allowFS, filesystem.AbsPathFunc),
@@ -133,12 +131,3 @@ func guardFS(allowFS bool, fn function.Function) function.Function {
 
 	return function.New(spec)
 }
-
-// var unimplFunc = function.New(&function.Spec{
-// 	Type: func([]cty.Value) (cty.Type, error) {
-// 		return cty.DynamicPseudoType, fmt.Errorf("function not yet implemented")
-// 	},
-// 	Impl: func([]cty.Value, cty.Type) (cty.Value, error) {
-// 		return cty.DynamicVal, fmt.Errorf("function not yet implemented")
-// 	},
-// })

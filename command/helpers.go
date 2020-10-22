@@ -523,3 +523,25 @@ func (w *uiErrorWriter) Close() error {
 	}
 	return nil
 }
+
+// parseVars decodes a slice of `<key>=<val>` or `<key>` strings into a golang map.
+//
+// `<key>` without corresponding value, is mapped to the `<key>` environment variable.
+func parseVars(vars []string) map[string]string {
+	if len(vars) == 0 {
+		return nil
+	}
+
+	result := make(map[string]string, len(vars))
+	for _, v := range vars {
+		parts := strings.SplitN(v, "=", 2)
+		k := parts[0]
+		if len(parts) == 2 {
+			result[k] = parts[1]
+		} else {
+			result[k] = os.Getenv(k)
+		}
+	}
+
+	return result
+}

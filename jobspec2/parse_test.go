@@ -38,21 +38,6 @@ func TestEquivalentToHCL1(t *testing.T) {
 	}
 }
 
-func TestParse_Variables(t *testing.T) {
-	hcl := `
-job "example" {
-  datacenters = [for s in ["dc1", "dc2"] : upper(s)]
-  region      = vars.region_var
-}
-`
-
-	out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), map[string]string{"region_var": "aug"}, true)
-	require.NoError(t, err)
-
-	require.Equal(t, []string{"DC1", "DC2"}, out.Datacenters)
-	require.Equal(t, "aug", *out.Region)
-}
-
 func TestParse_VarsAndFunctions(t *testing.T) {
 	hcl := `
 job "example" {

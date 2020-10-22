@@ -18,11 +18,12 @@ import (
 //   meta { ... }
 // }
 // ```
+
 // to
 //
 // ```
 // config {
-//   meta { ... }
+//   meta = { ... } # <- attribute now
 // }
 // ```
 func BlocksAsAttrs(body hcl.Body) hcl.Body {
