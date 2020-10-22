@@ -161,6 +161,7 @@ export default [
         category: 'quota',
         content: ['apply', 'delete', 'init', 'inspect', 'list', 'status'],
       },
+      { category: 'scaling', content: ['policy-info', 'policy-list'] },
       { category: 'sentinel', content: ['apply', 'delete', 'list', 'read'] },
       { category: 'server', content: ['force-leave', 'join', 'members'] },
       'status',
