@@ -14,7 +14,6 @@ import (
 )
 
 func TestWebhookSink_Basic(t *testing.T) {
-
 	received := make(chan struct{})
 
 	sub := &SubscribeRequest{

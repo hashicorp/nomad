@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync/atomic"
 	"time"
 
-	"github.com/docker/go-metrics"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -30,8 +30,6 @@ func defaultHttpClient() *http.Client {
 type SinkCfg struct {
 	Address string
 
-	Headers map[string]string
-
 	// HttpClient is the client to use. Default will be used if not provided.
 	HttpClient *http.Client
 }
@@ -39,7 +37,6 @@ type SinkCfg struct {
 func defaultCfg() *SinkCfg {
 	cfg := &SinkCfg{
 		HttpClient: defaultHttpClient(),
-		Headers:    make(map[string]string),
 	}
 	return cfg
 }
@@ -50,8 +47,10 @@ type WebhookSink struct {
 
 	subscription *Subscription
 
-	metricsLables []metrics.Labels
-	l             hclog.Logger
+	// lastIndex should be accessed atomically
+	lastIndex uint64
+
+	l hclog.Logger
 }
 
 func NewWebhookSink(cfg *SinkCfg, broker *EventBroker, subReq *SubscribeRequest) (*WebhookSink, error) {
@@ -84,6 +83,9 @@ func (ws *WebhookSink) Start(ctx context.Context) {
 	for {
 		events, err := ws.subscription.Next(ctx)
 		if err != nil {
+			if err == ErrSubscriptionClosed {
+
+			}
 			return
 			// TODO handle err
 		}
@@ -95,7 +97,8 @@ func (ws *WebhookSink) Start(ctx context.Context) {
 			ws.l.Error("failed to sending event to webhook", "error", err)
 			continue
 		}
-		metrics.SetGaugeWithLabels([]string{"nomad", "event_broker", "network_sink"})
+		// Update last successfully sent index
+		atomic.StoreUint64(&ws.lastIndex, events.Index)
 	}
 }
 
@@ -137,9 +140,6 @@ func (ws *WebhookSink) toRequest(e *structs.Events) (*http.Request, error) {
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	for k, v := range ws.config.Headers {
-		req.Header.Add(k, v)
-	}
 
 	return req, nil
 }
