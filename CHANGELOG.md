@@ -1,3 +1,9 @@
+## 0.10.7 (October 23, 2020)
+
+BUG FIXES:
+ * artifact: Fixed a regression in 0.10.6 where if the artifact `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
+ * template: Fixed a regression in 0.10.6 where if the template `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
+
 ## 0.10.6 (October 21, 2020)
 
 SECURITY:
