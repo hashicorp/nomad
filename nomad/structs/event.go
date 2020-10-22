@@ -70,7 +70,7 @@ func (j *EventJson) Copy() *EventJson {
 }
 
 type EventSinkUpsertRequest struct {
-	Sink EventSink
+	Sink *EventSink
 
 	WriteRequest
 }

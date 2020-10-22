@@ -1505,3 +1505,12 @@ func AllocNetworkStatus() *structs.AllocNetworkStatus {
 		},
 	}
 }
+
+func EventSink() *structs.EventSink {
+	return &structs.EventSink{
+		ID:        "webhook-sink",
+		Namespace: structs.DefaultNamespace,
+		Type:      structs.SinkWebhook,
+		Address:   "http://127.0.0.1/",
+	}
+}

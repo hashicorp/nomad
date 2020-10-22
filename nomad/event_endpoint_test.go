@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
@@ -507,4 +508,36 @@ func TestEventStream_ACL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEvent_UpsertSink(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	sink := mock.EventSink()
+	req := &structs.EventSinkUpsertRequest{
+		Sink:         sink,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.UpsertSink", req, &resp))
+	require.NotEqual(t, 0, resp.Index)
+
+	// Check for the sink in the FSM
+
+	state := s1.fsm.State()
+	out, err := state.EventSinkByID(nil, structs.DefaultNamespace, sink.ID)
+	require.NoError(t, err)
+
+	// set the index so we can compare values
+	sink.CreateIndex = resp.Index
+	sink.ModifyIndex = resp.Index
+
+	require.EqualValues(t, sink, out)
 }

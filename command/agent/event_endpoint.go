@@ -52,12 +52,12 @@ func (s *HTTPServer) eventSinkUpdate(resp http.ResponseWriter, req *http.Request
 		return nil, CodedError(500, err.Error())
 	}
 
-	if sink.Name != sinkName {
+	if sink.ID != sinkName {
 		return nil, CodedError(400, "Event sink name does not match request path")
 	}
 
 	args := structs.EventSinkUpsertRequest{
-		Sink: sink,
+		Sink: &sink,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -69,7 +69,7 @@ func (s *HTTPServer) eventSinkUpdate(resp http.ResponseWriter, req *http.Request
 	return nil, nil
 }
 
-func (s *HTTPServer) eventSinkDelete(resp http.ResponseWriter, req *http.Request, sink string) {
+func (s *HTTPServer) eventSinkDelete(resp http.ResponseWriter, req *http.Request, sink string) (interface{}, error) {
 	return nil, nil
 }
 

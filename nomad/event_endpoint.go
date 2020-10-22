@@ -35,7 +35,7 @@ func (e *Event) UpsertSink(args *structs.EventSinkUpsertRequest, reply *structs.
 		return structs.ErrPermissionDenied
 	}
 
-	// TODO validate
+	// TODO(drew) validate sink values
 
 	// Update via Raft
 	_, index, err := e.srv.raftApply(structs.EventSinkUpsertRequestType, args)
