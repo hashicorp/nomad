@@ -80,7 +80,10 @@ func (c *JobValidateCommand) Run(args []string) int {
 	}
 
 	// Check that the job is valid
-	jr, _, err := client.Jobs().Validate(job, nil)
+	jr, wm, err := client.Jobs().Validate(job, nil)
+	if serverVersionMatchesClient(wm.ServerVersion) {
+		c.Ui.Warn(fmt.Sprintf("Nomad server is running a different version: %s", wm.ServerVersion))
+	}
 	if err != nil {
 		jr, err = c.validateLocal(job)
 	}

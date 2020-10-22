@@ -14,6 +14,7 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/version"
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -506,4 +507,10 @@ func (w *uiErrorWriter) Close() error {
 		w.buf.Reset()
 	}
 	return nil
+}
+
+// serverVersionMatchesClient has the primary goal of checking the
+// version of Nomad reported by the server.
+func serverVersionMatchesClient(serverVersion string) bool {
+	return serverVersion == version.GetVersion().FullVersionNumber(true)
 }
