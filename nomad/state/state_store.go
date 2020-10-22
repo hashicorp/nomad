@@ -5638,6 +5638,17 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	return nil, nil
 }
 
+func (s *StateStore) UpsertEventSink(idx uint64, sink structs.EventSink) error {
+	txn := s.db.WriteTxn(idx)
+	defer txn.Abort()
+
+	existing, err := txn.First("event_sink", sink.ID)
+	if err != nil {
+		return fmt.Errorf("event sink lookup failed: %w", err)
+	}
+	return nil
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore

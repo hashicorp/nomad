@@ -9553,6 +9553,10 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 	require.EqualValues(jobScalingEvents.ScalingEvents, out)
 }
 
+func TestStateStore_UpsertEventSink(t *testing.T) {
+
+}
+
 func TestStateStore_Abandon(t *testing.T) {
 	t.Parallel()
 

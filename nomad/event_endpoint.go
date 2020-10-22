@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -20,6 +21,30 @@ type Event struct {
 
 func (e *Event) register() {
 	e.srv.streamingRpcs.Register("Event.Stream", e.stream)
+}
+
+func (e *Event) UpsertSink(args *structs.EventSinkUpsertRequest, reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Event.UpsertSink", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "event", "upsert_sink"}, time.Now())
+
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// TODO validate
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EventSinkUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	reply.Index = index
+	return nil
 }
 
 func (e *Event) stream(conn io.ReadWriteCloser) {

@@ -38,6 +38,7 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200330121334-7f8b4b621b5d+incompatible
 	github.com/docker/docker-credential-helpers v0.6.2-0.20180719074751-73e5f5dbfea3 // indirect
+	github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
 	github.com/dustin/go-humanize v1.0.0

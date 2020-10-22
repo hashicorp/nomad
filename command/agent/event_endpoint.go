@@ -17,6 +17,62 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+func (s *HTTPServer) EventSinksRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	return nil, nil
+}
+
+func (s *HTTPServer) EventSinkSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	name := strings.TrimPrefix(req.URL.Path, "/v1/event/sink/")
+	if len(name) == 0 {
+		return nil, CodedError(400, "Missing Policy Name")
+	}
+	switch req.Method {
+	case http.MethodGet:
+		return s.eventSinkGet(resp, req, name)
+	case http.MethodPost:
+		return s.eventSinkUpdate(resp, req, name)
+	case http.MethodDelete:
+		return s.eventSinkDelete(resp, req, name)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) eventSinkGet(resp http.ResponseWriter, req *http.Request, sink string) (interface{}, error) {
+
+	return nil, nil
+}
+
+func (s *HTTPServer) eventSinkUpdate(resp http.ResponseWriter, req *http.Request, sinkName string) (interface{}, error) {
+	var sink structs.EventSink
+	if err := decodeBody(req, &sink); err != nil {
+		return nil, CodedError(500, err.Error())
+	}
+
+	if sink.Name != sinkName {
+		return nil, CodedError(400, "Event sink name does not match request path")
+	}
+
+	args := structs.EventSinkUpsertRequest{
+		Sink: sink,
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.GenericResponse
+	if err := s.agent.RPC("Event.UpsertSink", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return nil, nil
+}
+
+func (s *HTTPServer) eventSinkDelete(resp http.ResponseWriter, req *http.Request, sink string) {
+	return nil, nil
+}
+
 func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	query := req.URL.Query()
 

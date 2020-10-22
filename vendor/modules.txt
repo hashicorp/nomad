@@ -262,6 +262,7 @@ github.com/docker/docker-credential-helpers/credentials
 github.com/docker/go-connections/nat
 github.com/docker/go-connections/tlsconfig
 # github.com/docker/go-metrics v0.0.0-20180209012529-399ea8c73916
+## explicit
 github.com/docker/go-metrics
 # github.com/docker/go-units v0.4.0
 ## explicit
