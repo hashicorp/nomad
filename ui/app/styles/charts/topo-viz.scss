@@ -1,0 +1,35 @@
+.topo-viz {
+  .topo-viz-datacenters {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: space-between;
+    margin-top: -0.75em;
+
+    .topo-viz-datacenter {
+      margin-top: 0.75em;
+      margin-bottom: 0.75em;
+      width: calc(50% - 0.75em);
+    }
+  }
+
+  &.is-single-column .topo-viz-datacenter {
+    width: 100%;
+  }
+
+  .topo-viz-edges {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    overflow: visible;
+
+    .edge {
+      stroke-width: 2;
+      stroke: $blue;
+      fill: none;
+    }
+  }
+}

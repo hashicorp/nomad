@@ -27,6 +27,9 @@ type Watcher struct {
 	// errCh is the chan where any errors will be published.
 	errCh chan error
 
+	// blockQueryWaitTime is amount of time in seconds to do a blocking query for
+	blockQueryWaitTime time.Duration
+
 	// depViewMap is a map of Templates to Views. Templates are keyed by
 	// their string.
 	depViewMap map[string]*View
@@ -54,6 +57,9 @@ type NewWatcherInput struct {
 	// Once specifies this watcher should tell views to poll exactly once.
 	Once bool
 
+	// WaitTime is amount of time in seconds to do a blocking query for
+	BlockQueryWaitTime time.Duration
+
 	// RenewVault indicates if this watcher should renew Vault tokens.
 	RenewVault bool
 
@@ -72,15 +78,16 @@ type NewWatcherInput struct {
 // NewWatcher creates a new watcher using the given API client.
 func NewWatcher(i *NewWatcherInput) (*Watcher, error) {
 	w := &Watcher{
-		clients:          i.Clients,
-		depViewMap:       make(map[string]*View),
-		dataCh:           make(chan *View, dataBufferSize),
-		errCh:            make(chan error),
-		maxStale:         i.MaxStale,
-		once:             i.Once,
-		retryFuncConsul:  i.RetryFuncConsul,
-		retryFuncDefault: i.RetryFuncDefault,
-		retryFuncVault:   i.RetryFuncVault,
+		clients:            i.Clients,
+		depViewMap:         make(map[string]*View),
+		dataCh:             make(chan *View, dataBufferSize),
+		errCh:              make(chan error),
+		maxStale:           i.MaxStale,
+		once:               i.Once,
+		blockQueryWaitTime: i.BlockQueryWaitTime,
+		retryFuncConsul:    i.RetryFuncConsul,
+		retryFuncDefault:   i.RetryFuncDefault,
+		retryFuncVault:     i.RetryFuncVault,
 	}
 
 	// Start a watcher for the Vault renew if that config was specified
@@ -149,11 +156,12 @@ func (w *Watcher) Add(d dep.Dependency) (bool, error) {
 	}
 
 	v, err := NewView(&NewViewInput{
-		Dependency: d,
-		Clients:    w.clients,
-		MaxStale:   w.maxStale,
-		Once:       w.once,
-		RetryFunc:  retryFunc,
+		Dependency:         d,
+		Clients:            w.clients,
+		MaxStale:           w.maxStale,
+		BlockQueryWaitTime: w.blockQueryWaitTime,
+		Once:               w.once,
+		RetryFunc:          retryFunc,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "watcher")

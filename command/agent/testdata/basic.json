@@ -261,6 +261,8 @@
       "data_dir": "/tmp/data",
       "deployment_gc_threshold": "12h",
       "enabled": true,
+      "enable_event_broker": false,
+      "event_buffer_size": 200,
       "enabled_schedulers": [
         "test"
       ],
@@ -313,10 +315,8 @@
   "syslog_facility": "LOCAL1",
   "telemetry": [
     {
-      "backwards_compatible_metrics": true,
       "collection_interval": "3s",
       "disable_hostname": true,
-      "disable_tagged_metrics": true,
       "prometheus_metrics": true,
       "publish_allocation_metrics": true,
       "publish_node_metrics": true,

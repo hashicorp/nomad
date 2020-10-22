@@ -35,9 +35,13 @@ EOM
 
 output "environment" {
   description = "get connection config by running: $(terraform output environment)"
-  value = <<EOM
+  value       = <<EOM
 export NOMAD_ADDR=http://${aws_instance.server[0].public_ip}:4646
 export CONSUL_HTTP_ADDR=http://${aws_instance.server[0].public_ip}:8500
+export VAULT_ADDR=http://${aws_instance.server[0].public_ip}:8200
 export NOMAD_E2E=1
+export NOMAD_TOKEN=${data.local_file.nomad_token.content}
+export VAULT_TOKEN=${data.local_file.vault_token.content}
+
 EOM
 }

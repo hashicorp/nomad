@@ -15,27 +15,27 @@ FeaturedSliderProps.propTypes = {
     'consul',
     'nomad',
     'packer',
-    'vagrant'
+    'vagrant',
   ]),
   features: PropTypes.arrayOf(
     PropTypes.shape({
       logo: PropTypes.shape({
         url: PropTypes.string,
-        alt: PropTypes.string
+        alt: PropTypes.string,
       }),
       image: PropTypes.shape({
         url: PropTypes.string,
-        alt: PropTypes.string
+        alt: PropTypes.string,
       }),
       heading: PropTypes.string,
       content: PropTypes.string,
       link: PropTypes.shape({
         text: PropTypes.string,
         url: PropTypes.string,
-        type: PropTypes.oneOf(['anchor', 'inbound', 'outbound'])
-      })
+        type: PropTypes.oneOf(['anchor', 'inbound', 'outbound']),
+      }),
     })
-  )
+  ),
 }
 
 export default FeaturedSliderProps

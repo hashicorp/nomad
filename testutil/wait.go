@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -189,4 +190,20 @@ func WaitForRunningWithToken(t testing.T, rpc rpcFn, job *structs.Job, token str
 // WaitForRunning runs a job and blocks until all allocs are out of pending.
 func WaitForRunning(t testing.T, rpc rpcFn, job *structs.Job) []*structs.AllocListStub {
 	return WaitForRunningWithToken(t, rpc, job, "")
+}
+
+// WaitForFiles blocks until all the files in the slice are present
+func WaitForFiles(t testing.T, files []string) {
+	assert := assert.New(t)
+	WaitForResult(func() (bool, error) {
+		for _, f := range files {
+			exists := assert.FileExists(f)
+			if !exists {
+				return false, fmt.Errorf("expected file to exist %s", f)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("missing expected files: %v", err)
+	})
 }

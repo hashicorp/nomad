@@ -47,6 +47,11 @@ export default class Allocation extends Model {
   @equal('clientStatus', 'running') isRunning;
   @attr('boolean') isMigrating;
 
+  @computed('clientStatus')
+  get isScheduled() {
+    return ['pending', 'running', 'failed'].includes(this.clientStatus);
+  }
+
   // An allocation model created from any allocation list response will be lacking
   // many properties (some of which can always be null). This is an indicator that
   // the allocation needs to be reloaded to get the complete allocation state.

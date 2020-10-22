@@ -349,6 +349,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		if option.AllocResources != nil {
 			resources.Shared.Networks = option.AllocResources.Networks
+			resources.Shared.Ports = option.AllocResources.Ports
 		}
 
 		// Create an allocation for this
@@ -388,7 +389,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 				preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
 				if s.eval.AnnotatePlan && s.plan.Annotations != nil {
-					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
+					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
 					if s.plan.Annotations.DesiredTGUpdates != nil {
 						desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
 						desired.Preemptions += 1

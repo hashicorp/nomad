@@ -193,16 +193,6 @@ func (c *VaultConfig) Finalize() {
 		c.Namespace = stringFromEnv([]string{"VAULT_NAMESPACE"}, "")
 	}
 
-	if c.RenewToken == nil {
-		default_renew := DefaultVaultRenewToken
-		if c.VaultAgentTokenFile != nil {
-			default_renew = false
-		}
-		c.RenewToken = boolFromEnv([]string{
-			"VAULT_RENEW_TOKEN",
-		}, default_renew)
-	}
-
 	if c.Retry == nil {
 		c.Retry = DefaultRetryConfig()
 	}
@@ -256,6 +246,19 @@ func (c *VaultConfig) Finalize() {
 		}
 	} else {
 		c.Token = stringFromFile([]string{*c.VaultAgentTokenFile}, "")
+	}
+
+	// must be after c.Token setting, as default depends on that.
+	if c.RenewToken == nil {
+		default_renew := DefaultVaultRenewToken
+		if c.VaultAgentTokenFile != nil {
+			default_renew = false
+		} else if StringVal(c.Token) == "" {
+			default_renew = false
+		}
+		c.RenewToken = boolFromEnv([]string{
+			"VAULT_RENEW_TOKEN",
+		}, default_renew)
 	}
 
 	if c.Transport == nil {

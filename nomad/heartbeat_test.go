@@ -22,7 +22,7 @@ func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
 
 	node := mock.Node()
 	state := s1.fsm.State()
-	err := state.UpsertNode(1, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1, node)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	// Create a node
 	node := mock.Node()
 	state := s1.fsm.State()
-	require.NoError(state.UpsertNode(1, node))
+	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 	// This should cause a status update
 	s1.invalidateHeartbeat(node.ID)

@@ -48,6 +48,11 @@
     },
     {
       "type": "file",
+      "source": "../config",
+      "destination": "/opt"
+    },
+    {
+      "type": "file",
       "source": "./windows/provision.ps1",
       "destination": "/opt/provision.ps1"
     },

@@ -6,8 +6,8 @@ set -e
 
 # Will be overwritten at test time with the version specified
 NOMADVERSION=0.9.1
-CONSULVERSION=1.7.3
-VAULTVERSION=1.1.1
+CONSULVERSION=1.8.3
+VAULTVERSION=1.5.4
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
 
@@ -65,6 +65,9 @@ mkdir_for_root /etc/vault.d
 mkdir_for_root /opt/vault
 sudo mv /tmp/linux/vault.service /etc/systemd/system/vault.service
 
+sudo setcap cap_ipc_lock=+ep /usr/local/bin/vault
+sudo useradd --system --home /etc/vault.d --shell /bin/false vault
+
 echo "Configure Nomad"
 mkdir_for_root /etc/nomad.d
 mkdir_for_root /opt/nomad
@@ -72,6 +75,7 @@ mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
 echo "Install Nomad"
+sudo mv /tmp/config /opt/
 sudo mv /tmp/linux/provision.sh /opt/provision.sh
 sudo chmod +x /opt/provision.sh
 /opt/provision.sh --nomad_version $NOMADVERSION --nostart

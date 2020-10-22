@@ -658,7 +658,7 @@ func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
 	// Insert job.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -682,12 +682,12 @@ func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 	// Insert periodic job and child.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
 	childjob := deriveChildJob(job)
-	if err := state.UpsertJob(1001, childjob); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -695,7 +695,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = childjob.ID
 	eval.Status = structs.EvalStatusPending
-	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("UpsertEvals failed: %v", err)
 	}
 
@@ -719,12 +719,12 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	// Insert periodic job and child.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
 	childjob := deriveChildJob(job)
-	if err := state.UpsertJob(1001, childjob); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -732,7 +732,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = childjob.ID
 	eval.Status = structs.EvalStatusPending
-	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("UpsertEvals failed: %v", err)
 	}
 
@@ -741,7 +741,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	alloc.JobID = childjob.ID
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
-	if err := state.UpsertAllocs(1003, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("UpsertAllocs failed: %v", err)
 	}
 

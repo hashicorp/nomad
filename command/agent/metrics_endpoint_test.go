@@ -73,8 +73,6 @@ func TestHTTP_FreshClientAllocMetrics(t *testing.T) {
 	httpTest(t, func(c *Config) {
 		c.Telemetry.PublishAllocationMetrics = true
 		c.Telemetry.PublishNodeMetrics = true
-		c.Telemetry.BackwardsCompatibleMetrics = false
-		c.Telemetry.DisableTaggedMetrics = false
 	}, func(s *TestAgent) {
 		// Create the job, wait for it to finish
 		job := mock.BatchJob()

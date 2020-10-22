@@ -350,16 +350,14 @@ export default function Homepage() {
             title: 'Getting Started',
             category: 'Step-by-Step Guides',
             time: '24 mins',
-            link:
-              'https://learn.hashicorp.com/nomad?track=getting-started#getting-started',
+            link: 'https://learn.hashicorp.com/collections/nomad/get-started',
             image: require('./img/learn-nomad/cap.svg'),
           },
           {
             title: 'Deploy and Manage Nomad Jobs',
             category: 'Step-by-Step Guides',
             time: '36 mins',
-            link:
-              'https://learn.hashicorp.com/nomad?track=managing-jobs#getting-started',
+            link: 'https://learn.hashicorp.com/collections/nomad/manage-jobs',
             image: require('./img/learn-nomad/cubes.svg'),
           },
         ]}

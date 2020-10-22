@@ -19,7 +19,7 @@ export default function BasicHero({ heading, content, links }) {
                   theme={{
                     variant: buttonVariant,
                     brand: 'nomad',
-                    background: 'light'
+                    background: 'light',
                   }}
                   title={link.text}
                   url={link.url}

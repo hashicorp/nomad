@@ -141,6 +141,13 @@ func (db *DB) Update(fn func(*Tx) error) error {
 	})
 }
 
+func (db *DB) Batch(fn func(*Tx) error) error {
+	return db.bdb.Batch(func(btx *bolt.Tx) error {
+		tx := newTx(db, btx)
+		return fn(tx)
+	})
+}
+
 func (db *DB) View(fn func(*Tx) error) error {
 	return db.bdb.View(func(btx *bolt.Tx) error {
 		tx := newTx(db, btx)

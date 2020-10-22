@@ -327,11 +327,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Submit a multiregion job to other regions (enterprise only).
 	// The job will have its region interpolated.
-	var existingVersion uint64
+	var newVersion uint64
 	if existingJob != nil {
-		existingVersion = existingJob.Version
+		newVersion = existingJob.Version + 1
 	}
-	isRunner, err := j.multiregionRegister(args, reply, existingVersion)
+	isRunner, err := j.multiregionRegister(args, reply, newVersion)
 	if err != nil {
 		return err
 	}
@@ -1471,7 +1471,7 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 			if len(allocs) > 0 {
 				reply.Allocations = make([]*structs.AllocListStub, 0, len(allocs))
 				for _, alloc := range allocs {
-					reply.Allocations = append(reply.Allocations, alloc.Stub())
+					reply.Allocations = append(reply.Allocations, alloc.Stub(nil))
 				}
 			}
 
@@ -1704,13 +1704,13 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if oldJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
 			updatedIndex = oldJob.JobModifyIndex + 1
-			if err := snap.UpsertJob(updatedIndex, args.Job); err != nil {
+			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, args.Job); err != nil {
 				return err
 			}
 		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
-		err := snap.UpsertJob(100, args.Job)
+		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, args.Job)
 		if err != nil {
 			return err
 		}
@@ -1733,7 +1733,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		ModifyTime: now,
 	}
 
-	snap.UpsertEvals(100, []*structs.Evaluation{eval})
+	// Ignore eval event creation during snapshot eval creation
+	snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 
 	// Create an in-memory Planner that returns no errors and stores the
 	// submitted plan and created evals.

@@ -26,7 +26,7 @@ module('Acceptance | allocation detail', function(hooks) {
       withGroupServices: true,
       createAllocations: false,
     });
-    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+    allocation = server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
     });
 
@@ -87,7 +87,7 @@ module('Acceptance | allocation detail', function(hooks) {
       createAllocations: false,
     });
 
-    const allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+    const allocation = server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
       jobId: job.id,
     });
@@ -188,7 +188,7 @@ module('Acceptance | allocation detail', function(hooks) {
       createAllocations: false,
     });
 
-    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+    allocation = server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
       jobId: job.id,
     });
@@ -216,7 +216,7 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('ports are listed', async function(assert) {
-    const allServerPorts = allocation.allocatedResources.Shared.Ports;
+    const allServerPorts = allocation.taskResources.models[0].resources.Ports;
 
     allServerPorts.sortBy('Label').forEach((serverPort, index) => {
       const renderedPort = Allocation.ports[index];

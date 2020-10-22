@@ -1,4 +1,5 @@
 import { computed } from '@ember/object';
+import { htmlSafe } from '@ember/template';
 
 // An Ember.Computed property for transforming an object into an
 // html compatible style attribute
@@ -20,6 +21,6 @@ export default function styleStringProperty(prop) {
         .join(';');
     }
 
-    return str.htmlSafe();
+    return htmlSafe(str);
   });
 }

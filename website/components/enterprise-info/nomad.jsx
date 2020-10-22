@@ -10,8 +10,8 @@ const technicalComplexity = {
   link: {
     text: 'View Open Source Features',
     url: 'https://www.hashicorp.com/products/nomad/pricing/',
-    type: 'outbound'
-  }
+    type: 'outbound',
+  },
 }
 
 const organizationalComplexity = {
@@ -24,8 +24,8 @@ const organizationalComplexity = {
   link: {
     text: 'View Enterprise Features',
     url: 'https://www.hashicorp.com/products/nomad/pricing/',
-    type: 'outbound'
-  }
+    type: 'outbound',
+  },
 }
 
 export default function NomadEnterpriseInfo() {

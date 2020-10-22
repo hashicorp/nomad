@@ -30,9 +30,10 @@ func (g *S3Getter) ClientMode(u *url.URL) (ClientMode, error) {
 	}
 
 	// Create client config
-	config := g.getAWSConfig(region, u, creds)
-	sess := session.New(config)
-	client := s3.New(sess)
+	client, err := g.newS3Client(region, u, creds)
+	if err != nil {
+		return 0, err
+	}
 
 	// List the object(s) at the given prefix
 	req := &s3.ListObjectsInput{
@@ -88,9 +89,10 @@ func (g *S3Getter) Get(dst string, u *url.URL) error {
 		return err
 	}
 
-	config := g.getAWSConfig(region, u, creds)
-	sess := session.New(config)
-	client := s3.New(sess)
+	client, err := g.newS3Client(region, u, creds)
+	if err != nil {
+		return err
+	}
 
 	// List files in path, keep listing until no more objects are found
 	lastMarker := ""
@@ -144,9 +146,11 @@ func (g *S3Getter) GetFile(dst string, u *url.URL) error {
 		return err
 	}
 
-	config := g.getAWSConfig(region, u, creds)
-	sess := session.New(config)
-	client := s3.New(sess)
+	client, err := g.newS3Client(region, u, creds)
+	if err != nil {
+		return err
+	}
+
 	return g.getObject(ctx, client, dst, bucket, path, version)
 }
 
@@ -174,20 +178,15 @@ func (g *S3Getter) getObject(ctx context.Context, client *s3.S3, dst, bucket, ke
 
 func (g *S3Getter) getAWSConfig(region string, url *url.URL, creds *credentials.Credentials) *aws.Config {
 	conf := &aws.Config{}
-	if creds == nil {
-		// Grab the metadata URL
-		metadataURL := os.Getenv("AWS_METADATA_URL")
-		if metadataURL == "" {
-			metadataURL = "http://169.254.169.254:80/latest"
-		}
-
+	metadataURLOverride := os.Getenv("AWS_METADATA_URL")
+	if creds == nil && metadataURLOverride != "" {
 		creds = credentials.NewChainCredentials(
 			[]credentials.Provider{
 				&credentials.EnvProvider{},
 				&credentials.SharedCredentialsProvider{Filename: "", Profile: ""},
 				&ec2rolecreds.EC2RoleProvider{
 					Client: ec2metadata.New(session.New(&aws.Config{
-						Endpoint: aws.String(metadataURL),
+						Endpoint: aws.String(metadataURLOverride),
 					})),
 				},
 			})
@@ -206,7 +205,7 @@ func (g *S3Getter) getAWSConfig(region string, url *url.URL, creds *credentials.
 		conf.Region = aws.String(region)
 	}
 
-	return conf
+	return conf.WithCredentialsChainVerboseErrors(true)
 }
 
 func (g *S3Getter) parseUrl(u *url.URL) (region, bucket, path, version string, creds *credentials.Credentials, err error) {
@@ -265,4 +264,26 @@ func (g *S3Getter) parseUrl(u *url.URL) (region, bucket, path, version string, c
 	}
 
 	return
+}
+
+func (g *S3Getter) newS3Client(
+	region string, url *url.URL, creds *credentials.Credentials,
+) (*s3.S3, error) {
+	var sess *session.Session
+
+	if profile := url.Query().Get("aws_profile"); profile != "" {
+		var err error
+		sess, err = session.NewSessionWithOptions(session.Options{
+			Profile:           profile,
+			SharedConfigState: session.SharedConfigEnable,
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		config := g.getAWSConfig(region, url, creds)
+		sess = session.New(config)
+	}
+
+	return s3.New(sess), nil
 }

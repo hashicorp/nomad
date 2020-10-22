@@ -36,6 +36,17 @@ func init() {
 
 func (tc *CSIVolumesTest) BeforeAll(f *framework.F) {
 	t := f.T()
+
+	_, err := os.Stat("csi/input/volume-ebs.hcl")
+	if err != nil {
+		t.Skip("skipping CSI test because EBS volume spec file missing:", err)
+	}
+
+	_, err = os.Stat("csi/input/volume-efs.hcl")
+	if err != nil {
+		t.Skip("skipping CSI test because EFS volume spec file missing:", err)
+	}
+
 	// Ensure cluster has leader and at least two client
 	// nodes in a ready state before running tests
 	e2eutil.WaitForLeader(t, tc.Nomad())

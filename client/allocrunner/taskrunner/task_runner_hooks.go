@@ -106,7 +106,7 @@ func (tr *TaskRunner) initHooks() {
 		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
 			alloc:     tr.Alloc(),
 			task:      tr.Task(),
-			consul:    tr.consulClient,
+			consul:    tr.consulServiceClient,
 			restarter: tr,
 			logger:    hookLogger,
 		}))
@@ -127,10 +127,11 @@ func (tr *TaskRunner) initHooks() {
 			}))
 		}
 
-		if task.Kind.IsConnectProxy() || task.Kind.IsAnyConnectGateway() {
-			tr.runnerHooks = append(tr.runnerHooks, newEnvoyBootstrapHook(
-				newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
-			))
+		if task.UsesConnectSidecar() {
+			tr.runnerHooks = append(tr.runnerHooks,
+				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClient, hookLogger)),
+				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger)),
+			)
 		} else if task.Kind.IsConnectNative() {
 			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
 				newConnectNativeHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
@@ -142,7 +143,7 @@ func (tr *TaskRunner) initHooks() {
 	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{
 		alloc:  tr.Alloc(),
 		task:   tr.Task(),
-		consul: tr.consulClient,
+		consul: tr.consulServiceClient,
 		logger: hookLogger,
 	})
 	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)

@@ -909,7 +909,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			}
 		}
 		if len(missingCaps) > 0 {
-			return c, fmt.Errorf("Docker driver doesn't have the following caps whitelisted on this Nomad agent: %s", missingCaps)
+			return c, fmt.Errorf("Docker driver doesn't have the following caps allowlisted on this Nomad agent: %s", missingCaps)
 		}
 	}
 
@@ -1292,25 +1292,35 @@ func (d *Driver) handleWait(ctx context.Context, ch chan *drivers.ExitResult, h 
 	}
 }
 
-func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
-	h, ok := d.tasks.Get(taskID)
-	if !ok {
-		return drivers.ErrTaskNotFound
-	}
-
+// parseSignal interprets the signal name into an os.Signal. If no name is
+// provided, the docker driver defaults to SIGTERM. If the OS is Windows and
+// SIGINT is provided, the signal is converted to SIGTERM.
+func (d *Driver) parseSignal(os, signal string) (os.Signal, error) {
+	// Unlike other drivers, docker defaults to SIGTERM, aiming for consistency
+	// with the 'docker stop' command.
+	// https://docs.docker.com/engine/reference/commandline/stop/#extended-description
 	if signal == "" {
-		signal = "SIGINT"
+		signal = "SIGTERM"
 	}
 
 	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
 	// allows for graceful shutdown before being followed up by a SIGKILL.
 	// Supported signals:
 	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
-	if runtime.GOOS == "windows" && signal == "SIGINT" {
+	if os == "windows" && signal == "SIGINT" {
 		signal = "SIGTERM"
 	}
 
-	sig, err := signals.Parse(signal)
+	return signals.Parse(signal)
+}
+
+func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return drivers.ErrTaskNotFound
+	}
+
+	sig, err := d.parseSignal(runtime.GOOS, signal)
 	if err != nil {
 		return fmt.Errorf("failed to parse signal: %v", err)
 	}
@@ -1553,7 +1563,7 @@ func (d *Driver) dockerClients() (*docker.Client, *docker.Client, error) {
 
 	var err error
 
-	// Onlt initialize the client if it hasn't yet been done
+	// Only initialize the client if it hasn't yet been done
 	if client == nil {
 		client, err = d.newDockerClient(dockerTimeout)
 		if err != nil {

@@ -27,7 +27,7 @@ type TaskStateHandler interface {
 	TaskStateUpdated()
 }
 
-// AllocStatsReporter gives acess to the latest resource usage from the
+// AllocStatsReporter gives access to the latest resource usage from the
 // allocation
 type AllocStatsReporter interface {
 	LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error)

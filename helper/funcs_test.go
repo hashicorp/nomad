@@ -244,3 +244,72 @@ func TestCheckNamespaceScope(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPathInSandbox(t *testing.T) {
+	cases := []struct {
+		name        string
+		path        string
+		dir         string
+		expected    string
+		expectedErr string
+	}{
+		{
+			name:     "ok absolute path inside sandbox",
+			path:     "/alloc/safe",
+			dir:      "/alloc",
+			expected: "/alloc/safe",
+		},
+		{
+			name:     "ok relative path inside sandbox",
+			path:     "./safe",
+			dir:      "/alloc",
+			expected: "/alloc/safe",
+		},
+		{
+			name:     "ok relative path traversal constrained to sandbox",
+			path:     "../../alloc/safe",
+			dir:      "/alloc",
+			expected: "/alloc/safe",
+		},
+		{
+			name:     "ok absolute path traversal constrained to sandbox",
+			path:     "/../alloc/safe",
+			dir:      "/alloc",
+			expected: "/alloc/safe",
+		},
+		{
+			name:        "fail absolute path outside sandbox",
+			path:        "/unsafe",
+			dir:         "/alloc",
+			expected:    "/unsafe",
+			expectedErr: "\"/unsafe\" escapes sandbox directory",
+		},
+		{
+			name:        "fail relative path traverses outside sandbox",
+			path:        "../../../unsafe",
+			dir:         "/alloc",
+			expected:    "/unsafe",
+			expectedErr: "\"/unsafe\" escapes sandbox directory",
+		},
+		{
+			name:        "fail absolute path tries to transverse outside sandbox",
+			path:        "/alloc/../unsafe",
+			dir:         "/alloc",
+			expected:    "/unsafe",
+			expectedErr: "\"/unsafe\" escapes sandbox directory",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			caseMsg := fmt.Sprintf("path: %v\ndir: %v", tc.path, tc.dir)
+			escapes, err := GetPathInSandbox(tc.dir, tc.path)
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr, caseMsg)
+			} else {
+				require.NoError(t, err, caseMsg)
+			}
+			require.Equal(t, tc.expected, escapes, caseMsg)
+		})
+	}
+}

@@ -10,23 +10,27 @@ job "demo2" {
   type = "service"
 
   group "t2" {
-    count = 3
+    count = 1
 
     task "t2" {
       driver = "raw_exec"
 
       config {
         command = "bash"
-        args    = ["-c", "if (($RANDOM%2)); then sleep 200000 ; else exit -1 ; fi"]
+        args    = ["-c", "sleep 300"]
       }
     }
 
     update {
-      max_parallel      = 1
-      min_healthy_time  = "1s"
-      auto_revert       = false
-      healthy_deadline  = "2s"
-      progress_deadline = "30s"
+      # we want the first allocation to take a while to become healthy,
+      # so that we can check the deployment's progress deadline before
+      # and after it becomes healthy
+      min_healthy_time  = "10s"
+      healthy_deadline  = "15s"
+      progress_deadline = "20s"
+
+      max_parallel = 1
+      auto_revert  = false
     }
 
     restart {

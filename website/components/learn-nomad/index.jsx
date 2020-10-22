@@ -20,7 +20,7 @@ export default function LearnNomad({ items }) {
               />
             </div>
           </div>
-          {items.map(item => {
+          {items.map((item) => {
             return (
               <a
                 key={item.title}

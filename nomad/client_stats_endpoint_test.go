@@ -155,7 +155,7 @@ func TestClientStats_Stats_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(1005, node))
+	require.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1005, node))
 
 	req := &structs.NodeSpecificRequest{
 		NodeID:       node.ID,

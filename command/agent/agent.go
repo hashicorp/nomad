@@ -15,7 +15,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/api"
+	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	log "github.com/hashicorp/go-hclog"
 	uuidparse "github.com/hashicorp/go-uuid"
@@ -74,10 +74,13 @@ type Agent struct {
 	// and checks.
 	consulService *consul.ServiceClient
 
+	// consulProxies is the subset of Consul's Agent API Nomad uses.
+	consulProxies *consul.ConnectProxies
+
 	// consulCatalog is the subset of Consul's Catalog API Nomad uses.
 	consulCatalog consul.CatalogAPI
 
-	// consulConfigEntries is the subset of Consul's Configuration Entires API Nomad uses.
+	// consulConfigEntries is the subset of Consul's Configuration Entries API Nomad uses.
 	consulConfigEntries consul.ConfigAPI
 
 	// consulACLs is Nomad's subset of Consul's ACL API Nomad uses.
@@ -240,6 +243,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if agentConfig.Server.UpgradeVersion != "" {
 		conf.UpgradeVersion = agentConfig.Server.UpgradeVersion
 	}
+	if agentConfig.Server.EnableEventBroker != nil {
+		conf.EnableEventBroker = *agentConfig.Server.EnableEventBroker
+	}
+	if agentConfig.Server.EventBufferSize != nil {
+		if *agentConfig.Server.EventBufferSize < 0 {
+			return nil, fmt.Errorf("Invalid Config, event_buffer_size must be non-negative")
+		}
+		conf.EventBufferSize = int64(*agentConfig.Server.EventBufferSize)
+	}
 	if agentConfig.Autopilot != nil {
 		if agentConfig.Autopilot.CleanupDeadServers != nil {
 			conf.AutopilotConfig.CleanupDeadServers = *agentConfig.Autopilot.CleanupDeadServers
@@ -384,9 +396,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	// Setup telemetry related config
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
-	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
 	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
-	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	// Parse Limits timeout from a string into durations
 	if d, err := time.ParseDuration(agentConfig.Limits.RPCHandshakeTimeout); err != nil {
@@ -553,7 +563,11 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
-	conf.TemplateConfig.FunctionBlacklist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	if agentConfig.Client.TemplateConfig.FunctionBlacklist != nil {
+		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionBlacklist
+	} else {
+		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionDenylist
+	}
 	conf.TemplateConfig.DisableSandbox = agentConfig.Client.TemplateConfig.DisableSandbox
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
@@ -609,8 +623,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = agentConfig.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = agentConfig.Telemetry.PublishAllocationMetrics
-	conf.DisableTaggedMetrics = agentConfig.Telemetry.DisableTaggedMetrics
-	conf.BackwardsCompatibleMetrics = agentConfig.Telemetry.BackwardsCompatibleMetrics
 
 	// Set the TLS related configs
 	conf.TLSConfig = agentConfig.TLSConfig
@@ -807,7 +819,7 @@ func (a *Agent) setupKeyrings(config *nomad.Config) error {
 		goto LOAD
 	}
 	if _, err := os.Stat(file); err != nil {
-		if err := initKeyring(file, a.config.Server.EncryptKey); err != nil {
+		if err := initKeyring(file, a.config.Server.EncryptKey, a.logger); err != nil {
 			return err
 		}
 	}
@@ -845,11 +857,11 @@ func (a *Agent) setupClient() error {
 		conf.StateDBFactory = state.GetStateDBFactory(conf.DevMode)
 	}
 
-	client, err := client.NewClient(conf, a.consulCatalog, a.consulService)
+	nomadClient, err := client.NewClient(conf, a.consulCatalog, a.consulProxies, a.consulService)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
-	a.client = client
+	a.client = nomadClient
 
 	// Create the Nomad Client  services for Consul
 	if *a.config.Consul.AutoAdvertise {
@@ -1119,26 +1131,30 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	if err != nil {
 		return err
 	}
-	client, err := api.NewClient(apiConf)
+
+	consulClient, err := consulapi.NewClient(apiConf)
 	if err != nil {
 		return err
 	}
 
 	// Create Consul Catalog client for service discovery.
-	a.consulCatalog = client.Catalog()
+	a.consulCatalog = consulClient.Catalog()
 
 	// Create Consul ConfigEntries client for managing Config Entries.
-	a.consulConfigEntries = client.ConfigEntries()
+	a.consulConfigEntries = consulClient.ConfigEntries()
 
 	// Create Consul ACL client for managing tokens.
-	a.consulACLs = client.ACL()
+	a.consulACLs = consulClient.ACL()
 
 	// Create Consul Service client for service advertisement and checks.
 	isClient := false
 	if a.config.Client != nil && a.config.Client.Enabled {
 		isClient = true
 	}
-	a.consulService = consul.NewServiceClient(client.Agent(), a.logger, isClient)
+	// Create Consul Agent client for looking info about the agent.
+	consulAgentClient := consulClient.Agent()
+	a.consulService = consul.NewServiceClient(consulAgentClient, a.logger, isClient)
+	a.consulProxies = consul.NewConnectProxiesClient(consulAgentClient)
 
 	// Run the Consul service client's sync'ing main loop
 	go a.consulService.Run()

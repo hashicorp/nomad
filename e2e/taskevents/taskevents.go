@@ -95,8 +95,11 @@ func (tc *TaskEventsTest) waitUntilEvents(f *framework.F, jobName string, numEve
 			return false, fmt.Errorf("task state not found for %s", jobName)
 		}
 
-		// Assert expected number of task events
-		if len(taskState.Events) != numEvents {
+		// Assert expected number of task events; we can't check for the exact
+		// count because of a race where Allocation Unhealthy events can be
+		// emitted when a peer task dies, but the caller can assert the
+		// specific events and their order up to that point
+		if len(taskState.Events) < numEvents {
 			return false, fmt.Errorf("expected %d task events but found %d\n%s",
 				numEvents, len(taskState.Events), formatEvents(taskState.Events),
 			)

@@ -122,9 +122,9 @@ func (b *bridgeNetworkConfigurator) generateAdminChainRule() []string {
 }
 
 // Setup calls the CNI plugins with the add action
-func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {
+func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := b.ensureForwardingRules(); err != nil {
-		return fmt.Errorf("failed to initialize table forwarding rules: %v", err)
+		return nil, fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
 
 	return b.cni.Setup(ctx, alloc, spec)

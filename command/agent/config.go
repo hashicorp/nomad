@@ -307,8 +307,12 @@ type ClientConfig struct {
 // rendering
 type ClientTemplateConfig struct {
 
-	// FunctionBlacklist disables functions in consul-template that
+	// FunctionDenylist disables functions in consul-template that
 	// are unsafe because they expose information from the client host.
+	FunctionDenylist []string `hcl:"function_denylist"`
+
+	// Deprecated: COMPAT(1.0) consul-template uses inclusive language from
+	// v0.25.0 - function_blacklist is kept for compatibility
 	FunctionBlacklist []string `hcl:"function_blacklist"`
 
 	// DisableSandbox allows templates to access arbitrary files on the
@@ -481,6 +485,15 @@ type ServerConfig struct {
 	// This value is ignored.
 	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
+	// EnableEventBroker configures whether this server's state store
+	// will generate events for its event stream.
+	EnableEventBroker *bool `hcl:"enable_event_broker"`
+
+	// EventBufferSize configure the amount of events to be held in memory.
+	// If EnableEventBroker is set to true, the minimum allowable value
+	// for the EventBufferSize is 1.
+	EventBufferSize *int `hcl:"event_buffer_size"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -557,14 +570,6 @@ type Telemetry struct {
 	collectionInterval       time.Duration `hcl:"-"`
 	PublishAllocationMetrics bool          `hcl:"publish_allocation_metrics"`
 	PublishNodeMetrics       bool          `hcl:"publish_node_metrics"`
-
-	// DisableTaggedMetrics disables a new version of generating metrics which
-	// uses tags
-	DisableTaggedMetrics bool `hcl:"disable_tagged_metrics"`
-
-	// BackwardsCompatibleMetrics allows for generating metrics in a simple
-	// key/value structure as done in older versions of Nomad
-	BackwardsCompatibleMetrics bool `hcl:"backwards_compatible_metrics"`
 
 	// PrefixFilter allows for filtering out metrics from being collected
 	PrefixFilter []string `hcl:"prefix_filter"`
@@ -827,8 +832,8 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
 	conf.Client.TemplateConfig = &ClientTemplateConfig{
-		FunctionBlacklist: []string{"plugin"},
-		DisableSandbox:    false,
+		FunctionDenylist: []string{"plugin"},
+		DisableSandbox:   false,
 	}
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Telemetry.PrometheusMetrics = true
@@ -873,14 +878,16 @@ func DefaultConfig() *Config {
 				RetryMaxAttempts: 0,
 			},
 			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			},
 			BindWildcardDefaultHostNetwork: true,
 		},
 		Server: &ServerConfig{
-			Enabled:   false,
-			StartJoin: []string{},
+			Enabled:           false,
+			EnableEventBroker: helper.BoolToPtr(true),
+			EventBufferSize:   helper.IntToPtr(100),
+			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1404,6 +1411,14 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
 	}
 
+	if b.EnableEventBroker != nil {
+		result.EnableEventBroker = b.EnableEventBroker
+	}
+
+	if b.EventBufferSize != nil {
+		result.EventBufferSize = b.EventBufferSize
+	}
+
 	if b.DefaultSchedulerConfig != nil {
 		c := *b.DefaultSchedulerConfig
 		result.DefaultSchedulerConfig = &c
@@ -1637,14 +1652,6 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.CirconusBrokerSelectTag != "" {
 		result.CirconusBrokerSelectTag = b.CirconusBrokerSelectTag
-	}
-
-	if b.DisableTaggedMetrics {
-		result.DisableTaggedMetrics = b.DisableTaggedMetrics
-	}
-
-	if b.BackwardsCompatibleMetrics {
-		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
 	}
 
 	if b.PrefixFilter != nil {

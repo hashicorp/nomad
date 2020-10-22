@@ -349,6 +349,85 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 	require.Exactly(t, expected, task)
 }
 
+func TestSidecarTask_Equals(t *testing.T) {
+	t.Parallel()
+
+	original := &SidecarTask{
+		Name:        "sidecar-task-1",
+		Driver:      "docker",
+		User:        "nobody",
+		Config:      map[string]interface{}{"foo": 1},
+		Env:         map[string]string{"color": "blue"},
+		Resources:   &Resources{MemoryMB: 300},
+		Meta:        map[string]string{"index": "1"},
+		KillTimeout: helper.TimeToPtr(2 * time.Second),
+		LogConfig: &LogConfig{
+			MaxFiles:      2,
+			MaxFileSizeMB: 300,
+		},
+		ShutdownDelay: helper.TimeToPtr(10 * time.Second),
+		KillSignal:    "SIGTERM",
+	}
+
+	t.Run("unmodified", func(t *testing.T) {
+		duplicate := original.Copy()
+		require.True(t, duplicate.Equals(original))
+	})
+
+	type st = SidecarTask
+	type tweaker = func(task *st)
+
+	try := func(t *testing.T, tweak tweaker) {
+		modified := original.Copy()
+		tweak(modified)
+		require.NotEqual(t, original, modified)
+	}
+
+	t.Run("mod name", func(t *testing.T) {
+		try(t, func(s *st) { s.Name = "sidecar-task-2" })
+	})
+
+	t.Run("mod driver", func(t *testing.T) {
+		try(t, func(s *st) { s.Driver = "exec" })
+	})
+
+	t.Run("mod user", func(t *testing.T) {
+		try(t, func(s *st) { s.User = "root" })
+	})
+
+	t.Run("mod config", func(t *testing.T) {
+		try(t, func(s *st) { s.Config = map[string]interface{}{"foo": 2} })
+	})
+
+	t.Run("mod env", func(t *testing.T) {
+		try(t, func(s *st) { s.Env = map[string]string{"color": "red"} })
+	})
+
+	t.Run("mod resources", func(t *testing.T) {
+		try(t, func(s *st) { s.Resources = &Resources{MemoryMB: 200} })
+	})
+
+	t.Run("mod meta", func(t *testing.T) {
+		try(t, func(s *st) { s.Meta = map[string]string{"index": "2"} })
+	})
+
+	t.Run("mod kill timeout", func(t *testing.T) {
+		try(t, func(s *st) { s.KillTimeout = helper.TimeToPtr(3 * time.Second) })
+	})
+
+	t.Run("mod log config", func(t *testing.T) {
+		try(t, func(s *st) { s.LogConfig = &LogConfig{MaxFiles: 3} })
+	})
+
+	t.Run("mod shutdown delay", func(t *testing.T) {
+		try(t, func(s *st) { s.ShutdownDelay = helper.TimeToPtr(20 * time.Second) })
+	})
+
+	t.Run("mod kill signal", func(t *testing.T) {
+		try(t, func(s *st) { s.KillSignal = "SIGHUP" })
+	})
+}
+
 func TestConsulUpstream_upstreamEquals(t *testing.T) {
 	t.Parallel()
 

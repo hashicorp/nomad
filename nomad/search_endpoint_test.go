@@ -22,7 +22,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) *
 	job := mock.Job()
 	job.ID = prefix + strconv.Itoa(counter)
 	state := s.fsm.State()
-	if err := state.UpsertJob(jobIndex, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -76,7 +76,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	state := s.fsm.State()
 
 	job := registerAndVerifyJob(s, t, jobID, 0)
-	assert.Nil(state.UpsertNode(1001, mock.Node()))
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
@@ -197,7 +197,7 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -242,7 +242,7 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -319,7 +319,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 
 	eval1 := mock.Eval()
 	eval1.ID = job.ID
-	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
+	s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1})
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -354,7 +354,7 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	eval1 := mock.Eval()
-	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
+	s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1})
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
@@ -397,7 +397,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(90, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -442,18 +442,18 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	node := mock.Node()
-	if err := state.UpsertNode(1001, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 1001, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval1}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -490,7 +490,7 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	state := s.fsm.State()
 	node := mock.Node()
 
-	if err := state.UpsertNode(100, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 100, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -569,13 +569,13 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	state := s.fsm.State()
 	node := mock.Node()
 
-	if err := state.UpsertNode(100, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 100, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	if err := state.UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

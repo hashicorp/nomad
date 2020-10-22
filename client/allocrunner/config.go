@@ -32,6 +32,10 @@ type Config struct {
 	// Consul is the Consul client used to register task services and checks
 	Consul consul.ConsulServiceAPI
 
+	// ConsulProxies is the Consul client used to lookup supported envoy versions
+	// of the Consul agent.
+	ConsulProxies consul.SupportedProxiesAPI
+
 	// ConsulSI is the Consul client used to manage service identity tokens.
 	ConsulSI consul.ServiceIdentityAPI
 

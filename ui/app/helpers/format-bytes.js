@@ -1,6 +1,6 @@
 import Helper from '@ember/component/helper';
 
-const UNITS = ['Bytes', 'KiB', 'MiB'];
+const UNITS = ['Bytes', 'KiB', 'MiB', 'GiB'];
 
 /**
  * Bytes Formatter
@@ -10,7 +10,7 @@ const UNITS = ['Bytes', 'KiB', 'MiB'];
  * Outputs the bytes reduced to the largest supported unit size for which
  * bytes is larger than one.
  */
-export function formatBytes([bytes]) {
+export function reduceToLargestUnit(bytes) {
   bytes || (bytes = 0);
   let unitIndex = 0;
   while (bytes >= 1024 && unitIndex < UNITS.length - 1) {
@@ -18,7 +18,12 @@ export function formatBytes([bytes]) {
     unitIndex++;
   }
 
-  return `${Math.floor(bytes)} ${UNITS[unitIndex]}`;
+  return [bytes, UNITS[unitIndex]];
+}
+
+export function formatBytes([bytes]) {
+  const [number, unit] = reduceToLargestUnit(bytes);
+  return `${Math.floor(number)} ${unit}`;
 }
 
 export default Helper.helper(formatBytes);

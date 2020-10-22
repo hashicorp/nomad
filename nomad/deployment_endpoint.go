@@ -478,7 +478,7 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 
 			stubs := make([]*structs.AllocListStub, 0, len(allocs))
 			for _, alloc := range allocs {
-				stubs = append(stubs, alloc.Stub())
+				stubs = append(stubs, alloc.Stub(nil))
 			}
 			reply.Allocations = stubs
 

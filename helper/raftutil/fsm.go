@@ -15,7 +15,7 @@ import (
 func FSMState(p string, plastIdx int64) (interface{}, error) {
 	store, firstIdx, lastIdx, err := RaftStateInfo(filepath.Join(p, "raft.db"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to open raft logs: %v", err)
+		return nil, fmt.Errorf("failed to open raft database %v: %v", p, err)
 	}
 	defer store.Close()
 
@@ -64,7 +64,7 @@ func FSMState(p string, plastIdx int64) (interface{}, error) {
 		var e raft.Log
 		err := store.GetLog(i, &e)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read log entry at index %d: %v", i, err)
+			return nil, fmt.Errorf("failed to read log entry at index %d: %v, firstIdx: %d, lastIdx: %d", i, err, firstIdx, lastIdx)
 		}
 
 		if e.Type == raft.LogCommand {
@@ -99,6 +99,7 @@ func FSMState(p string, plastIdx int64) (interface{}, error) {
 }
 
 func restoreFromSnapshot(fsm raft.FSM, snaps raft.SnapshotStore, logger hclog.Logger) (uint64, error) {
+	logger = logger.Named("restoreFromSnapshot")
 	snapshots, err := snaps.List()
 	if err != nil {
 		return 0, err

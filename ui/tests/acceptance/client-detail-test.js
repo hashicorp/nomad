@@ -134,8 +134,8 @@ module('Acceptance | client detail', function(hooks) {
     });
 
     const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
-    const cpuUsed = tasks.reduce((sum, task) => sum + task.Resources.CPU, 0);
-    const memoryUsed = tasks.reduce((sum, task) => sum + task.Resources.MemoryMB, 0);
+    const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
+    const memoryUsed = tasks.reduce((sum, task) => sum + task.resources.MemoryMB, 0);
 
     await ClientDetail.visit({ id: node.id });
 

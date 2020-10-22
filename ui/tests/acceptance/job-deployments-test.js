@@ -178,7 +178,7 @@ module('Acceptance | job deployments', function(hooks) {
     );
 
     const taskGroup = taskGroupSummaries[0];
-    const taskGroupRow = deploymentRow.taskGroups.objectAt(0);
+    const taskGroupRow = deploymentRow.taskGroups.findOneBy('name', taskGroup.name);
 
     assert.equal(taskGroupRow.name, taskGroup.name, 'Name');
     assert.equal(taskGroupRow.promotion, promotionTestForTaskGroup(taskGroup), 'Needs Promotion');

@@ -16,12 +16,12 @@ retaining the most capacity of the resource.
 In a scenario where two checks return different desired directions, the following
 logic is applied.
 
-- `ScaleOut and ScaleIn   => ScaleOut`
+- `ScaleOut and ScaleIn => ScaleOut`
 - `ScaleOut and ScaleNone => ScaleOut`
-- `ScaleIn  and ScaleNone => ScaleNone`
+- `ScaleIn and ScaleNone => ScaleNone`
 
 In situations where the two same actions are suggested, but with different counts the
 following logic is applied, where the count is the absolute desired value.
 
 - `ScaleOut(10) and ScaleOut(9) => ScaleOut(10)`
-- `ScaleIn(3)   and  ScaleIn(4) => ScaleIn(4)`
+- `ScaleIn(3) and ScaleIn(4) => ScaleIn(4)`

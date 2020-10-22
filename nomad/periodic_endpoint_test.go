@@ -26,7 +26,7 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 	// Create and insert a periodic job.
 	job := mock.PeriodicJob()
 	job.Periodic.ProhibitOverlap = true // Shouldn't affect anything.
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	s1.periodicDispatcher.Add(job)
@@ -78,7 +78,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	// Create and insert a periodic job.
 	job := mock.PeriodicJob()
 	job.Periodic.ProhibitOverlap = true // Shouldn't affect anything.
-	assert.Nil(state.UpsertJob(100, job))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
 	err := s1.periodicDispatcher.Add(job)
 	assert.Nil(err)
 
@@ -157,7 +157,7 @@ func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 
 	// Create and insert a non-periodic job.
 	job := mock.Job()
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

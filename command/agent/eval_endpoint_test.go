@@ -16,8 +16,7 @@ func TestHTTP_EvalList(t *testing.T) {
 		state := s.Agent.server.State()
 		eval1 := mock.Eval()
 		eval2 := mock.Eval()
-		err := state.UpsertEvals(1000,
-			[]*structs.Evaluation{eval1, eval2})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -63,8 +62,7 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 		eval1.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
 		eval2 := mock.Eval()
 		eval2.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
-		err := state.UpsertEvals(1000,
-			[]*structs.Evaluation{eval1, eval2})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -116,8 +114,7 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 		alloc2.EvalID = alloc1.EvalID
 		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(1000,
-			[]*structs.Allocation{alloc1, alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -161,7 +158,7 @@ func TestHTTP_EvalQuery(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		eval := mock.Eval()
-		err := state.UpsertEvals(1000, []*structs.Evaluation{eval})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

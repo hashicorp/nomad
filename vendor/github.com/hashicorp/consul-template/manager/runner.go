@@ -102,6 +102,7 @@ type Runner struct {
 	// template and command runtime with. These environment variables will be
 	// available in both the command's environment as well as the template's
 	// environment.
+	// NOTE this is only used when CT is being used as a library.
 	Env map[string]string
 
 	// stopLock is the lock around checking if the runner can be stopped
@@ -556,23 +557,6 @@ func (r *Runner) Run() error {
 		}
 	}
 
-	// Check if we need to deliver any rendered signals
-	if wouldRenderAny || renderedAny {
-		// Send the signal that a template got rendered
-		select {
-		case r.renderedCh <- struct{}{}:
-		default:
-		}
-	}
-
-	// Check if we need to deliver any event signals
-	if newRenderEvent {
-		select {
-		case r.renderEventCh <- struct{}{}:
-		default:
-		}
-	}
-
 	// Perform the diff and update the known dependencies.
 	r.diffAndUpdateDeps(runCtx.depsMap)
 
@@ -598,6 +582,23 @@ func (r *Runner) Run() error {
 		}); err != nil {
 			s := fmt.Sprintf("failed to execute command %q from %s", command, t.Display())
 			errs = append(errs, errors.Wrap(err, s))
+		}
+	}
+
+	// Check if we need to deliver any rendered signals
+	if wouldRenderAny || renderedAny {
+		// Send the signal that a template got rendered
+		select {
+		case r.renderedCh <- struct{}{}:
+		default:
+		}
+	}
+
+	// Check if we need to deliver any event signals
+	if newRenderEvent {
+		select {
+		case r.renderEventCh <- struct{}{}:
+		default:
 		}
 	}
 
@@ -873,14 +874,23 @@ func (r *Runner) init() error {
 	// config templates is kept so templates can lookup their commands and output
 	// destinations.
 	for _, ctmpl := range *r.config.Templates {
+		leftDelim := config.StringVal(ctmpl.LeftDelim)
+		if leftDelim == "" {
+			leftDelim = config.StringVal(r.config.DefaultDelims.Left)
+		}
+		rightDelim := config.StringVal(ctmpl.RightDelim)
+		if rightDelim == "" {
+			rightDelim = config.StringVal(r.config.DefaultDelims.Right)
+		}
+
 		tmpl, err := template.NewTemplate(&template.NewTemplateInput{
-			Source:            config.StringVal(ctmpl.Source),
-			Contents:          config.StringVal(ctmpl.Contents),
-			ErrMissingKey:     config.BoolVal(ctmpl.ErrMissingKey),
-			LeftDelim:         config.StringVal(ctmpl.LeftDelim),
-			RightDelim:        config.StringVal(ctmpl.RightDelim),
-			FunctionBlacklist: ctmpl.FunctionBlacklist,
-			SandboxPath:       config.StringVal(ctmpl.SandboxPath),
+			Source:           config.StringVal(ctmpl.Source),
+			Contents:         config.StringVal(ctmpl.Contents),
+			ErrMissingKey:    config.BoolVal(ctmpl.ErrMissingKey),
+			LeftDelim:        leftDelim,
+			RightDelim:       rightDelim,
+			FunctionDenylist: ctmpl.FunctionDenylist,
+			SandboxPath:      config.StringVal(ctmpl.SandboxPath),
 		})
 		if err != nil {
 			return err
@@ -1240,6 +1250,7 @@ func newClientSet(c *config.Config) (*dep.ClientSet, error) {
 
 	if err := clients.CreateConsulClient(&dep.CreateConsulClientInput{
 		Address:                      config.StringVal(c.Consul.Address),
+		Namespace:                    config.StringVal(c.Consul.Namespace),
 		Token:                        config.StringVal(c.Consul.Token),
 		AuthEnabled:                  config.BoolVal(c.Consul.Auth.Enabled),
 		AuthUsername:                 config.StringVal(c.Consul.Auth.Username),
@@ -1296,6 +1307,7 @@ func newWatcher(c *config.Config, clients *dep.ClientSet, once bool) (*watch.Wat
 		Clients:             clients,
 		MaxStale:            config.TimeDurationVal(c.MaxStale),
 		Once:                c.Once,
+		BlockQueryWaitTime:  config.TimeDurationVal(c.BlockQueryWaitTime),
 		RenewVault:          clients.Vault().Token() != "" && config.BoolVal(c.Vault.RenewToken),
 		VaultAgentTokenFile: config.StringVal(c.Vault.VaultAgentTokenFile),
 		RetryFuncConsul:     watch.RetryFunc(c.Consul.Retry.RetryFunc()),

@@ -17,7 +17,7 @@ func TestPluginStatusCommand_Implements(t *testing.T) {
 
 func TestPluginStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -35,7 +35,7 @@ func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &PluginStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a plugin

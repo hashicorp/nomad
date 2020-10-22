@@ -44,17 +44,18 @@ The IIS task driver supports the following parameters:
 - `apppool_config_path` (string) - (Optional) The path should point to a valid IIS Application Pool XML that is generated from an export.
 
 - `apppool_identity` - (Optional) `ApplicationPoolIdentity` (default). The identity which the Application Pool will run under.
-    - `identity` (string) - (Required) An identity is required to be set for Application Pools. Accepted inputs are `LocalService`, `LocalSystem`, `NetworkService`, `SpecificUser`, and `ApplicationPoolIdentity`.
-    - `username` (string) - (Optional) If `SpecificUser` was chosen, then provide the username.
-    - `password` (string) - (Optional) If `SpecificUser` was chosen, then provide the password.
+
+  - `identity` (string) - (Required) An identity is required to be set for Application Pools. Accepted inputs are `LocalService`, `LocalSystem`, `NetworkService`, `SpecificUser`, and `ApplicationPoolIdentity`.
+  - `username` (string) - (Optional) If `SpecificUser` was chosen, then provide the username.
+  - `password` (string) - (Optional) If `SpecificUser` was chosen, then provide the password.
 
 - `bindings` - (Optional) Bindings set here will be set for IIS.
-    - `hostname` (string)      - (Optional) IIS hostname for a binding.
-    - `ipaddress` (string)     - (Optional). `*` (default). IIS allows a binding to specify the IP Address being sent out.
-    - `resource_port` (string) - (Optional) Use a label from an established network stanza port. It is recommended to use this approach over using `port`.
-    - `port` (number)          - (Optional) Specify a static port to use for the website. A port must be specified between `resource_port` or `port`. Ports set this way will not be recognized by nomad.
-    - `type` (string)          - (Optional) Specifies which binding type IIS should use such as `http` or `https`.
-    - `cert_hash` (string)     - (Optional) For SSL support, supply the cert hash here of a cert installed on the system.
+  - `hostname` (string) - (Optional) IIS hostname for a binding.
+  - `ipaddress` (string) - (Optional). `*` (default). IIS allows a binding to specify the IP Address being sent out.
+  - `resource_port` (string) - (Optional) Use a label from an established network stanza port. It is recommended to use this approach over using `port`.
+  - `port` (number) - (Optional) Specify a static port to use for the website. A port must be specified between `resource_port` or `port`. Ports set this way will not be recognized by nomad.
+  - `type` (string) - (Optional) Specifies which binding type IIS should use such as `http` or `https`.
+  - `cert_hash` (string) - (Optional) For SSL support, supply the cert hash here of a cert installed on the system.
 
 For optional parameters default value is assumed `nil`, if the default value is not specified in the documentation.
 
@@ -78,7 +79,6 @@ relies on IIS to manage the networking for Windows IIS website tasks.
 - `enabled` - The `IIS` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
 
 - `stats_interval` - This value defines how frequently you want to send `TaskStats` to nomad client. (defaults to `1 second`).
-
 
 An example of using these plugin options with the new [plugin
 syntax][plugin] is shown below:

@@ -177,7 +177,7 @@ func generalOptionsUsage() string {
   -namespace=<namespace>
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
-    If set to '*', job and alloc subcommands query all namespacecs authorized
+    If set to '*', job and alloc subcommands query all namespaces authorized
     to user.
     Defaults to the "default" namespace.
 
@@ -205,9 +205,9 @@ func generalOptionsUsage() string {
     Path to an unencrypted PEM encoded private key matching the
     client certificate from -client-cert. Overrides the
     NOMAD_CLIENT_KEY environment variable if set.
-	
+
   -tls-server-name=<value>
-    The server name to use as the SNI host when connecting via 
+    The server name to use as the SNI host when connecting via
     TLS. Overrides the NOMAD_TLS_SERVER_NAME environment variable if set.
 
   -tls-skip-verify

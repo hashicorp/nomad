@@ -807,7 +807,7 @@ jobs:
     - PAGER: cat
     - GOTEST_MOD: ''
     - GOTEST_PKGS: ''
-    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices
+    - GOTEST_PKGS_EXCLUDE: ./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices|./e2e
     - GOTESTARCH: amd64
     steps:
     - checkout
@@ -1235,6 +1235,8 @@ jobs:
     - run:
         command: sudo -E -H -u circleci PATH=${PATH} make deps
     - run:
+        command: sudo -E -H -u circleci PATH=${PATH} make integration-test
+    - run:
         command: sudo -E -H -u circleci PATH=${PATH} make e2e-test
     environment:
     - GIT_PAGER: cat
@@ -1385,76 +1387,6 @@ workflows:
             - /^.-ui\b.*/
             - /^docs-.*/
             - stable-website
-    - test-windows:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-client:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-nomad:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-api:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-devices:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-other:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-docker:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-exec:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-shared-exec:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
-    - test-32bit:
-        filters:
-          branches:
-            ignore:
-            - /^.-ui\b.*/
-            - /^docs-.*/
-            - stable-website
     - test-e2e:
         filters:
           branches:
@@ -1468,6 +1400,87 @@ workflows:
             ignore:
             - stable-website
             - /^docs-.*/
+            - /^e2e-.*/
+    - test-windows:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-client:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-nomad:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-api:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-devices:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-other:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-docker:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-exec:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-shared-exec:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
+    - test-32bit:
+        filters:
+          branches:
+            ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
   website:
     jobs:
     - website-docker-image:

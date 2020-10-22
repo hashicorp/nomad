@@ -2,7 +2,11 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
+import moment from 'moment';
+import { create, collection } from 'ember-cli-page-object';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import pageSizeSelect from 'nomad-ui/tests/acceptance/behaviors/page-size-select';
+import pageSizeSelectPageObject from 'nomad-ui/tests/pages/components/page-size-select';
 import {
   jobURL,
   stopJob,
@@ -12,6 +16,13 @@ import {
   expectStartRequest,
 } from './helpers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+
+// A minimum viable page object to use with the pageSizeSelect behavior
+const PeriodicJobPage = create({
+  pageSize: 25,
+  jobs: collection('[data-test-job-row]'),
+  pageSizeSelect: pageSizeSelectPageObject(),
+});
 
 module('Integration | Component | job-page/periodic', function(hooks) {
   setupRenderingTest(hooks);
@@ -194,5 +205,46 @@ module('Integration | Component | job-page/periodic', function(hooks) {
 
     await startJob();
     expectError(assert, 'Could Not Start Job');
+  });
+
+  test('Each job row includes the submitted time', async function(assert) {
+    this.server.create('job', 'periodic', {
+      id: 'parent',
+      childrenCount: 1,
+      createAllocations: false,
+    });
+
+    await this.store.findAll('job');
+
+    const job = this.store.peekAll('job').findBy('plainId', 'parent');
+
+    this.setProperties(commonProperties(job));
+    await this.render(commonTemplate);
+
+    assert.equal(
+      find('[data-test-job-submit-time]').textContent,
+      moment(job.get('children.firstObject.submitTime')).format('MMM DD HH:mm:ss ZZ'),
+      'The new periodic job launch is in the children list'
+    );
+  });
+
+  pageSizeSelect({
+    resourceName: 'job',
+    pageObject: PeriodicJobPage,
+    pageObjectList: PeriodicJobPage.jobs,
+    async setup() {
+      this.server.create('job', 'periodic', {
+        id: 'parent',
+        childrenCount: PeriodicJobPage.pageSize,
+        createAllocations: false,
+      });
+
+      await this.store.findAll('job');
+
+      const job = this.store.peekAll('job').findBy('plainId', 'parent');
+
+      this.setProperties(commonProperties(job));
+      await this.render(commonTemplate);
+    },
   });
 });

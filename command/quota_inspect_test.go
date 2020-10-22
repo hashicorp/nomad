@@ -18,7 +18,7 @@ func TestQuotaInspectCommand_Implements(t *testing.T) {
 
 func TestQuotaInspectCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -46,7 +46,7 @@ func TestQuotaInspectCommand_Good(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Create a quota to delete
@@ -72,7 +72,7 @@ func TestQuotaInspectCommand_AutocompleteArgs(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &QuotaInspectCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a quota

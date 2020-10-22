@@ -899,7 +899,7 @@ func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateS
 	maxIndex := uint64(0)
 	stubs := make([]*structs.AllocListStub, 0, len(allocs))
 	for _, alloc := range allocs {
-		stubs = append(stubs, alloc.Stub())
+		stubs = append(stubs, alloc.Stub(nil))
 
 		if maxIndex < alloc.ModifyIndex {
 			maxIndex = alloc.ModifyIndex

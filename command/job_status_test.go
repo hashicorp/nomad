@@ -43,7 +43,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Should return blank for no jobs
@@ -220,7 +220,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 
 func TestJobStatusCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -248,13 +248,13 @@ func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -303,7 +303,7 @@ func TestJobStatusCommand_WithAccessPolicy(t *testing.T) {
 
 	invalidToken := mock.ACLToken()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// registering a job without a token fails
@@ -353,7 +353,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	require := require.New(t)
@@ -361,11 +361,11 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 
 	// Create state store objects for job, alloc and followup eval with a future WaitUntil value
 	j := mock.Job()
-	require.Nil(state.UpsertJob(900, j))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 900, j))
 
 	e := mock.Eval()
 	e.WaitUntil = time.Now().Add(1 * time.Hour)
-	require.Nil(state.UpsertEvals(902, []*structs.Evaluation{e}))
+	require.Nil(state.UpsertEvals(structs.MsgTypeTestSetup, 902, []*structs.Evaluation{e}))
 	a := mock.Alloc()
 	a.Job = j
 	a.JobID = j.ID
@@ -374,7 +374,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 	a.Metrics = &structs.AllocMetric{}
 	a.DesiredStatus = structs.AllocDesiredStatusRun
 	a.ClientStatus = structs.AllocClientStatusRunning
-	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	// Query jobs with prefix match
 	if code := cmd.Run([]string{"-address=" + url, j.ID}); code != 0 {

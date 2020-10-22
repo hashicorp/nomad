@@ -9,12 +9,37 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+type networkIsolationSetter interface {
+	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
+}
+
+// allocNetworkIsolationSetter is a shim to allow the alloc network hook to
+// set the alloc network isolation configuration without full access
+// to the alloc runner
+type allocNetworkIsolationSetter struct {
+	ar *allocRunner
+}
+
+func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
+	for _, tr := range a.ar.tasks {
+		tr.SetNetworkIsolation(n)
+	}
+}
+
+type networkStatusSetter interface {
+	SetNetworkStatus(*structs.AllocNetworkStatus)
+}
+
 // networkHook is an alloc lifecycle hook that manages the network namespace
 // for an alloc
 type networkHook struct {
-	// setter is a callback to set the network isolation spec when after the
+	// isolationSetter is a callback to set the network isolation spec when after the
 	// network is created
-	setter networkIsolationSetter
+	isolationSetter networkIsolationSetter
+
+	// statusSetter is a callback to the alloc runner to set the network status once
+	// network setup is complete
+	networkStatusSetter networkStatusSetter
 
 	// manager is used when creating the network namespace. This defaults to
 	// bind mounting a network namespace descritor under /var/run/netns but
@@ -34,11 +59,15 @@ type networkHook struct {
 	logger hclog.Logger
 }
 
-func newNetworkHook(logger hclog.Logger, ns networkIsolationSetter,
-	alloc *structs.Allocation, netManager drivers.DriverNetworkManager,
-	netConfigurator NetworkConfigurator) *networkHook {
+func newNetworkHook(logger hclog.Logger,
+	ns networkIsolationSetter,
+	alloc *structs.Allocation,
+	netManager drivers.DriverNetworkManager,
+	netConfigurator NetworkConfigurator,
+	networkStatusSetter networkStatusSetter) *networkHook {
 	return &networkHook{
-		setter:              ns,
+		isolationSetter:     ns,
+		networkStatusSetter: networkStatusSetter,
 		alloc:               alloc,
 		manager:             netManager,
 		networkConfigurator: netConfigurator,
@@ -69,13 +98,16 @@ func (h *networkHook) Prerun() error {
 
 	if spec != nil {
 		h.spec = spec
-		h.setter.SetNetworkIsolation(spec)
+		h.isolationSetter.SetNetworkIsolation(spec)
 	}
 
 	if created {
-		if err := h.networkConfigurator.Setup(context.TODO(), h.alloc, spec); err != nil {
+		status, err := h.networkConfigurator.Setup(context.TODO(), h.alloc, spec)
+		if err != nil {
 			return fmt.Errorf("failed to configure networking for alloc: %v", err)
 		}
+
+		h.networkStatusSetter.SetNetworkStatus(status)
 	}
 	return nil
 }

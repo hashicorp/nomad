@@ -15,25 +15,130 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 1.0.0
+
+### Signal used when stopping Docker tasks
+
+When stopping tasks running with the Docker task driver, Nomad documents that a
+`SIGTERM` will be issued (unless configured with `kill_signal`). However, recent
+versions of Nomad would issue `SIGINT` instead. Starting again with Nomad v1.0.0
+`SIGTERM` will be sent by default when stopping Docker tasks.
+
+### Deprecated metrics have been removed
+
+Nomad v0.7.0 added supported for tagged metrics and deprecated untagged metrics.
+There was support for configuring backwards-compatible metrics. This support has
+been removed with v1.0.0, and all metrics will be emitted with tags.
+
+### Null characters in region, datacenter, job name/ID, task group name, and task names
+
+Starting with Nomad v1.0.0, jobs will fail validation if any of the following
+contain null character: the job ID or name, the task group name, or the task name. Any
+jobs meeting this requirement should be modified before an update to v1.0.0. Similarly,
+client and server config validation will prohibit either the region or the datacenter
+from containing null characters.
+
+### EC2 CPU characteristics may be different
+
+Starting with Nomad v1.0.0, the AWS fingerprinter uses data derived from the
+official AWS EC2 API to determine default CPU performance characteristics, including
+core count and core speed. This data should be accurate for each instance type
+per region. Previously, Nomad used a hand-made lookup table that was not region
+aware and may have contained inaccurate or incomplete data. As part of this change,
+the AWS fingerprinter no longer sets the `cpu.modelname` attribute.
+
+As before, `cpu_total_compute` can be used to override the discovered CPU resources
+available to the Nomad client.
+
+### Inclusive language
+
+Starting with Nomad v1.0.0, the terms `blacklist` and `whitelist` have been
+deprecated from client configuration and driver configuration. The existing
+configuration values are permitted but will be removed in a future version of
+Nomad. The specific configuration values replaced are:
+
+* Client `driver.blacklist` is replaced with `driver.denylist`.
+* Client `driver.whitelist` is replaced with `driver.allowlist`.
+* Client `env.blacklist` is replaced with `env.denylist`.
+* Client `fingerprint.blacklist` is replaced with `fingerprint.denylist`.
+* Client `fingerprint.whitelist` is replaced with `fingerprint.allowlist`.
+* Client `user.blacklist` is replaced with `user.denylist`.
+* Client `template.function_blacklist` is replaced with `template.function_denylist`.
+* Docker driver `docker.caps.whitelist` is replaced with `docker.caps.allowlist`.
+
+### Envoy proxy versions
+
+Nomad 1.0.0 changes the behavior around the selection of Envoy version used
+for Connect sidecar proxies. Previously, Nomad always defaulted to Envoy v1.11.2
+if neither the `meta.connect.sidecar_image` parameter or `sidecar_task` stanza
+were explicitly configured. Likewise the same version of Envoy would be used for
+Connect ingress gateways if `meta.connect.gateway_image` was unset. Starting with
+Nomad 1.0.0, each Nomad Client will query Consul for a list of supported Envoy
+versions. Nomad will make use of the latest version of Envoy supported by the
+Consul agent when launching Envoy as a Connect sidecar proxy. If the version of
+the Consul agent is older than v1.7.8, v1.8.4, or v1.9.0, Nomad will fallback to
+the v1.11.2 version of Envoy. As before, if the `meta.connect.sidecar_image`,
+ `meta.connect.gateway_image`, or `sidecar_task` stanza are set, those settings
+take precedence.
+
+When upgrading Nomad Clients from a previous version to v1.0.0 and above, it is
+recommended to also upgrade the Consul agents to v1.7.8, 1.8.4, or v1.9.0 or newer.
+Upgrading Nomad and Consul to versions that support the new behaviour while also doing a
+full [node drain](https://www.nomadproject.io/docs/upgrade#5-upgrade-clients) at
+the time of the upgrade for each node will ensure Connect workloads are properly
+rescheduled onto nodes in such a way that the Nomad Clients, Consul agents, and
+Envoy sidecar tasks maintain compatibility with one another.
+
+## Nomad 0.12.6
+
+### Artifact and Template Paths
+
+Nomad 0.12.6 includes security fixes for privilege escalation vulnerabilities
+in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
+
 ## Nomad 0.12.0
+
+### `mbits` and Task Network Resource deprecation
+
+Starting in Nomad 0.12.0 the `mbits` field of the network resource block has
+been deprecated. This is in part because we felt that `mbits` didn't
+accurately account network bandwidth as a resource.
+
+Additionally the use of the `network` block inside of a task's `resource` block is
+also deprecated. Users are advised to move their `network` block to the `group`
+block. Recent networking features have only been added to group based network
+configuration. If any usecase or feature which was available with task network
+resource is not fulfilled with group network configuration, please open an issue
+detailing the missing capability.
 
 ### Enterprise Licensing
 
 Enterprise binaries for Nomad are now publicly available via
 [releases.hashicorp.com](https://releases.hashicorp.com/nomad/). By default all
 enterprise features are enabled for 6 hours. During that time enterprise users
-should apply their license with the [`nomad license put
-...`](https://www.nomadproject.io/docs/commands/license/put) command.
+should apply their license with the [`nomad license put ...`](/docs/commands/license/put) command.
 
 Once the 6 hour demonstration period expires, Nomad will shutdown. If restarted
 Nomad will shutdown in a very short amount of time unless a valid license is
 applied.
 
 ~> **Warning:** Due to a [bug][gh-8457] in Nomad v0.12.0, existing clusters
-   that are upgraded will **not** have 6 hours to apply a license. The minimal
-   grace period should be sufficient to apply a valid license, but enterprise
-   users are encouraged to delay upgrading until Nomad v0.12.1 is released and
-   fixes the issue.
+that are upgraded will **not** have 6 hours to apply a license. The minimal
+grace period should be sufficient to apply a valid license, but enterprise
+users are encouraged to delay upgrading until Nomad v0.12.1 is released and
+fixes the issue.
 
 ### Docker access host filesystem
 
@@ -77,6 +182,25 @@ plugin "qemu" {
 }
 ```
 
+## Nomad 0.11.5
+
+### Artifact and Template Paths
+
+Nomad 0.11.5 includes backported security fixes for privilege escalation
+vulnerabilities in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
+
 ## Nomad 0.11.3
 
 Nomad 0.11.3 fixes a critical bug causing the nomad agent to become
@@ -94,10 +218,10 @@ incorrectly during scoring. The result of this bug was that scoring biased in
 favor of nodes with reserved resources vs nodes without reserved resources.
 
 Placements will be more correct but slightly different in v0.11.2 vs earlier
-versions of Nomad. Operators do *not* need to take any actions as the impact of
+versions of Nomad. Operators do _not_ need to take any actions as the impact of
 the bug fix will only minimally affect scoring.
 
-Feasability (whether a node is capable of running a job at all) is *not*
+Feasability (whether a node is capable of running a job at all) is _not_
 affected.
 
 ### Periodic Jobs and Daylight Saving Time
@@ -131,6 +255,25 @@ code is available in an external repository,
 it will not be maintained as `rkt` is [no longer being developed
 upstream](https://github.com/rkt/rkt). We encourage all `rkt` users to find a
 new task driver as soon as possible.
+
+## Nomad 0.10.6
+
+### Artifact and Template Paths
+
+Nomad 0.10.6 includes backported security fixes for privilege escalation
+vulnerabilities in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
 
 ## Nomad 0.10.4
 
@@ -345,14 +488,12 @@ Before Nomad 0.9.0 ports mapped via a task driver's `port_map` stanza could be
 interpolated via the `NOMAD_PORT_<label>` environment variables.
 
 However, in Nomad 0.9.0 no parameters in a driver's `config` stanza, including
-its `port_map`, are available for interpolation. This means `{{ env
-NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT =
-"${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the *host* ports,
+its `port_map`, are available for interpolation. This means `{{ env NOMAD_PORT_<label> }}` in a `template` stanza or `HTTP_PORT = "${NOMAD_PORT_http}"` in an `env` stanza will now interpolate the _host_ ports,
 not the container's.
 
 Nomad 0.10 introduced Task Group Networking which natively supports port
 mapping without relying on task driver specific `port_map` fields. The
-[`to`](/docs/job-specification/network/#to) field on group network port stanzas
+[`to`](/docs/job-specification/network#to) field on group network port stanzas
 will be interpolated properly. Please see the
 [`network`](/docs/job-specification/network/) stanza documentation for details.
 
@@ -395,18 +536,18 @@ Raft Protocol versions supported by each Nomad version:
   </tbody>
 </table>
 
-In order to enable all [Autopilot](https://learn.hashicorp.com/nomad/operating-nomad/autopilot) features, all servers
+In order to enable all [Autopilot](https://learn.hashicorp.com/tutorials/nomad/autopilot) features, all servers
 in a Nomad cluster must be running with Raft protocol version 3 or later.
 
 #### Upgrading to Raft Protocol 3
 
-This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](https://learn.hashicorp.com/nomad/operating-nomad/outage#manual-recovery-using-peersjson) for a description of the required format.
+This section provides details on upgrading to Raft Protocol 3 in Nomad 0.8 and higher. Raft protocol version 3 requires Nomad running 0.8.0 or newer on all servers in order to work. See [Raft Protocol Version Compatibility](/docs/upgrade/upgrade-specific#raft-protocol-version-compatibility) for more details. Also the format of `peers.json` used for outage recovery is different when running with the latest Raft protocol. See [Manual Recovery Using peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson) for a description of the required format.
 
 Please note that the Raft protocol is different from Nomad's internal protocol as shown in commands like `nomad server members`. To see the version of the Raft protocol in use on each server, use the `nomad operator raft list-peers` command.
 
 The easiest way to upgrade servers is to have each server leave the cluster, upgrade its `raft_protocol` version in the `server` stanza, and then add it back. Make sure the new server joins successfully and that the cluster is stable before rolling the upgrade forward to the next server. It's also possible to stand up a new set of servers, and then slowly stand down each of the older servers in a similar fashion.
 
-When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](https://learn.hashicorp.com/nomad/operating-nomad/outage#manual-recovery-using-peersjson) to map the server to its node ID in the Raft quorum configuration.
+When using Raft protocol version 3, servers are identified by their `node-id` instead of their IP address when Nomad makes changes to its internal Raft quorum configuration. This means that once a cluster has been upgraded with servers all running Raft protocol version 3, it will no longer allow servers running any older Raft protocol versions to be added. If running a single Nomad server, restarting it in-place will result in that server not being able to elect itself as a leader. To avoid this, either set the Raft protocol back to 2, or use [Manual Recovery Using peers.json](https://learn.hashicorp.com/tutorials/nomad/outage-recovery#manual-recovery-using-peersjson) to map the server to its node ID in the Raft quorum configuration.
 
 ### Node Draining Improvements
 
@@ -421,7 +562,7 @@ The `drain` command now blocks until the drain completes. To get the Nomad
 0.7.1 and earlier drain behavior use the command: `nomad node drain -enable -force -detach <node-id>`
 
 See the [`migrate` stanza documentation][migrate] and [Decommissioning Nodes
-guide](https://learn.hashicorp.com/nomad/operating-nomad/node-draining) for details.
+guide](https://learn.hashicorp.com/tutorials/nomad/node-drain) for details.
 
 ### Periods in Environment Variable Names No Longer Escaped
 
@@ -596,8 +737,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /docs/internals/scheduling/preemption
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
-[tls-guide]: https://learn.hashicorp.com/nomad/transport-security/enable-tls
-[tls-vault-guide]: https://learn.hashicorp.com/nomad/vault-integration/vault-pki-nomad
+[tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
+[tls-vault-guide]: https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad
 [update]: /docs/job-specification/update
 [validate]: /docs/commands/job/validate
 [vault_grace]: /docs/job-specification/template

@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -106,6 +107,10 @@ const (
 	// old servers to crash when the FSM attempts to process them.
 	IgnoreUnknownTypeFlag MessageType = 128
 
+	// MsgTypeTestSetup is used during testing when calling state store
+	// methods directly that require an FSM MessageType
+	MsgTypeTestSetup MessageType = IgnoreUnknownTypeFlag
+
 	// ApiMajorVersion is returned as part of the Status.Version request.
 	// It should be incremented anytime the APIs are changed in a way
 	// that would break clients for sane client versioning.
@@ -159,6 +164,13 @@ const (
 
 	// Normalized scorer name
 	NormScorerName = "normalized-score"
+
+	// MaxBlockingRPCQueryTime is used to bound the limit of a blocking query
+	MaxBlockingRPCQueryTime = 300 * time.Second
+
+	// DefaultBlockingRPCQueryTime is the amount of time we block waiting for a change
+	// if no time is specified. Previously we would wait the MaxBlockingRPCQueryTime.
+	DefaultBlockingRPCQueryTime = 300 * time.Second
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -203,6 +215,7 @@ type RPCInfo interface {
 	AllowStaleRead() bool
 	IsForwarded() bool
 	SetForwarded()
+	HasTimedOut(since time.Time, rpcHoldTimeout time.Duration) bool
 }
 
 // InternalRpcInfo allows adding internal RPC metadata to an RPC. This struct
@@ -280,6 +293,21 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
+}
+
+func (q QueryOptions) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
+	if q.MinQueryIndex > 0 {
+		// Restrict the max query time, and ensure there is always one
+		if q.MaxQueryTime > MaxBlockingRPCQueryTime {
+			q.MaxQueryTime = MaxBlockingRPCQueryTime
+		} else if q.MaxQueryTime <= 0 {
+			q.MaxQueryTime = DefaultBlockingRPCQueryTime
+		}
+		q.MaxQueryTime += lib.RandomStagger(q.MaxQueryTime / JitterFraction)
+
+		return time.Since(start) > (q.MaxQueryTime + rpcHoldTimeout)
+	}
+	return time.Since(start) > rpcHoldTimeout
 }
 
 // AgentPprofRequest is used to request a pprof report for a given node.
@@ -366,6 +394,10 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
+}
+
+func (w WriteRequest) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
+	return time.Since(start) > rpcHoldTimeout
 }
 
 // QueryMeta allows a query response to include potentially
@@ -730,6 +762,8 @@ type JobStabilityResponse struct {
 // NodeListRequest is used to parameterize a list request
 type NodeListRequest struct {
 	QueryOptions
+
+	Fields *NodeStubFields
 }
 
 // EvalUpdateRequest is used for upserting evaluations.
@@ -875,6 +909,8 @@ type AllocStopResponse struct {
 // AllocListRequest is used to request a list of allocations
 type AllocListRequest struct {
 	QueryOptions
+
+	Fields *AllocStubFields
 }
 
 // AllocSpecificRequest is used to query a specific allocation
@@ -1744,7 +1780,7 @@ type Node struct {
 
 	// Resources is the available resources on the client.
 	// For example 'cpu=2' 'memory=2048'
-	// COMPAT(0.10): Remove in 0.10
+	// COMPAT(0.10): Remove after 0.10
 	Resources *Resources
 
 	// Reserved is the set of resources that are reserved,
@@ -1752,6 +1788,7 @@ type Node struct {
 	// the purposes of scheduling. This may be provide certain
 	// high-watermark tolerances or because of external schedulers
 	// consuming resources.
+	// COMPAT(0.10): Remove after 0.10
 	Reserved *Resources
 
 	// Links are used to 'link' this client to external
@@ -2013,11 +2050,11 @@ func (n *Node) ComparableResources() *ComparableResources {
 }
 
 // Stub returns a summarized version of the node
-func (n *Node) Stub() *NodeListStub {
+func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
-	return &NodeListStub{
+	s := &NodeListStub{
 		Address:               addr,
 		ID:                    n.ID,
 		Datacenter:            n.Datacenter,
@@ -2033,6 +2070,15 @@ func (n *Node) Stub() *NodeListStub {
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
+
+	if fields != nil {
+		if fields.Resources {
+			s.NodeResources = n.NodeResources
+			s.ReservedResources = n.ReservedResources
+		}
+	}
+
+	return s
 }
 
 // NodeListStub is used to return a subset of job information
@@ -2050,8 +2096,15 @@ type NodeListStub struct {
 	StatusDescription     string
 	Drivers               map[string]*DriverInfo
 	HostVolumes           map[string]*ClientHostVolumeConfig
+	NodeResources         *NodeResources         `json:",omitempty"`
+	ReservedResources     *NodeReservedResources `json:",omitempty"`
 	CreateIndex           uint64
 	ModifyIndex           uint64
+}
+
+// NodeStubFields defines which fields are included in the NodeListStub.
+type NodeStubFields struct {
+	Resources bool
 }
 
 // Resources is used to define the resources available
@@ -2087,7 +2140,7 @@ func DefaultResources() *Resources {
 // api/resources.go and should be kept in sync.
 func MinResources() *Resources {
 	return &Resources{
-		CPU:      20,
+		CPU:      1,
 		MemoryMB: 10,
 	}
 }
@@ -2210,11 +2263,6 @@ func (r *Resources) MeetsMinResources() error {
 	}
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
-	}
-	for i, n := range r.Networks {
-		if err := n.MeetsMinResources(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("network resource at index %d failed: %v", i, err))
-		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -2378,6 +2426,20 @@ type DNSConfig struct {
 	Options  []string
 }
 
+func (d *DNSConfig) Copy() *DNSConfig {
+	if d == nil {
+		return nil
+	}
+	newD := new(DNSConfig)
+	newD.Servers = make([]string, len(d.Servers))
+	copy(newD.Servers, d.Servers)
+	newD.Searches = make([]string, len(d.Searches))
+	copy(newD.Searches, d.Searches)
+	newD.Options = make([]string, len(d.Options))
+	copy(newD.Options, d.Options)
+	return newD
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
@@ -2430,16 +2492,6 @@ func (n *NetworkResource) Canonicalize() {
 			n.ReservedPorts[i].HostNetwork = "default"
 		}
 	}
-}
-
-// MeetsMinResources returns an error if the resources specified are less than
-// the minimum allowed.
-func (n *NetworkResource) MeetsMinResources() error {
-	var mErr multierror.Error
-	if n.MBits < 1 {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MBits value is 1; got %d", n.MBits))
-	}
-	return mErr.ErrorOrNil()
 }
 
 // Copy returns a deep copy of the network resource
@@ -3946,9 +3998,13 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job ID"))
 	} else if strings.Contains(j.ID, " ") {
 		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a space"))
+	} else if strings.Contains(j.ID, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a null chararacter"))
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
+	} else if strings.Contains(j.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Job Name contains a null chararacter"))
 	}
 	if j.Namespace == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
@@ -5067,6 +5123,9 @@ type ScalingPolicy struct {
 	// ID is a generated UUID used for looking up the scaling policy
 	ID string
 
+	// Type is the type of scaling performed by the policy
+	Type string
+
 	// Target contains information about the target of the scaling policy, like job and group
 	Target map[string]string
 
@@ -5090,7 +5149,95 @@ const (
 	ScalingTargetNamespace = "Namespace"
 	ScalingTargetJob       = "Job"
 	ScalingTargetGroup     = "Group"
+	ScalingTargetTask      = "Task"
+
+	ScalingPolicyTypeHorizontal = "horizontal"
 )
+
+func (p *ScalingPolicy) Canonicalize() {
+	if p.Type == "" {
+		p.Type = ScalingPolicyTypeHorizontal
+	}
+}
+
+func (p *ScalingPolicy) Copy() *ScalingPolicy {
+	if p == nil {
+		return nil
+	}
+
+	opaquePolicyConfig, err := copystructure.Copy(p.Policy)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	c := ScalingPolicy{
+		ID:          p.ID,
+		Policy:      opaquePolicyConfig.(map[string]interface{}),
+		Enabled:     p.Enabled,
+		Type:        p.Type,
+		Min:         p.Min,
+		Max:         p.Max,
+		CreateIndex: p.CreateIndex,
+		ModifyIndex: p.ModifyIndex,
+	}
+	c.Target = make(map[string]string, len(p.Target))
+	for k, v := range p.Target {
+		c.Target[k] = v
+	}
+	return &c
+}
+
+func (p *ScalingPolicy) Validate() error {
+	if p == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+
+	// Check policy type and target
+	if p.Type == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing scaling policy type"))
+	} else {
+		mErr.Errors = append(mErr.Errors, p.validateType().Errors...)
+	}
+
+	// Check Min and Max
+	if p.Max < 0 {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("maximum count must be specified and non-negative"))
+	} else {
+		if p.Max < p.Min {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("maximum count must not be less than minimum count"))
+		}
+	}
+
+	if p.Min < 0 {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("minimum count must be specified and non-negative"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (p *ScalingPolicy) validateTargetHorizontal() (mErr multierror.Error) {
+	if len(p.Target) == 0 {
+		// This is probably not a Nomad horizontal policy
+		return
+	}
+
+	// Nomad horizontal policies should have Namespace, Job and TaskGroup
+	if p.Target[ScalingTargetNamespace] == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing target namespace"))
+	}
+	if p.Target[ScalingTargetJob] == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing target job"))
+	}
+	if p.Target[ScalingTargetGroup] == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("missing target group"))
+	}
+	return
+}
 
 // Diff indicates whether the specification for a given scaling policy has changed
 func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
@@ -5113,6 +5260,7 @@ func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy 
 func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
 	stub := &ScalingPolicyListStub{
 		ID:          p.ID,
+		Type:        p.Type,
 		Target:      make(map[string]string),
 		Enabled:     p.Enabled,
 		CreateIndex: p.CreateIndex,
@@ -5142,6 +5290,7 @@ func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 type ScalingPolicyListStub struct {
 	ID          string
 	Enabled     bool
+	Type        string
 	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -5558,7 +5707,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Affinities = CopySliceAffinities(ntg.Affinities)
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
-	ntg.Scaling = CopyScalingPolicy(ntg.Scaling)
+	ntg.Scaling = ntg.Scaling.Copy()
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -5628,6 +5777,10 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.EphemeralDisk = DefaultEphemeralDisk()
 	}
 
+	if tg.Scaling != nil {
+		tg.Scaling.Canonicalize()
+	}
+
 	for _, service := range tg.Services {
 		service.Canonicalize(job.Name, tg.Name, "group")
 	}
@@ -5646,6 +5799,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	var mErr multierror.Error
 	if tg.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task group name"))
+	} else if strings.Contains(tg.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Task group name contains null character"))
 	}
 	if tg.Count < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Task group count can't be negative"))
@@ -5789,6 +5944,12 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
+	// Validate group service script-checks
+	if err := tg.validateScriptChecksInGroupServices(); err != nil {
+		outer := fmt.Errorf("Task group service check validation failed: %v", err)
+		mErr.Errors = append(mErr.Errors, outer)
+	}
+
 	// Validate the scaling policy
 	if err := tg.validateScalingPolicy(j); err != nil {
 		outer := fmt.Errorf("Task group scaling policy validation failed: %v", err)
@@ -5918,6 +6079,9 @@ func (tg *TaskGroup) validateServices() error {
 			// error messages to provide the user.
 			continue
 		}
+		if service.AddressMode == AddressModeDriver {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"driver\", only services defined in a \"task\" block can use this mode", service.Name))
+		}
 		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
 		}
@@ -5928,9 +6092,32 @@ func (tg *TaskGroup) validateServices() error {
 					mErr.Errors = append(mErr.Errors,
 						fmt.Errorf("Check %s invalid: only script and gRPC checks should have tasks", check.Name))
 				}
+				if check.AddressMode == AddressModeDriver {
+					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %q invalid: cannot use address_mode=\"driver\", only checks defined in a \"task\" service block can use this mode", service.Name))
+				}
 				if _, ok := knownTasks[check.TaskName]; !ok {
 					mErr.Errors = append(mErr.Errors,
 						fmt.Errorf("Check %s invalid: refers to non-existent task %s", check.Name, check.TaskName))
+				}
+			}
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+// validateScriptChecksInGroupServices ensures group-level services with script
+// checks know what task driver to use. Either the service.task or service.check.task
+// parameter must be configured.
+func (tg *TaskGroup) validateScriptChecksInGroupServices() error {
+	var mErr multierror.Error
+	for _, service := range tg.Services {
+		if service.TaskName == "" {
+			for _, check := range service.Checks {
+				if check.Type == "script" && check.TaskName == "" {
+					mErr.Errors = append(mErr.Errors,
+						fmt.Errorf("Service [%s]->%s or Check %s must specify task parameter",
+							tg.Name, service.Name, check.Name,
+						))
 				}
 			}
 		}
@@ -5947,19 +6134,19 @@ func (tg *TaskGroup) validateScalingPolicy(j *Job) error {
 
 	var mErr multierror.Error
 
-	// was invalid or not specified; don't bother testing anything else involving max
-	if tg.Scaling.Max < 0 {
+	err := tg.Scaling.Validate()
+	if err != nil {
+		// prefix scaling policy errors
+		if me, ok := err.(*multierror.Error); ok {
+			for _, e := range me.Errors {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("Scaling policy invalid: %s", e))
+			}
+		}
+	}
+
+	if tg.Scaling.Max < int64(tg.Count) {
 		mErr.Errors = append(mErr.Errors,
-			fmt.Errorf("Scaling policy invalid: maximum count must be specified and non-negative"))
-	} else {
-		if tg.Scaling.Max < tg.Scaling.Min {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Scaling policy invalid: maximum count must not be less than minimum count"))
-		}
-		if tg.Scaling.Max < int64(tg.Count) {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
-		}
+			fmt.Errorf("Scaling policy invalid: task group count must not be greater than maximum count in scaling policy"))
 	}
 
 	if int64(tg.Count) < tg.Scaling.Min && !(j.IsMultiregion() && tg.Count == 0 && j.Region == "global") {
@@ -6105,6 +6292,22 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
+func (l *LogConfig) Equals(o *LogConfig) bool {
+	if l == nil || o == nil {
+		return l == o
+	}
+
+	if l.MaxFiles != o.MaxFiles {
+		return false
+	}
+
+	if l.MaxFileSizeMB != o.MaxFileSizeMB {
+		return false
+	}
+
+	return true
+}
+
 func (l *LogConfig) Copy() *LogConfig {
 	if l == nil {
 		return nil
@@ -6229,7 +6432,11 @@ type Task struct {
 // Task, which exports known types of Tasks. UsesConnect will be true if the
 // task is a connect proxy, connect native, or is a connect gateway.
 func (t *Task) UsesConnect() bool {
-	return t.Kind.IsConnectProxy() || t.Kind.IsConnectNative() || t.Kind.IsAnyConnectGateway()
+	return t.Kind.IsConnectNative() || t.UsesConnectSidecar()
+}
+
+func (t *Task) UsesConnectSidecar() bool {
+	return t.Kind.IsConnectProxy() || t.Kind.IsAnyConnectGateway()
 }
 
 func (t *Task) Copy() *Task {
@@ -6342,6 +6549,8 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		// We enforce this so that when creating the directory on disk it will
 		// not have any slashes.
 		mErr.Errors = append(mErr.Errors, errors.New("Task name cannot include slashes"))
+	} else if strings.Contains(t.Name, "\000") {
+		mErr.Errors = append(mErr.Errors, errors.New("Task name cannot include null characters"))
 	}
 	if t.Driver == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task driver"))
@@ -6511,6 +6720,10 @@ func validateServices(t *Task) error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 
+		if service.AddressMode == AddressModeAlloc {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"alloc\", only services defined in a \"group\" block can use this mode", service.Name))
+		}
+
 		// Ensure that services with the same name are not being registered for
 		// the same port
 		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
@@ -6538,6 +6751,10 @@ func validateServices(t *Task) error {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q is duplicate", check.Name))
 			}
 			knownChecks[check.Name] = struct{}{}
+
+			if check.AddressMode == AddressModeAlloc {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q cannot use address_mode=\"alloc\", only checks defined in a \"group\" service block can use this mode", service.Name))
+			}
 
 			if !check.RequiresPort() {
 				// No need to continue validating check if it doesn't need a port
@@ -8599,6 +8816,9 @@ type Allocation struct {
 	// RescheduleTrackers captures details of previous reschedule attempts of the allocation
 	RescheduleTracker *RescheduleTracker
 
+	// NetworkStatus captures networking details of an allocation known at runtime
+	NetworkStatus *AllocNetworkStatus
+
 	// FollowupEvalID captures a follow up evaluation created to handle a failed allocation
 	// that can be rescheduled in the future
 	FollowupEvalID string
@@ -8821,6 +9041,15 @@ func (a *Allocation) ReschedulePolicy() *ReschedulePolicy {
 		return nil
 	}
 	return tg.ReschedulePolicy
+}
+
+// MigrateStrategy returns the migrate strategy based on the task group
+func (a *Allocation) MigrateStrategy() *MigrateStrategy {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+	return tg.Migrate
 }
 
 // NextRescheduleTime returns a time on or after which the allocation is eligible to be rescheduled,
@@ -9077,8 +9306,8 @@ func (a *Allocation) LookupTask(name string) *Task {
 }
 
 // Stub returns a list stub for the allocation
-func (a *Allocation) Stub() *AllocListStub {
-	return &AllocListStub{
+func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
+	s := &AllocListStub{
 		ID:                    a.ID,
 		EvalID:                a.EvalID,
 		Name:                  a.Name,
@@ -9105,6 +9334,17 @@ func (a *Allocation) Stub() *AllocListStub {
 		CreateTime:            a.CreateTime,
 		ModifyTime:            a.ModifyTime,
 	}
+
+	if fields != nil {
+		if fields.Resources {
+			s.AllocatedResources = a.AllocatedResources
+		}
+		if !fields.TaskStates {
+			s.TaskStates = nil
+		}
+	}
+
+	return s
 }
 
 // AllocationDiff converts an Allocation type to an AllocationDiff type
@@ -9132,6 +9372,7 @@ type AllocListStub struct {
 	JobType               string
 	JobVersion            uint64
 	TaskGroup             string
+	AllocatedResources    *AllocatedResources `json:",omitempty"`
 	DesiredStatus         string
 	DesiredDescription    string
 	ClientStatus          string
@@ -9163,6 +9404,24 @@ func setDisplayMsg(taskStates map[string]*TaskState) {
 				event.PopulateEventDisplayMessage()
 			}
 		}
+	}
+}
+
+// AllocStubFields defines which fields are included in the AllocListStub.
+type AllocStubFields struct {
+	// Resources includes resource-related fields if true.
+	Resources bool
+
+	// TaskStates removes the TaskStates field if false (default is to
+	// include TaskStates).
+	TaskStates bool
+}
+
+func NewAllocStubFields() *AllocStubFields {
+	return &AllocStubFields{
+		// Maintain backward compatibility by retaining task states by
+		// default.
+		TaskStates: true,
 	}
 }
 
@@ -9357,6 +9616,26 @@ func (s *NodeScoreMeta) Score() float64 {
 
 func (s *NodeScoreMeta) Data() interface{} {
 	return s
+}
+
+// AllocNetworkStatus captures the status of an allocation's network during runtime.
+// Depending on the network mode, an allocation's address may need to be known to other
+// systems in Nomad such as service registration.
+type AllocNetworkStatus struct {
+	InterfaceName string
+	Address       string
+	DNS           *DNSConfig
+}
+
+func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
+	if a == nil {
+		return nil
+	}
+	return &AllocNetworkStatus{
+		InterfaceName: a.InterfaceName,
+		Address:       a.Address,
+		DNS:           a.DNS.Copy(),
+	}
 }
 
 // AllocDeploymentStatus captures the status of the allocation as part of the
@@ -10508,4 +10787,90 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// EventStreamRequest is used to stream events from a servers EventBroker
+type EventStreamRequest struct {
+	Topics map[Topic][]string
+	Index  int
+
+	QueryOptions
+}
+
+type EventStreamWrapper struct {
+	Error *RpcError
+	Event *EventJson
+}
+
+// RpcError is used for serializing errors with a potential error code
+type RpcError struct {
+	Message string
+	Code    *int64
+}
+
+func NewRpcError(err error, code *int64) *RpcError {
+	return &RpcError{
+		Message: err.Error(),
+		Code:    code,
+	}
+}
+
+func (r *RpcError) Error() string {
+	return r.Message
+}
+
+type Topic string
+
+const (
+	TopicDeployment Topic = "Deployment"
+	TopicEval       Topic = "Eval"
+	TopicAlloc      Topic = "Alloc"
+	TopicJob        Topic = "Job"
+	TopicNode       Topic = "Node"
+	TopicAll        Topic = "*"
+)
+
+// Event represents a change in Nomads state.
+type Event struct {
+	// Topic represeents the primary object for the event
+	Topic Topic
+
+	// Type is a short string representing the reason for the event
+	Type string
+
+	// Key is the primary identifier of the Event, The involved objects ID
+	Key string
+
+	// Namespace is the namespace of the object, If the object is not namespace
+	// aware (Node) it is left blank
+	Namespace string
+
+	// FilterKeys are a set of additional related keys that are used to include
+	// events during filtering.
+	FilterKeys []string
+
+	// Index is the raft index that corresponds to the event
+	Index uint64
+
+	// Payload is the Event itself see state/events.go for a list of events
+	Payload interface{}
+}
+
+// Events is a wrapper that contains a set of events for a given index.
+type Events struct {
+	Index  uint64
+	Events []Event
+}
+
+// EventJson is a wrapper for a JSON object
+type EventJson struct {
+	Data []byte
+}
+
+func (j *EventJson) Copy() *EventJson {
+	n := new(EventJson)
+	*n = *j
+	n.Data = make([]byte, len(j.Data))
+	copy(n.Data, j.Data)
+	return n
 }

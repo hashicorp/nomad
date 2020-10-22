@@ -286,3 +286,27 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "my-job-backend-check", check.check.Name)
 }
+
+func TestScript_associated(t *testing.T) {
+	t.Run("neither set", func(t *testing.T) {
+		require.False(t, new(scriptCheckHook).associated("task1", "", ""))
+	})
+
+	t.Run("service set", func(t *testing.T) {
+		require.True(t, new(scriptCheckHook).associated("task1", "task1", ""))
+		require.False(t, new(scriptCheckHook).associated("task1", "task2", ""))
+	})
+
+	t.Run("check set", func(t *testing.T) {
+		require.True(t, new(scriptCheckHook).associated("task1", "", "task1"))
+		require.False(t, new(scriptCheckHook).associated("task1", "", "task2"))
+	})
+
+	t.Run("both set", func(t *testing.T) {
+		// ensure check.task takes precedence over service.task
+		require.True(t, new(scriptCheckHook).associated("task1", "task1", "task1"))
+		require.False(t, new(scriptCheckHook).associated("task1", "task1", "task2"))
+		require.True(t, new(scriptCheckHook).associated("task1", "task2", "task1"))
+		require.False(t, new(scriptCheckHook).associated("task1", "task2", "task2"))
+	})
+}

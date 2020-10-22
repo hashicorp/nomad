@@ -25,7 +25,7 @@ func TestPlanCommand_Fails(t *testing.T) {
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	// Fails on misuse
@@ -119,7 +119,7 @@ func TestPlanCommand_From_STDIN(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
@@ -157,7 +157,7 @@ job "job1" {
 
 func TestPlanCommand_From_URL(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
 		Meta: Meta{Ui: ui},
 	}
@@ -174,7 +174,7 @@ func TestPlanCommand_From_URL(t *testing.T) {
 
 func TestPlanCommad_Preemptions(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
 	require := require.New(t)
 

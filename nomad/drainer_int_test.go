@@ -673,7 +673,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 		new.ClientStatus = structs.AllocClientStatusComplete
 		updates = append(updates, new)
 	}
-	require.Nil(state.UpdateAllocsFromClient(1000, updates))
+	require.Nil(state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1000, updates))
 
 	// Check that the node drain is removed
 	testutil.WaitForResult(func() (bool, error) {
@@ -798,7 +798,7 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		badAllocs = append(badAllocs, alloc)
 	}
-	require.NoError(state.UpsertAllocs(1, badAllocs))
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1, badAllocs))
 
 	// Create the second node
 	nodeReg = &structs.NodeRegisterRequest{

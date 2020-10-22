@@ -224,7 +224,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `ports` - (Optional) A list of port labels to map into the container (see below).
 
-- `port_map` - (Optional) *Deprecated* A key-value map of port labels (see below).
+- `port_map` - (Optional) _Deprecated_ A key-value map of port labels (see below).
 
 - `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
@@ -267,11 +267,13 @@ The `docker` driver supports the following configuration in the job spec. Only
   docker daemon.
 
 - `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths. Mounting host paths outside of the allocation
-  directory can be disabled on clients by setting the `docker.volumes.enabled`
-  option set to false. This will limit volumes to directories that exist inside
-  the allocation directory. We recommend using [`mounts`](#mounts) if you wish
-  to have more control over volume definitions.
+  host paths to container paths. Mounting host paths outside of the [allocation
+  working directory] is prevented by default and limits volumes to directories
+  that exist inside the allocation working directory. You can allow mounting
+  host paths outside of the [allocation working directory] on individual clients
+  by setting the `docker.volumes.enabled` option to `true` in the client's
+  configuration. We recommend using [`mounts`](#mounts) if you wish to have more
+  control over volume definitions.
 
   ```hcl
   config {
@@ -306,7 +308,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `work_dir` - (Optional) The working directory inside the container.
 
 - `mounts` - (Optional) A list of
-  [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-or-volumes)
+  [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
   to be mounted into the container. Volume, bind, and tmpfs type mounts are supported.
 
   ```hcl
@@ -377,8 +379,8 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
   [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
-  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
-  The whitelist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured allowlist.
+  The allowlist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
   For example:
 
   ```hcl
@@ -391,8 +393,8 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
   [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
-  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured whitelist.
-  The whitelist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured allowlist.
+  The allowlist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
   For example:
 
   ```hcl
@@ -488,7 +490,7 @@ task "example" {
 ```
 
 Example docker-config, using two helper scripts in \$PATH,
-"docker-credential-ecr" and "docker-credential-vault":
+"docker-credential-ecr-login" and "docker-credential-vault":
 
 ```json
 {
@@ -504,7 +506,7 @@ Example docker-config, using two helper scripts in \$PATH,
 }
 ```
 
-Example agent configuration, using a helper script "docker-credential-ecr" in
+Example agent configuration, using a helper script "docker-credential-ecr-login" in
 \$PATH
 
 ```hcl
@@ -517,7 +519,7 @@ plugin "docker" {
     auth {
       # Nomad will prepend "docker-credential-" to the helper value and call
       # that script name.
-      helper = "ecr"
+      helper = "ecr-login"
     }
   }
 }
@@ -545,7 +547,7 @@ You can allocate ports to your task using the port syntax described on the
 group {
   network {
     port "http" {}
-    port "https {}
+    port "https" {}
   }
   task "example" {
     driver = "docker"
@@ -653,13 +655,13 @@ through Nomad plugins or dynamic job configuration.
 
 The `docker` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
-| Feature | Implementation |
-| --- | --- |
-| `nomad alloc signal` | true |
-| `nomad alloc exec` | true |
-| filesystem isolation | image |
-| network isolation | host, group, task |
-| volume mounting | all |
+| Feature              | Implementation    |
+| -------------------- | ----------------- |
+| `nomad alloc signal` | true              |
+| `nomad alloc exec`   | true              |
+| filesystem isolation | image             |
+| network isolation    | host, group, task |
+| volume mounting      | all               |
 
 ## Client Requirements
 
@@ -691,7 +693,7 @@ plugin "docker" {
 
     auth {
       config = "/etc/docker-auth.json"
-      helper = "docker-credential-aws"
+      helper = "ecr-login"
     }
 
     tls {
@@ -747,11 +749,10 @@ plugin "docker" {
 
 - `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities.
   Defaults to
-  `CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP,
-  NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE` which is the list of
+  `CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP, NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE` which is the list of
   capabilities allowed by docker by default, as defined here. Allows the
   operator to control which capabilities can be obtained by tasks using cap_add
-  and cap_drop options. Supports the value "ALL" as a shortcut for whitelisting
+  and cap_drop options. Supports the value "ALL" as a shortcut for allowlisting
   all capabilities.
 
 - `allow_runtimes` - defaults to `["runc", "nvidia"]` - A list of the allowed
@@ -824,8 +825,8 @@ plugin "docker" {
     the standard binds in the container.
 
 - `infra_image` - This is the Docker image to use when creating the parent
-  container necessary when sharing network namespaces between tasks. Defaults
-  to "gcr.io/google_containers/pause-amd64:3.0".
+  container necessary when sharing network namespaces between tasks. Defaults to
+  `gcr.io/google_containers/pause-<goarch>:3.1`.
 
 - `infra_image_pull_timeout` - A time duration that controls how long Nomad will
   wait before cancelling an in-progress pull of the Docker image as specified in
@@ -897,13 +898,13 @@ options](/docs/configuration/client#options):
   access to the host's devices. Note that you must set a similar setting on the
   Docker daemon for this to work.
 
-- `docker.caps.whitelist`: A list of allowed Linux capabilities. Defaults to
+- `docker.caps.allowlist`: A list of allowed Linux capabilities. Defaults to
   `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP, SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`, which is the list of
   capabilities allowed by docker by default, as [defined
   here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Allows the operator to control which capabilities can be obtained by tasks
   using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
-  shortcut for whitelisting all capabilities.
+  shortcut for allowlisting all capabilities.
 
 - `docker.cleanup.container`: Defaults to `true`. This option can be used to
   disable Nomad from removing a container when the task exits. Under a name
@@ -1023,3 +1024,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Adriver%2Fdocker+label%3Aplatform-windows
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin
+[allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'

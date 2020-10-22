@@ -8,13 +8,13 @@ description: The /acl/token/ endpoints are used to configure and manage ACL toke
 # ACL Tokens HTTP API
 
 The `/acl/bootstrap`, `/acl/tokens`, and `/acl/token/` endpoints are used to manage ACL tokens.
-For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/nomad?track=acls#operations-and-development).
+For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/collections/nomad/access-control).
 
 ## Bootstrap Token
 
 This endpoint is used to bootstrap the ACL system and provide the initial management token.
 This request is always forwarded to the authoritative region. It can only be invoked once
-until a [bootstrap reset](https://learn.hashicorp.com/nomad?track=acls#acls) is performed.
+until a [bootstrap reset](https://learn.hashicorp.com/tutorials/nomad/access-control-bootstrap#re-bootstrap-acl-system) is performed.
 
 | Method | Path             | Produces           |
 | ------ | ---------------- | ------------------ |

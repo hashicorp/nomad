@@ -204,6 +204,10 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	// for them. The group-level service and any check restart behaviors it
 	// needs are entirely encapsulated within the group service hook which
 	// watches Consul for status changes.
+	//
+	// The script check is associated with a group task if the service.task or
+	// service.check.task matches the task name. The service.check.task takes
+	// precedence.
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 	interpolatedGroupServices := taskenv.InterpolateServices(h.taskEnv, tg.Services)
 	for _, service := range interpolatedGroupServices {
@@ -211,7 +215,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			if check.TaskName != h.task.Name {
+			if !h.associated(h.task.Name, service.TaskName, check.TaskName) {
 				continue
 			}
 			groupTaskName := "group-" + tg.Name
@@ -235,6 +239,20 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 		}
 	}
 	return scriptChecks
+}
+
+// associated returns true if the script check is associated with the task. This
+// would be the case if the check.task is the same as task, or if the service.task
+// is the same as the task _and_ check.task is not configured (i.e. the check
+// inherits the task of the service).
+func (*scriptCheckHook) associated(task, serviceTask, checkTask string) bool {
+	if checkTask == task {
+		return true
+	}
+	if serviceTask == task && checkTask == "" {
+		return true
+	}
+	return false
 }
 
 // heartbeater is the subset of consul agent functionality needed by script
@@ -371,7 +389,7 @@ const (
 	updateTTLBackoffLimit    = 3 * time.Second
 )
 
-// updateTTL updates the state to Consul, performing an expontential backoff
+// updateTTL updates the state to Consul, performing an exponential backoff
 // in the case where the check isn't registered in Consul to avoid a race between
 // service registration and the first check.
 func (s *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {

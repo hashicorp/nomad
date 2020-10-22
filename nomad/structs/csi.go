@@ -172,7 +172,7 @@ func (o *CSIMountOptions) Merge(p *CSIMountOptions) {
 	}
 }
 
-// VolumeMountOptions implements the Stringer and GoStringer interfaces to prevent
+// CSIMountOptions implements the Stringer and GoStringer interfaces to prevent
 // accidental leakage of sensitive mount flags via logs.
 var _ fmt.Stringer = &CSIMountOptions{}
 var _ fmt.GoStringer = &CSIMountOptions{}
@@ -384,8 +384,13 @@ func (v *CSIVolume) WriteSchedulable() bool {
 // WriteFreeClaims determines if there are any free write claims available
 func (v *CSIVolume) WriteFreeClaims() bool {
 	switch v.AccessMode {
-	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter, CSIVolumeAccessModeMultiNodeMultiWriter:
+	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
 		return len(v.WriteAllocs) == 0
+	case CSIVolumeAccessModeMultiNodeMultiWriter:
+		// the CSI spec doesn't allow for setting a max number of writers.
+		// we track node resource exhaustion through v.ResourceExhausted
+		// which is checked in WriteSchedulable
+		return true
 	default:
 		return false
 	}
@@ -572,6 +577,16 @@ func (v *CSIVolume) Validate() error {
 	}
 	if v.AttachmentMode == "" {
 		errs = append(errs, "missing attachment mode")
+	}
+	if v.AttachmentMode == CSIVolumeAttachmentModeBlockDevice {
+		if v.MountOptions != nil {
+			if v.MountOptions.FSType != "" {
+				errs = append(errs, "mount options not allowed for block-device")
+			}
+			if v.MountOptions.MountFlags != nil && len(v.MountOptions.MountFlags) != 0 {
+				errs = append(errs, "mount options not allowed for block-device")
+			}
+		}
 	}
 
 	// TODO: Volume Topologies are optional - We should check to see if the plugin
