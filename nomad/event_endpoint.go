@@ -89,6 +89,28 @@ func (e *Event) GetSink(args *structs.EventSinkSpecificRequest, reply *structs.E
 	return e.srv.blockingRPC(&opts)
 }
 
+func (e *Event) DeleteSink(args *structs.EventSinkDeleteRequest, reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Event.DeleteSink", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "event", "delete_sink"}, time.Now())
+
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EventSinkDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	reply.Index = index
+	return nil
+}
+
 func (e *Event) stream(conn io.ReadWriteCloser) {
 	defer conn.Close()
 

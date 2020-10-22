@@ -71,19 +71,22 @@ func (j *EventJson) Copy() *EventJson {
 
 type EventSinkUpsertRequest struct {
 	Sink *EventSink
-
 	WriteRequest
 }
 
 type EventSinkSpecificRequest struct {
 	ID string
-
 	QueryOptions
 }
 
 type EventSinkResponse struct {
 	Sink *EventSink
 	QueryMeta
+}
+
+type EventSinkDeleteRequest struct {
+	IDs []string
+	WriteRequest
 }
 
 type SinkType string

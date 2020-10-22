@@ -574,5 +574,34 @@ func TestEvent_GetSink(t *testing.T) {
 
 	require.EqualValues(t, 1000, resp.Index)
 	require.Nil(t, resp.Sink)
+}
 
+func TestEvent_DeleteSink(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	sink := mock.EventSink()
+
+	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, structs.DefaultNamespace, sink))
+
+	get := &structs.EventSinkDeleteRequest{
+		IDs: []string{sink.ID},
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+
+	var resp structs.GenericResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.DeleteSink", get, &resp))
+	require.NotEqual(t, uint64(0), resp.Index)
+
+	state := s1.fsm.State()
+	out, err := state.EventSinkByID(nil, structs.DefaultNamespace, sink.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
 }

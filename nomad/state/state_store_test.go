@@ -9586,6 +9586,35 @@ func TestStateStore_UpsertEventSink(t *testing.T) {
 	require.Equal(t, structs.DefaultNamespace, out.Namespace)
 }
 
+func TestStateStore_DeleteEventSinks(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+	s1 := mock.EventSink()
+	s2 := mock.EventSink()
+	s3 := mock.EventSink()
+
+	s4 := new(structs.EventSink)
+	*s4 = *s1
+	s4.Namespace = "foo"
+
+	require.NoError(t, state.UpsertEventSink(100, structs.DefaultNamespace, s1))
+	require.NoError(t, state.UpsertEventSink(101, structs.DefaultNamespace, s2))
+	require.NoError(t, state.UpsertEventSink(102, structs.DefaultNamespace, s3))
+	require.NoError(t, state.UpsertEventSink(103, "foo", s4))
+
+	require.NoError(t, state.DeleteEventSinks(1000, structs.DefaultNamespace, []string{s1.ID, s2.ID, s3.ID}))
+
+	out, err := state.EventSinkByID(nil, "foo", s4.ID)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	out, err = state.EventSinkByID(nil, structs.DefaultNamespace, s1.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
+
+}
+
 func TestStateStore_RestoreEventSink(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

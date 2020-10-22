@@ -5684,6 +5684,21 @@ func (s *StateStore) UpsertEventSink(idx uint64, namespace string, sink *structs
 	return txn.Commit()
 }
 
+func (s *StateStore) DeleteEventSinks(idx uint64, namespace string, sinks []string) error {
+	txn := s.db.WriteTxn(idx)
+	defer txn.Abort()
+
+	for _, id := range sinks {
+		if _, err := txn.DeleteAll("event_sink", "id", namespace, id); err != nil {
+			return fmt.Errorf("deleting event sink failed: %v", err)
+		}
+	}
+	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore

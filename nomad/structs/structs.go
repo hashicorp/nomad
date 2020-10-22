@@ -98,6 +98,7 @@ const (
 	CSIVolumeClaimBatchRequestType
 	CSIPluginDeleteRequestType
 	EventSinkUpsertRequestType
+	EventSinkDeleteRequestType
 )
 
 const (

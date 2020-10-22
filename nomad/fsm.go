@@ -289,6 +289,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyCSIPluginDelete(buf[1:], log.Index)
 	case structs.EventSinkUpsertRequestType:
 		return n.applyUpsertEventSink(buf[1:], log.Index)
+	case structs.EventSinkDeleteRequestType:
+		return n.applyDeleteEventSink(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1260,6 +1262,21 @@ func (n *nomadFSM) applyUpsertEventSink(buf []byte, index uint64) interface{} {
 
 	if err := n.state.UpsertEventSink(index, req.RequestNamespace(), req.Sink); err != nil {
 		n.logger.Error("UpsertEventSink failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyDeleteEventSink(buf []byte, index uint64) interface{} {
+	var req structs.EventSinkDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_delete_event_sink"}, time.Now())
+
+	if err := n.state.DeleteEventSinks(index, req.RequestNamespace(), req.IDs); err != nil {
+		n.logger.Error("DeleteEventSink failed", "error", err)
 		return err
 	}
 
