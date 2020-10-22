@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -132,6 +133,17 @@ func TestSetIndex(t *testing.T) {
 	}
 }
 
+func TestSetVersion(t *testing.T) {
+	t.Parallel()
+	resp := httptest.NewRecorder()
+	setVersion(resp)
+
+	reportedVersion := resp.Header().Get("X-Nomad-Version")
+	if reportedVersion != version.GetVersion().FullVersionNumber(true) {
+		t.Fatalf("Bad: %v", reportedVersion)
+	}
+}
+
 func TestSetKnownLeader(t *testing.T) {
 	t.Parallel()
 	resp := httptest.NewRecorder()
@@ -202,6 +214,24 @@ func TestSetHeaders(t *testing.T) {
 
 }
 
+func TestSetVersionHeader(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		return nil, nil
+	}
+
+	req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+	s.Server.wrap(handler)(resp, req)
+	reportedVersion := resp.Header().Get("X-Nomad-Version")
+	if reportedVersion != version.GetVersion().FullVersionNumber(true) {
+		t.Fatalf("version didn't match")
+	}
+}
+
 func TestContentTypeIsJSON(t *testing.T) {
 	t.Parallel()
 	s := makeHTTPServer(t, nil)
@@ -238,8 +268,8 @@ func TestWrapNonJSON(t *testing.T) {
 	s.Server.wrapNonJSON(handler)(resp, req)
 
 	respBody, _ := ioutil.ReadAll(resp.Body)
+	require.Equal(t, version.GetVersion().FullVersionNumber(true), resp.Header().Get("X-Nomad-Version"))
 	require.Equal(t, respBody, []byte("test response"))
-
 }
 
 func TestWrapNonJSON_Error(t *testing.T) {

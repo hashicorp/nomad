@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/version"
 	"github.com/rs/cors"
 )
 
@@ -438,6 +439,7 @@ func errCodeFromHandler(err error) (int, string) {
 // wrap is used to wrap functions to make them more convenient
 func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
+		setVersion(resp)
 		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
 		// Invoke the handler
 		reqURL := req.URL.String()
@@ -514,6 +516,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 // Handler functions are responsible for setting Content-Type Header
 func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *http.Request) ([]byte, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
+		setVersion(resp)
 		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
 		// Invoke the handler
 		reqURL := req.URL.String()
@@ -565,6 +568,12 @@ func setIndex(resp http.ResponseWriter, index uint64) {
 	resp.Header().Set("X-Nomad-Index", strconv.FormatUint(index, 10))
 }
 
+// setVersion adds the Nomad version to every response header
+func setVersion(resp http.ResponseWriter) {
+	version := version.GetVersion().FullVersionNumber(true)
+	resp.Header().Set("X-Nomad-Version", version)
+}
+
 // setKnownLeader is used to set the known leader header
 func setKnownLeader(resp http.ResponseWriter, known bool) {
 	s := "true"
@@ -585,6 +594,7 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 	setIndex(resp, m.Index)
 	setLastContact(resp, m.LastContact)
 	setKnownLeader(resp, m.KnownLeader)
+	setVersion(resp) // Not sure if this needs to be here.
 }
 
 // setHeaders is used to set canonical response header fields
