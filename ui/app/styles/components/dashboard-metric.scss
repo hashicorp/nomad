@@ -40,6 +40,14 @@
     padding-top: 1.5em;
   }
 
+  .pair,
+  .minor-pair {
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .pair {
     font-size: $size-5;
   }
