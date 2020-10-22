@@ -551,19 +551,27 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 	ctmpls := make(map[*ctconf.TemplateConfig]*structs.Template, len(config.Templates))
 	for _, tmpl := range config.Templates {
 		var src, dest string
-		var err error
 		if tmpl.SourcePath != "" {
 			src = taskEnv.ReplaceEnv(tmpl.SourcePath)
-			src, err = helper.GetPathInSandbox(config.TaskDir, src)
-			if err != nil && sandboxEnabled {
+			if !filepath.IsAbs(src) {
+				src = filepath.Join(config.TaskDir, src)
+			} else {
+				src = filepath.Clean(src)
+			}
+			escapes := helper.PathEscapesSandbox(config.TaskDir, src)
+			if escapes && sandboxEnabled {
 				return nil, fmt.Errorf("template source path escapes alloc directory")
 			}
 		}
 
 		if tmpl.DestPath != "" {
 			dest = taskEnv.ReplaceEnv(tmpl.DestPath)
-			dest, err = helper.GetPathInSandbox(config.TaskDir, dest)
-			if err != nil && sandboxEnabled {
+			// Note: we *always* join here even if we get passed an absolute
+			// path so that $NOMAD_SECRETS_DIR and friends can be used and
+			// always fall inside the task working directory
+			dest = filepath.Join(config.TaskDir, dest)
+			escapes := helper.PathEscapesSandbox(config.TaskDir, dest)
+			if escapes && sandboxEnabled {
 				return nil, fmt.Errorf("template destination path escapes alloc directory")
 			}
 		}
