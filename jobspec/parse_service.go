@@ -348,6 +348,7 @@ func parseGatewayProxy(o *ast.ObjectItem) (*api.ConsulGatewayProxy, error) {
 			if err := hcl.DecodeObject(&bind, listenerListVal); err != nil {
 				panic(err)
 			}
+			bind.Name = listenerName
 			proxy.EnvoyGatewayBindAddresses[listenerName] = &bind
 		}
 	}

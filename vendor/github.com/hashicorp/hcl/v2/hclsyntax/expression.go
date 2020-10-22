@@ -260,6 +260,20 @@ func (e *FunctionCallExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnosti
 		}
 
 		switch {
+		case expandVal.Type().Equals(cty.DynamicPseudoType):
+			if expandVal.IsNull() {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity:    hcl.DiagError,
+					Summary:     "Invalid expanding argument value",
+					Detail:      "The expanding argument (indicated by ...) must not be null.",
+					Subject:     expandExpr.Range().Ptr(),
+					Context:     e.Range().Ptr(),
+					Expression:  expandExpr,
+					EvalContext: ctx,
+				})
+				return cty.DynamicVal, diags
+			}
+			return cty.DynamicVal, diags
 		case expandVal.Type().IsTupleType() || expandVal.Type().IsListType() || expandVal.Type().IsSetType():
 			if expandVal.IsNull() {
 				diags = append(diags, &hcl.Diagnostic{
@@ -406,22 +420,39 @@ func (e *FunctionCallExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnosti
 			} else {
 				param = varParam
 			}
-			argExpr := e.Args[i]
 
-			// TODO: we should also unpick a PathError here and show the
-			// path to the deep value where the error was detected.
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid function argument",
-				Detail: fmt.Sprintf(
-					"Invalid value for %q parameter: %s.",
-					param.Name, err,
-				),
-				Subject:     argExpr.StartRange().Ptr(),
-				Context:     e.Range().Ptr(),
-				Expression:  argExpr,
-				EvalContext: ctx,
-			})
+			// this can happen if an argument is (incorrectly) null.
+			if i > len(e.Args)-1 {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid function argument",
+					Detail: fmt.Sprintf(
+						"Invalid value for %q parameter: %s.",
+						param.Name, err,
+					),
+					Subject:     args[len(params)].StartRange().Ptr(),
+					Context:     e.Range().Ptr(),
+					Expression:  e,
+					EvalContext: ctx,
+				})
+			} else {
+				argExpr := e.Args[i]
+
+				// TODO: we should also unpick a PathError here and show the
+				// path to the deep value where the error was detected.
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid function argument",
+					Detail: fmt.Sprintf(
+						"Invalid value for %q parameter: %s.",
+						param.Name, err,
+					),
+					Subject:     argExpr.StartRange().Ptr(),
+					Context:     e.Range().Ptr(),
+					Expression:  argExpr,
+					EvalContext: ctx,
+				})
+			}
 
 		default:
 			diags = append(diags, &hcl.Diagnostic{
@@ -940,6 +971,9 @@ func (e *ForExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 	if collVal.Type() == cty.DynamicPseudoType {
 		return cty.DynamicVal, diags
 	}
+	// Unmark collection before checking for iterability, because marked
+	// values cannot be iterated
+	collVal, marks := collVal.Unmark()
 	if !collVal.CanIterateElements() {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -1147,7 +1181,7 @@ func (e *ForExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 			}
 		}
 
-		return cty.ObjectVal(vals), diags
+		return cty.ObjectVal(vals).WithMarks(marks), diags
 
 	} else {
 		// Producing a tuple
@@ -1223,7 +1257,7 @@ func (e *ForExpr) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 			return cty.DynamicVal, diags
 		}
 
-		return cty.TupleVal(vals), diags
+		return cty.TupleVal(vals).WithMarks(marks), diags
 	}
 }
 
