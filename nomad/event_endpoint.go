@@ -7,9 +7,12 @@ import (
 	"io/ioutil"
 	"time"
 
+	metrics "github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -20,6 +23,150 @@ type Event struct {
 
 func (e *Event) register() {
 	e.srv.streamingRpcs.Register("Event.Stream", e.stream)
+}
+
+// ListSinks is used to list the event sinks registered in Nomad
+func (e *Event) ListSinks(args *structs.EventSinkListRequest, reply *structs.EventSinkListResponse) error {
+	if done, err := e.srv.forward("Event.ListSinks", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "event", "list_sinks"}, time.Now())
+
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			iter, err := state.EventSinks(ws)
+			if err != nil {
+				return err
+			}
+
+			var sinks []*structs.EventSink
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+
+				sink := raw.(*structs.EventSink)
+				sinks = append(sinks, sink)
+			}
+			reply.Sinks = sinks
+
+			index, err := state.Index("event_sink")
+			if err != nil {
+				return err
+			}
+
+			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
+			// We floor the index at one, since realistically the first write must have a higher index.
+			if index == 0 {
+				index = 1
+			}
+
+			reply.Index = index
+			return nil
+		},
+	}
+
+	return e.srv.blockingRPC(&opts)
+}
+
+// UpsertSink is used to create or update an event sink
+func (e *Event) UpsertSink(args *structs.EventSinkUpsertRequest, reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Event.UpsertSink", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "event", "upsert_sink"}, time.Now())
+
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	if err := args.Sink.Validate(); err != nil {
+		return err
+	}
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EventSinkUpsertRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	reply.Index = index
+	return nil
+}
+
+// GetSink returns the requested event sink
+func (e *Event) GetSink(args *structs.EventSinkSpecificRequest, reply *structs.EventSinkResponse) error {
+	if done, err := e.srv.forward("Event.GetSink", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "event", "get_sink"}, time.Now())
+
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowOperatorRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			s, err := state.EventSinkByID(ws, args.ID)
+			if err != nil {
+				return nil
+			}
+
+			reply.Sink = s
+
+			index, err := state.Index("event_sink")
+			if err != nil {
+				return err
+			}
+
+			if index == 0 {
+				index = 1
+			}
+
+			reply.Index = index
+			return nil
+		},
+	}
+
+	return e.srv.blockingRPC(&opts)
+}
+
+// DeleteSink deletes an event sink
+func (e *Event) DeleteSink(args *structs.EventSinkDeleteRequest, reply *structs.GenericResponse) error {
+	if done, err := e.srv.forward("Event.DeleteSink", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "event", "delete_sink"}, time.Now())
+
+	if aclObj, err := e.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	// Update via Raft
+	_, index, err := e.srv.raftApply(structs.EventSinkDeleteRequestType, args)
+	if err != nil {
+		return err
+	}
+
+	reply.Index = index
+	return nil
 }
 
 func (e *Event) stream(conn io.ReadWriteCloser) {
