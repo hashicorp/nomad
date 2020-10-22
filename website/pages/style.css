@@ -4,7 +4,7 @@
 @import '~@hashicorp/react-global-styles/custom-properties/font.css';
 @import '~@hashicorp/react-global-styles/_temporary-to-remove/layout.css';
 @import '~@hashicorp/react-global-styles/_temporary-to-remove/tables.css';
-@import '~@hashicorp/react-alert-banner/dist/style.css';
+@import '~@hashicorp/react-alert-banner/style.css';
 @import '~@hashicorp/nextjs-scripts/prism/style.css';
 
 :root {
