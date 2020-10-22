@@ -15,8 +15,7 @@ description: |-
 The `job` stanza is the top-most configuration option in the job specification.
 A job is a declarative specification of tasks that Nomad should run. Jobs have
 one or more task groups, which are themselves collections of one or more tasks.
-Job names are unique per [region][region] or [namespace][namespace] (if Nomad
-Enterprise is used).
+Job names are unique per [region][region] or [namespace][namespace].
 
 ```hcl
 job "docs" {
@@ -96,7 +95,7 @@ job "docs" {
   applied. Only service jobs with a count greater than 1 support migrate stanzas.
 
 - `namespace` `(string: "default")` - The namespace in which to execute the job.
-  Values other than default are not allowed in non-Enterprise versions of Nomad.
+  Prior to Nomad 1.0 namespaces were Enterprise-only.
 
 - `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
   the job as a parameterized job such that it can be dispatched against.
