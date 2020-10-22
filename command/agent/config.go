@@ -340,6 +340,8 @@ type ACLConfig struct {
 	PolicyTTL    time.Duration
 	PolicyTTLHCL string `hcl:"policy_ttl" json:"-"`
 
+	MasterToken string `hcl:"master_token"`
+
 	// ReplicationToken is used by servers to replicate tokens and policies
 	// from the authoritative region. This must be a valid management token
 	// within the authoritative region.
@@ -1316,6 +1318,9 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	}
 	if b.PolicyTTLHCL != "" {
 		result.PolicyTTLHCL = b.PolicyTTLHCL
+	}
+	if b.MasterToken != "" {
+		result.MasterToken = b.MasterToken
 	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken

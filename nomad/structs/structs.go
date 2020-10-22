@@ -10772,8 +10772,8 @@ type ACLTokenDeleteRequest struct {
 
 // ACLTokenBootstrapRequest is used to bootstrap ACLs
 type ACLTokenBootstrapRequest struct {
-	Token      *ACLToken // Not client specifiable
-	ResetIndex uint64    // Reset index is used to clear the bootstrap token
+	Token      *ACLToken
+	ResetIndex uint64 // Reset index is used to clear the bootstrap token
 	WriteRequest
 }
 
