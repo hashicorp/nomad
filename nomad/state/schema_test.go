@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
@@ -144,71 +143,4 @@ func TestState_ScalingPolicyTargetFieldIndex_FromObject(t *testing.T) {
 	require.False(ok)
 	require.Error(err)
 	require.Equal("", string(val))
-}
-
-func TestEventTableUintIndex(t *testing.T) {
-
-	require := require.New(t)
-
-	const (
-		eventsTable = "events"
-		uintIDIdx   = "id"
-	)
-
-	db, err := memdb.NewMemDB(&memdb.DBSchema{
-		Tables: map[string]*memdb.TableSchema{
-			eventsTable: eventTableSchema(),
-		},
-	})
-	require.NoError(err)
-
-	// numRecords in table counts all the items in the table, which is expected
-	// to always be 1 since that's the point of the singletonRecord Indexer.
-	numRecordsInTable := func() int {
-		txn := db.Txn(false)
-		defer txn.Abort()
-
-		iter, err := txn.Get(eventsTable, uintIDIdx)
-		require.NoError(err)
-
-		num := 0
-		for item := iter.Next(); item != nil; item = iter.Next() {
-			num++
-		}
-		return num
-	}
-
-	insertEvents := func(e *structs.Events) {
-		txn := db.Txn(true)
-		err := txn.Insert(eventsTable, e)
-		require.NoError(err)
-		txn.Commit()
-	}
-
-	get := func(idx uint64) *structs.Events {
-		txn := db.Txn(false)
-		defer txn.Abort()
-		record, err := txn.First("events", "id", idx)
-		require.NoError(err)
-		s, ok := record.(*structs.Events)
-		require.True(ok)
-		return s
-	}
-
-	firstEvent := &structs.Events{Index: 10, Events: []structs.Event{{Index: 10}, {Index: 10}}}
-	secondEvent := &structs.Events{Index: 11, Events: []structs.Event{{Index: 11}, {Index: 11}}}
-	thirdEvent := &structs.Events{Index: 202, Events: []structs.Event{{Index: 202}, {Index: 202}}}
-	insertEvents(firstEvent)
-	insertEvents(secondEvent)
-	insertEvents(thirdEvent)
-	require.Equal(3, numRecordsInTable())
-
-	gotFirst := get(10)
-	require.Equal(firstEvent, gotFirst)
-
-	gotSecond := get(11)
-	require.Equal(secondEvent, gotSecond)
-
-	gotThird := get(202)
-	require.Equal(thirdEvent, gotThird)
 }

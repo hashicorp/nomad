@@ -98,14 +98,6 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
-- `durable_event_count` `(int: 100)` - Specifies the number of events to
-  persist during snapshot generation. This provides a given server's event
-  stream durability during restarts by persiting a backlog of events to be
-  repopulated when the server comes back online. Increasing this value provides
-  a greater history of messages when a server comes online. Decreasing this
-  value reduces the history of messages but uses less disk i/o during
-  snapshot creation.
-
 - `csi_volume_claim_gc_threshold` `(string: "1h")` - Specifies the minimum age of
   a CSI volume before it is eligible to have its claims garbage collected.
   This is specified using a label suffix like "30s" or "1h".

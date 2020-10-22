@@ -10,8 +10,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type EvictCallbackFn func(events *structs.Events)
-
 // eventBuffer is a single-writer, multiple-reader, fixed length concurrent
 // buffer of events that have been published. The buffer is
 // the head and tail of an atomically updated single-linked list. Atomic
@@ -51,16 +49,14 @@ type eventBuffer struct {
 	tail atomic.Value
 
 	maxSize int64
-	onEvict EvictCallbackFn
 }
 
 // newEventBuffer creates an eventBuffer ready for use.
-func newEventBuffer(size int64, onEvict EvictCallbackFn) *eventBuffer {
+func newEventBuffer(size int64) *eventBuffer {
 	zero := int64(0)
 	b := &eventBuffer{
 		maxSize: size,
 		size:    &zero,
-		onEvict: onEvict,
 	}
 
 	item := newBufferItem(&structs.Events{Index: 0, Events: nil})
@@ -133,11 +129,6 @@ func (b *eventBuffer) advanceHead() {
 	// update the amount of events we have in the buffer
 	rmCount := len(old.Events.Events)
 	atomic.AddInt64(b.size, -int64(rmCount))
-
-	// Call evict callback if the item isn't a sentinel value
-	if b.onEvict != nil && old.Events.Index != 0 {
-		b.onEvict(old.Events)
-	}
 }
 
 // Head returns the current head of the buffer. It will always exist but it may

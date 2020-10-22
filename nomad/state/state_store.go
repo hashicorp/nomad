@@ -51,10 +51,6 @@ type StateStoreConfig struct {
 
 	// EventBufferSize configures the amount of events to hold in memory
 	EventBufferSize int64
-
-	// DurableEventCount is used to determine if events from transaction changes
-	// should be saved in go-memdb
-	DurableEventCount int64
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -102,11 +98,10 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		broker := stream.NewEventBroker(ctx, stream.EventBrokerCfg{
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
-			OnEvict:         s.eventBrokerEvict,
 		})
-		s.db = NewChangeTrackerDB(db, broker, processDBChanges, config.DurableEventCount)
+		s.db = NewChangeTrackerDB(db, broker, processDBChanges)
 	} else {
-		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges, 0)
+		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
 	}
 
 	// Initialize the state store with required enterprise objects
@@ -122,30 +117,6 @@ func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
 		return nil, fmt.Errorf("EventBroker not configured")
 	}
 	return s.db.publisher, nil
-}
-
-// eventBrokerEvict is used as a callback to delete an evicted events
-// entry from go-memdb.
-func (s *StateStore) eventBrokerEvict(events *structs.Events) {
-	if err := s.deleteEvent(events); err != nil {
-		if err == memdb.ErrNotFound {
-			s.logger.Info("Evicted event was not found in go-memdb table", "event index", events.Index)
-		} else {
-			s.logger.Error("Error deleting event from events table", "error", err)
-		}
-	}
-}
-
-func (s *StateStore) deleteEvent(events *structs.Events) error {
-	txn := s.db.memdb.Txn(true)
-	defer txn.Abort()
-
-	if err := txn.Delete("events", events); err != nil {
-		return err
-	}
-
-	txn.Commit()
-	return nil
 }
 
 // Config returns the state store configuration.
@@ -165,7 +136,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	}
 
 	// Create a new change tracker DB that does not publish or track changes
-	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges, 0)
+	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges)
 
 	snap := &StateSnapshot{
 		StateStore: store,
@@ -5667,48 +5638,6 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	return nil, nil
 }
 
-// LatestEventsReverse returns the unfiltered list of all volumes
-func (s *StateStore) LatestEventsReverse(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-	defer txn.Abort()
-
-	iter, err := txn.GetReverse("events", "id")
-	if err != nil {
-		return nil, fmt.Errorf("events lookup failed: %v", err)
-	}
-
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// Events returns the unfiltered list of all volumes
-func (s *StateStore) Events(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-	defer txn.Abort()
-
-	iter, err := txn.Get("events", "id")
-	if err != nil {
-		return nil, fmt.Errorf("events lookup failed: %v", err)
-	}
-
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// UpsertEvents is used to insert events. It should only be used for testing.
-// Normal use events are inserted to go-memdb during transaction commit
-func (s *StateStore) UpsertEvents(index uint64, events *structs.Events) error {
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-
-	if err := txn.Insert("events", events); err != nil {
-		return err
-	}
-	return txn.Commit()
-}
-
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -5952,13 +5881,6 @@ func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
 func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
 	if err := r.txn.Insert("csi_volumes", volume); err != nil {
 		return fmt.Errorf("csi volume insert failed: %v", err)
-	}
-	return nil
-}
-
-func (r *StateRestore) EventRestore(events *structs.Events) error {
-	if err := r.txn.Insert("events", events); err != nil {
-		return fmt.Errorf("events insert failed: %v", err)
 	}
 	return nil
 }
