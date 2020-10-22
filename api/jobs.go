@@ -50,6 +50,9 @@ type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
 
+	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
+	HCLv1 bool `json:"hclv1,omitempty"`
+
 	// Canonicalize is a flag as to if the server should return default values
 	// for unset fields
 	Canonicalize bool
@@ -439,15 +442,15 @@ type periodicForceResponse struct {
 
 // UpdateStrategy defines a task groups update strategy.
 type UpdateStrategy struct {
-	Stagger          *time.Duration `mapstructure:"stagger"`
-	MaxParallel      *int           `mapstructure:"max_parallel"`
-	HealthCheck      *string        `mapstructure:"health_check"`
-	MinHealthyTime   *time.Duration `mapstructure:"min_healthy_time"`
-	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline"`
-	ProgressDeadline *time.Duration `mapstructure:"progress_deadline"`
-	Canary           *int           `mapstructure:"canary"`
-	AutoRevert       *bool          `mapstructure:"auto_revert"`
-	AutoPromote      *bool          `mapstructure:"auto_promote"`
+	Stagger          *time.Duration `mapstructure:"stagger" hcl:"stagger,optional"`
+	MaxParallel      *int           `mapstructure:"max_parallel" hcl:"max_parallel,optional"`
+	HealthCheck      *string        `mapstructure:"health_check" hcl:"health_check,optional"`
+	MinHealthyTime   *time.Duration `mapstructure:"min_healthy_time" hcl:"min_healthy_time,optional"`
+	HealthyDeadline  *time.Duration `mapstructure:"healthy_deadline" hcl:"healthy_deadline,optional"`
+	ProgressDeadline *time.Duration `mapstructure:"progress_deadline" hcl:"progress_deadline,optional"`
+	Canary           *int           `mapstructure:"canary" hcl:"canary,optional"`
+	AutoRevert       *bool          `mapstructure:"auto_revert" hcl:"auto_revert,optional"`
+	AutoPromote      *bool          `mapstructure:"auto_promote" hcl:"auto_promote,optional"`
 }
 
 // DefaultUpdateStrategy provides a baseline that can be used to upgrade
@@ -640,8 +643,8 @@ func (u *UpdateStrategy) Empty() bool {
 }
 
 type Multiregion struct {
-	Strategy *MultiregionStrategy
-	Regions  []*MultiregionRegion
+	Strategy *MultiregionStrategy `hcl:"strategy,block"`
+	Regions  []*MultiregionRegion `hcl:"region,block"`
 }
 
 func (m *Multiregion) Canonicalize() {
@@ -700,24 +703,24 @@ func (m *Multiregion) Copy() *Multiregion {
 }
 
 type MultiregionStrategy struct {
-	MaxParallel *int    `mapstructure:"max_parallel"`
-	OnFailure   *string `mapstructure:"on_failure"`
+	MaxParallel *int    `mapstructure:"max_parallel" hcl:"max_parallel,optional"`
+	OnFailure   *string `mapstructure:"on_failure" hcl:"on_failure,optional"`
 }
 
 type MultiregionRegion struct {
-	Name        string
-	Count       *int
-	Datacenters []string
-	Meta        map[string]string
+	Name        string            `hcl:",label"`
+	Count       *int              `hcl:"count,optional"`
+	Datacenters []string          `hcl:"datacenters,optional"`
+	Meta        map[string]string `hcl:"meta,block"`
 }
 
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
-	Enabled         *bool
-	Spec            *string
+	Enabled         *bool   `hcl:"enabled,optional"`
+	Spec            *string `hcl:"cron,optional"`
 	SpecType        *string
-	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap"`
-	TimeZone        *string `mapstructure:"time_zone"`
+	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
+	TimeZone        *string `mapstructure:"time_zone" hcl:"time_zone,optional"`
 }
 
 func (p *PeriodicConfig) Canonicalize() {
@@ -779,38 +782,43 @@ func (p *PeriodicConfig) GetLocation() (*time.Location, error) {
 
 // ParameterizedJobConfig is used to configure the parameterized job.
 type ParameterizedJobConfig struct {
-	Payload      string
-	MetaRequired []string `mapstructure:"meta_required"`
-	MetaOptional []string `mapstructure:"meta_optional"`
+	Payload      string   `hcl:"payload,optional"`
+	MetaRequired []string `mapstructure:"meta_required" hcl:"meta_required,optional"`
+	MetaOptional []string `mapstructure:"meta_optional" hcl:"meta_optional,optional"`
 }
 
 // Job is used to serialize a job.
 type Job struct {
+	/* Fields parsed from HCL config */
+
+	Region           *string                 `hcl:"region,optional"`
+	Namespace        *string                 `hcl:"namespace,optional"`
+	ID               *string                 `hcl:"id,optional"`
+	Name             *string                 `hcl:"name,optional"`
+	Type             *string                 `hcl:"type,optional"`
+	Priority         *int                    `hcl:"priority,optional"`
+	AllAtOnce        *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
+	Datacenters      []string                `hcl:"datacenters,optional"`
+	Constraints      []*Constraint           `hcl:"constraint,block"`
+	Affinities       []*Affinity             `hcl:"affinity,block"`
+	TaskGroups       []*TaskGroup            `hcl:"group,block"`
+	Update           *UpdateStrategy         `hcl:"update,block"`
+	Multiregion      *Multiregion            `hcl:"multiregion,block"`
+	Spreads          []*Spread               `hcl:"spread,block"`
+	Periodic         *PeriodicConfig         `hcl:"periodic,block"`
+	ParameterizedJob *ParameterizedJobConfig `hcl:"parameterized,block"`
+	Reschedule       *ReschedulePolicy       `hcl:"reschedule,block"`
+	Migrate          *MigrateStrategy        `hcl:"migrate,block"`
+	Meta             map[string]string       `hcl:"meta,block"`
+	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
+	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+
+	/* Fields set by server, not sourced from job config file */
+
 	Stop              *bool
-	Region            *string
-	Namespace         *string
-	ID                *string
 	ParentID          *string
-	Name              *string
-	Type              *string
-	Priority          *int
-	AllAtOnce         *bool `mapstructure:"all_at_once"`
-	Datacenters       []string
-	Constraints       []*Constraint
-	Affinities        []*Affinity
-	TaskGroups        []*TaskGroup
-	Update            *UpdateStrategy
-	Multiregion       *Multiregion
-	Spreads           []*Spread
-	Periodic          *PeriodicConfig
-	ParameterizedJob  *ParameterizedJobConfig
 	Dispatched        bool
 	Payload           []byte
-	Reschedule        *ReschedulePolicy
-	Migrate           *MigrateStrategy
-	Meta              map[string]string
-	ConsulToken       *string `mapstructure:"consul_token"`
-	VaultToken        *string `mapstructure:"vault_token"`
 	VaultNamespace    *string `mapstructure:"vault_namespace"`
 	NomadTokenID      *string `mapstructure:"nomad_token_id"`
 	Status            *string

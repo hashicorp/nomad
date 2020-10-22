@@ -202,7 +202,7 @@ func checkInvalidTokens(tokens Tokens) hcl.Diagnostics {
 				case TokenBitwiseAnd:
 					suggestion = " Did you mean boolean AND (\"&&\")?"
 				case TokenBitwiseOr:
-					suggestion = " Did you mean boolean OR (\"&&\")?"
+					suggestion = " Did you mean boolean OR (\"||\")?"
 				case TokenBitwiseNot:
 					suggestion = " Did you mean boolean NOT (\"!\")?"
 				}
@@ -294,12 +294,23 @@ func checkInvalidTokens(tokens Tokens) hcl.Diagnostics {
 				Subject:  &tok.Range,
 			})
 		case TokenInvalid:
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid character",
-				Detail:   "This character is not used within the language.",
-				Subject:  &tok.Range,
-			})
+			chars := string(tok.Bytes)
+			switch chars {
+			case "“", "”":
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid character",
+					Detail:   "\"Curly quotes\" are not valid here. These can sometimes be inadvertently introduced when sharing code via documents or discussion forums. It might help to replace the character with a \"straight quote\".",
+					Subject:  &tok.Range,
+				})
+			default:
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid character",
+					Detail:   "This character is not used within the language.",
+					Subject:  &tok.Range,
+				})
+			}
 		}
 	}
 	return diags

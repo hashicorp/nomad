@@ -40,7 +40,7 @@ job "job1" {
 			config {
 				command = "/bin/sleep"
 			}
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -142,7 +142,7 @@ job "job1" {
 						config {
 							command = "/bin/echo"
 						}
-                        resources = {
+                        resources {
                                 cpu = 1000
                                 memory = 512
                         }

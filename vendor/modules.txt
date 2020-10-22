@@ -62,6 +62,8 @@ github.com/NYTimes/gziphandler
 github.com/StackExchange/wmi
 # github.com/agext/levenshtein v1.2.1
 github.com/agext/levenshtein
+# github.com/apparentlymart/go-cidr v1.0.1
+github.com/apparentlymart/go-cidr/cidr
 # github.com/apparentlymart/go-textseg/v12 v12.0.0 => github.com/apparentlymart/go-textseg/v12 v12.0.0
 github.com/apparentlymart/go-textseg/v12/textseg
 # github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
@@ -129,6 +131,8 @@ github.com/beorn7/perks/quantile
 github.com/bgentry/go-netrc/netrc
 # github.com/bgentry/speakeasy v0.1.0
 github.com/bgentry/speakeasy
+# github.com/bmatcuk/doublestar v1.1.5
+github.com/bmatcuk/doublestar
 # github.com/boltdb/bolt v1.3.1
 ## explicit
 github.com/boltdb/bolt
@@ -317,6 +321,8 @@ github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
 # github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135
 github.com/google/go-querystring/query
+# github.com/google/uuid v1.1.1
+github.com/google/uuid
 # github.com/googleapis/gax-go/v2 v2.0.5
 github.com/googleapis/gax-go/v2
 # github.com/gophercloud/gophercloud v0.1.0
@@ -381,6 +387,13 @@ github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-connlimit v0.2.0
 ## explicit
 github.com/hashicorp/go-connlimit
+# github.com/hashicorp/go-cty-funcs v0.0.0-20200930094925-2721b1e36840
+## explicit
+github.com/hashicorp/go-cty-funcs/cidr
+github.com/hashicorp/go-cty-funcs/crypto
+github.com/hashicorp/go-cty-funcs/encoding
+github.com/hashicorp/go-cty-funcs/filesystem
+github.com/hashicorp/go-cty-funcs/uuid
 # github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 ## explicit
 github.com/hashicorp/go-discover
@@ -447,7 +460,7 @@ github.com/hashicorp/go-version
 ## explicit
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
-# github.com/hashicorp/hcl v1.0.1-0.20191016231534-914dc3f8dd7c
+# github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 ## explicit
 github.com/hashicorp/hcl
 github.com/hashicorp/hcl/hcl/ast
@@ -458,10 +471,13 @@ github.com/hashicorp/hcl/hcl/token
 github.com/hashicorp/hcl/json/parser
 github.com/hashicorp/hcl/json/scanner
 github.com/hashicorp/hcl/json/token
-# github.com/hashicorp/hcl/v2 v2.5.1
+# github.com/hashicorp/hcl/v2 v2.7.1-0.20201020204811-68a97f93bb48
 ## explicit
 github.com/hashicorp/hcl/v2
 github.com/hashicorp/hcl/v2/ext/customdecode
+github.com/hashicorp/hcl/v2/ext/dynblock
+github.com/hashicorp/hcl/v2/ext/tryfunc
+github.com/hashicorp/hcl/v2/ext/typeexpr
 github.com/hashicorp/hcl/v2/gohcl
 github.com/hashicorp/hcl/v2/hcldec
 github.com/hashicorp/hcl/v2/hclsyntax
@@ -578,6 +594,7 @@ github.com/mitchellh/hashstructure
 ## explicit
 github.com/mitchellh/mapstructure
 # github.com/mitchellh/reflectwalk v1.0.1
+## explicit
 github.com/mitchellh/reflectwalk
 # github.com/moby/sys/mountinfo v0.1.3
 github.com/moby/sys/mountinfo
@@ -762,6 +779,9 @@ github.com/zclconf/go-cty/cty/gocty
 github.com/zclconf/go-cty/cty/json
 github.com/zclconf/go-cty/cty/msgpack
 github.com/zclconf/go-cty/cty/set
+# github.com/zclconf/go-cty-yaml v1.0.2
+## explicit
+github.com/zclconf/go-cty-yaml
 # go.opencensus.io v0.22.1-0.20190713072201-b4a14686f0a9
 ## explicit
 go.opencensus.io
@@ -782,6 +802,7 @@ go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
 # golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 ## explicit
+golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
@@ -1019,5 +1040,6 @@ honnef.co/go/tools/version
 # github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
 # github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 # github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
+# github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 # github.com/hashicorp/nomad/api => ./api
 # github.com/kr/pty => github.com/kr/pty v1.1.5

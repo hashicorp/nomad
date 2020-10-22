@@ -94,7 +94,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -134,7 +134,7 @@ job "job1" {
                 count = 1
                 task "task1" {
                         driver = "exec"
-                        resources = {
+                        resources {
                                 cpu = 1000
                                 memory = 512
                         }

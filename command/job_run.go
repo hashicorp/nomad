@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	cflags "github.com/hashicorp/consul/command/flags"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
@@ -79,6 +80,9 @@ Run Options:
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
+  -hcl1
+    Parses the job file as HCLv1.
+
   -output
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
@@ -88,7 +92,7 @@ Run Options:
 
   -preserve-counts
     If set, the existing task group counts will be preserved when updating a job.
- 
+
   -consul-token
     If set, the passed Consul token is stored in the job before sending to the
     Nomad servers. This allows passing the Consul token without storing it in
@@ -127,6 +131,8 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-output":          complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
 			"-preserve-counts": complete.PredictNothing,
+			"-hcl1":            complete.PredictNothing,
+			"-var":             complete.PredictAnything,
 		})
 }
 
@@ -139,6 +145,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts bool
 	var checkIndexStr, consulToken, vaultToken, vaultNamespace string
+	var varArgs cflags.AppendSliceValue
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -147,10 +154,12 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.BoolVar(&output, "output", false, "")
 	flags.BoolVar(&override, "policy-override", false, "")
 	flags.BoolVar(&preserveCounts, "preserve-counts", false, "")
+	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 	flags.StringVar(&vaultNamespace, "vault-namespace", "", "")
+	flags.Var(&varArgs, "var", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -171,7 +180,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJob(args[0])
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], parseVars(varArgs))
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
