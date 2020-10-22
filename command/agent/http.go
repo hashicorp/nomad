@@ -596,7 +596,6 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 	setIndex(resp, m.Index)
 	setLastContact(resp, m.LastContact)
 	setKnownLeader(resp, m.KnownLeader)
-	setVersion(resp) // Not sure if this needs to be here.
 }
 
 // setHeaders is used to set canonical response header fields

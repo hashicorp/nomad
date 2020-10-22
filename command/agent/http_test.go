@@ -268,7 +268,6 @@ func TestWrapNonJSON(t *testing.T) {
 	s.Server.wrapNonJSON(handler)(resp, req)
 
 	respBody, _ := ioutil.ReadAll(resp.Body)
-	require.Equal(t, version.GetVersion().FullVersionNumber(true), resp.Header().Get("X-Nomad-Version"))
 	require.Equal(t, respBody, []byte("test response"))
 }
 
