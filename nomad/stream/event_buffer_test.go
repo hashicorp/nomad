@@ -17,7 +17,7 @@ func TestEventBufferFuzz(t *testing.T) {
 	nReaders := 1000
 	nMessages := 1000
 
-	b := newEventBuffer(1000, nil)
+	b := newEventBuffer(1000)
 
 	// Start a write goroutine that will publish 10000 messages with sequential
 	// indexes and some jitter in timing (to allow clients to "catch up" and block
@@ -85,7 +85,7 @@ func TestEventBufferFuzz(t *testing.T) {
 }
 
 func TestEventBuffer_Slow_Reader(t *testing.T) {
-	b := newEventBuffer(10, nil)
+	b := newEventBuffer(10)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
@@ -114,7 +114,7 @@ func TestEventBuffer_Slow_Reader(t *testing.T) {
 }
 
 func TestEventBuffer_Size(t *testing.T) {
-	b := newEventBuffer(100, nil)
+	b := newEventBuffer(100)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
@@ -130,7 +130,7 @@ func TestEventBuffer_Size(t *testing.T) {
 // are removed, the event buffer should advance its head down to the last message
 // and insert a placeholder sentinel value.
 func TestEventBuffer_Emptying_Buffer(t *testing.T) {
-	b := newEventBuffer(10, nil)
+	b := newEventBuffer(10)
 
 	for i := 0; i < 10; i++ {
 		e := structs.Event{
@@ -203,7 +203,7 @@ func TestEventBuffer_StartAt_CurrentIdx_Past_Start(t *testing.T) {
 	}
 
 	// buffer starts at index 11 goes to 100
-	b := newEventBuffer(100, nil)
+	b := newEventBuffer(100)
 
 	for i := 11; i <= 100; i++ {
 		e := structs.Event{
