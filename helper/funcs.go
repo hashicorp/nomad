@@ -514,21 +514,16 @@ func CheckNamespaceScope(provided string, requested []string) []string {
 	return nil
 }
 
-// GetPathInSandbox returns a cleaned path inside the sandbox directory
-// (typically this will be the allocation directory). Relative paths will be
-// joined to the sandbox directory. Returns an error if the path escapes the
-// sandbox directory.
-func GetPathInSandbox(sandboxDir, path string) (string, error) {
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(sandboxDir, path)
-	}
-	path = filepath.Clean(path)
+// PathEscapesSandbox returns whether previously cleaned path inside the
+// sandbox directory (typically this will be the allocation directory)
+// escapes.
+func PathEscapesSandbox(sandboxDir, path string) bool {
 	rel, err := filepath.Rel(sandboxDir, path)
 	if err != nil {
-		return path, err
+		return true
 	}
 	if strings.HasPrefix(rel, "..") {
-		return path, fmt.Errorf("%q escapes sandbox directory", path)
+		return true
 	}
-	return path, nil
+	return false
 }
