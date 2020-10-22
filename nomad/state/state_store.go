@@ -5638,48 +5638,6 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	return nil, nil
 }
 
-// LatestEventsReverse returns the unfiltered list of all volumes
-func (s *StateStore) LatestEventsReverse(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-	defer txn.Abort()
-
-	iter, err := txn.GetReverse("events", "id")
-	if err != nil {
-		return nil, fmt.Errorf("events lookup failed: %v", err)
-	}
-
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// Events returns the unfiltered list of all volumes
-func (s *StateStore) Events(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-	defer txn.Abort()
-
-	iter, err := txn.Get("events", "id")
-	if err != nil {
-		return nil, fmt.Errorf("events lookup failed: %v", err)
-	}
-
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// UpsertEvents is used to insert events. It should only be used for testing.
-// Normal use events are inserted to go-memdb during transaction commit
-func (s *StateStore) UpsertEvents(index uint64, events *structs.Events) error {
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-
-	if err := txn.Insert("events", events); err != nil {
-		return err
-	}
-	return txn.Commit()
-}
-
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
