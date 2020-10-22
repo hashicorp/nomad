@@ -77,9 +77,14 @@ type EventSinkUpsertRequest struct {
 
 type SinkType string
 
+const (
+	SinkWebhook SinkType = "webhook"
+)
+
 type EventSink struct {
-	ID   string
-	Type SinkType
+	ID        string
+	Namespace string
+	Type      SinkType
 
 	Topics map[Topic][]string
 

@@ -9554,7 +9554,59 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 }
 
 func TestStateStore_UpsertEventSink(t *testing.T) {
+	t.Parallel()
 
+	state := testStateStore(t)
+	sink := &structs.EventSink{
+		Namespace: structs.DefaultNamespace,
+		ID:        "webhook-sink",
+		Type:      structs.SinkWebhook,
+	}
+
+	require.NoError(t, state.UpsertEventSink(100, structs.DefaultNamespace, sink))
+
+	out, err := state.EventSinkByID(nil, structs.DefaultNamespace, "webhook-sink")
+	require.NoError(t, err)
+	require.Equal(t, structs.SinkWebhook, out.Type)
+
+	sinkFoo := &structs.EventSink{
+		Namespace: "Foo",
+		ID:        "webhook-sink",
+		Type:      structs.SinkWebhook,
+	}
+
+	require.NoError(t, state.UpsertEventSink(100, structs.DefaultNamespace, sinkFoo))
+
+	out2, err := state.EventSinkByID(nil, "Foo", "webhook-sink")
+	require.NoError(t, err)
+	require.Equal(t, "Foo", out2.Namespace)
+
+	out, err = state.EventSinkByID(nil, structs.DefaultNamespace, "webhook-sink")
+	require.NoError(t, err)
+	require.Equal(t, structs.DefaultNamespace, out.Namespace)
+}
+
+func TestStateStore_RestoreEventSink(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	eventSink := &structs.EventSink{
+		Namespace: structs.DefaultNamespace,
+		ID:        "eventsink",
+	}
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.EventSinkRestore(eventSink)
+	require.NoError(err)
+	require.NoError(restore.Commit())
+
+	out, err := state.EventSinkByID(nil, structs.DefaultNamespace, "eventsink")
+	require.NoError(err)
+	require.NotNil(out)
+	require.EqualValues(eventSink, out)
 }
 
 func TestStateStore_Abandon(t *testing.T) {

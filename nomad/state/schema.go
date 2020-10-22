@@ -52,7 +52,7 @@ func init() {
 		csiPluginTableSchema,
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
-		eventsinkTableSchema,
+		eventSinkTableSchema,
 	}...)
 }
 
@@ -902,7 +902,7 @@ func scalingEventTableSchema() *memdb.TableSchema {
 	}
 }
 
-func eventSinkSchema() *memdb.TableSchema {
+func eventSinkTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "event_sink",
 		Indexes: map[string]*memdb.IndexSchema{

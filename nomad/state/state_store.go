@@ -5638,15 +5638,50 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	return nil, nil
 }
 
-func (s *StateStore) UpsertEventSink(idx uint64, sink structs.EventSink) error {
+func (s *StateStore) EventSinkByID(ws memdb.WatchSet, namespace, id string) (*structs.EventSink, error) {
+	txn := s.db.ReadTxn()
+	return s.eventSinkByIDTxn(ws, namespace, id, txn)
+}
+
+func (s *StateStore) eventSinkByIDTxn(ws memdb.WatchSet, namespace, id string, txn Txn) (*structs.EventSink, error) {
+	watchCh, existing, err := txn.FirstWatch("event_sink", "id", namespace, id)
+	if err != nil {
+		return nil, fmt.Errorf("event sink lookup failed: %w", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.EventSink), nil
+	}
+	return nil, nil
+}
+
+func (s *StateStore) UpsertEventSink(idx uint64, namespace string, sink *structs.EventSink) error {
 	txn := s.db.WriteTxn(idx)
 	defer txn.Abort()
 
-	existing, err := txn.First("event_sink", sink.ID)
+	existing, err := txn.First("event_sink", "id", namespace, sink.ID)
 	if err != nil {
 		return fmt.Errorf("event sink lookup failed: %w", err)
 	}
-	return nil
+
+	if existing != nil {
+		sink.CreateIndex = existing.(*structs.EventSink).CreateIndex
+		sink.ModifyIndex = idx
+	} else {
+		sink.CreateIndex = idx
+		sink.ModifyIndex = idx
+	}
+
+	// Insert the sink
+	if err := txn.Insert("event_sink", sink); err != nil {
+		return fmt.Errorf("event sink insert failed: %w", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
+		return fmt.Errorf("index update failed: %w", err)
+	}
+
+	return txn.Commit()
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot
@@ -5899,6 +5934,13 @@ func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
 func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents) error {
 	if err := r.txn.Insert("scaling_event", jobEvents); err != nil {
 		return fmt.Errorf("scaling event insert failed: %v", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) EventSinkRestore(sink *structs.EventSink) error {
+	if err := r.txn.Insert("event_sink", sink); err != nil {
+		return fmt.Errorf("event sink insert failed: %v", err)
 	}
 	return nil
 }
