@@ -252,12 +252,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.EventBufferSize = int64(*agentConfig.Server.EventBufferSize)
 	}
-	if agentConfig.Server.DurableEventCount != nil {
-		if *agentConfig.Server.DurableEventCount < 0 {
-			return nil, fmt.Errorf("Invalid Config, durable_event_count must be non-negative")
-		}
-		conf.DurableEventCount = int64(*agentConfig.Server.DurableEventCount)
-	}
 	if agentConfig.Autopilot != nil {
 		if agentConfig.Autopilot.CleanupDeadServers != nil {
 			conf.AutopilotConfig.CleanupDeadServers = *agentConfig.Autopilot.CleanupDeadServers

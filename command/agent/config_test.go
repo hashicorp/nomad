@@ -140,7 +140,6 @@ func TestConfig_Merge(t *testing.T) {
 			UpgradeVersion:         "foo",
 			EnableEventBroker:      helper.BoolToPtr(false),
 			EventBufferSize:        helper.IntToPtr(0),
-			DurableEventCount:      helper.IntToPtr(0),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -332,7 +331,6 @@ func TestConfig_Merge(t *testing.T) {
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
 			EnableEventBroker:      helper.BoolToPtr(true),
-			DurableEventCount:      helper.IntToPtr(100),
 			EventBufferSize:        helper.IntToPtr(100),
 		},
 		ACL: &ACLConfig{
@@ -1177,50 +1175,41 @@ func TestEventBroker_Parse(t *testing.T) {
 		a := &ServerConfig{
 			EnableEventBroker: helper.BoolToPtr(false),
 			EventBufferSize:   helper.IntToPtr(0),
-			DurableEventCount: helper.IntToPtr(0),
 		}
 		b := DefaultConfig().Server
 		b.EnableEventBroker = nil
 		b.EventBufferSize = nil
-		b.DurableEventCount = nil
 
 		result := a.Merge(b)
 		require.Equal(false, *result.EnableEventBroker)
 		require.Equal(0, *result.EventBufferSize)
-		require.Equal(0, *result.DurableEventCount)
 	}
 
 	{
 		a := &ServerConfig{
 			EnableEventBroker: helper.BoolToPtr(true),
 			EventBufferSize:   helper.IntToPtr(5000),
-			DurableEventCount: helper.IntToPtr(200),
 		}
 		b := DefaultConfig().Server
 		b.EnableEventBroker = nil
 		b.EventBufferSize = nil
-		b.DurableEventCount = nil
 
 		result := a.Merge(b)
 		require.Equal(true, *result.EnableEventBroker)
 		require.Equal(5000, *result.EventBufferSize)
-		require.Equal(200, *result.DurableEventCount)
 	}
 
 	{
 		a := &ServerConfig{
 			EnableEventBroker: helper.BoolToPtr(false),
 			EventBufferSize:   helper.IntToPtr(0),
-			DurableEventCount: helper.IntToPtr(0),
 		}
 		b := DefaultConfig().Server
 		b.EnableEventBroker = helper.BoolToPtr(true)
 		b.EventBufferSize = helper.IntToPtr(20000)
-		b.DurableEventCount = helper.IntToPtr(1000)
 
 		result := a.Merge(b)
 		require.Equal(true, *result.EnableEventBroker)
 		require.Equal(20000, *result.EventBufferSize)
-		require.Equal(1000, *result.DurableEventCount)
 	}
 }
