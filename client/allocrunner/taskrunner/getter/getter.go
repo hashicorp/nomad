@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -98,8 +99,12 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 	}
 
 	// Verify the destination is still in the task sandbox after interpolation
-	dest, err := helper.GetPathInSandbox(taskDir, artifact.RelativeDest)
-	if err != nil {
+	// Note: we *always* join here even if we get passed an absolute path so
+	// that $NOMAD_SECRETS_DIR and friends can be used and always fall inside
+	// the task working directory
+	dest := filepath.Join(taskDir, artifact.RelativeDest)
+	escapes := helper.PathEscapesSandbox(taskDir, dest)
+	if escapes {
 		return newGetError(artifact.RelativeDest,
 			errors.New("artifact destination path escapes the alloc directory"), false)
 	}

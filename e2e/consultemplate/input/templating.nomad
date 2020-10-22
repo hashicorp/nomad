@@ -24,7 +24,7 @@ job "templating" {
 server {{ .Name }} {{ .Address }}:{{ .Port }}{{ end }}
 EOT
 
-        destination = "local/services.conf"
+        destination = "${NOMAD_TASK_DIR}/services.conf"
         change_mode = "noop"
       }
 
@@ -35,7 +35,7 @@ key: {{ key "consultemplatetest" }}
 job: {{ env "NOMAD_JOB_NAME" }}
 EOT
 
-        destination = "local/kv.yml"
+        destination = "${NOMAD_TASK_DIR}/kv.yml"
         change_mode = "restart"
       }
 
@@ -63,7 +63,7 @@ EOT
 server {{ .Name }} {{ .Address }}:{{ .Port }}{{ end }}
 EOT
 
-        destination = "local/services.conf"
+        destination = "${NOMAD_TASK_DIR}/services.conf"
         change_mode = "noop"
       }
 
@@ -73,7 +73,7 @@ EOT
 key: {{ key "consultemplatetest" }}
 job: {{ env "NOMAD_JOB_NAME" }}
 EOT
-        destination = "local/kv.yml"
+        destination = "${NOMAD_TASK_DIR}/kv.yml"
         change_mode = "restart"
       }
 
