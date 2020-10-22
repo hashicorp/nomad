@@ -13,13 +13,21 @@ import (
 
 // artifactHook downloads artifacts for a task.
 type artifactHook struct {
-	eventEmitter ti.EventEmitter
-	logger       log.Logger
+	eventEmitter   ti.EventEmitter
+	logger         log.Logger
+	artifactGetter getter.ArtifactGetter
 }
 
-func newArtifactHook(e ti.EventEmitter, logger log.Logger) *artifactHook {
+func newArtifactHook(e ti.EventEmitter, externalGetterCommand string, logger log.Logger) *artifactHook {
 	h := &artifactHook{
 		eventEmitter: e,
+	}
+	if len(externalGetterCommand) > 0 {
+		h.artifactGetter = &getter.ExternalGetter{
+			ExternalCommand: externalGetterCommand,
+		}
+	} else {
+		h.artifactGetter = &getter.GoGetter{}
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -52,7 +60,7 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource)
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
-		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir.Dir); err != nil {
+		if err := h.artifactGetter.GetArtifact(req.TaskEnv, artifact, req.Task, req.TaskDir.Dir); err != nil {
 			wrapped := structs.NewRecoverableError(
 				fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err),
 				true,

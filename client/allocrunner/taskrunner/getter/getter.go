@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -34,28 +36,8 @@ type EnvReplacer interface {
 	ReplaceEnv(string) string
 }
 
-// getClient returns a client that is suitable for Nomad downloading artifacts.
-func getClient(src string, mode gg.ClientMode, dst string) *gg.Client {
-	lock.Lock()
-	defer lock.Unlock()
-
-	// Return the pre-initialized client
-	if getters == nil {
-		getters = make(map[string]gg.Getter, len(supported))
-		for _, getter := range supported {
-			if impl, ok := gg.Getters[getter]; ok {
-				getters[getter] = impl
-			}
-		}
-	}
-
-	return &gg.Client{
-		Src:     src,
-		Dst:     dst,
-		Mode:    mode,
-		Getters: getters,
-		Umask:   060000000,
-	}
+type ArtifactGetter interface {
+	GetArtifact(EnvReplacer, *structs.TaskArtifact, *structs.Task, string) error
 }
 
 // getGetterUrl returns the go-getter URL to download the artifact.
@@ -91,8 +73,35 @@ func getGetterUrl(taskEnv EnvReplacer, artifact *structs.TaskArtifact) (string, 
 	return url, nil
 }
 
+type GoGetter struct {
+}
+
+// getClient returns a client that is suitable for Nomad downloading artifacts.
+func (g *GoGetter) getClient(src string, mode gg.ClientMode, dst string) *gg.Client {
+	lock.Lock()
+	defer lock.Unlock()
+
+	// Return the pre-initialized client
+	if getters == nil {
+		getters = make(map[string]gg.Getter, len(supported))
+		for _, getter := range supported {
+			if impl, ok := gg.Getters[getter]; ok {
+				getters[getter] = impl
+			}
+		}
+	}
+
+	return &gg.Client{
+		Src:     src,
+		Dst:     dst,
+		Mode:    mode,
+		Getters: getters,
+		Umask:   060000000,
+	}
+}
+
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string) error {
+func (g *GoGetter) GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, _ *structs.Task, taskDir string) error {
 	url, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
@@ -118,7 +127,43 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 		mode = gg.ClientModeDir
 	}
 
-	if err := getClient(url, mode, dest).Get(); err != nil {
+	if err := g.getClient(url, mode, dest).Get(); err != nil {
+		return newGetError(url, err, true)
+	}
+
+	return nil
+}
+
+type ExternalGetter struct {
+	ExternalCommand string
+}
+
+// GetArtifact downloads an artifact into the specified task directory.
+func (g *ExternalGetter) GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, task *structs.Task, taskDir string) error {
+	url, err := getGetterUrl(taskEnv, artifact)
+	if err != nil {
+		return newGetError(artifact.GetterSource, err, false)
+	}
+
+	// Verify the destination is still in the task sandbox after interpolation
+	// Note: we *always* join here even if we get passed an absolute path so
+	// that $NOMAD_SECRETS_DIR and friends can be used and always fall inside
+	// the task working directory
+	dest := filepath.Join(taskDir, artifact.RelativeDest)
+	escapes := helper.PathEscapesSandbox(taskDir, dest)
+	if escapes {
+		return newGetError(artifact.RelativeDest,
+			errors.New("artifact destination path escapes the alloc directory"), false)
+	}
+
+	// Construct command to execute
+	cmd := exec.Command(g.ExternalCommand, url, dest)
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("TASK_NAME=%s", task.Name),
+	)
+
+	// Run command
+	if err := cmd.Run(); err != nil {
 		return newGetError(url, err, true)
 	}
 

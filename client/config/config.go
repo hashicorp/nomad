@@ -265,6 +265,11 @@ type Config struct {
 	//
 	// This configuration is only considered if no host networks are defined.
 	BindWildcardDefaultHostNetwork bool
+
+	// ExternalGetterCommand configures an external tool uesd to retrieve artifacts.
+	// If not such command is defined (as is default), Nomad falls back and uses its
+	// internal version of go-getter.
+	ExternalGetterCommand string
 }
 
 type ClientTemplateConfig struct {
@@ -318,11 +323,12 @@ func DefaultConfig() *Config {
 			FunctionDenylist: []string{"plugin"},
 			DisableSandbox:   false,
 		},
-		RPCHoldTimeout:     5 * time.Second,
-		CNIPath:            "/opt/cni/bin",
-		CNIConfigDir:       "/opt/cni/config",
-		CNIInterfacePrefix: "eth",
-		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
+		RPCHoldTimeout:        5 * time.Second,
+		CNIPath:               "/opt/cni/bin",
+		CNIConfigDir:          "/opt/cni/config",
+		CNIInterfacePrefix:    "eth",
+		HostNetworks:          map[string]*structs.ClientHostNetworkConfig{},
+		ExternalGetterCommand: "",
 	}
 }
 
