@@ -1,7 +1,7 @@
 ---
 layout: api
 page_title: Scaling Policies - HTTP API
-sidebar_title: Scaling Policies <sup>Beta</sup>
+sidebar_title: Scaling Policies
 description: The /scaling/policy endpoints are used to list and view scaling policies.
 ---
 
@@ -9,7 +9,7 @@ description: The /scaling/policy endpoints are used to list and view scaling pol
 
 The `/scaling/policies` and `/scaling/policy/` endpoints are used to list and view scaling policies.
 
-## List Scaling Policies <sup>Beta</sup>
+## List Scaling Policies
 
 This endpoint returns the scaling policies from all jobs.
 
@@ -25,6 +25,16 @@ The table below shows this endpoint's support for
 | ---------------- | ----------------- | --------------------------------- |
 | `YES`            | `all`             | `namespace:list-scaling-policies` |
 
+### Parameters
+
+- `job` `(string: "")`- Specifies the job ID to filter policies by.
+
+- `type` `(string: "")` - Specifies the type of scaling policy to filter by. In
+  the open source version of Nomad, `horizontal` is the only supported value.
+  Within Nomad Enterprise, `vertical_mem` and `vertical_cpu` are supported along
+  with `vertical`. The latter returns policies matching both `vertical_mem` and
+  `vertical_cpu`.
+
 ### Sample Request
 
 ```shell-session
@@ -32,25 +42,62 @@ $ curl \
     https://localhost:4646/v1/scaling/policies
 ```
 
+```shell-session
+$ curl \
+    https://localhost:4646/v1/scaling/policies?job=example
+```
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/scaling/policies?type=vertical
+```
+
 ### Sample Response
 
 ```json
 [
   {
-    "CreateIndex": 10,
+    "ID": "b2c64295-4315-2fdc-6158-a27156808729",
     "Enabled": true,
-    "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
-    "ModifyIndex": 10,
+    "Type": "vertical_cpu",
     "Target": {
-      "Group": "cache",
+      "Namespace": "default",
       "Job": "example",
+      "Group": "cache",
+      "Task": "redis"
+    },
+    "CreateIndex": 1340,
+    "ModifyIndex": 1340
+  },
+  {
+    "ID": "c355d0ec-7aa1-2604-449d-4ec79c813d2c",
+    "Enabled": true,
+    "Type": "vertical_mem",
+    "Target": {
+      "Job": "example",
+      "Group": "cache",
+      "Task": "redis",
       "Namespace": "default"
-    }
+    },
+    "CreateIndex": 1340,
+    "ModifyIndex": 1340
+  },
+  {
+    "ID": "31a53813-24df-b2ad-77dc-1b4bad4e7dca",
+    "Enabled": true,
+    "Type": "horizontal",
+    "Target": {
+      "Job": "example",
+      "Group": "cache",
+      "Namespace": "default"
+    },
+    "CreateIndex": 1358,
+    "ModifyIndex": 1358
   }
 ]
 ```
 
-## Read Scaling Policy <sup>Beta</sup>
+## Read Scaling Policy
 
 This endpoint reads a specific scaling policy.
 
@@ -85,6 +132,7 @@ $ curl \
   "CreateIndex": 10,
   "Enabled": true,
   "ID": "5e9f9ef2-5223-6d35-bac1-be0f3cb974ad",
+  "Type": "horizontal",
   "Max": 10,
   "Min": 0,
   "ModifyIndex": 10,
