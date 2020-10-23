@@ -1,4 +1,9 @@
-<div data-test-topo-viz class="topo-viz {{if this.isSingleColumn "is-single-column"}}" {{did-insert this.buildTopology}} {{did-insert this.captureElement}}>
+<div
+  data-test-topo-viz
+  class="topo-viz {{if this.isSingleColumn "is-single-column"}}"
+  {{did-insert this.buildTopology}}
+  {{did-insert this.captureElement}}
+  {{window-resize this.determineViewportColumns}}>
   <FlexMasonry
     @columns={{if this.isSingleColumn 1 2}}
     @items={{this.topology.datacenters}}

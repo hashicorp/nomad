@@ -14,9 +14,10 @@ export default class TopoViz extends Component {
   @tracked activeAllocation = null;
   @tracked activeEdges = [];
   @tracked edgeOffset = { x: 0, y: 0 };
+  @tracked viewportColumns = 2;
 
   get isSingleColumn() {
-    if (this.topology.datacenters.length <= 1) return true;
+    if (this.topology.datacenters.length <= 1 || this.viewportColumns === 1) return true;
 
     // Compute the coefficient of variance to determine if it would be
     // better to stack datacenters or place them in columns
@@ -32,6 +33,7 @@ export default class TopoViz extends Component {
   get datacenterIsSingleColumn() {
     // If there are enough nodes, use two columns of nodes within
     // a single column layout of datacenters to increase density.
+    if (this.viewportColumns === 1) return true;
     return !this.isSingleColumn || (this.isSingleColumn && this.args.nodes.length <= 20);
   }
 
@@ -124,6 +126,7 @@ export default class TopoViz extends Component {
   @action
   captureElement(element) {
     this.element = element;
+    this.determineViewportColumns();
   }
 
   @action
@@ -182,6 +185,12 @@ export default class TopoViz extends Component {
     if (this.args.onAllocationSelect)
       this.args.onAllocationSelect(this.activeAllocation && this.activeAllocation.allocation);
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
+  }
+
+  @action
+  determineViewportColumns() {
+    console.log(this.element.clientWidth);
+    this.viewportColumns = this.element.clientWidth < 900 ? 1 : 2;
   }
 
   @action
