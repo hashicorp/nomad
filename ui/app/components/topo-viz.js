@@ -180,7 +180,12 @@ export default class TopoViz extends Component {
         });
       }
 
-      this.computedActiveEdges();
+      // Only show the lines if the selected allocations are sparse (low count relative to the client count).
+      if (newAllocations.length < this.args.nodes.length * 0.75) {
+        this.computedActiveEdges();
+      } else {
+        this.activeEdges = [];
+      }
     }
     if (this.args.onAllocationSelect)
       this.args.onAllocationSelect(this.activeAllocation && this.activeAllocation.allocation);
@@ -189,7 +194,6 @@ export default class TopoViz extends Component {
 
   @action
   determineViewportColumns() {
-    console.log(this.element.clientWidth);
     this.viewportColumns = this.element.clientWidth < 900 ? 1 : 2;
   }
 
