@@ -33,7 +33,7 @@ job "secrets" {
 {{ end }}
 EOT
 
-        destination = "secrets/certificate.crt"
+        destination = "${NOMAD_SECRETS_DIR}/certificate.crt"
         change_mode = "noop"
       }
 
@@ -42,7 +42,7 @@ EOT
 SOME_SECRET={{ with secret "secrets-TESTID/data/myapp" }}{{- .Data.data.key -}}{{end}}
 EOT
 
-        destination = "secrets/access.key"
+        destination = "${NOMAD_SECRETS_DIR}/access.key"
       }
 
       resources {
