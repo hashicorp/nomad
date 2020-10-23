@@ -25,6 +25,7 @@ func (e *Event) register() {
 	e.srv.streamingRpcs.Register("Event.Stream", e.stream)
 }
 
+// ListSinks is used to list the event sinks registered in each namespace.
 func (e *Event) ListSinks(args *structs.EventSinkListRequest, reply *structs.EventSinkListResponse) error {
 	if done, err := e.srv.forward("Event.ListSinks", args, args, reply); done {
 		return err
@@ -77,6 +78,7 @@ func (e *Event) ListSinks(args *structs.EventSinkListRequest, reply *structs.Eve
 	return e.srv.blockingRPC(&opts)
 }
 
+// UpsertSink is used to create or update an event sink
 func (e *Event) UpsertSink(args *structs.EventSinkUpsertRequest, reply *structs.GenericResponse) error {
 	if done, err := e.srv.forward("Event.UpsertSink", args, args, reply); done {
 		return err
@@ -89,7 +91,9 @@ func (e *Event) UpsertSink(args *structs.EventSinkUpsertRequest, reply *structs.
 		return structs.ErrPermissionDenied
 	}
 
-	// TODO(drew) validate sink values
+	if err := args.Sink.Validate(); err != nil {
+		return err
+	}
 
 	// Update via Raft
 	_, index, err := e.srv.raftApply(structs.EventSinkUpsertRequestType, args)
@@ -101,6 +105,7 @@ func (e *Event) UpsertSink(args *structs.EventSinkUpsertRequest, reply *structs.
 	return nil
 }
 
+// GetSink returns the requested event sink
 func (e *Event) GetSink(args *structs.EventSinkSpecificRequest, reply *structs.EventSinkResponse) error {
 	if done, err := e.srv.forward("Event.GetSink", args, args, reply); done {
 		return err
@@ -141,6 +146,7 @@ func (e *Event) GetSink(args *structs.EventSinkSpecificRequest, reply *structs.E
 	return e.srv.blockingRPC(&opts)
 }
 
+// DeleteSink deletes an event sink
 func (e *Event) DeleteSink(args *structs.EventSinkDeleteRequest, reply *structs.GenericResponse) error {
 	if done, err := e.srv.forward("Event.DeleteSink", args, args, reply); done {
 		return err

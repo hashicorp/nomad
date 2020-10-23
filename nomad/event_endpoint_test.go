@@ -543,6 +543,34 @@ func TestEvent_UpsertSink(t *testing.T) {
 	require.EqualValues(t, sink, out)
 }
 
+func TestEvent_UpsertSink_Invalid(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	sink := &structs.EventSink{
+		Type: structs.SinkWebhook,
+	}
+
+	req := &structs.EventSinkUpsertRequest{
+		Sink:         sink,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Event.UpsertSink", req, &resp)
+	require.Error(t, err)
+
+	require.Contains(t, err.Error(), "Missing sink ID")
+	require.Contains(t, err.Error(), "Sink must be in a namespace")
+	require.Contains(t, err.Error(), "Webhook sink requires a valid Address")
+
+}
+
 func TestEvent_GetSink(t *testing.T) {
 	t.Parallel()
 

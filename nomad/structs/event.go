@@ -1,5 +1,13 @@
 package structs
 
+import (
+	"fmt"
+	"net/url"
+	"strings"
+
+	multierror "github.com/hashicorp/go-multierror"
+)
+
 // EventStreamRequest is used to stream events from a servers EventBroker
 type EventStreamRequest struct {
 	Topics map[Topic][]string
@@ -115,4 +123,33 @@ type EventSink struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+func (e *EventSink) Validate() error {
+	var mErr multierror.Error
+
+	if e.ID == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Missing sink ID"))
+	} else if strings.Contains(e.ID, " ") {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink ID contains a space"))
+	} else if strings.Contains(e.ID, "\000") {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink ID contains a null character"))
+	}
+
+	if e.Namespace == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink must be in a namespace"))
+	}
+
+	switch e.Type {
+	case SinkWebhook:
+		if e.Address == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink requires a valid Address"))
+		} else if _, err := url.Parse(e.Address); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink Address must be a valid url: %w", err))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink type invalid"))
+	}
+
+	return mErr.ErrorOrNil()
 }
