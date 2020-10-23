@@ -6,8 +6,7 @@ description: >-
   Nomad Enterprise adds operations, collaboration, and governance capabilities
   to Nomad.
 
-  Features include Namespaces, Resource Quotas, Sentinel Policies, and Advanced
-  Autopilot.
+  Features include Resource Quotas, Sentinel Policies, and Advanced Autopilot.
 ---
 
 # Nomad Enterprise
@@ -62,7 +61,7 @@ See the [Vault Integration documentation](/docs/integrations/vault-integration#e
 
 ## Governance & Policy
 
-Governance & Policy features are part of an add-on module that enables an organization to securely operate Nomad at scale across multiple teams through features such as Audit Logging, Namespaces, Resource Quotas, Sentinel Policies, and Cross-Namespace Queries.
+Governance & Policy features are part of an add-on module that enables an organization to securely operate Nomad at scale across multiple teams through features such as Audit Logging, Resource Quotas, and Sentinel Policies.
 
 ### Audit Logging
 
@@ -71,14 +70,6 @@ Secure clusters with enhanced risk management and operational traceability to fu
 With Audit Logging, enterprises can now proactively identify access anomalies, ensure enforcement of their security policies, and diagnose cluster behavior by viewing preceding user operations. Designed as an HTTP API based audit logging system, each audit event is captured with relevant request and response information in a JSON format that is easily digestibile and familiar to operators.
 
 See the [Audit Logging Documentation](/docs/configuration/audit) for a thorough overview.
-
-### Namespaces
-
-Namespaces enable multiple teams to safely use a shared multi-region Nomad environment and reduce cluster fleet size. In Nomad Enterprise, a shared cluster can be partitioned into multiple namespaces which allow jobs and their associated objects to be isolated from each other and other users of the cluster.
-
-Namespaces enhance the usability of a shared cluster by isolating teams from the jobs of others, by providing fine grain access control to jobs when coupled with ACLs, and by preventing bad actors from negatively impacting the whole cluster.
-
-See the [Namespaces Guide](https://learn.hashicorp.com/tutorials/nomad/namespaces) for a thorough overview.
 
 ### Resource Quotas
 
@@ -93,12 +84,6 @@ See the [Resource Quotas Guide](https://learn.hashicorp.com/tutorials/nomad/quot
 In Nomad Enterprise, operators can create Sentinel policies for fine-grained policy enforcement. Sentinel policies build on top of the ACL system and allow operators to define policies such as disallowing jobs to be submitted to production on Fridays or only allowing users to run jobs that use pre-authorized Docker images. Sentinel policies are defined as code, giving operators considerable flexibility to meet compliance requirements.
 
 See the [Sentinel Policies Guide](https://learn.hashicorp.com/tutorials/nomad/sentinel) for a thorough overview.
-
-### Cross-Namespace Queries
-
-Cross-Namespace Queries allows operators to query jobs and allocations across all namespaces for faster operator debugging and visibility in multi-tenant clusters. This enterprise feature accelerates and simplifies the debugging process by allowing operators to easily locate faulty jobs and allocations from developers.
-
-See the individual Nomad CLI command documentation (e.g., [alloc exec](/docs/commands/alloc/exec#namespace)) for more information.
 
 ## Multi-Cluster & Efficiency
 

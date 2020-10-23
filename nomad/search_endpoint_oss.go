@@ -43,6 +43,7 @@ func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) 
 	}
 
 	nodeRead := aclObj.AllowNodeRead()
+	allowNS := aclObj.AllowNamespace(namespace)
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
 		acl.NamespaceCapabilityCSIReadVolume,
@@ -50,7 +51,7 @@ func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) 
 		acl.NamespaceCapabilityReadJob)
 	volRead := allowVolume(aclObj, namespace)
 
-	if !nodeRead && !jobRead && !volRead {
+	if !nodeRead && !jobRead && !volRead && !allowNS {
 		return false
 	}
 
@@ -60,6 +61,10 @@ func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) 
 	if !nodeRead && context == structs.Nodes {
 		return false
 	}
+	if !allowNS && context == structs.Namespaces {
+		return false
+	}
+
 	if !jobRead {
 		switch context {
 		case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
@@ -104,6 +109,10 @@ func searchContexts(aclObj *acl.ACL, namespace string, context structs.Context) 
 		switch c {
 		case structs.Allocs, structs.Jobs, structs.Evals, structs.Deployments:
 			if jobRead {
+				available = append(available, c)
+			}
+		case structs.Namespaces:
+			if aclObj.AllowNamespace(namespace) {
 				available = append(available, c)
 			}
 		case structs.Nodes:

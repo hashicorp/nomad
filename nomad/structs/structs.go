@@ -56,47 +56,51 @@ type MessageType uint8
 // note: new raft message types need to be added to the end of this
 // list of contents
 const (
-	NodeRegisterRequestType MessageType = iota
-	NodeDeregisterRequestType
-	NodeUpdateStatusRequestType
-	NodeUpdateDrainRequestType
-	JobRegisterRequestType
-	JobDeregisterRequestType
-	EvalUpdateRequestType
-	EvalDeleteRequestType
-	AllocUpdateRequestType
-	AllocClientUpdateRequestType
-	ReconcileJobSummariesRequestType
-	VaultAccessorRegisterRequestType
-	VaultAccessorDeregisterRequestType
-	ApplyPlanResultsRequestType
-	DeploymentStatusUpdateRequestType
-	DeploymentPromoteRequestType
-	DeploymentAllocHealthRequestType
-	DeploymentDeleteRequestType
-	JobStabilityRequestType
-	ACLPolicyUpsertRequestType
-	ACLPolicyDeleteRequestType
-	ACLTokenUpsertRequestType
-	ACLTokenDeleteRequestType
-	ACLTokenBootstrapRequestType
-	AutopilotRequestType
-	UpsertNodeEventsType
-	JobBatchDeregisterRequestType
-	AllocUpdateDesiredTransitionRequestType
-	NodeUpdateEligibilityRequestType
-	BatchNodeUpdateDrainRequestType
-	SchedulerConfigRequestType
-	NodeBatchDeregisterRequestType
-	ClusterMetadataRequestType
-	ServiceIdentityAccessorRegisterRequestType
-	ServiceIdentityAccessorDeregisterRequestType
-	CSIVolumeRegisterRequestType
-	CSIVolumeDeregisterRequestType
-	CSIVolumeClaimRequestType
-	ScalingEventRegisterRequestType
-	CSIVolumeClaimBatchRequestType
-	CSIPluginDeleteRequestType
+	NodeRegisterRequestType                      MessageType = 0
+	NodeDeregisterRequestType                    MessageType = 1
+	NodeUpdateStatusRequestType                  MessageType = 2
+	NodeUpdateDrainRequestType                   MessageType = 3
+	JobRegisterRequestType                       MessageType = 4
+	JobDeregisterRequestType                     MessageType = 5
+	EvalUpdateRequestType                        MessageType = 6
+	EvalDeleteRequestType                        MessageType = 7
+	AllocUpdateRequestType                       MessageType = 8
+	AllocClientUpdateRequestType                 MessageType = 9
+	ReconcileJobSummariesRequestType             MessageType = 10
+	VaultAccessorRegisterRequestType             MessageType = 11
+	VaultAccessorDeregisterRequestType           MessageType = 12
+	ApplyPlanResultsRequestType                  MessageType = 13
+	DeploymentStatusUpdateRequestType            MessageType = 14
+	DeploymentPromoteRequestType                 MessageType = 15
+	DeploymentAllocHealthRequestType             MessageType = 16
+	DeploymentDeleteRequestType                  MessageType = 17
+	JobStabilityRequestType                      MessageType = 18
+	ACLPolicyUpsertRequestType                   MessageType = 19
+	ACLPolicyDeleteRequestType                   MessageType = 20
+	ACLTokenUpsertRequestType                    MessageType = 21
+	ACLTokenDeleteRequestType                    MessageType = 22
+	ACLTokenBootstrapRequestType                 MessageType = 23
+	AutopilotRequestType                         MessageType = 24
+	UpsertNodeEventsType                         MessageType = 25
+	JobBatchDeregisterRequestType                MessageType = 26
+	AllocUpdateDesiredTransitionRequestType      MessageType = 27
+	NodeUpdateEligibilityRequestType             MessageType = 28
+	BatchNodeUpdateDrainRequestType              MessageType = 29
+	SchedulerConfigRequestType                   MessageType = 30
+	NodeBatchDeregisterRequestType               MessageType = 31
+	ClusterMetadataRequestType                   MessageType = 32
+	ServiceIdentityAccessorRegisterRequestType   MessageType = 33
+	ServiceIdentityAccessorDeregisterRequestType MessageType = 34
+	CSIVolumeRegisterRequestType                 MessageType = 35
+	CSIVolumeDeregisterRequestType               MessageType = 36
+	CSIVolumeClaimRequestType                    MessageType = 37
+	ScalingEventRegisterRequestType              MessageType = 38
+	CSIVolumeClaimBatchRequestType               MessageType = 39
+	CSIPluginDeleteRequestType                   MessageType = 40
+
+	// Namespace types were moved from enterprise and therefore start at 64
+	NamespaceUpsertRequestType MessageType = 64
+	NamespaceDeleteRequestType MessageType = 65
 )
 
 const (
@@ -148,6 +152,9 @@ const (
 	// to indicate that endpoints must search in all namespaces
 	AllNamespacesSentinel = "*"
 
+	// maxNamespaceDescriptionLength limits a namespace description length
+	maxNamespaceDescriptionLength = 256
+
 	// JitterFraction is a the limit to the amount of jitter we apply
 	// to a user specified MaxQueryTime. We divide the specified time by
 	// the fraction. So 16 == 6.25% limit of jitter. This jitter is also
@@ -171,6 +178,11 @@ const (
 	// DefaultBlockingRPCQueryTime is the amount of time we block waiting for a change
 	// if no time is specified. Previously we would wait the MaxBlockingRPCQueryTime.
 	DefaultBlockingRPCQueryTime = 300 * time.Second
+)
+
+var (
+	// validNamespaceName is used to validate a namespace name
+	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -4696,6 +4708,119 @@ type MultiregionRegion struct {
 	Count       int
 	Datacenters []string
 	Meta        map[string]string
+}
+
+// Namespace allows logically grouping jobs and their associated objects.
+type Namespace struct {
+	// Name is the name of the namespace
+	Name string
+
+	// Description is a human readable description of the namespace
+	Description string
+
+	// Quota is the quota specification that the namespace should account
+	// against.
+	Quota string
+
+	// Hash is the hash of the namespace which is used to efficiently replicate
+	// cross-regions.
+	Hash []byte
+
+	// Raft Indexes
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+func (n *Namespace) Validate() error {
+	var mErr multierror.Error
+
+	// Validate the name and description
+	if !validNamespaceName.MatchString(n.Name) {
+		err := fmt.Errorf("invalid name %q. Must match regex %s", n.Name, validNamespaceName)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+	if len(n.Description) > maxNamespaceDescriptionLength {
+		err := fmt.Errorf("description longer than %d", maxNamespaceDescriptionLength)
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// SetHash is used to compute and set the hash of the namespace
+func (n *Namespace) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	hash.Write([]byte(n.Name))
+	hash.Write([]byte(n.Description))
+	hash.Write([]byte(n.Quota))
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	n.Hash = hashVal
+	return hashVal
+}
+
+func (n *Namespace) Copy() *Namespace {
+	nc := new(Namespace)
+	*nc = *n
+	nc.Hash = make([]byte, len(n.Hash))
+	copy(nc.Hash, n.Hash)
+	return nc
+}
+
+// NamespaceListRequest is used to request a list of namespaces
+type NamespaceListRequest struct {
+	QueryOptions
+}
+
+// NamespaceListResponse is used for a list request
+type NamespaceListResponse struct {
+	Namespaces []*Namespace
+	QueryMeta
+}
+
+// NamespaceSpecificRequest is used to query a specific namespace
+type NamespaceSpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// SingleNamespaceResponse is used to return a single namespace
+type SingleNamespaceResponse struct {
+	Namespace *Namespace
+	QueryMeta
+}
+
+// NamespaceSetRequest is used to query a set of namespaces
+type NamespaceSetRequest struct {
+	Namespaces []string
+	QueryOptions
+}
+
+// NamespaceSetResponse is used to return a set of namespaces
+type NamespaceSetResponse struct {
+	Namespaces map[string]*Namespace // Keyed by namespace Name
+	QueryMeta
+}
+
+// NamespaceDeleteRequest is used to delete a set of namespaces
+type NamespaceDeleteRequest struct {
+	Namespaces []string
+	WriteRequest
+}
+
+// NamespaceUpsertRequest is used to upsert a set of namespaces
+type NamespaceUpsertRequest struct {
+	Namespaces []*Namespace
+	WriteRequest
 }
 
 const (
