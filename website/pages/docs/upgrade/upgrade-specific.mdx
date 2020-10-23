@@ -108,6 +108,12 @@ in handling of job `template` and `artifact` stanzas:
   bypass this validation. The client now interpolates the paths before
   checking if they are in the file sandbox.
 
+~> **Warning:** Due to a [bug][gh-9148] in Nomad v0.12.6, the
+`template.destination` and `artifact.destination` paths do not support
+absolute paths, including the interpolated `NOMAD_SECRETS_DIR`,
+`NOMAD_TASK_DIR`, and `NOMAD_ALLOC_DIR` variables. This bug is fixed in
+v0.12.7. To work around the bug, use a relative path.
+
 ## Nomad 0.12.0
 
 ### `mbits` and Task Network Resource deprecation
@@ -201,6 +207,12 @@ vulnerabilities in handling of job `template` and `artifact` stanzas:
   bypass this validation. The client now interpolates the paths before
   checking if they are in the file sandbox.
 
+~> **Warning:** Due to a [bug][gh-9148] in Nomad v0.11.5, the
+`template.destination` and `artifact.destination` paths do not support
+absolute paths, including the interpolated `NOMAD_SECRETS_DIR`,
+`NOMAD_TASK_DIR`, and `NOMAD_ALLOC_DIR` variables. This bug is fixed in
+v0.11.6. To work around the bug, use a relative path.
+
 ## Nomad 0.11.3
 
 Nomad 0.11.3 fixes a critical bug causing the nomad agent to become
@@ -274,6 +286,12 @@ vulnerabilities in handling of job `template` and `artifact` stanzas:
   do not escape the file sandbox. It was possible to use interpolation to
   bypass this validation. The client now interpolates the paths before
   checking if they are in the file sandbox.
+
+~> **Warning:** Due to a [bug][gh-9148] in Nomad v0.10.6, the
+`template.destination` and `artifact.destination` paths do not support
+absolute paths, including the interpolated `NOMAD_SECRETS_DIR`,
+`NOMAD_TASK_DIR`, and `NOMAD_ALLOC_DIR` variables. This bug is fixed in
+v0.10.7. To work around the bug, use a relative path.
 
 ## Nomad 0.10.4
 
@@ -727,6 +745,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [dst]: /docs/job-specification/periodic#daylight-saving-time
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [gh-8457]: https://github.com/hashicorp/nomad/issues/8457
+[gh-9148]: https://github.com/hashicorp/nomad/issues/9148
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits
 [lxc]: /docs/drivers/external/lxc
