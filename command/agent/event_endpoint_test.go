@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -20,6 +21,95 @@ import (
 
 type testEvent struct {
 	ID string
+}
+
+func TestHTTP_EventSinkList(t *testing.T) {
+	t.Parallel()
+
+	httpTest(t, nil, func(s *TestAgent) {
+		s1 := mock.EventSink()
+		s2 := mock.EventSink()
+
+		require.NoError(t, s.Agent.server.State().UpsertEventSink(1000, s1))
+		require.NoError(t, s.Agent.server.State().UpsertEventSink(1001, s2))
+
+		req, err := http.NewRequest("GET", "/v1/event/sinks", nil)
+		require.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+		obj, err := s.Server.EventSinksRequest(respW, req)
+		require.NoError(t, err)
+
+		require.Equal(t, "1001", respW.HeaderMap.Get("X-Nomad-Index"))
+
+		n := obj.([]*structs.EventSink)
+		require.Len(t, n, 2)
+	})
+}
+
+func TestHTTP_EventSinkGet(t *testing.T) {
+	httpTest(t, nil, func(s *TestAgent) {
+		s1 := mock.EventSink()
+
+		require.NoError(t, s.Agent.server.State().UpsertEventSink(1000, s1))
+
+		req, err := http.NewRequest("GET", "/v1/event/sink/"+s1.ID, nil)
+		require.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+		obj, err := s.Server.EventSinkSpecificRequest(respW, req)
+		require.NoError(t, err)
+
+		require.Equal(t, "1000", respW.HeaderMap.Get("X-Nomad-Index"))
+
+		n := obj.(*structs.EventSink)
+		require.Equal(t, s1, n)
+	})
+}
+
+func TestHTTP_EventSinkUpsert(t *testing.T) {
+	httpTest(t, nil, func(s *TestAgent) {
+		s1 := mock.EventSink()
+
+		buf := encodeReq(s1)
+
+		req, err := http.NewRequest("POST", "/v1/event/sink/"+s1.ID, buf)
+		require.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+		_, err = s.Server.EventSinkSpecificRequest(respW, req)
+		require.NoError(t, err)
+
+		require.NotEqual(t, "", respW.HeaderMap.Get("X-Nomad-Index"))
+
+		state := s.Agent.server.State()
+		out, err := state.EventSinkByID(nil, s1.ID)
+		require.NoError(t, err)
+		require.Equal(t, s1.Address, out.Address)
+		require.Equal(t, s1.ID, out.ID)
+	})
+}
+
+func TestHTTP_EventSinkDelete(t *testing.T) {
+	httpTest(t, nil, func(s *TestAgent) {
+		s1 := mock.EventSink()
+
+		require.NoError(t, s.Agent.server.State().UpsertEventSink(1000, s1))
+
+		req, err := http.NewRequest("DELETE", "/v1/event/sink/"+s1.ID, nil)
+		require.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+		_, err = s.Server.EventSinkSpecificRequest(respW, req)
+		require.NoError(t, err)
+
+		require.NotEqual(t, "", respW.HeaderMap.Get("X-Nomad-Index"))
+
+		state := s.Agent.server.State()
+		out, err := state.EventSinkByID(nil, s1.ID)
+		require.NoError(t, err)
+		require.Nil(t, out)
+	})
 }
 
 func TestEventStream(t *testing.T) {

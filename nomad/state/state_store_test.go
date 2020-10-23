@@ -9553,6 +9553,98 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 	require.EqualValues(jobScalingEvents.ScalingEvents, out)
 }
 
+func TestStateStore_UpsertEventSink(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+	sink := &structs.EventSink{
+		ID:   "webhook-sink",
+		Type: structs.SinkWebhook,
+	}
+
+	require.NoError(t, state.UpsertEventSink(100, sink))
+
+	out, err := state.EventSinkByID(nil, "webhook-sink")
+	require.NoError(t, err)
+	require.Equal(t, structs.SinkWebhook, out.Type)
+}
+
+func TestStateStore_DeleteEventSinks(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+	s1 := mock.EventSink()
+	s2 := mock.EventSink()
+	s3 := mock.EventSink()
+	s4 := mock.EventSink()
+
+	require.NoError(t, state.UpsertEventSink(100, s1))
+	require.NoError(t, state.UpsertEventSink(101, s2))
+	require.NoError(t, state.UpsertEventSink(102, s3))
+	require.NoError(t, state.UpsertEventSink(103, s4))
+
+	require.NoError(t, state.DeleteEventSinks(1000, []string{s1.ID, s2.ID, s3.ID}))
+
+	out, err := state.EventSinkByID(nil, s4.ID)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+
+	out, err = state.EventSinkByID(nil, s1.ID)
+	require.NoError(t, err)
+	require.Nil(t, out)
+
+}
+
+func TestStateStore_EventSinks(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+	s1 := mock.EventSink()
+	s2 := mock.EventSink()
+	s3 := mock.EventSink()
+
+	require.NoError(t, state.UpsertEventSink(100, s1))
+	require.NoError(t, state.UpsertEventSink(101, s2))
+	require.NoError(t, state.UpsertEventSink(102, s3))
+
+	iter, err := state.EventSinks(nil)
+	require.NoError(t, err)
+
+	var out []*structs.EventSink
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		sink := raw.(*structs.EventSink)
+		out = append(out, sink)
+	}
+	require.Len(t, out, 3)
+
+}
+
+func TestStateStore_RestoreEventSink(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	state := testStateStore(t)
+	eventSink := &structs.EventSink{
+		ID: "eventsink",
+	}
+
+	restore, err := state.Restore()
+	require.NoError(err)
+
+	err = restore.EventSinkRestore(eventSink)
+	require.NoError(err)
+	require.NoError(restore.Commit())
+
+	out, err := state.EventSinkByID(nil, "eventsink")
+	require.NoError(err)
+	require.NotNil(out)
+	require.EqualValues(eventSink, out)
+}
+
 func TestStateStore_Abandon(t *testing.T) {
 	t.Parallel()
 
