@@ -422,11 +422,14 @@ func (w *deploymentWatcher) watch() {
 
 FAIL:
 	for {
+		ctx, allocChCancel := context.WithCancel(w.ctx)
+		defer allocChCancel()
 		select {
 		case <-w.ctx.Done():
 			// This is the successful case, and we stop the loop
 			return
 		case <-deadlineTimer.C:
+			allocChCancel()
 			// We have hit the progress deadline so fail the deployment. We need
 			// to determine whether we should roll back the job by inspecting
 			// which allocs as part of the deployment are healthy and which
@@ -449,6 +452,7 @@ FAIL:
 			}
 			break FAIL
 		case <-w.deploymentUpdateCh:
+			allocChCancel()
 			// Get the updated deployment and check if we should change the
 			// deadline timer
 			next := w.getDeploymentProgressCutoff(w.getDeployment())
@@ -483,7 +487,7 @@ FAIL:
 				break FAIL
 			}
 
-		case updates = <-w.getAllocsCh(allocIndex):
+		case updates = <-w.getAllocsCh(ctx, allocIndex):
 			if err := updates.err; err != nil {
 				if err == context.Canceled || w.ctx.Err() == context.Canceled {
 					return
@@ -856,14 +860,17 @@ type allocUpdates struct {
 // 1. parks a blocking query for allocations on the state
 // 2. reads those and drops them on the channel
 // This query runs once here, but watch calls it in a loop
-func (w *deploymentWatcher) getAllocsCh(index uint64) <-chan *allocUpdates {
+func (w *deploymentWatcher) getAllocsCh(ctx context.Context, index uint64) <-chan *allocUpdates {
 	out := make(chan *allocUpdates, 1)
 	go func() {
-		allocs, index, err := w.getAllocs(index)
-		out <- &allocUpdates{
+		allocs, index, err := w.getAllocs(ctx, index)
+		select {
+		case out <- &allocUpdates{
 			allocs: allocs,
 			index:  index,
 			err:    err,
+		}:
+		case <-ctx.Done():
 		}
 	}()
 
@@ -872,12 +879,12 @@ func (w *deploymentWatcher) getAllocsCh(index uint64) <-chan *allocUpdates {
 
 // getAllocs retrieves the allocations that are part of the deployment blocking
 // at the given index.
-func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, uint64, error) {
-	resp, index, err := w.state.BlockingQuery(w.getAllocsImpl, index, w.ctx)
+func (w *deploymentWatcher) getAllocs(ctx context.Context, index uint64) ([]*structs.AllocListStub, uint64, error) {
+	resp, index, err := w.state.BlockingQuery(w.getAllocsImpl, index, ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	if err := w.ctx.Err(); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, 0, err
 	}
 
