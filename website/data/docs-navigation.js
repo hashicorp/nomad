@@ -122,6 +122,8 @@ export default [
           'promote',
           'revert',
           'run',
+          'scale',
+          'scaling-events',
           'status',
           'stop',
           'validate',

@@ -1,0 +1,91 @@
+---
+layout: docs
+page_title: 'Commands: job scale'
+sidebar_title: scale
+description: |
+  The job scale command is used to change the count of a Nomad job group.
+---
+
+# Command: job scale
+
+The `job scale` command is used to alter the number of running allocations within
+a Nomad task group.
+
+## Usage
+
+```plaintext
+nomad job scale [options] <job> <group> <count>
+```
+
+The `job scale` commands requires at least two arguments and potentially three
+depending on the job specification. The first argument will be the job ID of the
+job you wish to scale. If the job contains a single task group, you can omit
+including the task group name as the second argument and the command will perform
+the required lookup. The final argument is the count that you wish the job task
+group to be changed to. The count is the absolute value that will be reflected in
+the job specification.
+
+Scale will issue a request to update the matched job and then invoke an interactive
+monitor that exits automatically once the scheduler has processed the request.
+It is safe to exit the monitor early using ctrl+c.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Scale Options
+
+- `-detach`: Return immediately instead of entering monitor mode. After the
+  scale command is submitted, a new evaluation ID is printed to the screen,
+  which can be used to examine the evaluation using the [eval status] command.
+
+- `-verbose`: Show full information.
+
+## Examples
+
+Scale the job with ID "job1" which contains a single task group to a count of 8:
+
+```shell-session
+$ nomad job scale job1 8
+==> Monitoring evaluation "529cc88e"
+    Evaluation triggered by job "job1"
+    Evaluation within deployment: "28a3378f"
+    Allocation "2a4df8ca" created: node "2f0a2f93", group "group1"
+    Allocation "b7eefe49" created: node "2f0a2f93", group "group1"
+    Allocation "bd54a83d" created: node "2f0a2f93", group "group1"
+    Allocation "fadeaea8" created: node "2f0a2f93", group "group1"
+    Allocation "4bd1397b" modified: node "2f0a2f93", group "group1"
+    Allocation "93684511" modified: node "2f0a2f93", group "group1"
+    Allocation "b409f0a2" modified: node "2f0a2f93", group "group1"
+    Allocation "18f50054" created: node "2f0a2f93", group "group1"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "529cc88e" finished with status "complete"
+```
+
+Scale the job with ID "job1" which contains a single task group to a count of 8
+and return immediately:
+
+```shell-session
+$ nomad job scale -detach job1 8
+Evaluation ID: b754d6b3-8960-5652-60d8-d47df6eaed13
+```
+
+Scale the job with ID "job1" and the task group "group1" to a count of 8:
+```shell-session
+$ nomad job scale job1 group1 8
+==> Monitoring evaluation "529cc88e"
+    Evaluation triggered by job "job1"
+    Evaluation within deployment: "28a3378f"
+    Allocation "2a4df8ca" created: node "2f0a2f93", group "group1"
+    Allocation "b7eefe49" created: node "2f0a2f93", group "group1"
+    Allocation "bd54a83d" created: node "2f0a2f93", group "group1"
+    Allocation "fadeaea8" created: node "2f0a2f93", group "group1"
+    Allocation "4bd1397b" modified: node "2f0a2f93", group "group1"
+    Allocation "93684511" modified: node "2f0a2f93", group "group1"
+    Allocation "b409f0a2" modified: node "2f0a2f93", group "group1"
+    Allocation "18f50054" created: node "2f0a2f93", group "group1"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "529cc88e" finished with status "complete"
+```
+
+[eval status]: /docs/commands/eval-status

@@ -1,0 +1,49 @@
+---
+layout: docs
+page_title: 'Commands: job scaling-events'
+sidebar_title: scaling-events
+description: |
+  The job scaling-events command details scaling events for a given job.
+---
+
+# Command: job scaling-events
+
+The `job scaling-events` command is used display the recent scaling events for
+a given job.
+
+## Usage
+
+```plaintext
+nomad job scaling-events [options] <job>
+```
+
+The `job scaling-events` command requires a single argument, a submitted job's
+ID, and will output the stored scaling events for the job if there are any.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Scaling-Events Options
+
+- `-verbose`: Show full information.
+
+## Examples
+
+Display the scaling events for the job with ID "job1":
+
+```shell-session
+$ nomad job scaling-events job1
+Task Group  Count   PrevCount  Date
+group1      8       8          2020-10-23T09:06:47+02:00
+group1      8       3          2020-10-23T09:02:42+02:00
+```
+
+Display the scaling events for the job with ID "job1" using the `verbose` flag:
+
+```shell-session
+$ nomad job scaling-events -verbose job1
+Task Group  Count   PrevCount  Error  Message                        Eval ID                               Date
+group1      8       8          false  submitted using the Nomad CLI  b754d6b3-8960-5652-60d8-d47df6eaed13  2020-10-23T09:06:47+02:00
+group1      8       3          false  submitted using the Nomad CLI  529cc88e-8887-725e-2a79-4997f50df153  2020-10-23T09:02:42+02:00
+```
