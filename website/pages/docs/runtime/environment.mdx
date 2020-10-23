@@ -22,11 +22,13 @@ environment variable names such as `NOMAD_ADDR_<task>_<label>`.
 
 ## Task Identifiers
 
-Nomad will pass both the allocation ID and name as well as the task, group and
-job's names. These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`,
-`NOMAD_ALLOC_INDEX`, `NOMAD_JOB_NAME`, `NOMAD_GROUP_NAME` and `NOMAD_TASK_NAME`.
-The allocation ID and index can be useful when the task being run needs a unique
-identifier or to know its instance count.
+Nomad will pass both the allocation ID and name, the deployment ID that created
+the allocation, the job ID and name, the parent job ID as well as
+the task and group's names. These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`,
+`NOMAD_ALLOC_INDEX`, `NOMAD_JOB_NAME`, `NOMAD_JOB_ID`, 
+`NOMAD_JOB_PARENT_ID`, `NOMAD_GROUP_NAME` and `NOMAD_TASK_NAME`. The allocation ID 
+and index can be useful when the task being run needs a unique identifier or to 
+know its instance count.
 
 ## Resources
 
