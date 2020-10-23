@@ -853,6 +853,10 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 }
 
 func (s *Server) publishEventsForSinks(stopCh chan struct{}) {
+	broker, err := s.State().EventBroker()
+	if err != nil {
+		s.logger.Warn("event broker not enabled on leader", "error", err)
+	}
 
 	for {
 		select {
