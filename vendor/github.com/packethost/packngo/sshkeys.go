@@ -10,7 +10,7 @@ const (
 type SSHKeyService interface {
 	List() ([]SSHKey, *Response, error)
 	ProjectList(string) ([]SSHKey, *Response, error)
-	Get(string) (*SSHKey, *Response, error)
+	Get(string, *GetOptions) (*SSHKey, *Response, error)
 	Create(*SSHKeyCreateRequest) (*SSHKey, *Response, error)
 	Update(string, *SSHKeyUpdateRequest) (*SSHKey, *Response, error)
 	Delete(string) (*Response, error)
@@ -28,7 +28,7 @@ type SSHKey struct {
 	FingerPrint string `json:"fingerprint"`
 	Created     string `json:"created_at"`
 	Updated     string `json:"updated_at"`
-	User        User   `json:"user,omitempty"`
+	Owner       Href
 	URL         string `json:"href,omitempty"`
 }
 
@@ -74,6 +74,7 @@ func (s *SSHKeyServiceOp) list(url string) ([]SSHKey, *Response, error) {
 }
 
 // ProjectList lists ssh keys of a project
+// Deprecated: Use ProjectServiceOp.ListSSHKeys
 func (s *SSHKeyServiceOp) ProjectList(projectID string) ([]SSHKey, *Response, error) {
 	return s.list(fmt.Sprintf("%s/%s%s", projectBasePath, projectID, sshKeyBasePath))
 
@@ -85,8 +86,9 @@ func (s *SSHKeyServiceOp) List() ([]SSHKey, *Response, error) {
 }
 
 // Get returns an ssh key by id
-func (s *SSHKeyServiceOp) Get(sshKeyID string) (*SSHKey, *Response, error) {
-	path := fmt.Sprintf("%s/%s", sshKeyBasePath, sshKeyID)
+func (s *SSHKeyServiceOp) Get(sshKeyID string, getOpt *GetOptions) (*SSHKey, *Response, error) {
+	params := urlQuery(getOpt)
+	path := fmt.Sprintf("%s/%s?%s", sshKeyBasePath, sshKeyID, params)
 	sshKey := new(SSHKey)
 
 	resp, err := s.client.DoRequest("GET", path, nil, sshKey)

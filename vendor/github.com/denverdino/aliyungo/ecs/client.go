@@ -64,6 +64,16 @@ func NewECSClientWithSecurityToken(accessKeyId string, accessKeySecret string, s
 	return NewECSClientWithEndpointAndSecurityToken(endpoint, accessKeyId, accessKeySecret, securityToken, regionID)
 }
 
+//only for Hangzhou Regional Domain
+func NewECSClientWithSecurityToken4RegionalDomain(accessKeyId string, accessKeySecret string, securityToken string, regionID common.Region) *Client {
+	endpoint := os.Getenv("ECS_ENDPOINT")
+	if endpoint == "" {
+		endpoint = ECSDefaultEndpoint
+	}
+
+	return NewECSClientWithEndpointAndSecurityToken4RegionalDomain(endpoint, accessKeyId, accessKeySecret, securityToken, regionID)
+}
+
 func NewECSClientWithEndpoint(endpoint string, accessKeyId string, accessKeySecret string, regionID common.Region) *Client {
 	return NewECSClientWithEndpointAndSecurityToken(endpoint, accessKeyId, accessKeySecret, "", regionID)
 }
@@ -78,6 +88,19 @@ func NewECSClientWithEndpointAndSecurityToken(endpoint string, accessKeyId strin
 		WithServiceCode(ECSServiceCode).
 		WithRegionID(regionID).
 		InitClient()
+	return client
+}
+
+func NewECSClientWithEndpointAndSecurityToken4RegionalDomain(endpoint string, accessKeyId string, accessKeySecret string, securityToken string, regionID common.Region) *Client {
+	client := &Client{}
+	client.WithEndpoint(endpoint).
+		WithVersion(ECSAPIVersion).
+		WithAccessKeyId(accessKeyId).
+		WithAccessKeySecret(accessKeySecret).
+		WithSecurityToken(securityToken).
+		WithServiceCode(ECSServiceCode).
+		WithRegionID(regionID).
+		InitClient4RegionalDomain()
 	return client
 }
 
@@ -97,6 +120,16 @@ func NewVPCClientWithSecurityToken(accessKeyId string, accessKeySecret string, s
 	return NewVPCClientWithEndpointAndSecurityToken(endpoint, accessKeyId, accessKeySecret, securityToken, regionID)
 }
 
+//Only for Hangzhou
+func NewVPCClientWithSecurityToken4RegionalDomain(accessKeyId string, accessKeySecret string, securityToken string, regionID common.Region) *Client {
+	endpoint := os.Getenv("VPC_ENDPOINT")
+	if endpoint == "" {
+		endpoint = VPCDefaultEndpoint
+	}
+
+	return NewVPCClientWithEndpointAndSecurityToken4RegionalDomain(endpoint, accessKeyId, accessKeySecret, securityToken, regionID)
+}
+
 func NewVPCClientWithEndpoint(endpoint string, accessKeyId string, accessKeySecret string, regionID common.Region) *Client {
 	return NewVPCClientWithEndpointAndSecurityToken(endpoint, accessKeyId, accessKeySecret, "", regionID)
 }
@@ -111,6 +144,20 @@ func NewVPCClientWithEndpointAndSecurityToken(endpoint string, accessKeyId strin
 		WithServiceCode(VPCServiceCode).
 		WithRegionID(regionID).
 		InitClient()
+	return client
+}
+
+//Only for Hangzhou
+func NewVPCClientWithEndpointAndSecurityToken4RegionalDomain(endpoint string, accessKeyId string, accessKeySecret string, securityToken string, regionID common.Region) *Client {
+	client := &Client{}
+	client.WithEndpoint(endpoint).
+		WithVersion(VPCAPIVersion).
+		WithAccessKeyId(accessKeyId).
+		WithAccessKeySecret(accessKeySecret).
+		WithSecurityToken(securityToken).
+		WithServiceCode(VPCServiceCode).
+		WithRegionID(regionID).
+		InitClient4RegionalDomain()
 	return client
 }
 

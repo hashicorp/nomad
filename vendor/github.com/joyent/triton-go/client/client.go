@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2018, Joyent, Inc. All rights reserved.
+// Copyright 2020 Joyent, Inc.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -18,6 +18,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ import (
 	triton "github.com/joyent/triton-go"
 	"github.com/joyent/triton-go/authentication"
 	"github.com/joyent/triton-go/errors"
+	tritonutils "github.com/joyent/triton-go/utils"
 	pkgerrors "github.com/pkg/errors"
 )
 
@@ -46,6 +48,9 @@ var (
 
 	jpcFormatURL = "https://tsg.%s.svc.joyent.zone"
 	spcFormatURL = "https://tsg.%s.svc.samsungcloud.zone"
+
+	tritonTransportHttpTraceChecked = false
+	tritonTransportHttpTraceEnabled = false
 )
 
 // Client represents a connection to the Triton Compute or Object Storage APIs.
@@ -70,6 +75,21 @@ func isPrivateInstall(url string) bool {
 	}
 
 	return true
+}
+
+func wrapTritonTransport(in http.RoundTripper) http.RoundTripper {
+	if tritonTransportHttpTraceChecked == false {
+		tritonTransportHttpTraceChecked = true
+		if os.Getenv("TRITON_TRACE_HTTP") != "" {
+			tritonTransportHttpTraceEnabled = true
+		}
+	}
+
+	if tritonTransportHttpTraceEnabled {
+		return tritonutils.TraceRoundTripper(in)
+	}
+
+	return in
 }
 
 // parseDC parses out the data center commonly found in Triton URLs. Returns an
@@ -144,9 +164,11 @@ func New(tritonURL string, mantaURL string, accountName string, signers ...authe
 		}
 	}
 
+	skipTLSVerify := triton.GetEnv("SKIP_TLS_VERIFY") != ""
+
 	newClient := &Client{
 		HTTPClient: &http.Client{
-			Transport:     httpTransport(false),
+			Transport:     httpTransport(skipTLSVerify),
 			CheckRedirect: doNotFollowRedirects,
 		},
 		Authorizers: authorizers,
@@ -155,6 +177,9 @@ func New(tritonURL string, mantaURL string, accountName string, signers ...authe
 		ServicesURL: *servicesURL,
 		AccountName: accountName,
 	}
+
+	// Allow wrapping of the HTTP Transport.
+	newClient.HTTPClient.Transport = wrapTritonTransport(newClient.HTTPClient.Transport)
 
 	// Default to constructing an SSHAgentSigner if there are no other signers
 	// passed into NewClient and there's an TRITON_KEY_ID and SSH_AUTH_SOCK
@@ -200,6 +225,8 @@ func (c *Client) InsecureSkipTLSVerify() {
 	}
 
 	c.HTTPClient.Transport = httpTransport(true)
+	// Allow wrapping of the HTTP Transport.
+	c.HTTPClient.Transport = wrapTritonTransport(c.HTTPClient.Transport)
 }
 
 // httpTransport is responsible for setting up our HTTP client's transport
@@ -225,12 +252,12 @@ func doNotFollowRedirects(*http.Request, []*http.Request) error {
 }
 
 // DecodeError decodes a backend Triton error into a more usable Go error type
-func (c *Client) DecodeError(resp *http.Response, requestMethod string) error {
+func (c *Client) DecodeError(resp *http.Response, requestMethod string, consumeBody bool) error {
 	err := &errors.APIError{
 		StatusCode: resp.StatusCode,
 	}
 
-	if requestMethod != http.MethodHead && resp.Body != nil {
+	if requestMethod != http.MethodHead && resp.Body != nil && consumeBody {
 		errorDecoder := json.NewDecoder(resp.Body)
 		if err := errorDecoder.Decode(err); err != nil {
 			return pkgerrors.Wrapf(err, "unable to decode error response")
@@ -267,6 +294,9 @@ type RequestInput struct {
 	Query   *url.Values
 	Headers *http.Header
 	Body    interface{}
+
+	// If the response has the HTTP status code 410 (i.e., "Gone"), should we preserve the contents of the body for the caller?
+	PreserveGone bool
 }
 
 func (c *Client) ExecuteRequestURIParams(ctx context.Context, inputs RequestInput) (io.ReadCloser, error) {
@@ -330,7 +360,7 @@ func (c *Client) ExecuteRequestURIParams(ctx context.Context, inputs RequestInpu
 		return resp.Body, nil
 	}
 
-	return nil, c.DecodeError(resp, req.Method)
+	return nil, c.DecodeError(resp, req.Method, true)
 }
 
 func (c *Client) ExecuteRequest(ctx context.Context, inputs RequestInput) (io.ReadCloser, error) {
@@ -398,7 +428,13 @@ func (c *Client) ExecuteRequestRaw(ctx context.Context, inputs RequestInput) (*h
 		return resp, nil
 	}
 
-	return nil, c.DecodeError(resp, req.Method)
+	// GetMachine returns a HTTP 410 response for deleted instances, but the body of the response is still a valid machine object with a State value of "deleted". Return the object to the caller as well as an error.
+	if inputs.PreserveGone && resp.StatusCode == http.StatusGone {
+		// Do not consume the response body.
+		return resp, c.DecodeError(resp, req.Method, false)
+	}
+
+	return nil, c.DecodeError(resp, req.Method, true)
 }
 
 func (c *Client) ExecuteRequestStorage(ctx context.Context, inputs RequestInput) (io.ReadCloser, http.Header, error) {
@@ -468,7 +504,7 @@ func (c *Client) ExecuteRequestStorage(ctx context.Context, inputs RequestInput)
 		return resp.Body, resp.Header, nil
 	}
 
-	return nil, nil, c.DecodeError(resp, req.Method)
+	return nil, nil, c.DecodeError(resp, req.Method, true)
 }
 
 type RequestNoEncodeInput struct {
@@ -535,7 +571,7 @@ func (c *Client) ExecuteRequestNoEncode(ctx context.Context, inputs RequestNoEnc
 		return resp.Body, resp.Header, nil
 	}
 
-	return nil, nil, c.DecodeError(resp, req.Method)
+	return nil, nil, c.DecodeError(resp, req.Method, true)
 }
 
 func (c *Client) ExecuteRequestTSG(ctx context.Context, inputs RequestInput) (io.ReadCloser, error) {

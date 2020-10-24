@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -14,7 +16,7 @@ import (
 
 	"github.com/StackExchange/wmi"
 	"github.com/shirou/gopsutil/internal/common"
-	"github.com/shirou/gopsutil/process"
+	process "github.com/shirou/gopsutil/process"
 	"golang.org/x/sys/windows"
 )
 
@@ -62,7 +64,66 @@ type msAcpi_ThermalZoneTemperature struct {
 	InstanceName       string
 }
 
-func HostIDWithContext(ctx context.Context) (string, error) {
+func Info() (*InfoStat, error) {
+	return InfoWithContext(context.Background())
+}
+
+func InfoWithContext(ctx context.Context) (*InfoStat, error) {
+	ret := &InfoStat{
+		OS: runtime.GOOS,
+	}
+
+	{
+		hostname, err := os.Hostname()
+		if err == nil {
+			ret.Hostname = hostname
+		}
+	}
+
+	{
+		platform, family, version, err := PlatformInformationWithContext(ctx)
+		if err == nil {
+			ret.Platform = platform
+			ret.PlatformFamily = family
+			ret.PlatformVersion = version
+		} else {
+			return ret, err
+		}
+	}
+
+	{
+		kernelArch, err := kernelArch()
+		if err == nil {
+			ret.KernelArch = kernelArch
+		}
+	}
+
+	{
+		boot, err := BootTimeWithContext(ctx)
+		if err == nil {
+			ret.BootTime = boot
+			ret.Uptime, _ = Uptime()
+		}
+	}
+
+	{
+		hostID, err := getMachineGuid()
+		if err == nil {
+			ret.HostID = hostID
+		}
+	}
+
+	{
+		procs, err := process.PidsWithContext(ctx)
+		if err == nil {
+			ret.Procs = uint64(len(procs))
+		}
+	}
+
+	return ret, nil
+}
+
+func getMachineGuid() (string, error) {
 	// there has been reports of issues on 32bit using golang.org/x/sys/windows/registry, see https://github.com/shirou/gopsutil/pull/312#issuecomment-277422612
 	// for rationale of using windows.RegOpenKeyEx/RegQueryValueEx instead of registry.OpenKey/GetStringValue
 	var h windows.Handle
@@ -92,12 +153,8 @@ func HostIDWithContext(ctx context.Context) (string, error) {
 	return strings.ToLower(hostID), nil
 }
 
-func numProcs(ctx context.Context) (uint64, error) {
-	procs, err := process.PidsWithContext(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(len(procs)), nil
+func Uptime() (uint64, error) {
+	return UptimeWithContext(context.Background())
 }
 
 func UptimeWithContext(ctx context.Context) (uint64, error) {
@@ -113,8 +170,16 @@ func UptimeWithContext(ctx context.Context) (uint64, error) {
 	return uint64((time.Duration(r1) * time.Millisecond).Seconds()), nil
 }
 
+func bootTimeFromUptime(up uint64) uint64 {
+	return uint64(time.Now().Unix()) - up
+}
+
 // cachedBootTime must be accessed via atomic.Load/StoreUint64
 var cachedBootTime uint64
+
+func BootTime() (uint64, error) {
+	return BootTimeWithContext(context.Background())
+}
 
 func BootTimeWithContext(ctx context.Context) (uint64, error) {
 	t := atomic.LoadUint64(&cachedBootTime)
@@ -125,9 +190,13 @@ func BootTimeWithContext(ctx context.Context) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	t = timeSince(up)
+	t = bootTimeFromUptime(up)
 	atomic.StoreUint64(&cachedBootTime, t)
 	return t, nil
+}
+
+func PlatformInformation() (platform string, family string, version string, err error) {
+	return PlatformInformationWithContext(context.Background())
 }
 
 func PlatformInformationWithContext(ctx context.Context) (platform string, family string, version string, err error) {
@@ -143,7 +212,7 @@ func PlatformInformationWithContext(ctx context.Context) (platform string, famil
 	}
 
 	// Platform
-	var h windows.Handle // like HostIDWithContext(), we query the registry using the raw windows.RegOpenKeyEx/RegQueryValueEx
+	var h windows.Handle // like getMachineGuid(), we query the registry using the raw windows.RegOpenKeyEx/RegQueryValueEx
 	err = windows.RegOpenKeyEx(windows.HKEY_LOCAL_MACHINE, windows.StringToUTF16Ptr(`SOFTWARE\Microsoft\Windows NT\CurrentVersion`), 0, windows.KEY_READ|windows.KEY_WOW64_64KEY, &h)
 	if err != nil {
 		return
@@ -189,10 +258,18 @@ func PlatformInformationWithContext(ctx context.Context) (platform string, famil
 	return platform, family, version, nil
 }
 
+func Users() ([]UserStat, error) {
+	return UsersWithContext(context.Background())
+}
+
 func UsersWithContext(ctx context.Context) ([]UserStat, error) {
 	var ret []UserStat
 
-	return ret, common.ErrNotImplementedError
+	return ret, nil
+}
+
+func SensorsTemperatures() ([]TemperatureStat, error) {
+	return SensorsTemperaturesWithContext(context.Background())
 }
 
 func SensorsTemperaturesWithContext(ctx context.Context) ([]TemperatureStat, error) {
@@ -222,16 +299,24 @@ func kelvinToCelsius(temp uint32, n int) float64 {
 	return math.Trunc((t+0.5/n10)*n10) / n10
 }
 
+func Virtualization() (string, string, error) {
+	return VirtualizationWithContext(context.Background())
+}
+
 func VirtualizationWithContext(ctx context.Context) (string, string, error) {
 	return "", "", common.ErrNotImplementedError
 }
 
+func KernelVersion() (string, error) {
+	return KernelVersionWithContext(context.Background())
+}
+
 func KernelVersionWithContext(ctx context.Context) (string, error) {
-	_, _, version, err := PlatformInformationWithContext(ctx)
+	_, _, version, err := PlatformInformation()
 	return version, err
 }
 
-func KernelArch() (string, error) {
+func kernelArch() (string, error) {
 	var systemInfo systemInfo
 	procGetNativeSystemInfo.Call(uintptr(unsafe.Pointer(&systemInfo)))
 

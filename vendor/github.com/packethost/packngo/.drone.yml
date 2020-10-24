@@ -4,25 +4,16 @@ workspace:
 
 pipeline:
   lint:
-    image: golang:1.9
+    image: golang:1.13
     commands:
-      - go get -v -u github.com/alecthomas/gometalinter
-      - gometalinter --install
-      - go get -v -t ./...
-      - |
-        gometalinter --disable=gas ./... || :
-      - |
-        gometalinter --disable-all --enable=gas ./... || :
-      - |
-        gofmt -d . | (! grep '.') || ok=false
-      - if ! $ok; then exit 1; fi
+      - make lint BUILD=local
 
   build:
-    image: golang:1.9
+    image: golang:1.13
     commands:
-      - go build -i -v ./...
+      - make build BUILD=local
 
   test:
-    image: golang:1.9
+    image: golang:1.13
     commands:
-      - go test ./...
+      - make test BUILD=local

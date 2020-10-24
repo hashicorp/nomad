@@ -11,7 +11,6 @@ import (
 	"os/exec"
 
 	"github.com/shirou/gopsutil/internal/common"
-	"golang.org/x/sys/unix"
 )
 
 func GetPageSize() (uint64, error) {
@@ -19,7 +18,17 @@ func GetPageSize() (uint64, error) {
 }
 
 func GetPageSizeWithContext(ctx context.Context) (uint64, error) {
-	uvmexp, err := unix.SysctlUvmexp("vm.uvmexp")
+	mib := []int32{CTLVm, VmUvmexp}
+	buf, length, err := common.CallSyscall(mib)
+	if err != nil {
+		return 0, err
+	}
+	if length < sizeOfUvmexp {
+		return 0, fmt.Errorf("short syscall ret %d bytes", length)
+	}
+	var uvmexp Uvmexp
+	br := bytes.NewReader(buf)
+	err = common.Read(br, binary.LittleEndian, &uvmexp)
 	if err != nil {
 		return 0, err
 	}
@@ -31,7 +40,17 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 }
 
 func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
-	uvmexp, err := unix.SysctlUvmexp("vm.uvmexp")
+	mib := []int32{CTLVm, VmUvmexp}
+	buf, length, err := common.CallSyscall(mib)
+	if err != nil {
+		return nil, err
+	}
+	if length < sizeOfUvmexp {
+		return nil, fmt.Errorf("short syscall ret %d bytes", length)
+	}
+	var uvmexp Uvmexp
+	br := bytes.NewReader(buf)
+	err = common.Read(br, binary.LittleEndian, &uvmexp)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +69,8 @@ func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
 	ret.Used = ret.Total - ret.Available
 	ret.UsedPercent = float64(ret.Used) / float64(ret.Total) * 100.0
 
-	mib := []int32{CTLVfs, VfsGeneric, VfsBcacheStat}
-	buf, length, err := common.CallSyscall(mib)
+	mib = []int32{CTLVfs, VfsGeneric, VfsBcacheStat}
+	buf, length, err = common.CallSyscall(mib)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +78,7 @@ func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
 		return nil, fmt.Errorf("short syscall ret %d bytes", length)
 	}
 	var bcs Bcachestats
-	br := bytes.NewReader(buf)
+	br = bytes.NewReader(buf)
 	err = common.Read(br, binary.LittleEndian, &bcs)
 	if err != nil {
 		return nil, err

@@ -1,6 +1,8 @@
 package packngo
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	volumeBasePath      = "/storage"
@@ -10,7 +12,7 @@ const (
 // VolumeService interface defines available Volume methods
 type VolumeService interface {
 	List(string, *ListOptions) ([]Volume, *Response, error)
-	Get(string) (*Volume, *Response, error)
+	Get(string, *GetOptions) (*Volume, *Response, error)
 	Update(string, *VolumeUpdateRequest) (*Volume, *Response, error)
 	Delete(string) (*Response, error)
 	Create(*VolumeCreateRequest, string) (*Volume, *Response, error)
@@ -20,7 +22,7 @@ type VolumeService interface {
 
 // VolumeAttachmentService defines attachment methdods
 type VolumeAttachmentService interface {
-	Get(string) (*VolumeAttachment, *Response, error)
+	Get(string, *GetOptions) (*VolumeAttachment, *Response, error)
 	Create(string, string) (*VolumeAttachment, *Response, error)
 	Delete(string) (*Response, error)
 }
@@ -108,19 +110,13 @@ type VolumeServiceOp struct {
 
 // List returns the volumes for a project
 func (v *VolumeServiceOp) List(projectID string, listOpt *ListOptions) (volumes []Volume, resp *Response, err error) {
-	url := fmt.Sprintf("%s/%s%s", projectBasePath, projectID, volumeBasePath)
-	var params string
-	if listOpt != nil {
-		params = listOpt.createURL()
-		if params != "" {
-			url = fmt.Sprintf("%s?%s", url, params)
-		}
-	}
+	params := urlQuery(listOpt)
+	path := fmt.Sprintf("%s/%s%s?%s", projectBasePath, projectID, volumeBasePath, params)
 
 	for {
 		subset := new(volumesRoot)
 
-		resp, err = v.client.DoRequest("GET", url, nil, subset)
+		resp, err = v.client.DoRequest("GET", path, nil, subset)
 		if err != nil {
 			return nil, resp, err
 		}
@@ -128,9 +124,9 @@ func (v *VolumeServiceOp) List(projectID string, listOpt *ListOptions) (volumes 
 		volumes = append(volumes, subset.Volumes...)
 
 		if subset.Meta.Next != nil && (listOpt == nil || listOpt.Page == 0) {
-			url = subset.Meta.Next.Href
+			path = subset.Meta.Next.Href
 			if params != "" {
-				url = fmt.Sprintf("%s&%s", url, params)
+				path = fmt.Sprintf("%s&%s", path, params)
 			}
 			continue
 		}
@@ -140,8 +136,9 @@ func (v *VolumeServiceOp) List(projectID string, listOpt *ListOptions) (volumes 
 }
 
 // Get returns a volume by id
-func (v *VolumeServiceOp) Get(volumeID string) (*Volume, *Response, error) {
-	path := fmt.Sprintf("%s/%s?include=facility,snapshot_policies,attachments.device", volumeBasePath, volumeID)
+func (v *VolumeServiceOp) Get(volumeID string, getOpt *GetOptions) (*Volume, *Response, error) {
+	params := urlQuery(getOpt)
+	path := fmt.Sprintf("%s/%s?%s", volumeBasePath, volumeID, params)
 	volume := new(Volume)
 
 	resp, err := v.client.DoRequest("GET", path, nil, volume)
@@ -203,8 +200,10 @@ func (v *VolumeAttachmentServiceOp) Create(volumeID, deviceID string) (*VolumeAt
 }
 
 // Get gets attachment by id
-func (v *VolumeAttachmentServiceOp) Get(attachmentID string) (*VolumeAttachment, *Response, error) {
-	path := fmt.Sprintf("%s%s/%s", volumeBasePath, attachmentsBasePath, attachmentID)
+func (v *VolumeAttachmentServiceOp) Get(attachmentID string, getOpt *GetOptions) (*VolumeAttachment, *Response, error) {
+	params := urlQuery(getOpt)
+
+	path := fmt.Sprintf("%s%s/%s?%s", volumeBasePath, attachmentsBasePath, attachmentID, params)
 	volumeAttachment := new(VolumeAttachment)
 
 	resp, err := v.client.DoRequest("GET", path, nil, volumeAttachment)
@@ -223,17 +222,17 @@ func (v *VolumeAttachmentServiceOp) Delete(attachmentID string) (*Response, erro
 }
 
 // Lock sets a volume to "locked"
-func (s *VolumeServiceOp) Lock(id string) (*Response, error) {
+func (v *VolumeServiceOp) Lock(id string) (*Response, error) {
 	path := fmt.Sprintf("%s/%s", volumeBasePath, id)
 	action := lockType{Locked: true}
 
-	return s.client.DoRequest("PATCH", path, action, nil)
+	return v.client.DoRequest("PATCH", path, action, nil)
 }
 
 // Unlock sets a volume to "unlocked"
-func (s *VolumeServiceOp) Unlock(id string) (*Response, error) {
+func (v *VolumeServiceOp) Unlock(id string) (*Response, error) {
 	path := fmt.Sprintf("%s/%s", volumeBasePath, id)
 	action := lockType{Locked: false}
 
-	return s.client.DoRequest("PATCH", path, action, nil)
+	return v.client.DoRequest("PATCH", path, action, nil)
 }

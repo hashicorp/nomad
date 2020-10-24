@@ -1,16 +1,21 @@
 package packngo
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const projectBasePath = "/projects"
 
 // ProjectService interface defines available project methods
 type ProjectService interface {
 	List(listOpt *ListOptions) ([]Project, *Response, error)
-	Get(string) (*Project, *Response, error)
+	Get(string, *GetOptions) (*Project, *Response, error)
 	Create(*ProjectCreateRequest) (*Project, *Response, error)
 	Update(string, *ProjectUpdateRequest) (*Project, *Response, error)
 	Delete(string) (*Response, error)
+	ListBGPSessions(projectID string, listOpt *ListOptions) ([]BGPSession, *Response, error)
+	ListEvents(string, *ListOptions) ([]Event, *Response, error)
+	ListSSHKeys(projectID string, searchOpt *SearchOptions) ([]SSHKey, *Response, error)
 }
 
 type projectsRoot struct {
@@ -20,16 +25,17 @@ type projectsRoot struct {
 
 // Project represents a Packet project
 type Project struct {
-	ID            string        `json:"id"`
-	Name          string        `json:"name,omitempty"`
-	Organization  Organization  `json:"organization,omitempty"`
-	Created       string        `json:"created_at,omitempty"`
-	Updated       string        `json:"updated_at,omitempty"`
-	Users         []User        `json:"members,omitempty"`
-	Devices       []Device      `json:"devices,omitempty"`
-	SSHKeys       []SSHKey      `json:"ssh_keys,omitempty"`
-	URL           string        `json:"href,omitempty"`
-	PaymentMethod PaymentMethod `json:"payment_method,omitempty"`
+	ID              string        `json:"id"`
+	Name            string        `json:"name,omitempty"`
+	Organization    Organization  `json:"organization,omitempty"`
+	Created         string        `json:"created_at,omitempty"`
+	Updated         string        `json:"updated_at,omitempty"`
+	Users           []User        `json:"members,omitempty"`
+	Devices         []Device      `json:"devices,omitempty"`
+	SSHKeys         []SSHKey      `json:"ssh_keys,omitempty"`
+	URL             string        `json:"href,omitempty"`
+	PaymentMethod   PaymentMethod `json:"payment_method,omitempty"`
+	BackendTransfer bool          `json:"backend_transfer_enabled"`
 }
 
 func (p Project) String() string {
@@ -51,6 +57,7 @@ func (p ProjectCreateRequest) String() string {
 type ProjectUpdateRequest struct {
 	Name            *string `json:"name,omitempty"`
 	PaymentMethodID *string `json:"payment_method_id,omitempty"`
+	BackendTransfer *bool   `json:"backend_transfer_enabled,omitempty"`
 }
 
 func (p ProjectUpdateRequest) String() string {
@@ -59,15 +66,12 @@ func (p ProjectUpdateRequest) String() string {
 
 // ProjectServiceOp implements ProjectService
 type ProjectServiceOp struct {
-	client *Client
+	client requestDoer
 }
 
 // List returns the user's projects
 func (s *ProjectServiceOp) List(listOpt *ListOptions) (projects []Project, resp *Response, err error) {
-	var params string
-	if listOpt != nil {
-		params = listOpt.createURL()
-	}
+	params := urlQuery(listOpt)
 	root := new(projectsRoot)
 
 	path := fmt.Sprintf("%s?%s", projectBasePath, params)
@@ -93,15 +97,14 @@ func (s *ProjectServiceOp) List(listOpt *ListOptions) (projects []Project, resp 
 }
 
 // Get returns a project by id
-func (s *ProjectServiceOp) Get(projectID string) (*Project, *Response, error) {
-	path := fmt.Sprintf("%s/%s", projectBasePath, projectID)
+func (s *ProjectServiceOp) Get(projectID string, getOpt *GetOptions) (*Project, *Response, error) {
+	params := urlQuery(getOpt)
+	path := fmt.Sprintf("%s/%s?%s", projectBasePath, projectID, params)
 	project := new(Project)
-
 	resp, err := s.client.DoRequest("GET", path, nil, project)
 	if err != nil {
 		return nil, resp, err
 	}
-
 	return project, resp, err
 }
 
@@ -135,4 +138,55 @@ func (s *ProjectServiceOp) Delete(projectID string) (*Response, error) {
 	path := fmt.Sprintf("%s/%s", projectBasePath, projectID)
 
 	return s.client.DoRequest("DELETE", path, nil, nil)
+}
+
+// ListBGPSessions returns all BGP Sessions associated with the project
+func (s *ProjectServiceOp) ListBGPSessions(projectID string, listOpt *ListOptions) (bgpSessions []BGPSession, resp *Response, err error) {
+	params := urlQuery(listOpt)
+	path := fmt.Sprintf("%s/%s%s?%s", projectBasePath, projectID, bgpSessionBasePath, params)
+
+	for {
+		subset := new(bgpSessionsRoot)
+
+		resp, err = s.client.DoRequest("GET", path, nil, subset)
+		if err != nil {
+			return nil, resp, err
+		}
+
+		bgpSessions = append(bgpSessions, subset.Sessions...)
+
+		if subset.Meta.Next != nil && (listOpt == nil || listOpt.Page == 0) {
+			path = subset.Meta.Next.Href
+			if params != "" {
+				path = fmt.Sprintf("%s&%s", path, params)
+			}
+			continue
+		}
+
+		return
+	}
+}
+
+// ListSSHKeys returns all SSH Keys associated with the project
+func (s *ProjectServiceOp) ListSSHKeys(projectID string, searchOpt *SearchOptions) (sshKeys []SSHKey, resp *Response, err error) {
+	params := urlQuery(searchOpt)
+	path := fmt.Sprintf("%s/%s%s?%s", projectBasePath, projectID, sshKeyBasePath, params)
+
+	subset := new(sshKeyRoot)
+
+	resp, err = s.client.DoRequest("GET", path, nil, subset)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	sshKeys = append(sshKeys, subset.SSHKeys...)
+
+	return
+}
+
+// ListEvents returns list of project events
+func (s *ProjectServiceOp) ListEvents(projectID string, listOpt *ListOptions) ([]Event, *Response, error) {
+	path := fmt.Sprintf("%s/%s%s", projectBasePath, projectID, eventBasePath)
+
+	return listEvents(s.client, path, listOpt)
 }

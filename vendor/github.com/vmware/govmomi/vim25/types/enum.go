@@ -200,8 +200,7 @@ func init() {
 type CannotEnableVmcpForClusterReason string
 
 const (
-	CannotEnableVmcpForClusterReasonAPDTimeoutDisabled      = CannotEnableVmcpForClusterReason("APDTimeoutDisabled")
-	CannotEnableVmcpForClusterReasonIncompatibleHostVersion = CannotEnableVmcpForClusterReason("IncompatibleHostVersion")
+	CannotEnableVmcpForClusterReasonAPDTimeoutDisabled = CannotEnableVmcpForClusterReason("APDTimeoutDisabled")
 )
 
 func init() {
@@ -239,6 +238,8 @@ const (
 	CannotUseNetworkReasonMismatchedNetworkPolicies       = CannotUseNetworkReason("MismatchedNetworkPolicies")
 	CannotUseNetworkReasonMismatchedDvsVersionOrVendor    = CannotUseNetworkReason("MismatchedDvsVersionOrVendor")
 	CannotUseNetworkReasonVMotionToUnsupportedNetworkType = CannotUseNetworkReason("VMotionToUnsupportedNetworkType")
+	CannotUseNetworkReasonNetworkUnderMaintenance         = CannotUseNetworkReason("NetworkUnderMaintenance")
+	CannotUseNetworkReasonMismatchedEnsMode               = CannotUseNetworkReason("MismatchedEnsMode")
 )
 
 func init() {
@@ -257,6 +258,29 @@ const (
 
 func init() {
 	t["CheckTestType"] = reflect.TypeOf((*CheckTestType)(nil)).Elem()
+}
+
+type ClusterComputeResourceHCIWorkflowState string
+
+const (
+	ClusterComputeResourceHCIWorkflowStateIn_progress = ClusterComputeResourceHCIWorkflowState("in_progress")
+	ClusterComputeResourceHCIWorkflowStateDone        = ClusterComputeResourceHCIWorkflowState("done")
+	ClusterComputeResourceHCIWorkflowStateInvalid     = ClusterComputeResourceHCIWorkflowState("invalid")
+)
+
+func init() {
+	t["ClusterComputeResourceHCIWorkflowState"] = reflect.TypeOf((*ClusterComputeResourceHCIWorkflowState)(nil)).Elem()
+}
+
+type ClusterCryptoConfigInfoCryptoMode string
+
+const (
+	ClusterCryptoConfigInfoCryptoModeOnDemand    = ClusterCryptoConfigInfoCryptoMode("onDemand")
+	ClusterCryptoConfigInfoCryptoModeForceEnable = ClusterCryptoConfigInfoCryptoMode("forceEnable")
+)
+
+func init() {
+	t["ClusterCryptoConfigInfoCryptoMode"] = reflect.TypeOf((*ClusterCryptoConfigInfoCryptoMode)(nil)).Elem()
 }
 
 type ClusterDasAamNodeStateDasState string
@@ -494,6 +518,31 @@ func init() {
 	t["ConfigSpecOperation"] = reflect.TypeOf((*ConfigSpecOperation)(nil)).Elem()
 }
 
+type CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason string
+
+const (
+	CryptoManagerKmipCryptoKeyStatusKeyUnavailableReasonKeyStateMissingInCache          = CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason("KeyStateMissingInCache")
+	CryptoManagerKmipCryptoKeyStatusKeyUnavailableReasonKeyStateClusterInvalid          = CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason("KeyStateClusterInvalid")
+	CryptoManagerKmipCryptoKeyStatusKeyUnavailableReasonKeyStateClusterUnreachable      = CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason("KeyStateClusterUnreachable")
+	CryptoManagerKmipCryptoKeyStatusKeyUnavailableReasonKeyStateMissingInKMS            = CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason("KeyStateMissingInKMS")
+	CryptoManagerKmipCryptoKeyStatusKeyUnavailableReasonKeyStateNotActiveOrEnabled      = CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason("KeyStateNotActiveOrEnabled")
+	CryptoManagerKmipCryptoKeyStatusKeyUnavailableReasonKeyStateManagedByTrustAuthority = CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason("KeyStateManagedByTrustAuthority")
+)
+
+func init() {
+	t["CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason"] = reflect.TypeOf((*CryptoManagerKmipCryptoKeyStatusKeyUnavailableReason)(nil)).Elem()
+}
+
+type CustomizationFailedReasonCode string
+
+const (
+	CustomizationFailedReasonCodeUserDefinedScriptDisabled = CustomizationFailedReasonCode("userDefinedScriptDisabled")
+)
+
+func init() {
+	t["CustomizationFailedReasonCode"] = reflect.TypeOf((*CustomizationFailedReasonCode)(nil)).Elem()
+}
+
 type CustomizationLicenseDataMode string
 
 const (
@@ -576,6 +625,8 @@ const (
 	DasConfigFaultDasConfigFaultReasonCreateConfigVvolFailed      = DasConfigFaultDasConfigFaultReason("CreateConfigVvolFailed")
 	DasConfigFaultDasConfigFaultReasonVSanNotSupportedOnHost      = DasConfigFaultDasConfigFaultReason("VSanNotSupportedOnHost")
 	DasConfigFaultDasConfigFaultReasonDasNetworkMisconfiguration  = DasConfigFaultDasConfigFaultReason("DasNetworkMisconfiguration")
+	DasConfigFaultDasConfigFaultReasonSetDesiredImageSpecFailed   = DasConfigFaultDasConfigFaultReason("SetDesiredImageSpecFailed")
+	DasConfigFaultDasConfigFaultReasonApplyHAVibsOnClusterFailed  = DasConfigFaultDasConfigFaultReason("ApplyHAVibsOnClusterFailed")
 )
 
 func init() {
@@ -703,6 +754,17 @@ func init() {
 	t["DisallowedChangeByServiceDisallowedChange"] = reflect.TypeOf((*DisallowedChangeByServiceDisallowedChange)(nil)).Elem()
 }
 
+type DistributedVirtualPortgroupBackingType string
+
+const (
+	DistributedVirtualPortgroupBackingTypeStandard = DistributedVirtualPortgroupBackingType("standard")
+	DistributedVirtualPortgroupBackingTypeNsx      = DistributedVirtualPortgroupBackingType("nsx")
+)
+
+func init() {
+	t["DistributedVirtualPortgroupBackingType"] = reflect.TypeOf((*DistributedVirtualPortgroupBackingType)(nil)).Elem()
+}
+
 type DistributedVirtualPortgroupMetaTagName string
 
 const (
@@ -758,6 +820,17 @@ const (
 
 func init() {
 	t["DistributedVirtualSwitchHostMemberHostComponentState"] = reflect.TypeOf((*DistributedVirtualSwitchHostMemberHostComponentState)(nil)).Elem()
+}
+
+type DistributedVirtualSwitchHostMemberTransportZoneType string
+
+const (
+	DistributedVirtualSwitchHostMemberTransportZoneTypeVlan    = DistributedVirtualSwitchHostMemberTransportZoneType("vlan")
+	DistributedVirtualSwitchHostMemberTransportZoneTypeOverlay = DistributedVirtualSwitchHostMemberTransportZoneType("overlay")
+)
+
+func init() {
+	t["DistributedVirtualSwitchHostMemberTransportZoneType"] = reflect.TypeOf((*DistributedVirtualSwitchHostMemberTransportZoneType)(nil)).Elem()
 }
 
 type DistributedVirtualSwitchNetworkResourceControlVersion string
@@ -997,6 +1070,17 @@ func init() {
 	t["FileSystemMountInfoVStorageSupportStatus"] = reflect.TypeOf((*FileSystemMountInfoVStorageSupportStatus)(nil)).Elem()
 }
 
+type FolderDesiredHostState string
+
+const (
+	FolderDesiredHostStateMaintenance     = FolderDesiredHostState("maintenance")
+	FolderDesiredHostStateNon_maintenance = FolderDesiredHostState("non_maintenance")
+)
+
+func init() {
+	t["FolderDesiredHostState"] = reflect.TypeOf((*FolderDesiredHostState)(nil)).Elem()
+}
+
 type FtIssuesOnHostHostSelectionType string
 
 const (
@@ -1213,6 +1297,7 @@ const (
 	HostCpuPackageVendorUnknown = HostCpuPackageVendor("unknown")
 	HostCpuPackageVendorIntel   = HostCpuPackageVendor("intel")
 	HostCpuPackageVendorAmd     = HostCpuPackageVendor("amd")
+	HostCpuPackageVendorHygon   = HostCpuPackageVendor("hygon")
 )
 
 func init() {
@@ -1234,9 +1319,10 @@ func init() {
 type HostCryptoState string
 
 const (
-	HostCryptoStateIncapable = HostCryptoState("incapable")
-	HostCryptoStatePrepared  = HostCryptoState("prepared")
-	HostCryptoStateSafe      = HostCryptoState("safe")
+	HostCryptoStateIncapable        = HostCryptoState("incapable")
+	HostCryptoStatePrepared         = HostCryptoState("prepared")
+	HostCryptoStateSafe             = HostCryptoState("safe")
+	HostCryptoStatePendingIncapable = HostCryptoState("pendingIncapable")
 )
 
 func init() {
@@ -1258,6 +1344,17 @@ const (
 
 func init() {
 	t["HostDasErrorEventHostDasErrorReason"] = reflect.TypeOf((*HostDasErrorEventHostDasErrorReason)(nil)).Elem()
+}
+
+type HostDateTimeInfoProtocol string
+
+const (
+	HostDateTimeInfoProtocolNtp = HostDateTimeInfoProtocol("ntp")
+	HostDateTimeInfoProtocolPtp = HostDateTimeInfoProtocol("ptp")
+)
+
+func init() {
+	t["HostDateTimeInfoProtocol"] = reflect.TypeOf((*HostDateTimeInfoProtocol)(nil)).Elem()
 }
 
 type HostDigestInfoDigestMethodType string
@@ -1632,6 +1729,16 @@ func init() {
 	t["HostLowLevelProvisioningManagerReloadTarget"] = reflect.TypeOf((*HostLowLevelProvisioningManagerReloadTarget)(nil)).Elem()
 }
 
+type HostMaintenanceSpecPurpose string
+
+const (
+	HostMaintenanceSpecPurposeHostUpgrade = HostMaintenanceSpecPurpose("hostUpgrade")
+)
+
+func init() {
+	t["HostMaintenanceSpecPurpose"] = reflect.TypeOf((*HostMaintenanceSpecPurpose)(nil)).Elem()
+}
+
 type HostMountInfoInaccessibleReason string
 
 const (
@@ -1725,12 +1832,65 @@ func init() {
 	t["HostNumericSensorType"] = reflect.TypeOf((*HostNumericSensorType)(nil)).Elem()
 }
 
+type HostNvmeDiscoveryLogSubsystemType string
+
+const (
+	HostNvmeDiscoveryLogSubsystemTypeDiscovery = HostNvmeDiscoveryLogSubsystemType("discovery")
+	HostNvmeDiscoveryLogSubsystemTypeNvm       = HostNvmeDiscoveryLogSubsystemType("nvm")
+)
+
+func init() {
+	t["HostNvmeDiscoveryLogSubsystemType"] = reflect.TypeOf((*HostNvmeDiscoveryLogSubsystemType)(nil)).Elem()
+}
+
+type HostNvmeDiscoveryLogTransportRequirements string
+
+const (
+	HostNvmeDiscoveryLogTransportRequirementsSecureChannelRequired    = HostNvmeDiscoveryLogTransportRequirements("secureChannelRequired")
+	HostNvmeDiscoveryLogTransportRequirementsSecureChannelNotRequired = HostNvmeDiscoveryLogTransportRequirements("secureChannelNotRequired")
+	HostNvmeDiscoveryLogTransportRequirementsRequirementsNotSpecified = HostNvmeDiscoveryLogTransportRequirements("requirementsNotSpecified")
+)
+
+func init() {
+	t["HostNvmeDiscoveryLogTransportRequirements"] = reflect.TypeOf((*HostNvmeDiscoveryLogTransportRequirements)(nil)).Elem()
+}
+
+type HostNvmeTransportParametersNvmeAddressFamily string
+
+const (
+	HostNvmeTransportParametersNvmeAddressFamilyIpv4       = HostNvmeTransportParametersNvmeAddressFamily("ipv4")
+	HostNvmeTransportParametersNvmeAddressFamilyIpv6       = HostNvmeTransportParametersNvmeAddressFamily("ipv6")
+	HostNvmeTransportParametersNvmeAddressFamilyInfiniBand = HostNvmeTransportParametersNvmeAddressFamily("infiniBand")
+	HostNvmeTransportParametersNvmeAddressFamilyFc         = HostNvmeTransportParametersNvmeAddressFamily("fc")
+	HostNvmeTransportParametersNvmeAddressFamilyLoopback   = HostNvmeTransportParametersNvmeAddressFamily("loopback")
+	HostNvmeTransportParametersNvmeAddressFamilyUnknown    = HostNvmeTransportParametersNvmeAddressFamily("unknown")
+)
+
+func init() {
+	t["HostNvmeTransportParametersNvmeAddressFamily"] = reflect.TypeOf((*HostNvmeTransportParametersNvmeAddressFamily)(nil)).Elem()
+}
+
+type HostNvmeTransportType string
+
+const (
+	HostNvmeTransportTypePcie         = HostNvmeTransportType("pcie")
+	HostNvmeTransportTypeFibreChannel = HostNvmeTransportType("fibreChannel")
+	HostNvmeTransportTypeRdma         = HostNvmeTransportType("rdma")
+	HostNvmeTransportTypeLoopback     = HostNvmeTransportType("loopback")
+	HostNvmeTransportTypeUnsupported  = HostNvmeTransportType("unsupported")
+)
+
+func init() {
+	t["HostNvmeTransportType"] = reflect.TypeOf((*HostNvmeTransportType)(nil)).Elem()
+}
+
 type HostOpaqueSwitchOpaqueSwitchState string
 
 const (
-	HostOpaqueSwitchOpaqueSwitchStateUp      = HostOpaqueSwitchOpaqueSwitchState("up")
-	HostOpaqueSwitchOpaqueSwitchStateWarning = HostOpaqueSwitchOpaqueSwitchState("warning")
-	HostOpaqueSwitchOpaqueSwitchStateDown    = HostOpaqueSwitchOpaqueSwitchState("down")
+	HostOpaqueSwitchOpaqueSwitchStateUp          = HostOpaqueSwitchOpaqueSwitchState("up")
+	HostOpaqueSwitchOpaqueSwitchStateWarning     = HostOpaqueSwitchOpaqueSwitchState("warning")
+	HostOpaqueSwitchOpaqueSwitchStateDown        = HostOpaqueSwitchOpaqueSwitchState("down")
+	HostOpaqueSwitchOpaqueSwitchStateMaintenance = HostOpaqueSwitchOpaqueSwitchState("maintenance")
 )
 
 func init() {
@@ -1883,6 +2043,21 @@ func init() {
 	t["HostProtocolEndpointProtocolEndpointType"] = reflect.TypeOf((*HostProtocolEndpointProtocolEndpointType)(nil)).Elem()
 }
 
+type HostRdmaDeviceConnectionState string
+
+const (
+	HostRdmaDeviceConnectionStateUnknown     = HostRdmaDeviceConnectionState("unknown")
+	HostRdmaDeviceConnectionStateDown        = HostRdmaDeviceConnectionState("down")
+	HostRdmaDeviceConnectionStateInit        = HostRdmaDeviceConnectionState("init")
+	HostRdmaDeviceConnectionStateArmed       = HostRdmaDeviceConnectionState("armed")
+	HostRdmaDeviceConnectionStateActive      = HostRdmaDeviceConnectionState("active")
+	HostRdmaDeviceConnectionStateActiveDefer = HostRdmaDeviceConnectionState("activeDefer")
+)
+
+func init() {
+	t["HostRdmaDeviceConnectionState"] = reflect.TypeOf((*HostRdmaDeviceConnectionState)(nil)).Elem()
+}
+
 type HostReplayUnsupportedReason string
 
 const (
@@ -1923,6 +2098,35 @@ func init() {
 	t["HostServicePolicy"] = reflect.TypeOf((*HostServicePolicy)(nil)).Elem()
 }
 
+type HostSgxInfoFlcModes string
+
+const (
+	HostSgxInfoFlcModesOff      = HostSgxInfoFlcModes("off")
+	HostSgxInfoFlcModesLocked   = HostSgxInfoFlcModes("locked")
+	HostSgxInfoFlcModesUnlocked = HostSgxInfoFlcModes("unlocked")
+)
+
+func init() {
+	t["HostSgxInfoFlcModes"] = reflect.TypeOf((*HostSgxInfoFlcModes)(nil)).Elem()
+}
+
+type HostSgxInfoSgxStates string
+
+const (
+	HostSgxInfoSgxStatesNotPresent          = HostSgxInfoSgxStates("notPresent")
+	HostSgxInfoSgxStatesDisabledBIOS        = HostSgxInfoSgxStates("disabledBIOS")
+	HostSgxInfoSgxStatesDisabledCFW101      = HostSgxInfoSgxStates("disabledCFW101")
+	HostSgxInfoSgxStatesDisabledCPUMismatch = HostSgxInfoSgxStates("disabledCPUMismatch")
+	HostSgxInfoSgxStatesDisabledNoFLC       = HostSgxInfoSgxStates("disabledNoFLC")
+	HostSgxInfoSgxStatesDisabledNUMAUnsup   = HostSgxInfoSgxStates("disabledNUMAUnsup")
+	HostSgxInfoSgxStatesDisabledMaxEPCRegs  = HostSgxInfoSgxStates("disabledMaxEPCRegs")
+	HostSgxInfoSgxStatesEnabled             = HostSgxInfoSgxStates("enabled")
+)
+
+func init() {
+	t["HostSgxInfoSgxStates"] = reflect.TypeOf((*HostSgxInfoSgxStates)(nil)).Elem()
+}
+
 type HostSnmpAgentCapability string
 
 const (
@@ -1948,6 +2152,17 @@ func init() {
 	t["HostStandbyMode"] = reflect.TypeOf((*HostStandbyMode)(nil)).Elem()
 }
 
+type HostStorageProtocol string
+
+const (
+	HostStorageProtocolScsi = HostStorageProtocol("scsi")
+	HostStorageProtocolNvme = HostStorageProtocol("nvme")
+)
+
+func init() {
+	t["HostStorageProtocol"] = reflect.TypeOf((*HostStorageProtocol)(nil)).Elem()
+}
+
 type HostSystemConnectionState string
 
 const (
@@ -1963,9 +2178,11 @@ func init() {
 type HostSystemIdentificationInfoIdentifier string
 
 const (
-	HostSystemIdentificationInfoIdentifierAssetTag          = HostSystemIdentificationInfoIdentifier("AssetTag")
-	HostSystemIdentificationInfoIdentifierServiceTag        = HostSystemIdentificationInfoIdentifier("ServiceTag")
-	HostSystemIdentificationInfoIdentifierOemSpecificString = HostSystemIdentificationInfoIdentifier("OemSpecificString")
+	HostSystemIdentificationInfoIdentifierAssetTag                 = HostSystemIdentificationInfoIdentifier("AssetTag")
+	HostSystemIdentificationInfoIdentifierServiceTag               = HostSystemIdentificationInfoIdentifier("ServiceTag")
+	HostSystemIdentificationInfoIdentifierOemSpecificString        = HostSystemIdentificationInfoIdentifier("OemSpecificString")
+	HostSystemIdentificationInfoIdentifierEnclosureSerialNumberTag = HostSystemIdentificationInfoIdentifier("EnclosureSerialNumberTag")
+	HostSystemIdentificationInfoIdentifierSerialNumberTag          = HostSystemIdentificationInfoIdentifier("SerialNumberTag")
 )
 
 func init() {
@@ -2044,6 +2261,8 @@ const (
 	HostVirtualNicManagerNicTypeVsan                  = HostVirtualNicManagerNicType("vsan")
 	HostVirtualNicManagerNicTypeVSphereProvisioning   = HostVirtualNicManagerNicType("vSphereProvisioning")
 	HostVirtualNicManagerNicTypeVsanWitness           = HostVirtualNicManagerNicType("vsanWitness")
+	HostVirtualNicManagerNicTypeVSphereBackupNFC      = HostVirtualNicManagerNicType("vSphereBackupNFC")
+	HostVirtualNicManagerNicTypePtp                   = HostVirtualNicManagerNicType("ptp")
 )
 
 func init() {
@@ -2204,6 +2423,18 @@ const (
 
 func init() {
 	t["IscsiPortInfoPathStatus"] = reflect.TypeOf((*IscsiPortInfoPathStatus)(nil)).Elem()
+}
+
+type KmipClusterInfoKmsManagementType string
+
+const (
+	KmipClusterInfoKmsManagementTypeUnknown        = KmipClusterInfoKmsManagementType("unknown")
+	KmipClusterInfoKmsManagementTypeVCenter        = KmipClusterInfoKmsManagementType("vCenter")
+	KmipClusterInfoKmsManagementTypeTrustAuthority = KmipClusterInfoKmsManagementType("trustAuthority")
+)
+
+func init() {
+	t["KmipClusterInfoKmsManagementType"] = reflect.TypeOf((*KmipClusterInfoKmsManagementType)(nil)).Elem()
 }
 
 type LatencySensitivitySensitivityLevel string
@@ -2487,6 +2718,32 @@ func init() {
 	t["NvdimmInterleaveSetState"] = reflect.TypeOf((*NvdimmInterleaveSetState)(nil)).Elem()
 }
 
+type NvdimmNamespaceDetailsHealthStatus string
+
+const (
+	NvdimmNamespaceDetailsHealthStatusNormal            = NvdimmNamespaceDetailsHealthStatus("normal")
+	NvdimmNamespaceDetailsHealthStatusMissing           = NvdimmNamespaceDetailsHealthStatus("missing")
+	NvdimmNamespaceDetailsHealthStatusLabelMissing      = NvdimmNamespaceDetailsHealthStatus("labelMissing")
+	NvdimmNamespaceDetailsHealthStatusInterleaveBroken  = NvdimmNamespaceDetailsHealthStatus("interleaveBroken")
+	NvdimmNamespaceDetailsHealthStatusLabelInconsistent = NvdimmNamespaceDetailsHealthStatus("labelInconsistent")
+)
+
+func init() {
+	t["NvdimmNamespaceDetailsHealthStatus"] = reflect.TypeOf((*NvdimmNamespaceDetailsHealthStatus)(nil)).Elem()
+}
+
+type NvdimmNamespaceDetailsState string
+
+const (
+	NvdimmNamespaceDetailsStateInvalid  = NvdimmNamespaceDetailsState("invalid")
+	NvdimmNamespaceDetailsStateNotInUse = NvdimmNamespaceDetailsState("notInUse")
+	NvdimmNamespaceDetailsStateInUse    = NvdimmNamespaceDetailsState("inUse")
+)
+
+func init() {
+	t["NvdimmNamespaceDetailsState"] = reflect.TypeOf((*NvdimmNamespaceDetailsState)(nil)).Elem()
+}
+
 type NvdimmNamespaceHealthStatus string
 
 const (
@@ -2651,6 +2908,7 @@ const (
 	PerformanceManagerUnitWatt               = PerformanceManagerUnit("watt")
 	PerformanceManagerUnitJoule              = PerformanceManagerUnit("joule")
 	PerformanceManagerUnitTeraBytes          = PerformanceManagerUnit("teraBytes")
+	PerformanceManagerUnitCelsius            = PerformanceManagerUnit("celsius")
 )
 
 func init() {
@@ -2841,6 +3099,9 @@ const (
 	RecommendationReasonCodeHostExitDegradation             = RecommendationReasonCode("hostExitDegradation")
 	RecommendationReasonCodeMaxVmsConstraint                = RecommendationReasonCode("maxVmsConstraint")
 	RecommendationReasonCodeFtConstraints                   = RecommendationReasonCode("ftConstraints")
+	RecommendationReasonCodeVmHostAffinityPolicy            = RecommendationReasonCode("vmHostAffinityPolicy")
+	RecommendationReasonCodeVmHostAntiAffinityPolicy        = RecommendationReasonCode("vmHostAntiAffinityPolicy")
+	RecommendationReasonCodeVmAntiAffinityPolicy            = RecommendationReasonCode("vmAntiAffinityPolicy")
 )
 
 func init() {
@@ -2941,6 +3202,17 @@ const (
 
 func init() {
 	t["ReplicationVmState"] = reflect.TypeOf((*ReplicationVmState)(nil)).Elem()
+}
+
+type ResourceConfigSpecScaleSharesBehavior string
+
+const (
+	ResourceConfigSpecScaleSharesBehaviorDisabled                = ResourceConfigSpecScaleSharesBehavior("disabled")
+	ResourceConfigSpecScaleSharesBehaviorScaleCpuAndMemoryShares = ResourceConfigSpecScaleSharesBehavior("scaleCpuAndMemoryShares")
+)
+
+func init() {
+	t["ResourceConfigSpecScaleSharesBehavior"] = reflect.TypeOf((*ResourceConfigSpecScaleSharesBehavior)(nil)).Elem()
 }
 
 type ScheduledHardwareUpgradeInfoHardwareUpgradePolicy string
@@ -4042,6 +4314,7 @@ const (
 	VirtualMachineGuestOsIdentifierWindows9_64Guest        = VirtualMachineGuestOsIdentifier("windows9_64Guest")
 	VirtualMachineGuestOsIdentifierWindows9Server64Guest   = VirtualMachineGuestOsIdentifier("windows9Server64Guest")
 	VirtualMachineGuestOsIdentifierWindowsHyperVGuest      = VirtualMachineGuestOsIdentifier("windowsHyperVGuest")
+	VirtualMachineGuestOsIdentifierWindows2019srv_64Guest  = VirtualMachineGuestOsIdentifier("windows2019srv_64Guest")
 	VirtualMachineGuestOsIdentifierFreebsdGuest            = VirtualMachineGuestOsIdentifier("freebsdGuest")
 	VirtualMachineGuestOsIdentifierFreebsd64Guest          = VirtualMachineGuestOsIdentifier("freebsd64Guest")
 	VirtualMachineGuestOsIdentifierFreebsd11Guest          = VirtualMachineGuestOsIdentifier("freebsd11Guest")
@@ -4110,6 +4383,8 @@ const (
 	VirtualMachineGuestOsIdentifierDebian9_64Guest         = VirtualMachineGuestOsIdentifier("debian9_64Guest")
 	VirtualMachineGuestOsIdentifierDebian10Guest           = VirtualMachineGuestOsIdentifier("debian10Guest")
 	VirtualMachineGuestOsIdentifierDebian10_64Guest        = VirtualMachineGuestOsIdentifier("debian10_64Guest")
+	VirtualMachineGuestOsIdentifierDebian11Guest           = VirtualMachineGuestOsIdentifier("debian11Guest")
+	VirtualMachineGuestOsIdentifierDebian11_64Guest        = VirtualMachineGuestOsIdentifier("debian11_64Guest")
 	VirtualMachineGuestOsIdentifierAsianux3Guest           = VirtualMachineGuestOsIdentifier("asianux3Guest")
 	VirtualMachineGuestOsIdentifierAsianux3_64Guest        = VirtualMachineGuestOsIdentifier("asianux3_64Guest")
 	VirtualMachineGuestOsIdentifierAsianux4Guest           = VirtualMachineGuestOsIdentifier("asianux4Guest")
@@ -4163,10 +4438,14 @@ const (
 	VirtualMachineGuestOsIdentifierDarwin16_64Guest        = VirtualMachineGuestOsIdentifier("darwin16_64Guest")
 	VirtualMachineGuestOsIdentifierDarwin17_64Guest        = VirtualMachineGuestOsIdentifier("darwin17_64Guest")
 	VirtualMachineGuestOsIdentifierDarwin18_64Guest        = VirtualMachineGuestOsIdentifier("darwin18_64Guest")
+	VirtualMachineGuestOsIdentifierDarwin19_64Guest        = VirtualMachineGuestOsIdentifier("darwin19_64Guest")
 	VirtualMachineGuestOsIdentifierVmkernelGuest           = VirtualMachineGuestOsIdentifier("vmkernelGuest")
 	VirtualMachineGuestOsIdentifierVmkernel5Guest          = VirtualMachineGuestOsIdentifier("vmkernel5Guest")
 	VirtualMachineGuestOsIdentifierVmkernel6Guest          = VirtualMachineGuestOsIdentifier("vmkernel6Guest")
 	VirtualMachineGuestOsIdentifierVmkernel65Guest         = VirtualMachineGuestOsIdentifier("vmkernel65Guest")
+	VirtualMachineGuestOsIdentifierVmkernel7Guest          = VirtualMachineGuestOsIdentifier("vmkernel7Guest")
+	VirtualMachineGuestOsIdentifierAmazonlinux2_64Guest    = VirtualMachineGuestOsIdentifier("amazonlinux2_64Guest")
+	VirtualMachineGuestOsIdentifierCrxPod1Guest            = VirtualMachineGuestOsIdentifier("crxPod1Guest")
 	VirtualMachineGuestOsIdentifierOtherGuest              = VirtualMachineGuestOsIdentifier("otherGuest")
 	VirtualMachineGuestOsIdentifierOtherGuest64            = VirtualMachineGuestOsIdentifier("otherGuest64")
 )
@@ -4358,6 +4637,17 @@ func init() {
 	t["VirtualMachineScsiPassthroughType"] = reflect.TypeOf((*VirtualMachineScsiPassthroughType)(nil)).Elem()
 }
 
+type VirtualMachineSgxInfoFlcModes string
+
+const (
+	VirtualMachineSgxInfoFlcModesLocked   = VirtualMachineSgxInfoFlcModes("locked")
+	VirtualMachineSgxInfoFlcModesUnlocked = VirtualMachineSgxInfoFlcModes("unlocked")
+)
+
+func init() {
+	t["VirtualMachineSgxInfoFlcModes"] = reflect.TypeOf((*VirtualMachineSgxInfoFlcModes)(nil)).Elem()
+}
+
 type VirtualMachineStandbyActionType string
 
 const (
@@ -4383,11 +4673,12 @@ func init() {
 type VirtualMachineTicketType string
 
 const (
-	VirtualMachineTicketTypeMks            = VirtualMachineTicketType("mks")
-	VirtualMachineTicketTypeDevice         = VirtualMachineTicketType("device")
-	VirtualMachineTicketTypeGuestControl   = VirtualMachineTicketType("guestControl")
-	VirtualMachineTicketTypeWebmks         = VirtualMachineTicketType("webmks")
-	VirtualMachineTicketTypeGuestIntegrity = VirtualMachineTicketType("guestIntegrity")
+	VirtualMachineTicketTypeMks             = VirtualMachineTicketType("mks")
+	VirtualMachineTicketTypeDevice          = VirtualMachineTicketType("device")
+	VirtualMachineTicketTypeGuestControl    = VirtualMachineTicketType("guestControl")
+	VirtualMachineTicketTypeWebmks          = VirtualMachineTicketType("webmks")
+	VirtualMachineTicketTypeGuestIntegrity  = VirtualMachineTicketType("guestIntegrity")
+	VirtualMachineTicketTypeWebRemoteDevice = VirtualMachineTicketType("webRemoteDevice")
 )
 
 func init() {
@@ -4482,11 +4773,12 @@ func init() {
 type VirtualMachineUsbInfoSpeed string
 
 const (
-	VirtualMachineUsbInfoSpeedLow          = VirtualMachineUsbInfoSpeed("low")
-	VirtualMachineUsbInfoSpeedFull         = VirtualMachineUsbInfoSpeed("full")
-	VirtualMachineUsbInfoSpeedHigh         = VirtualMachineUsbInfoSpeed("high")
-	VirtualMachineUsbInfoSpeedSuperSpeed   = VirtualMachineUsbInfoSpeed("superSpeed")
-	VirtualMachineUsbInfoSpeedUnknownSpeed = VirtualMachineUsbInfoSpeed("unknownSpeed")
+	VirtualMachineUsbInfoSpeedLow            = VirtualMachineUsbInfoSpeed("low")
+	VirtualMachineUsbInfoSpeedFull           = VirtualMachineUsbInfoSpeed("full")
+	VirtualMachineUsbInfoSpeedHigh           = VirtualMachineUsbInfoSpeed("high")
+	VirtualMachineUsbInfoSpeedSuperSpeed     = VirtualMachineUsbInfoSpeed("superSpeed")
+	VirtualMachineUsbInfoSpeedSuperSpeedPlus = VirtualMachineUsbInfoSpeed("superSpeedPlus")
+	VirtualMachineUsbInfoSpeedUnknownSpeed   = VirtualMachineUsbInfoSpeed("unknownSpeed")
 )
 
 func init() {

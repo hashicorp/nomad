@@ -13,10 +13,11 @@ type osRoot struct {
 
 // OS represents a Packet operating system
 type OS struct {
-	Name    string `json:"name"`
-	Slug    string `json:"slug"`
-	Distro  string `json:"distro"`
-	Version string `json:"version"`
+	Name            string   `json:"name"`
+	Slug            string   `json:"slug"`
+	Distro          string   `json:"distro"`
+	Version         string   `json:"version"`
+	ProvisionableOn []string `json:"provisionable_on"`
 }
 
 func (o OS) String() string {

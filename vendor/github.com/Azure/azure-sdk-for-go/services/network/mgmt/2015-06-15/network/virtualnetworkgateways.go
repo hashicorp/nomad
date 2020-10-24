@@ -380,6 +380,9 @@ func (client VirtualNetworkGatewaysClient) List(ctx context.Context, resourceGro
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.VirtualNetworkGatewaysClient", "List", resp, "Failure responding to request")
 	}
+	if result.vnglr.hasNextLink() && result.vnglr.IsEmpty() {
+		err = result.NextWithContext(ctx)
+	}
 
 	return
 }

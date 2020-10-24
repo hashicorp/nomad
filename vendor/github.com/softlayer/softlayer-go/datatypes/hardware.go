@@ -309,6 +309,12 @@ type Hardware struct {
 	// A piece of hardware's metric tracking object.
 	MetricTrackingObject *Metric_Tracking_Object_HardwareServer `json:"metricTrackingObject,omitempty" xmlrpc:"metricTrackingObject,omitempty"`
 
+	// A count of
+	ModuleCount *uint `json:"moduleCount,omitempty" xmlrpc:"moduleCount,omitempty"`
+
+	// no documentation yet
+	Modules []Hardware_Component `json:"modules,omitempty" xmlrpc:"modules,omitempty"`
+
 	// A count of information regarding the monitoring agents associated with a piece of hardware.
 	MonitoringAgentCount *uint `json:"monitoringAgentCount,omitempty" xmlrpc:"monitoringAgentCount,omitempty"`
 
@@ -404,6 +410,15 @@ type Hardware struct {
 
 	// A count of
 	NotesHistoryCount *uint `json:"notesHistoryCount,omitempty" xmlrpc:"notesHistoryCount,omitempty"`
+
+	// The amount of non-volatile memory a piece of hardware has, measured in gigabytes.
+	NvRamCapacity *uint `json:"nvRamCapacity,omitempty" xmlrpc:"nvRamCapacity,omitempty"`
+
+	// A count of
+	NvRamComponentModelCount *uint `json:"nvRamComponentModelCount,omitempty" xmlrpc:"nvRamComponentModelCount,omitempty"`
+
+	// no documentation yet
+	NvRamComponentModels []Hardware_Component_Model `json:"nvRamComponentModels,omitempty" xmlrpc:"nvRamComponentModels,omitempty"`
 
 	// Information regarding a piece of hardware's operating system.
 	OperatingSystem *Software_Component_OperatingSystem `json:"operatingSystem,omitempty" xmlrpc:"operatingSystem,omitempty"`
@@ -756,6 +771,9 @@ type Hardware_Chassis struct {
 	// no documentation yet
 	PowerCapacity *string `json:"powerCapacity,omitempty" xmlrpc:"powerCapacity,omitempty"`
 
+	// no documentation yet
+	U2Capacity *string `json:"u2Capacity,omitempty" xmlrpc:"u2Capacity,omitempty"`
+
 	// The physical size of a hardware chassis.  Currently this relates to the 'U' size of a chassis buy default.
 	UnitSize *int `json:"unitSize,omitempty" xmlrpc:"unitSize,omitempty"`
 
@@ -803,6 +821,9 @@ type Hardware_Component struct {
 	// A hardware component's internal identifier.
 	Id *int `json:"id,omitempty" xmlrpc:"id,omitempty"`
 
+	// no documentation yet
+	IsChildModule *bool `json:"isChildModule,omitempty" xmlrpc:"isChildModule,omitempty"`
+
 	// A component's M.2 SATA capacity.
 	M2SataSlotCapacity *string `json:"m2SataSlotCapacity,omitempty" xmlrpc:"m2SataSlotCapacity,omitempty"`
 
@@ -815,6 +836,9 @@ type Hardware_Component struct {
 	// The module's hardware components
 	ModuleComponents []Hardware_Component `json:"moduleComponents,omitempty" xmlrpc:"moduleComponents,omitempty"`
 
+	// A count of
+	ModuleCount *uint `json:"moduleCount,omitempty" xmlrpc:"moduleCount,omitempty"`
+
 	// A count of the module's hardware components
 	ModuleHardwareComponentCount *uint `json:"moduleHardwareComponentCount,omitempty" xmlrpc:"moduleHardwareComponentCount,omitempty"`
 
@@ -826,6 +850,9 @@ type Hardware_Component struct {
 
 	// The module's network components
 	ModuleNetworkComponents []Hardware_Component `json:"moduleNetworkComponents,omitempty" xmlrpc:"moduleNetworkComponents,omitempty"`
+
+	// no documentation yet
+	Modules []Hardware_Component `json:"modules,omitempty" xmlrpc:"modules,omitempty"`
 
 	// The name of this component as referenced by the operating system.
 	Name *string `json:"name,omitempty" xmlrpc:"name,omitempty"`
@@ -941,7 +968,16 @@ type Hardware_Component_Firmware struct {
 	IsQualified *int `json:"isQualified,omitempty" xmlrpc:"isQualified,omitempty"`
 
 	// no documentation yet
+	QualificationType *Hardware_Component_Firmware_QualificationTypes `json:"qualificationType,omitempty" xmlrpc:"qualificationType,omitempty"`
+
+	// no documentation yet
 	ReleaseNotes *string `json:"releaseNotes,omitempty" xmlrpc:"releaseNotes,omitempty"`
+
+	// A count of all revisions of this firmware.
+	RevisionCount *uint `json:"revisionCount,omitempty" xmlrpc:"revisionCount,omitempty"`
+
+	// All revisions of this firmware.
+	Revisions []Hardware_Component_Revision `json:"revisions,omitempty" xmlrpc:"revisions,omitempty"`
 
 	// no documentation yet
 	Version *string `json:"version,omitempty" xmlrpc:"version,omitempty"`
@@ -987,6 +1023,23 @@ type Hardware_Component_Firmware_Attribute_Type struct {
 	Name *string `json:"name,omitempty" xmlrpc:"name,omitempty"`
 }
 
+// The SoftLayer_Hardware_Component_Firmware_QualificationTypes data type describes the current qualification status for a particular firmware.
+type Hardware_Component_Firmware_QualificationTypes struct {
+	Entity
+
+	// A description about the qualificationType.
+	Description *string `json:"description,omitempty" xmlrpc:"description,omitempty"`
+
+	// The Id of the qualificationType.
+	Id *int `json:"id,omitempty" xmlrpc:"id,omitempty"`
+
+	// KeyName representation for the qualificationType.
+	KeyName *string `json:"keyName,omitempty" xmlrpc:"keyName,omitempty"`
+
+	// The qualificationType name.
+	Name *string `json:"name,omitempty" xmlrpc:"name,omitempty"`
+}
+
 // The SoftLayer_Hardware_Component_HardDrive data type abstracts information related to a hard drive.
 type Hardware_Component_HardDrive struct {
 	Hardware_Component
@@ -996,6 +1049,25 @@ type Hardware_Component_HardDrive struct {
 
 	// The attached component partitions.
 	Partitions []Hardware_Component_Partition `json:"partitions,omitempty" xmlrpc:"partitions,omitempty"`
+}
+
+// no documentation yet
+type Hardware_Component_Locator struct {
+	Entity
+}
+
+// This object holds a generic component model id and the list of datacenter names where it is available.
+type Hardware_Component_Locator_Result struct {
+	Entity
+
+	// array of datacenter names where generic component model is available
+	Datacenters []string `json:"datacenters,omitempty" xmlrpc:"datacenters,omitempty"`
+
+	// generic component model id
+	GenericComponentModelId *int `json:"genericComponentModelId,omitempty" xmlrpc:"genericComponentModelId,omitempty"`
+
+	// Id of SoftLayer_Product_Package_Server
+	ServerPackageId *int `json:"serverPackageId,omitempty" xmlrpc:"serverPackageId,omitempty"`
 }
 
 // The SoftLayer_Hardware_Component_Model data type contains general information relating to a single SoftLayer component model.  A component model represents a vendor specific representation of a hardware component.  Every piece of hardware on a server will have a specific hardware component model.
@@ -1250,7 +1322,7 @@ type Hardware_Component_NetworkCard struct {
 type Hardware_Component_Partition struct {
 	Entity
 
-	// A hardware component partition's order in the [[SoftLayer_Hardware_Hardware|hardware]].
+	// A hardware component partition's order in the [[SoftLayer_Hardware_Server]].
 	DiskNumber *int `json:"diskNumber,omitempty" xmlrpc:"diskNumber,omitempty"`
 
 	// A flag indicating if a partition is the grow partition. The grow partition will grow to fill all remaining space on a disk.  There can only be one.
@@ -1814,6 +1886,9 @@ type Hardware_Server struct {
 	// Determine if BIOS password should be left as null.
 	BiosPasswordNullFlag *bool `json:"biosPasswordNullFlag,omitempty" xmlrpc:"biosPasswordNullFlag,omitempty"`
 
+	// Determine if the server is able to be image captured. If unable to image capture a reason will be provided.
+	CaptureEnabledFlag *string `json:"captureEnabledFlag,omitempty" xmlrpc:"captureEnabledFlag,omitempty"`
+
 	// no documentation yet
 	ContainsSolidStateDrivesFlag *bool `json:"containsSolidStateDrivesFlag,omitempty" xmlrpc:"containsSolidStateDrivesFlag,omitempty"`
 
@@ -1840,6 +1915,12 @@ type Hardware_Server struct {
 
 	// Determine if hardware object has the IBM_CLOUD_READY_NODE_CERTIFIED attribute.
 	IsCloudReadyNodeCertified *bool `json:"isCloudReadyNodeCertified,omitempty" xmlrpc:"isCloudReadyNodeCertified,omitempty"`
+
+	// Determine if remote management has been disabled due to port speed.
+	IsIpmiDisabled *bool `json:"isIpmiDisabled,omitempty" xmlrpc:"isIpmiDisabled,omitempty"`
+
+	// Determine if hardware object is a Virtual Private Cloud node.
+	IsVirtualPrivateCloudNode *bool `json:"isVirtualPrivateCloudNode,omitempty" xmlrpc:"isVirtualPrivateCloudNode,omitempty"`
 
 	// The last transaction that a server's operating system was loaded.
 	LastOperatingSystemReload *Provisioning_Version1_Transaction `json:"lastOperatingSystemReload,omitempty" xmlrpc:"lastOperatingSystemReload,omitempty"`
@@ -1897,6 +1978,9 @@ type Hardware_Server struct {
 
 	// A server's remote management card used for statistics.
 	StatisticsRemoteManagement *Hardware_Component_RemoteManagement `json:"statisticsRemoteManagement,omitempty" xmlrpc:"statisticsRemoteManagement,omitempty"`
+
+	// Whether to use UEFI boot instead of BIOS.
+	UefiBootFlag *bool `json:"uefiBootFlag,omitempty" xmlrpc:"uefiBootFlag,omitempty"`
 
 	// A count of a list of users that have access to this computing instance.
 	UserCount *uint `json:"userCount,omitempty" xmlrpc:"userCount,omitempty"`

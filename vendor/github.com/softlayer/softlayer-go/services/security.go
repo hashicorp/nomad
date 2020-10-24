@@ -195,12 +195,6 @@ func (r Security_Certificate_Request) GetAdministratorEmailPrefixes() (resp []st
 	return
 }
 
-// Retrieve The Certificate Authority name
-func (r Security_Certificate_Request) GetCertificateAuthorityName() (resp string, err error) {
-	err = r.Session.DoRequest("SoftLayer_Security_Certificate_Request", "getCertificateAuthorityName", nil, &r.Options, &resp)
-	return
-}
-
 // no documentation yet
 func (r Security_Certificate_Request) GetObject() (resp datatypes.Security_Certificate_Request, err error) {
 	err = r.Session.DoRequest("SoftLayer_Security_Certificate_Request", "getObject", nil, &r.Options, &resp)
@@ -251,7 +245,7 @@ func (r Security_Certificate_Request) ResendEmail(emailType *string) (resp bool,
 
 // Allows you to validate a Certificate Signing Request (CSR) required for an SSL certificate with the certificate authority (CA).  This method sends the CSR, the length of the subscription in months, the certificate type, and the server type for validation against requirements of the CA.  Returns true if valid.
 //
-// More information on CSR generation can be found at: [http://en.wikipedia.org/wiki/Certificate_signing_request Wikipedia] [https://knowledge.verisign.com/support/ssl-certificates-support/index?page=content&id=AR235&actp=LIST&viewlocale=en_US VeriSign]
+// More information on CSR generation can be found at: [http://en.wikipedia.org/wiki/Certificate_signing_request Wikipedia] [https://www.digicert.com/csr-creation.htm DigiCert]
 func (r Security_Certificate_Request) ValidateCsr(csr *string, validityMonths *int, itemId *int, serverType *string) (resp bool, err error) {
 	params := []interface{}{
 		csr,

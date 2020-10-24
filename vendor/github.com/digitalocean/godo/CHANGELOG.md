@@ -1,5 +1,193 @@
 # Change Log
 
+## [v1.44.0] - 2020-09-08
+
+- #364 apps: support aggregate deployment logs - @kamaln7
+
+## [v1.43.0] - 2020-09-08
+
+- #362 update apps types - @kamaln7
+
+## [v1.42.1] - 2020-08-06
+
+- #360 domains: Allow for SRV records with port 0. - @andrewsomething
+
+## [v1.42.0] - 2020-07-22
+
+- #357 invoices: add category to InvoiceItem - @rbutler
+- #358 apps: add support for following logs - @nanzhong
+
+## [v1.41.0] - 2020-07-17
+
+- #355 kubernetes: Add support for surge upgrades - @varshavaradarajan
+
+## [v1.40.0] - 2020-07-16
+
+- #347 Make Rate limits thread safe - @roidelapluie
+- #353 Reuse TCP connection - @itsksaurabh
+
+## [v1.39.0] - 2020-07-14
+
+- #345, #346 Add app platform support [beta] - @nanzhong
+
+## [v1.38.0] - 2020-06-18
+
+- #341 Install 1-click applications on a Kubernetes cluster - @keladhruv
+- #340 Add RecordsByType, RecordsByName and RecordsByTypeAndName to the DomainsService - @viola
+
+## [v1.37.0] - 2020-06-01
+
+- #336 registry: URL encode repository names when building URLs. @adamwg
+- #335 Add 1-click service and request. @scottcrawford03
+
+## [v1.36.0] - 2020-05-12
+
+- #331 Expose expiry_seconds for Registry.DockerCredentials. @andrewsomething
+
+## [v1.35.1] - 2020-04-21
+
+- #328 Update vulnerable x/crypto dependency - @bentranter
+
+## [v1.35.0] - 2020-04-20
+
+- #326 Add TagCount field to registry/Repository - @nicktate
+- #325 Add DOCR EA routes - @nicktate
+- #324 Upgrade godo to Go 1.14 - @bentranter
+
+## [v1.34.0] - 2020-03-30
+
+- #320 Add VPC v3 attributes - @viola
+
+## [v1.33.1] - 2020-03-23
+
+- #318 upgrade github.com/stretchr/objx past 0.1.1 - @hilary
+
+## [v1.33.0] - 2020-03-20
+
+- #310 Add BillingHistory service and List endpoint - @rbutler
+- #316 load balancers: add new enable_backend_keepalive field - @anitgandhi
+
+## [v1.32.0] - 2020-03-04
+
+- #311 Add reset database user auth method - @zbarahal-do
+
+## [v1.31.0] - 2020-02-28
+
+- #305 invoices: GetPDF and GetCSV methods - @rbutler
+- #304 Add NewFromToken convenience method to init client - @bentranter
+- #301 invoices: Get, Summary, and List methods - @rbutler
+- #299 Fix param expiry_seconds for kubernetes.GetCredentials request - @velp
+
+## [v1.30.0] - 2020-02-03
+
+- #295 registry: support the created_at field - @adamwg
+- #293 doks: node pool labels - @snormore
+
+## [v1.29.0] - 2019-12-13
+
+- #288 Add Balance Get method - @rbutler
+- #286,#289 Deserialize meta field - @timoreimann
+
+## [v1.28.0] - 2019-12-04
+
+- #282 Add valid Redis eviction policy constants - @bentranter
+- #281 Remove databases info from top-level godoc string - @bentranter
+- #280 Fix VolumeSnapshotResourceType value volumesnapshot -> volume_snapshot - @aqche
+
+## [v1.27.0] - 2019-11-18
+
+- #278 add mysql user auth settings for database users - @gregmankes
+
+## [v1.26.0] - 2019-11-13
+
+- #272 dbaas: get and set mysql sql mode - @mikejholly
+
+## [v1.25.0] - 2019-11-13
+
+- #275 registry/docker-credentials: add support for the read/write parameter - @kamaln7
+- #273 implement the registry/docker-credentials endpoint - @kamaln7
+- #271 Add registry resource - @snormore
+
+## [v1.24.1] - 2019-11-04
+
+- #264 Update isLast to check p.Next - @aqche
+
+## [v1.24.0] - 2019-10-30
+
+- #267 Return []DatabaseFirewallRule in addition to raw response. - @andrewsomething
+
+## [v1.23.1] - 2019-10-30
+
+- #265 add support for getting/setting firewall rules - @gregmankes
+- #262 remove ResolveReference call - @mdanzinger
+- #261 Update CONTRIBUTING.md - @mdanzinger
+
+## [v1.22.0] - 2019-09-24
+
+- #259 Add Kubernetes GetCredentials method - @snormore
+
+## [v1.21.1] - 2019-09-19
+
+- #257 Upgrade to Go 1.13 - @bentranter
+
+## [v1.21.0] - 2019-09-16
+
+- #255 Add DropletID to Kubernetes Node instance - @snormore
+- #254 Add tags to Database, DatabaseReplica - @Zyqsempai
+
+## [v1.20.0] - 2019-09-06
+
+- #252 Add Kubernetes autoscale config fields - @snormore
+- #251 Support unset fields on Kubernetes cluster and node pool updates - @snormore
+- #250 Add Kubernetes GetUser method - @snormore
+
+## [v1.19.0] - 2019-07-19
+
+- #244 dbaas: add private-network-uuid field to create request
+
+## [v1.18.0] - 2019-07-17
+
+- #241 Databases: support for custom VPC UUID on migrate @mikejholly
+- #240 Add the ability to get URN for a Database @stack72
+- #236 Fix omitempty typos in JSON struct tags @amccarthy1
+
+## [v1.17.0] - 2019-06-21
+
+- #238 Add support for Redis eviction policy in Databases @mikejholly
+
+## [v1.16.0] - 2019-06-04
+
+- #233 Add Kubernetes DeleteNode method, deprecate RecycleNodePoolNodes @bouk
+
+## [v1.15.0] - 2019-05-13
+
+- #231 Add private connection fields to Databases - @mikejholly
+- #223 Introduce Go modules - @andreiavrammsd
+
+## [v1.14.0] - 2019-05-13
+
+- #229 Add support for upgrading Kubernetes clusters - @adamwg
+
+## [v1.13.0] - 2019-04-19
+
+- #213 Add tagging support for volume snapshots - @jcodybaker
+
+## [v1.12.0] - 2019-04-18
+
+- #224 Add maintenance window support for Kubernetes- @fatih
+
+## [v1.11.1] - 2019-04-04
+
+- #222 Fix Create Database Pools json fields - @sunny-b
+
+## [v1.11.0] - 2019-04-03
+
+- #220 roll out vpc functionality - @jheimann
+
+## [v1.10.1] - 2019-03-27
+
+- #219 Fix Database Pools json field - @sunny-b
+
 ## [v1.10.0] - 2019-03-20
 
 - #215 Add support for Databases - @mikejholly

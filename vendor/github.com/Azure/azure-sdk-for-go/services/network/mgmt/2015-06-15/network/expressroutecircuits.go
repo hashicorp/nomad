@@ -301,6 +301,9 @@ func (client ExpressRouteCircuitsClient) List(ctx context.Context, resourceGroup
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.ExpressRouteCircuitsClient", "List", resp, "Failure responding to request")
 	}
+	if result.erclr.hasNextLink() && result.erclr.IsEmpty() {
+		err = result.NextWithContext(ctx)
+	}
 
 	return
 }
@@ -409,6 +412,9 @@ func (client ExpressRouteCircuitsClient) ListAll(ctx context.Context) (result Ex
 	result.erclr, err = client.ListAllResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.ExpressRouteCircuitsClient", "ListAll", resp, "Failure responding to request")
+	}
+	if result.erclr.hasNextLink() && result.erclr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -521,6 +527,9 @@ func (client ExpressRouteCircuitsClient) ListArpTable(ctx context.Context, resou
 	result.ercatlr, err = client.ListArpTableResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.ExpressRouteCircuitsClient", "ListArpTable", resp, "Failure responding to request")
+	}
+	if result.ercatlr.hasNextLink() && result.ercatlr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -636,6 +645,9 @@ func (client ExpressRouteCircuitsClient) ListRoutesTable(ctx context.Context, re
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.ExpressRouteCircuitsClient", "ListRoutesTable", resp, "Failure responding to request")
 	}
+	if result.ercrtlr.hasNextLink() && result.ercrtlr.IsEmpty() {
+		err = result.NextWithContext(ctx)
+	}
 
 	return
 }
@@ -749,6 +761,9 @@ func (client ExpressRouteCircuitsClient) ListStats(ctx context.Context, resource
 	result.ercslr, err = client.ListStatsResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.ExpressRouteCircuitsClient", "ListStats", resp, "Failure responding to request")
+	}
+	if result.ercslr.hasNextLink() && result.ercslr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return

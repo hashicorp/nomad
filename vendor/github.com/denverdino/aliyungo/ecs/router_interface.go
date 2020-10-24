@@ -238,7 +238,7 @@ func (client *Client) WaitForRouterInterfaceAsyn(regionId common.Region, interfa
 	for {
 		interfaces, err := client.DescribeRouterInterfaces(&DescribeRouterInterfacesArgs{
 			RegionId: regionId,
-			Filter:   []Filter{Filter{Key: "RouterInterfaceId", Value: []string{interfaceId}}},
+			Filter:   []Filter{{Key: "RouterInterfaceId", Value: []string{interfaceId}}},
 		})
 		if err != nil {
 			return err

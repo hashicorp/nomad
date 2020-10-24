@@ -22,7 +22,7 @@ type ErrorResponse struct {
 		Error struct {
 			Code    string `json:"Code"`
 			Message string `json:"Message"`
-		} `json:"Error" omitempty`
+		} `json:"Error,omitempty"`
 		RequestId string `json:"RequestId"`
 	} `json:"Response"`
 }

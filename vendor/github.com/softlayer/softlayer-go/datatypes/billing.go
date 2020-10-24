@@ -154,6 +154,9 @@ type Billing_Info struct {
 	SparePoolAmount *int `json:"sparePoolAmount,omitempty" xmlrpc:"sparePoolAmount,omitempty"`
 
 	// no documentation yet
+	TaxCertificateId *string `json:"taxCertificateId,omitempty" xmlrpc:"taxCertificateId,omitempty"`
+
+	// no documentation yet
 	VatId *string `json:"vatId,omitempty" xmlrpc:"vatId,omitempty"`
 }
 
@@ -529,6 +532,9 @@ type Billing_Invoice_Item struct {
 
 	// If there were any setup fees they will show up here. These are normally a one-time fee.
 	SetupFee *Float64 `json:"setupFee,omitempty" xmlrpc:"setupFee,omitempty"`
+
+	// The number of months the setup fee is being deferred.
+	SetupFeeDeferralMonths *int `json:"setupFeeDeferralMonths,omitempty" xmlrpc:"setupFeeDeferralMonths,omitempty"`
 
 	// The tax rate at which the setup fee is taxed.
 	SetupFeeTaxRate *Float64 `json:"setupFeeTaxRate,omitempty" xmlrpc:"setupFeeTaxRate,omitempty"`
@@ -1728,6 +1734,14 @@ type Billing_Item_Virtual_Host_Usage struct {
 	ResourceTableId *int `json:"resourceTableId,omitempty" xmlrpc:"resourceTableId,omitempty"`
 }
 
+// no documentation yet
+type Billing_Item_Virtual_ReservedCapacity struct {
+	Billing_Item
+
+	// The resource for a virtual dedicated host billing item.
+	Resource *Virtual_ReservedCapacityGroup_Instance `json:"resource,omitempty" xmlrpc:"resource,omitempty"`
+}
+
 // The SoftLayer_Billing_Item_Workspace data type contains general information relating to a single SoftLayer billing item whose item category code is 'workspace'
 type Billing_Item_Workspace struct {
 	Billing_Item
@@ -1996,6 +2010,9 @@ type Billing_Order_Item struct {
 	PresetId *int `json:"presetId,omitempty" xmlrpc:"presetId,omitempty"`
 
 	// no documentation yet
+	PromoCode *Product_Promotion `json:"promoCode,omitempty" xmlrpc:"promoCode,omitempty"`
+
+	// no documentation yet
 	PromoCodeId *int `json:"promoCodeId,omitempty" xmlrpc:"promoCodeId,omitempty"`
 
 	// the quantity of the ordered item in a quote.
@@ -2064,20 +2081,6 @@ type Billing_Order_Item_Category_Answer struct {
 	QuestionId *int `json:"questionId,omitempty" xmlrpc:"questionId,omitempty"`
 }
 
-// no documentation yet
-type Billing_Order_Note struct {
-	Entity
-
-	// no documentation yet
-	CreateDate *Time `json:"createDate,omitempty" xmlrpc:"createDate,omitempty"`
-
-	// no documentation yet
-	Employee *User_Employee `json:"employee,omitempty" xmlrpc:"employee,omitempty"`
-
-	// no documentation yet
-	Order *Billing_Order `json:"order,omitempty" xmlrpc:"order,omitempty"`
-}
-
 // The SoftLayer_Billing_Oder_Quote data type contains general information relating to an individual order applied to a SoftLayer customer account or to a new customer. Personal information in this type such as names, addresses, and phone numbers are taken from the account's contact information at the time the quote is generated for existing SoftLayer customer.
 type Billing_Order_Quote struct {
 	Entity
@@ -2142,7 +2145,7 @@ type Billing_Order_Type struct {
 	Type *string `json:"type,omitempty" xmlrpc:"type,omitempty"`
 }
 
-// The SoftLayer_Billing_Payment_Card_ChangeRequest data type contains general information relating to attempted credit card information changes.
+// The SoftLayer_Billing_Payment_Card_ChangeRequest data type contains general information relating to attempted credit card information changes. This supports enablement of 3D Secure via Cardinal Cruise implementation that allows for credit card authentication and is currently limited to specified merchants.
 type Billing_Payment_Card_ChangeRequest struct {
 	Entity
 
@@ -2230,6 +2233,16 @@ type Billing_Payment_Card_ChangeRequest struct {
 	// the notes stored about a customer's payment card.
 	Notes *string `json:"notes,omitempty" xmlrpc:"notes,omitempty"`
 
+	// The purpose of this property is to allow enablement of 3D Secure (3DS). This is the Reference ID that corresponds to the device data for Payer Authentication. In order to properly enable 3DS, this will require implementation of Cardinal Cruise Hybrid.
+	//
+	// Please refer to https://cardinaldocs.atlassian.net/wiki/spaces/CC/pages/360668/Cardinal+Cruise+Hybrid and view section under "DFReferenceId / ReferenceId" to populate this property accordingly.
+	PayerAuthenticationEnrollmentReferenceId *string `json:"payerAuthenticationEnrollmentReferenceId,omitempty" xmlrpc:"payerAuthenticationEnrollmentReferenceId,omitempty"`
+
+	// "Continue with Consumer Authentication" decoded response JWT (JSON Web Token) after successful authentication. The response is part of the implementation of Cardinal Cruise Hybrid.
+	//
+	// Please refer to https://cardinaldocs.atlassian.net/wiki/spaces/CC/pages/360668/Cardinal+Cruise+Hybrid and view section under "Continue with Consumer Authentication" to populate this property accordingly based on the CCA response.
+	PayerAuthenticationWebToken *string `json:"payerAuthenticationWebToken,omitempty" xmlrpc:"payerAuthenticationWebToken,omitempty"`
+
 	// no documentation yet
 	PaymentRoleId *int `json:"paymentRoleId,omitempty" xmlrpc:"paymentRoleId,omitempty"`
 
@@ -2246,7 +2259,7 @@ type Billing_Payment_Card_ChangeRequest struct {
 	TicketId *int `json:"ticketId,omitempty" xmlrpc:"ticketId,omitempty"`
 }
 
-// The SoftLayer_Billing_Payment_Card_ManualPayment data type contains general information relating to attempted credit card information changes.
+// The SoftLayer_Billing_Payment_Card_ManualPayment data type contains general information related to requesting a manual payment. This supports enablement of 3D Secure via Cardinal Cruise implementation that allows for credit card authentication and is currently limited to specified merchants.
 type Billing_Payment_Card_ManualPayment struct {
 	Entity
 
@@ -2351,6 +2364,16 @@ type Billing_Payment_Card_ManualPayment struct {
 
 	// Notes generated as a result of the payment request.
 	Notes *string `json:"notes,omitempty" xmlrpc:"notes,omitempty"`
+
+	// The purpose of this property is to allow enablement of 3D Secure (3DS). This is the Reference ID that corresponds to the device data for Payer Authentication. In order to properly enable 3DS, this will require implementation of Cardinal Cruise Hybrid.
+	//
+	// Please refer to https://cardinaldocs.atlassian.net/wiki/spaces/CC/pages/360668/Cardinal+Cruise+Hybrid and view section under "DFReferenceId / ReferenceId" to populate this property accordingly.
+	PayerAuthenticationEnrollmentReferenceId *string `json:"payerAuthenticationEnrollmentReferenceId,omitempty" xmlrpc:"payerAuthenticationEnrollmentReferenceId,omitempty"`
+
+	// "Continue with Consumer Authentication" decoded response JWT (JSON Web Token) after successful authentication. The response is part of the implementation of Cardinal Cruise Hybrid.
+	//
+	// Please refer to https://cardinaldocs.atlassian.net/wiki/spaces/CC/pages/360668/Cardinal+Cruise+Hybrid and view section under "Continue with Consumer Authentication" to populate this property accordingly based on the CCA response.
+	PayerAuthenticationWebToken *string `json:"payerAuthenticationWebToken,omitempty" xmlrpc:"payerAuthenticationWebToken,omitempty"`
 
 	// The description of the type of payment sent in a change transaction.
 	PaymentType *string `json:"paymentType,omitempty" xmlrpc:"paymentType,omitempty"`

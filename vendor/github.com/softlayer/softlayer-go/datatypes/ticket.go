@@ -149,9 +149,6 @@ type Ticket struct {
 	// The last update made to a ticket.
 	LastUpdate *Ticket_Update `json:"lastUpdate,omitempty" xmlrpc:"lastUpdate,omitempty"`
 
-	// A timestamp of the last time the Ticket was viewed by the active user.
-	LastViewedDate *Time `json:"lastViewedDate,omitempty" xmlrpc:"lastViewedDate,omitempty"`
-
 	// A ticket's associated location within the SoftLayer location hierarchy.
 	Location *Location `json:"location,omitempty" xmlrpc:"location,omitempty"`
 
@@ -241,6 +238,9 @@ type Ticket struct {
 
 	// A count of a ticket's updates.
 	UpdateCount *uint `json:"updateCount,omitempty" xmlrpc:"updateCount,omitempty"`
+
+	// Whether employees' updates of this ticket could be rated by customer
+	UpdateRatingFlag *bool `json:"updateRatingFlag,omitempty" xmlrpc:"updateRatingFlag,omitempty"`
 
 	// A ticket's updates.
 	Updates []Ticket_Update `json:"updates,omitempty" xmlrpc:"updates,omitempty"`
@@ -367,6 +367,11 @@ type Ticket_Attachment_File struct {
 
 	// The type of user that attached a file to a ticket. This is either "USER" if the file was uploaded by a portal or API user or "EMPLOYEE" if the file was uploaded by a SoftLayer employee.
 	UploaderType *string `json:"uploaderType,omitempty" xmlrpc:"uploaderType,omitempty"`
+}
+
+// no documentation yet
+type Ticket_Attachment_File_ServiceNow struct {
+	Ticket_Attachment_File
 }
 
 // SoftLayer tickets have the ability to be associated with specific pieces of hardware in a customer's inventory. Attaching hardware to a ticket can greatly increase response time from SoftLayer for issues that are related to one or more specific servers on a customer's account. The SoftLayer_Ticket_Attachment_Hardware data type models the relationship between a piece of hardware and a ticket. Only one attachment record may exist per hardware item per ticket.
@@ -658,6 +663,9 @@ type Ticket_Update struct {
 	// no documentation yet
 	ChangeOwnerActivity *string `json:"changeOwnerActivity,omitempty" xmlrpc:"changeOwnerActivity,omitempty"`
 
+	// The chat between the Customer and Agent
+	Chat *Ticket_Chat_Liveperson `json:"chat,omitempty" xmlrpc:"chat,omitempty"`
+
 	// The data a ticket update was created.
 	CreateDate *Time `json:"createDate,omitempty" xmlrpc:"createDate,omitempty"`
 
@@ -700,9 +708,6 @@ type Ticket_Update_Agent struct {
 // A SoftLayer_Ticket_Update_Chat is a chat between a customer and a customer service representative relating to a ticket.
 type Ticket_Update_Chat struct {
 	Ticket_Update
-
-	// The chat between the Customer and Agent
-	Chat *Ticket_Chat_Liveperson `json:"chat,omitempty" xmlrpc:"chat,omitempty"`
 }
 
 // A SoftLayer_Ticket_Update_Customer is a single update made by a customer to a ticket.

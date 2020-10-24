@@ -177,6 +177,7 @@ func (d Domain) GetUpdateOptions() (du DomainUpdateOptions) {
 	du.ExpireSec = d.ExpireSec
 	du.RefreshSec = d.RefreshSec
 	du.TTLSec = d.TTLSec
+
 	return
 }
 
@@ -192,6 +193,7 @@ func (DomainsPagedResponse) endpoint(c *Client) string {
 	if err != nil {
 		panic(err)
 	}
+
 	return endpoint
 }
 
@@ -204,15 +206,12 @@ func (resp *DomainsPagedResponse) appendData(r *DomainsPagedResponse) {
 func (c *Client) ListDomains(ctx context.Context, opts *ListOptions) ([]Domain, error) {
 	response := DomainsPagedResponse{}
 	err := c.listHelper(ctx, &response, opts)
+
 	if err != nil {
 		return nil, err
 	}
-	return response.Data, nil
-}
 
-// fixDates converts JSON timestamps to Go time.Time values
-func (d *Domain) fixDates() *Domain {
-	return d
+	return response.Data, nil
 }
 
 // GetDomain gets the domain with the provided ID
@@ -221,18 +220,23 @@ func (c *Client) GetDomain(ctx context.Context, id int) (*Domain, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	e = fmt.Sprintf("%s/%d", e, id)
 	r, err := coupleAPIErrors(c.R(ctx).SetResult(&Domain{}).Get(e))
+
 	if err != nil {
 		return nil, err
 	}
-	return r.Result().(*Domain).fixDates(), nil
+
+	return r.Result().(*Domain), nil
 }
 
 // CreateDomain creates a Domain
 func (c *Client) CreateDomain(ctx context.Context, domain DomainCreateOptions) (*Domain, error) {
 	var body string
+
 	e, err := c.Domains.Endpoint()
+
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +247,7 @@ func (c *Client) CreateDomain(ctx context.Context, domain DomainCreateOptions) (
 	if err != nil {
 		return nil, NewError(err)
 	}
+
 	body = string(bodyData)
 
 	r, err := coupleAPIErrors(req.
@@ -252,16 +257,20 @@ func (c *Client) CreateDomain(ctx context.Context, domain DomainCreateOptions) (
 	if err != nil {
 		return nil, err
 	}
-	return r.Result().(*Domain).fixDates(), nil
+
+	return r.Result().(*Domain), nil
 }
 
 // UpdateDomain updates the Domain with the specified id
 func (c *Client) UpdateDomain(ctx context.Context, id int, domain DomainUpdateOptions) (*Domain, error) {
 	var body string
+
 	e, err := c.Domains.Endpoint()
+
 	if err != nil {
 		return nil, err
 	}
+
 	e = fmt.Sprintf("%s/%d", e, id)
 
 	req := c.R(ctx).SetResult(&Domain{})
@@ -279,7 +288,8 @@ func (c *Client) UpdateDomain(ctx context.Context, id int, domain DomainUpdateOp
 	if err != nil {
 		return nil, err
 	}
-	return r.Result().(*Domain).fixDates(), nil
+
+	return r.Result().(*Domain), nil
 }
 
 // DeleteDomain deletes the Domain with the specified id
@@ -288,8 +298,10 @@ func (c *Client) DeleteDomain(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
+
 	e = fmt.Sprintf("%s/%d", e, id)
 
 	_, err = coupleAPIErrors(c.R(ctx).Delete(e))
+
 	return err
 }

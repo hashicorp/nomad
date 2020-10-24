@@ -35,18 +35,11 @@ func (resp *RegionsPagedResponse) appendData(r *RegionsPagedResponse) {
 func (c *Client) ListRegions(ctx context.Context, opts *ListOptions) ([]Region, error) {
 	response := RegionsPagedResponse{}
 	err := c.listHelper(ctx, &response, opts)
-	for i := range response.Data {
-		response.Data[i].fixDates()
-	}
+
 	if err != nil {
 		return nil, err
 	}
 	return response.Data, nil
-}
-
-// fixDates converts JSON timestamps to Go time.Time values
-func (v *Region) fixDates() *Region {
-	return v
 }
 
 // GetRegion gets the template with the provided ID
@@ -60,5 +53,5 @@ func (c *Client) GetRegion(ctx context.Context, id string) (*Region, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.Result().(*Region).fixDates(), nil
+	return r.Result().(*Region), nil
 }
