@@ -45,7 +45,8 @@
     .bar {
       cursor: pointer;
 
-      &.is-selected {
+      &.is-selected,
+      &.is-selected .layer-0 {
         stroke-width: 1px;
         stroke: $blue;
         fill: $blue-light;

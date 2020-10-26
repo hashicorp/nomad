@@ -2,7 +2,7 @@
 <PageLayout>
   <section class="section is-full-width">
     <div class="columns">
-      <div class="column is-one-quarter">
+      <div class="column is-narrow">
         <div class="boxed-section">
           <div class="boxed-section-head">Legend</div>
           <div class="boxed-section-body">
@@ -17,7 +17,6 @@
               <h3 class="legend-label">Allocation Status</h3>
               <dl class="legend-terms">
                 <div class="legend-term"><dt><span class="color-swatch is-wide running" title="Running" /></dt><dd>Running</dd></div>
-                <div class="legend-term"><dt><span class="color-swatch is-wide failed" title="Failed" /></dt><dd>Failed</dd></div>
                 <div class="legend-term"><dt><span class="color-swatch is-wide pending" title="Starting" /></dt><dd>Starting</dd></div>
               </dl>
             </div>
@@ -40,9 +39,9 @@
                     {{node.shortId}}
                   </LinkTo>
                 </h3>
-                <p><strong>Name:</strong> {{node.name}}</p>
-                <p><strong>Address:</strong> {{node.httpAddr}}</p>
-                <p><strong>Status:</strong> {{node.status}}</p>
+                <p class="minor-pair"><strong>Name:</strong> {{node.name}}</p>
+                <p class="minor-pair"><strong>Address:</strong> {{node.httpAddr}}</p>
+                <p class="minor-pair"><strong>Status:</strong> {{node.status}}</p>
               </div>
               <div class="dashboard-metric">
                 <h3 class="pair">
@@ -105,8 +104,8 @@
                   <strong>Allocation:</strong>
                   <LinkTo @route="allocations.allocation" @model={{this.activeAllocation}} class="is-primary">{{this.activeAllocation.shortId}}</LinkTo>
                 </h3>
-                <p><strong>Sibling Allocations:</strong> {{this.siblingAllocations.length}}</p>
-                <p><strong>Unique Client Placements:</strong> {{this.uniqueActiveAllocationNodes.length}}</p>
+                <p class="minor-pair"><strong>Sibling Allocations:</strong> {{this.siblingAllocations.length}}</p>
+                <p class="minor-pair"><strong>Unique Client Placements:</strong> {{this.uniqueActiveAllocationNodes.length}}</p>
               </div>
               <div class="dashboard-metric with-divider">
                 <h3 class="pair">
@@ -118,8 +117,8 @@
                     {{this.activeAllocation.job.name}}</LinkTo>
                   <span class="is-faded" data-test-task-group> / {{this.activeAllocation.taskGroupName}}</span>
                 </h3>
-                <p><strong>Type:</strong> {{this.activeAllocation.job.type}}</p>
-                <p><strong>Priority:</strong> {{this.activeAllocation.job.priority}}</p>
+                <p class="minor-pair"><strong>Type:</strong> {{this.activeAllocation.job.type}}</p>
+                <p class="minor-pair"><strong>Priority:</strong> {{this.activeAllocation.job.priority}}</p>
               </div>
               <div class="dashboard-metric with-divider">
                 <h3 class="pair">
@@ -128,8 +127,8 @@
                     {{this.activeAllocation.node.shortId}}
                   </LinkTo>
                 </h3>
-                <p><strong>Name:</strong> {{this.activeAllocation.node.name}}</p>
-                <p><strong>Address:</strong> {{this.activeAllocation.node.httpAddr}}</p>
+                <p class="minor-pair"><strong>Name:</strong> {{this.activeAllocation.node.name}}</p>
+                <p class="minor-pair"><strong>Address:</strong> {{this.activeAllocation.node.httpAddr}}</p>
               </div>
               <div class="dashboard-metric with-divider">
                 <PrimaryMetric @resource={{this.activeAllocation}} @metric="memory" class="is-short" />
