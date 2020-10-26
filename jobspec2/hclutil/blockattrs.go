@@ -88,7 +88,10 @@ func (b *blockAttrs) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
 		if _, hidden := b.hiddenAttrs[name]; hidden {
 			continue
 		}
-		attrs[name] = attr.AsHCLAttribute()
+
+		na := attr.AsHCLAttribute()
+		na.Expr = attrExpr(attr.Expr)
+		attrs[name] = na
 	}
 
 	for _, blocks := range blocksByType(body.Blocks) {
@@ -175,7 +178,7 @@ func blockToExpr(b *hcls.Block) hcls.Expression {
 
 		items = append(items, hcls.ObjectConsItem{
 			KeyExpr:   key,
-			ValueExpr: attr.Expr,
+			ValueExpr: attrExpr(attr.Expr),
 		})
 	}
 
@@ -203,4 +206,16 @@ func blockToExpr(b *hcls.Block) hcls.Expression {
 	return &hcls.ObjectConsExpr{
 		Items: items,
 	}
+}
+
+func attrExpr(expr hcls.Expression) hcls.Expression {
+	if _, ok := expr.(*hcls.ObjectConsExpr); ok {
+		return &hcls.TupleConsExpr{
+			Exprs:     []hcls.Expression{expr},
+			SrcRange:  expr.Range(),
+			OpenRange: expr.StartRange(),
+		}
+	}
+
+	return expr
 }

@@ -188,7 +188,6 @@ func isCollectionOfMaps(t cty.Type) bool {
 }
 
 func smallestNumber(b *big.Float) interface{} {
-
 	if v, acc := b.Int64(); acc == big.Exact {
 		// check if it fits in int
 		if int64(int(v)) == v {
