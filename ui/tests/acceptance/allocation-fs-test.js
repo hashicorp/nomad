@@ -1,13 +1,10 @@
 /* eslint-disable ember-a11y-testing/a11y-audit-called */ // Covered in behaviours/fs
-import { module, test } from 'qunit';
+import { module } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
-import Response from 'ember-cli-mirage/response';
 
 import browseFilesystem from './behaviors/fs';
-
-import FS from 'nomad-ui/tests/pages/allocations/fs';
 
 let allocation;
 let files;
@@ -46,24 +43,6 @@ module('Acceptance | allocation fs', function(hooks) {
     this.files = files;
     this.directory = files[0];
     this.nestedDirectory = files[1];
-  });
-
-  test('when the allocation is not running, an empty state is shown', async function(assert) {
-    // The API 500s on stat when not running
-    this.server.get('/client/fs/stat/:allocation_id', () => {
-      return new Response(500, {}, 'no such file or directory');
-    });
-
-    allocation.update({
-      clientStatus: 'complete',
-    });
-
-    await FS.visitAllocation({ id: allocation.id });
-    assert.ok(FS.hasEmptyState, 'Non-running allocation has no files');
-    assert.ok(
-      FS.emptyState.headline.includes('Allocation is not Running'),
-      'Empty state explains the condition'
-    );
   });
 
   browseFilesystem({

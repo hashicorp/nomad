@@ -6,18 +6,13 @@ export default class FsRoute extends Route {
   model({ path = '/' }) {
     const decodedPath = decodeURIComponent(path);
     const taskState = this.modelFor('allocations.allocation.task');
-    const allocation = taskState.allocation;
 
+    if (!taskState || !taskState.allocation) return;
+
+    const allocation = taskState.allocation;
     const pathWithTaskName = `${taskState.name}${
       decodedPath.startsWith('/') ? '' : '/'
     }${decodedPath}`;
-
-    if (!taskState.isRunning) {
-      return {
-        path: decodedPath,
-        taskState,
-      };
-    }
 
     return RSVP.all([allocation.stat(pathWithTaskName), taskState.get('allocation.node')])
       .then(([statJson]) => {
