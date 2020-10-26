@@ -306,6 +306,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically publish job status metrics
 	go s.publishJobStatusMetrics(stopCh)
 
+	// Send events to configured network sinks
+	go s.publishEventsForSinks()
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -990,6 +993,23 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 	}
 }
 
+func (s *Server) publishEventsForSinks() {
+	if !s.config.EnableEventBroker {
+		s.logger.Debug("event broker disabled, event sink manager will not run")
+		return
+	}
+	if err := s.eventSinkManager.EstablishManagedSinks(); err != nil {
+		s.logger.Error("unable to establish event sink manager", "error", err)
+		return
+	}
+
+	// Start the manager
+	if err := s.eventSinkManager.Run(); err != nil {
+		s.logger.Warn("event sink manager stopped", "error", err)
+	}
+
+}
+
 func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {
 	var pending int64 // Sum of all jobs in 'pending' state
 	var running int64 // Sum of all jobs in 'running' state
@@ -1054,6 +1074,9 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the volume watcher
 	s.volumeWatcher.SetEnabled(false, nil)
+
+	// Disable the event sink manager
+	s.eventSinkManager.Stop()
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {

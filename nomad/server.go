@@ -244,6 +244,10 @@ type Server struct {
 	// Nomad router.
 	statsFetcher *StatsFetcher
 
+	// eventSinkManager is used by the leader to send events to configured
+	// event sinks
+	eventSinkManager *SinkManager
+
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -365,6 +369,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
+
+	// Initialize the event sink manager the leader will use
+	s.eventSinkManager = NewSinkManager(s.shutdownCtx, &serverDelegate{s}, s.logger)
 
 	// Setup Consul (more)
 	s.setupConsul(consulConfigEntries, consulACLs)

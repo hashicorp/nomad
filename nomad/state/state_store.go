@@ -112,6 +112,15 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	return s, nil
 }
 
+// NewWatchSet returns a new memdb.WatchSet that adds the state stores abandonCh
+// as a watcher. This is important in that it will notify when this specific
+// state store is no longer valid, usually due to a new snapshot being loaded
+func (s *StateStore) NewWatchSet() memdb.WatchSet {
+	ws := memdb.NewWatchSet()
+	ws.Add(s.AbandonCh())
+	return ws
+}
+
 func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
 	if s.db.publisher == nil {
 		return nil, fmt.Errorf("EventBroker not configured")
@@ -5927,6 +5936,34 @@ func (s *StateStore) DeleteEventSinks(idx uint64, sinks []string) error {
 		}
 	}
 	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
+func (s *StateStore) BatchUpdateEventSinks(index uint64, sinks []*structs.EventSink) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	for _, update := range sinks {
+		existing, err := txn.First("event_sink", "id", update.ID)
+		if err != nil || existing == nil {
+			return fmt.Errorf("event sink lookup failed: %w", err)
+		}
+
+		sink := existing.(*structs.EventSink)
+
+		// Copy over authoritative fields
+		sink.LatestIndex = update.LatestIndex
+		sink.ModifyIndex = index
+
+		if err := txn.Insert("event_sink", sink); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes table for event_sink
+	if err := txn.Insert("index", &IndexEntry{"event_sink", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 	return txn.Commit()

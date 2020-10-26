@@ -77,6 +77,11 @@ func (j *EventJson) Copy() *EventJson {
 	return n
 }
 
+type EventSinkProgressRequest struct {
+	Sinks []*EventSink
+	WriteRequest
+}
+
 type EventSinkUpsertRequest struct {
 	Sink *EventSink
 	WriteRequest
@@ -119,6 +124,11 @@ type EventSink struct {
 	Topics map[Topic][]string
 
 	Address string
+
+	// LatestIndex is the latest reported index that was successfully sent.
+	// MangedSinks periodically check in to update the LatestIndex so that a
+	// minimal amount of events are resent when reestablishing an event sink
+	LatestIndex uint64
 
 	CreateIndex uint64
 	ModifyIndex uint64

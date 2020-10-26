@@ -47,6 +47,7 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.CSIPluginDeleteRequestType:                   "CSIPluginDeleteRequestType",
 	structs.EventSinkUpsertRequestType:                   "EventSinkUpsertRequestType",
 	structs.EventSinkDeleteRequestType:                   "EventSinkDeleteRequestType",
+	structs.BatchEventSinkUpdateProgressType:             "BatchEventSinkUpdateProgressType",
 	structs.NamespaceUpsertRequestType:                   "NamespaceUpsertRequestType",
 	structs.NamespaceDeleteRequestType:                   "NamespaceDeleteRequestType",
 }

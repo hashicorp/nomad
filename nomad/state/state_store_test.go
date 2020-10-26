@@ -9569,6 +9569,30 @@ func TestStateStore_UpsertEventSink(t *testing.T) {
 	require.Equal(t, structs.SinkWebhook, out.Type)
 }
 
+func TestStateStore_BatchUpdateEventSinks(t *testing.T) {
+	t.Parallel()
+
+	state := testStateStore(t)
+	s1 := mock.EventSink()
+	s2 := mock.EventSink()
+
+	require.NoError(t, state.UpsertEventSink(100, s1))
+	require.NoError(t, state.UpsertEventSink(101, s2))
+
+	s1.LatestIndex = uint64(200)
+	s2.LatestIndex = uint64(180)
+
+	require.NoError(t, state.BatchUpdateEventSinks(102, []*structs.EventSink{s1, s2}))
+
+	out, err := state.EventSinkByID(nil, s1.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint64(200), out.LatestIndex)
+
+	out2, err := state.EventSinkByID(nil, s2.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint64(180), out2.LatestIndex)
+}
+
 func TestStateStore_DeleteEventSinks(t *testing.T) {
 	t.Parallel()
 

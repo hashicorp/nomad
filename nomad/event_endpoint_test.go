@@ -511,6 +511,43 @@ func TestEventStream_ACL(t *testing.T) {
 	}
 }
 
+func TestEvent_UpdateSinks(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	sink := mock.EventSink()
+
+	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, sink))
+
+	// request sink doesn't need to be pointer
+	s := &structs.EventSink{
+		ID:          sink.ID,
+		LatestIndex: uint64(300),
+	}
+
+	req := &structs.EventSinkProgressRequest{
+		Sinks:        []*structs.EventSink{s},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	var resp structs.GenericResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.UpdateSinks", req, &resp))
+	require.NotEqual(t, 0, resp.Index)
+
+	// Check for the sink in the FSM
+
+	state := s1.fsm.State()
+	out, err := state.EventSinkByID(nil, sink.ID)
+	require.NoError(t, err)
+
+	require.Equal(t, s.LatestIndex, out.LatestIndex)
+}
+
 func TestEvent_UpsertSink(t *testing.T) {
 	t.Parallel()
 
@@ -521,6 +558,7 @@ func TestEvent_UpsertSink(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	sink := mock.EventSink()
+
 	req := &structs.EventSinkUpsertRequest{
 		Sink:         sink,
 		WriteRequest: structs.WriteRequest{Region: "global"},
@@ -531,7 +569,6 @@ func TestEvent_UpsertSink(t *testing.T) {
 	require.NotEqual(t, 0, resp.Index)
 
 	// Check for the sink in the FSM
-
 	state := s1.fsm.State()
 	out, err := state.EventSinkByID(nil, sink.ID)
 	require.NoError(t, err)
