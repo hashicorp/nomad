@@ -103,6 +103,8 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.equal(RecommendationCard.totalsTable.percentDiff.cpu, '-27%');
     assert.equal(RecommendationCard.totalsTable.percentDiff.memory, '+33%');
 
+    assert.equal(RecommendationCard.copyButton.text, 'job-name / group-name');
+
     assert.equal(RecommendationCard.activeTask.totalsTable.current.cpu.text, '150 MHz');
     assert.equal(RecommendationCard.activeTask.totalsTable.current.memory.text, '128 MiB');
 
