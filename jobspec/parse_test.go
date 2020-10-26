@@ -1400,6 +1400,12 @@ func TestParse(t *testing.T) {
 								"b":   true,
 								"val": 5,
 								"f":   .1,
+
+								"check": []map[string]interface{}{
+									{"foo": []map[string]interface{}{
+										{"query": "some_query"},
+									}},
+								},
 							},
 							Enabled: boolToPtr(false),
 						},
