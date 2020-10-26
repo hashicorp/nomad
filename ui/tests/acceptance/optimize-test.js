@@ -261,7 +261,7 @@ module('Acceptance | optimize', function(hooks) {
     assert.deepEqual(Dismiss, idsBeforeDismissal);
   });
 
-  test('it displays an error encountered trying to save and proceeds to the next summary when the error is dismiss', async function(assert) {
+  test('it displays an error encountered trying to save and proceeds to the next summary when the error is dismissed', async function(assert) {
     server.post('/recommendations/apply', function() {
       return new Response(500, {}, null);
     });

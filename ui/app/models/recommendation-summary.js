@@ -43,4 +43,8 @@ export default class RecommendationSummary extends Model {
       this.excludedRecommendations.pushObjects(this.recommendations.filterBy('resource', resource));
     }
   }
+
+  get slug() {
+    return `${this.job.get('name')}/${this.taskGroupName}`;
+  }
 }

@@ -1,27 +1,39 @@
 import Controller from '@ember/controller';
-import { tracked } from '@glimmer/tracking';
-import { sort } from '@ember/object/computed';
+import { action } from '@ember/object';
+import { inject as service } from '@ember/service';
 import { task, timeout } from 'ember-concurrency';
 import Ember from 'ember';
 
 export default class OptimizeController extends Controller {
-  @tracked recommendationSummaryIndex = 0;
-
-  summarySorting = ['submitTime:desc'];
-  @sort('model', 'summarySorting') sortedSummaries;
+  @service('router') router;
 
   get activeRecommendationSummary() {
-    return this.sortedSummaries.objectAt(this.recommendationSummaryIndex);
+    const currentRoute = this.router.currentRoute;
+
+    if (currentRoute.name === 'optimize.summary') {
+      return this.model.findBy('slug', currentRoute.params.slug);
+    } else {
+      return undefined;
+    }
   }
 
   @(task(function*() {
-    this.recommendationSummaryIndex++;
+    const currentSummaryIndex = this.model.indexOf(this.activeRecommendationSummary);
+    const nextSummary = this.model.objectAt(currentSummaryIndex + 1);
 
-    if (this.recommendationSummaryIndex >= this.model.length) {
+    if (nextSummary) {
+      this.transitionToSummary(nextSummary);
+    } else {
       this.store.unloadAll('recommendation-summary');
       yield timeout(Ember.testing ? 0 : 1000);
-      this.store.findAll('recommendation-summary');
+      yield this.store.findAll('recommendation-summary');
+      this.send('reachedEnd');
     }
   }).drop())
   proceed;
+
+  @action
+  transitionToSummary(summary) {
+    this.transitionToRoute('optimize.summary', summary.slug);
+  }
 }

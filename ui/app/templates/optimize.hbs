@@ -1,15 +1,10 @@
 <PageLayout>
   <section class="section">
     {{#if @model}}
-      {{#if this.activeRecommendationSummary}}
-        <Das::RecommendationCard
-          @summary={{this.activeRecommendationSummary}}
-          @proceed={{this.proceed}}
-        />
-      {{/if}}
+      {{outlet}}
 
       <ListTable
-        @source={{this.sortedSummaries}} as |t|>
+        @source={{this.model}} as |t|>
         <t.head>
           <th>Job</th>
           <th>Recommended At</th>
@@ -19,7 +14,7 @@
           <th>Agg. CPU</th>
           <th>Agg. Mem</th>
         </t.head>
-        <t.body as |row index|>
+        <t.body as |row|>
           {{#if row.model.isProcessed}}
             <Das::RecommendationRow
               class="is-disabled"
@@ -29,7 +24,7 @@
             <Das::RecommendationRow
               class="is-interactive {{if (eq row.model this.activeRecommendationSummary) 'is-active'}}"
               @summary={{row.model}}
-              {{on "click" (action (mut this.recommendationSummaryIndex) index)}}
+              {{on "click" (fn this.transitionToSummary row.model)}}
             />
           {{/if}}
 
