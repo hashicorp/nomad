@@ -146,6 +146,12 @@
         <span class="term">Datacenter</span>
         {{this.model.datacenter}}
       </span>
+      {{#if this.model.nodeClass}}
+        <span class="pair" data-test-node-class>
+          <span class="term">Class</span>
+          {{this.model.nodeClass}}
+        </span>
+      {{/if}}
       <span class="pair" data-test-driver-health>
         <span class="term">Drivers</span>
         {{#if this.model.unhealthyDrivers.length}}
