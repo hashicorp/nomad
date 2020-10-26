@@ -6,7 +6,7 @@ export default class OptimizeSummaryRoute extends Route {
 
     return [
       {
-        label: model.slug,
+        label: model.slug.replace('/', ' / '),
         args: ['optimize.summary', model.slug],
       },
     ];

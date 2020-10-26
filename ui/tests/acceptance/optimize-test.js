@@ -73,6 +73,11 @@ module('Acceptance | optimize', function(hooks) {
       `${this.job1.name} / ${currentTaskGroup.name}`
     );
 
+    assert.equal(
+      Optimize.breadcrumbFor('optimize.summary').text,
+      `${this.job1.name} / ${currentTaskGroup.name}`
+    );
+
     assert.equal(Optimize.recommendationSummaries[0].namespace, this.job1.namespace);
 
     assert.equal(
