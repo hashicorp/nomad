@@ -3,7 +3,7 @@ module github.com/hashicorp/nomad/tools
 go 1.14
 
 require (
-	github.com/a8m/tree v0.0.0-20201019170308-9f4249a434f8
+	github.com/a8m/tree v0.0.0-20201026183218-fce18e2a750e
 	github.com/aws/aws-sdk-go v1.35.5
 	github.com/client9/misspell v0.3.4
 	github.com/elazarl/go-bindata-assetfs v1.0.1
