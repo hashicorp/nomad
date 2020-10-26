@@ -323,6 +323,12 @@ export default function() {
     };
   });
 
+  this.get('/agent/self', function({ agents }) {
+    return {
+      member: this.serialize(agents.first()),
+    };
+  });
+
   this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
     const serverId = queryParams.server_id;
     const clientId = queryParams.client_id;
