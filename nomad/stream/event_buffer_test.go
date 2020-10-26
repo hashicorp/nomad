@@ -126,6 +126,18 @@ func TestEventBuffer_Size(t *testing.T) {
 	require.Equal(t, 10, b.Len())
 }
 
+func TestEventBuffer_MaxSize(t *testing.T) {
+	b := newEventBuffer(10)
+
+	var events []structs.Event
+	for i := 0; i < 100; i++ {
+		events = append(events, structs.Event{})
+	}
+
+	b.Append(&structs.Events{Index: uint64(1), Events: events})
+	require.Equal(t, 1, b.Len())
+}
+
 // TestEventBuffer_Emptying_Buffer tests the behavior when all items
 // are removed, the event buffer should advance its head down to the last message
 // and insert a placeholder sentinel value.
