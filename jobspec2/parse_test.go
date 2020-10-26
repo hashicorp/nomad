@@ -38,6 +38,23 @@ func TestEquivalentToHCL1(t *testing.T) {
 	}
 }
 
+func TestEquivalentToHCL1_ComplexConfig(t *testing.T) {
+	name := "./test-fixtures/config-compatibility.hcl"
+	f, err := os.Open(name)
+	require.NoError(t, err)
+	defer f.Close()
+
+	job1, err := jobspec.Parse(f)
+	require.NoError(t, err)
+
+	f.Seek(0, 0)
+
+	job2, err := Parse(name, f)
+	require.NoError(t, err)
+
+	require.Equal(t, job1, job2)
+}
+
 func TestParse_VarsAndFunctions(t *testing.T) {
 	hcl := `
 job "example" {
