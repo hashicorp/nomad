@@ -203,9 +203,38 @@ func blockToExpr(b *hcls.Block) hcls.Expression {
 		items = append(items, item)
 	}
 
-	return &hcls.ObjectConsExpr{
+	v := &hcls.ObjectConsExpr{
 		Items: items,
 	}
+
+	// Create nested maps, with the labels as keys.
+	// Starts wrapping from most inner label to outer
+	for i := len(b.Labels) - 1; i >= 0; i-- {
+		keyExpr := &hcls.ScopeTraversalExpr{
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{
+					Name:     b.Labels[i],
+					SrcRange: b.LabelRanges[i],
+				},
+			},
+			SrcRange: b.LabelRanges[i],
+		}
+		key := &hcls.ObjectConsKeyExpr{
+			Wrapped: keyExpr,
+		}
+		item := hcls.ObjectConsItem{
+			KeyExpr: key,
+			ValueExpr: &hcls.TupleConsExpr{
+				Exprs: []hcls.Expression{v},
+			},
+		}
+
+		v = &hcls.ObjectConsExpr{
+			Items: []hcls.ObjectConsItem{item},
+		}
+
+	}
+	return v
 }
 
 func attrExpr(expr hcls.Expression) hcls.Expression {
