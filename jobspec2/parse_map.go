@@ -197,9 +197,6 @@ func smallestNumber(b *big.Float) interface{} {
 		return v
 	}
 
-	if v, acc := b.Float64(); acc == big.Exact || acc == big.Above {
-		return v
-	}
-
-	return b
+	v, _ := b.Float64()
+	return v
 }
