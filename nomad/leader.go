@@ -307,7 +307,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	go s.publishJobStatusMetrics(stopCh)
 
 	// Send events to configured network sinks
-	go s.publishEventsForSinks(stopCh)
+	go s.publishEventsForSinks()
 
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
@@ -993,24 +993,20 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 	}
 }
 
-func (s *Server) publishEventsForSinks(stopCh chan struct{}) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// cancel context when stopCh is closed
-	go func() {
-		<-stopCh
-		cancel()
-	}()
-
-	manager, err := NewSinkManager(ctx, s.State, s.logger)
-	if err != nil {
-		s.logger.Warn("unable to create sink manager for server", "error", err)
+func (s *Server) publishEventsForSinks() {
+	if !s.config.EnableEventBroker {
+		s.logger.Debug("event broker disabled, event sink manager will not run")
+		return
+	}
+	if err := s.eventSinkManager.EstablishManagedSinks(); err != nil {
+		s.logger.Error("unable to establish event sink manager", "error", err)
 		return
 	}
 
 	// Start the manager
-	manager.Run()
+	if err := s.eventSinkManager.Run(); err != nil {
+		s.logger.Warn("event sink manager stopped", "error", err)
+	}
 
 }
 
@@ -1078,6 +1074,9 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the volume watcher
 	s.volumeWatcher.SetEnabled(false, nil)
+
+	// Disable the event sink manager
+	s.eventSinkManager.Stop()
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {

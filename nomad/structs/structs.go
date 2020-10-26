@@ -99,6 +99,7 @@ const (
 	CSIPluginDeleteRequestType                   MessageType = 40
 	EventSinkUpsertRequestType                   MessageType = 41
 	EventSinkDeleteRequestType                   MessageType = 42
+	BatchEventSinkUpdateProgressType             MessageType = 43
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64

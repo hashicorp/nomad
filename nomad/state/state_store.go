@@ -5941,6 +5941,34 @@ func (s *StateStore) DeleteEventSinks(idx uint64, sinks []string) error {
 	return txn.Commit()
 }
 
+func (s *StateStore) BatchUpdateEventSinks(index uint64, sinks []*structs.EventSink) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	for _, update := range sinks {
+		existing, err := txn.First("event_sink", "id", update.ID)
+		if err != nil || existing == nil {
+			return fmt.Errorf("event sink lookup failed: %w", err)
+		}
+
+		sink := existing.(*structs.EventSink)
+
+		// Copy over authoritative fields
+		sink.LatestIndex = update.LatestIndex
+		sink.ModifyIndex = index
+
+		if err := txn.Insert("event_sink", sink); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes table for event_sink
+	if err := txn.Insert("index", &IndexEntry{"event_sink", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
