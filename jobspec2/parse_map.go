@@ -69,6 +69,7 @@ func decodeInterface(expr hcl.Expression, ctx *hcl.EvalContext) (interface{}, hc
 			Context:  expr.Range().Ptr(),
 		})
 	}
+
 	return dst, diags
 }
 
@@ -104,6 +105,19 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 		default:
 			panic("unsupported primitive type")
 		}
+	case isCollectionOfMaps(t):
+		result := []map[string]interface{}{}
+
+		it := val.ElementIterator()
+		for it.Next() {
+			_, ev := it.Element()
+			evi, err := interfaceFromCtyValue(ev)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, evi.(map[string]interface{}))
+		}
+		return result, nil
 	case t.IsListType(), t.IsSetType(), t.IsTupleType():
 		result := []interface{}{}
 
@@ -131,7 +145,7 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 
 			result[ekv] = evv
 		}
-		return []map[string]interface{}{result}, nil
+		return result, nil
 	case t.IsObjectType():
 		result := map[string]interface{}{}
 
@@ -144,13 +158,32 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 
 			result[k] = avv
 		}
-		return []map[string]interface{}{result}, nil
+		return result, nil
 	case t.IsCapsuleType():
 		rawVal := val.EncapsulatedValue()
 		return rawVal, nil
 	default:
 		// should never happen
 		return nil, fmt.Errorf("cannot serialize %s", t.FriendlyName())
+	}
+}
+
+func isCollectionOfMaps(t cty.Type) bool {
+	switch {
+	case t.IsCollectionType():
+		et := t.ElementType()
+		return et.IsMapType() || et.IsObjectType()
+	case t.IsTupleType():
+		ets := t.TupleElementTypes()
+		for _, et := range ets {
+			if !et.IsMapType() && !et.IsObjectType() {
+				return false
+			}
+		}
+
+		return len(ets) > 0
+	default:
+		return false
 	}
 }
 

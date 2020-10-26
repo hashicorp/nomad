@@ -2,6 +2,7 @@ package hclutil
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcls "github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
@@ -90,12 +91,21 @@ func (b *blockAttrs) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
 		attrs[name] = attr.AsHCLAttribute()
 	}
 
-	for _, blockS := range body.Blocks {
-		if _, hidden := b.hiddenBlocks[blockS.Type]; hidden {
+	for _, blocks := range blocksByType(body.Blocks) {
+		if _, hidden := b.hiddenBlocks[blocks[0].Type]; hidden {
 			continue
 		}
 
-		attrs[blockS.Type] = convertToAttribute(blockS).AsHCLAttribute()
+		b := blocks[0]
+		attr := &hcls.Attribute{
+			Name:        b.Type,
+			NameRange:   b.TypeRange,
+			EqualsRange: b.OpenBraceRange,
+			SrcRange:    b.Body.SrcRange,
+			Expr:        blocksToExpr(blocks),
+		}
+
+		attrs[blocks[0].Type] = attr.AsHCLAttribute()
 	}
 
 	return attrs, diags
@@ -119,7 +129,34 @@ func expandBlocks(blocks hcl.Blocks) hcl.Blocks {
 	return r
 }
 
-func convertToAttribute(b *hcls.Block) *hcls.Attribute {
+func blocksByType(blocks hcls.Blocks) map[string]hcls.Blocks {
+	r := map[string]hclsyntax.Blocks{}
+	for _, b := range blocks {
+		r[b.Type] = append(r[b.Type], b)
+	}
+	return r
+}
+
+func blocksToExpr(blocks hcls.Blocks) hcls.Expression {
+	if len(blocks) == 0 {
+		panic("unexpected empty blocks")
+	}
+
+	exprs := make([]hcls.Expression, len(blocks))
+	for i, b := range blocks {
+		exprs[i] = blockToExpr(b)
+	}
+
+	last := blocks[len(blocks)-1]
+	return &hcls.TupleConsExpr{
+		Exprs: exprs,
+
+		SrcRange:  hcl.RangeBetween(blocks[0].OpenBraceRange, last.CloseBraceRange),
+		OpenRange: blocks[0].OpenBraceRange,
+	}
+}
+
+func blockToExpr(b *hcls.Block) hcls.Expression {
 	items := []hcls.ObjectConsItem{}
 
 	for _, attr := range b.Body.Attributes {
@@ -142,35 +179,28 @@ func convertToAttribute(b *hcls.Block) *hcls.Attribute {
 		})
 	}
 
-	for _, block := range b.Body.Blocks {
+	for _, blocks := range blocksByType(b.Body.Blocks) {
 		keyExpr := &hcls.ScopeTraversalExpr{
 			Traversal: hcl.Traversal{
 				hcl.TraverseRoot{
-					Name:     block.Type,
-					SrcRange: block.TypeRange,
+					Name:     blocks[0].Type,
+					SrcRange: blocks[0].TypeRange,
 				},
 			},
-			SrcRange: block.TypeRange,
+			SrcRange: blocks[0].TypeRange,
 		}
 		key := &hcls.ObjectConsKeyExpr{
 			Wrapped: keyExpr,
 		}
-		valExpr := convertToAttribute(block).Expr
-		items = append(items, hcls.ObjectConsItem{
+		item := hcls.ObjectConsItem{
 			KeyExpr:   key,
-			ValueExpr: valExpr,
-		})
+			ValueExpr: blocksToExpr(blocks),
+		}
+
+		items = append(items, item)
 	}
 
-	attr := &hcls.Attribute{
-		Name:        b.Type,
-		NameRange:   b.TypeRange,
-		EqualsRange: b.OpenBraceRange,
-		SrcRange:    b.Body.SrcRange,
-		Expr: &hcls.ObjectConsExpr{
-			Items: items,
-		},
+	return &hcls.ObjectConsExpr{
+		Items: items,
 	}
-
-	return attr
 }
