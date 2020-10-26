@@ -155,7 +155,7 @@
       <span class="pair" data-test-driver-health>
         <span class="term">Drivers</span>
         {{#if this.model.unhealthyDrivers.length}}
-          {{x-icon "warning" class="is-text is-warning"}}
+          {{x-icon "alert-triangle" class="is-text is-warning"}}
           {{this.model.unhealthyDrivers.length}} of {{this.model.detectedDrivers.length}} {{pluralize "driver" this.model.detectedDrivers.length}} unhealthy
         {{else}}
           All healthy
@@ -197,7 +197,7 @@
             <span data-test-force-drain-text class="pair">
               <span class="term">Force Drain</span>
               {{#if this.model.drainStrategy.isForced}}
-                {{x-icon "warning" class="is-text is-warning"}} Yes
+                {{x-icon "alert-triangle" class="is-text is-warning"}} Yes
               {{else}}
                 No
               {{/if}}
