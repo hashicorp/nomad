@@ -25,7 +25,8 @@ const ANSI_YELLOW = "\x1b[33m%s\x1b[0m";
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage"
+      "--disable-dev-shm-usage",
+      "--remote-debugging-port=9222",
     ]
   });
   const page = await browser.newPage();
