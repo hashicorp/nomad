@@ -26,7 +26,7 @@ Router.map(function() {
   });
 
   this.route('optimize', function() {
-    this.route('summary', { path: '/:slug' });
+    this.route('summary', { path: '*slug' });
   });
 
   this.route('clients', function() {
