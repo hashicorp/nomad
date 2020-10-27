@@ -145,7 +145,8 @@
       stroke: $yellow-700;
     }
 
-    &.changes:hover, &.stat:hover {
+    &.changes:hover,
+    &.stat:hover {
       stroke-width: 2px;
     }
   }

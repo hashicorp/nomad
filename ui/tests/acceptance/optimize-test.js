@@ -13,8 +13,13 @@ import JobsList from 'nomad-ui/tests/pages/jobs/list';
 let managementToken, clientToken;
 
 function getLatestRecommendationSubmitTimeForJob(job) {
-  const tasks = job.taskGroups.models.mapBy('tasks.models').reduce((tasks, taskModels) => tasks.concat(taskModels), []);
-  const recommendations = tasks.reduce((recommendations, task) => recommendations.concat(task.recommendations.models), []);
+  const tasks = job.taskGroups.models
+    .mapBy('tasks.models')
+    .reduce((tasks, taskModels) => tasks.concat(taskModels), []);
+  const recommendations = tasks.reduce(
+    (recommendations, task) => recommendations.concat(task.recommendations.models),
+    []
+  );
   return Math.max(...recommendations.mapBy('submitTime'));
 }
 
@@ -33,9 +38,12 @@ module('Acceptance | optimize', function(hooks) {
       groupTaskCount: 2,
       namespaceId: server.db.namespaces[1].id,
     });
-    
+
     jobs.sort((jobA, jobB) => {
-      return getLatestRecommendationSubmitTimeForJob(jobB) - getLatestRecommendationSubmitTimeForJob(jobA);
+      return (
+        getLatestRecommendationSubmitTimeForJob(jobB) -
+        getLatestRecommendationSubmitTimeForJob(jobA)
+      );
     });
 
     [this.job1, this.job2] = jobs;
@@ -192,14 +200,8 @@ module('Acceptance | optimize', function(hooks) {
 
     assert.equal(request.url, '/v1/recommendations/apply');
 
-    assert.deepEqual(
-      Apply,
-      appliedIds
-    );
-    assert.deepEqual(
-      Dismiss,
-      dismissedIds
-    );
+    assert.deepEqual(Apply, appliedIds);
+    assert.deepEqual(Dismiss, dismissedIds);
 
     assert.equal(Optimize.card.slug.jobName, this.job2.name);
     assert.equal(Optimize.card.slug.groupName, nextTaskGroup.name);
@@ -218,7 +220,10 @@ module('Acceptance | optimize', function(hooks) {
     await Optimize.visit();
     await Optimize.recommendationSummaries[1].click();
 
-    assert.equal(`${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`, Optimize.recommendationSummaries[1].slug);
+    assert.equal(
+      `${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`,
+      Optimize.recommendationSummaries[1].slug
+    );
     assert.ok(Optimize.recommendationSummaries[1].isActive);
   });
 
@@ -253,10 +258,7 @@ module('Acceptance | optimize', function(hooks) {
     assert.equal(request.url, '/v1/recommendations/apply');
 
     assert.deepEqual(Apply, []);
-    assert.deepEqual(
-      Dismiss,
-      idsBeforeDismissal
-    );
+    assert.deepEqual(Dismiss, idsBeforeDismissal);
   });
 
   test('it displays an error encountered trying to save and proceeds to the next summary when the error is dismiss', async function(assert) {

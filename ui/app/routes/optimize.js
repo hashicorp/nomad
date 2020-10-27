@@ -23,7 +23,12 @@ export default class OptimizeRoute extends Route {
   async model() {
     const summaries = await this.store.findAll('recommendation-summary');
     const jobs = await RSVP.all(summaries.mapBy('job'));
-    await RSVP.all(jobs.filter(job => job).filterBy('isPartial').map(j => j.reload()));
+    await RSVP.all(
+      jobs
+        .filter(job => job)
+        .filterBy('isPartial')
+        .map(j => j.reload())
+    );
 
     return summaries;
   }

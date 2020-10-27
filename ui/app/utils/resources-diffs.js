@@ -23,7 +23,7 @@ export default class ResourcesDiffs {
       'MHz',
       this.multiplier,
       included,
-      excluded,
+      excluded
     );
   }
 
@@ -37,7 +37,7 @@ export default class ResourcesDiffs {
       'MiB',
       this.multiplier,
       included,
-      excluded,
+      excluded
     );
   }
 
@@ -47,7 +47,14 @@ export default class ResourcesDiffs {
 }
 
 class ResourceDiffs {
-  constructor(base, baseTaskPropertyName, units, multiplier, includedRecommendations, excludedRecommendations) {
+  constructor(
+    base,
+    baseTaskPropertyName,
+    units,
+    multiplier,
+    includedRecommendations,
+    excludedRecommendations
+  ) {
     this.base = base;
     this.baseTaskPropertyName = baseTaskPropertyName;
     this.units = units;

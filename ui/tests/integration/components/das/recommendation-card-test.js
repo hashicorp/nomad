@@ -117,7 +117,11 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     });
 
     assert.equal(RecommendationCard.activeTask.charts.length, 2);
-    assert.equal(RecommendationCard.activeTask.charts[0].resource, 'CPU', 'CPU chart should be first when present');
+    assert.equal(
+      RecommendationCard.activeTask.charts[0].resource,
+      'CPU',
+      'CPU chart should be first when present'
+    );
 
     assert.ok(RecommendationCard.activeTask.cpuChart.isDecrease);
     assert.ok(RecommendationCard.activeTask.memoryChart.isIncrease);
@@ -293,7 +297,10 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.equal(RecommendationCard.totalsTable.unitDiff.memory, '0 MiB');
     assert.equal(RecommendationCard.totalsTable.percentDiff.memory, '+0%');
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will save an aggregate 200 MHz of CPU across 2 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will save an aggregate 200 MHz of CPU across 2 allocations.'
+    );
 
     assert.ok(RecommendationCard.togglesTable.tasks[0].memory.isDisabled);
     assert.notOk(RecommendationCard.activeTask.memoryChart.isPresent);
@@ -327,7 +334,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
             stats: {},
             task: task2,
             value: 50,
-          }
+          },
         ],
 
         taskGroup: {
@@ -415,28 +422,43 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     const [cpuRec1, memRec1, cpuRec2, memRec2] = this.summary.recommendations;
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will save an aggregate 750 MHz of CPU and add an aggregate 1.25 GiB of memory across 10 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will save an aggregate 750 MHz of CPU and add an aggregate 1.25 GiB of memory across 10 allocations.'
+    );
 
     this.summary.toggleRecommendation(cpuRec1);
     await settled();
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will add an aggregate 250 MHz of CPU and 1.25 GiB of memory across 10 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will add an aggregate 250 MHz of CPU and 1.25 GiB of memory across 10 allocations.'
+    );
 
     this.summary.toggleRecommendation(memRec1);
     await settled();
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will add an aggregate 250 MHz of CPU and 640 MiB of memory across 10 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will add an aggregate 250 MHz of CPU and 640 MiB of memory across 10 allocations.'
+    );
 
     this.summary.toggleRecommendation(cpuRec2);
     await settled();
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will add an aggregate 640 MiB of memory across 10 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will add an aggregate 640 MiB of memory across 10 allocations.'
+    );
 
     this.summary.toggleRecommendation(cpuRec1);
     this.summary.toggleRecommendation(memRec2);
     await settled();
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will save an aggregate 1000 MHz of CPU across 10 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will save an aggregate 1000 MHz of CPU across 10 allocations.'
+    );
 
     this.summary.toggleRecommendation(cpuRec1);
     await settled();
@@ -446,13 +468,19 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     this.summary.toggleRecommendation(cpuRec1);
     await settled();
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will save an aggregate 1000 MHz of CPU across 10 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will save an aggregate 1000 MHz of CPU across 10 allocations.'
+    );
 
     this.summary.toggleRecommendation(memRec2);
     set(memRec2, 'value', 128);
     await settled();
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will save an aggregate 1000 MHz of CPU and 1.25 GiB of memory across 10 allocations.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will save an aggregate 1000 MHz of CPU and 1.25 GiB of memory across 10 allocations.'
+    );
   });
 
   test('it renders diff calculations in a sentence with no aggregation for one allocatio', async function(assert) {
@@ -519,7 +547,10 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
 
-    assert.equal(RecommendationCard.narrative.trim(), 'Applying the selected recommendations will save 75 MHz of CPU and add 128 MiB of memory.');
+    assert.equal(
+      RecommendationCard.narrative.trim(),
+      'Applying the selected recommendations will save 75 MHz of CPU and add 128 MiB of memory.'
+    );
   });
 });
 

@@ -270,7 +270,9 @@ export default class RecommendationChartComponent extends Component {
       y,
     };
 
-    const percentText = formatPercent((this.args.recommendedValue - this.args.currentValue) / this.args.currentValue);
+    const percentText = formatPercent(
+      (this.args.recommendedValue - this.args.currentValue) / this.args.currentValue
+    );
 
     const percent = {
       x: (lowerValueText.x + higherValueText.x) / 2,
@@ -313,7 +315,9 @@ export default class RecommendationChartComponent extends Component {
         recommended: this.args.recommendedValue,
       };
 
-      return Object.keys(statsWithCurrentAndRecommended).map(key => ( { label: statsKeyToLabel[key], value: statsWithCurrentAndRecommended[key] })).sortBy('value');
+      return Object.keys(statsWithCurrentAndRecommended)
+        .map(key => ({ label: statsKeyToLabel[key], value: statsWithCurrentAndRecommended[key] }))
+        .sortBy('value');
     } else {
       return [];
     }

@@ -44,10 +44,11 @@ export default class DasRecommendationCardComponent extends Component {
     const aggregateString = aggregate ? ' an aggregate' : '';
 
     if (cpuDelta || memoryDelta) {
-      const deltasSameDirection = cpuDelta < 0 && memoryDelta < 0 || cpuDelta > 0 && memoryDelta > 0;
+      const deltasSameDirection =
+        (cpuDelta < 0 && memoryDelta < 0) || (cpuDelta > 0 && memoryDelta > 0);
 
       let narrative = 'Applying the selected recommendations will';
-      
+
       if (deltasSameDirection) {
         narrative += ` ${verbForDelta(cpuDelta)} ${aggregateString}`;
       }
@@ -153,21 +154,27 @@ export default class DasRecommendationCardComponent extends Component {
 
   @action
   accept() {
-    this.args.summary.save().then(() => this.onApplied.perform(), e => this.onError.perform(e)).catch(e => {
-      if (!didCancel(e)) {
-        throw e;
-      }
-    });
+    this.args.summary
+      .save()
+      .then(() => this.onApplied.perform(), e => this.onError.perform(e))
+      .catch(e => {
+        if (!didCancel(e)) {
+          throw e;
+        }
+      });
   }
 
   @action
   dismiss() {
     this.args.summary.excludedRecommendations.pushObjects(this.args.summary.recommendations);
-    this.args.summary.save().then(() => this.onDismissed.perform(), e => this.onError.perform(e)).catch(e => {
-      if (!didCancel(e)) {
-        throw e;
-      }
-    });
+    this.args.summary
+      .save()
+      .then(() => this.onDismissed.perform(), e => this.onError.perform(e))
+      .catch(e => {
+        if (!didCancel(e)) {
+          throw e;
+        }
+      });
   }
 
   @(task(function*() {
@@ -191,7 +198,6 @@ export default class DasRecommendationCardComponent extends Component {
 
     this.args.proceed.perform();
     this.resetInterstitial();
-
   }).drop())
   onDismissed;
 

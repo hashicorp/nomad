@@ -1,4 +1,12 @@
-import { attribute, clickable, collection, create, hasClass, text, visitable } from 'ember-cli-page-object';
+import {
+  attribute,
+  clickable,
+  collection,
+  create,
+  hasClass,
+  text,
+  visitable,
+} from 'ember-cli-page-object';
 
 import recommendationCard from 'nomad-ui/tests/pages/components/recommendation-card';
 

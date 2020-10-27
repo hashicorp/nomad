@@ -23,7 +23,11 @@ export default class JobRoute extends Route {
     return this.store
       .findRecord('job', fullId, { reload: true })
       .then(job => {
-        return RSVP.all([job.get('allocations'), job.get('evaluations'), job.get('recommendationSummaries')]).then(() => job);
+        return RSVP.all([
+          job.get('allocations'),
+          job.get('evaluations'),
+          job.get('recommendationSummaries'),
+        ]).then(() => job);
       })
       .catch(notifyError(this));
   }

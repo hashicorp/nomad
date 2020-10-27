@@ -16,16 +16,14 @@ module('Integration | Component | das/dismissed', function(hooks) {
     const proceedSpy = sinon.spy();
     this.set('proceedSpy', proceedSpy);
 
-    await render(
-      hbs`<Das::Dismissed @proceed={{proceedSpy}} />`
-    );
+    await render(hbs`<Das::Dismissed @proceed={{proceedSpy}} />`);
 
     await componentA11yAudit(this.element, assert);
 
     await click('input[type=checkbox]');
     await click('[data-test-understood]');
 
-    assert.ok(proceedSpy.calledWith({manuallyDismissed: true}));
+    assert.ok(proceedSpy.calledWith({ manuallyDismissed: true }));
     assert.equal(window.localStorage.getItem('nomadRecommendationDismssalUnderstood'), 'true');
   });
 
@@ -41,6 +39,6 @@ module('Integration | Component | das/dismissed', function(hooks) {
 
     await componentA11yAudit(this.element, assert);
 
-    assert.ok(proceedSpy.calledWith({manuallyDismissed: false}));
+    assert.ok(proceedSpy.calledWith({ manuallyDismissed: false }));
   });
 });

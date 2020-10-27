@@ -36,12 +36,14 @@ export default class Abstract extends Ability {
 
   @computed('token.selfTokenPolicies.[]')
   get capabilitiesForAllNamespaces() {
-    return (this.get('token.selfTokenPolicies') || []).toArray().reduce((allCapabilities, policy) => {
-      (get(policy, 'rulesJSON.Namespaces') || []).forEach(({Capabilities}) => {
-        allCapabilities = allCapabilities.concat(Capabilities);
-      });
-      return allCapabilities;
-    }, []);
+    return (this.get('token.selfTokenPolicies') || [])
+      .toArray()
+      .reduce((allCapabilities, policy) => {
+        (get(policy, 'rulesJSON.Namespaces') || []).forEach(({ Capabilities }) => {
+          allCapabilities = allCapabilities.concat(Capabilities);
+        });
+        return allCapabilities;
+      }, []);
   }
 
   activeNamespaceIncludesCapability(capability) {
