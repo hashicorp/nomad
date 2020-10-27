@@ -1,4 +1,5 @@
 import Route from '@ember/routing/route';
+import notifyError from 'nomad-ui/utils/notify-error';
 
 export default class OptimizeSummaryRoute extends Route {
   breadcrumbs(model) {
@@ -12,13 +13,17 @@ export default class OptimizeSummaryRoute extends Route {
     ];
   }
 
-  async model({ slug }) {
-    return this.modelFor('optimize').findBy('slug', slug);
-  }
+  async model({ jobNamespace, slug }) {
+    const model = this.modelFor('optimize').find(
+      summary => summary.slug === slug && summary.jobNamespace === jobNamespace
+    );
 
-  async afterModel(model) {
     if (!model) {
-      this.transitionTo('optimize');
+      const error = new Error(`Unable to find summary for ${slug} in namespace ${jobNamespace}`);
+      error.code = 404;
+      notifyError(this)(error);
+    } else {
+      return model;
     }
   }
 }

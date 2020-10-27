@@ -141,7 +141,9 @@ export default class DasRecommendationCardComponent extends Component {
   }
 
   get copyButtonLink() {
-    const path = this.router.urlFor('optimize.summary', this.args.summary.slug);
+    const path = this.router.urlFor('optimize.summary', this.args.summary.slug, {
+      queryParams: { namespace: this.args.summary.jobNamespace },
+    });
     const { origin } = window.location;
 
     return `${origin}${path}`;

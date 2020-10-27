@@ -7,7 +7,9 @@ export default class OptimizeIndexRoute extends Route {
     if (summaries.length) {
       const firstSummary = summaries.objectAt(0);
 
-      return this.transitionTo('optimize.summary', firstSummary.slug);
+      return this.transitionTo('optimize.summary', firstSummary.slug, {
+        queryParams: { jobNamespace: firstSummary.jobNamespace || 'default' },
+      });
     }
   }
 }

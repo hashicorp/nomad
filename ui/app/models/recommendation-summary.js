@@ -9,6 +9,8 @@ export default class RecommendationSummary extends Model {
   @hasMany('recommendation', { defaultValue: () => [] }) excludedRecommendations;
 
   @belongsTo('job') job;
+  @attr('string') jobId;
+  @attr('string') jobNamespace;
 
   @attr('date') submitTime;
   @attr('string') taskGroupName;
@@ -45,6 +47,6 @@ export default class RecommendationSummary extends Model {
   }
 
   get slug() {
-    return `${this.job.get('name')}/${this.taskGroupName}`;
+    return `${this.jobId}/${this.taskGroupName}`;
   }
 }

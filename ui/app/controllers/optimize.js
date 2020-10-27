@@ -10,7 +10,11 @@ export default class OptimizeController extends Controller {
     const currentRoute = this.router.currentRoute;
 
     if (currentRoute.name === 'optimize.summary') {
-      return this.model.findBy('slug', currentRoute.params.slug);
+      return this.model.find(
+        summary =>
+          summary.slug === currentRoute.params.slug &&
+          summary.jobNamespace === currentRoute.queryParams.namespace
+      );
     } else {
       return undefined;
     }
@@ -31,6 +35,8 @@ export default class OptimizeController extends Controller {
 
   @action
   transitionToSummary(summary) {
-    this.transitionToRoute('optimize.summary', summary.slug);
+    this.transitionToRoute('optimize.summary', summary.slug, {
+      queryParams: { jobNamespace: summary.jobNamespace },
+    });
   }
 }

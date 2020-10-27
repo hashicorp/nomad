@@ -40,6 +40,7 @@ export default class OptimizeRoute extends Route {
     this.store.unloadAll('recommendation-summary');
 
     next(() => {
+      this.transitionTo('optimize');
       this.refresh();
     });
   }
