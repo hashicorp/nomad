@@ -2,7 +2,7 @@
   <section class="das-interstitial" style={{this.interstitialStyle}}>
     {{component (concat 'das/' this.interstitialComponent) proceed=this.proceedPromiseResolve error=this.error}}
   </section>
-{{else}}
+{{else if @summary.taskGroup}}
   <section
     ...attributes
     data-test-task-group-recommendations
