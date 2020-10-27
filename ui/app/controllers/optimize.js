@@ -5,7 +5,7 @@ import { task, timeout } from 'ember-concurrency';
 import Ember from 'ember';
 
 export default class OptimizeController extends Controller {
-  @service('router') router;
+  @service router;
 
   get activeRecommendationSummary() {
     const currentRoute = this.router.currentRoute;
