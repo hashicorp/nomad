@@ -84,13 +84,13 @@ drwxrwxrwx  4.0 KiB  2020-10-27T18:00:39Z  alloc/
 drwxrwxrwx  4.0 KiB  2020-10-27T18:00:32Z  task1/
 drwxrwxrwx  4.0 KiB  2020-10-27T18:00:39Z  task2/
 
-$ nomad alloc fs c0 c0b2245f alloc/
+$ nomad alloc fs c0b2245f alloc/
 Mode        Size     Modified Time         Name
 drwxrwxrwx  4.0 KiB  2020-10-27T18:00:32Z  data/
 drwxrwxrwx  4.0 KiB  2020-10-27T18:00:39Z  logs/
 drwxrwxrwx  4.0 KiB  2020-10-27T18:00:32Z  tmp/
 
-$ nomad alloc fs c0 c0b2245f task1/
+$ nomad alloc fs c0b2245f task1/
 Mode         Size     Modified Time         Name
 drwxrwxrwx   4.0 KiB  2020-10-27T18:00:33Z  local/
 drwxrwxrwx   60 B     2020-10-27T18:00:32Z  secrets/
@@ -255,12 +255,12 @@ Likewise, the root directory of the task is now available in the `nomad alloc
 fs` command output:
 
 ```shell-session
-$ nomad alloc fs 25f
+$ nomad alloc fs eebd13a7
 Mode        Size     Modified Time         Name
 drwxrwxrwx  4.0 KiB  2020-10-27T19:05:24Z  alloc/
 drwxrwxrwx  4.0 KiB  2020-10-27T19:05:24Z  task2/
 
-$ nomad alloc fs 25f task2
+$ nomad alloc fs eebd13a7 task2
 Mode         Size     Modified Time         Name
 drwxrwxrwx   4.0 KiB  2020-10-27T19:05:24Z  alloc/
 drwxr-xr-x   4.0 KiB  2020-10-27T19:05:22Z  bin/
@@ -286,7 +286,7 @@ isolation, Nomad does not need to bind-mount the `NOMAD_TASK_DIR` directory
 because it can be directly created inside the chroot.
 
 ```shell-session
-$ nomad alloc exec 25f /bin/sh
+$ nomad alloc exec eebd13a7 /bin/sh
 $ mount
 ...
 /dev/mapper/root on /alloc type ext4 (rw,relatime,errors=remount-ro,data=ordered)
@@ -341,7 +341,7 @@ minimal filesystem tree:
 The `nomad alloc fs` command shows the same bare directory tree:
 
 ```shell-session
-$ nomad alloc fs 87e task3
+$ nomad alloc fs 87ec7d12 task3
 Mode         Size     Modified Time         Name
 -rw-r--r--   140 B    2020-10-27T19:15:33Z  executor.out
 drwxrwxrwx   4.0 KiB  2020-10-27T19:15:33Z  local/
@@ -358,7 +358,7 @@ is running as `root`. This is why the `raw_exec` driver is disabled by
 default.
 
 ```shell-session
-$ nomad alloc exec 87e /bin/sh
+$ nomad alloc exec 87ec7d12 /bin/sh
 # ls /
 bin   dev  home        lib    lib64   lost+found  mnt  proc  run   snap  sys  usr  vmlinuz
 boot  etc  initrd.img  lib32  libx32  media       opt  root  sbin  srv   tmp  var
@@ -391,7 +391,7 @@ Dispatch payloads, artifacts, and templates are written to the task working
 directory before a task can start because the resulting files may be binary or
 image run by the task. For example, an `artifact` can be used to download a
 Docker image or .jar file, or a `template` can be used to render a shell
-script that's run by `exec.
+script that's run by `exec`.
 
 The `artifact` and `template` blocks write their data to a destination
 relative to the task working directory, not the `NOMAD_TASK_DIR`. For task
