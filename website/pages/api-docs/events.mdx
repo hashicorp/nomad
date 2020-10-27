@@ -8,7 +8,10 @@ description: |-
 
 # Events HTTP API
 
-The `/event` endpoints are used to query for recent events.
+The `/event` endpoints are used to stream events and manage event sinks. Event
+sinks allow for operators to configure a sink (such as a webhook). Nomad will
+subscribe to the event stream with the configured sinks topics and send events
+to the sink in near real time.
 
 ## Event Stream
 
@@ -362,265 +365,158 @@ http://127.0.0.1:4646/v1/event/stream
     }
   ]
 }
+```
+
+## List Event Sinks
+
+This endpoint lists all configured event sinks.
+
+| Method | Path               | Produces           |
+| ------ | ------------------ | ------------------ |
+| `GET`  | `/v1/event/sinks`  | `application/json` |
+
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `YES`            | `operator:read`      |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    http://localhost:4646/v1/event/sinks
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "ID": "webhook",
+    "Type": "webhook",
+    "Topics": {
+      "*": ["*"]
+    },
+    "Address": "http://127.0.0.1:8080",
+    "LatestIndex": 0,
+    "CreateIndex": 11,
+    "ModifyIndex": 13
+  },
+  {
+    "ID": "deployment-webhook",
+    "Type": "webhook",
+    "Topics": {
+      "Deployment": ["*"]
+    },
+    "Address": "http://127.0.0.1:8080/deployments",
+    "LatestIndex": 0,
+    "CreateIndex": 11,
+    "ModifyIndex": 13
+  }
+]
+```
+
+## Create or Update an Event Sink
+
+This endpoint creates or updates an event sink.
+
+| Method         | Path                       | Produces                      |
+| -------------- | -------------------------- | ----------------------------- |
+| `POST`, `PUT`  | `/v1/event/sink/:sink_id`  | `200 text/plain (empty body)` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `NO`             | `management`         |
+
+### Sample Request
+
+```shell-session
+$ cat event-sink.json
 {
-  "Index": 8,
-  "Events": [
-    {
-      "Topic": "Node",
-      "Type": "NodeEvent",
-      "Key": "ccc4ce56-7f0a-4124-b8b1-a4015aa82c40",
-      "Namespace": "",
-      "FilterKeys": null,
-      "Index": 8,
-      "Payload": {
-        "Node": {
-          "ID": "ccc4ce56-7f0a-4124-b8b1-a4015aa82c40",
-          "SecretID": "089437c0-db81-6622-5490-9d7f9203dae5",
-          "Datacenter": "dc1",
-          "Name": "x1c",
-          "HTTPAddr": "127.0.0.1:4646",
-          "TLSEnabled": false,
-          "Attributes": {
-            "cpu.arch": "amd64",
-            "cpu.frequency": "4200",
-            "cpu.modelname": "Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz",
-            "cpu.numcores": "8",
-            "cpu.totalcompute": "33600",
-            "driver.docker": "1",
-            "driver.docker.bridge_ip": "172.17.0.1",
-            "driver.docker.os_type": "linux",
-            "driver.docker.runtimes": "runc",
-            "driver.docker.version": "19.03.13",
-            "driver.mock": "true",
-            "driver.mock_driver": "1",
-            "driver.raw_exec": "1",
-            "kernel.name": "linux",
-            "kernel.version": "5.4.0-48-generic",
-            "memory.totalbytes": "16525733888",
-            "nomad.advertise.address": "127.0.0.1:4646",
-            "nomad.revision": "8c88f29bff0849720e33b0cc73af87495358f3b8",
-            "nomad.version": "0.13.0-dev",
-            "os.name": "ubuntu",
-            "os.signals": "SIGBUS,SIGFPE,SIGTRAP,SIGTTOU,SIGWINCH,SIGXFSZ,SIGHUP,SIGILL,SIGALRM,SIGCHLD,SIGSYS,SIGXCPU,SIGPROF,SIGQUIT,SIGTERM,SIGUSR2,SIGCONT,SIGIO,SIGSEGV,SIGTTIN,SIGIOT,SIGKILL,SIGPIPE,SIGABRT,SIGINT,SIGSTOP,SIGTSTP,SIGURG,SIGUSR1",
-            "os.version": "20.04",
-            "unique.cgroup.mountpoint": "/sys/fs/cgroup/systemd",
-            "unique.hostname": "x1c",
-            "unique.network.ip-address": "127.0.0.1",
-            "unique.storage.bytesfree": "299488927744",
-            "unique.storage.bytestotal": "502468108288",
-            "unique.storage.volume": "/dev/nvme0n1p2"
-          },
-          "NodeResources": {
-            "Cpu": {
-              "CpuShares": 33600
-            },
-            "Memory": {
-              "MemoryMB": 15760
-            },
-            "Disk": {
-              "DiskMB": 285614
-            },
-            "Networks": [
-              {
-                "Mode": "bridge",
-                "Device": "",
-                "CIDR": "",
-                "IP": "",
-                "MBits": 0,
-                "DNS": null,
-                "ReservedPorts": null,
-                "DynamicPorts": null
-              },
-              {
-                "Mode": "host",
-                "Device": "lo",
-                "CIDR": "127.0.0.1/32",
-                "IP": "127.0.0.1",
-                "MBits": 1000,
-                "DNS": null,
-                "ReservedPorts": null,
-                "DynamicPorts": null
-              },
-              {
-                "Mode": "host",
-                "Device": "lo",
-                "CIDR": "::1/128",
-                "IP": "::1",
-                "MBits": 1000,
-                "DNS": null,
-                "ReservedPorts": null,
-                "DynamicPorts": null
-              }
-            ],
-            "NodeNetworks": [
-              {
-                "Mode": "bridge",
-                "Device": "",
-                "MacAddress": "",
-                "Speed": 0,
-                "Addresses": null
-              },
-              {
-                "Mode": "host",
-                "Device": "lo",
-                "MacAddress": "",
-                "Speed": 1000,
-                "Addresses": [
-                  {
-                    "Family": "ipv4",
-                    "Alias": "default",
-                    "Address": "127.0.0.1",
-                    "ReservedPorts": "",
-                    "Gateway": ""
-                  },
-                  {
-                    "Family": "ipv6",
-                    "Alias": "default",
-                    "Address": "::1",
-                    "ReservedPorts": "",
-                    "Gateway": ""
-                  }
-                ]
-              }
-            ],
-            "Devices": null
-          },
-          "ReservedResources": {
-            "Cpu": {
-              "CpuShares": 0
-            },
-            "Memory": {
-              "MemoryMB": 0
-            },
-            "Disk": {
-              "DiskMB": 0
-            },
-            "Networks": {
-              "ReservedHostPorts": ""
-            }
-          },
-          "Resources": {
-            "CPU": 33600,
-            "MemoryMB": 15760,
-            "DiskMB": 285614,
-            "IOPS": 0,
-            "Networks": [
-              {
-                "Mode": "host",
-                "Device": "lo",
-                "CIDR": "127.0.0.1/32",
-                "IP": "127.0.0.1",
-                "MBits": 1000,
-                "DNS": null,
-                "ReservedPorts": null,
-                "DynamicPorts": null
-              },
-              {
-                "Mode": "host",
-                "Device": "lo",
-                "CIDR": "::1/128",
-                "IP": "::1",
-                "MBits": 1000,
-                "DNS": null,
-                "ReservedPorts": null,
-                "DynamicPorts": null
-              }
-            ],
-            "Devices": null
-          },
-          "Reserved": {
-            "CPU": 0,
-            "MemoryMB": 0,
-            "DiskMB": 0,
-            "IOPS": 0,
-            "Networks": null,
-            "Devices": null
-          },
-          "Links": null,
-          "Meta": {
-            "connect.gateway_image": "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09",
-            "connect.log_level": "info",
-            "connect.sidecar_image": "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
-          },
-          "NodeClass": "",
-          "ComputedClass": "v1:9803688035578634002",
-          "Drain": false,
-          "DrainStrategy": null,
-          "SchedulingEligibility": "eligible",
-          "Status": "ready",
-          "StatusDescription": "",
-          "StatusUpdatedAt": 1602770857,
-          "Events": [
-            {
-              "Message": "Node registered",
-              "Subsystem": "Cluster",
-              "Details": null,
-              "Timestamp": "2020-10-15T10:07:37-04:00",
-              "CreateIndex": 0
-            }
-          ],
-          "Drivers": {
-            "docker": {
-              "Attributes": {
-                "driver.docker": "true",
-                "driver.docker.bridge_ip": "172.17.0.1",
-                "driver.docker.os_type": "linux",
-                "driver.docker.runtimes": "runc",
-                "driver.docker.version": "19.03.13"
-              },
-              "Detected": true,
-              "Healthy": true,
-              "HealthDescription": "Healthy",
-              "UpdateTime": "2020-10-15T10:07:37.904159516-04:00"
-            },
-            "exec": {
-              "Attributes": null,
-              "Detected": false,
-              "Healthy": false,
-              "HealthDescription": "Driver must run as root",
-              "UpdateTime": "2020-10-15T10:07:37.445083368-04:00"
-            },
-            "java": {
-              "Attributes": null,
-              "Detected": false,
-              "Healthy": false,
-              "HealthDescription": "Driver must run as root",
-              "UpdateTime": "2020-10-15T10:07:37.445601605-04:00"
-            },
-            "mock_driver": {
-              "Attributes": {
-                "driver.mock": "true"
-              },
-              "Detected": true,
-              "Healthy": true,
-              "HealthDescription": "Healthy",
-              "UpdateTime": "2020-10-15T10:07:37.445193068-04:00"
-            },
-            "qemu": {
-              "Attributes": null,
-              "Detected": false,
-              "Healthy": false,
-              "HealthDescription": "",
-              "UpdateTime": "2020-10-15T10:07:37.445684857-04:00"
-            },
-            "raw_exec": {
-              "Attributes": {
-                "driver.raw_exec": "true"
-              },
-              "Detected": true,
-              "Healthy": true,
-              "HealthDescription": "Healthy",
-              "UpdateTime": "2020-10-15T10:07:37.445431163-04:00"
-            }
-          },
-          "CSIControllerPlugins": null,
-          "CSINodePlugins": null,
-          "HostVolumes": null,
-          "CreateIndex": 7,
-          "ModifyIndex": 8
-        }
-      }
-    }
-  ]
+  "ID": "webhook",
+  "Address": "http://127.0.0.1:8080",
+  "Type": "webhook",
+  "Topics": {
+    "*": ["*"]
+  }
+}
+
+$ curl \
+    -X POST http://localhost:4646/v1/event/sink/webhook -d @event-sink.json
+```
+
+## Get an Event Sink
+
+This endpoint returns the current configuration details of a specific event sink.
+
+| Method | Path                       | Produces           |
+| ------ | -------------------------- | ------------------ |
+| `GET`  | `/v1/event/sink/:sink_id`  | `application/json` |
+
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required         |
+| ---------------- | -------------------- |
+| `YES`            | `operator:read`      |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    http://localhost:4646/v1/event/sink/deployment-webhook
+```
+
+### Sample Response
+
+```json
+
+{
+  "ID": "deployment-webhook",
+  "Type": "webhook",
+  "Topics": {
+    "*": [
+      "*"
+    ]
+  },
+  "Address": "http://127.0.0.1:8080",
+  "LatestIndex": 0,
+  "CreateIndex": 11,
+  "ModifyIndex": 62
 }
 ```
+
+## Delete an Event Sink
+
+This endpoint deletes an event sink
+
+| Method    | Path                       | Produces                      |
+| --------- | -------------------------- | ----------------------------- |
+| `DELETE`  | `/v1/event/sink/:sink_id`  | `200 text/plain (empty body)` |
+
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required      |
+| ---------------- | ----------------- |
+| `YES`            | `management`      |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    -X DELETE http://localhost:4646/v1/event/sink/deployment-webhook
+```
+
