@@ -122,6 +122,8 @@ export default class Job extends Model {
   @belongsTo('namespace') namespace;
   @belongsTo('job-scale') scaleState;
 
+  @hasMany('recommendation-summary') recommendationSummaries;
+
   @computed('taskGroups.@each.drivers')
   get drivers() {
     return this.taskGroups

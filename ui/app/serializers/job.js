@@ -55,6 +55,8 @@ export default class JobSerializer extends ApplicationSerializer {
       !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
     const { modelName } = modelClass;
 
+    const apiNamespace = this.store.adapterFor(modelClass.modelName).get('namespace');
+
     const [jobURL] = this.store
       .adapterFor(modelName)
       .buildURL(modelName, hash.ID, hash, 'findRecord')
@@ -89,6 +91,11 @@ export default class JobSerializer extends ApplicationSerializer {
       scaleState: {
         links: {
           related: buildURL(`${jobURL}/scale`, { namespace }),
+        },
+      },
+      recommendationSummaries: {
+        links: {
+          related: buildURL(`/${apiNamespace}/recommendations`, { job: hash.PlainId, namespace: hash.NamespaceID || 'default' }),
         },
       },
     });

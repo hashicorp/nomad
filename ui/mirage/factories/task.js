@@ -5,6 +5,8 @@ import { generateResources } from '../common';
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 
 export default Factory.extend({
+  createRecommendations: false,
+
   // Hidden property used to compute the Summary hash
   groupNames: [],
 
@@ -41,6 +43,22 @@ export default Factory.extend({
       return { Hook: 'poststart', Sidecar: false };
     } else if (cycle === 4) {
       return { Hook: 'poststart', Sidecar: true };
+    }
+  },
+
+  afterCreate(task, server) {
+    if (task.createRecommendations) {
+      const recommendations = [];
+
+      if (faker.random.number(10) >= 1) {
+        recommendations.push(server.create('recommendation', { task, resource: 'CPU' }));
+      }
+
+      if (faker.random.number(10) >= 1) {
+        recommendations.push(server.create('recommendation', { task, resource: 'MemoryMB' }));
+      }
+
+      task.save({ recommendationIds: recommendations.mapBy('id') });
     }
   },
 });

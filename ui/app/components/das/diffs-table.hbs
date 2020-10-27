@@ -1,0 +1,20 @@
+<table class='diffs-table' ...attributes>
+  <tbody>
+    <tr data-test-current>
+      <th>Current</th>
+      <td data-test-cpu>{{@model.reservedCPU}} MHz</td>
+      <td data-test-memory>{{@model.reservedMemory}} MiB</td>
+      <th class='diff'>Difference</th>
+      <td class='diff' data-test-cpu-unit-diff>{{this.diffs.cpu.signedDiff}}</td>
+      <td class='diff' data-test-memory-unit-diff>{{this.diffs.memory.signedDiff}}</td>
+    </tr>
+    <tr data-test-recommended>
+      <th>Recommended</th>
+      <td data-test-cpu class={{this.cpuClass}}>{{this.diffs.cpu.recommended}} MHz</td>
+      <td data-test-memory class={{this.memoryClass}}>{{this.diffs.memory.recommended}} MiB</td>
+      <th class='diff'>% Difference</th>
+      <td class='diff' data-test-cpu-percent-diff>{{this.diffs.cpu.percentDiff}}</td>
+      <td class='diff' data-test-memory-percent-diff>{{this.diffs.memory.percentDiff}}</td>
+    </tr>
+  </tbody>
+</table>

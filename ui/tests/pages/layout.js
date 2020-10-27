@@ -61,6 +61,11 @@ export default create({
       }),
     },
     visitJobs: clickable('[data-test-gutter-link="jobs"]'),
+
+    optimize: {
+      scope: '[data-test-gutter-link="optimize"]',
+    },
+
     visitClients: clickable('[data-test-gutter-link="clients"]'),
     visitServers: clickable('[data-test-gutter-link="servers"]'),
     visitStorage: clickable('[data-test-gutter-link="storage"]'),

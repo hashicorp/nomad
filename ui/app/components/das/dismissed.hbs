@@ -1,0 +1,30 @@
+<section class="das-dismissed {{if this.explanationUnderstood 'understood'}}">
+  {{#if this.explanationUnderstood}}
+    <h3 {{did-insert this.proceedAutomatically}}>Recommendation dismissed</h3>
+  {{else}}
+    <section>
+      <h3>Recommendation dismissed</h3>
+
+      <p>Nomad will not apply these resource change recommendations.</p>
+
+      <p>To never get recommendations for this task group again, disable dynamic application sizing in the job definition.</p>
+    </section>
+
+    <section class="actions">
+      <button
+        data-test-understood
+        class='button is-info'
+        type='button'
+        {{@on 'click' this.understoodClicked}}
+      >Understood</button>
+      <label>
+        <input
+          type="checkbox"
+          checked={{this.dismissInTheFuture}}
+          onchange={{toggle-action 'dismissInTheFuture' this}}
+        />
+        Don’t show this again
+      </label>
+    </section>
+  {{/if}}
+</section>

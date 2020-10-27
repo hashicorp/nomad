@@ -57,10 +57,11 @@ export default function() {
       const json = this.serialize(jobs.all());
       const namespace = queryParams.namespace || 'default';
       return json
-        .filter(job =>
-          namespace === 'default'
-            ? !job.NamespaceID || job.NamespaceID === namespace
-            : job.NamespaceID === namespace
+        .filter(
+          job =>
+            namespace === 'default'
+              ? !job.NamespaceID || job.NamespaceID === namespace
+              : job.NamespaceID === namespace
         )
         .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
     })
@@ -531,6 +532,54 @@ export default function() {
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
     });
+  });
+
+  this.get('/recommendations', function(
+    { jobs, namespaces, recommendations },
+    { queryParams: { job: id, namespace } }
+  ) {
+    if (id) {
+      if (!namespaces.all().length) {
+        namespace = null;
+      }
+
+      const job = jobs.findBy({ id, namespace });
+
+      if (!job) {
+        return [];
+      }
+
+      const taskGroups = job.taskGroups.models;
+
+      const tasks = taskGroups.reduce((tasks, taskGroup) => {
+        return tasks.concat(taskGroup.tasks.models);
+      }, []);
+
+      const recommendationIds = tasks.reduce((recommendationIds, task) => {
+        return recommendationIds.concat(task.recommendations.models.mapBy('id'));
+      }, []);
+
+      return recommendations.find(recommendationIds);
+    } else {
+      return recommendations.all();
+    }
+  });
+
+  this.post('/recommendations/apply', function({ recommendations }, { requestBody }) {
+    const { Apply, Dismiss } = JSON.parse(requestBody);
+
+    Apply.concat(Dismiss).forEach(id => {
+      const recommendation = recommendations.find(id);
+      const task = recommendation.task;
+
+      if (Apply.includes(id)) {
+        task.resources[recommendation.resource] = recommendation.value;
+      }
+      recommendation.destroy();
+      task.save();
+    });
+
+    return {};
   });
 }
 

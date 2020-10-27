@@ -99,6 +99,7 @@ export function topoMedium(server) {
       datacenters: ['dc1'],
       type: 'service',
       createAllocations: false,
+      createRecommendations: true,
       resourceSpec: spec,
     });
   });

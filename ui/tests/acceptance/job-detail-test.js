@@ -105,8 +105,12 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
       type: 'service',
       status: 'running',
       namespaceId: server.db.namespaces[1].name,
+      createRecommendations: true,
     });
-    server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
+    server.createList('job', 3, {
+      namespaceId: server.db.namespaces[0].name,
+      createRecommendations: true,
+    });
 
     server.create('token');
     clientToken = server.create('token');
@@ -205,5 +209,42 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
 
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
     assert.notOk(JobDetail.execButton.isDisabled);
+  });
+
+  test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
+    await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
+
+    assert.equal(JobDetail.recommendations.length, job.taskGroups.length);
+
+    const recommendation = JobDetail.recommendations[0];
+
+    assert.equal(recommendation.group, job.taskGroups.models[0].name);
+    assert.ok(recommendation.card.isHidden);
+
+    const toggle = recommendation.toggleButton;
+
+    assert.equal(toggle.text, 'Show');
+
+    await toggle.click();
+
+    assert.ok(recommendation.card.isPresent);
+    assert.equal(toggle.text, 'Collapse');
+
+    await toggle.click();
+
+    assert.ok(recommendation.card.isHidden);
+
+    await toggle.click();
+
+    assert.equal(recommendation.card.slug.groupName, job.taskGroups.models[0].name);
+
+    await recommendation.card.acceptButton.click();
+
+    assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
+
+    await JobDetail.tabFor('definition').visit();
+    await JobDetail.tabFor('overview').visit();
+
+    assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
   });
 });
