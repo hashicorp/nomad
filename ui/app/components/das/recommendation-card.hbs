@@ -93,7 +93,7 @@
 
     <section class="active-task-group" data-test-active-task>
       <section class="top active-task inner-container">
-        <CopyButton data-test-copy-button @clipboardText={{copyButtonLink}}>
+        <CopyButton data-test-copy-button @clipboardText={{this.copyButtonLink}}>
             {{@summary.taskGroup.job.name}}
             /
             {{@summary.taskGroup.name}}
