@@ -780,12 +780,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 		goto RUN_QUERY
 	}
 
-	// Restrict the max query time, and ensure there is always one
-	if opts.queryOpts.MaxQueryTime > structs.MaxBlockingRPCQueryTime {
-		opts.queryOpts.MaxQueryTime = structs.MaxBlockingRPCQueryTime
-	} else if opts.queryOpts.MaxQueryTime <= 0 {
-		opts.queryOpts.MaxQueryTime = structs.DefaultBlockingRPCQueryTime
-	}
+	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
 	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
