@@ -15,6 +15,7 @@ export default {
 
   copyButton: {
     scope: '[data-test-copy-button]',
+    clipboardText: attribute('data-clipboard-text', 'button'),
   },
 
   totalsTable: totalsTableComponent('[data-test-group-totals]'),
