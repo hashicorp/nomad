@@ -16,11 +16,11 @@ These builds are run as-needed to update the AMIs used by the end-to-end test in
 $ packer --version
 1.4.4
 
-# build linux AMI
-$ packer build packer.json
+# build Ubuntu Bionic AMI
+$ packer build packer-ubuntu-bionic-amd64.json
 
 # build Windows AMI
-$ packer build packer-windows.json
+$ packer build packer-windows-2016-amd64.json
 ```
 
 ## Debugging Packer Builds
@@ -28,7 +28,7 @@ $ packer build packer-windows.json
 You'll need the Windows administrator password in order to access Windows machines via `winrm` as Packer does. You can get this by enabling `-debug` on your Packer build.
 
 ```sh
-packer build -debug -on-error=abort packer-windows.json
+packer build -debug -on-error=abort packer-windows-2016.json
 ...
 ==> amazon-ebs: Pausing after run of step 'StepRunSourceInstance'. Press enter to continue.
 ==> amazon-ebs: Waiting for auto-generated password for instance...

@@ -20,19 +20,19 @@ clients or Windows clients. The Terraform variables file
 more diverse set of test targets.
 
 ```hcl
-region               = "us-east-1"
-instance_type        = "t2.medium"
-server_count         = "3"
-client_count         = "4"
-windows_client_count = "1"
-profile              = "dev-cluster"
+region                           = "us-east-1"
+instance_type                    = "t2.medium"
+server_count                     = "3"
+client_count_ubuntu_bionic_amd64 = "4"
+client_count_windows_2016_amd64  = "1"
+profile                          = "dev-cluster"
 ```
 
 Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
-terraform apply
+terraform apply -var=nomad_sha=abcedf
 ```
 
 > Note: You will likely see "Connection refused" or "Permission denied" errors
