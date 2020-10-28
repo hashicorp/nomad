@@ -14,8 +14,10 @@ cluster. This Terraform stack assumes that an appropriate instance role has
 been configured elsewhere and that you have the ability to `AssumeRole` into
 the AWS account.
 
-Optionally, edit the `terraform.tfvars` file to change the number of
-Linux clients or Windows clients.
+Optionally, edit the `terraform.tfvars` file to change the number of Linux
+clients or Windows clients. The Terraform variables file
+`terraform.full.tfvars` is for the nightly E2E test run and deploys a larger,
+more diverse set of test targets.
 
 ```hcl
 region               = "us-east-1"
