@@ -59,7 +59,7 @@
       "type": "powershell",
       "elevated_user": "Administrator",
       "elevated_password": "{{.WinRMPassword}}",
-      "inline": ["/opt/provision.ps1 -nomad_version 0.9.6 -nostart"]
+      "inline": ["/opt/provision.ps1 -nomad_version 0.12.7 -nostart"]
     },
     {
       "type": "powershell",
