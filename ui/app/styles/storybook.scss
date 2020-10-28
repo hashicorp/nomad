@@ -142,4 +142,24 @@
       width: 300px;
     }
   }
+
+  .tile-list {
+    display: flex;
+    flex-wrap: wrap;
+
+    .icon-tile {
+      width: 240px;
+      padding: 10px;
+      margin: 10px;
+      border: 1px solid $grey-lighter;
+      border-radius: $radius;
+      svg {
+        margin: auto;
+        width: 30px;
+        height: 30;
+        fill: $grey;
+        color: $grey;
+      }
+    }
+  }
 }
