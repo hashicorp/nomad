@@ -17,10 +17,10 @@ $ packer --version
 1.4.4
 
 # build Ubuntu Bionic AMI
-$ packer build packer-ubuntu-bionic.json
+$ packer build packer-ubuntu-bionic-amd64.json
 
 # build Windows AMI
-$ packer build packer-windows-2016.json
+$ packer build packer-windows-2016-amd64.json
 ```
 
 ## Debugging Packer Builds

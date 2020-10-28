@@ -19,7 +19,7 @@
       "instance_type": "t2.medium",
       "ssh_username": "ubuntu",
       "iam_instance_profile": "packer_build",
-      "ami_name": "nomad-e2e-ubuntu-bionic-{{timestamp}}",
+      "ami_name": "nomad-e2e-ubuntu-bionic-amd64-{{timestamp}}",
       "tags": {
         "OS": "Ubuntu",
         "Version": "Bionic"
@@ -29,7 +29,7 @@
   "provisioners": [
     {
       "type": "file",
-      "source": "./linux-ubuntu-bionic",
+      "source": "./ubuntu-bionic-amd64",
       "destination": "/tmp/linux"
     },
     {
@@ -39,7 +39,7 @@
     },
     {
       "type": "shell",
-      "script": "./linux-ubuntu-bionic/setup.sh"
+      "script": "./ubuntu-bionic-amd64/setup.sh"
     }
   ]
 }

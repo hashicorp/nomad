@@ -23,12 +23,12 @@ variable "server_count" {
   default     = "3"
 }
 
-variable "client_count_ubuntu_bionic" {
+variable "client_count_ubuntu_bionic_amd64" {
   description = "The number of Ubuntu clients to provision."
   default     = "4"
 }
 
-variable "client_count_windows_2016" {
+variable "client_count_windows_2016_amd64" {
   description = "The number of windows 2016 clients to provision."
   default     = "1"
 }
@@ -120,37 +120,37 @@ variable "nomad_local_binary_server" {
   default     = []
 }
 
-variable "nomad_version_client_ubuntu_bionic" {
+variable "nomad_version_client_ubuntu_bionic_amd64" {
   description = "A list of Nomad versions to deploy to Ubuntu Bionic clients, to override nomad_version"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_sha_client_ubuntu_bionic" {
+variable "nomad_sha_client_ubuntu_bionic_amd64" {
   description = "A list of Nomad SHAs to deploy to Ubuntu Bionic clients, to override nomad_sha"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_local_binary_client_ubuntu_bionic" {
+variable "nomad_local_binary_client_ubuntu_bionic_amd64" {
   description = "A list of Nomad SHAs to deploy to Ubuntu Bionic clients, to override nomad_sha"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_version_client_windows_2016" {
+variable "nomad_version_client_windows_2016_amd64" {
   description = "A list of Nomad versions to deploy to Windows 2016 clients, to override nomad_version"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_sha_client_windows_2016" {
+variable "nomad_sha_client_windows_2016_amd64" {
   description = "A list of Nomad SHAs to deploy to Windows 2016 clients, to override nomad_sha"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_local_binary_client_windows_2016" {
+variable "nomad_local_binary_client_windows_2016_amd64" {
   description = "A list of Nomad SHAs to deploy to Windows 2016 clients, to override nomad_sha"
   type        = list(string)
   default     = []
