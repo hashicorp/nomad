@@ -17,6 +17,11 @@ standard upgrade flow.
 
 ## Nomad 1.0.0
 
+### HCL2 for Job specification
+
+Nomad 1.0.0 adopts HCL2 for parsing the job spec. HCL2 extends HCL with more
+expression and reuse support, but adds some stricter schema for HCL blocks (a.k.a. stanzas).  Check [HCL](/docs/job-specification/hcl2) for more details.
+
 ### Signal used when stopping Docker tasks
 
 When stopping tasks running with the Docker task driver, Nomad documents that a
