@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-sockaddr/template"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"os"
 )
 
 const (
@@ -116,6 +117,10 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	if len(nwResources) > 0 {
 		resp.AddAttribute("unique.network.ip-address", nwResources[0].IP)
 	}
+	
+	s_ip := os.Getenv("CONSUL_SERVICE_IP")
+	if s_ip != "" { node.Attributes["unique.network.ip-address"] = s_ip }
+	f.logger.Printf("[INFO] network: 'unique.network.ip-address': '%s'", node.Attributes["unique.network.ip-address"])
 
 	ifaces, err := f.interfaceDetector.Interfaces()
 	if err != nil {
