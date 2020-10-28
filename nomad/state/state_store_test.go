@@ -8632,12 +8632,12 @@ func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
 	policy2.Target[structs.ScalingTargetNamespace] = otherNamespace
 
 	ws1 := memdb.NewWatchSet()
-	iter, err := state.ScalingPoliciesByNamespace(ws1, structs.DefaultNamespace)
+	iter, err := state.ScalingPoliciesByNamespace(ws1, structs.DefaultNamespace, "")
 	require.NoError(err)
 	require.Nil(iter.Next())
 
 	ws2 := memdb.NewWatchSet()
-	iter, err = state.ScalingPoliciesByNamespace(ws2, otherNamespace)
+	iter, err = state.ScalingPoliciesByNamespace(ws2, otherNamespace, "")
 	require.NoError(err)
 	require.Nil(iter.Next())
 
@@ -8646,7 +8646,7 @@ func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
 	require.True(watchFired(ws1))
 	require.True(watchFired(ws2))
 
-	iter, err = state.ScalingPoliciesByNamespace(nil, structs.DefaultNamespace)
+	iter, err = state.ScalingPoliciesByNamespace(nil, structs.DefaultNamespace, "")
 	require.NoError(err)
 	policiesInDefaultNamespace := []string{}
 	for {
@@ -8658,7 +8658,7 @@ func TestStateStore_UpsertScalingPolicy_Namespace(t *testing.T) {
 	}
 	require.ElementsMatch([]string{policy.ID}, policiesInDefaultNamespace)
 
-	iter, err = state.ScalingPoliciesByNamespace(nil, otherNamespace)
+	iter, err = state.ScalingPoliciesByNamespace(nil, otherNamespace, "")
 	require.NoError(err)
 	policiesInOtherNamespace := []string{}
 	for {
@@ -8684,12 +8684,12 @@ func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
 	policy2.Target[structs.ScalingTargetNamespace] = ns2
 
 	ws1 := memdb.NewWatchSet()
-	iter, err := state.ScalingPoliciesByNamespace(ws1, ns1)
+	iter, err := state.ScalingPoliciesByNamespace(ws1, ns1, "")
 	require.NoError(err)
 	require.Nil(iter.Next())
 
 	ws2 := memdb.NewWatchSet()
-	iter, err = state.ScalingPoliciesByNamespace(ws2, ns2)
+	iter, err = state.ScalingPoliciesByNamespace(ws2, ns2, "")
 	require.NoError(err)
 	require.Nil(iter.Next())
 
@@ -8698,7 +8698,7 @@ func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
 	require.True(watchFired(ws1))
 	require.True(watchFired(ws2))
 
-	iter, err = state.ScalingPoliciesByNamespace(nil, ns1)
+	iter, err = state.ScalingPoliciesByNamespace(nil, ns1, "")
 	require.NoError(err)
 	policiesInNS1 := []string{}
 	for {
@@ -8710,7 +8710,7 @@ func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
 	}
 	require.ElementsMatch([]string{policy1.ID}, policiesInNS1)
 
-	iter, err = state.ScalingPoliciesByNamespace(nil, ns2)
+	iter, err = state.ScalingPoliciesByNamespace(nil, ns2, "")
 	require.NoError(err)
 	policiesInNS2 := []string{}
 	for {
@@ -8721,37 +8721,6 @@ func TestStateStore_UpsertScalingPolicy_Namespace_PrefixBug(t *testing.T) {
 		policiesInNS2 = append(policiesInNS2, raw.(*structs.ScalingPolicy).ID)
 	}
 	require.ElementsMatch([]string{policy2.ID}, policiesInNS2)
-}
-
-func TestStateStore_UpsertJob_UpsertScalingPolicies(t *testing.T) {
-	t.Parallel()
-
-	require := require.New(t)
-
-	state := testStateStore(t)
-	job, policy := mock.JobWithScalingPolicy()
-
-	// Create a watchset so we can test that upsert fires the watch
-	ws := memdb.NewWatchSet()
-	out, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
-	require.NoError(err)
-	require.Nil(out)
-
-	var newIndex uint64 = 1000
-	err = state.UpsertJob(structs.MsgTypeTestSetup, newIndex, job)
-	require.NoError(err)
-	require.True(watchFired(ws), "watch did not fire")
-
-	ws = memdb.NewWatchSet()
-	out, err = state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
-	require.NoError(err)
-	require.NotNil(out)
-	require.Equal(newIndex, out.CreateIndex)
-	require.Equal(newIndex, out.ModifyIndex)
-
-	index, err := state.Index("scaling_policy")
-	require.NoError(err)
-	require.Equal(newIndex, index)
 }
 
 // Scaling Policy IDs are generated randomly during Job.Register
@@ -8883,7 +8852,7 @@ func TestStateStore_DeleteScalingPolicies(t *testing.T) {
 	require.Nil(out)
 
 	// Ensure we see both policies
-	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Target[structs.ScalingTargetNamespace])
+	iter, err := state.ScalingPoliciesByNamespace(ws, policy.Target[structs.ScalingTargetNamespace], "")
 	require.NoError(err)
 	count := 0
 	for {
@@ -8967,13 +8936,12 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 	// upsert a stopped job, verify that we don't fire the watcher or add any scaling policies
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(err)
-	require.False(watchFired(ws))
-	// stopped job should have no scaling policies, watcher doesn't fire
+	require.True(watchFired(ws))
 	list, err = state.ScalingPolicies(ws)
 	require.NoError(err)
-	require.Nil(list.Next())
+	require.NotNil(list.Next())
 
-	// Establish a new watcher
+	// Establish a new watchset
 	ws = memdb.NewWatchSet()
 	_, err = state.ScalingPolicies(ws)
 	require.NoError(err)
@@ -8982,14 +8950,14 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1100, job)
 	require.NoError(err)
 
-	// Ensure the scaling policy was added, watch was fired, index was advanced
-	require.True(watchFired(ws))
+	// Ensure the scaling policy still exists, watch was not fired, index was not advanced
 	out, err := state.ScalingPolicyByTargetAndType(nil, policy.Target, policy.Type)
 	require.NoError(err)
 	require.NotNil(out)
 	index, err := state.Index("scaling_policy")
 	require.NoError(err)
-	require.GreaterOrEqual(index, uint64(1100))
+	require.EqualValues(index, 1000)
+	require.False(watchFired(ws))
 }
 
 func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
@@ -9105,15 +9073,12 @@ func TestStateStore_ScalingPoliciesByType(t *testing.T) {
 	pOther2.Type = "other-type-2"
 
 	// Create search routine
-	search := func(t string) (count int, found []string, err error) {
+	search := func(t string) (found []string) {
 		found = []string{}
-		iter, err := state.ScalingPoliciesByType(nil, t)
-		if err != nil {
-			return
-		}
+		iter, err := state.ScalingPoliciesByTypePrefix(nil, t)
+		require.NoError(err)
 
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			count++
 			found = append(found, raw.(*structs.ScalingPolicy).Type)
 		}
 		return
@@ -9126,47 +9091,23 @@ func TestStateStore_ScalingPoliciesByType(t *testing.T) {
 
 	// Check if we can read horizontal policies
 	expect := []string{pHorzA.Type, pHorzB.Type}
-	count, found, err := search(structs.ScalingPolicyTypeHorizontal)
-
-	sort.Strings(found)
-	sort.Strings(expect)
-
-	require.NoError(err)
-	require.Equal(expect, found)
-	require.Equal(2, count)
+	actual := search(structs.ScalingPolicyTypeHorizontal)
+	require.ElementsMatch(expect, actual)
 
 	// Check if we can read policies of other types
 	expect = []string{pOther1.Type}
-	count, found, err = search("other-type-1")
+	actual = search("other-type-1")
+	require.ElementsMatch(expect, actual)
 
-	sort.Strings(found)
-	sort.Strings(expect)
-
-	require.NoError(err)
-	require.Equal(expect, found)
-	require.Equal(1, count)
-
-	// Check if we can't read policies by prefix
-	expect = []string{}
-	count, found, err = search("other-type")
-
-	sort.Strings(found)
-	sort.Strings(expect)
-
-	require.NoError(err)
-	require.Equal(expect, found)
-	require.Equal(0, count)
+	// Check that we can read policies by prefix
+	expect = []string{"other-type-1", "other-type-2"}
+	actual = search("other-type")
+	require.Equal(expect, actual)
 
 	// Check for empty result
 	expect = []string{}
-	count, found, err = search("non-existing")
-
-	sort.Strings(found)
-	sort.Strings(expect)
-
-	require.NoError(err)
-	require.Equal(expect, found)
-	require.Equal(0, count)
+	actual = search("non-existing")
+	require.ElementsMatch(expect, actual)
 }
 
 func TestStateStore_ScalingPoliciesByTypePrefix(t *testing.T) {
