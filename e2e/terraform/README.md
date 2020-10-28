@@ -32,7 +32,7 @@ Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
-terraform apply
+terraform apply -var=nomad_sha=abcedf
 ```
 
 > Note: You will likely see "Connection refused" or "Permission denied" errors
