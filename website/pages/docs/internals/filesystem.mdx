@@ -197,6 +197,42 @@ means templates, artifacts, and dispatch payloads for tasks with `image`
 isolation must be written into the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or
 `NOMAD_SECRETS_DIR`.
 
+To work around this limitation, you can use the task driver's mounting
+capabilities to mount one of the three directories to another location in the
+task. For example, with the Docker driver you can use the driver's `mounts`
+block to bind a secret written by a `template` block to the
+`NOMAD_SECRETS_DIR` into a configuration directory elsewhere in the task:
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+
+  task "task1" {
+    driver = "docker"
+
+    config {
+      image = "redis:6.0"
+      mounts = [{
+        type     = "bind"
+        source   = "secrets"
+        target   = "/etc/redis.d"
+        readonly = true
+      }]
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/redis.conf"
+        data        = <<EOT
+{{ with secret "secrets/data/redispass" }}
+requirepass {{- .Data.data.passwd -}}{{end}}
+EOT
+
+      }
+    }
+  }
+}
+```
+
+
 ### `chroot` isolation
 
 Task drivers like `exec` or `java` (on Linux) use `chroot` isolation, where
