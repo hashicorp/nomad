@@ -39,8 +39,7 @@
         "windows-2016-amd64/install-docker.ps1",
         "windows-2016-amd64/setup-directories.ps1",
         "windows-2016-amd64/install-openssh.ps1",
-        "windows-2016-amd64/install-consul.ps1",
-        "windows-2016-amd64/install-vault.ps1"
+        "windows-2016-amd64/install-consul.ps1"
       ]
     },
     {
