@@ -38,6 +38,10 @@
       "destination": "/tmp/config"
     },
     {
+      "type": "shell-local",
+      "inline": ["sleep 30"]
+    },
+    {
       "type": "shell",
       "script": "./ubuntu-bionic-amd64/setup.sh"
     }
