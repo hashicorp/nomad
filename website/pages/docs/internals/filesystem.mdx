@@ -61,11 +61,11 @@ allocation directory like the one below.
   task may not be able to access the task working directory. Within the
   `task/` directory are three standard directories:
 
-  - `task/local`: This directory is the location provided to the task as the
+  - `task/local/`: This directory is the location provided to the task as the
     `NOMAD_TASK_DIR`. Note this is not the same as the "task working
     directory". This directory is private to the task.
 
-  - `task/secrets`: This directory is the location provided to the task as
+  - `task/secrets/`: This directory is the location provided to the task as
   `NOMAD_SECRETS_DIR`. The contents of files in this directory cannot be read
   the the `nomad alloc fs` command. It can be used to store secret data that
   should not be visible outside the task.
