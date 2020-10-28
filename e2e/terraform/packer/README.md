@@ -17,7 +17,7 @@ $ packer --version
 1.4.4
 
 # build Ubuntu Bionic AMI
-$ packer build packer-linux-ubuntu-bionic.json
+$ packer build packer-ubuntu-bionic.json
 
 # build Windows AMI
 $ packer build packer-windows-2016.json

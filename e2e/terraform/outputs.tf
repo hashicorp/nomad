@@ -3,7 +3,7 @@ output "servers" {
 }
 
 output "linux_clients" {
-  value = aws_instance.client_linux_ubuntu_bionic.*.public_ip
+  value = aws_instance.client_ubuntu_bionic.*.public_ip
 }
 
 output "windows_clients" {
@@ -28,7 +28,7 @@ ssh into servers with:
 
 ssh into clients with:
 
-%{for ip in aws_instance.client_linux_ubuntu_bionic.*.public_ip~}
+%{for ip in aws_instance.client_ubuntu_bionic.*.public_ip~}
     ssh -i keys/${local.random_name}.pem ubuntu@${ip}
 %{endfor~}
 %{for ip in aws_instance.client_windows_2016.*.public_ip~}

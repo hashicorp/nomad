@@ -1,5 +1,5 @@
 resource "aws_instance" "server" {
-  ami                    = data.aws_ami.linux_ubuntu_bionic.image_id
+  ami                    = data.aws_ami.ubuntu_bionic.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
@@ -18,12 +18,12 @@ resource "aws_instance" "server" {
   }
 }
 
-resource "aws_instance" "client_linux_ubuntu_bionic" {
-  ami                    = data.aws_ami.linux_ubuntu_bionic.image_id
+resource "aws_instance" "client_ubuntu_bionic" {
+  ami                    = data.aws_ami.ubuntu_bionic.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
-  count                  = var.client_count_linux_ubuntu_bionic
+  count                  = var.client_count_ubuntu_bionic
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
@@ -58,7 +58,7 @@ resource "aws_instance" "client_windows_2016" {
   }
 }
 
-data "aws_ami" "linux_ubuntu_bionic" {
+data "aws_ami" "ubuntu_bionic" {
   most_recent = true
   owners      = ["self"]
 

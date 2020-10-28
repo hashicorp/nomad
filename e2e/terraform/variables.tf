@@ -23,7 +23,7 @@ variable "server_count" {
   default     = "3"
 }
 
-variable "client_count_linux_ubuntu_bionic" {
+variable "client_count_ubuntu_bionic" {
   description = "The number of Ubuntu clients to provision."
   default     = "4"
 }
@@ -120,19 +120,19 @@ variable "nomad_local_binary_server" {
   default     = []
 }
 
-variable "nomad_version_client_linux_ubuntu_bionic" {
+variable "nomad_version_client_ubuntu_bionic" {
   description = "A list of Nomad versions to deploy to Ubuntu Bionic clients, to override nomad_version"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_sha_client_linux_ubuntu_bionic" {
+variable "nomad_sha_client_ubuntu_bionic" {
   description = "A list of Nomad SHAs to deploy to Ubuntu Bionic clients, to override nomad_sha"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_local_binary_client_linux_ubuntu_bionic" {
+variable "nomad_local_binary_client_ubuntu_bionic" {
   description = "A list of Nomad SHAs to deploy to Ubuntu Bionic clients, to override nomad_sha"
   type        = list(string)
   default     = []
