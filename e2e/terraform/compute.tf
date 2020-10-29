@@ -1,5 +1,5 @@
 resource "aws_instance" "server" {
-  ami                    = data.aws_ami.linux.image_id
+  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
@@ -18,12 +18,12 @@ resource "aws_instance" "server" {
   }
 }
 
-resource "aws_instance" "client_linux" {
-  ami                    = data.aws_ami.linux.image_id
+resource "aws_instance" "client_ubuntu_bionic_amd64" {
+  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
-  count                  = var.client_count
+  count                  = var.client_count_ubuntu_bionic_amd64
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
@@ -31,19 +31,19 @@ resource "aws_instance" "client_linux" {
 
   # Instance tags
   tags = {
-    Name           = "${local.random_name}-client-${count.index}"
+    Name           = "${local.random_name}-client-ubuntu-bionic-amd64-${count.index}"
     ConsulAutoJoin = "auto-join"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
 }
 
-resource "aws_instance" "client_windows" {
-  ami                    = data.aws_ami.windows.image_id
+resource "aws_instance" "client_windows_2016_amd64" {
+  ami                    = data.aws_ami.windows_2016_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.primary.id]
-  count                  = var.windows_client_count
+  count                  = var.client_count_windows_2016_amd64
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
@@ -51,20 +51,20 @@ resource "aws_instance" "client_windows" {
 
   # Instance tags
   tags = {
-    Name           = "${local.random_name}-client-windows-${count.index}"
+    Name           = "${local.random_name}-client-windows-2016-${count.index}"
     ConsulAutoJoin = "auto-join"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
 }
 
-data "aws_ami" "linux" {
+data "aws_ami" "ubuntu_bionic_amd64" {
   most_recent = true
   owners      = ["self"]
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-*"]
+    values = ["nomad-e2e-ubuntu-bionic-amd64-*"]
   }
 
   filter {
@@ -73,13 +73,13 @@ data "aws_ami" "linux" {
   }
 }
 
-data "aws_ami" "windows" {
+data "aws_ami" "windows_2016_amd64" {
   most_recent = true
   owners      = ["self"]
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-windows-2016*"]
+    values = ["nomad-e2e-windows-2016-amd64-*"]
   }
 
   filter {

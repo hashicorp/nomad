@@ -20,23 +20,41 @@ which provide guided learning on running the autoscaler.
 
 ## Horizontal Application Autoscaling
 
-Horizontal application autoscaling is the process of automatically controlling the number of instances of an application
-to have sufficient work throughput to meet service-level agreements (SLA). In
-Nomad, horizontal application autoscaling can be achieved by modifying the number
-of allocations in a task group based on the value of a relevant metric, such as
-CPU and memory utilization or number of open connections. This is enabled by configuring
-[autoscaling policies][autoscaling_policy] on individual Nomad jobs using the [`scaling` block][scaling_block].
+Horizontal application autoscaling is the process of automatically controlling the
+number of instances of an application to have sufficient work throughput to meet
+service-level agreements (SLA). In Nomad, horizontal application autoscaling can
+be achieved by modifying the number of allocations in a task group based on the
+value of a relevant metric, such as CPU and memory utilization or number of open
+connections. This is enabled by configuring [autoscaling policies][autoscaling_policy]
+on individual Nomad jobs using the [`scaling` block][scaling_block].
 
 ## Horizontal Cluster Autoscaling
 
-Horizontal cluster autoscaling is the process of adding or removing Nomad clients from a cluster to ensure there
-is an appropriate amount of cluster resource for the scheduled applications.
-This is achieved by interacting with remote providers to start or terminate new
-Nomad clients based on metrics such as the remaining free schedulable CPU or memory.
-Cluster scaling is enabled by configuring the [autoscaler agent](/docs/autoscaling/agent#dir)
-with policies targeting the Nomad cluster.
+Horizontal cluster autoscaling is the process of adding or removing Nomad clients
+from a cluster to ensure there is an appropriate amount of cluster resource for
+the scheduled applications. This is achieved by interacting with remote providers
+to start or terminate new Nomad clients based on metrics such as the remaining
+free schedulable CPU or memory. Cluster scaling is enabled by configuring the
+[autoscaler agent](/docs/autoscaling/agent#dir) with policies targeting the Nomad
+cluster.
 
-[scaling_block]: /docs/job-specification/scaling
+## Dynamic Application Sizing
+
+~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+Enterprise. This is not present in the open source version of Nomad Autoscaler.
+
+Dynamic Application Sizing enables organizations to optimize the resource
+consumption of applications using sizing recommendations from Nomad. It evaluates,
+processes and stores historical task resource usage data, making recommendations
+for CPU and Memory resource parameters. The recommendations can be calculated
+using a number of different algorithms to ensure the recommendation best fits
+the application profile.
+
+Dynamic Application Sizing can be enabled on an individual task by configuring
+[autoscaling policies][autoscaling_policy] within the task stanza using the job
+specification [`scaling` block][scaling_block].
+
+[scaling_block]: /docs/job-specification/scaling#scaling-stanza
 [autoscaling_policy]: /docs/autoscaling/policy
 [autoscaler_github]: https://github.com/hashicorp/nomad-autoscaler
 [autoscaler_releases]: https://releases.hashicorp.com/nomad-autoscaler/

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"strings"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -8,6 +9,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -19,16 +21,18 @@ type Scaling struct {
 }
 
 // ListPolicies is used to list the policies
-func (a *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest,
-	reply *structs.ScalingPolicyListResponse) error {
+func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *structs.ScalingPolicyListResponse) error {
 
-	if done, err := a.srv.forward("Scaling.ListPolicies", args, args, reply); done {
+	if done, err := p.srv.forward("Scaling.ListPolicies", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "scaling", "list_policies"}, time.Now())
 
-	// Check for list-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if args.RequestNamespace() == structs.AllNamespacesSentinel {
+		return p.listAllNamespaces(args, reply)
+	}
+
+	if aclObj, err := p.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil {
 		hasListScalingPolicies := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListScalingPolicies)
@@ -45,22 +49,24 @@ func (a *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Iterate over all the policies
-			iter, err := state.ScalingPoliciesByNamespace(ws, args.Namespace)
+			var err error
+			var iter memdb.ResultIterator
+			if prefix := args.QueryOptions.Prefix; prefix != "" {
+				iter, err = state.ScalingPoliciesByIDPrefix(ws, args.RequestNamespace(), prefix)
+			} else if job := args.Job; job != "" {
+				iter, err = state.ScalingPoliciesByJob(ws, args.RequestNamespace(), job)
+			} else {
+				iter, err = state.ScalingPoliciesByNamespace(ws, args.Namespace, args.Type)
+			}
+
 			if err != nil {
 				return err
 			}
 
 			// Convert all the policies to a list stub
 			reply.Policies = nil
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
 				policy := raw.(*structs.ScalingPolicy)
-				// if _, ok := policies[policy.Target]; ok || mgt {
-				// 	reply.Policies = append(reply.Policies, policy.Stub())
-				// }
 				reply.Policies = append(reply.Policies, policy.Stub())
 			}
 
@@ -70,28 +76,27 @@ func (a *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest,
 				return err
 			}
 
-			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
-			// We floor the index at one, since realistically the first write must have a higher index.
+			// Don't return index zero, otherwise a blocking query cannot be used.
 			if index == 0 {
 				index = 1
 			}
 			reply.Index = index
 			return nil
 		}}
-	return a.srv.blockingRPC(&opts)
+	return p.srv.blockingRPC(&opts)
 }
 
 // GetPolicy is used to get a specific policy
-func (a *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
+func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	reply *structs.SingleScalingPolicyResponse) error {
 
-	if done, err := a.srv.forward("Scaling.GetPolicy", args, args, reply); done {
+	if done, err := p.srv.forward("Scaling.GetPolicy", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "scaling", "get_policy"}, time.Now())
 
 	// Check for list-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := p.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil {
 		hasReadScalingPolicy := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadScalingPolicy)
@@ -129,5 +134,71 @@ func (a *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 			reply.Index = index
 			return nil
 		}}
-	return a.srv.blockingRPC(&opts)
+	return p.srv.blockingRPC(&opts)
+}
+
+func (j *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, reply *structs.ScalingPolicyListResponse) error {
+	// Check for list-job permissions
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	prefix := args.QueryOptions.Prefix
+	allow := func(ns string) bool {
+		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListScalingPolicies) ||
+			(aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs) && aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob))
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// check if user has permission to all namespaces
+			allowedNSes, err := allowedNSes(aclObj, state, allow)
+			if err == structs.ErrPermissionDenied {
+				// return empty if token isn't authorized for any namespace
+				reply.Policies = []*structs.ScalingPolicyListStub{}
+				return nil
+			} else if err != nil {
+				return err
+			}
+
+			// Capture all the policies
+			var iter memdb.ResultIterator
+			if args.Type != "" {
+				iter, err = state.ScalingPoliciesByTypePrefix(ws, args.Type)
+			} else {
+				iter, err = state.ScalingPolicies(ws)
+			}
+			if err != nil {
+				return err
+			}
+
+			var policies []*structs.ScalingPolicyListStub
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				policy := raw.(*structs.ScalingPolicy)
+				if allowedNSes != nil && !allowedNSes[policy.Target[structs.ScalingTargetNamespace]] {
+					// not permitted to this name namespace
+					continue
+				}
+				if prefix != "" && !strings.HasPrefix(policy.ID, prefix) {
+					continue
+				}
+				policies = append(policies, policy.Stub())
+			}
+			reply.Policies = policies
+
+			// Use the last index that affected the policies table or summary
+			index, err := state.Index("scaling_policy")
+			if err != nil {
+				return err
+			}
+			reply.Index = helper.Uint64Max(1, index)
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }

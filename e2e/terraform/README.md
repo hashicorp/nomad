@@ -14,16 +14,18 @@ cluster. This Terraform stack assumes that an appropriate instance role has
 been configured elsewhere and that you have the ability to `AssumeRole` into
 the AWS account.
 
-Optionally, edit the `terraform.tfvars` file to change the number of
-Linux clients or Windows clients.
+Optionally, edit the `terraform.tfvars` file to change the number of Linux
+clients or Windows clients. The Terraform variables file
+`terraform.full.tfvars` is for the nightly E2E test run and deploys a larger,
+more diverse set of test targets.
 
 ```hcl
-region               = "us-east-1"
-instance_type        = "t2.medium"
-server_count         = "3"
-client_count         = "4"
-windows_client_count = "1"
-profile              = "dev-cluster"
+region                           = "us-east-1"
+instance_type                    = "t2.medium"
+server_count                     = "3"
+client_count_ubuntu_bionic_amd64 = "4"
+client_count_windows_2016_amd64  = "1"
+profile                          = "dev-cluster"
 ```
 
 Run Terraform apply to deploy the infrastructure:
@@ -47,12 +49,13 @@ You'll need to pass one of the following variables in either your
 
 * `nomad_local_binary`: provision this specific local binary of Nomad. This is
   a path to a Nomad binary on your own host. Ex. `nomad_local_binary =
-  "/home/me/nomad"`.
+  "/home/me/nomad"`. This setting overrides `nomad_sha` or `nomad_version`.
 * `nomad_sha`: provision this specific sha from S3. This is a Nomad binary
   identified by its full commit SHA that's stored in a shared s3 bucket that
   Nomad team developers can access. That commit SHA can be from any branch
   that's pushed to remote. Ex. `nomad_sha =
-  "0b6b475e7da77fed25727ea9f01f155a58481b6c"`
+  "0b6b475e7da77fed25727ea9f01f155a58481b6c"`. This setting overrides
+  `nomad_version`.
 * `nomad_version`: provision this version from
   [releases.hashicorp.com](https://releases.hashicorp.com/nomad). Ex. `nomad_version
   = "0.10.2+ent"`

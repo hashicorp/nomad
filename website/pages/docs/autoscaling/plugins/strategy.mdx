@@ -10,8 +10,8 @@ description: Strategy plugins compare the current state of the system against th
 Strategy plugins compare the current state of the system against the desired state
 defined by the operator in the scaling policy and generate an action that will
 bring the system closer to the desired state. In practical terms, strategies
-receive the current count and a metric value for a task group or from servers in a
-cluster, and output what the new count should be.
+receive the current value and a metric value for a resource and output what the
+new value should be.
 
 ## Target Value Strategy Plugin
 
@@ -44,3 +44,108 @@ check {
 - `threshold` `(float: 0.01)` - Specifies how significant a change in the input
   metric should be considered. Small threshold values can lead to output
   fluctuation.
+
+## Dynamic Application Sizing Average Strategy Plugin
+
+~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+Enterprise. This is not present in the open source version of Nomad Autoscaler.
+
+The `app-sizing-avg` plugin calculates the average value seen across the dataset.
+The plugin applies an exponential weight decay to data, in order to give
+more significance to recent data over older data.
+
+This plugin is only recommended for CPU values of workloads with very stable
+resource usage levels, such as batch jobs.
+
+### Agent Configuration Options
+
+The `app-sizing-avg` plugin is automatically launched by Nomad Autoscaler
+Enterprise and so the following setup is optional.
+
+```hcl
+strategy "app-sizing-avg" {
+  driver = "app-sizing-avg"
+}
+```
+
+### Policy Configuration Options
+
+```hcl
+check "avg" {
+  strategy "app-sizing-avg" {}
+}
+```
+
+## Dynamic Application Sizing Max Strategy Plugin
+
+~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+Enterprise. This is not present in the open source version of Nomad Autoscaler.
+
+The `app-sizing-max` plugin calculates the maximum value seen for the target
+resource within the available dataset. This plugin is ideally suited for memory
+resources since workloads don’t release their memory too often and
+underprovisioning could cause OOM errors.
+
+### Agent Configuration Options
+
+The `app-sizing-max` plugin is automatically launched by Nomad Autoscaler
+Enterprise and so the following setup is optional.
+
+```hcl
+strategy "app-sizing-max" {
+  driver = "app-sizing-max"
+}
+```
+
+### Policy Configuration Options
+
+```hcl
+check "max" {
+  strategy "app-sizing-max" {}
+}
+```
+
+## Dynamic Application Sizing Percentile Strategy Plugin
+
+~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+Enterprise. This is not present in the open source version of Nomad Autoscaler.
+
+The `app-sizing-percentile` plugin calculates its result based on a desired
+percentile value from the dataset.
+
+The plugin applies an exponential weight decay to data, in order to give
+more significance to recent data over older data. It also adjusts its calculation
+based on the amount of resources used per unit of time. This load-adjusted
+calculation results in values that are more likely to actually meet the usage
+needs of the workload when compared to the traditional time-based percentile
+calculation.
+
+This Dynamic Application Sizing plugin is the most versatile, since the percentile
+level can be fine-tuned as needed. If your workload can withstand occasional OOM
+errors gracefully, using a 98th percentile for memory instead of app-sizing-max
+could result in smaller recommendations and subsequently more resource availability
+for other tasks. A 95th to 90th percentile for CPU could have the same effect.
+
+### Agent Configuration Options
+
+The `app-sizing-percentile` plugin is automatically launched by Nomad Autoscaler
+Enterprise and so the following setup is optional.
+
+```hcl
+strategy "target-value" {
+  driver = "target-value"
+}
+```
+
+### Policy Configuration Options
+
+```hcl
+check "p95" {
+  strategy "app-sizing-percentile" {
+    percentile = "95"
+  }
+}
+```
+
+- `percentile` `(int: 99)` - Specifies the percentile value to use when performing
+  the strategy calculation.

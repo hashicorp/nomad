@@ -162,6 +162,36 @@ policy {
   that will be applied to all scaling policies which do not specify an evaluation
   interval.
 
+## `policy_eval` Block
+
+The `policy_eval` block holds the configuration related to the policy evaluation
+process.
+
+```hcl
+policy_eval {
+  ack_timeout    = "10m"
+  delivery_limit = 4
+
+  workers = {
+    cluster    = 2
+    horizontal = 2
+  }
+}
+```
+
+### `policy_eval` Parameters
+
+- `ack_timeout` `(string: "5m")` - The time limit that an eval must be ACK'd
+  before being considered NACK'd.
+
+- `delivery_limit` `(int: 1)` - The maximum number of times a policy evaluation
+  can be dequeued from the broker.
+
+- `workers` `(map<string|int>: [cluster:10,horizontal:10])` - The number of workers
+  to initialize for each queue. Nomad Autoscaler supports `cluster` and `horizontal`
+  map keys. Nomad Autoscaler Enterprise supports additional `vertical_mem` and
+  `vertical_cpu` entries.
+
 ## `telemetry` Block
 
 The `telemetry` block configures the Nomad Autoscaler's publication of metrics

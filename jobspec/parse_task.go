@@ -2,6 +2,7 @@ package jobspec
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -23,6 +24,7 @@ var (
 		"kill_timeout",
 		"shutdown_delay",
 		"kill_signal",
+		"scaling",
 	}
 
 	normalTaskKeys = append(commonTaskKeys,
@@ -110,6 +112,7 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	delete(m, "vault")
 	delete(m, "volume_mount")
 	delete(m, "csi_plugin")
+	delete(m, "scaling")
 
 	// Build the task
 	var t api.Task
@@ -273,6 +276,13 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	if o := listVal.Filter("template"); len(o.Items) > 0 {
 		if err := parseTemplates(&t.Templates, o); err != nil {
 			return nil, multierror.Prefix(err, "template ->")
+		}
+	}
+
+	// Parse scaling policies
+	if o := listVal.Filter("scaling"); len(o.Items) > 0 {
+		if err := parseTaskScalingPolicies(&t.ScalingPolicies, o); err != nil {
+			return nil, err
 		}
 	}
 
@@ -457,6 +467,56 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		}
 
 		*result = append(*result, templ)
+	}
+
+	return nil
+}
+
+func parseTaskScalingPolicies(result *[]*api.ScalingPolicy, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	errPrefix := "scaling ->"
+	// Go through each object and turn it into an actual result.
+	seen := make(map[string]bool)
+	for _, item := range list.Items {
+		if l := len(item.Keys); l == 0 {
+			return multierror.Prefix(fmt.Errorf("task scaling policy missing name"), errPrefix)
+		} else if l > 1 {
+			return multierror.Prefix(fmt.Errorf("task scaling policy should only have one name"), errPrefix)
+		}
+		n := item.Keys[0].Token.Value().(string)
+		errPrefix = fmt.Sprintf("scaling[%v] ->", n)
+
+		var policyType string
+		switch strings.ToLower(n) {
+		case "cpu":
+			policyType = "vertical_cpu"
+		case "mem":
+			policyType = "vertical_mem"
+		default:
+			return multierror.Prefix(fmt.Errorf(`scaling policy name must be "cpu" or "mem"`), errPrefix)
+		}
+
+		// Make sure we haven't already found this
+		if seen[n] {
+			return multierror.Prefix(fmt.Errorf("scaling policy cannot be defined more than once"), errPrefix)
+		}
+		seen[n] = true
+
+		p, err := parseScalingPolicy(item)
+		if err != nil {
+			return multierror.Prefix(err, errPrefix)
+		}
+
+		if p.Type == "" {
+			p.Type = policyType
+		} else if p.Type != policyType {
+			return multierror.Prefix(fmt.Errorf("policy had invalid 'type': %q", p.Type), errPrefix)
+		}
+
+		*result = append(*result, p)
 	}
 
 	return nil

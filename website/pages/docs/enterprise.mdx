@@ -97,9 +97,22 @@ features such as Multiregion Deployments.
 federated regions. This includes the ability to control the order of rollouts
 and how each region will behave in the event of a deployment failure.
 
+### Dynamic Application Sizing
+
+Dynamic Application Sizing enables organizations to optimize the resource
+consumption of applications using sizing recommendations from Nomad. This
+feature builds on Nomad [autoscaling capabilities] to remove the trial-and-error
+routine of manually setting resource requirements. DAS comprises support for
+vertical [scaling policies], a new API and UI for reviewing recommended job
+changes, and a collection of Nomad Autoscaler plugins informed by best-practice
+statistical measures.
+
+
 ## Try Nomad Enterprise
 
-Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or request a trial
-of Nomad Enterprise.
+Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or
+request a trial of Nomad Enterprise.
 
 [multiregion deployments]: /docs/job-specification/multiregion
+[autoscaling capabilities]: /docs/autoscaling
+[scaling policies]: /docs/autoscaling/policy
