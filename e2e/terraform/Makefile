@@ -3,14 +3,12 @@ PKG_PATH = $(shell pwd)/../../pkg/linux_amd64/nomad
 
 dev-cluster:
 	terraform apply -auto-approve \
-		-var="nomad_sha=$(NOMAD_SHA)" \
-		-var="nomad_version="
+		-var="nomad_sha=$(NOMAD_SHA)"
 	terraform output environment
 
 dev-cluster-from-local:
 	terraform apply -auto-approve \
-		-var="nomad_local_binary=$(PKG_PATH)" \
-		-var="nomad_version="
+		-var="nomad_local_binary=$(PKG_PATH)"
 	terraform output environment
 
 clean:
@@ -18,15 +16,14 @@ clean:
 
 full-cluster:
 	terraform apply -auto-approve \
-		-var="nomad_sha=$(NOMAD_SHA)" \
-		-var-file=terraform.full.tfvars
+		-var-file=terraform.full.tfvars \
+		-var="nomad_sha=$(NOMAD_SHA)"
 
 plan-dev-cluster:
 	terraform plan \
-		-var="nomad_sha=$(NOMAD_SHA)" \
-		-var="nomad_version="
+		-var="nomad_sha=$(NOMAD_SHA)"
 
 plan-full-cluster:
 	terraform plan \
-		-var="nomad_sha=$(NOMAD_SHA)" \
-		-var-file=terraform.full.tfvars
+		-var-file=terraform.full.tfvars \
+		-var="nomad_sha=$(NOMAD_SHA)"
