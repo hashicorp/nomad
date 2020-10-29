@@ -20,7 +20,11 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
   model() {
     return RSVP.hash({
       jobs: this.store.findAll('job'),
-      allocations: this.store.query('allocation', { resources: true }),
+      allocations: this.store.query('allocation', {
+        resources: true,
+        task_states: false,
+        namespace: '*',
+      }),
       nodes: this.store.query('node', { resources: true }),
     }).catch(notifyForbidden(this));
   }
