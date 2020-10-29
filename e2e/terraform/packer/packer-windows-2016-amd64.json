@@ -15,9 +15,9 @@
         "most_recent": true
       },
       "instance_type": "t2.medium",
-      "ami_name": "nomad-e2e-windows-2016-{{timestamp}}",
+      "ami_name": "nomad-e2e-windows-2016-amd64-{{timestamp}}",
       "communicator": "winrm",
-      "user_data_file": "windows/setupwinrm.ps1",
+      "user_data_file": "windows-2016-amd64/setupwinrm.ps1",
       "winrm_username": "Administrator",
       "winrm_insecure": true,
       "winrm_use_ssl": true,
@@ -32,15 +32,15 @@
       "elevated_user": "Administrator",
       "elevated_password": "{{.WinRMPassword}}",
       "scripts": [
-        "windows/disable-windows-updates.ps1",
-        "windows/fix-tls.ps1",
-        "windows/install-nuget.ps1",
-        "windows/install-tools.ps1",
-        "windows/install-docker.ps1",
-        "windows/setup-directories.ps1",
-        "windows/install-openssh.ps1",
-        "windows/install-consul.ps1",
-        "windows/install-vault.ps1"
+        "windows-2016-amd64/disable-windows-updates.ps1",
+        "windows-2016-amd64/fix-tls.ps1",
+        "windows-2016-amd64/install-nuget.ps1",
+        "windows-2016-amd64/install-tools.ps1",
+        "windows-2016-amd64/install-docker.ps1",
+        "windows-2016-amd64/setup-directories.ps1",
+        "windows-2016-amd64/install-openssh.ps1",
+        "windows-2016-amd64/install-consul.ps1",
+        "windows-2016-amd64/install-vault.ps1"
       ]
     },
     {
@@ -53,7 +53,7 @@
     },
     {
       "type": "file",
-      "source": "./windows/provision.ps1",
+      "source": "./windows-2016-amd64/provision.ps1",
       "destination": "/opt/provision.ps1"
     },
     {
