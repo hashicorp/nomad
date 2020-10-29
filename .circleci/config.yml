@@ -551,7 +551,10 @@ jobs:
           make deps
         name: Install golang dependencies
     - run:
-        command: docker pull hashicorpnomad/busybox-windows:server2016-0.1
+        command: |
+          # Pull from mirror and retag with bare tag.
+          docker pull docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1
+          docker tag docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1 hashicorpnomad/busybox-windows:server2016-0.1q
         name: Pre-download docker test image
     - run:
         command: |
@@ -703,7 +706,7 @@ jobs:
     docker:
     - environment:
         JOBS: 2
-      image: circleci/node:10-browsers
+      image: docker.mirror.hashicorp.services/circleci/node:10-browsers
     steps:
     - checkout
     - restore_cache:
@@ -732,7 +735,7 @@ jobs:
         path: /tmp/test-reports
   lint-go:
     docker:
-    - image: golang:1.15.1
+    - image: docker.mirror.hashicorp.services/golang:1.15.1
     working_directory: /go/src/github.com/hashicorp/nomad
     steps:
     - checkout
@@ -767,7 +770,7 @@ jobs:
     - PAGER: cat
   website-docker-image:
     docker:
-    - image: circleci/buildpack-deps
+    - image: docker.mirror.hashicorp.services/circleci/buildpack-deps
     shell: /usr/bin/env bash -euo pipefail -c
     steps:
     - checkout
@@ -912,7 +915,7 @@ jobs:
         path: /tmp/test-reports
   test-devices:
     docker:
-    - image: golang:1.15.1
+    - image: docker.mirror.hashicorp.services/golang:1.15.1
     working_directory: /go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
@@ -1050,7 +1053,7 @@ jobs:
     - PAGER: cat
   algolia_index:
     docker:
-    - image: node:12
+    - image: docker.mirror.hashicorp.services/node:12
     steps:
     - checkout
     - run:
@@ -1184,7 +1187,7 @@ jobs:
         path: /tmp/test-reports
   build-binaries:
     docker:
-    - image: golang:1.15.1
+    - image: docker.mirror.hashicorp.services/golang:1.15.1
     working_directory: /go/src/github.com/hashicorp/nomad
     environment:
     - GIT_PAGER: cat
@@ -1218,7 +1221,7 @@ jobs:
         path: pkg/linux_amd64.zip
   test-e2e:
     docker:
-    - image: golang:1.15.1
+    - image: docker.mirror.hashicorp.services/golang:1.15.1
     working_directory: /go/src/github.com/hashicorp/nomad
     steps:
     - checkout
