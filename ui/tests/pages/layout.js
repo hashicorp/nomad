@@ -23,28 +23,23 @@ export default create({
         resetScope: true,
         name: text('.ember-power-select-group-name'),
 
-        options: collection(
-          '.ember-power-select-option',
-          create({
-            label: text(),
+        options: collection('.ember-power-select-option', create({
+          label: text(),
 
-            substrings: collection('[data-test-match-substring]', {
-              isHighlighted: hasClass('highlighted'),
-            }),
+          substrings: collection('[data-test-match-substring]', {
+            isHighlighted: hasClass('highlighted'),
+          }),
 
-            get formattedText() {
-              return this.substrings
-                .map(string => {
-                  if (string.isHighlighted) {
-                    return `*${string.text}*`;
-                  } else {
-                    return string.text;
-                  }
-                })
-                .join('');
-            },
-          })
-        ),
+          get formattedText() {
+            return this.substrings.map(string => {
+              if (string.isHighlighted) {
+                return `*${string.text}*`;
+              } else {
+                return string.text;
+              }
+            }).join('');
+          }
+        })),
       }),
 
       field: {
