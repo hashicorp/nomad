@@ -38,8 +38,8 @@ plugin "docker" {
 # Turn off the Java task driver. On macOS, there is a shim file that
 # confuses the fingerprinter and creates a pop-up every 10 seconds for
 # users without a JVM installed.
-plugin "java" {
-  config {
-    enabled = false
+client {
+  options = {
+    "driver.denylist" = "java"
   }
 }
