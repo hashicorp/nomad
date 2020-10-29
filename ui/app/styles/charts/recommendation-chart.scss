@@ -9,6 +9,8 @@
 
   .resource {
     font-weight: $weight-semibold;
+    dominant-baseline: central;
+    text-anchor: end;
   }
 
   .icon.delta g {
