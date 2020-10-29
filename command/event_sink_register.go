@@ -18,7 +18,10 @@ type EventSinkRegisterCommand struct {
 
 func (c *EventSinkRegisterCommand) Help() string {
 	helpText := `
-Usage: nomad event sink register
+Usage: nomad event sink register <path>
+
+   Register is used to register a new event sink. The event sink is
+   sourced from <path> or from stdin if path is "-".
 
 General Options:
 
@@ -45,32 +48,15 @@ func (c *EventSinkRegisterCommand) Run(args []string) int {
 		return 1
 	}
 
-	var sinkConfigBytes []byte
 	path := args[0]
-	switch path {
-	case "-":
-		var stdin io.Reader = os.Stdin
-		if c.testStdin != nil {
-			stdin = c.testStdin
-		}
-		var buf bytes.Buffer
-		_, err := io.Copy(&buf, stdin)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Failed to read from stdin: %v", err))
-			return 1
-		}
-		sinkConfigBytes = buf.Bytes()
-	default:
-		var err error
-		sinkConfigBytes, err = ioutil.ReadFile(path)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Failed to read file: %v", err))
-			return 1
-		}
+	bs, err := c.readAll(path)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error reading file %q: %s", path, err))
+		return 1
 	}
 
 	var sink api.EventSink
-	err := json.Unmarshal(sinkConfigBytes, &sink)
+	err = json.Unmarshal(bs, &sink)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error unmarshaling config: %s", err))
 		return 1
@@ -96,4 +82,25 @@ func (c *EventSinkRegisterCommand) Run(args []string) int {
 
 func (c *EventSinkRegisterCommand) Synopsis() string {
 	return "Register an event sink"
+}
+
+func (c *EventSinkRegisterCommand) readAll(path string) ([]byte, error) {
+	if path == "-" {
+		var r io.Reader = os.Stdin
+		if c.testStdin != nil {
+			r = c.testStdin
+		}
+		var buf bytes.Buffer
+		_, err := io.Copy(&buf, r)
+		if err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+
+	bs, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }

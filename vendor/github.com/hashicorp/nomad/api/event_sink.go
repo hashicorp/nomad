@@ -25,12 +25,6 @@ type EventSink struct {
 	ModifyIndex uint64
 }
 
-type EventSinkRegisterRequest struct {
-	EventSink *EventSink
-
-	WriteRequest
-}
-
 type EventSinks struct {
 	client *Client
 }
@@ -51,10 +45,13 @@ func (e *EventSinks) List(q *QueryOptions) ([]*EventSink, *QueryMeta, error) {
 }
 
 func (e *EventSinks) Register(eventSink *EventSink, w *WriteOptions) (*WriteMeta, error) {
-
 	wm, err := e.client.write("/v1/event/sink/"+eventSink.ID, eventSink, nil, w)
 	if err != nil {
 		return nil, err
 	}
 	return wm, nil
+}
+
+func (e *EventSinks) Deregister(name string, w *WriteOptions) (*WriteMeta, error) {
+	return e.client.delete("/v1/event/sink/"+name, nil, w)
 }

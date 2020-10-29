@@ -28,9 +28,7 @@ func TestEventCommand_EventSink_Register(t *testing.T) {
 		ID:   "test-webhooksink",
 		Type: api.SinkWebhook,
 		Topics: map[api.Topic][]string{
-			"*":          {"*"},
-			"Eval":       {"*"},
-			"Deployment": {"redis"},
+			"*": {"*"},
 		},
 		Address: "http://localhost:8080",
 	}
@@ -47,11 +45,10 @@ func TestEventCommand_EventSink_Register(t *testing.T) {
 	require.Equal(t, 0, code)
 	require.Contains(t, ui.OutputWriter.String(), "Successfully registered \"test-webhooksink\" event sink!")
 
-	// assert
-	sinkClient := client.EventSinks()
-	require.NotNil(t, sinkClient)
+	sinks := client.EventSinks()
+	require.NotNil(t, sinks)
 
-	es, qm, err := sinkClient.List(nil)
+	es, qm, err := sinks.List(nil)
 	require.NoError(t, err)
 	require.NotZero(t, qm.LastIndex)
 	require.Len(t, es, 1)
@@ -60,29 +57,13 @@ func TestEventCommand_EventSink_Register(t *testing.T) {
 func TestEventCommand_EventSink_Register_FromStdin(t *testing.T) {
 	t.Parallel()
 
-	sink := &api.EventSink{
-		ID:   "test-webhooksink",
-		Type: api.SinkWebhook,
-		Topics: map[api.Topic][]string{
-			"*":          {"*"},
-			"Eval":       {"*"},
-			"Deployment": {"redis"},
-		},
-		Address: "http://localhost:8080",
-	}
-
-	jsonBytes, err := json.Marshal(sink)
-	require.NoError(t, err)
+	srv, client, url := testServer(t, false, nil)
+	defer srv.Shutdown()
 
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-
-	go func() {
-		stdinW.Write(jsonBytes)
-		stdinW.Close()
-	}()
 
 	ui := cli.NewMockUi()
 	cmd := &EventSinkRegisterCommand{
@@ -90,20 +71,32 @@ func TestEventCommand_EventSink_Register_FromStdin(t *testing.T) {
 		Meta:      Meta{Ui: ui},
 	}
 
-	srv, client, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	sink := &api.EventSink{
+		ID:   "test-webhooksink",
+		Type: api.SinkWebhook,
+		Topics: map[api.Topic][]string{
+			"*": {"*"},
+		},
+		Address: "http://localhost:8080",
+	}
+
+	jsonBytes, err := json.Marshal(sink)
+	require.NoError(t, err)
+
+	go func() {
+		stdinW.Write(jsonBytes)
+		stdinW.Close()
+	}()
 
 	code := cmd.Run([]string{"-address=" + url, "-"})
 	require.Equal(t, "", ui.ErrorWriter.String())
 	require.Equal(t, 0, code)
 	require.Contains(t, ui.OutputWriter.String(), "Successfully registered \"test-webhooksink\" event sink!")
 
-	// assert
+	sinks := client.EventSinks()
+	require.NotNil(t, sinks)
 
-	sinkClient := client.EventSinks()
-	require.NotNil(t, sinkClient)
-
-	es, qm, err := sinkClient.List(nil)
+	es, qm, err := sinks.List(nil)
 	require.NoError(t, err)
 	require.NotZero(t, qm.LastIndex)
 	require.Len(t, es, 1)

@@ -12,13 +12,12 @@ type EventSinkListCommand struct {
 	Meta
 }
 
-// Help should return long-form help text that includes the command-line
-// usage, a brief few sentences explaining the function of the command,
-// and the complete list of flags the command accepts.
 func (c *EventSinkListCommand) Help() string {
 	// TODO drew how do we specify the ID of a value we are retrieving
 	helpText := `
 Usage: nomad event sink list
+
+    List is used to list event sinks that have been registered.
 
 General Options:
 
@@ -62,8 +61,6 @@ func (c *EventSinkListCommand) Run(args []string) int {
 	return 0
 }
 
-// Synopsis should return a one-line, short synopsis of the command.
-// This should be less than 50 characters ideally.
 func (e *EventSinkListCommand) Synopsis() string {
 	return "List event sinks"
 }
