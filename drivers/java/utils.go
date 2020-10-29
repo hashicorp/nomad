@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	rt "runtime"
 	"strings"
 )
 
@@ -28,7 +29,7 @@ func checkForMacJVM() (ok bool, err error) {
 func javaVersionInfo() (version, runtime, vm string, err error) {
 	var out bytes.Buffer
 
-	if runtime.GOOS == "darwin" {
+	if rt.GOOS == "darwin" {
 		_, err = checkForMacJVM()
 		if err != nil {
 			err = fmt.Errorf("failed to check java version: %v", err)
