@@ -27,11 +27,15 @@ func checkForMacJVM() (ok bool, err error) {
 
 func javaVersionInfo() (version, runtime, vm string, err error) {
 	var out bytes.Buffer
-	_, err = checkForMacJVM()
-	if err != nil {
-		err = fmt.Errorf("failed to check java version: %v", err)
-		return
+
+	if runtime.GOOS == "darwin" {
+		_, err = checkForMacJVM()
+		if err != nil {
+			err = fmt.Errorf("failed to check java version: %v", err)
+			return
+		}
 	}
+
 	cmd := exec.Command(javaVersionCommand[0], javaVersionCommand[1:]...)
 	cmd.Stdout = &out
 	cmd.Stderr = &out
