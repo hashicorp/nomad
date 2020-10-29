@@ -25,6 +25,7 @@ export default class OptimizeController extends Controller {
     if (nextSummary) {
       this.transitionToSummary(nextSummary);
     } else {
+      // This is a task because the accordion has actual timeouts for animation
       yield timeout(0);
       this.send('reachedEnd');
     }
