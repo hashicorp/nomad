@@ -60,6 +60,16 @@
             Jobs
           </LinkTo>
         </li>
+        {{#if (can "accept recommendation")}}
+          <li>
+            <LinkTo
+              @route="optimize"
+              @activeClass="is-active"
+              data-test-gutter-link="optimize">
+              Optimize
+            </LinkTo>
+          </li>
+        {{/if}}
       </ul>
       <p class="menu-label is-minor">
         Integrations

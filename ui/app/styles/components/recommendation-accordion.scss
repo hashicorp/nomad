@@ -1,0 +1,54 @@
+.recommendation-accordion {
+  transition: margin-bottom $timing-fast ($timing-slow - $timing-fast);
+
+  &.closing {
+    margin-bottom: 0;
+  }
+
+  .animation-container {
+    overflow: hidden;
+    transition: height $timing-slow;
+  }
+
+  .accordion-head-content {
+    display: flex;
+    justify-content: space-between;
+
+    .left {
+      display: flex;
+      align-items: center;
+
+      > * {
+        margin-right: 1.5em;
+      }
+
+      .icon {
+        color: $info;
+        width: 1.75rem;
+        height: 1.75rem;
+        margin-left: -10px;
+        margin-right: 1em;
+      }
+    }
+
+    .diffs {
+      display: flex;
+
+      > * {
+        margin-left: 1.5em;
+      }
+
+      .resource {
+        font-weight: $weight-bold;
+      }
+
+      .percent {
+        color: $ui-gray-500;
+      }
+    }
+
+    .group {
+      font-weight: $weight-bold;
+    }
+  }
+}

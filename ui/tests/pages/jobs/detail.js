@@ -12,6 +12,7 @@ import {
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
+import recommendationAccordion from 'nomad-ui/tests/pages/components/recommendation-accordion';
 
 export default create({
   visit: visitable('/jobs/:id'),
@@ -24,6 +25,8 @@ export default create({
   tabFor(id) {
     return this.tabs.toArray().findBy('id', id);
   },
+
+  recommendations: collection('[data-test-recommendation-accordion]', recommendationAccordion),
 
   stop: twoStepButton('[data-test-stop]'),
   start: twoStepButton('[data-test-start]'),

@@ -1,0 +1,74 @@
+.das-interstitial {
+  margin-bottom: 1.5em;
+
+  .das-accepted,
+  .das-error {
+    border: 1px solid;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+
+    text-align: center;
+
+    h3 {
+      font-size: $title-size;
+      font-weight: $weight-bold;
+    }
+
+    .icon {
+      height: 8em;
+      width: auto;
+    }
+  }
+
+  .das-accepted {
+    border-color: $ui-gray-200;
+    color: $green-500;
+  }
+
+  .das-error {
+    border-color: $red-500;
+    color: $red-500;
+  }
+
+  .das-dismissed {
+    border: 1px solid $info;
+    height: 100%;
+    padding: 2rem;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    h3 {
+      color: $info;
+      font-size: $size-5;
+      font-weight: $weight-bold;
+    }
+
+    &.understood {
+      align-items: center;
+      justify-content: center;
+
+      h3 {
+        font-size: $title-size;
+      }
+    }
+
+    p {
+      padding: 0.5rem 0;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+
+      .button {
+        margin-right: 1em;
+      }
+    }
+  }
+}

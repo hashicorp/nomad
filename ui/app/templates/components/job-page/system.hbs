@@ -13,6 +13,10 @@
     </div>
   </div>
 
+  {{#each this.job.recommendationSummaries as |summary|}}
+    <Das::RecommendationAccordion @summary={{summary}} />
+  {{/each}}
+
   <JobPage::Parts::Summary @job={{this.job}} />
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />

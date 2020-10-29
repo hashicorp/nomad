@@ -1,0 +1,22 @@
+<section class="das-error" data-test-recommendation-error>
+  <section>
+    <h3 data-test-headline>Recommendation error</h3>
+
+    <p>
+      There were errors processing applications:
+    </p>
+
+    <pre data-test-errors>{{@error}}</pre>
+  </section>
+
+  {{x-icon "alert-circle-fill"}}
+
+  <section class="actions">
+    <button
+      data-test-dismiss
+      class='button is-light'
+      type='button'
+      {{@on 'click' this.dismissClicked}}
+    >Okay</button>
+  </section>
+</section>
