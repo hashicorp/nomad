@@ -11,7 +11,7 @@ description: |-
 
 Nomad creates a working directory for each allocation on a client. This
 directory can be found in the Nomad [`data_dir`] at
-`./allocs/:alloc_id`. The allocation working directory is where Nomad
+`./allocs/«alloc_id»`. The allocation working directory is where Nomad
 creates task directories and directories shared between tasks, write logs for
 tasks, and downloads artifacts or templates.
 
@@ -38,7 +38,7 @@ allocation directory like the one below.
     └── tmp
 ```
 
--  `alloc/`: This directory is shared across all tasks in an allocation and
+-  **alloc/**: This directory is shared across all tasks in an allocation and
   can be used to store data that needs to be used by multiple tasks, such as a
   log shipper. This is the directory that's provided to the task as the
   `NOMAD_ALLOC_DIR`. Note that this `alloc/` directory is not the same as the
@@ -46,31 +46,31 @@ allocation directory like the one below.
   in a task group can read and write to the `alloc/` directory. Within the
   `alloc/` directory are three standard directories:
 
-  - `alloc/data/`: This directory is the location used by the
+  - **alloc/data/**: This directory is the location used by the
     [`ephemeral_disk`] stanza for shared data.
 
-  - `alloc/logs/`: This directory is the location of the log files for every
+  - **alloc/logs/**: This directory is the location of the log files for every
     task within an allocation. The `nomad alloc logs` command streams these
     files to your terminal.
 
-  - `alloc/tmp/`: A temporary directory used as scratch space by task drivers.
+  - **alloc/tmp/**: A temporary directory used as scratch space by task drivers.
 
-- `task/`: Each task has a **task working directory** with the same name as
+- **«taskname»**: Each task has a **task working directory** with the same name as
   the task. Tasks in a task group can't read each other's task working
   directory. Depending on the task driver's [filesystem isolation mode], a
   task may not be able to access the task working directory. Within the
   `task/` directory are three standard directories:
 
-  - `task/local/`: This directory is the location provided to the task as the
+  - **«taskname»/local/**: This directory is the location provided to the task as the
     `NOMAD_TASK_DIR`. Note this is not the same as the "task working
     directory". This directory is private to the task.
 
-  - `task/secrets/`: This directory is the location provided to the task as
+  - **«taskname»/secrets/**: This directory is the location provided to the task as
   `NOMAD_SECRETS_DIR`. The contents of files in this directory cannot be read
   the the `nomad alloc fs` command. It can be used to store secret data that
   should not be visible outside the task.
 
-  - `task/tmp/`: A temporary directory used as scratch space by task drivers.
+  - **«taskname»/tmp/**: A temporary directory used as scratch space by task drivers.
 
 The allocation working directory is the directory you see when using the
 `nomad alloc fs` command. If you were to run `nomad alloc fs` against the
@@ -110,7 +110,7 @@ driver isolates task filesystems as machine images. These filesystems are
 owned by the task driver's external process and not by Nomad itself. These
 filesystems will not typically be found anywhere in the allocation working
 directory. For example, Docker containers will have their overlay filesystem
-unpacked to `/var/run/docker/containerd/:container_id` by default.
+unpacked to `/var/run/docker/containerd/«container_id»` by default.
 
 Nomad will provide the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
 `NOMAD_SECRETS_DIR` to tasks with `image` isolation, typically by
