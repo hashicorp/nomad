@@ -671,6 +671,7 @@ type Task struct {
 	ShutdownDelay   time.Duration          `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 	Kind            string                 `hcl:"kind,optional"`
+	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {

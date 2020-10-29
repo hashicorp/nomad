@@ -31,3 +31,7 @@ func (p *ScalingPolicy) validateType() multierror.Error {
 
 	return mErr
 }
+
+func (j *Job) GetEntScalingPolicies() []*ScalingPolicy {
+	return nil
+}

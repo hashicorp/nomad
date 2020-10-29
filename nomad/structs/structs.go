@@ -1181,6 +1181,8 @@ type SingleScalingPolicyResponse struct {
 
 // ScalingPolicyListRequest is used to parameterize a scaling policy list request
 type ScalingPolicyListRequest struct {
+	Job  string
+	Type string
 	QueryOptions
 }
 
@@ -5273,6 +5275,14 @@ type ScalingPolicy struct {
 	ModifyIndex uint64
 }
 
+// JobKey returns a key that is unique to a job-scoped target, useful as a map
+// key. This uses the policy type, plus target (group and task).
+func (p *ScalingPolicy) JobKey() string {
+	return p.Type + "\000" +
+		p.Target[ScalingTargetGroup] + "\000" +
+		p.Target[ScalingTargetTask]
+}
+
 const (
 	ScalingTargetNamespace = "Namespace"
 	ScalingTargetJob       = "Job"
@@ -5376,12 +5386,20 @@ func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
 	return !reflect.DeepEqual(*p, copy)
 }
 
+// TarketTaskGroup updates a ScalingPolicy target to specify a given task group
 func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
 	p.Target = map[string]string{
 		ScalingTargetNamespace: job.Namespace,
 		ScalingTargetJob:       job.ID,
 		ScalingTargetGroup:     tg.Name,
 	}
+	return p
+}
+
+// TargetTask updates a ScalingPolicy target to specify a given task
+func (p *ScalingPolicy) TargetTask(job *Job, tg *TaskGroup, task *Task) *ScalingPolicy {
+	p.TargetTaskGroup(job, tg)
+	p.Target[ScalingTargetTask] = task.Name
 	return p
 }
 
@@ -5409,6 +5427,8 @@ func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 			ret = append(ret, tg.Scaling)
 		}
 	}
+
+	ret = append(ret, j.GetEntScalingPolicies()...)
 
 	return ret
 }
@@ -6541,7 +6561,8 @@ type Task struct {
 	// attached to this task.
 	VolumeMounts []*VolumeMount
 
-	// The kill signal to use for the task. This is an optional specification,
+	// ScalingPolicies is a list of scaling policies scoped to this task
+	ScalingPolicies []*ScalingPolicy
 
 	// KillSignal is the kill signal to use for the task. This is an optional
 	// specification and defaults to SIGINT

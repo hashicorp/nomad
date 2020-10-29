@@ -145,3 +145,163 @@ dynamic "group" {
 	require.Equal(t, "groupB", *out.TaskGroups[1].Name)
 	require.Equal(t, "groupC", *out.TaskGroups[2].Name)
 }
+
+func TestParse_InvalidScalingSyntax(t *testing.T) {
+	cases := []struct {
+		name        string
+		expectedErr string
+		hcl         string
+	}{
+		{
+			"valid",
+			"",
+			`
+job "example" {
+  group "g1" {
+    scaling {
+      max  = 40
+      type = "horizontal"
+    }
+
+    task "t1" {
+      scaling "cpu" {
+        max = 20
+      }
+      scaling "mem" {
+        max = 15
+      }
+    }
+  }
+}
+`,
+		},
+		{
+			"group missing max",
+			`argument "max" is required`,
+			`
+job "example" {
+  group "g1" {
+    scaling {
+      #max  = 40
+      type = "horizontal"
+    }
+
+    task "t1" {
+      scaling "cpu" {
+        max = 20
+      }
+      scaling "mem" {
+        max = 15
+      }
+    }
+  }
+}
+`,
+		},
+		{
+			"group invalid type",
+			`task group scaling policy had invalid type`,
+			`
+job "example" {
+  group "g1" {
+    scaling {
+      max  = 40
+      type = "invalid_type"
+    }
+
+    task "t1" {
+      scaling "cpu" {
+        max = 20
+      }
+      scaling "mem" {
+        max = 15
+      }
+    }
+  }
+}
+`,
+		},
+		{
+			"task invalid label",
+			`scaling policy name must be "cpu" or "mem"`,
+			`
+job "example" {
+  group "g1" {
+    scaling {
+      max  = 40
+      type = "horizontal"
+    }
+
+    task "t1" {
+      scaling "not_cpu" {
+        max = 20
+      }
+      scaling "mem" {
+        max = 15
+      }
+    }
+  }
+}
+`,
+		},
+		{
+			"task duplicate blocks",
+			`Duplicate scaling "cpu" block`,
+			`
+job "example" {
+  group "g1" {
+    scaling {
+      max  = 40
+      type = "horizontal"
+    }
+
+    task "t1" {
+      scaling "cpu" {
+        max = 20
+      }
+      scaling "cpu" {
+        max = 15
+      }
+    }
+  }
+}
+`,
+		},
+		{
+			"task invalid type",
+			`Invalid scaling policy type`,
+			`
+job "example" {
+  group "g1" {
+    scaling {
+      max  = 40
+      type = "horizontal"
+    }
+
+    task "t1" {
+      scaling "cpu" {
+        max  = 20
+        type = "invalid"
+      }
+      scaling "mem" {
+        max = 15
+      }
+    }
+  }
+}
+`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := ParseWithArgs(c.name+".hcl", strings.NewReader(c.hcl), nil, true)
+			if c.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.expectedErr)
+			}
+		})
+	}
+}

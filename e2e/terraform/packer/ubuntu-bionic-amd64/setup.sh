@@ -5,7 +5,7 @@
 set -e
 
 # Will be overwritten at test time with the version specified
-NOMADVERSION=0.9.1
+NOMADVERSION=0.12.7
 CONSULVERSION=1.8.3
 VAULTVERSION=1.5.4
 
