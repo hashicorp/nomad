@@ -107,6 +107,14 @@ export default [
           'unblock',
         ],
       },
+      {
+        category: 'event',
+        content: [
+          'deregister',
+          'list',
+          'register',
+        ],
+      },
       'eval-status',
       {
         category: 'job',

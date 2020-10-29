@@ -10,7 +10,7 @@ type EventSinkDeregisterCommand struct {
 
 func (c *EventSinkDeregisterCommand) Help() string {
 	helpText := `
-Usage: nomad event sink deregister <name>
+Usage: nomad event sink deregister <event sink id>
 
    Deregister is used to deregister a registered event sink.
 
@@ -39,7 +39,7 @@ func (c *EventSinkDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
-	name := args[0]
+	id := args[0]
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -48,13 +48,13 @@ func (c *EventSinkDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
-	_, err = client.EventSinks().Deregister(name, nil)
+	_, err = client.EventSinks().Deregister(id, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deregistering event sink: %s", err))
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Successfully deregistered %q event sink!", name))
+	c.Ui.Output(fmt.Sprintf("Successfully deregistered %q event sink!", id))
 	return 0
 }
 
