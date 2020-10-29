@@ -3,20 +3,23 @@ layout: docs
 page_title: 'Commands: event sink deregister'
 sidebar_title: sink deregister
 description: |
-  The event command is used to deregistered an event sink.
+  The sink deregister command is used to deregister an event sink.
 ---
 
 # Command: event sink deregister
 
-The `event sink deregister` command is used to deregister an event sink. Deregistering an event sink will remove the event sink from Nomad, stopping it from sending events to the sink.
+The `event sink deregister` command is used to deregister an event sink.
+Deregistering an event sink will remove the event sink from Nomad, stopping it
+from sending events to the sink.
 
 ## Usage
 
 ```plaintext
-nomad event sink deregister <event sink id>
+nomad event sink deregister <id>
 ```
 
-The `event sink deregister`
+The `event sink deregister` command requires a single argument, the event sink
+ID.
 
 ## General Options
 

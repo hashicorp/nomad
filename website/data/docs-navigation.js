@@ -110,9 +110,9 @@ export default [
       {
         category: 'event',
         content: [
-          'deregister',
-          'list',
-          'register',
+          'sink-deregister',
+          'sink-list',
+          'sink-register',
         ],
       },
       'eval-status',
