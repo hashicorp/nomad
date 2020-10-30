@@ -136,6 +136,7 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 			continue
 		}
 
+		// *[*] always matches
 		if len(allTopicKeys) == 1 && allTopicKeys[0] == "*" {
 			result = append(result, event)
 			continue
