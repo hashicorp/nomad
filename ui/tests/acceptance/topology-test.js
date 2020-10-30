@@ -56,8 +56,12 @@ module('Acceptance | topology', function(hooks) {
 
     await Topology.visit();
 
-    await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
-    assert.equal(Topology.infoPanelTitle, 'Allocation Details');
+    if (Topology.viz.datacenters[0].nodes[0].isEmpty) {
+      assert.expect(0);
+    } else {
+      await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
+      assert.equal(Topology.infoPanelTitle, 'Allocation Details');
+    }
   });
 
   test('when a node is selected, the info panel shows information on the node', async function(assert) {

@@ -33,4 +33,5 @@ export default scope => ({
   }),
 
   emptyMessage: text('[data-test-empty-message]'),
+  isEmpty: hasClass('is-empty'),
 });
