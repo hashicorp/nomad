@@ -19,23 +19,44 @@ func (e *EventCommand) Help() string {
 	helpText := `
 Usage: nomad event <subcommand> [options] [args]
 
-This command has subcommands for interacting with Nomad event sinks.
-	`
+  This command groups subcommands for interacting with Nomad event sinks.
+  Nomad's event sinks system can be used to subscribe to the event stream for
+  events that match specific topics.
+
+  Register or update an event sink:
+
+      $ cat sink.json
+      {
+        "ID": "my-sink",
+        "Type": "webhook"
+        "Address": "http://127.0.0.1:8080",
+        "Topics": {
+          "*": ["*"]
+        }
+      }
+      $ nomad event sink register sink.json
+      Successfully registered "my-sink" event sink!
+
+  List event sinks:
+
+      $ nomad event sink list
+      ID         Type     Address           Topics    LatestIndex
+      my-sink    webhook  http://127.0.0.1  *[*]      0
+
+  Deregister an event sink:
+
+      $ nomad event sink deregister my-sink
+      Successfully deregistered "my-sink" event sink!
+
+  Please see the individual subcommand help for detailed usage information.
+`
 	return strings.TrimSpace(helpText)
 }
 
-// Run should run the actual command with the given CLI instance and
-// command-line arguments. It should return the exit status when it is
-// finished.
-//
-// There are a handful of special exit codes this can return documented
-// above that change behavior.
 func (e *EventCommand) Run(args []string) int {
 	return cli.RunResultHelp
 }
 
-// Synopsis should return a one-line, short synopsis of the command.
-// This should be less than 50 characters ideally.
 func (e *EventCommand) Synopsis() string {
-	panic("not implemented") // TODO: Implement
+	return "Interact with event sinks"
 }
