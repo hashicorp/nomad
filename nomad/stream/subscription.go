@@ -129,6 +129,10 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 
 	allTopicKeys := req.Topics[structs.TopicAll]
 
+	if req.Namespace == "" && len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
+		return events
+	}
+
 	var result []structs.Event
 
 	for _, event := range events {
