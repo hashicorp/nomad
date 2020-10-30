@@ -370,8 +370,14 @@ rather than `secret/...`.
 The `template` block has the following [client configuration
 options](/docs/configuration/client#options):
 
-- `template.allow_host_source` - Allows templates to specify their source
-  template as an absolute path referencing host directories. Defaults to `true`.
+- `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
+  rendering functions that should be disallowed in job specs. By default the
+  `plugin` function is disallowed as it allows running arbitrary commands on
+  the host as root (unless Nomad is configured to run as a non-root user).
+
+- `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
+  files on the client host via the `file` function. By default templates can
+  access files only within the [task working directory].
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
