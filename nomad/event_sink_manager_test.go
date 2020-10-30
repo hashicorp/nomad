@@ -69,7 +69,7 @@ func TestManager_Run(t *testing.T) {
 
 	// Create the manager
 	manager := NewSinkManager(ctx, td, hclog.Default())
-	require.NoError(t, manager.EstablishManagedSinks())
+	require.NoError(t, manager.establishManagedSinks())
 
 	require.Len(t, manager.sinkSubscriptions, 2)
 
@@ -133,7 +133,7 @@ func TestManager_SinkErr(t *testing.T) {
 	defer cancel()
 
 	manager := NewSinkManager(ctx, td, hclog.Default())
-	require.NoError(t, manager.EstablishManagedSinks())
+	require.NoError(t, manager.establishManagedSinks())
 
 	require.Len(t, manager.sinkSubscriptions, 2)
 
@@ -220,7 +220,7 @@ func TestManager_Run_AddNew(t *testing.T) {
 	defer cancel()
 
 	manager := NewSinkManager(ctx, td, hclog.Default())
-	require.NoError(t, manager.EstablishManagedSinks())
+	require.NoError(t, manager.establishManagedSinks())
 
 	require.Len(t, manager.sinkSubscriptions, 1)
 
