@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { inject as controller } from '@ember/controller';
-import { task, timeout } from 'ember-concurrency';
+import { task } from 'ember-concurrency';
 
 export default class OptimizeController extends Controller {
   @controller('optimize/summary') summaryController;
@@ -10,6 +10,8 @@ export default class OptimizeController extends Controller {
     return this.summaryController.model;
   }
 
+  // This is a task because the accordion uses timeouts for animation
+  // eslint-disable-next-line require-yield
   @(task(function*() {
     const currentSummaryIndex = this.model.indexOf(this.activeRecommendationSummary);
     const nextSummary = this.model.objectAt(currentSummaryIndex + 1);
@@ -17,8 +19,6 @@ export default class OptimizeController extends Controller {
     if (nextSummary) {
       this.transitionToSummary(nextSummary);
     } else {
-      // This is a task because the accordion has actual timeouts for animation
-      yield timeout(0);
       this.send('reachedEnd');
     }
   }).drop())
