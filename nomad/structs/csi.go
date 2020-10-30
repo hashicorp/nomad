@@ -315,6 +315,9 @@ func (v *CSIVolume) newStructs() {
 	if v.Parameters == nil {
 		v.Parameters = map[string]string{}
 	}
+	if v.MountOptions == nil {
+		v.MountOptions = &CSIMountOptions{}
+	}
 	if v.Secrets == nil {
 		v.Secrets = CSISecrets{}
 	}
@@ -417,13 +420,26 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	for k, v := range v.Secrets {
 		out.Secrets[k] = v
 	}
+	mo := *v.MountOptions
+	out.MountOptions = &mo
 
 	for k, v := range v.ReadAllocs {
-		out.ReadAllocs[k] = v
+		if v != nil {
+			a := *v
+			out.ReadAllocs[k] = &a
+		} else {
+			out.ReadAllocs[k] = nil
+		}
 	}
 
 	for k, v := range v.WriteAllocs {
-		out.WriteAllocs[k] = v
+		if v != nil {
+			a := *v
+			out.WriteAllocs[k] = &a
+		} else {
+			out.WriteAllocs[k] = nil
+		}
+
 	}
 
 	for k, v := range v.ReadClaims {
