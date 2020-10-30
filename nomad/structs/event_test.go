@@ -76,14 +76,14 @@ func TestEventSink_Changed(t *testing.T) {
 	}
 	b := new(EventSink)
 	*b = *a
-	require.False(t, b.EqualSubscriptionValues(a))
+	require.True(t, b.EqualSubscriptionValues(a))
 
 	b.Address = "http://127.0.0.1:8080/sink"
-	require.True(t, b.EqualSubscriptionValues(a))
+	require.False(t, b.EqualSubscriptionValues(a))
 
 	c := new(EventSink)
 	*c = *a
 	c.Topics = make(map[Topic][]string)
 	c.Topics["Deployment"] = []string{"5bccc81a-2514-48d3-890b-03bea3c84856"}
-	require.True(t, c.EqualSubscriptionValues(a))
+	require.False(t, c.EqualSubscriptionValues(a))
 }

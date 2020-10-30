@@ -125,8 +125,13 @@ func (b *eventBuffer) advanceHead() {
 		b.tail.Store(next)
 	}
 
-	// update the amount of events we have in the buffer
-	atomic.AddInt64(b.size, -1)
+	// In the case of there being a sentinel item or advanceHead being called
+	// on a sentinel item, only decrement if there are more than sentinel
+	// values
+	if atomic.LoadInt64(b.size) > 0 {
+		// update the amount of events we have in the buffer
+		atomic.AddInt64(b.size, -1)
+	}
 }
 
 // Head returns the current head of the buffer. It will always exist but it may

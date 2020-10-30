@@ -87,12 +87,14 @@ func TestEventBufferFuzz(t *testing.T) {
 func TestEventBuffer_Slow_Reader(t *testing.T) {
 	b := newEventBuffer(10)
 
-	for i := 0; i < 10; i++ {
+	for i := 1; i < 11; i++ {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
 		b.Append(&structs.Events{Index: uint64(i), Events: []structs.Event{e}})
 	}
+
+	require.Equal(t, 10, b.Len())
 
 	head := b.Head()
 
@@ -155,7 +157,7 @@ func TestEventBuffer_Emptying_Buffer(t *testing.T) {
 
 	// empty the buffer, which will bring the event buffer down
 	// to a single sentinel value
-	for i := 0; i < 11; i++ {
+	for i := 0; i < 16; i++ {
 		b.advanceHead()
 	}
 
