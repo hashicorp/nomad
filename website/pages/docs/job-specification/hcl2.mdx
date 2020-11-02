@@ -25,7 +25,7 @@ Nomad 1.0 supports expressions and built-in functions, allowing for a more conci
 - for-each expressions: `[for s in [3, 4, 5]: s+1]` (which evaluates to `[4, 5, 6]`)
 - invocation of function calls: `upper("FOO")`.
 
-For a full list of available functions, see [the function reference](https://www.packer.io/docs/from-1.5/expressions).
+For a full list of available functions, see [the function reference](https://www.packer.io/docs/from-1.5/functions).
 
 The following snippet illustrates the power of expressions and built-in functions:
 
@@ -63,12 +63,12 @@ staging vs production), you can use `vars.environment` in the job spec, and pass
 
 ## Backward Compatibilities
 
-HCL2 syntax closely mirrors HCL1, but has some minor changes. For most Nomad users, existing job
-specification will require no changes at all.
+HCL2 syntax closely mirrors HCL1, but has some minor changes. Most existing
+Nomad job specifications will not require any changes.
 
-If the configuration requires an update, the CLI will report the required
-changes. Also, the operator can activate a backward compatibility mode by
-passing `-hcl1`, for Nomad to use the HCL1 parser instead.
+When you run `nomad job run` or `nomad job plan`, the CLI will report any
+required changes. Also, you can activate a backwards compatibility mode by
+passing `-hcl1` to use Nomad's HCL1 parser instead.
 
 ### Blocks
 
