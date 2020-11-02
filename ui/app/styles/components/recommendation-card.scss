@@ -166,7 +166,7 @@
     }
 
     tr.active {
-      color: blue;
+      color: $blue;
       font-weight: bold;
 
       // When there’s only one task, it doesn’t need highlighting
