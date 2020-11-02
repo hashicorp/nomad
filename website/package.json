@@ -3,6 +3,9 @@
   "description": "Description of your website",
   "version": "0.0.1",
   "author": "HashiCorp",
+  "engines": {
+    "node": "12.x"
+  },
   "dependencies": {
     "@hashicorp/nextjs-scripts": "^13.2.0",
     "@hashicorp/react-alert-banner": "4.2.0",
