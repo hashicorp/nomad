@@ -551,9 +551,7 @@ jobs:
           make deps
         name: Install golang dependencies
     - run:
-        command: |
-          # Pull from mirror and retag with bare tag.
-          docker pull docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1
+        command: docker pull docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1
         name: Pre-download docker test image
     - run:
         command: |
