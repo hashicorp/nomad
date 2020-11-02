@@ -100,7 +100,6 @@ func (s *HTTPServer) eventSinkUpdate(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) eventSinkDelete(resp http.ResponseWriter, req *http.Request, sink string) (interface{}, error) {
-
 	args := structs.EventSinkDeleteRequest{
 		IDs: []string{sink},
 	}

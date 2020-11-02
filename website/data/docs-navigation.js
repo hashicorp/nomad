@@ -107,6 +107,14 @@ export default [
           'unblock',
         ],
       },
+      {
+        category: 'event',
+        content: [
+          'sink-deregister',
+          'sink-list',
+          'sink-register',
+        ],
+      },
       'eval-status',
       {
         category: 'job',
