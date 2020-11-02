@@ -206,5 +206,5 @@ func (c *JobStopCommand) Run(args []string) int {
 
 	// Start monitoring the stop eval
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(evalID, false)
+	return mon.monitor(evalID)
 }

@@ -387,6 +387,6 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 
 func waitForSuccess(ui cli.Ui, client *api.Client, length int, t *testing.T, evalId string) int {
 	mon := newMonitor(ui, client, length)
-	monErr := mon.monitor(evalId, false)
+	monErr := mon.monitor(evalId)
 	return monErr
 }
