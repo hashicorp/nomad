@@ -256,6 +256,9 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 
 	// Check the output
 	out := ui.OutputWriter.String()
+	if !strings.Contains(out, "Monitoring evaluation") {
+		t.Fatalf("expected evaluation monitoring output, got: %s", out)
+	}
 	if !strings.Contains(out, resp.EvalID[:8]) {
 		t.Fatalf("missing eval\n\n%s", out)
 	}
@@ -265,6 +268,8 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	if !strings.Contains(out, "finished with status") {
 		t.Fatalf("missing final status\n\n%s", out)
 	}
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
 
 	// Fail on identifier with too few characters
 	code = mon.monitor(resp.EvalID[:1], true)
@@ -274,14 +279,4 @@ func TestMonitor_MonitorWithPrefix(t *testing.T) {
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
 		t.Fatalf("expected too few characters error, got: %s", out)
 	}
-	ui.ErrorWriter.Reset()
-
-	code = mon.monitor(resp.EvalID[:3], true)
-	if code != 2 {
-		t.Fatalf("expect exit 2, got: %d", code)
-	}
-	if out := ui.OutputWriter.String(); !strings.Contains(out, "Monitoring evaluation") {
-		t.Fatalf("expected evaluation monitoring output, got: %s", out)
-	}
-
 }
