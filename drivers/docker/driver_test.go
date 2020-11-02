@@ -333,7 +333,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		imageID, err = d.Impl().(*Driver).loadImage(task, &taskCfg, client)
 	} else {
-		image, lErr := client.InspectImage("hashicorpnomad/busybox-windows:server2016-0.1")
+		image, lErr := client.InspectImage(taskCfg.Image)
 		err = lErr
 		if image != nil {
 			imageID = image.ID

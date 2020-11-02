@@ -17,13 +17,20 @@ import (
 )
 
 func testContainerDetails() (image string, imageName string, imageTag string) {
+	name := "busybox"
+	tag := "1"
+
 	if runtime.GOOS == "windows" {
-		return "hashicorpnomad/busybox-windows:server2016-0.1",
-			"hashicorpnomad/busybox-windows",
-			"server2016-0.1"
+		name = "hashicorpnomad/busybox-windows"
+		tag = "server2016-0.1"
 	}
 
-	return "busybox:1", "busybox", "1"
+	if testutil.IsCI() {
+		// In CI, use HashiCorp Mirror to avoid DockerHub rate limiting
+		name = "docker.mirror.hashicorp.services/" + name
+	}
+
+	return name + ":" + tag, name, tag
 }
 
 func TestDockerLogger_Success(t *testing.T) {

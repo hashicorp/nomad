@@ -1,5 +1,5 @@
 docker:
-  - image: node:12
+  - image: docker.mirror.hashicorp.services/node:12
 steps:
   - checkout
   - run:
