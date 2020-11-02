@@ -157,8 +157,8 @@ export default class TopoViz extends Component {
     const bbox = element.getBoundingClientRect();
     this.highlightAllocation = allocation;
     this.tooltipProps = {
-      left: window.visualViewport.pageLeft + bbox.left + bbox.width / 2,
-      top: window.visualViewport.pageTop + bbox.top,
+      left: window.scrollX + bbox.left + bbox.width / 2,
+      top: window.scrollY + bbox.top,
     };
   }
 
@@ -264,7 +264,7 @@ export default class TopoViz extends Component {
       });
 
       this.activeEdges = curves.map(curve => path(curve));
-      this.edgeOffset = { x: window.visualViewport.pageLeft, y: window.visualViewport.pageTop };
+      this.edgeOffset = { x: window.scrollX, y: window.scrollY };
     });
   }
 }
