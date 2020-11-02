@@ -25,7 +25,6 @@ steps:
       command: |
         # Pull from mirror and retag with bare tag.
         docker pull docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1
-        docker tag docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1 hashicorpnomad/busybox-windows:server2016-0.1q
   - run:
       name: Build nomad
       command: | 
