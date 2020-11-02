@@ -7,7 +7,7 @@ description: Learn about the Job specification HCL2 used to submit jobs to Nomad
 
 # HCL2 <sup>Beta</sup>
 
-~~> **NOTE:** This page is about Nomad 1.0 Beta. Details are subject to change before final release.
+~> **NOTE:** This page is about Nomad 1.0 Beta. Details are subject to change before final release.
 
 Nomad 1.0 adopts
 [HCL2](https://github.com/hashicorp/hcl2/blob/master/README.md), the second
@@ -20,14 +20,15 @@ messages for invalid jobs.
 
 Nomad 1.0 supports expressions and built-in functions, allowing for a more concise job spec. HCL2 allows use of the following expressions:
 
-* value literals: e.g. `42`, `"hello"`, `true`
-* arithmetic expression: `5*100`
-* for-each expressions: `[for s in [3, 4, 5]: s+1]` (which evaluates to `[4, 5, 6]`)
-* invocation of function calls: `upper("FOO")`.
+- value literals: e.g. `42`, `"hello"`, `true`
+- arithmetic expression: `5*100`
+- for-each expressions: `[for s in [3, 4, 5]: s+1]` (which evaluates to `[4, 5, 6]`)
+- invocation of function calls: `upper("FOO")`.
 
 For a full list of available functions, see [the function reference](https://www.packer.io/docs/from-1.5/expressions).
 
 The following snippet illustrates the power of expressions and built-in functions:
+
 ```hcl
 template {
   # `file` function can load external files without embedding them in the jobspec file
@@ -72,6 +73,7 @@ passing `-hcl1`, for Nomad to use the HCL1 parser instead.
 ### Blocks
 
 Nomad 0.12 and earlier allowed few variations for defining blocks. For example, the following variations of `meta` were accepted:
+
 ```hcl
 meta {
   # meta attributes can be quoted or not
