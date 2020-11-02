@@ -12,7 +12,7 @@ description: Learn about the Job specification HCL2 used to submit jobs to Nomad
 Nomad 1.0 adopts
 [HCL2](https://github.com/hashicorp/hcl2/blob/master/README.md), the second
 generation of HashiCorp Configuration Language. HCL2 extends the HCL language by
-adding expressions and input variables support that improves Job Spec
+adding expressions and input variables support to improve job spec
 reusability and readability. Also, the new HCL2 parser improves the error
 messages for invalid jobs.
 
@@ -57,7 +57,7 @@ Input variables don't need to be explicitly declared, and can be referenced
 within expressions as `vars.<NAME>`. You can set the variable in the CLI by
 passing `-var <NAME>=<VALUE>`.
 
-For example, to reprpose the job spec to target different environments (e.g.
+For example, to repurpose the job spec to target different environments (e.g.
 staging vs production), you can use `vars.environment` in the job spec, and pass
 `--var environment=production`.
 
@@ -72,7 +72,7 @@ passing `-hcl1`, for Nomad to use the HCL1 parser instead.
 
 ### Blocks
 
-Nomad 0.12 and earlier allowed few variations for defining blocks. For example, the following variations of `meta` were accepted:
+Nomad 0.12 and earlier allowed a few variations for defining blocks. For example, the following variations of `meta` were accepted:
 
 ```hcl
 meta {
@@ -85,7 +85,7 @@ meta {
 meta = { "team" = "...", organization = "..." }
 ```
 
-Starting with Nomad 1.0, only the block syntax with unquoted attributes is accepted:
+Starting with Nomad 1.0 and the HCL2 parser, only the block syntax with unquoted attributes is accepted:
 
 ```hcl
 meta {
