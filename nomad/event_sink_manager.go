@@ -167,7 +167,7 @@ START:
 			if err := m.updateSinkProgress(); err != nil {
 				m.logger.Warn("unable to update sink progress", "error", err)
 			}
-		case err := <-m.Ws().WatchCh(m.ctx):
+		case err := <-m.ws().WatchCh(m.ctx):
 			if err != nil {
 				if err == context.Canceled {
 					return nil
@@ -185,7 +185,8 @@ START:
 		case sinkErr := <-errCh:
 			if sinkErr.Error == ErrEventSinkDeregistered {
 				m.logger.Debug("sink deregistered, removing from manager", "sink", sinkErr.ID)
-				m.removeSink(sinkErr.ID)
+				// remove the sink from the manager
+				delete(m.sinkSubscriptions, sinkErr.ID)
 			} else {
 				// TODO should this be an error log, should we do anything to re-run it
 				m.logger.Warn("received error from managed event sink", "error", sinkErr.Error.Error())
@@ -222,15 +223,9 @@ func (m *SinkManager) updateSinkProgress() error {
 	return nil
 }
 
-// removeSink removes a sink from the manager's subscriptions.
-// removeSink should only be called from Run
-func (m *SinkManager) removeSink(id string) {
-	delete(m.sinkSubscriptions, id)
-}
-
 // refreshSinks checks for any new event sinks added to the state store. It
 // adds new sinks as new ManagedSinks. This method must be externally
-// synchronized in the SinkMangers main run loop
+// synchronized in the SinkManger.Run main loop
 func (m *SinkManager) refreshSinks() error {
 	state := m.delegate.State()
 	if state == nil {
@@ -262,15 +257,15 @@ func (m *SinkManager) refreshSinks() error {
 	return nil
 }
 
-// Ws returns the current newSinkWs used to listen for changes to the
-// event sink table in the state store. Ws() should only be called from Run
-func (m *SinkManager) Ws() memdb.WatchSet {
+// ws returns the current newSinkWs used to listen for changes to the
+// event sink table in the state store. ws() should only be called from Run
+func (m *SinkManager) ws() memdb.WatchSet {
 	return m.eventSinksWs
 }
 
 // ManagedSink maintains a subscription for a given EventSink. It is
 // responsible for resubscribing and consuming the subscription, writing events
-// to the Managedsink's SinkWriter
+// to the ManagedSink's sinkWriter
 type ManagedSink struct {
 	// stopCtx is the passed in ctx used to signal that the ManagedSink should
 	// stop running
