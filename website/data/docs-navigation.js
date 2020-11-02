@@ -180,6 +180,7 @@ export default [
   {
     category: 'job-specification',
     content: [
+      'hcl2',
       'artifact',
       'affinity',
       'check_restart',
