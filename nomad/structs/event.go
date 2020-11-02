@@ -3,6 +3,7 @@ package structs
 import (
 	"fmt"
 	"net/url"
+	"reflect"
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -157,4 +158,12 @@ func (e *EventSink) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// EqualSubscriptionValues specifies if this event has equivalent subscription
+// values to the one that we are comparing it to
+func (e *EventSink) EqualSubscriptionValues(old *EventSink) bool {
+	return e.Address == old.Address &&
+		e.Type == old.Type &&
+		reflect.DeepEqual(e.Topics, old.Topics)
 }

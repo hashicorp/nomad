@@ -371,7 +371,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
 	// Initialize the event sink manager the leader will use
-	s.eventSinkManager = NewSinkManager(s.shutdownCtx, &serverDelegate{s}, s.logger)
+	s.eventSinkManager = NewSinkManager(s.shutdownCtx, s, s.logger)
 
 	// Setup Consul (more)
 	s.setupConsul(consulConfigEntries, consulACLs)

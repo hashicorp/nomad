@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -50,7 +49,7 @@ type SinkManager struct {
 	// delegate is the interface needed to interact with State and RPCs
 	delegate SinkDelegate
 
-	L hclog.Logger
+	logger hclog.Logger
 }
 
 // SinkDelegate is the interface needed for the SinkManger to interfact with
@@ -62,10 +61,6 @@ type SinkDelegate interface {
 	RPC(method string, args interface{}, reply interface{}) error
 }
 
-type serverDelegate struct {
-	*Server
-}
-
 // NewSinkManager builds a new SinkManager. It also creates ManagedSinks for
 // all EventSinks in the state store
 func NewSinkManager(ctx context.Context, delegate SinkDelegate, l hclog.Logger) *SinkManager {
@@ -74,38 +69,38 @@ func NewSinkManager(ctx context.Context, delegate SinkDelegate, l hclog.Logger) 
 		delegate:           delegate,
 		updateSinkInterval: 30 * time.Second,
 		sinkSubscriptions:  make(map[string]*ManagedSink),
-		L:                  l.Named("sink_manager"),
+		logger:             l.Named("sinks"),
 	}
 
 	return m
 }
 
-// EstablishManagedSinks creates and sets ManagedSinks for the Manager
-func (m *SinkManager) EstablishManagedSinks() error {
+// establishManagedSinks creates and sets ManagedSinks for the Manager.
+// establishManagedSinks should only be called from the SinkManager's Run
+// loop.
+func (m *SinkManager) establishManagedSinks() error {
 	m.eventSinksWs = m.delegate.State().NewWatchSet()
-
 	iter, err := m.delegate.State().EventSinks(m.eventSinksWs)
 	if err != nil {
 		return err
 	}
 
-	var sinkIDs []string
 	for {
 		raw := iter.Next()
 		if raw == nil {
 			break
 		}
+
 		sink := raw.(*structs.EventSink)
-		sinkIDs = append(sinkIDs, sink.ID)
+		if _, ok := m.sinkSubscriptions[sink.ID]; !ok {
+			ms, err := NewManagedSink(m.ctx, sink.ID, m.delegate.State, m.logger)
+			if err != nil {
+				return fmt.Errorf("creating managed sink: %w", err)
+			}
+			m.sinkSubscriptions[sink.ID] = ms
+		}
 	}
 
-	for _, id := range sinkIDs {
-		mSink, err := NewManagedSink(m.ctx, id, m.delegate.State, m.L)
-		if err != nil {
-			return fmt.Errorf("creating managed sink: %w", err)
-		}
-		m.sinkSubscriptions[id] = mSink
-	}
 	return nil
 }
 
@@ -139,12 +134,19 @@ func (m *SinkManager) Run() error {
 	updateSinks := time.NewTicker(m.updateSinkInterval)
 	defer updateSinks.Stop()
 
+	// run is used to run a ManagedSink. When the Sink errors the error will be
+	// sent to the manager via errCh
 	run := func(id string, ms *ManagedSink) {
-		err := ms.Run()
+		err := ms.run()
+
 		select {
-		case <-m.ctx.Done():
+		case <-m.shutdownCh:
 		case errCh <- SinkError{ID: id, Error: err}:
 		}
+	}
+
+	if err := m.establishManagedSinks(); err != nil {
+		return err
 	}
 
 START:
@@ -158,19 +160,23 @@ START:
 	for {
 		select {
 		case <-m.ctx.Done():
-			return m.ctx.Err()
+			return nil
 		case <-m.shutdownCh:
 			return nil
 		case <-updateSinks.C:
 			if err := m.updateSinkProgress(); err != nil {
-				m.L.Warn("unable to update sink progress", "error", err)
+				m.logger.Warn("unable to update sink progress", "error", err)
 			}
-		case err := <-m.NewSinkWs().WatchCh(m.ctx):
+		case err := <-m.ws().WatchCh(m.ctx):
 			if err != nil {
+				if err == context.Canceled {
+					return nil
+				}
 				return err
 			}
+
 			// check for new sinks
-			err = m.refreshSinks()
+			err = m.establishManagedSinks()
 			if err != nil {
 				return err
 			}
@@ -178,28 +184,28 @@ START:
 
 		case sinkErr := <-errCh:
 			if sinkErr.Error == ErrEventSinkDeregistered {
-				m.L.Debug("sink deregistered, removing from manager", "sink", sinkErr.ID)
-				m.removeSink(sinkErr.ID)
+				m.logger.Debug("sink deregistered, removing from manager", "sink", sinkErr.ID)
+				// remove the sink from the manager
+				delete(m.sinkSubscriptions, sinkErr.ID)
 			} else {
-				m.L.Warn("received error from managed event sink", "error", sinkErr.Error.Error())
+				// TODO should this be an error log, should we do anything to re-run it
+				m.logger.Warn("received error from managed event sink", "error", sinkErr.Error.Error())
 			}
 		}
 	}
 
 }
 
-// updateSinkProgress sends an RPC to update the sinks with the latest progress
+// updateSinkProgress sends an RPC to update the sinks with the latest progress.
+// This should only be called from within the Manager's main Run loop.
 func (m *SinkManager) updateSinkProgress() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	var updates []*structs.EventSink
 	for _, ms := range m.sinkSubscriptions {
 		progress := ms.GetLastSuccess()
 		update := ms.Sink
 		update.LatestIndex = progress
 
-		updates = append(updates, &update)
+		updates = append(updates, update)
 	}
 
 	req := structs.EventSinkProgressRequest{
@@ -217,15 +223,9 @@ func (m *SinkManager) updateSinkProgress() error {
 	return nil
 }
 
-func (m *SinkManager) removeSink(id string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	delete(m.sinkSubscriptions, id)
-}
-
 // refreshSinks checks for any new event sinks added to the state store. It
-// adds new sinks as new ManagedSinks
+// adds new sinks as new ManagedSinks. This method must be externally
+// synchronized in the SinkManger.Run main loop
 func (m *SinkManager) refreshSinks() error {
 	state := m.delegate.State()
 	if state == nil {
@@ -238,8 +238,6 @@ func (m *SinkManager) refreshSinks() error {
 		return err
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -247,7 +245,7 @@ func (m *SinkManager) refreshSinks() error {
 		}
 		sink := raw.(*structs.EventSink)
 		if _, ok := m.sinkSubscriptions[sink.ID]; !ok {
-			ms, err := NewManagedSink(m.ctx, sink.ID, m.delegate.State, m.L)
+			ms, err := NewManagedSink(m.ctx, sink.ID, m.delegate.State, m.logger)
 			if err != nil {
 				return err
 			}
@@ -259,17 +257,15 @@ func (m *SinkManager) refreshSinks() error {
 	return nil
 }
 
-// NewSinkWs returns the current newSinkWs used to listen for changes to the
-// event sink table in the state store
-func (m *SinkManager) NewSinkWs() memdb.WatchSet {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+// ws returns the current newSinkWs used to listen for changes to the
+// event sink table in the state store. ws() should only be called from Run
+func (m *SinkManager) ws() memdb.WatchSet {
 	return m.eventSinksWs
 }
 
 // ManagedSink maintains a subscription for a given EventSink. It is
 // responsible for resubscribing and consuming the subscription, writing events
-// to the managedsink's SinkWriter
+// to the ManagedSink's sinkWriter
 type ManagedSink struct {
 	// stopCtx is the passed in ctx used to signal that the ManagedSink should
 	// stop running
@@ -278,35 +274,28 @@ type ManagedSink struct {
 	// Sink is a copy of the state store EventSink
 	// It must be a copy in order to be properly reloaded and notified via
 	// its watchCh
-	Sink structs.EventSink
+	Sink *structs.EventSink
 
 	// watchCh is used to watch for updates to the EventSink.
 	watchCh <-chan error
 
-	// doneReset is used to notify that the ManagedSink is done reloading
-	// itself from a subscription or state store change
-	doneReset chan struct{}
-
-	// Subscription is the event stream Subscription
-	Subscription *stream.Subscription
+	// subscription is the event stream subscription
+	subscription *stream.Subscription
 
 	// lastSuccess is the index of the last successfully sent index
 	lastSuccess uint64
 
-	// SinkWriter is an interface used to send events to their final destination
-	SinkWriter stream.SinkWriter
+	// sinkWriter is an interface used to send events to their final destination
+	sinkWriter stream.SinkWriter
 
 	// stateFn returns the current server's StateStore
 	stateFn func() *state.StateStore
 
-	// broker is the current server's event broker
-	broker *stream.EventBroker
-
 	// sinkCtx is used to signal that the sink needs to be reloaded
 	sinkCtx context.Context
 
-	// cancelFn cancels sinkCtx
-	cancelFn context.CancelFunc
+	// sinkCancelFn cancels sinkCtx
+	sinkCancelFn context.CancelFunc
 
 	// mu coordinates access to running
 	mu sync.Mutex
@@ -314,7 +303,7 @@ type ManagedSink struct {
 	// running specifies if the managed sink is running
 	running bool
 
-	l hclog.Logger
+	logger hclog.Logger
 }
 
 // NewManagedSink returns a new ManagedSink for a given sinkID. It queries the
@@ -332,7 +321,7 @@ func NewManagedSink(ctx context.Context, sinkID string, stateFn func() *state.St
 	ws := state.NewWatchSet()
 	sink, err := state.EventSinkByID(ws, sinkID)
 	if err != nil {
-		return nil, fmt.Errorf("getting sink %s: %w", sinkID, err)
+		return nil, fmt.Errorf("error getting sink %s: %w", sinkID, err)
 	}
 
 	// TODO(drew) generate writer based off type
@@ -340,42 +329,31 @@ func NewManagedSink(ctx context.Context, sinkID string, stateFn func() *state.St
 	if err != nil {
 		return nil, fmt.Errorf("generating sink writer for sink %w", err)
 	}
-	broker, err := state.EventBroker()
-	if err != nil {
-		return nil, err
-	}
 
 	sinkCtx, cancel := context.WithCancel(ctx)
 	ms := &ManagedSink{
-		stopCtx:    ctx,
-		Sink:       *sink,
-		watchCh:    ws.WatchCh(sinkCtx),
-		doneReset:  make(chan struct{}),
-		SinkWriter: writer,
-		broker:     broker,
-		cancelFn:   cancel,
-		sinkCtx:    sinkCtx,
-		stateFn:    stateFn,
-		l:          L.Named("managed_sink"),
+		stopCtx:      ctx,
+		Sink:         sink,
+		watchCh:      ws.WatchCh(sinkCtx),
+		sinkWriter:   writer,
+		sinkCancelFn: cancel,
+		sinkCtx:      sinkCtx,
+		stateFn:      stateFn,
+		logger:       L.Named("managed_sink"), // TODO allow sink to name itself
 	}
-
-	req := &stream.SubscribeRequest{
-		Topics: ms.Sink.Topics,
-		Index:  ms.Sink.LatestIndex,
-	}
-
-	sub, err := ms.broker.Subscribe(req)
-	if err != nil {
-		return nil, fmt.Errorf("unable to subscribe sink %w", err)
-	}
-	ms.Subscription = sub
 
 	return ms, nil
 }
 
-// Run runs until the ManagedSink returns an non reloadable error or until the
+func (m *ManagedSink) Unsubscribe() {
+	if m.subscription != nil {
+		m.subscription.Unsubscribe()
+	}
+}
+
+// run runs until the ManagedSink returns an non reloadable error or until the
 // parent ctx is stopped.
-func (m *ManagedSink) Run() error {
+func (m *ManagedSink) run() error {
 	m.mu.Lock()
 	if m.running {
 		return fmt.Errorf("managed sink already running")
@@ -389,7 +367,7 @@ func (m *ManagedSink) Run() error {
 		m.mu.Unlock()
 	}()
 
-	defer m.Subscription.Unsubscribe()
+	defer m.Unsubscribe()
 	exitCh := make(chan struct{})
 	defer close(exitCh)
 
@@ -402,148 +380,135 @@ func (m *ManagedSink) Run() error {
 				return
 			case <-m.stopCtx.Done():
 				return
-			case err := <-m.WatchCh():
+			case err := <-m.watch():
 				if err != nil {
 					return
 				}
 
-				// check if we should reload or just reset
-
-				reload := m.ResetWatchSet()
-
-				if !reload {
-					continue
-				}
-				// Cancel the subscription scoped context
-				m.cancelFn()
-
-				// wait until the reset was done
-				select {
-				case <-m.stopCtx.Done():
-					return
-				case <-m.doneReset:
-				case <-exitCh:
-				}
+				// WatchCh was triggered, reset the the WatchCh and potentially
+				// cancel the currentSinkCtx to reload changes
+				m.resetSink()
 			}
 		}
 	}()
 
-LOOP:
+START:
+	// Subscribe to event broker and establish SinkWriter
+	err := m.subscribe()
+	if err != nil {
+		return err
+	}
+
+	currentSinkCtx := m.sinkCtx
 	for {
-		events, err := m.Subscription.Next(m.sinkCtx)
+		events, err := m.subscription.Next(currentSinkCtx)
 		if err != nil {
 			// Shutting down, exit gracefully
 			if m.stopCtx.Err() != nil {
 				return m.stopCtx.Err()
 			}
 
-			// Reloadable error, reload and restart
-			if err == stream.ErrSubscriptionClosed || err == context.Canceled {
-				if err := m.Reload(); err != nil {
-					return err
-				}
-				goto LOOP
-			}
-			return err
+			m.logger.Debug("received error from managed sink subscription, reloading sink", "error", err)
+			goto START
 		}
 
-		err = m.SinkWriter.Send(m.sinkCtx, &events)
+		// Send the events to the writer with stopCtx to cancel if manager is
+		// shutting down
+		err = m.sinkWriter.Send(m.stopCtx, &events)
 		if err != nil {
 			if strings.Contains(err.Error(), context.Canceled.Error()) {
+				// if the context is canceled continue and let the subscription
+				// error checking handle if we should reload or exit
 				continue
 			}
-			m.l.Warn("Failed to send event to sink", "sink", m.Sink.ID, "error", err)
+			m.logger.Warn("Failed to send event to sink", "sink", m.Sink.ID, "error", err)
 			continue
+		} else {
+			// Update the last successful index sent
+			atomic.StoreUint64(&m.lastSuccess, events.Index)
 		}
-		// Update the last successful index sent
-		atomic.StoreUint64(&m.lastSuccess, events.Index)
 	}
 }
 
-// ResetWatchSet resets the managed sinks watchCh after a change has been made
+// resetSink resets the managed sinks watchCh after a change has been made
 // to the event sink. It returns whether or not the subscription and sink
 // should be reloaded.
-func (m *ManagedSink) ResetWatchSet() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *ManagedSink) resetSink() {
+	currentSubCancel := m.sinkCancelFn
 
+	// Fetch the Event Sink
 	ws := m.stateFn().NewWatchSet()
 	sink, err := m.stateFn().EventSinkByID(ws, m.Sink.ID)
 	if err != nil {
-		return true
+		// Log the error, continue to set the sink to nil
+		m.logger.Error("error querying for latest event sink", "sink", m.Sink.ID, "error", err)
 	}
 
-	if sink == nil {
-		return true
+	// Set our Sink to the new one with the corresponding watchCh
+	oldSink := m.Sink
+	m.Sink = sink
+	m.watchCh = ws.WatchCh(m.stopCtx)
+
+	// If the sink has been deregistered or if the sink has changed in a meaningful
+	// way cancel the current subscription.
+	if m.Sink == nil || !m.Sink.EqualSubscriptionValues(oldSink) {
+		// Cancel the existing sinkCtx since we need to reload the subscription
+		// and sink writer
+		currentSubCancel()
+
+		// Set the new sinkCtx and cancelFn
+		sinkCtx, cancel := context.WithCancel(m.stopCtx)
+		m.sinkCtx = sinkCtx
+		m.sinkCancelFn = cancel
 	}
 
-	// Update the watchCh
-	m.watchCh = ws.WatchCh(m.sinkCtx)
-
-	current := m.Sink
-
-	// Only reload if something that affects the sink destination
-	// or subscription
-	if current.Address != sink.Address ||
-		current.Type != sink.Type ||
-		!reflect.DeepEqual(current.Topics, sink.Topics) {
-		return true
-	}
-
-	return false
 }
 
-// Reload reloads and resets a ManagedSink.
-func (m *ManagedSink) Reload() error {
-	// Exit if shutting down
-	if err := m.stopCtx.Err(); err != nil {
-		return err
-	}
-
-	// Unsubscribe incase we haven't yet
-	m.Subscription.Unsubscribe()
-
-	// Fetch our updated or changed event sink with a new watchset
-	ws := memdb.NewWatchSet()
-	ws.Add(m.stateFn().AbandonCh())
-	sink, err := m.stateFn().EventSinkByID(ws, m.Sink.ID)
-	if err != nil {
-		return err
-	}
-
+// subscribe starts a new subscription to send to the SinkWriter
+func (m *ManagedSink) subscribe() error {
 	// Sink has been deleted, stop
-	if sink == nil {
+	if m.Sink == nil {
 		return ErrEventSinkDeregistered
 	}
 
-	// Reconfigure the sink writer
-	writer, err := stream.NewWebhookSink(sink)
+	// Unsubscribe from the current subscription if there is one
+	if m.subscription != nil {
+		m.subscription.Unsubscribe()
+	}
+
+	// Generate the sink writer
+	writer, err := stream.NewWebhookSink(m.Sink)
 	if err != nil {
 		return fmt.Errorf("generating sink writer for sink %w", err)
 	}
+	m.sinkWriter = writer
 
-	// Reset values we are updating
-	sinkCtx, cancel := context.WithCancel(m.stopCtx)
-	m.sinkCtx = sinkCtx
-	m.cancelFn = cancel
-	m.SinkWriter = writer
-	m.Sink = *sink
-	m.watchCh = ws.WatchCh(sinkCtx)
+	// Set the starting index for the new subscription. The locally tracked
+	// Index may be ahead of the one periodically sent to raft, use whichever
+	// is greater to reduce duplicates
+	startIndex := m.Sink.LatestIndex
+	localIndex := atomic.LoadUint64(&m.lastSuccess)
+	if localIndex > startIndex {
+		startIndex = localIndex
+	}
 
 	// Resubscribe
 	req := &stream.SubscribeRequest{
 		Topics: m.Sink.Topics,
-		Index:  atomic.LoadUint64(&m.lastSuccess),
+		Index:  startIndex,
 	}
 
-	sub, err := m.broker.Subscribe(req)
+	broker, err := m.stateFn().EventBroker()
+	if err != nil {
+		return fmt.Errorf("event broker error %w", err)
+	}
+
+	sub, err := broker.Subscribe(req)
 	if err != nil {
 		return fmt.Errorf("unable to subscribe sink %w", err)
 	}
-	m.Subscription = sub
+	m.subscription = sub
 
-	// signal we are done reloading
-	m.doneReset <- struct{}{}
 	return nil
 }
 
@@ -554,7 +519,7 @@ func (m *ManagedSink) Running() bool {
 	return m.running
 }
 
-func (m *ManagedSink) WatchCh() <-chan error {
+func (m *ManagedSink) watch() <-chan error {
 	return m.watchCh
 }
 

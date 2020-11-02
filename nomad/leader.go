@@ -998,16 +998,11 @@ func (s *Server) publishEventsForSinks() {
 		s.logger.Debug("event broker disabled, event sink manager will not run")
 		return
 	}
-	if err := s.eventSinkManager.EstablishManagedSinks(); err != nil {
-		s.logger.Error("unable to establish event sink manager", "error", err)
-		return
-	}
 
 	// Start the manager
 	if err := s.eventSinkManager.Run(); err != nil {
 		s.logger.Warn("event sink manager stopped", "error", err)
 	}
-
 }
 
 func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {

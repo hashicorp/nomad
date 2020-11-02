@@ -85,7 +85,7 @@ func (b *eventBuffer) appendItem(item *bufferItem) {
 	b.tail.Store(item)
 
 	// Increment the buffer size
-	atomic.AddInt64(b.size, int64(len(item.Events.Events)))
+	atomic.AddInt64(b.size, 1)
 
 	// Advance Head until we are under allowable size
 	for atomic.LoadInt64(b.size) > b.maxSize {
@@ -93,8 +93,7 @@ func (b *eventBuffer) appendItem(item *bufferItem) {
 	}
 
 	// notify waiters next event is available
-	close(oldTail.link.ch)
-
+	close(oldTail.link.nextCh)
 }
 
 func newSentinelItem() *bufferItem {
@@ -126,9 +125,13 @@ func (b *eventBuffer) advanceHead() {
 		b.tail.Store(next)
 	}
 
-	// update the amount of events we have in the buffer
-	rmCount := len(old.Events.Events)
-	atomic.AddInt64(b.size, -int64(rmCount))
+	// In the case of there being a sentinel item or advanceHead being called
+	// on a sentinel item, only decrement if there are more than sentinel
+	// values
+	if atomic.LoadInt64(b.size) > 0 {
+		// update the amount of events we have in the buffer
+		atomic.AddInt64(b.size, -1)
+	}
 }
 
 // Head returns the current head of the buffer. It will always exist but it may
@@ -222,11 +225,11 @@ type bufferLink struct {
 	// ch is closed.
 	next atomic.Value
 
-	// ch is closed when the next event is published. It should never be mutated
+	// nextCh is closed when the next event is published. It should never be mutated
 	// (e.g. set to nil) as that is racey, but is closed once when the next event
 	// is published. the next pointer will have been set by the time this is
 	// closed.
-	ch chan struct{}
+	nextCh chan struct{}
 
 	// droppedCh is closed when the event is dropped from the buffer due to
 	// sizing constraints.
@@ -238,7 +241,7 @@ type bufferLink struct {
 func newBufferItem(events *structs.Events) *bufferItem {
 	return &bufferItem{
 		link: &bufferLink{
-			ch:        make(chan struct{}),
+			nextCh:    make(chan struct{}),
 			droppedCh: make(chan struct{}),
 		},
 		Events:    events,
@@ -256,7 +259,7 @@ func (i *bufferItem) Next(ctx context.Context, forceClose <-chan struct{}) (*buf
 		return nil, ctx.Err()
 	case <-forceClose:
 		return nil, fmt.Errorf("subscription closed")
-	case <-i.link.ch:
+	case <-i.link.nextCh:
 	}
 
 	// Check if the reader is too slow and the event buffer as discarded the event

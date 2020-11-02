@@ -22,13 +22,13 @@ type EventBrokerCfg struct {
 }
 
 type EventBroker struct {
-	// mu protects the eventbuffer and subscriptions
+	// mu protects subscriptions
 	mu sync.Mutex
+
+	subscriptions *subscriptions
 
 	// eventBuf stores a configurable amount of events in memory
 	eventBuf *eventBuffer
-
-	subscriptions *subscriptions
 
 	// publishCh is used to send messages from an active txn to a goroutine which
 	// publishes events, so that publishing can happen asynchronously from
@@ -69,8 +69,6 @@ func NewEventBroker(ctx context.Context, cfg EventBrokerCfg) *EventBroker {
 
 // Returns the current length of the event buffer
 func (e *EventBroker) Len() int {
-	e.mu.Lock()
-	defer e.mu.Unlock()
 	return e.eventBuf.Len()
 }
 
@@ -114,7 +112,7 @@ func (e *EventBroker) Subscribe(req *SubscribeRequest) (*Subscription, error) {
 	// Empty head so that calling Next on sub
 	start := newBufferItem(&structs.Events{Index: req.Index})
 	start.link.next.Store(head)
-	close(start.link.ch)
+	close(start.link.nextCh)
 
 	sub := newSubscription(req, start, e.subscriptions.unsubscribeFn(req))
 
@@ -134,17 +132,9 @@ func (e *EventBroker) handleUpdates(ctx context.Context) {
 			e.subscriptions.closeAll()
 			return
 		case update := <-e.publishCh:
-			e.sendEvents(update)
+			e.eventBuf.Append(update)
 		}
 	}
-}
-
-// sendEvents sends the given events to the publishers event buffer.
-func (e *EventBroker) sendEvents(update *structs.Events) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.eventBuf.Append(update)
 }
 
 type subscriptions struct {

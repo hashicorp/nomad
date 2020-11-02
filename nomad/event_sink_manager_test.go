@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var _ SinkDelegate = &serverDelegate{}
+var _ SinkDelegate = &Server{}
 
 type testDelegate struct{ s *state.StateStore }
 
@@ -69,7 +69,7 @@ func TestManager_Run(t *testing.T) {
 
 	// Create the manager
 	manager := NewSinkManager(ctx, td, hclog.Default())
-	require.NoError(t, manager.EstablishManagedSinks())
+	require.NoError(t, manager.establishManagedSinks())
 
 	require.Len(t, manager.sinkSubscriptions, 2)
 
@@ -97,8 +97,7 @@ func TestManager_Run(t *testing.T) {
 
 	select {
 	case err := <-runErr:
-		require.Error(t, err)
-		require.Equal(t, context.Canceled, err)
+		require.NoError(t, err)
 	case <-time.After(2 * time.Second):
 		require.Fail(t, "timeout waiting for manager to stop")
 	}
@@ -134,7 +133,7 @@ func TestManager_SinkErr(t *testing.T) {
 	defer cancel()
 
 	manager := NewSinkManager(ctx, td, hclog.Default())
-	require.NoError(t, manager.EstablishManagedSinks())
+	require.NoError(t, manager.establishManagedSinks())
 
 	require.Len(t, manager.sinkSubscriptions, 2)
 
@@ -172,8 +171,7 @@ func TestManager_SinkErr(t *testing.T) {
 	cancel()
 	select {
 	case err := <-runErr:
-		require.Error(t, err)
-		require.Equal(t, context.Canceled, err)
+		require.NoError(t, err)
 	case <-time.After(2 * time.Second):
 		require.Fail(t, "timeout waiting for manager to stop")
 	}
@@ -222,7 +220,7 @@ func TestManager_Run_AddNew(t *testing.T) {
 	defer cancel()
 
 	manager := NewSinkManager(ctx, td, hclog.Default())
-	require.NoError(t, manager.EstablishManagedSinks())
+	require.NoError(t, manager.establishManagedSinks())
 
 	require.Len(t, manager.sinkSubscriptions, 1)
 
@@ -261,8 +259,7 @@ func TestManager_Run_AddNew(t *testing.T) {
 
 	select {
 	case err := <-runErr:
-		require.Error(t, err)
-		require.Equal(t, context.Canceled, err)
+		require.NoError(t, err)
 	case <-time.After(2 * time.Second):
 		require.Fail(t, "timeout waiting for manager to stop")
 	}
@@ -304,7 +301,7 @@ func TestManagedSink_Run_Webhook(t *testing.T) {
 
 	// Run in background
 	go func() {
-		mSink.Run()
+		mSink.run()
 	}()
 
 	// Publish an event
@@ -372,7 +369,7 @@ func TestManagedSink_Run_Webhook_Update(t *testing.T) {
 
 	errCh := make(chan error)
 	go func() {
-		err := mSink.Run()
+		err := mSink.run()
 		errCh <- err
 	}()
 
@@ -399,12 +396,15 @@ func TestManagedSink_Run_Webhook_Update(t *testing.T) {
 	})
 
 	// Update sink to point to new address
-	s1.Address = ts2.URL
-	require.NoError(t, td.State().UpsertEventSink(1001, s1))
+	updateSink := mock.EventSink()
+	updateSink.ID = s1.ID
+	updateSink.Address = ts2.URL
+
+	require.NoError(t, td.State().UpsertEventSink(1001, updateSink))
 
 	// Wait for the address to propogate
 	testutil.WaitForResult(func() (bool, error) {
-		return mSink.Sink.Address == s1.Address, fmt.Errorf("expected managed sink address to update")
+		return mSink.Sink.Address == updateSink.Address, fmt.Errorf("expected managed sink address to update")
 	}, func(err error) {
 		require.Fail(t, err.Error())
 	})
@@ -432,8 +432,10 @@ func TestManagedSink_Run_Webhook_Update(t *testing.T) {
 	})
 
 	// Point back to original
-	s1.Address = ts1.URL
-	require.NoError(t, td.State().UpsertEventSink(1002, s1))
+	updateSink = mock.EventSink()
+	updateSink.ID = s1.ID
+	updateSink.Address = ts1.URL
+	require.NoError(t, td.State().UpsertEventSink(1002, updateSink))
 
 	// Wait for the address to propogate
 	testutil.WaitForResult(func() (bool, error) {
@@ -483,7 +485,7 @@ func TestManagedSink_Shutdown(t *testing.T) {
 	// Run in background
 	closed := make(chan struct{})
 	go func() {
-		err := mSink.Run()
+		err := mSink.run()
 		require.Error(t, err)
 		require.Equal(t, context.Canceled, err)
 		close(closed)
@@ -521,7 +523,7 @@ func TestManagedSink_DeregisterSink(t *testing.T) {
 	// Run in background
 	closed := make(chan struct{})
 	go func() {
-		err := mSink.Run()
+		err := mSink.run()
 		close(closed)
 		require.Error(t, err)
 		require.Equal(t, ErrEventSinkDeregistered, err)
