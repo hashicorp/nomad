@@ -164,5 +164,5 @@ func (c *JobRevertCommand) Run(args []string) int {
 	}
 
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }

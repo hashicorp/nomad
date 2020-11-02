@@ -150,7 +150,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 
 	// Create and monitor the evaluation.
 	mon := newMonitor(j.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }
 
 // performGroupCheck performs logic to ensure the user specified the correct

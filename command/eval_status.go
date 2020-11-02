@@ -175,7 +175,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	// If we are in monitor mode, monitor and exit
 	if monitor {
 		mon := newMonitor(c.Ui, client, length)
-		return mon.monitor(evals[0].ID, true)
+		return mon.monitor(evals[0].ID)
 	}
 
 	// Prefix lookup matched a single evaluation

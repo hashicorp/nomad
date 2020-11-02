@@ -314,7 +314,7 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	// Detach was not specified, so start monitoring
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(evalID, false)
+	return mon.monitor(evalID)
 
 }
 
