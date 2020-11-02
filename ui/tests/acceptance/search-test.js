@@ -20,7 +20,7 @@ module('Acceptance | search', function(hooks) {
 
   test('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
-    const otherNode = server.create('node', { name: 'aaa' });
+    const otherNode = server.create('node', { name: 'ghi' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
     server.create('job', { id: 'xyz', name: 'xyz job', namespace: 'default' });
