@@ -89,8 +89,14 @@ export default class TopoVizNode extends Component {
   }
 
   @action
-  highlightAllocation(allocation) {
+  highlightAllocation(allocation, { target }) {
     this.activeAllocation = allocation;
+    this.args.onAllocationFocus && this.args.onAllocationFocus(allocation, target);
+  }
+
+  @action
+  allocationBlur() {
+    this.args.onAllocationBlur && this.args.onAllocationBlur();
   }
 
   @action

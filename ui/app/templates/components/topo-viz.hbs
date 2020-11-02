@@ -14,8 +14,35 @@
         @isDense={{this.isDense}}
         @heightScale={{this.topology.heightScale}}
         @onAllocationSelect={{this.associateAllocations}}
+        @onAllocationFocus={{this.showTooltip}}
+        @onAllocationBlur={{this.hideTooltip}}
         @onNodeSelect={{this.showNodeDetails}} />
   </FlexMasonry>
+
+  <div class="chart-tooltip is-absolute {{if this.highlightAllocation "active" "inactive"}}" style={{this.tooltipStyle}}>
+    {{#let this.highlightAllocation as |allocation|}}
+      <ol class="is-static">
+        <li>
+          <span class="label">Job</span>
+          <span class="value">{{allocation.allocation.job.name}}/{{allocation.allocation.taskGroupName}}</span>
+        </li>
+        {{#if this.system.shouldShowNamespaces}}
+          <li>
+            <span class="label">Namespace</span>
+            <span class="value">{{allocation.allocation.job.namespace.name}}</span>
+          </li>
+        {{/if}}
+        <li>
+          <span class="label">Memory</span>
+          <span class="value">{{allocation.memory}} MiB</span>
+        </li>
+        <li>
+          <span class="label">CPU</span>
+          <span class="value">{{allocation.cpu}} MHz</span>
+        </li>
+      </ol>
+    {{/let}}
+  </div>
 
   {{#if this.activeAllocation}}
     <svg data-test-allocation-associations class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>

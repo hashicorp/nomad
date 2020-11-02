@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import sinon from 'sinon';
 import faker from 'nomad-ui/mirage/faker';
 import topoVizPageObject from 'nomad-ui/tests/pages/components/topo-viz';
@@ -31,6 +32,7 @@ const node = (datacenter, id, memory, cpu) => ({
 
 module('Integration | Component | TopoViz', function(hooks) {
   setupRenderingTest(hooks);
+  setupMirage(hooks);
 
   const commonTemplate = hbs`
     <TopoViz
