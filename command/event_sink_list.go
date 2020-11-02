@@ -13,7 +13,6 @@ type EventSinkListCommand struct {
 }
 
 func (c *EventSinkListCommand) Help() string {
-	// TODO drew how do we specify the ID of a value we are retrieving
 	helpText := `
 Usage: nomad event sink list
 
