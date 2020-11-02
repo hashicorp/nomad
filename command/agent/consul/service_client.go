@@ -1476,7 +1476,7 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		mapping, ok := ports.Get(portLabel)
 		if !ok {
 			ip, port := networks.Port(portLabel)
-			if ip != "" && port > 0 {
+			if port > 0 {
 				return ip, port, nil
 			}
 
@@ -1493,6 +1493,7 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 			}
 
 			// A number was given which will use the Consul agent's address and the given port
+			// Returning a blank string as an address will use the Consul agent's address
 			return "", port, nil
 		}
 		return mapping.HostIP, mapping.Value, nil
