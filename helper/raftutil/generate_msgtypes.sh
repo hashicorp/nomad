@@ -13,13 +13,16 @@ var msgTypeNames = map[structs.MessageType]string{
 EOF
 
     cat ../../nomad/structs/structs.go \
-        | grep -A500 'MessageType = iota' \
-        | grep -v -e '//' \
+        | grep -A500 'MessageType = 0' \
+        | grep -v -e '//'              \
+        | grep -v -e '^$'              \
         | awk '/^\)$/ { exit; } /.*/ { printf "  structs.%s: \"%s\",\n", $1, $1}'
 
     echo '}'
 }
 
+echo "==> Generating type map..."
 generate_file > msgtypes.go
 
+echo "==> Formatting type map..."
 gofmt -w msgtypes.go

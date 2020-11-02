@@ -49,7 +49,7 @@ export default class Allocation extends Model {
 
   @computed('clientStatus')
   get isScheduled() {
-    return ['pending', 'running', 'failed'].includes(this.clientStatus);
+    return ['pending', 'running'].includes(this.clientStatus);
   }
 
   // An allocation model created from any allocation list response will be lacking

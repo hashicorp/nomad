@@ -50,11 +50,11 @@ data "template_file" "provision_script" {
 }
 
 data "template_file" "arg_nomad_sha" {
-  template = var.nomad_sha != "" ? " ${local._arg}nomad_sha ${var.nomad_sha}" : ""
+  template = var.nomad_sha != "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_sha ${var.nomad_sha}" : ""
 }
 
 data "template_file" "arg_nomad_version" {
-  template = var.nomad_version != "" ? " ${local._arg}nomad_version ${var.nomad_version}" : ""
+  template = var.nomad_version != "" && var.nomad_sha == "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_version ${var.nomad_version}" : ""
 }
 
 data "template_file" "arg_nomad_binary" {

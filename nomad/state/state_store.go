@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -104,12 +105,21 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
 	}
 
-	// Initialize the state store with required enterprise objects
-	if err := s.enterpriseInit(); err != nil {
+	// Initialize the state store with the default namespace.
+	if err := s.namespaceInit(); err != nil {
 		return nil, fmt.Errorf("enterprise state store initialization failed: %v", err)
 	}
 
 	return s, nil
+}
+
+// NewWatchSet returns a new memdb.WatchSet that adds the state stores abandonCh
+// as a watcher. This is important in that it will notify when this specific
+// state store is no longer valid, usually due to a new snapshot being loaded
+func (s *StateStore) NewWatchSet() memdb.WatchSet {
+	ws := memdb.NewWatchSet()
+	ws.Add(s.AbandonCh())
+	return ws
 }
 
 func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
@@ -117,6 +127,25 @@ func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
 		return nil, fmt.Errorf("EventBroker not configured")
 	}
 	return s.db.publisher, nil
+}
+
+// namespaceInit ensures the default namespace exists.
+func (s *StateStore) namespaceInit() error {
+	// Create the default namespace. This is safe to do every time we create the
+	// state store. There are two main cases, a brand new cluster in which case
+	// each server will have the same default namespace object, or a new cluster
+	// in which case if the default namespace has been modified, it will be
+	// overridden by the restore code path.
+	defaultNs := &structs.Namespace{
+		Name:        structs.DefaultNamespace,
+		Description: structs.DefaultNamespaceDescription,
+	}
+
+	if err := s.UpsertNamespaces(1, []*structs.Namespace{defaultNs}); err != nil {
+		return fmt.Errorf("inserting default namespace failed: %v", err)
+	}
+
+	return nil
 }
 
 // Config returns the state store configuration.
@@ -1499,6 +1528,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to update job scaling policies: %v", err)
 	}
 
+	if err := s.updateJobRecommendations(index, txn, existingJob, job); err != nil {
+		return fmt.Errorf("unable to update job recommendations: %v", err)
+	}
+
 	if err := s.updateJobCSIPlugins(index, job, existingJob, txn); err != nil {
 		return fmt.Errorf("unable to update job scaling policies: %v", err)
 	}
@@ -1614,6 +1647,11 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	// Delete any remaining job scaling policies
 	if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
+	}
+
+	// Delete any job recommendations
+	if err := s.deleteRecommendationsByJob(index, txn, job); err != nil {
+		return fmt.Errorf("deleting job recommendatons failed: %v", err)
 	}
 
 	// Delete the scaling events
@@ -4539,17 +4577,10 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 
 	ws := memdb.NewWatchSet()
 
-	if job.Stop {
-		if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
-			return fmt.Errorf("deleting job scaling policies failed: %v", err)
-		}
-		return nil
-	}
-
 	scalingPolicies := job.GetScalingPolicies()
-	newTargets := map[string]struct{}{}
+	newTargets := map[string]bool{}
 	for _, p := range scalingPolicies {
-		newTargets[p.Target[structs.ScalingTargetGroup]] = struct{}{}
+		newTargets[p.JobKey()] = true
 	}
 	// find existing policies that need to be deleted
 	deletedPolicies := []string{}
@@ -4557,13 +4588,9 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 	if err != nil {
 		return fmt.Errorf("ScalingPoliciesByJob lookup failed: %v", err)
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		oldPolicy := raw.(*structs.ScalingPolicy)
-		if _, ok := newTargets[oldPolicy.Target[structs.ScalingTargetGroup]]; !ok {
+		if !newTargets[oldPolicy.JobKey()] {
 			deletedPolicies = append(deletedPolicies, oldPolicy.ID)
 		}
 	}
@@ -5432,12 +5459,11 @@ func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*s
 			}
 			policy.ID = existing.ID
 			policy.CreateIndex = existing.CreateIndex
-			policy.ModifyIndex = index
 		} else {
 			// policy.ID must have been set already in Job.Register before log apply
 			policy.CreateIndex = index
-			policy.ModifyIndex = index
 		}
+		policy.ModifyIndex = index
 
 		// Insert the scaling policy
 		hadUpdates = true
@@ -5446,13 +5472,213 @@ func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*s
 		}
 	}
 
-	// Update the indexes table for scaling policy
+	// Update the indexes table for scaling policy if we updated any policies
 	if hadUpdates {
 		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
 	}
 
+	return nil
+}
+
+// NamespaceByName is used to lookup a namespace by name
+func (s *StateStore) NamespaceByName(ws memdb.WatchSet, name string) (*structs.Namespace, error) {
+	txn := s.db.ReadTxn()
+	return s.namespaceByNameImpl(ws, txn, name)
+}
+
+// namespaceByNameImpl is used to lookup a namespace by name
+func (s *StateStore) namespaceByNameImpl(ws memdb.WatchSet, txn *txn, name string) (*structs.Namespace, error) {
+	watchCh, existing, err := txn.FirstWatch(TableNamespaces, "id", name)
+	if err != nil {
+		return nil, fmt.Errorf("namespace lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.Namespace), nil
+	}
+	return nil, nil
+}
+
+// namespaceExists returns whether a namespace exists
+func (s *StateStore) namespaceExists(txn *txn, namespace string) (bool, error) {
+	if namespace == structs.DefaultNamespace {
+		return true, nil
+	}
+
+	existing, err := txn.First(TableNamespaces, "id", namespace)
+	if err != nil {
+		return false, fmt.Errorf("namespace lookup failed: %v", err)
+	}
+
+	return existing != nil, nil
+}
+
+// NamespacesByNamePrefix is used to lookup namespaces by prefix
+func (s *StateStore) NamespacesByNamePrefix(ws memdb.WatchSet, namePrefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableNamespaces, "id_prefix", namePrefix)
+	if err != nil {
+		return nil, fmt.Errorf("namespaces lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// Namespaces returns an iterator over all the namespaces
+func (s *StateStore) Namespaces(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire namespace table
+	iter, err := txn.Get(TableNamespaces, "id")
+	if err != nil {
+		return nil, err
+	}
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
+func (s *StateStore) NamespaceNames() ([]string, error) {
+	it, err := s.Namespaces(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	nses := []string{}
+	for {
+		next := it.Next()
+		if next == nil {
+			break
+		}
+		ns := next.(*structs.Namespace)
+		nses = append(nses, ns.Name)
+	}
+
+	return nses, nil
+}
+
+// UpsertNamespace is used to register or update a set of namespaces
+func (s *StateStore) UpsertNamespaces(index uint64, namespaces []*structs.Namespace) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	for _, ns := range namespaces {
+		if err := s.upsertNamespaceImpl(index, txn, ns); err != nil {
+			return err
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{TableNamespaces, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
+	return nil
+}
+
+// upsertNamespaceImpl is used to upsert a namespace
+func (s *StateStore) upsertNamespaceImpl(index uint64, txn *txn, namespace *structs.Namespace) error {
+	// Ensure the namespace hash is non-nil. This should be done outside the state store
+	// for performance reasons, but we check here for defense in depth.
+	ns := namespace
+	if len(ns.Hash) == 0 {
+		ns.SetHash()
+	}
+
+	// Check if the namespace already exists
+	existing, err := txn.First(TableNamespaces, "id", ns.Name)
+	if err != nil {
+		return fmt.Errorf("namespace lookup failed: %v", err)
+	}
+
+	// Setup the indexes correctly and determine which quotas need to be
+	// reconciled
+	var oldQuota string
+	if existing != nil {
+		exist := existing.(*structs.Namespace)
+		ns.CreateIndex = exist.CreateIndex
+		ns.ModifyIndex = index
+
+		// Grab the old quota on the namespace
+		oldQuota = exist.Quota
+	} else {
+		ns.CreateIndex = index
+		ns.ModifyIndex = index
+	}
+
+	// Validate that the quota on the new namespace exists
+	if ns.Quota != "" {
+		exists, err := s.quotaSpecExists(txn, ns.Quota)
+		if err != nil {
+			return fmt.Errorf("looking up namespace quota %q failed: %v", ns.Quota, err)
+		} else if !exists {
+			return fmt.Errorf("namespace %q using non-existent quota %q", ns.Name, ns.Quota)
+		}
+	}
+
+	// Insert the namespace
+	if err := txn.Insert(TableNamespaces, ns); err != nil {
+		return fmt.Errorf("namespace insert failed: %v", err)
+	}
+
+	// Reconcile changed quotas
+	return s.quotaReconcile(index, txn, ns.Quota, oldQuota)
+}
+
+// DeleteNamespaces is used to remove a set of namespaces
+func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	for _, name := range names {
+		// Lookup the namespace
+		existing, err := txn.First(TableNamespaces, "id", name)
+		if err != nil {
+			return fmt.Errorf("namespace lookup failed: %v", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("namespace not found")
+		}
+
+		ns := existing.(*structs.Namespace)
+		if ns.Name == structs.DefaultNamespace {
+			return fmt.Errorf("default namespace can not be deleted")
+		}
+
+		// Ensure that the namespace doesn't have any non-terminal jobs
+		iter, err := s.jobsByNamespaceImpl(nil, name, txn)
+		if err != nil {
+			return err
+		}
+
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			job := raw.(*structs.Job)
+
+			if job.Status != structs.JobStatusDead {
+				return fmt.Errorf("namespace %q contains at least one non-terminal job %q. "+
+					"All jobs must be terminal in namespace before it can be deleted", name, job.ID)
+			}
+		}
+
+		// Delete the namespace
+		if err := txn.Delete(TableNamespaces, existing); err != nil {
+			return fmt.Errorf("namespace deletion failed: %v", err)
+		}
+	}
+
+	if err := txn.Insert("index", &IndexEntry{TableNamespaces, index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	txn.Commit()
 	return nil
 }
 
@@ -5512,19 +5738,6 @@ func (s *StateStore) ScalingPolicies(ws memdb.WatchSet) (memdb.ResultIterator, e
 	return iter, nil
 }
 
-// ScalingPoliciesByType returns an iterator over scaling policies of a certain type.
-func (s *StateStore) ScalingPoliciesByType(ws memdb.WatchSet, t string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get("scaling_policy", "type", t)
-	if err != nil {
-		return nil, err
-	}
-
-	ws.Add(iter.WatchCh())
-	return iter, nil
-}
-
 // ScalingPoliciesByTypePrefix returns an iterator over scaling policies with a certain type prefix.
 func (s *StateStore) ScalingPoliciesByTypePrefix(ws memdb.WatchSet, t string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
@@ -5538,7 +5751,7 @@ func (s *StateStore) ScalingPoliciesByTypePrefix(ws memdb.WatchSet, t string) (m
 	return iter, nil
 }
 
-func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace, typ string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("scaling_policy", "target_prefix", namespace)
@@ -5547,18 +5760,22 @@ func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace str
 	}
 
 	ws.Add(iter.WatchCh())
-	filter := func(raw interface{}) bool {
-		d, ok := raw.(*structs.ScalingPolicy)
-		if !ok {
-			return true
-		}
 
-		return d.Target[structs.ScalingTargetNamespace] != namespace
+	// Wrap the iterator in a filter to exact match the namespace
+	iter = memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
+
+	// If policy type is specified as well, wrap again
+	if typ != "" {
+		iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+			p, ok := raw.(*structs.ScalingPolicy)
+			if !ok {
+				return true
+			}
+			return !strings.HasPrefix(p.Type, typ)
+		})
 	}
 
-	// Wrap the iterator in a filter
-	wrap := memdb.NewFilterIterator(iter, filter)
-	return wrap, nil
+	return iter, nil
 }
 
 func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID string) (memdb.ResultIterator, error) {
@@ -5606,6 +5823,8 @@ func (s *StateStore) ScalingPolicyByID(ws memdb.WatchSet, id string) (*structs.S
 	return nil, nil
 }
 
+// ScalingPolicyByTargetAndType returns a fully-qualified policy against a target and policy type,
+// or nil if it does not exist. This method does not honor the watchset on the policy type, just the target.
 func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[string]string, typ string) (*structs.ScalingPolicy,
 	error) {
 	txn := s.db.ReadTxn()
@@ -5619,6 +5838,7 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	if err != nil {
 		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
 	}
+
 	ws.Add(it.WatchCh())
 
 	// Check for type
@@ -5636,6 +5856,137 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	}
 
 	return nil, nil
+}
+
+func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace string, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("scaling_policy", "id_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("scaling policy lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+
+	iter = memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
+
+	return iter, nil
+}
+
+// scalingPolicyNamespaceFilter returns a filter function that filters all
+// scaling policies not targeting the given namespace.
+func scalingPolicyNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		p, ok := raw.(*structs.ScalingPolicy)
+		if !ok {
+			return true
+		}
+
+		return p.Target[structs.ScalingTargetNamespace] != namespace
+	}
+}
+
+func (s *StateStore) EventSinks(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	// Walk the entire event sink table
+	iter, err := txn.Get("event_sink", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+func (s *StateStore) EventSinkByID(ws memdb.WatchSet, id string) (*structs.EventSink, error) {
+	txn := s.db.ReadTxn()
+	return s.eventSinkByIDTxn(ws, id, txn)
+}
+
+func (s *StateStore) eventSinkByIDTxn(ws memdb.WatchSet, id string, txn Txn) (*structs.EventSink, error) {
+	watchCh, existing, err := txn.FirstWatch("event_sink", "id", id)
+	if err != nil {
+		return nil, fmt.Errorf("event sink lookup failed: %w", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.EventSink), nil
+	}
+	return nil, nil
+}
+
+func (s *StateStore) UpsertEventSink(idx uint64, sink *structs.EventSink) error {
+	txn := s.db.WriteTxn(idx)
+	defer txn.Abort()
+
+	existing, err := txn.First("event_sink", "id", sink.ID)
+	if err != nil {
+		return fmt.Errorf("event sink lookup failed: %w", err)
+	}
+
+	if existing != nil {
+		sink.CreateIndex = existing.(*structs.EventSink).CreateIndex
+		sink.ModifyIndex = idx
+	} else {
+		sink.CreateIndex = idx
+		sink.ModifyIndex = idx
+	}
+
+	// Insert the sink
+	if err := txn.Insert("event_sink", sink); err != nil {
+		return fmt.Errorf("event sink insert failed: %w", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
+		return fmt.Errorf("index update failed: %w", err)
+	}
+
+	return txn.Commit()
+}
+
+func (s *StateStore) DeleteEventSinks(idx uint64, sinks []string) error {
+	txn := s.db.WriteTxn(idx)
+	defer txn.Abort()
+
+	for _, id := range sinks {
+		if _, err := txn.DeleteAll("event_sink", "id", id); err != nil {
+			return fmt.Errorf("deleting event sink failed: %v", err)
+		}
+	}
+	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
+func (s *StateStore) BatchUpdateEventSinks(index uint64, sinks []*structs.EventSink) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	for _, update := range sinks {
+		existing, err := txn.First("event_sink", "id", update.ID)
+		if err != nil || existing == nil {
+			return fmt.Errorf("event sink lookup failed: %w", err)
+		}
+
+		sink := existing.(*structs.EventSink)
+
+		// Copy over authoritative fields
+		sink.LatestIndex = update.LatestIndex
+		sink.ModifyIndex = index
+
+		if err := txn.Insert("event_sink", sink); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes table for event_sink
+	if err := txn.Insert("index", &IndexEntry{"event_sink", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
 }
 
 // StateSnapshot is used to provide a point-in-time snapshot
@@ -5885,9 +6236,25 @@ func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
 	return nil
 }
 
+// ScalingEventsRestore is used to restore scaling events for a job
 func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents) error {
 	if err := r.txn.Insert("scaling_event", jobEvents); err != nil {
 		return fmt.Errorf("scaling event insert failed: %v", err)
+	}
+	return nil
+}
+
+// NamespaceRestore is used to restore a namespace
+func (r *StateRestore) NamespaceRestore(ns *structs.Namespace) error {
+	if err := r.txn.Insert(TableNamespaces, ns); err != nil {
+		return fmt.Errorf("namespace insert failed: %v", err)
+	}
+	return nil
+}
+
+func (r *StateRestore) EventSinkRestore(sink *structs.EventSink) error {
+	if err := r.txn.Insert("event_sink", sink); err != nil {
+		return fmt.Errorf("event sink insert failed: %v", err)
 	}
 	return nil
 }

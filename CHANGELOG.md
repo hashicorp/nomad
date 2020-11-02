@@ -3,6 +3,7 @@
 FEATURES:
 
 * **Event Stream**: Subscribe to change events as they occur in real time. [[GH-9013](https://github.com/hashicorp/nomad/issues/9013)]
+* **Namespaces OSS**: Namespaces are now available in open source Nomad. [[GH-9135](https://github.com/hashicorp/nomad/issues/9135)]
 * **Topology Visualization**: See all of the clients and allocations in a cluster at once. [[GH-9077](https://github.com/hashicorp/nomad/issues/9077)]
 
 IMPROVEMENTS:
@@ -17,6 +18,7 @@ IMPROVEMENTS:
  * client: Use ec2 CPU perf data from AWS API [[GH-7830](https://github.com/hashicorp/nomad/issues/7830)]
  * client: Added support for Azure fingerprinting. [[GH-8979](https://github.com/hashicorp/nomad/issues/8979)]
  * client: Added support for fingerprinting the client node's Consul segment. [[GH-7214](https://github.com/hashicorp/nomad/issues/7214)]
+ * client: Added `NOMAD_JOB_ID` and `NOMAD_PARENT_JOB_ID` environment variables to those made available to jobs. [[GH-8967](https://github.com/hashicorp/nomad/issues/8967)]
  * client: Updated consul-template to v0.25.0 - config `function_blacklist` deprecated and replaced with `function_denylist` [[GH-8988](https://github.com/hashicorp/nomad/pull/8988)]
  * config: Deprecated terms `blacklist` and `whitelist` from configuration and replaced them with `denylist` and `allowlist`. [[GH-9019](https://github.com/hashicorp/nomad/issues/9019)]
  * consul: Support Consul namespace (Consul Enterprise) in client configuration. [[GH-8849](https://github.com/hashicorp/nomad/pull/8849)]
@@ -42,6 +44,12 @@ BUG FIXES:
  * csi: Fixed a bug where multi-writer volumes were allowed only 1 write claim. [[GH-9040](https://github.com/hashicorp/nomad/issues/9040)]
  * csi: Fixed a bug where `nomad volume detach` would not accept prefixes for the node ID parameter. [[GH-9041](https://github.com/hashicorp/nomad/issues/9041)]
  * driver/docker: Fixed a bug where the default `image_delay` configuration was ignored if the `gc` configuration was not set. [[GH-9101](https://github.com/hashicorp/nomad/issues/9101)]
+
+## 0.12.7 (October 23, 2020)
+
+BUG FIXES:
+ * artifact: Fixed a regression in 0.12.6 where if the artifact `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
+ * template: Fixed a regression in 0.12.6 where if the template `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
 
 ## 0.12.6 (October 21, 2020)
 
@@ -212,6 +220,12 @@ BUG FIXES:
  * ui: The task group detail page no longer makes excessive requests to the allocation and stats endpoints. [[GH-8216](https://github.com/hashicorp/nomad/issues/8216)]
  * ui: Polling endpoints that have yet to be fetched normally works as expected (regression from 0.11.3). [[GH-8207](https://github.com/hashicorp/nomad/issues/8207)]
 
+## 0.11.6 (October 23, 2020)
+
+BUG FIXES:
+ * artifact: _Backport from v0.12.7_ - Fixed a regression in 0.11.5 where if the artifact `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
+ * template: _Backport from v0.12.7_ - Fixed a regression in 0.11.5 where if the template `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
+
 ## 0.11.5 (October 21, 2020)
 
 SECURITY:
@@ -364,6 +378,11 @@ BUG FIXES:
  * scheduler: Fixed a bug where changes to task group `shutdown_delay` were not persisted or displayed in plan output [[GH-7618](https://github.com/hashicorp/nomad/issues/7618)]
  * ui: Fixed handling of multi-byte unicode characters in allocation log view [[GH-7470](https://github.com/hashicorp/nomad/issues/7470)] [[GH-7551](https://github.com/hashicorp/nomad/pull/7551)]
 
+## 0.10.7 (October 23, 2020)
+
+BUG FIXES:
+ * artifact: _Backport from v0.12.7_ - Fixed a regression in 0.10.6 where if the artifact `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
+ * template: _Backport from v0.12.7_ - Fixed a regression in 0.10.6 where if the template `destination` field is an absolute path it is not appended to the task working directory, breaking the use of `NOMAD_SECRETS_DIR` as part of the destination path. [[GH-9148](https://github.com/hashicorp/nomad/issues/9148)]
 
 ## 0.10.6 (October 21, 2020)
 

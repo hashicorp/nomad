@@ -6,15 +6,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// enterpriseInit is used to initialize the state store with enterprise
-// objects.
-func (s *StateStore) enterpriseInit() error {
-	return nil
+// quotaSpecExists on returns whether the quota exists
+func (s *StateStore) quotaSpecExists(txn *txn, name string) (bool, error) {
+	return false, nil
 }
 
-// namespaceExists returns whether a namespace exists
-func (s *StateStore) namespaceExists(txn *txn, namespace string) (bool, error) {
-	return namespace == structs.DefaultNamespace, nil
+func (s *StateStore) quotaReconcile(index uint64, txn *txn, newQuota, oldQuota string) error {
+	return nil
 }
 
 // updateEntWithAlloc is used to update Nomad Enterprise objects when an allocation is
@@ -23,6 +21,12 @@ func (s *StateStore) updateEntWithAlloc(index uint64, new, existing *structs.All
 	return nil
 }
 
-func (s *StateStore) NamespaceNames() ([]string, error) {
-	return []string{structs.DefaultNamespace}, nil
+// deleteRecommendationsByJob deletes all recommendations for the specified job
+func (s *StateStore) deleteRecommendationsByJob(index uint64, txn Txn, job *structs.Job) error {
+	return nil
+}
+
+// updateJobRecommendations updates/deletes job recommendations as necessary for a job update
+func (s *StateStore) updateJobRecommendations(index uint64, txn Txn, prevJob, newJob *structs.Job) error {
+	return nil
 }

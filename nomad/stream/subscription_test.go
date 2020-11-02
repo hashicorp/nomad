@@ -19,9 +19,6 @@ func TestFilter_AllTopics(t *testing.T) {
 	}
 	actual := filter(req, events)
 	require.Equal(t, events, actual)
-
-	// ensure new array was not allocated
-	require.Equal(t, cap(actual), 5)
 }
 
 func TestFilter_AllKeys(t *testing.T) {
@@ -35,9 +32,6 @@ func TestFilter_AllKeys(t *testing.T) {
 	}
 	actual := filter(req, events)
 	require.Equal(t, events, actual)
-
-	// ensure new array was not allocated
-	require.Equal(t, cap(actual), 5)
 }
 
 func TestFilter_PartialMatch_Topic(t *testing.T) {
@@ -53,7 +47,51 @@ func TestFilter_PartialMatch_Topic(t *testing.T) {
 	expected := []structs.Event{{Topic: "Test", Key: "One"}, {Topic: "Test", Key: "Two"}}
 	require.Equal(t, expected, actual)
 
-	require.Equal(t, cap(actual), 2)
+	require.Equal(t, 2, cap(actual))
+}
+
+func TestFilter_Match_TopicAll_SpecificKey(t *testing.T) {
+	events := []structs.Event{
+		{Topic: "Match", Key: "Two"},
+		{Topic: "NoMatch", Key: "One"},
+		{Topic: "OtherMatch", Key: "Two"},
+	}
+
+	req := &SubscribeRequest{
+		Topics: map[structs.Topic][]string{
+			"*": {"Two"},
+		},
+	}
+
+	actual := filter(req, events)
+	expected := []structs.Event{
+		{Topic: "Match", Key: "Two"},
+		{Topic: "OtherMatch", Key: "Two"},
+	}
+	require.Equal(t, expected, actual)
+}
+
+func TestFilter_Match_TopicAll_SpecificKey_Plus(t *testing.T) {
+	events := []structs.Event{
+		{Topic: "FirstTwo", Key: "Two"},
+		{Topic: "Test", Key: "One"},
+		{Topic: "SecondTwo", Key: "Two"},
+	}
+
+	req := &SubscribeRequest{
+		Topics: map[structs.Topic][]string{
+			"*":    {"Two"},
+			"Test": {"One"},
+		},
+	}
+
+	actual := filter(req, events)
+	expected := []structs.Event{
+		{Topic: "FirstTwo", Key: "Two"},
+		{Topic: "Test", Key: "One"},
+		{Topic: "SecondTwo", Key: "Two"},
+	}
+	require.Equal(t, expected, actual)
 }
 
 func TestFilter_PartialMatch_Key(t *testing.T) {
@@ -69,7 +107,7 @@ func TestFilter_PartialMatch_Key(t *testing.T) {
 	expected := []structs.Event{{Topic: "Test", Key: "One"}}
 	require.Equal(t, expected, actual)
 
-	require.Equal(t, cap(actual), 1)
+	require.Equal(t, 1, cap(actual))
 }
 
 func TestFilter_NoMatch(t *testing.T) {
@@ -86,7 +124,7 @@ func TestFilter_NoMatch(t *testing.T) {
 	var expected []structs.Event
 	require.Equal(t, expected, actual)
 
-	require.Equal(t, cap(actual), 0)
+	require.Equal(t, 0, cap(actual))
 }
 
 func TestFilter_Namespace(t *testing.T) {
@@ -106,7 +144,7 @@ func TestFilter_Namespace(t *testing.T) {
 	}
 	require.Equal(t, expected, actual)
 
-	require.Equal(t, cap(actual), 2)
+	require.Equal(t, 2, cap(actual))
 }
 
 func TestFilter_FilterKeys(t *testing.T) {
@@ -125,5 +163,5 @@ func TestFilter_FilterKeys(t *testing.T) {
 	}
 	require.Equal(t, expected, actual)
 
-	require.Equal(t, cap(actual), 1)
+	require.Equal(t, 1, cap(actual))
 }

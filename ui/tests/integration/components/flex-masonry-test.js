@@ -165,4 +165,38 @@ module('Integration | Component | FlexMasonry', function(hooks) {
       }
     });
   });
+
+  test('when a multi-column layout becomes a single column layout, all inline-styles are reset', async function(assert) {
+    this.setProperties({
+      items: [
+        { text: 'One', height: h(20) },
+        { text: 'Two', height: h(100) },
+        { text: 'Three', height: h(20) },
+        { text: 'Four', height: h(100) },
+        { text: 'Five', height: h(20) },
+        { text: 'Six', height: h(20) },
+      ],
+      columns: 4,
+    });
+
+    await this.render(hbs`
+      <FlexMasonry
+        @items={{this.items}}
+        @columns={{this.columns}} as |item|>
+        <div style={{item.height}}>{{item.text}}</div>
+      </FlexMasonry>
+    `);
+
+    assert.equal(find('[data-test-flex-masonry]').style.maxHeight, '101px');
+
+    this.set('columns', 1);
+    await settled();
+
+    findAll('[data-test-flex-masonry-item]').forEach(el => {
+      assert.equal(el.style.flexBasis, '');
+      assert.equal(el.style.order, '');
+    });
+
+    assert.equal(find('[data-test-flex-masonry]').style.maxHeight, '');
+  });
 });

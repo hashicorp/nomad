@@ -1,0 +1,38 @@
+---
+layout: docs
+page_title: 'Commands: scaling policy list'
+sidebar_title: policy list
+description: |
+  Display all Nomad scaling policies.
+---
+
+# Command: scaling policy list
+
+List is used to list all scaling policies stored in Nomad.
+
+## Usage
+
+```plaintext
+nomad scaling policy list [options]
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Policy List Options
+
+- `-json` : Output the scaling policy list in its JSON format.
+- `-t` : Format and display the scaling policy list using a Go template.
+
+## Examples
+
+List all tracked scaling policies:
+
+```shell-session
+$ nomad scaling policy list
+
+ID                                    Enabled  Target
+b2c64295-4315-2fdc-6158-a27156808729  true     Namespace:default,Job:example,Group:cache,Task:redis
+c355d0ec-7aa1-2604-449d-4ec79c813d2c  true     Namespace:default,Job:webapp,Group:demo,Task:webapp
+```

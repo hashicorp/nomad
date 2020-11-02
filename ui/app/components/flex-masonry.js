@@ -15,15 +15,25 @@ export default class FlexMasonry extends Component {
   @action
   reflow() {
     run.next(() => {
-      // There's nothing to do if this is a single column layout
-      if (!this.element || this.args.columns === 1 || !this.args.columns) return;
+      // There's nothing to do if there is no element
+      if (!this.element) return;
+
+      const items = this.element.querySelectorAll(':scope > .flex-masonry-item');
+
+      // Clear out specified order and flex-basis values in case this was once a multi-column layout
+      if (this.args.columns === 1 || !this.args.columns) {
+        for (let item of items) {
+          item.style.flexBasis = null;
+          item.style.order = null;
+        }
+        this.element.style.maxHeight = null;
+        return;
+      }
 
       const columns = new Array(this.args.columns).fill(null).map(() => ({
         height: 0,
         elements: [],
       }));
-
-      const items = this.element.querySelectorAll('.flex-masonry-item');
 
       // First pass: assign each element to a column based on the running heights of each column
       for (let item of items) {

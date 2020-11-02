@@ -22,6 +22,12 @@ func (s *HTTPServer) scalingPoliciesListRequest(resp http.ResponseWriter, req *h
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+	if job := req.URL.Query().Get("job"); job != "" {
+		args.Job = job
+	}
+	if tpe := req.URL.Query().Get("type"); tpe != "" {
+		args.Type = tpe
+	}
 
 	var out structs.ScalingPolicyListResponse
 	if err := s.agent.RPC("Scaling.ListPolicies", &args, &out); err != nil {
@@ -77,9 +83,14 @@ func (s *HTTPServer) scalingPolicyQuery(resp http.ResponseWriter, req *http.Requ
 
 func ApiScalingPolicyToStructs(count int, ap *api.ScalingPolicy) *structs.ScalingPolicy {
 	p := structs.ScalingPolicy{
-		Enabled: *ap.Enabled,
-		Policy:  ap.Policy,
-		Target:  map[string]string{},
+		Type:   ap.Type,
+		Policy: ap.Policy,
+		Target: map[string]string{},
+	}
+	if ap.Enabled != nil {
+		p.Enabled = *ap.Enabled
+	} else {
+		p.Enabled = true
 	}
 	if ap.Max != nil {
 		p.Max = *ap.Max

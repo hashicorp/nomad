@@ -1,0 +1,157 @@
+<div
+  ...attributes
+  class="chart recommendation-chart {{this.directionClass}}"
+  {{did-insert this.onResize}}
+  {{window-resize this.onResize}}
+  {{on "mousemove" this.setLegendPosition}}
+  {{on "mouseleave" (action (mut this.showLegend) false)}}
+>
+
+  <svg
+    class="chart"
+    height={{this.chartHeight}}
+    {{did-insert this.storeSvgElement}}
+  >
+    <svg
+      class="icon delta"
+      x={{this.icon.x}}
+      y={{this.icon.y}}
+      width={{this.icon.width}}
+      height={{this.icon.height}}
+    >
+      {{x-icon this.icon.name}}
+    </svg>
+
+    <text
+      class="resource"
+      x={{this.resourceLabel.x}}
+      y={{this.resourceLabel.y}}
+    >
+      {{this.resourceLabel.text}}
+    </text>
+
+    {{#if this.center}}
+      <line class="center" x1={{this.center.x1}} y1={{this.center.y1}} x2={{this.center.x2}} y2={{this.center.y2}} />
+    {{/if}}
+
+    {{#each this.statsShapes as |shapes|}}
+      <text
+        class="stats-label {{shapes.text.class}}"
+        text-anchor="end"
+        x={{shapes.text.x}}
+        y={{shapes.text.y}}
+        data-test-label={{shapes.class}}
+        {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
+        {{on "mouseleave" this.unsetActiveLegendRow}}
+      >
+        {{shapes.text.label}}
+      </text>
+
+      <rect
+        class="stat {{shapes.class}}"
+        x={{shapes.rect.x}}
+        width={{shapes.rect.width}}
+        y={{shapes.rect.y}}
+        height={{shapes.rect.height}}
+        {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
+        {{on "mouseleave" this.unsetActiveLegendRow}}
+      />
+
+      <line
+        class="stat {{shapes.class}}"
+        x1={{shapes.line.x1}}
+        y1={{shapes.line.y1}}
+        x2={{shapes.line.x2}}
+        y2={{shapes.line.y2}}
+        {{on "mouseenter" (fn this.setActiveLegendRow shapes.text.label)}}
+        {{on "mouseleave" this.unsetActiveLegendRow}}
+      />
+    {{/each}}
+
+    {{#unless @disabled}}
+      {{#if this.deltaRect.x}}
+        <rect
+          {{did-insert this.isShown}}
+          class="delta"
+          x={{this.deltaRect.x}}
+          y={{this.deltaRect.y}}
+          width={{this.deltaRect.width}}
+          height={{this.deltaRect.height}}
+        />
+
+        <polygon
+          class="delta"
+          style={{this.deltaTriangle.style}}
+          points={{this.deltaTriangle.points}}
+        />
+
+        <line
+          class="changes delta"
+          style={{this.deltaLines.delta.style}}
+          x1=0
+          y1={{this.edgeTickY1}}
+          x2=0
+          y2={{this.edgeTickY2}}
+          {{on "mouseenter" (fn this.setActiveLegendRow "New")}}
+          {{on "mouseleave" this.unsetActiveLegendRow}}
+        />
+
+        <line
+          class="changes"
+          x1={{this.deltaLines.original.x}}
+          y1={{this.edgeTickY1}}
+          x2={{this.deltaLines.original.x}}
+          y2={{this.edgeTickY2}}
+          {{on "mouseenter" (fn this.setActiveLegendRow "Current")}}
+          {{on "mouseleave" this.unsetActiveLegendRow}}
+        />
+
+        <text
+          class="changes"
+          text-anchor="{{this.deltaText.original.anchor}}"
+          x={{this.deltaText.original.x}}
+          y={{this.deltaText.original.y}}
+          {{on "mouseenter" (fn this.setActiveLegendRow "Current")}}
+          {{on "mouseleave" this.unsetActiveLegendRow}}
+        >
+          Current
+        </text>
+
+        <text
+          class="changes new"
+          text-anchor="{{this.deltaText.delta.anchor}}"
+          x={{this.deltaText.delta.x}}
+          y={{this.deltaText.delta.y}}
+          {{on "mouseenter" (fn this.setActiveLegendRow "New")}}
+          {{on "mouseleave" this.unsetActiveLegendRow}}
+        >
+          New
+        </text>
+
+        <text
+          class="changes percent"
+          x={{this.deltaText.percent.x}}
+          y={{this.deltaText.percent.y}}
+        >
+          {{this.deltaText.percent.text}}
+        </text>
+      {{/if}}
+    {{/unless}}
+
+    <line class="zero" x1={{this.gutterWidthLeft}} y1={{this.edgeTickY1}} x2={{this.gutterWidthLeft}} y2={{this.edgeTickY2}} />
+  </svg>
+
+  <div class="chart-tooltip {{if this.showLegend "active" "inactive"}}" style={{this.tooltipStyle}}>
+    <ol>
+      {{#each this.sortedStats as |stat|}}
+        <li class={{if (eq this.activeLegendRow stat.label) "active"}}>
+          <span class="label">
+            {{stat.label}}
+          </span>
+          <span class="value">{{stat.value}}</span>
+        </li>
+      {{/each}}
+    </ol>
+  </div>
+
+</div>

@@ -9,6 +9,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	TableNamespaces = "namespaces"
+)
+
 var (
 	schemaFactories SchemaFactories
 	factoriesLock   sync.Mutex
@@ -52,6 +56,8 @@ func init() {
 		csiPluginTableSchema,
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
+		namespaceTableSchema,
+		eventSinkTableSchema,
 	}...)
 }
 
@@ -897,6 +903,51 @@ func scalingEventTableSchema() *memdb.TableSchema {
 			// 		Field: "Error",
 			// 	},
 			// },
+		},
+	}
+}
+
+// namespaceTableSchema returns the MemDB schema for the namespace table.
+func namespaceTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableNamespaces,
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
+				},
+			},
+			"quota": {
+				Name:         "quota",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Quota",
+				},
+			},
+		},
+	}
+}
+
+func eventSinkTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "event_sink",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for event sink management and simple
+			// direct lookup. ID is required to be unique.
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Sink ID is uniquely identifying
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
 		},
 	}
 }

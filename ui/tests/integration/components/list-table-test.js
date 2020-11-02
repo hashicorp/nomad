@@ -42,11 +42,12 @@ module('Integration | Component | list table', function(hooks) {
     });
     await render(hbs`
       <ListTable @source={{source}} @sortProperty={{sortProperty}} @sortDescending={{sortDescending}} as |t|>
-        <t.body @class="body" as |row|>
+        <t.body @class="body" as |row index|>
           <tr class="item">
             <td>{{row.model.firstName}}</td>
             <td>{{row.model.lastName}}</td>
             <td>{{row.model.age}}</td>
+            <td>{{index}}</td>
           </tr>
         </t.body>
       </ListTable>
@@ -64,6 +65,7 @@ module('Integration | Component | list table', function(hooks) {
       assert.equal($item.querySelectorAll('td')[0].innerHTML.trim(), item.firstName, 'First name');
       assert.equal($item.querySelectorAll('td')[1].innerHTML.trim(), item.lastName, 'Last name');
       assert.equal($item.querySelectorAll('td')[2].innerHTML.trim(), item.age, 'Age');
+      assert.equal($item.querySelectorAll('td')[3].innerHTML.trim(), index, 'Index');
     });
 
     await componentA11yAudit(this.element, assert);

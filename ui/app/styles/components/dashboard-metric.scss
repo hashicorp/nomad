@@ -1,10 +1,18 @@
 .dashboard-metric {
+  width: 350px;
+  max-width: 350px;
+
   &:not(:last-child) {
     margin-bottom: 1.5em;
   }
 
   &.column:not(:last-child) {
     margin-bottom: 0;
+  }
+
+  &.column {
+    width: auto;
+    max-width: auto;
   }
 
   .metric {
@@ -38,6 +46,14 @@
   &.with-divider {
     border-top: 1px solid $grey-blue;
     padding-top: 1.5em;
+  }
+
+  .pair,
+  .minor-pair {
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .pair {

@@ -185,7 +185,7 @@ The `Job` object supports the following keys:
 - `Meta` - Annotates the job with opaque metadata.
 
 - `Namespace` - The namespace to execute the job in, defaults to "default".
-  Values other than default are not allowed in non-Enterprise versions of Nomad.
+  Prior to Nomad 1.0 namespaces were Enterprise-only.
 
 - `ParameterizedJob` - Specifies the job as a parameterized job such that it can
   be dispatched against. The `ParameterizedJob` object supports the following

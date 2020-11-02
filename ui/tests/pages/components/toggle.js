@@ -11,6 +11,7 @@ export default scope => ({
   hasActiveClass: hasClass('is-active', '[data-test-label]'),
 
   label: text('[data-test-label]'),
+  title: attribute('title'),
 
   toggle: clickable('[data-test-input]'),
 });

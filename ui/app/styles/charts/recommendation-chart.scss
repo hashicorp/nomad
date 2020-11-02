@@ -1,0 +1,155 @@
+.chart.recommendation-chart {
+  display: block;
+  position: relative;
+
+  svg.chart {
+    display: inline-block;
+    width: 100%;
+  }
+
+  .resource {
+    font-weight: $weight-semibold;
+    dominant-baseline: central;
+    text-anchor: end;
+  }
+
+  .icon.delta g {
+    transform: scale(0.8);
+    transform-origin: center;
+  }
+
+  .delta {
+    transition: width 1s, x 1s, transform 1s, color 0.5s;
+  }
+
+  rect.stat,
+  line.stat {
+    transition: fill 0.5s, stroke 0.5s;
+  }
+
+  rect.delta {
+    // Allow hover events for stats ticks beneath delta gradient
+    pointer-events: none;
+  }
+
+  polygon.delta {
+    fill: $yellow-700;
+  }
+
+  .center {
+    stroke: $cool-gray-500;
+    stroke-width: 1.5px;
+  }
+
+  .stats-label {
+    font-size: $size-7;
+    text-anchor: end;
+
+    &.right {
+      text-anchor: start;
+    }
+
+    &.hidden {
+      display: none;
+    }
+  }
+
+  text.new {
+    font-weight: $weight-semibold;
+  }
+
+  text.percent {
+    font-size: $size-7;
+    text-anchor: middle;
+  }
+
+  &.increase {
+    .mean {
+      fill: $red-500;
+      stroke: $red-500;
+    }
+
+    .p99 {
+      fill: $red-300;
+      stroke: $red-300;
+    }
+
+    .max {
+      fill: $red-200;
+      stroke: $red-200;
+    }
+
+    rect.delta {
+      fill: url(#recommendation-chart-increase-gradient);
+    }
+
+    text.percent {
+      fill: $red-500;
+    }
+  }
+
+  &.decrease {
+    .mean {
+      fill: $teal-500;
+      stroke: $teal-500;
+    }
+
+    .p99 {
+      fill: $teal-300;
+      stroke: $teal-300;
+    }
+
+    .max {
+      fill: $teal-200;
+      stroke: $teal-200;
+    }
+
+    rect.delta {
+      fill: url(#recommendation-chart-decrease-gradient);
+    }
+
+    text.percent {
+      fill: $teal-500;
+    }
+  }
+
+  &.disabled {
+    .resource,
+    .icon {
+      fill: $cool-gray-500;
+      color: $ui-gray-500;
+    }
+
+    .mean {
+      fill: $gray-300;
+      stroke: $gray-300;
+    }
+
+    .p99 {
+      fill: $gray-200;
+      stroke: $gray-200;
+    }
+
+    .max {
+      fill: $gray-100;
+      stroke: $gray-100;
+    }
+  }
+
+  line {
+    stroke-width: 1px;
+
+    &.zero {
+      stroke: $cool-gray-500;
+    }
+
+    &.changes {
+      stroke: $yellow-700;
+    }
+
+    &.changes:hover,
+    &.stat:hover {
+      stroke-width: 2px;
+    }
+  }
+}

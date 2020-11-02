@@ -29,6 +29,20 @@ export default class SystemService extends Service {
   }
 
   @computed
+  get agent() {
+    const token = this.token;
+    return PromiseObject.create({
+      promise: token
+        .authorizedRawRequest(`/${namespace}/agent/self`)
+        .then(jsonWithDefault({}))
+        .then(agent => {
+          agent.version = agent.member?.Tags?.build || 'Unknown';
+          return agent;
+        }),
+    });
+  }
+
+  @computed
   get defaultRegion() {
     const token = this.token;
     return PromiseObject.create({

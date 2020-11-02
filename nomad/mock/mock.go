@@ -1380,9 +1380,7 @@ func ScalingPolicy() *structs.ScalingPolicy {
 		Policy: map[string]interface{}{
 			"a": "b",
 		},
-		Enabled:     true,
-		CreateIndex: 10,
-		ModifyIndex: 20,
+		Enabled: true,
 	}
 }
 
@@ -1502,6 +1500,28 @@ func AllocNetworkStatus() *structs.AllocNetworkStatus {
 			Servers:  []string{"1.1.1.1"},
 			Searches: []string{"localdomain"},
 			Options:  []string{"ndots:5"},
+		},
+	}
+}
+
+func Namespace() *structs.Namespace {
+	ns := &structs.Namespace{
+		Name:        fmt.Sprintf("team-%s", uuid.Generate()),
+		Description: "test namespace",
+		CreateIndex: 100,
+		ModifyIndex: 200,
+	}
+	ns.SetHash()
+	return ns
+}
+
+func EventSink() *structs.EventSink {
+	return &structs.EventSink{
+		ID:      fmt.Sprintf("webhook-sink-%s", uuid.Generate()[0:8]),
+		Type:    structs.SinkWebhook,
+		Address: "http://127.0.0.1/",
+		Topics: map[structs.Topic][]string{
+			structs.TopicAll: {"*"},
 		},
 	}
 }

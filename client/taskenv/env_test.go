@@ -11,6 +11,7 @@ import (
 	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -141,6 +142,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"metaKey": "metaVal",
 	}
 	a := mock.Alloc()
+	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
 	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
 		Device:        "eth0",
 		IP:            "127.0.0.1",
@@ -204,7 +206,9 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_META_elb_check_type=http",
 		"NOMAD_META_foo=bar",
 		"NOMAD_META_owner=armon",
+		fmt.Sprintf("NOMAD_JOB_ID=%s", a.Job.ID),
 		"NOMAD_JOB_NAME=my-job",
+		fmt.Sprintf("NOMAD_JOB_PARENT_ID=%s", a.Job.ParentID),
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 		"NOMAD_ALLOC_INDEX=0",
 	}
@@ -320,6 +324,7 @@ func TestEnvironment_AsList_Old(t *testing.T) {
 		"NOMAD_META_elb_check_type=http",
 		"NOMAD_META_foo=bar",
 		"NOMAD_META_owner=armon",
+		fmt.Sprintf("NOMAD_JOB_ID=%s", a.Job.ID),
 		"NOMAD_JOB_NAME=my-job",
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 		"NOMAD_ALLOC_INDEX=0",
@@ -339,6 +344,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"invalid...metakey": "b",
 	}
 	a := mock.ConnectAlloc()
+	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
 	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
 		Device:        "eth0",
 		IP:            "127.0.0.1",
@@ -463,7 +469,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_META_elb_check_type":                 "http",
 		"NOMAD_META_foo":                            "bar",
 		"NOMAD_META_owner":                          "armon",
+		"NOMAD_JOB_ID":                              a.Job.ID,
 		"NOMAD_JOB_NAME":                            "my-job",
+		"NOMAD_JOB_PARENT_ID":                       a.Job.ParentID,
 		"NOMAD_ALLOC_ID":                            a.ID,
 		"NOMAD_ALLOC_INDEX":                         "0",
 		"NOMAD_PORT_connect_proxy_testconnect":      "9999",
