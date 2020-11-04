@@ -25,9 +25,9 @@ environment variable names such as `NOMAD_ADDR_<task>_<label>`.
 Nomad will pass both the allocation ID and name, the deployment ID that created
 the allocation, the job ID and name, the parent job ID as well as
 the task and group's names. These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`,
-`NOMAD_ALLOC_INDEX`, `NOMAD_JOB_NAME`, `NOMAD_JOB_ID`, 
-`NOMAD_JOB_PARENT_ID`, `NOMAD_GROUP_NAME` and `NOMAD_TASK_NAME`. The allocation ID 
-and index can be useful when the task being run needs a unique identifier or to 
+`NOMAD_ALLOC_INDEX`, `NOMAD_JOB_NAME`, `NOMAD_JOB_ID`,
+`NOMAD_JOB_PARENT_ID`, `NOMAD_GROUP_NAME` and `NOMAD_TASK_NAME`. The allocation ID
+and index can be useful when the task being run needs a unique identifier or to
 know its instance count.
 
 ## Resources
@@ -90,6 +90,8 @@ chroot. Regardless of how the directories are made available, the path to the
 directories can be read through the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
 `NOMAD_SECRETS_DIR` environment variables.
 
+For more details on the task directories, see the [Filesystem internals].
+
 ## Meta
 
 The job specification also allows you to specify a `meta` block to supply arbitrary
@@ -106,3 +108,4 @@ behavior.
 
 [jobspec]: /docs/job-specification 'Nomad Job Specification'
 [vault]: /docs/vault-integration 'Nomad Vault Integration'
+[Filesystem internals]: /docs/internals/filesystem
