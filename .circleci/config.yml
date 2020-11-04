@@ -703,7 +703,7 @@ jobs:
     docker:
     - environment:
         JOBS: 2
-      image: docker.mirror.hashicorp.services/circleci/node:10-browsers
+      image: docker.mirror.hashicorp.services/circleci/node:12-browsers
     steps:
     - checkout
     - restore_cache:
