@@ -1,27 +1,33 @@
 import Controller from '@ember/controller';
-import { tracked } from '@glimmer/tracking';
-import { sort } from '@ember/object/computed';
-import { task, timeout } from 'ember-concurrency';
-import Ember from 'ember';
+import { action } from '@ember/object';
+import { inject as controller } from '@ember/controller';
+import { task } from 'ember-concurrency';
 
 export default class OptimizeController extends Controller {
-  @tracked recommendationSummaryIndex = 0;
-
-  summarySorting = ['submitTime:desc'];
-  @sort('model', 'summarySorting') sortedSummaries;
+  @controller('optimize/summary') summaryController;
 
   get activeRecommendationSummary() {
-    return this.sortedSummaries.objectAt(this.recommendationSummaryIndex);
+    return this.summaryController.model;
   }
 
+  // This is a task because the accordion uses timeouts for animation
+  // eslint-disable-next-line require-yield
   @(task(function*() {
-    this.recommendationSummaryIndex++;
+    const currentSummaryIndex = this.model.indexOf(this.activeRecommendationSummary);
+    const nextSummary = this.model.objectAt(currentSummaryIndex + 1);
 
-    if (this.recommendationSummaryIndex >= this.model.length) {
-      this.store.unloadAll('recommendation-summary');
-      yield timeout(Ember.testing ? 0 : 1000);
-      this.store.findAll('recommendation-summary');
+    if (nextSummary) {
+      this.transitionToSummary(nextSummary);
+    } else {
+      this.send('reachedEnd');
     }
   }).drop())
   proceed;
+
+  @action
+  transitionToSummary(summary) {
+    this.transitionToRoute('optimize.summary', summary.slug, {
+      queryParams: { jobNamespace: summary.jobNamespace },
+    });
+  }
 }

@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, visit } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Response from 'ember-cli-mirage/response';
@@ -70,6 +70,11 @@ module('Acceptance | optimize', function(hooks) {
 
     assert.equal(
       Optimize.recommendationSummaries[0].slug,
+      `${this.job1.name} / ${currentTaskGroup.name}`
+    );
+
+    assert.equal(
+      Optimize.breadcrumbFor('optimize.summary').text,
       `${this.job1.name} / ${currentTaskGroup.name}`
     );
 
@@ -227,6 +232,39 @@ module('Acceptance | optimize', function(hooks) {
     assert.ok(Optimize.recommendationSummaries[1].isActive);
   });
 
+  test('can visit a summary directly via URL', async function(assert) {
+    server.createList('job', 10, {
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 2,
+      namespaceId: server.db.namespaces[1].id,
+    });
+
+    await Optimize.visit();
+
+    const lastSummary =
+      Optimize.recommendationSummaries[Optimize.recommendationSummaries.length - 1];
+    const collapsedSlug = lastSummary.slug.replace(' / ', '/');
+
+    // preferable to use page object’s visitable but it encodes the slash
+    await visit(`/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`);
+
+    assert.equal(
+      `${Optimize.card.slug.jobName} / ${Optimize.card.slug.groupName}`,
+      lastSummary.slug
+    );
+    assert.ok(lastSummary.isActive);
+    assert.equal(currentURL(), `/optimize/${collapsedSlug}?namespace=${lastSummary.namespace}`);
+  });
+
+  test('when a summary is not found, an error message is shown, but the URL persists', async function(assert) {
+    await visit('/optimize/nonexistent/summary?namespace=anamespace');
+
+    assert.equal(currentURL(), '/optimize/nonexistent/summary?namespace=anamespace');
+    assert.ok(Optimize.applicationError.isPresent);
+    assert.equal(Optimize.applicationError.title, 'Not Found');
+  });
+
   test('cannot return to already-processed summaries', async function(assert) {
     await Optimize.visit();
     await Optimize.card.acceptButton.click();
@@ -261,7 +299,7 @@ module('Acceptance | optimize', function(hooks) {
     assert.deepEqual(Dismiss, idsBeforeDismissal);
   });
 
-  test('it displays an error encountered trying to save and proceeds to the next summary when the error is dismiss', async function(assert) {
+  test('it displays an error encountered trying to save and proceeds to the next summary when the error is dismissed', async function(assert) {
     server.post('/recommendations/apply', function() {
       return new Response(500, {}, null);
     });

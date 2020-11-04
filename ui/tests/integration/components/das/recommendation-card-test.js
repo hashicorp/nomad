@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
+import Service from '@ember/service';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 import RecommendationCardComponent from 'nomad-ui/tests/pages/components/recommendation-card';
@@ -14,6 +15,26 @@ import { set } from '@ember/object';
 
 module('Integration | Component | das/recommendation-card', function(hooks) {
   setupRenderingTest(hooks);
+
+  hooks.beforeEach(function() {
+    const mockRouter = Service.extend({
+      init() {
+        this._super(...arguments);
+      },
+
+      urlFor(
+        route,
+        slug,
+        {
+          queryParams: { namespace },
+        }
+      ) {
+        return `${route}:${slug}?namespace=${namespace}`;
+      },
+    });
+
+    this.owner.register('service:router', mockRouter);
+  });
 
   test('it renders a recommendation card', async function(assert) {
     const task1 = {
@@ -31,6 +52,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     this.set(
       'summary',
       new MockRecommendationSummary({
+        jobNamespace: 'namespace',
         recommendations: [
           {
             resource: 'MemoryMB',
@@ -102,6 +124,13 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     assert.equal(RecommendationCard.totalsTable.percentDiff.cpu, '-27%');
     assert.equal(RecommendationCard.totalsTable.percentDiff.memory, '+33%');
+
+    assert.equal(RecommendationCard.copyButton.text, 'job-name / group-name');
+    assert.ok(
+      RecommendationCard.copyButton.clipboardText.endsWith(
+        'optimize.summary:job-name/group-name?namespace=namespace'
+      )
+    );
 
     assert.equal(RecommendationCard.activeTask.totalsTable.current.cpu.text, '150 MHz');
     assert.equal(RecommendationCard.activeTask.totalsTable.current.memory.text, '128 MiB');
@@ -559,6 +588,10 @@ class MockRecommendationSummary {
 
   constructor(attributes) {
     Object.assign(this, attributes);
+  }
+
+  get slug() {
+    return `${this.taskGroup?.job?.name}/${this.taskGroup?.name}`;
   }
 
   @action

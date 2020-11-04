@@ -4,6 +4,7 @@ import {
   collection,
   create,
   hasClass,
+  isPresent,
   text,
   visitable,
 } from 'ember-cli-page-object';
@@ -48,5 +49,10 @@ export default create({
     headline: text('[data-test-headline]'),
     errors: text('[data-test-errors]'),
     dismiss: clickable('[data-test-dismiss]'),
+  },
+
+  applicationError: {
+    isPresent: isPresent('[data-test-error]'),
+    title: text('[data-test-error-title]'),
   },
 });

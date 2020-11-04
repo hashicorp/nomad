@@ -2,7 +2,7 @@
   <section class="das-interstitial" style={{this.interstitialStyle}}>
     {{component (concat 'das/' this.interstitialComponent) proceed=this.proceedPromiseResolve error=this.error}}
   </section>
-{{else}}
+{{else if @summary.taskGroup}}
   <section
     ...attributes
     data-test-task-group-recommendations
@@ -18,7 +18,7 @@
         <span class="group" data-test-task-group-name>{{@summary.taskGroup.name}}</span>
       </h3>
       <h4 class="namespace">
-        <span class="namespace-label">Namespace:</span> <span data-test-namespace>{{@summary.taskGroup.job.namespace.name}}</span>
+        <span class="namespace-label">Namespace:</span> <span data-test-namespace>{{@summary.jobNamespace}}</span>
       </h4>
     </header>
 
@@ -92,8 +92,14 @@
     </section>
 
     <section class="active-task-group" data-test-active-task>
-      {{#if @onCollapse}}
-        <section class="top active-task inner-container">
+      <section class="top active-task inner-container">
+        <CopyButton data-test-copy-button @clipboardText={{this.copyButtonLink}}>
+          {{@summary.taskGroup.job.name}}
+          /
+          {{@summary.taskGroup.name}}
+        </CopyButton>
+
+        {{#if @onCollapse}}
           <button
             data-test-accordion-toggle
             class="button is-light is-compact pull-right accordion-toggle"
@@ -101,8 +107,8 @@
             type="button">
             Collapse
           </button>
-        </section>
-      {{/if}}
+        {{/if}}
+      </section>
 
       <header class="active-task inner-container">
         <h3 data-test-task-name>{{this.activeTask.name}} task</h3>

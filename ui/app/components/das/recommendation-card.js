@@ -1,4 +1,5 @@
 import Component from '@glimmer/component';
+import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
@@ -7,6 +8,8 @@ import { didCancel, task, timeout } from 'ember-concurrency';
 import Ember from 'ember';
 
 export default class DasRecommendationCardComponent extends Component {
+  @service router;
+
   @tracked allCpuToggleActive = true;
   @tracked allMemoryToggleActive = true;
 
@@ -135,6 +138,15 @@ export default class DasRecommendationCardComponent extends Component {
     return (
       this.args.summary.excludedRecommendations.length == this.args.summary.recommendations.length
     );
+  }
+
+  get copyButtonLink() {
+    const path = this.router.urlFor('optimize.summary', this.args.summary.slug, {
+      queryParams: { namespace: this.args.summary.jobNamespace },
+    });
+    const { origin } = window.location;
+
+    return `${origin}${path}`;
   }
 
   @action
