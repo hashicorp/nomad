@@ -6,6 +6,15 @@ import (
 	"fmt"
 )
 
+const (
+	TopicDeployment Topic = "Deployment"
+	TopicEval       Topic = "Eval"
+	TopicAlloc      Topic = "Alloc"
+	TopicJob        Topic = "Job"
+	TopicNode       Topic = "Node"
+	TopicAll        Topic = "*"
+)
+
 // Events is a set of events for a corresponding index. Events returned for the
 // index depend on which topics are subscribed to when a request is made.
 type Events struct {
@@ -25,7 +34,35 @@ type Event struct {
 	Key        string
 	FilterKeys []string
 	Index      uint64
-	Payload    map[string]interface{}
+	Payload    json.RawMessage
+
+	Deployment *Deployment
+	Node       *Node
+}
+
+func (e *Event) SetPayloadValue() error {
+	switch e.Topic {
+	case TopicNode:
+		n := struct {
+			Node Node
+		}{}
+		err := json.Unmarshal(e.Payload, &n)
+		if err != nil {
+			return err
+		}
+		e.Node = &n.Node
+	case TopicDeployment:
+		d := struct {
+			Deployment Deployment
+		}{}
+		err := json.Unmarshal(e.Payload, &d)
+		if err != nil {
+			return err
+		}
+		e.Deployment = &d.Deployment
+	}
+
+	return nil
 }
 
 // IsHeartbeat specifies if the event is an empty heartbeat used to
@@ -84,6 +121,13 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 			}
 			if events.Err == nil && events.IsHeartbeat() {
 				continue
+			}
+
+			for i := range events.Events {
+				if err := events.Events[i].SetPayloadValue(); err != nil {
+					// TODO this should be a multiErr if we are continuing on
+					events.Err = err
+				}
 			}
 
 			select {
