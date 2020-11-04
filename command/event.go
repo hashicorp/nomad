@@ -28,7 +28,7 @@ Usage: nomad event <subcommand> [options] [args]
       $ cat sink.json
       {
         "ID": "my-sink",
-        "Type": "webhook"
+        "Type": "webhook",
         "Address": "http://127.0.0.1:8080",
         "Topics": {
           "*": ["*"]
