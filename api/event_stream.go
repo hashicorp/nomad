@@ -37,31 +37,28 @@ type Event struct {
 	Payload    json.RawMessage
 
 	Deployment *Deployment
+	Evaluation *Evaluation `json:"Eval"`
 	Node       *Node
+	Allocation *Allocation `json:"Alloc"`
+	Job        *Job
 }
 
-func (e *Event) SetPayloadValue() error {
-	switch e.Topic {
-	case TopicNode:
-		n := struct {
-			Node Node
-		}{}
-		err := json.Unmarshal(e.Payload, &n)
-		if err != nil {
-			return err
-		}
-		e.Node = &n.Node
-	case TopicDeployment:
-		d := struct {
-			Deployment Deployment
-		}{}
-		err := json.Unmarshal(e.Payload, &d)
-		if err != nil {
-			return err
-		}
-		e.Deployment = &d.Deployment
+func (e *Event) UnmarshalJSON(b []byte) error {
+	type Alias Event
+	a := (*Alias)(e)
+
+	// Parse the non-dynamic fields
+	if err := json.Unmarshal(b, &a); err != nil {
+		return err
 	}
 
+	// Parse payload to set event specific value
+	if err := json.Unmarshal(a.Payload, &a); err != nil {
+		return err
+	}
+
+	// copy the response to this Event
+	e = (*Event)(a)
 	return nil
 }
 
@@ -121,13 +118,6 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 			}
 			if events.Err == nil && events.IsHeartbeat() {
 				continue
-			}
-
-			for i := range events.Events {
-				if err := events.Events[i].SetPayloadValue(); err != nil {
-					// TODO this should be a multiErr if we are continuing on
-					events.Err = err
-				}
 			}
 
 			select {
