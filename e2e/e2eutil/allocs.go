@@ -170,6 +170,22 @@ func AllocStatusesRescheduled(jobID, ns string) ([]string, error) {
 	return statuses, nil
 }
 
+type LogStream int
+
+const (
+	LogsStdErr LogStream = iota
+	LogsStdOut
+)
+
+func AllocLogs(allocID string, logStream LogStream) (string, error) {
+	cmd := []string{"nomad", "alloc", "logs"}
+	if logStream == LogsStdErr {
+		cmd = append(cmd, "-stderr")
+	}
+	cmd = append(cmd, allocID)
+	return Command(cmd[0], cmd[1:]...)
+}
+
 // AllocExec is a convenience wrapper that runs 'nomad alloc exec' with the
 // passed execCmd via '/bin/sh -c', retrying if the task isn't ready
 func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, error) {
