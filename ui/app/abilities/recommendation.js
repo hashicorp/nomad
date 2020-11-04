@@ -3,7 +3,7 @@ import { computed } from '@ember/object';
 import { or } from '@ember/object/computed';
 
 export default class Recommendation extends AbstractAbility {
-  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportAcceptingOnAnyNamespace')
+  @or('selfTokenIsManagement', 'policiesSupportAcceptingOnAnyNamespace')
   canAccept;
 
   @computed('capabilitiesForAllNamespaces.[]')

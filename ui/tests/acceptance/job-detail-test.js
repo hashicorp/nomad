@@ -247,4 +247,18 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
 
     assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
   });
+
+  test('resource recommendations are not fetched when the token lacks permissions', async function(assert) {
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+    await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
+
+    assert.equal(JobDetail.recommendations.length, 0);
+
+    assert.equal(
+      server.pretender.handledRequests
+        .filter(request => request.url.includes('recommendations'))
+        .length,
+      0
+    );
+  });
 });
