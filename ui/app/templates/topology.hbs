@@ -7,7 +7,12 @@
       <div class="columns">
         <div class="column is-narrow">
           <div class="boxed-section">
-            <div class="boxed-section-head">Legend</div>
+            <div class="boxed-section-head">
+              Legend
+              {{#if (cannot "list all jobs")}}
+                <span aria-label="Your ACL token may limit your ability to list all allocations" class="tag is-warning pull-right tooltip multiline">Partial View</span>
+              {{/if}}
+            </div>
             <div class="boxed-section-body">
               <div class="legend">
                 <h3 class="legend-label">Metrics</h3>
