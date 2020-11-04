@@ -31,6 +31,9 @@ General Options:
 
 Policy Info Options:
 
+  -job
+    Specifies the job ID to filter the scaling policies list by.
+
   -type
     Filter scaling policies by type.
 
