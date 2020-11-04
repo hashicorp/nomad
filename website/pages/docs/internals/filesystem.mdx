@@ -246,11 +246,12 @@ job on Linux:
 job "example" {
   datacenters = ["dc1"]
 
-  task "task1" {
+  task "task2" {
     driver = "exec"
 
     config {
-      image = "redis:6.0"
+      command = "/bin/sh"
+      args = ["-c", "sleep 600"]
     }
   }
 }
