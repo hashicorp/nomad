@@ -96,7 +96,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  let job, clientToken;
+  let job, managementToken, clientToken;
 
   hooks.beforeEach(function() {
     server.createList('namespace', 2);
@@ -112,7 +112,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
       createRecommendations: true,
     });
 
-    server.create('token');
+    managementToken = server.create('token');
     clientToken = server.create('token');
   });
 
@@ -212,6 +212,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   });
 
   test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
 
     assert.equal(JobDetail.recommendations.length, job.taskGroups.length);
