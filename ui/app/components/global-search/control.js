@@ -67,7 +67,7 @@ export default class GlobalSearchControl extends Component {
 
       const jobResults = this.jobSearch.listSearched.slice(0, MAXIMUM_RESULTS);
 
-      const mergedNodeListSearched = this.nodeNameSearch.listSearched.concat(this.nodeIdSearch.listSearched).uniq();
+      const mergedNodeListSearched = this.nodeIdSearch.listSearched.concat(this.nodeNameSearch.listSearched).uniq();
       const nodeResults = mergedNodeListSearched.slice(0, MAXIMUM_RESULTS);
 
       return [

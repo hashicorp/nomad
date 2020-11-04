@@ -161,6 +161,25 @@ module('Acceptance | search', function(hooks) {
     });
   });
 
+  test('node id prefix matches take priority over node name matches', async function(assert) {
+    const nodeToMatchById = server.create('node', { name: 'xyz' });
+
+    const idPrefix = nodeToMatchById.id.substr(0, 5);
+
+    const nodeToMatchByName = server.create('node', { name: `node-name-with-id-piece-${idPrefix}`});
+
+    await visit('/');
+
+    await selectSearch(PageLayout.navbar.search.scope, idPrefix);
+
+    PageLayout.navbar.search.as(search => {
+      search.groups[1].as(clients => {
+        assert.equal(clients.options[0].text, nodeToMatchById.name);
+        assert.equal(clients.options[1].text, nodeToMatchByName.name);
+      });
+    });
+  });
+
   test('clicking the search field starts search immediately', async function(assert) {
     await visit('/');
 
