@@ -8,14 +8,14 @@ module('Unit | Ability | recommendation', function(hooks) {
   setupTest(hooks);
   setupAbility('recommendation')(hooks);
 
-  test('it permits accepting recommendations when ACLs are disabled', function(assert) {
+  test('it does not permit accepting recommendations when ACLs are disabled', function(assert) {
     const mockToken = Service.extend({
       aclEnabled: false,
     });
 
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.ability.canAccept);
+    assert.notOk(this.ability.canAccept);
   });
 
   test('it permits accepting recommendations for client tokens where any namespace has submit-job capabilities', function(assert) {
