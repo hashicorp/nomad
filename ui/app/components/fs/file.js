@@ -52,10 +52,15 @@ export default class File extends Component {
   isStreaming = false;
 
   @computed('allocation.id', 'taskState.name', 'file')
-  get catUrl() {
+  get catUrlWithoutRegion() {
     const taskUrlPrefix = this.taskState ? `${this.taskState.name}/` : '';
     const encodedPath = encodeURIComponent(`${taskUrlPrefix}${this.file}`);
-    let apiPath = `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
+    return `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
+  }
+
+  @computed('catUrlWithoutRegion')
+  get catUrl() {
+    let apiPath = this.catUrlWithoutRegion;
     if (this.system.shouldIncludeRegion) {
       apiPath += `&region=${this.system.activeRegion}`;
     }
@@ -159,5 +164,35 @@ export default class File extends Component {
   @action
   failoverToServer() {
     this.set('useServer', true);
+  }
+
+  @action
+  downloadFile() {
+    const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
+    const fileDownload = url =>
+      RSVP.race([this.token.authorizedRequest(url), timeout(timing)])
+        .then(
+          response => {
+            if (!response || !response.ok) {
+              this.nextErrorState(response);
+            }
+            return response;
+          },
+          error => this.nextErrorState(error)
+        )
+        .then(response => response.blob())
+        .then(blob => {
+          var url = window.URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.download = this.file;
+          document.body.appendChild(a); // we need to append the element to the dom -> otherwise it will not work in firefox
+          a.click();
+          a.remove(); //afterwards we remove the element again
+          window.URL.revokeObjectURL(url);
+        });
+    fileDownload(this.catUrlWithoutRegion);
   }
 }

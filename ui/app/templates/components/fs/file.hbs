@@ -9,7 +9,7 @@
   <span class="pull-right">
 
     {{#unless this.fileTypeIsUnknown}}
-      <a data-test-log-action="raw" class="button is-white is-compact" href="{{this.catUrl}}" target="_blank" rel="noopener noreferrer">View Raw File</a>
+      <button data-test-log-action="raw" class="button is-white is-compact" onclick={{action "downloadFile"}} type="button">View Raw File</button>
     {{/unless}}
     {{#if (and this.isLarge this.isStreamable)}}
       <button data-test-log-action="head" class="button is-white is-compact" onclick={{action "gotoHead"}} type="button">Head</button>
@@ -32,7 +32,7 @@
       <h3 class="empty-message-headline">Unsupported File Type</h3>
       <p class="empty-message-body message">The Nomad UI could not render this file, but you can still view the file directly.</p>
       <p class="empty-message-body">
-        <a data-test-log-action="raw" class="button is-light" href="{{this.catUrl}}" target="_blank" rel="noopener noreferrer">View Raw File</a>
+        <button data-test-log-action="raw" class="button is-light" onclick={{action "downloadFile"}} type="button">View Raw File</button>
       </p>
     </div>
   {{/if}}
