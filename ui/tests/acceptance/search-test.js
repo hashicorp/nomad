@@ -20,7 +20,7 @@ module('Acceptance | search', function(hooks) {
 
   test('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
-    const otherNode = server.create('node', { name: 'aaa' });
+    const otherNode = server.create('node', { name: 'ghi' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
     server.create('job', { id: 'xyz', name: 'xyz job', namespace: 'default' });
@@ -157,6 +157,25 @@ module('Acceptance | search', function(hooks) {
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (showing 10 of 15)');
         assert.equal(jobs.options.length, 10);
+      });
+    });
+  });
+
+  test('node id prefix matches take priority over node name matches', async function(assert) {
+    const nodeToMatchById = server.create('node', { name: 'xyz' });
+
+    const idPrefix = nodeToMatchById.id.substr(0, 5);
+
+    const nodeToMatchByName = server.create('node', { name: `node-name-with-id-piece-${idPrefix}`});
+
+    await visit('/');
+
+    await selectSearch(PageLayout.navbar.search.scope, idPrefix);
+
+    PageLayout.navbar.search.as(search => {
+      search.groups[1].as(clients => {
+        assert.equal(clients.options[0].text, nodeToMatchById.name);
+        assert.equal(clients.options[1].text, nodeToMatchByName.name);
       });
     });
   });

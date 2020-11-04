@@ -26,7 +26,11 @@ export default class GlobalSearchControl extends Component {
       dataSource: this,
     });
 
-    this.nodeSearch = NodeSearch.create({
+    this.nodeNameSearch = NodeNameSearch.create({
+      dataSource: this,
+    });
+
+    this.nodeIdSearch = NodeIdSearch.create({
       dataSource: this,
     });
   }
@@ -62,7 +66,9 @@ export default class GlobalSearchControl extends Component {
       set(this, 'nodes', nodes.toArray());
 
       const jobResults = this.jobSearch.listSearched.slice(0, MAXIMUM_RESULTS);
-      const nodeResults = this.nodeSearch.listSearched.slice(0, MAXIMUM_RESULTS);
+
+      const mergedNodeListSearched = this.nodeIdSearch.listSearched.concat(this.nodeNameSearch.listSearched).uniq();
+      const nodeResults = mergedNodeListSearched.slice(0, MAXIMUM_RESULTS);
 
       return [
         {
@@ -70,7 +76,7 @@ export default class GlobalSearchControl extends Component {
           options: jobResults,
         },
         {
-          groupName: resultsGroupLabel('Clients', nodeResults, this.nodeSearch.listSearched),
+          groupName: resultsGroupLabel('Clients', nodeResults, mergedNodeListSearched),
           options: nodeResults,
         },
       ];
@@ -161,12 +167,11 @@ class JobSearch extends EmberObject.extend(Searchable) {
   fuzzySearchEnabled = true;
   includeFuzzySearchMatches = true;
 }
-
 @classic
-class NodeSearch extends EmberObject.extend(Searchable) {
+class NodeNameSearch extends EmberObject.extend(Searchable) {
   @computed
   get searchProps() {
-    return ['id', 'name'];
+    return ['name'];
   }
 
   @computed
@@ -179,6 +184,23 @@ class NodeSearch extends EmberObject.extend(Searchable) {
 
   fuzzySearchEnabled = true;
   includeFuzzySearchMatches = true;
+}
+
+@classic
+class NodeIdSearch extends EmberObject.extend(Searchable) {
+  @computed
+  get regexSearchProps() {
+    return ['id'];
+  }
+
+  @alias('dataSource.nodes') listToSearch;
+  @computed('dataSource.searchString')
+  get searchTerm() {
+    return `^${this.get('dataSource.searchString')}`;
+  }
+
+  exactMatchEnabled = false;
+  regexEnabled = true;
 }
 
 function resultsGroupLabel(type, renderedResults, allResults) {
