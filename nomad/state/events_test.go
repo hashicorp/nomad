@@ -12,11 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// structs.AllocClientUpdateRequestType:
-// structs.AllocUpdateRequestType
-// JobDeregisterRequestType
-// jobregisterrequesttype
-
 func TestGenericEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
