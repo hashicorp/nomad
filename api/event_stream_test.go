@@ -168,15 +168,23 @@ func TestEventStream_SetPayloadValue(t *testing.T) {
 		expectFn func(t *testing.T, event Event)
 	}{
 		{
-			input: []byte(`{"Topic": "Deployment", "Payload": {"Deployment":{"ID":"some-id","JobID":"some-job-id"}}}`),
+			input: []byte(`{"Topic": "Deployment", "Payload": {"Deployment":{"ID":"some-id","JobID":"some-job-id", "TaskGroups": {"tg1": {"RequireProgressBy": "2020-11-05T11:52:54.370774000-05:00"}}}}}`),
 			expectFn: func(t *testing.T, event Event) {
+				eventTime, err := time.Parse(time.RFC3339, "2020-11-05T11:52:54.370774000-05:00")
+				require.NoError(t, err)
 				require.Equal(t, TopicDeployment, event.Topic)
 
 				d, err := event.Deployment()
 				require.NoError(t, err)
+				require.NoError(t, err)
 				require.Equal(t, &Deployment{
 					ID:    "some-id",
 					JobID: "some-job-id",
+					TaskGroups: map[string]*DeploymentState{
+						"tg1": {
+							RequireProgressBy: eventTime,
+						},
+					},
 				}, d)
 			},
 		},
