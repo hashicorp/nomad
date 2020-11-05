@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -566,4 +567,29 @@ func TestGenericEventsFromChanges_AllocUpdateRequestType(t *testing.T) {
 
 func TestGenericEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
 	t.SkipNow()
+}
+
+func TestGenericEventsFromChanges_WithDeletion(t *testing.T) {
+	t.Parallel()
+
+	changes := Changes{
+		Index: uint64(1),
+		Changes: memdb.Changes{
+			{
+				Before: &structs.Job{},
+				After:  &structs.Job{},
+			},
+			{
+				Before: &structs.Job{},
+				After:  nil, // deleted
+			},
+		},
+		MsgType: structs.JobDeregisterRequestType,
+	}
+
+	event, err := GenericEventsFromChanges(nil, changes)
+	require.NoError(t, err)
+	require.NotNil(t, event)
+
+	require.Len(t, event.Events, 1)
 }
