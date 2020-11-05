@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 type networkStatusGetter interface {
@@ -177,22 +176,6 @@ func (h *groupServiceHook) Postrun() error {
 	return nil
 }
 
-func (h *groupServiceHook) driverNet() *drivers.DriverNetwork {
-	if len(h.networks) == 0 {
-		return nil
-	}
-
-	//TODO(schmichael) only support one network for now
-	net := h.networks[0]
-	//TODO(schmichael) there's probably a better way than hacking driver network
-	return &drivers.DriverNetwork{
-		AutoAdvertise: true,
-		IP:            net.IP,
-		// Copy PortLabels from group network
-		PortMap: net.PortLabels(),
-	}
-}
-
 // deregister services from Consul.
 func (h *groupServiceHook) deregister() {
 	if len(h.services) > 0 {
@@ -221,7 +204,6 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 		Group:         h.group,
 		Restarter:     h.restarter,
 		Services:      interpolatedServices,
-		DriverNetwork: h.driverNet(),
 		Networks:      h.networks,
 		NetworkStatus: netStatus,
 		Ports:         h.ports,
