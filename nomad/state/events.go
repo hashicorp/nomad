@@ -62,6 +62,7 @@ type JobDrainDetails struct {
 
 var MsgTypeEvents = map[structs.MessageType]string{
 	structs.NodeRegisterRequestType:                 TypeNodeRegistration,
+	structs.NodeDeregisterRequestType:               TypeNodeDeregistration,
 	structs.UpsertNodeEventsType:                    TypeNodeEvent,
 	structs.EvalUpdateRequestType:                   TypeEvalUpdated,
 	structs.AllocClientUpdateRequestType:            TypeAllocUpdated,
@@ -80,20 +81,14 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ApplyPlanResultsRequestType:             TypePlanResult,
 }
 
-// GenericEventsFromChanges returns a set of events for a given set of
-// transaction changes. It currently ignores Delete operations.
-func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
+func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
 	eventType, ok := MsgTypeEvents[changes.MsgType]
 	if !ok {
-		return nil, nil
+		return nil
 	}
 
 	var events []structs.Event
 	for _, change := range changes.Changes {
-		if change.Deleted() {
-			continue
-		}
-
 		if event, ok := eventFromChange(change); ok {
 			event.Type = eventType
 			event.Index = changes.Index
@@ -101,10 +96,25 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 		}
 	}
 
-	return &structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}
 }
 
 func eventFromChange(change memdb.Change) (structs.Event, bool) {
+	if change.Deleted() {
+		switch before := change.Before.(type) {
+		case *structs.Node:
+			return structs.Event{
+				Topic: structs.TopicNode,
+				Key:   before.ID,
+				Payload: &NodeEvent{
+					Node: before,
+				},
+			}, true
+		}
+
+		return structs.Event{}, false
+	}
+
 	switch after := change.After.(type) {
 	case *structs.Evaluation:
 		return structs.Event{

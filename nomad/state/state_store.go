@@ -100,7 +100,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})
-		s.db = NewChangeTrackerDB(db, broker, processDBChanges)
+		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges)
 	} else {
 		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
 	}
