@@ -81,10 +81,10 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ApplyPlanResultsRequestType:             TypePlanResult,
 }
 
-func eventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
+func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
 	eventType, ok := MsgTypeEvents[changes.MsgType]
 	if !ok {
-		return nil, nil
+		return nil
 	}
 
 	var events []structs.Event
@@ -96,7 +96,7 @@ func eventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 		}
 	}
 
-	return &structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}
 }
 
 func eventFromChange(change memdb.Change) (structs.Event, bool) {

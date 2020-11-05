@@ -582,8 +582,7 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 		MsgType: structs.JobDeregisterRequestType,
 	}
 
-	event, err := eventsFromChanges(nil, changes)
-	require.NoError(t, err)
+	event := eventsFromChanges(nil, changes)
 	require.NotNil(t, event)
 
 	require.Len(t, event.Events, 1)
@@ -608,8 +607,7 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 		MsgType: structs.NodeDeregisterRequestType,
 	}
 
-	actual, err := eventsFromChanges(nil, changes)
-	require.NoError(t, err)
+	actual := eventsFromChanges(nil, changes)
 	require.NotNil(t, actual)
 
 	require.Len(t, actual.Events, 1)
@@ -635,7 +633,6 @@ func TestNodeEventsFromChanges(t *testing.T) {
 		Setup      func(s *StateStore, tx *txn) error
 		Mutate     func(s *StateStore, tx *txn) error
 		WantEvents []structs.Event
-		WantErr    bool
 		WantTopic  structs.Topic
 	}{
 		{
@@ -654,7 +651,6 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					Node: testNode(),
 				},
 			}},
-			WantErr: false,
 		},
 		{
 			MsgType:   structs.NodeRegisterRequestType,
@@ -672,7 +668,6 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					Node: testNode(nodeNotReady),
 				},
 			}},
-			WantErr: false,
 		},
 		{
 			MsgType:   structs.NodeDeregisterRequestType,
@@ -693,7 +688,6 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					Node: testNode(),
 				},
 			}},
-			WantErr: false,
 		},
 		{
 			MsgType:   structs.NodeDeregisterRequestType,
@@ -726,7 +720,6 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					},
 				},
 			},
-			WantErr: false,
 		},
 		{
 			MsgType:   structs.UpsertNodeEventsType,
@@ -778,7 +771,6 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					},
 				},
 			},
-			WantErr: false,
 		},
 	}
 
@@ -798,13 +790,8 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			require.NoError(t, tc.Mutate(s, tx))
 
 			changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: tc.MsgType}
-			got, err := eventsFromChanges(tx, changes)
+			got := eventsFromChanges(tx, changes)
 
-			if tc.WantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
 			require.NotNil(t, got)
 
 			require.Equal(t, len(tc.WantEvents), len(got.Events))
@@ -865,8 +852,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event))
 	changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: structs.NodeUpdateDrainRequestType}
-	got, err := eventsFromChanges(tx, changes)
-	require.NoError(t, err)
+	got := eventsFromChanges(tx, changes)
 
 	require.Len(t, got.Events, 1)
 
