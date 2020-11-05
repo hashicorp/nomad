@@ -1,6 +1,7 @@
 package state
 
 import (
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -93,88 +94,82 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			return nil, nil
 		}
 
-		switch after := change.After.(type) {
-		case *structs.Evaluation:
-			event := structs.Event{
-				Topic: structs.TopicEval,
-				Type:  eventType,
-				Index: changes.Index,
-				Key:   after.ID,
-				FilterKeys: []string{
-					after.JobID,
-					after.DeploymentID,
-				},
-				Namespace: after.Namespace,
-				Payload: &EvalEvent{
-					Eval: after,
-				},
-			}
-
-			events = append(events, event)
-
-		case *structs.Allocation:
-			alloc := after.Copy()
-
-			filterKeys := []string{
-				alloc.JobID,
-				alloc.DeploymentID,
-			}
-
-			// remove job info to help keep size of alloc event down
-			alloc.Job = nil
-
-			event := structs.Event{
-				Topic:      structs.TopicAlloc,
-				Type:       eventType,
-				Index:      changes.Index,
-				Key:        after.ID,
-				FilterKeys: filterKeys,
-				Namespace:  after.Namespace,
-				Payload: &AllocEvent{
-					Alloc: alloc,
-				},
-			}
-
-			events = append(events, event)
-		case *structs.Job:
-			event := structs.Event{
-				Topic:     structs.TopicJob,
-				Type:      eventType,
-				Index:     changes.Index,
-				Key:       after.ID,
-				Namespace: after.Namespace,
-				Payload: &JobEvent{
-					Job: after,
-				},
-			}
-
-			events = append(events, event)
-		case *structs.Node:
-			event := structs.Event{
-				Topic: structs.TopicNode,
-				Type:  eventType,
-				Index: changes.Index,
-				Key:   after.ID,
-				Payload: &NodeEvent{
-					Node: after,
-				},
-			}
-			events = append(events, event)
-		case *structs.Deployment:
-			event := structs.Event{
-				Topic:      structs.TopicDeployment,
-				Type:       eventType,
-				Index:      changes.Index,
-				Key:        after.ID,
-				Namespace:  after.Namespace,
-				FilterKeys: []string{after.JobID},
-				Payload: &DeploymentEvent{
-					Deployment: after,
-				},
-			}
+		if event, ok := eventFromChange(change); ok {
+			event.Type = eventType
+			event.Index = changes.Index
 			events = append(events, event)
 		}
 	}
 
 	return &structs.Events{Index: changes.Index, Events: events}, nil
+}
+
+func eventFromChange(change memdb.Change) (structs.Event, bool) {
+	switch after := change.After.(type) {
+	case *structs.Evaluation:
+		return structs.Event{
+			Topic: structs.TopicEval,
+			Key:   after.ID,
+			FilterKeys: []string{
+				after.JobID,
+				after.DeploymentID,
+			},
+			Namespace: after.Namespace,
+			Payload: &EvalEvent{
+				Eval: after,
+			},
+		}, true
+
+	case *structs.Allocation:
+		alloc := after.Copy()
+
+		filterKeys := []string{
+			alloc.JobID,
+			alloc.DeploymentID,
+		}
+
+		// remove job info to help keep size of alloc event down
+		alloc.Job = nil
+
+		return structs.Event{
+			Topic:      structs.TopicAlloc,
+			Key:        after.ID,
+			FilterKeys: filterKeys,
+			Namespace:  after.Namespace,
+			Payload: &AllocEvent{
+				Alloc: alloc,
+			},
+		}, true
+
+	case *structs.Job:
+		return structs.Event{
+			Topic:     structs.TopicJob,
+			Key:       after.ID,
+			Namespace: after.Namespace,
+			Payload: &JobEvent{
+				Job: after,
+			},
+		}, true
+
+	case *structs.Node:
+		return structs.Event{
+			Topic: structs.TopicNode,
+			Key:   after.ID,
+			Payload: &NodeEvent{
+				Node: after,
+			},
+		}, true
+	case *structs.Deployment:
+		return structs.Event{
+			Topic:      structs.TopicDeployment,
+			Key:        after.ID,
+			Namespace:  after.Namespace,
+			FilterKeys: []string{after.JobID},
+			Payload: &DeploymentEvent{
+				Deployment: after,
+			},
+		}, true
+	}
+
+	return structs.Event{}, false
 }
