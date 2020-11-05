@@ -159,6 +159,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Node: after,
 			},
 		}, true
+
 	case *structs.Deployment:
 		return structs.Event{
 			Topic:      structs.TopicDeployment,
