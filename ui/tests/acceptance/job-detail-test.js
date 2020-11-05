@@ -212,6 +212,8 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   });
 
   test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
 
@@ -249,8 +251,8 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
   });
 
-  test('resource recommendations are not fetched when the token lacks permissions', async function(assert) {
-    window.localStorage.nomadTokenSecret = clientToken.secretId;
+  test('resource recommendations are not fetched when the feature doesn’t exist', async function(assert) {
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
 
     assert.equal(JobDetail.recommendations.length, 0);
