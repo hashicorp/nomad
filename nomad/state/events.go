@@ -91,11 +91,12 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 
 	var events []structs.Event
 	for _, change := range changes.Changes {
+		if change.Deleted() {
+			return nil, nil
+		}
+
 		switch change.Table {
 		case "evals":
-			if change.Deleted() {
-				return nil, nil
-			}
 			after, ok := change.After.(*structs.Evaluation)
 			if !ok {
 				return nil, fmt.Errorf("transaction change was not an Evaluation")
@@ -119,9 +120,6 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			events = append(events, event)
 
 		case "allocs":
-			if change.Deleted() {
-				return nil, nil
-			}
 			after, ok := change.After.(*structs.Allocation)
 			if !ok {
 				return nil, fmt.Errorf("transaction change was not an Allocation")
@@ -151,9 +149,6 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 
 			events = append(events, event)
 		case "jobs":
-			if change.Deleted() {
-				return nil, nil
-			}
 			after, ok := change.After.(*structs.Job)
 			if !ok {
 				return nil, fmt.Errorf("transaction change was not an Allocation")
@@ -172,9 +167,6 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 
 			events = append(events, event)
 		case "nodes":
-			if change.Deleted() {
-				return nil, nil
-			}
 			after, ok := change.After.(*structs.Node)
 			if !ok {
 				return nil, fmt.Errorf("transaction change was not a Node")
@@ -191,9 +183,6 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 			events = append(events, event)
 		case "deployment":
-			if change.Deleted() {
-				return nil, nil
-			}
 			after, ok := change.After.(*structs.Deployment)
 			if !ok {
 				return nil, fmt.Errorf("transaction change was not a Node")
