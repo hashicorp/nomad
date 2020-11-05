@@ -175,11 +175,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		cb(nomadConfig)
 	}
 
-	args := []string{"agent", "-config", configFile.Name()}
-
 	if nomadConfig.DevMode {
-		args = append(args, "-dev")
-
 		if nomadConfig.Client.Options == nil {
 			nomadConfig.Client.Options = map[string]string{}
 		}
@@ -204,6 +200,11 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	stderr := io.Writer(os.Stderr)
 	if nomadConfig.Stderr != nil {
 		stderr = nomadConfig.Stderr
+	}
+
+	args := []string{"agent", "-config", configFile.Name()}
+	if nomadConfig.DevMode {
+		args = append(args, "-dev")
 	}
 
 	// Start the server
