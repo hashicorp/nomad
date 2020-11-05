@@ -582,7 +582,7 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 		MsgType: structs.JobDeregisterRequestType,
 	}
 
-	event, err := EventsFromChanges(nil, changes)
+	event, err := eventsFromChanges(nil, changes)
 	require.NoError(t, err)
 	require.NotNil(t, event)
 
@@ -608,7 +608,7 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 		MsgType: structs.NodeDeregisterRequestType,
 	}
 
-	actual, err := EventsFromChanges(nil, changes)
+	actual, err := eventsFromChanges(nil, changes)
 	require.NoError(t, err)
 	require.NotNil(t, actual)
 
@@ -798,7 +798,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			require.NoError(t, tc.Mutate(s, tx))
 
 			changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: tc.MsgType}
-			got, err := EventsFromChanges(tx, changes)
+			got, err := eventsFromChanges(tx, changes)
 
 			if tc.WantErr {
 				require.Error(t, err)
@@ -865,7 +865,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event))
 	changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: structs.NodeUpdateDrainRequestType}
-	got, err := EventsFromChanges(tx, changes)
+	got, err := eventsFromChanges(tx, changes)
 	require.NoError(t, err)
 
 	require.Len(t, got.Events, 1)

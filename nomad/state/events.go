@@ -81,9 +81,7 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ApplyPlanResultsRequestType:             TypePlanResult,
 }
 
-// EventsFromChanges returns a set of events for a given set of
-// transaction changes.
-func EventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
+func eventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
 	eventType, ok := MsgTypeEvents[changes.MsgType]
 	if !ok {
 		return nil, nil
