@@ -168,13 +168,9 @@ func (tx *txn) MsgType() structs.MessageType {
 }
 
 func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
-	switch changes.MsgType {
-	case structs.IgnoreUnknownTypeFlag:
-		// unknown event type
+	if changes.MsgType == structs.IgnoreUnknownTypeFlag {
 		return nil, nil
-	case structs.NodeDeregisterRequestType:
-		return NodeDeregisterEventFromChanges(tx, changes)
-	default:
-		return GenericEventsFromChanges(tx, changes)
 	}
+
+	return GenericEventsFromChanges(tx, changes)
 }
