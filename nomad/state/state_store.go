@@ -3329,35 +3329,17 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 }
 
 // AllocsByIDPrefix is used to lookup allocs by prefix
-func (s *StateStore) AllocsByIDPrefixInNSes(ws memdb.WatchSet, namespaces map[string]bool, prefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) AllocsByIDPrefixAllNSs(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	var iter memdb.ResultIterator
-	var err error
-	if prefix != "" {
-		iter, err = txn.Get("allocs", "id_prefix", prefix)
-	} else {
-		iter, err = txn.Get("allocs", "id")
-
-	}
+	iter, err := txn.Get("allocs", "id_prefix", prefix)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	ws.Add(iter.WatchCh())
 
-	// Wrap the iterator in a filter
-	nsesFilter := func(raw interface{}) bool {
-		alloc, ok := raw.(*structs.Allocation)
-		if !ok {
-			return true
-		}
-
-		return namespaces[alloc.Namespace]
-	}
-
-	wrap := memdb.NewFilterIterator(iter, nsesFilter)
-	return wrap, nil
+	return iter, nil
 }
 
 // AllocsByNode returns all the allocations by node

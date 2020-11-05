@@ -38,6 +38,7 @@ __BACKWARDS INCOMPATIBILITIES:__
 BUG FIXES:
 
  * core: Fixed a bug where blocking queries would not include the query's maximum wait time when calculating whether it was safe to retry. [[GH-8921](https://github.com/hashicorp/nomad/issues/8921)]
+ * core: Fixed a bug where ACL handling prevented cross-namespace allocation listing [[GH-9278](https://github.com/hashicorp/nomad/issues/9278)]
  * config (Enterprise): Fixed default enterprise config merging. [[GH-9083](https://github.com/hashicorp/nomad/pull/9083)]
  * client: Fixed an issue with the Java fingerprinter on macOS causing pop-up notifications when no JVM installed. [[GH-9225](https://github.com/hashicorp/nomad/pull/9225)] 
  * consul: Fixed a bug to correctly validate task when using script-checks in group-level services [[GH-8952](https://github.com/hashicorp/nomad/issues/8952)]
