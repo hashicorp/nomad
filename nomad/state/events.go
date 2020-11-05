@@ -1,8 +1,6 @@
 package state
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -95,13 +93,8 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			return nil, nil
 		}
 
-		switch change.Table {
-		case "evals":
-			after, ok := change.After.(*structs.Evaluation)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Evaluation")
-			}
-
+		switch after := change.After.(type) {
+		case *structs.Evaluation:
 			event := structs.Event{
 				Topic: structs.TopicEval,
 				Type:  eventType,
@@ -119,12 +112,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 
 			events = append(events, event)
 
-		case "allocs":
-			after, ok := change.After.(*structs.Allocation)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Allocation")
-			}
-
+		case *structs.Allocation:
 			alloc := after.Copy()
 
 			filterKeys := []string{
@@ -148,12 +136,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			events = append(events, event)
-		case "jobs":
-			after, ok := change.After.(*structs.Job)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Allocation")
-			}
-
+		case *structs.Job:
 			event := structs.Event{
 				Topic:     structs.TopicJob,
 				Type:      eventType,
@@ -166,12 +149,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 			}
 
 			events = append(events, event)
-		case "nodes":
-			after, ok := change.After.(*structs.Node)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
-			}
-
+		case *structs.Node:
 			event := structs.Event{
 				Topic: structs.TopicNode,
 				Type:  eventType,
@@ -182,12 +160,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 				},
 			}
 			events = append(events, event)
-		case "deployment":
-			after, ok := change.After.(*structs.Deployment)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
-			}
-
+		case *structs.Deployment:
 			event := structs.Event{
 				Topic:      structs.TopicDeployment,
 				Type:       eventType,
