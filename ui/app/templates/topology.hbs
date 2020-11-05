@@ -5,7 +5,20 @@
       <ForbiddenMessage />
     {{else}}
       <div class="columns">
-        <div class="column is-narrow">
+        <div class="column is-narrow is-400">
+          {{#if this.showPollingNotice}}
+            <div class="notification is-warning">
+              <div class="columns">
+                <div class="column">
+                  <h3 class="title is-4">No Live Updating</h3>
+                  <p>The topology visualization depends on too much data to continuously poll.</p>
+                </div>
+                <div class="column is-centered is-minimum">
+                  <button data-test-polling-notice-dismiss class="button is-warning" type="button" onclick={{toggle-action "showPollingNotice" this}}>Okay</button>
+                </div>
+              </div>
+            </div>
+          {{/if}}
           <div class="boxed-section">
             <div class="boxed-section-head">
               Legend
