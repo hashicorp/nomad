@@ -13,7 +13,7 @@
     </div>
   </div>
 
-  {{#if (can "read agent")}}
+  {{#if (can "accept recommendations")}}
     {{#each this.job.recommendationSummaries as |summary|}}
       <Das::RecommendationAccordion @summary={{summary}} />
     {{/each}}
