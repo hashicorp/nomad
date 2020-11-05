@@ -91,7 +91,7 @@ func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, err
 	var events []structs.Event
 	for _, change := range changes.Changes {
 		if change.Deleted() {
-			return nil, nil
+			continue
 		}
 
 		if event, ok := eventFromChange(change); ok {
