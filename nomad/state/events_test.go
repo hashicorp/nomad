@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenericEventsFromChanges_DeploymentUpdate(t *testing.T) {
+func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -58,7 +58,7 @@ func TestGenericEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	require.Contains(t, got.FilterKeys, j.ID)
 }
 
-func TestGenericEventsFromChanges_DeploymentPromotion(t *testing.T) {
+func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -135,7 +135,7 @@ func TestGenericEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	require.Equal(t, TypeDeploymentPromotion, got.Type)
 }
 
-func TestGenericEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
+func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -231,7 +231,7 @@ func TestGenericEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T)
 	}
 }
 
-func TestGenericEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
+func TestEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -272,7 +272,7 @@ func TestGenericEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 
 }
 
-func TestGenericEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
+func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -303,7 +303,7 @@ func TestGenericEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 	require.Equal(t, structs.NodeStatusDown, event.Node.Status)
 }
 
-func TestGenericEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
+func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -337,7 +337,7 @@ func TestGenericEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	require.Equal(t, "blocked", event.Eval.Status)
 }
 
-func TestGenericEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
+func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -398,7 +398,7 @@ func TestGenericEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	require.Len(t, deploys, 1)
 }
 
-func TestGenericEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
+func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -453,7 +453,7 @@ func TestGenericEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) 
 	}
 }
 
-func TestGenericEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
+func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -493,7 +493,7 @@ func TestGenericEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T)
 	}
 }
 
-func TestGenericEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T) {
+func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
@@ -547,24 +547,24 @@ func TestGenericEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *tes
 	require.Len(t, evalEvents, 1)
 }
 
-func TestGenericEventsFromChanges_JobBatchDeregisterRequestType(t *testing.T) {
+func TestEventsFromChanges_JobBatchDeregisterRequestType(t *testing.T) {
 	// TODO Job batch deregister logic mostly occurs in the FSM
 	t.SkipNow()
 
 }
-func TestGenericEventsFromChanges_AllocClientUpdateRequestType(t *testing.T) {
+func TestEventsFromChanges_AllocClientUpdateRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestGenericEventsFromChanges_AllocUpdateRequestType(t *testing.T) {
+func TestEventsFromChanges_AllocUpdateRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestGenericEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
+func TestEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestGenericEventsFromChanges_WithDeletion(t *testing.T) {
+func TestEventsFromChanges_WithDeletion(t *testing.T) {
 	t.Parallel()
 
 	changes := Changes{
@@ -582,14 +582,14 @@ func TestGenericEventsFromChanges_WithDeletion(t *testing.T) {
 		MsgType: structs.JobDeregisterRequestType,
 	}
 
-	event, err := GenericEventsFromChanges(nil, changes)
+	event, err := EventsFromChanges(nil, changes)
 	require.NoError(t, err)
 	require.NotNil(t, event)
 
 	require.Len(t, event.Events, 1)
 }
 
-func TestGenericEventsFromChanges_WithNodeDeregistration(t *testing.T) {
+func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 	t.Parallel()
 
 	before := &structs.Node{
@@ -608,7 +608,7 @@ func TestGenericEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 		MsgType: structs.NodeDeregisterRequestType,
 	}
 
-	actual, err := GenericEventsFromChanges(nil, changes)
+	actual, err := EventsFromChanges(nil, changes)
 	require.NoError(t, err)
 	require.NotNil(t, actual)
 
@@ -798,7 +798,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			require.NoError(t, tc.Mutate(s, tx))
 
 			changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: tc.MsgType}
-			got, err := GenericEventsFromChanges(tx, changes)
+			got, err := EventsFromChanges(tx, changes)
 
 			if tc.WantErr {
 				require.Error(t, err)
@@ -865,7 +865,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event))
 	changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: structs.NodeUpdateDrainRequestType}
-	got, err := GenericEventsFromChanges(tx, changes)
+	got, err := EventsFromChanges(tx, changes)
 	require.NoError(t, err)
 
 	require.Len(t, got.Events, 1)
