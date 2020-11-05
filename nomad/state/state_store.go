@@ -2227,7 +2227,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 	}
 
 	var alloc *structs.Allocation
-	if claim.Mode != structs.CSIVolumeClaimRelease {
+	if claim.State == structs.CSIVolumeClaimStateTaken {
 		alloc, err = s.AllocByID(ws, claim.AllocationID)
 		if err != nil {
 			s.logger.Error("AllocByID failed", "error", err)

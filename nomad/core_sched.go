@@ -723,7 +723,8 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 	gcClaims := func(ns, volID string) error {
 		req := &structs.CSIVolumeClaimRequest{
 			VolumeID: volID,
-			Claim:    structs.CSIVolumeClaimRelease,
+			Claim:    structs.CSIVolumeClaimGC,
+			State:    structs.CSIVolumeClaimStateUnpublishing,
 			WriteRequest: structs.WriteRequest{
 				Namespace: ns,
 				Region:    c.srv.Region(),

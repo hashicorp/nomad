@@ -86,12 +86,19 @@ func (c *csiHook) Postrun() error {
 	var mErr *multierror.Error
 
 	for _, pair := range c.volumeRequests {
+
+		mode := structs.CSIVolumeClaimRead
+		if !pair.request.ReadOnly {
+			mode = structs.CSIVolumeClaimWrite
+		}
+
 		req := &structs.CSIVolumeUnpublishRequest{
 			VolumeID: pair.request.Source,
 			Claim: &structs.CSIVolumeClaim{
 				AllocationID: c.alloc.ID,
 				NodeID:       c.alloc.NodeID,
-				Mode:         structs.CSIVolumeClaimRelease,
+				Mode:         mode,
+				State:        structs.CSIVolumeClaimStateUnpublishing,
 			},
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,

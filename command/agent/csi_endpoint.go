@@ -187,7 +187,7 @@ func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *h
 		VolumeID: id,
 		Claim: &structs.CSIVolumeClaim{
 			NodeID: nodeID,
-			Mode:   structs.CSIVolumeClaimRelease,
+			Mode:   structs.CSIVolumeClaimGC,
 		},
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
