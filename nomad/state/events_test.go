@@ -803,7 +803,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			require.NoError(t, tc.Mutate(s, tx))
 
 			changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: tc.MsgType}
-			got, err := processDBChanges(tx, changes)
+			got, err := GenericEventsFromChanges(tx, changes)
 
 			if tc.WantErr {
 				require.Error(t, err)
@@ -870,7 +870,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event))
 	changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: structs.NodeUpdateDrainRequestType}
-	got, err := processDBChanges(tx, changes)
+	got, err := GenericEventsFromChanges(tx, changes)
 	require.NoError(t, err)
 
 	require.Len(t, got.Events, 1)

@@ -166,11 +166,3 @@ func (tx *txn) Commit() error {
 func (tx *txn) MsgType() structs.MessageType {
 	return tx.msgType
 }
-
-func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
-	if changes.MsgType == structs.IgnoreUnknownTypeFlag {
-		return nil, nil
-	}
-
-	return GenericEventsFromChanges(tx, changes)
-}
