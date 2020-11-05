@@ -29,7 +29,7 @@ type Changes struct {
 type changeTrackerDB struct {
 	memdb          *memdb.MemDB
 	publisher      *stream.EventBroker
-	processChanges func(ReadTxn, Changes) *structs.Events
+	processChanges changeProcessor
 }
 
 func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventBroker, changesFn changeProcessor) *changeTrackerDB {
