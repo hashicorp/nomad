@@ -157,7 +157,7 @@ func TestEventStream_PayloadValue(t *testing.T) {
 	}
 }
 
-func TestEventStream_SetPayloadValue(t *testing.T) {
+func TestEventStream_PayloadValueHelpers(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
