@@ -590,7 +590,7 @@ github.com/mitchellh/go-wordwrap
 # github.com/mitchellh/hashstructure v1.0.0
 ## explicit
 github.com/mitchellh/hashstructure
-# github.com/mitchellh/mapstructure v1.3.1
+# github.com/mitchellh/mapstructure v1.3.3
 ## explicit
 github.com/mitchellh/mapstructure
 # github.com/mitchellh/reflectwalk v1.0.1

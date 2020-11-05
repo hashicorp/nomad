@@ -463,7 +463,34 @@ func (d *Decoder) decode(name string, input interface{}, outVal reflect.Value) e
 // value to "data" of that type.
 func (d *Decoder) decodeBasic(name string, data interface{}, val reflect.Value) error {
 	if val.IsValid() && val.Elem().IsValid() {
-		return d.decode(name, data, val.Elem())
+		elem := val.Elem()
+
+		// If we can't address this element, then its not writable. Instead,
+		// we make a copy of the value (which is a pointer and therefore
+		// writable), decode into that, and replace the whole value.
+		copied := false
+		if !elem.CanAddr() {
+			copied = true
+
+			// Make *T
+			copy := reflect.New(elem.Type())
+
+			// *T = elem
+			copy.Elem().Set(elem)
+
+			// Set elem so we decode into it
+			elem = copy
+		}
+
+		// Decode. If we have an error then return. We also return right
+		// away if we're not a copy because that means we decoded directly.
+		if err := d.decode(name, data, elem); err != nil || !copied {
+			return err
+		}
+
+		// If we're a copy, we need to set te final result
+		val.Set(elem.Elem())
+		return nil
 	}
 
 	dataVal := reflect.ValueOf(data)
@@ -847,21 +874,21 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 		// Determine the name of the key in the map
 		if index := strings.Index(tagValue, ","); index != -1 {
 			if tagValue[:index] == "-" {
-				continue;
+				continue
 			}
 			// If "omitempty" is specified in the tag, it ignores empty values.
-			if strings.Index(tagValue[index + 1:], "omitempty") != -1 && isEmptyValue(v) {
+			if strings.Index(tagValue[index+1:], "omitempty") != -1 && isEmptyValue(v) {
 				continue
 			}
 
 			// If "squash" is specified in the tag, we squash the field down.
-			squash = !squash && strings.Index(tagValue[index + 1:], "squash") != -1
+			squash = !squash && strings.Index(tagValue[index+1:], "squash") != -1
 			if squash && v.Kind() != reflect.Struct {
 				return fmt.Errorf("cannot squash non-struct type '%s'", v.Type())
 			}
 			keyName = tagValue[:index]
 		} else if len(tagValue) > 0 {
-			if  tagValue == "-" {
+			if tagValue == "-" {
 				continue
 			}
 			keyName = tagValue
@@ -879,10 +906,21 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 			mType := reflect.MapOf(vKeyType, vElemType)
 			vMap := reflect.MakeMap(mType)
 
-			err := d.decode(keyName, x.Interface(), vMap)
+			// Creating a pointer to a map so that other methods can completely
+			// overwrite the map if need be (looking at you decodeMapFromMap). The
+			// indirection allows the underlying map to be settable (CanSet() == true)
+			// where as reflect.MakeMap returns an unsettable map.
+			addrVal := reflect.New(vMap.Type())
+			reflect.Indirect(addrVal).Set(vMap)
+
+			err := d.decode(keyName, x.Interface(), reflect.Indirect(addrVal))
 			if err != nil {
 				return err
 			}
+
+			// the underlying map may have been completely overwritten so pull
+			// it indirectly out of the enclosing value.
+			vMap = reflect.Indirect(addrVal)
 
 			if squash {
 				for _, k := range vMap.MapKeys() {
@@ -1127,13 +1165,23 @@ func (d *Decoder) decodeStruct(name string, data interface{}, val reflect.Value)
 		// Not the most efficient way to do this but we can optimize later if
 		// we want to. To convert from struct to struct we go to map first
 		// as an intermediary.
-		m := make(map[string]interface{})
-		mval := reflect.Indirect(reflect.ValueOf(&m))
-		if err := d.decodeMapFromStruct(name, dataVal, mval, mval); err != nil {
+
+		// Make a new map to hold our result
+		mapType := reflect.TypeOf((map[string]interface{})(nil))
+		mval := reflect.MakeMap(mapType)
+
+		// Creating a pointer to a map so that other methods can completely
+		// overwrite the map if need be (looking at you decodeMapFromMap). The
+		// indirection allows the underlying map to be settable (CanSet() == true)
+		// where as reflect.MakeMap returns an unsettable map.
+		addrVal := reflect.New(mval.Type())
+
+		reflect.Indirect(addrVal).Set(mval)
+		if err := d.decodeMapFromStruct(name, dataVal, reflect.Indirect(addrVal), mval); err != nil {
 			return err
 		}
 
-		result := d.decodeStructFromMap(name, mval, val)
+		result := d.decodeStructFromMap(name, reflect.Indirect(addrVal), val)
 		return result
 
 	default:

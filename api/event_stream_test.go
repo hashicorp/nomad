@@ -6,19 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
-
-func TestEvent_Unmarshal(t *testing.T) {
-	input := []byte(`{"Index": 1, "Payload": { "Deployment": {"ID": "TEST" }}}`)
-
-	var e Event
-	err := json.Unmarshal(input, &e)
-	require.NoError(t, err)
-	spew.Dump(e)
-}
 
 func TestEvent_Stream(t *testing.T) {
 	t.Parallel()
@@ -158,12 +148,9 @@ func TestEventStream_PayloadValue(t *testing.T) {
 			require.NoError(t, err)
 		}
 		for _, e := range event.Events {
-			if e.Node != nil {
-				require.NotEqual(t, "", e.Node.ID)
-				return
-			} else {
-				require.Fail(t, "expected either node or deployment to be set")
-			}
+			n, err := e.Node()
+			require.NoError(t, err)
+			require.NotEqual(t, "", n.ID)
 		}
 	case <-time.After(5 * time.Second):
 		require.Fail(t, "failed waiting for event stream event")
@@ -184,62 +171,62 @@ func TestEventStream_SetPayloadValue(t *testing.T) {
 			input: []byte(`{"Topic": "Deployment", "Payload": {"Deployment":{"ID":"some-id","JobID":"some-job-id"}}}`),
 			expectFn: func(t *testing.T, event Event) {
 				require.Equal(t, TopicDeployment, event.Topic)
+
+				d, err := event.Deployment()
+				require.NoError(t, err)
 				require.Equal(t, &Deployment{
 					ID:    "some-id",
 					JobID: "some-job-id",
-				}, event.Deployment)
+				}, d)
 			},
 		},
 		{
 			input: []byte(`{"Topic": "Eval", "Payload": {"Eval":{"ID":"some-id","Namespace":"some-namespace-id"}}}`),
 			expectFn: func(t *testing.T, event Event) {
 				require.Equal(t, TopicEval, event.Topic)
+				eval, err := event.Evaluation()
+				require.NoError(t, err)
+
 				require.Equal(t, &Evaluation{
 					ID:        "some-id",
 					Namespace: "some-namespace-id",
-				}, event.Evaluation)
+				}, eval)
 			},
 		},
 		{
 			input: []byte(`{"Topic": "Alloc", "Payload": {"Alloc":{"ID":"some-id","Namespace":"some-namespace-id"}}}`),
 			expectFn: func(t *testing.T, event Event) {
 				require.Equal(t, TopicAlloc, event.Topic)
+				a, err := event.Allocation()
+				require.NoError(t, err)
 				require.Equal(t, &Allocation{
 					ID:        "some-id",
 					Namespace: "some-namespace-id",
-				}, event.Allocation)
+				}, a)
 			},
 		},
 		{
 			input: []byte(`{"Topic": "Job", "Payload": {"Job":{"ID":"some-id","Namespace":"some-namespace-id"}}}`),
 			expectFn: func(t *testing.T, event Event) {
 				require.Equal(t, TopicJob, event.Topic)
+				j, err := event.Job()
+				require.NoError(t, err)
 				require.Equal(t, &Job{
 					ID:        stringToPtr("some-id"),
 					Namespace: stringToPtr("some-namespace-id"),
-				}, event.Job)
+				}, j)
 			},
 		},
 		{
 			input: []byte(`{"Topic": "Node", "Payload": {"Node":{"ID":"some-id","Datacenter":"some-dc-id"}}}`),
 			expectFn: func(t *testing.T, event Event) {
 				require.Equal(t, TopicNode, event.Topic)
+				n, err := event.Node()
+				require.NoError(t, err)
 				require.Equal(t, &Node{
 					ID:         "some-id",
 					Datacenter: "some-dc-id",
-				}, event.Node)
-			},
-		},
-		{
-			input: []byte(`{"Topic": "unknown", "Payload": {"Pod":{"Foo": "invalid"}}}`),
-			expectFn: func(t *testing.T, event Event) {
-				require.Equal(t, Topic("unknown"), event.Topic)
-			},
-		},
-		{
-			input: []byte(`{"Topic": "*", "Payload": {}}`),
-			expectFn: func(t *testing.T, event Event) {
-				require.Equal(t, TopicAll, event.Topic)
+				}, n)
 			},
 		},
 	}
