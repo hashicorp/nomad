@@ -10,6 +10,7 @@ import {
 } from 'ember-cli-page-object';
 
 import recommendationCard from 'nomad-ui/tests/pages/components/recommendation-card';
+import facet from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   visit: visitable('/optimize'),
@@ -54,5 +55,12 @@ export default create({
   applicationError: {
     isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
+  },
+
+  facets: {
+    type: facet('[data-test-type-facet]'),
+    status: facet('[data-test-status-facet]'),
+    datacenter: facet('[data-test-datacenter-facet]'),
+    prefix: facet('[data-test-prefix-facet]'),
   },
 });

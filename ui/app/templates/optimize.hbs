@@ -1,10 +1,50 @@
 <PageLayout>
   <section class="section">
     {{#if @model}}
+      <div class="toolbar">
+        <div class="toolbar-item">
+          {{#if @model}}
+            {{!-- <SearchBox
+              data-test-jobs-search
+              @searchTerm={{mut this.searchTerm}}
+              @onChange={{action this.resetPagination}}
+              @placeholder="Search jobs..." /> --}}
+          {{/if}}
+        </div>
+        <div class="toolbar-item is-right-aligned is-mobile-full-width">
+          <div class="button-bar">
+            <MultiSelectDropdown
+              data-test-type-facet
+              @label="Type"
+              @options={{this.optionsType}}
+              @selection={{this.selectionType}}
+              @onSelect={{action this.setFacetQueryParam "qpType"}} />
+            <MultiSelectDropdown
+              data-test-status-facet
+              @label="Status"
+              @options={{this.optionsStatus}}
+              @selection={{this.selectionStatus}}
+              @onSelect={{action this.setFacetQueryParam "qpStatus"}} />
+            <MultiSelectDropdown
+              data-test-datacenter-facet
+              @label="Datacenter"
+              @options={{this.optionsDatacenter}}
+              @selection={{this.selectionDatacenter}}
+              @onSelect={{action this.setFacetQueryParam "qpDatacenter"}} />
+            <MultiSelectDropdown
+              data-test-prefix-facet
+              @label="Prefix"
+              @options={{this.optionsPrefix}}
+              @selection={{this.selectionPrefix}}
+              @onSelect={{action this.setFacetQueryParam "qpPrefix"}} />
+          </div>
+        </div>
+      </div>
+
       {{outlet}}
 
       <ListTable
-        @source={{this.model}} as |t|>
+        @source={{this.filteredSummaries}} as |t|>
         <t.head>
           <th>Job</th>
           <th>Recommended At</th>
