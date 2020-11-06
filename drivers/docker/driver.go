@@ -852,12 +852,23 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			return c, err
 		}
 
-		if hm.Type == "bind" {
+		switch hm.Type {
+		case "bind":
 			hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
 
-			// paths inside alloc dir are always allowed as they mount within a container, and treated as relative to task dir
+			// paths inside alloc dir are always allowed as they mount within
+			// a container, and treated as relative to task dir
 			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
-				return c, fmt.Errorf("volumes are not enabled; cannot mount host path: %q %q", hm.Source, task.AllocDir)
+				return c, fmt.Errorf(
+					"volumes are not enabled; cannot mount host path: %q %q",
+					hm.Source, task.AllocDir)
+			}
+		case "tmpfs":
+			// no source, so no sandbox check required
+		default: // "volume", but also any new thing that comes along
+			if !d.config.Volumes.Enabled {
+				return c, fmt.Errorf(
+					"volumes are not enabled; cannot mount volume: %q", hm.Source)
 			}
 		}
 

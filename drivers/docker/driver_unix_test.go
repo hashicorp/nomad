@@ -409,7 +409,8 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 		expectedMounts  []docker.HostMount
 	}{
 		{
-			name: "basic volume",
+			name:            "basic volume",
+			requiresVolumes: true,
 			passedMounts: []DockerMount{
 				{
 					Target:   "/nomad",
@@ -606,6 +607,7 @@ func TestDockerDriver_CreateContainerConfig_MountsCombined(t *testing.T) {
 
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
+	driver.config.Volumes.Enabled = true
 
 	c, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	require.NoError(t, err)
