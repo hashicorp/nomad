@@ -242,7 +242,7 @@ var (
 				hclspec.NewLiteral("true"),
 			),
 			"selinuxlabel": hclspec.NewAttr("selinuxlabel", "string", false),
-		})), hclspec.NewLiteral("{ enabled = true }")),
+		})), hclspec.NewLiteral("{ enabled = false }")),
 		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),

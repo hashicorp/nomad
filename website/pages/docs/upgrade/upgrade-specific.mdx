@@ -15,6 +15,76 @@ details provided for their upgrades as a result of new features or changed
 behavior. This page is used to document those details separately from the
 standard upgrade flow.
 
+## Nomad 0.11.7
+
+### Docker volume mounts
+
+Nomad 0.11.7 includes security fixes for the handling of Docker volume mounts:
+
+- The `docker.volumes.enabled` flag now defaults to `false` as documented.
+- Docker driver mounts of type "volume" (but not "bind") were not sandboxed
+  and could mount arbitrary locations from the client host. The
+  `docker.volumes.enabled` configuration will now disable Docker mounts with
+  type "volume" when set to `false` (the default).
+
+This change Docker impacts jobs that use a `mounts` with type "volume", as
+shown below. This job will fail when placed unless `docker.volumes.enabled =
+true`.
+
+```hcl
+mounts = [
+  {
+    type     = "volume"
+    target   = "/path/in/container"
+    source   = "docker_volume"
+    volume_options = {
+      driver_config = {
+        name = "local"
+        options = [
+          {
+            device = "/"
+            o      = "ro,bind"
+            type   = "ext4"
+          }
+        ]
+      }
+    }
+  }
+]
+```
+
+## Nomad 0.11.5
+
+### Artifact and Template Paths
+
+Nomad 0.11.5 includes backported security fixes for privilege escalation
+vulnerabilities in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
+
+~> **Warning:** Due to a [bug][gh-9148] in Nomad v0.11.5, the
+`template.destination` and `artifact.destination` paths do not support
+absolute paths, including the interpolated `NOMAD_SECRETS_DIR`,
+`NOMAD_TASK_DIR`, and `NOMAD_ALLOC_DIR` variables. This bug is fixed in
+v0.11.6. To work around the bug, use a relative path.
+
+## Nomad 0.11.3
+
+Nomad 0.11.3 fixes a critical bug causing the nomad agent to become
+unresponsive. The issue is due to a [Go 1.14.1 runtime
+bug](https://github.com/golang/go/issues/38023) and affects Nomad 0.11.1 and
+0.11.2.
+
 ## Nomad 0.11.2
 
 ### Scheduler Scoring Changes
@@ -62,6 +132,69 @@ code is available in an external repository,
 it will not be maintained as `rkt` is [no longer being developed
 upstream](https://github.com/rkt/rkt). We encourage all `rkt` users to find a
 new task driver as soon as possible.
+
+## Nomad 0.10.8
+
+### Docker volume mounts
+
+Nomad 0.10.8 includes security fixes for the handling of Docker volume mounts:
+
+- The `docker.volumes.enabled` flag now defaults to `false` as documented.
+- Docker driver mounts of type "volume" (but not "bind") were not sandboxed
+  and could mount arbitrary locations from the client host. The
+  `docker.volumes.enabled` configuration will now disable Docker mounts with
+  type "volume" when set to `false` (the default).
+
+This change Docker impacts jobs that use a `mounts` with type "volume", as
+shown below. This job will fail when placed unless `docker.volumes.enabled =
+true`.
+
+```hcl
+mounts = [
+  {
+    type     = "volume"
+    target   = "/path/in/container"
+    source   = "docker_volume"
+    volume_options = {
+      driver_config = {
+        name = "local"
+        options = [
+          {
+            device = "/"
+            o      = "ro,bind"
+            type   = "ext4"
+          }
+        ]
+      }
+    }
+  }
+]
+```
+
+## Nomad 0.10.6
+
+### Artifact and Template Paths
+
+Nomad 0.10.6 includes backported security fixes for privilege escalation
+vulnerabilities in handling of job `template` and `artifact` stanzas:
+
+- The `template.source` and `template.destination` fields are now protected by
+  the file sandbox introduced in 0.9.6. These paths are now restricted to fall
+  inside the task directory by default. An operator can opt-out of this
+  protection with the
+  [`template.disable_file_sandbox`](/docs/configuration/client#template-parameters)
+  field in the client configuration.
+- The paths for `template.source`, `template.destination`, and
+  `artifact.destination` are validated on job submission to ensure the paths
+  do not escape the file sandbox. It was possible to use interpolation to
+  bypass this validation. The client now interpolates the paths before
+  checking if they are in the file sandbox.
+
+~> **Warning:** Due to a [bug][gh-9148] in Nomad v0.10.6, the
+`template.destination` and `artifact.destination` paths do not support
+absolute paths, including the interpolated `NOMAD_SECRETS_DIR`,
+`NOMAD_TASK_DIR`, and `NOMAD_ALLOC_DIR` variables. This bug is fixed in
+v0.10.7. To work around the bug, use a relative path.
 
 ## Nomad 0.10.4
 
