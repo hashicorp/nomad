@@ -43,103 +43,65 @@ type Event struct {
 // Deployment returns a Deployment struct from a given event payload. If the
 // Event Topic is Deployment this will return a valid Deployment
 func (e *Event) Deployment() (*Deployment, error) {
-	v := struct {
-		Deployment *Deployment `mapstructure:"Deployment"`
-	}{}
-	cfg := &mapstructure.DecoderConfig{
-		Result:     &v,
-		DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
-	}
-
-	dec, err := mapstructure.NewDecoder(cfg)
+	out, err := e.decodePayload()
 	if err != nil {
 		return nil, err
 	}
-
-	if err := dec.Decode(e.Payload); err != nil {
-		return nil, err
-	}
-
-	return v.Deployment, nil
+	return out.Deployment, nil
 }
 
 // Evaluation returns a Evaluation struct from a given event payload. If the
 // Event Topic is Evaluation this will return a valid Evaluation
 func (e *Event) Evaluation() (*Evaluation, error) {
-	v := struct {
-		Evaluation *Evaluation `mapstructure:"Eval"`
-	}{}
-	cfg := &mapstructure.DecoderConfig{
-		Result:     &v,
-		DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
-	}
-
-	dec, err := mapstructure.NewDecoder(cfg)
+	out, err := e.decodePayload()
 	if err != nil {
 		return nil, err
 	}
-
-	if err := dec.Decode(e.Payload); err != nil {
-		return nil, err
-	}
-
-	return v.Evaluation, nil
+	return out.Evaluation, nil
 }
 
 // Allocation returns a Allocation struct from a given event payload. If the
 // Event Topic is Allocation this will return a valid Allocation.
 func (e *Event) Allocation() (*Allocation, error) {
-	v := struct {
-		Allocation *Allocation `mapstructure:"Alloc"`
-	}{}
-	cfg := &mapstructure.DecoderConfig{
-		Result:     &v,
-		DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
-	}
-
-	dec, err := mapstructure.NewDecoder(cfg)
+	out, err := e.decodePayload()
 	if err != nil {
 		return nil, err
 	}
-
-	if err := dec.Decode(e.Payload); err != nil {
-		return nil, err
-	}
-
-	return v.Allocation, nil
+	return out.Allocation, nil
 }
 
 // Job returns a Job struct from a given event payload. If the
 // Event Topic is Job this will return a valid Job.
 func (e *Event) Job() (*Job, error) {
-	v := struct {
-		Job *Job `mapstructure:"Job"`
-	}{}
-	cfg := &mapstructure.DecoderConfig{
-		Result:     &v,
-		DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
-	}
-
-	dec, err := mapstructure.NewDecoder(cfg)
+	out, err := e.decodePayload()
 	if err != nil {
 		return nil, err
 	}
-
-	if err := dec.Decode(e.Payload); err != nil {
-		return nil, err
-	}
-
-	return v.Job, nil
+	return out.Job, nil
 }
 
 // Node returns a Node struct from a given event payload. If the
 // Event Topic is Node this will return a valid Node.
 func (e *Event) Node() (*Node, error) {
-	v := struct {
-		Node *Node `mapstructure:"Node"`
-	}{}
+	out, err := e.decodePayload()
+	if err != nil {
+		return nil, err
+	}
+	return out.Node, nil
+}
+
+type eventPayload struct {
+	Allocation *Allocation `mapstructure:"Alloc"`
+	Deployment *Deployment `mapstructure:"Deployment"`
+	Evaluation *Evaluation `mapstructure:"Eval"`
+	Job        *Job        `mapstructure:"Job"`
+	Node       *Node       `mapstructure:"Node"`
+}
+
+func (e *Event) decodePayload() (*eventPayload, error) {
+	var out eventPayload
 	cfg := &mapstructure.DecoderConfig{
-		Result:     &v,
+		Result:     &out,
 		DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
 	}
 
@@ -152,7 +114,7 @@ func (e *Event) Node() (*Node, error) {
 		return nil, err
 	}
 
-	return v.Node, nil
+	return &out, nil
 }
 
 // IsHeartbeat specifies if the event is an empty heartbeat used to
