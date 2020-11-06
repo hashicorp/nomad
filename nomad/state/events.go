@@ -1,6 +1,9 @@
 package state
 
 import (
+	"time"
+
+	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -82,6 +85,8 @@ var MsgTypeEvents = map[structs.MessageType]string{
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
+	defer metrics.MeasureSince([]string{"nomad", "state_store", "events_from_changes"}, time.Now())
+
 	eventType, ok := MsgTypeEvents[changes.MsgType]
 	if !ok {
 		return nil

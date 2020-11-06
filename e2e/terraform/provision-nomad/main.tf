@@ -1,7 +1,7 @@
 locals {
   provision_script = var.platform == "windows_amd64" ? "C:/opt/provision.ps1" : "/opt/provision.sh"
 
-  custom_path = dirname("${path.root}/config/custom/")
+  custom_path = abspath("config/custom/")
 
   custom_config_files = compact(setunion(
     fileset(local.custom_path, "nomad/*.hcl"),

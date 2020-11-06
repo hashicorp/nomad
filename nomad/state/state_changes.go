@@ -1,6 +1,9 @@
 package state
 
 import (
+	"time"
+
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -86,6 +89,8 @@ func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) 
 }
 
 func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
+	defer metrics.MeasureSince([]string{"nomad", "state_store", "publish"}, time.Now())
+
 	readOnlyTx := c.memdb.Txn(false)
 	defer readOnlyTx.Abort()
 
