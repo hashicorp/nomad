@@ -212,7 +212,11 @@ OUTER:
 		var initNetIdxOnce sync.Once
 
 		// Create a device allocator
-		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
+		var devAllocator *deviceAllocator
+		initDevAllocator := func() {
+			devAllocator = newDeviceAllocator(iter.ctx, option.Node)
+			devAllocator.AddAllocs(proposed)
+		}
 		var initDevAllocatorOnce sync.Once
 
 		// Track the affinities of the devices
@@ -363,7 +367,7 @@ OUTER:
 
 			// Check if we need to assign devices
 			for _, req := range task.Resources.Devices {
-				initDevAllocatorOnce.Do(func() { devAllocator.AddAllocs(proposed) })
+				initDevAllocatorOnce.Do(initDevAllocator)
 				offer, sumAffinities, err := devAllocator.AssignDevice(req)
 				if offer == nil {
 					// If eviction is not enabled, mark this node as exhausted and continue
