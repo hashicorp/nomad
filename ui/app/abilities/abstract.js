@@ -53,6 +53,15 @@ export default class Abstract extends Ability {
     });
   }
 
+  @computed('system.features.[]')
+  get features() {
+    return this.system.features;
+  }
+
+  featureIsPresent(featureName) {
+    return this.features.includes(featureName);
+  }
+
   // Chooses the closest namespace as described at the bottom here:
   // https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control#namespace-rules
   _findMatchingNamespace(policyNamespaces, activeNamespace) {

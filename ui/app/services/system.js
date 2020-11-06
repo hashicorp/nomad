@@ -1,10 +1,12 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
 import jsonWithDefault from '../utils/json-with-default';
 import classic from 'ember-classic-decorator';
+import { task } from 'ember-concurrency';
 
 @classic
 export default class SystemService extends Service {
@@ -143,5 +145,25 @@ export default class SystemService extends Service {
   reset() {
     this.set('activeNamespace', null);
     this.notifyPropertyChange('namespaces');
+  }
+
+  @task(function*() {
+    const emptyLicense = { License: { Features: [] } };
+
+    try {
+      return yield this.token
+        .authorizedRawRequest(`/${namespace}/operator/license`)
+        .then(jsonWithDefault(emptyLicense));
+    } catch (e) {
+      return emptyLicense;
+    }
+  })
+  fetchLicense;
+
+  @alias('fetchLicense.lastSuccessful.value') license;
+
+  @computed('license.License.Features.[]')
+  get features() {
+    return this.get('license.License.Features') || [];
   }
 }

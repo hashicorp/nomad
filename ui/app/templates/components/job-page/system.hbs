@@ -13,9 +13,11 @@
     </div>
   </div>
 
-  {{#each this.job.recommendationSummaries as |summary|}}
-    <Das::RecommendationAccordion @summary={{summary}} />
-  {{/each}}
+  {{#if (can "accept recommendations")}}
+    {{#each this.job.recommendationSummaries as |summary|}}
+      <Das::RecommendationAccordion @summary={{summary}} />
+    {{/each}}
+  {{/if}}
 
   <JobPage::Parts::Summary @job={{this.job}} />
 

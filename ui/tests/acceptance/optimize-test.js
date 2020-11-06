@@ -28,6 +28,8 @@ module('Acceptance | optimize', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+
     server.create('node');
 
     server.createList('namespace', 2);
