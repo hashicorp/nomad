@@ -1,0 +1,31 @@
+---
+layout: docs
+page_title: 'Commands: recommendation'
+sidebar_title: recommendation
+description: |
+  The recommendation command is used to interact with recommendations.
+---
+
+# Command: recommendation
+
+The `recommendation` command is used to interact with recommendations.
+
+~> Recommendation commands are new in Nomad 1.0 and are only available with
+Nomad Enterprise.
+
+## Usage
+
+Usage: `nomad recommendation <subcommand> [options]`
+
+Run `nomad recommendation <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`recommendation apply`][recommendationapply] - Apply one or more Nomad recommendations
+- [`recommendation dismiss`][recommendationdismiss] - Dismiss one or more Nomad recommendations
+- [`recommendation info`][recommendationinfo] - Display an individual Nomad recommendation
+- [`recommendation list`][recommendationlist] - Display all Nomad recommendations
+
+[recommendationapply]: /docs/commands/recommendation/apply
+[recommendationdismiss]: /docs/commands/recommendation/dismiss
+[recommendationinfo]: /docs/commands/recommendation/info
+[recommendationlist]: /docs/commands/recommendation/list
