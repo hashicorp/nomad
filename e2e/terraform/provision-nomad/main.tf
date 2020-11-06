@@ -1,7 +1,7 @@
 locals {
   provision_script = var.platform == "windows_amd64" ? "C:/opt/provision.ps1" : "/opt/provision.sh"
 
-  custom_path = abspath("${var.config_path}/custom/")
+  custom_path = dirname("${path.root}/config/custom/")
 
   custom_config_files = compact(setunion(
     fileset(local.custom_path, "nomad/*.hcl"),
@@ -108,7 +108,7 @@ resource "null_resource" "upload_custom_configs" {
 
   count = var.profile == "custom" ? 1 : 0
   triggers = {
-    hashes = "${join(",", [for file in local.custom_config_files : filemd5(file)])}"
+    hashes = "${join(",", [for file in local.custom_config_files : filemd5("${local.custom_path}/${file}")])}"
   }
 
   connection {
