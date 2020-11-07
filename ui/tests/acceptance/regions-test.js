@@ -152,7 +152,7 @@ module('Acceptance | regions (many)', function(hooks) {
     );
   });
 
-  test('when the region is not the default region, all api requests include the region query param', async function(assert) {
+  test('when the region is not the default region, all api requests other than the agent/self request include the region query param', async function(assert) {
     window.localStorage.removeItem('nomadTokenSecret');
     const region = server.db.regions[1].id;
 
@@ -162,7 +162,8 @@ module('Acceptance | regions (many)', function(hooks) {
     await PageLayout.gutter.visitClients();
     await PageLayout.gutter.visitServers();
     const [
-      ,
+      , // License request
+      , // Token/policies request
       regionsRequest,
       defaultRegionRequest,
       ...appRequests
@@ -178,7 +179,11 @@ module('Acceptance | regions (many)', function(hooks) {
     );
 
     appRequests.forEach(req => {
-      assert.ok(req.url.includes(`region=${region}`), req.url);
+      if (req.url === '/v1/agent/self') {
+        assert.notOk(req.url.includes('region='), `(no region) ${req.url}`);
+      } else {
+        assert.ok(req.url.includes(`region=${region}`), req.url);
+      }
     });
   });
 });

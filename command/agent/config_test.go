@@ -67,8 +67,6 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    false,
-			DisableTaggedMetrics:               true,
-			BackwardsCompatibleMetrics:         true,
 			CirconusAPIToken:                   "0",
 			CirconusAPIApp:                     "nomadic",
 			CirconusAPIURL:                     "http://api.circonus.com/v2",
@@ -115,8 +113,8 @@ func TestConfig_Merge(t *testing.T) {
 			ClientMaxPort:     19996,
 			DisableRemoteExec: false,
 			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
 				CPU:           10,
@@ -140,6 +138,8 @@ func TestConfig_Merge(t *testing.T) {
 			MaxHeartbeatsPerSecond: 30.0,
 			RedundancyZone:         "foo",
 			UpgradeVersion:         "foo",
+			EnableEventBroker:      helper.BoolToPtr(false),
+			EventBufferSize:        helper.IntToPtr(0),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -256,8 +256,6 @@ func TestConfig_Merge(t *testing.T) {
 			DisableHostname:                    true,
 			PublishNodeMetrics:                 true,
 			PublishAllocationMetrics:           true,
-			DisableTaggedMetrics:               true,
-			BackwardsCompatibleMetrics:         true,
 			CirconusAPIToken:                   "1",
 			CirconusAPIApp:                     "nomad",
 			CirconusAPIURL:                     "https://api.circonus.com/v2",
@@ -297,8 +295,8 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
 			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
 				CPU:           15,
@@ -332,6 +330,8 @@ func TestConfig_Merge(t *testing.T) {
 			NonVotingServer:        true,
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
+			EnableEventBroker:      helper.BoolToPtr(true),
+			EventBufferSize:        helper.IntToPtr(100),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -1166,4 +1166,50 @@ func TestTelemetry_Parse(t *testing.T) {
 	require.False(*config.Telemetry.FilterDefault)
 	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
 	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
+}
+
+func TestEventBroker_Parse(t *testing.T) {
+
+	require := require.New(t)
+	{
+		a := &ServerConfig{
+			EnableEventBroker: helper.BoolToPtr(false),
+			EventBufferSize:   helper.IntToPtr(0),
+		}
+		b := DefaultConfig().Server
+		b.EnableEventBroker = nil
+		b.EventBufferSize = nil
+
+		result := a.Merge(b)
+		require.Equal(false, *result.EnableEventBroker)
+		require.Equal(0, *result.EventBufferSize)
+	}
+
+	{
+		a := &ServerConfig{
+			EnableEventBroker: helper.BoolToPtr(true),
+			EventBufferSize:   helper.IntToPtr(5000),
+		}
+		b := DefaultConfig().Server
+		b.EnableEventBroker = nil
+		b.EventBufferSize = nil
+
+		result := a.Merge(b)
+		require.Equal(true, *result.EnableEventBroker)
+		require.Equal(5000, *result.EventBufferSize)
+	}
+
+	{
+		a := &ServerConfig{
+			EnableEventBroker: helper.BoolToPtr(false),
+			EventBufferSize:   helper.IntToPtr(0),
+		}
+		b := DefaultConfig().Server
+		b.EnableEventBroker = helper.BoolToPtr(true)
+		b.EventBufferSize = helper.IntToPtr(20000)
+
+		result := a.Merge(b)
+		require.Equal(true, *result.EnableEventBroker)
+		require.Equal(20000, *result.EventBufferSize)
+	}
 }

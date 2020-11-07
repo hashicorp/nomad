@@ -1,6 +1,7 @@
 package getter
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -96,8 +98,16 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 		return newGetError(artifact.GetterSource, err, false)
 	}
 
-	// Download the artifact
+	// Verify the destination is still in the task sandbox after interpolation
+	// Note: we *always* join here even if we get passed an absolute path so
+	// that $NOMAD_SECRETS_DIR and friends can be used and always fall inside
+	// the task working directory
 	dest := filepath.Join(taskDir, artifact.RelativeDest)
+	escapes := helper.PathEscapesSandbox(taskDir, dest)
+	if escapes {
+		return newGetError(artifact.RelativeDest,
+			errors.New("artifact destination path escapes the alloc directory"), false)
+	}
 
 	// Convert from string getter mode to go-getter const
 	mode := gg.ClientModeAny

@@ -123,7 +123,7 @@ func (c *AllocStopCommand) Run(args []string) int {
 	}
 
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }
 
 func (a *AllocStopCommand) Synopsis() string {

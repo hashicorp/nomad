@@ -16,16 +16,16 @@ export default [
           'requirements',
           'nomad-agent',
           'reference-architecture',
-          'deployment-guide'
-        ]
+          'deployment-guide',
+        ],
       },
-      'windows-service'
-    ]
+      'windows-service',
+    ],
   },
   { category: 'upgrade', content: ['upgrade-specific'] },
   {
     category: 'integrations',
-    content: ['consul-integration', 'consul-connect', 'vault-integration']
+    content: ['consul-integration', 'consul-connect', 'vault-integration'],
   },
   '-----------',
   {
@@ -41,38 +41,38 @@ export default [
         content: [
           'rolling-upgrades',
           'blue-green-and-canary-deployments',
-          'handling-signals'
-        ]
+          'handling-signals',
+        ],
       },
       {
         category: 'failure-handling-strategies',
-        content: ['restart', 'check-restart', 'reschedule']
+        content: ['restart', 'check-restart', 'reschedule'],
       },
       {
         category: 'advanced-scheduling',
-        content: ['affinity', 'spread', 'preemption-service-batch']
+        content: ['affinity', 'spread', 'preemption-service-batch'],
       },
-      { category: 'external', content: ['lxc'] }
-    ]
+      { category: 'external', content: ['lxc'] },
+    ],
   },
   {
     category: 'operations',
     content: [
       {
         category: 'cluster',
-        content: ['manual', 'automatic', 'cloud_auto_join']
+        content: ['manual', 'automatic', 'cloud_auto_join'],
       },
       'federation',
       'node-draining',
       'outage',
       { category: 'monitoring-and-alerting', content: ['prometheus-metrics'] },
-      'autopilot'
-    ]
+      'autopilot',
+    ],
   },
 
   {
     category: 'security',
-    content: ['encryption', 'acl', 'securing-nomad', 'vault-pki-integration']
+    content: ['encryption', 'acl', 'securing-nomad', 'vault-pki-integration'],
   },
   { category: 'stateful-workloads' },
   {
@@ -88,13 +88,13 @@ export default [
           'submit',
           'hdfs',
           'monitoring',
-          'configuration'
-        ]
-      }
-    ]
+          'configuration',
+        ],
+      },
+    ],
   },
 
   { category: 'load-balancing' },
   { category: 'governance-and-policy', content: [] },
-  { category: 'web-ui', content: [] }
+  { category: 'web-ui', content: [] },
 ]

@@ -44,6 +44,7 @@ func TestConsulFingerprint(t *testing.T) {
 	assertNodeAttributeContains(t, response.Attributes, "consul.revision")
 	assertNodeAttributeContains(t, response.Attributes, "unique.consul.name")
 	assertNodeAttributeContains(t, response.Attributes, "consul.datacenter")
+	assertNodeAttributeContains(t, response.Attributes, "consul.segment")
 
 	if _, ok := response.Links["consul"]; !ok {
 		t.Errorf("Expected a link to consul, none found")
@@ -152,6 +153,7 @@ const mockConsulResponse = `
       "expect": "3",
       "port": "8300",
       "role": "consul",
+      "segment": "mysegment",
       "vsn": "2"
     },
     "Status": 1,
@@ -199,6 +201,7 @@ func TestConsulFingerprint_UnexpectedResponse(t *testing.T) {
 		"consul.revision",
 		"unique.consul.name",
 		"consul.datacenter",
+		"consul.segment",
 	}
 
 	for _, attr := range attrs {

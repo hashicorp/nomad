@@ -306,6 +306,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically publish job status metrics
 	go s.publishJobStatusMetrics(stopCh)
 
+	// Send events to configured network sinks
+	go s.publishEventsForSinks()
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -325,6 +328,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	if s.config.ACLEnabled && s.config.Region != s.config.AuthoritativeRegion {
 		go s.replicateACLPolicies(stopCh)
 		go s.replicateACLTokens(stopCh)
+		go s.replicateNamespaces(stopCh)
 	}
 
 	// Setup any enterprise systems required.
@@ -343,6 +347,146 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	}
 
 	return nil
+}
+
+// replicateNamespaces is used to replicate namespaces from the authoritative
+// region to this region.
+func (s *Server) replicateNamespaces(stopCh chan struct{}) {
+	req := structs.NamespaceListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     s.config.AuthoritativeRegion,
+			AllowStale: true,
+		},
+	}
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting namespace replication from authoritative region", "region", req.Region)
+
+START:
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
+		// Rate limit how often we attempt replication
+		limiter.Wait(context.Background())
+
+		// Fetch the list of namespaces
+		var resp structs.NamespaceListResponse
+		req.AuthToken = s.ReplicationToken()
+		err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
+		if err != nil {
+			s.logger.Error("failed to fetch namespaces from authoritative region", "error", err)
+			goto ERR_WAIT
+		}
+
+		// Perform a two-way diff
+		delete, update := diffNamespaces(s.State(), req.MinQueryIndex, resp.Namespaces)
+
+		// Delete namespaces that should not exist
+		if len(delete) > 0 {
+			args := &structs.NamespaceDeleteRequest{
+				Namespaces: delete,
+			}
+			_, _, err := s.raftApply(structs.NamespaceDeleteRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to delete namespaces", "error", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Fetch any outdated namespaces
+		var fetched []*structs.Namespace
+		if len(update) > 0 {
+			req := structs.NamespaceSetRequest{
+				Namespaces: update,
+				QueryOptions: structs.QueryOptions{
+					Region:        s.config.AuthoritativeRegion,
+					AuthToken:     s.ReplicationToken(),
+					AllowStale:    true,
+					MinQueryIndex: resp.Index - 1,
+				},
+			}
+			var reply structs.NamespaceSetResponse
+			if err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.GetNamespaces", &req, &reply); err != nil {
+				s.logger.Error("failed to fetch namespaces from authoritative region", "error", err)
+				goto ERR_WAIT
+			}
+			for _, namespace := range reply.Namespaces {
+				fetched = append(fetched, namespace)
+			}
+		}
+
+		// Update local namespaces
+		if len(fetched) > 0 {
+			args := &structs.NamespaceUpsertRequest{
+				Namespaces: fetched,
+			}
+			_, _, err := s.raftApply(structs.NamespaceUpsertRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to update namespaces", "error", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Update the minimum query index, blocks until there is a change.
+		req.MinQueryIndex = resp.Index
+	}
+
+ERR_WAIT:
+	select {
+	case <-time.After(s.config.ReplicationBackoff):
+		goto START
+	case <-stopCh:
+		return
+	}
+}
+
+// diffNamespaces is used to perform a two-way diff between the local namespaces
+// and the remote namespaces to determine which namespaces need to be deleted or
+// updated.
+func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*structs.Namespace) (delete []string, update []string) {
+	// Construct a set of the local and remote namespaces
+	local := make(map[string][]byte)
+	remote := make(map[string]struct{})
+
+	// Add all the local namespaces
+	iter, err := state.Namespaces(nil)
+	if err != nil {
+		panic("failed to iterate local namespaces")
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		namespace := raw.(*structs.Namespace)
+		local[namespace.Name] = namespace.Hash
+	}
+
+	// Iterate over the remote namespaces
+	for _, rns := range remoteList {
+		remote[rns.Name] = struct{}{}
+
+		// Check if the namespace is missing locally
+		if localHash, ok := local[rns.Name]; !ok {
+			update = append(update, rns.Name)
+
+			// Check if the namespace is newer remotely and there is a hash
+			// mis-match.
+		} else if rns.ModifyIndex > minIndex && !bytes.Equal(localHash, rns.Hash) {
+			update = append(update, rns.Name)
+		}
+	}
+
+	// Check if namespaces should be deleted
+	for lns := range local {
+		if _, ok := remote[lns]; !ok {
+			delete = append(delete, lns)
+		}
+	}
+	return
 }
 
 // restoreEvals is used to restore pending evaluations into the eval broker and
@@ -769,65 +913,55 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 
 func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 	for name, tgSummary := range summary.Summary {
-		if !s.config.DisableTaggedMetrics {
-			labels := []metrics.Label{
-				{
-					Name:  "job",
-					Value: summary.JobID,
-				},
-				{
-					Name:  "task_group",
-					Value: name,
-				},
-				{
-					Name:  "namespace",
-					Value: summary.Namespace,
-				},
-			}
-
-			if strings.Contains(summary.JobID, "/dispatch-") {
-				jobInfo := strings.Split(summary.JobID, "/dispatch-")
-				labels = append(labels, metrics.Label{
-					Name:  "parent_id",
-					Value: jobInfo[0],
-				}, metrics.Label{
-					Name:  "dispatch_id",
-					Value: jobInfo[1],
-				})
-			}
-
-			if strings.Contains(summary.JobID, "/periodic-") {
-				jobInfo := strings.Split(summary.JobID, "/periodic-")
-				labels = append(labels, metrics.Label{
-					Name:  "parent_id",
-					Value: jobInfo[0],
-				}, metrics.Label{
-					Name:  "periodic_id",
-					Value: jobInfo[1],
-				})
-			}
-
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
-				float32(tgSummary.Queued), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
-				float32(tgSummary.Complete), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
-				float32(tgSummary.Failed), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
-				float32(tgSummary.Running), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
-				float32(tgSummary.Starting), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
-				float32(tgSummary.Lost), labels)
+		labels := []metrics.Label{
+			{
+				Name:  "job",
+				Value: summary.JobID,
+			},
+			{
+				Name:  "task_group",
+				Value: name,
+			},
+			{
+				Name:  "namespace",
+				Value: summary.Namespace,
+			},
 		}
-		if s.config.BackwardsCompatibleMetrics {
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+
+		if strings.Contains(summary.JobID, "/dispatch-") {
+			jobInfo := strings.Split(summary.JobID, "/dispatch-")
+			labels = append(labels, metrics.Label{
+				Name:  "parent_id",
+				Value: jobInfo[0],
+			}, metrics.Label{
+				Name:  "dispatch_id",
+				Value: jobInfo[1],
+			})
 		}
+
+		if strings.Contains(summary.JobID, "/periodic-") {
+			jobInfo := strings.Split(summary.JobID, "/periodic-")
+			labels = append(labels, metrics.Label{
+				Name:  "parent_id",
+				Value: jobInfo[0],
+			}, metrics.Label{
+				Name:  "periodic_id",
+				Value: jobInfo[1],
+			})
+		}
+
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+			float32(tgSummary.Queued), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+			float32(tgSummary.Complete), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+			float32(tgSummary.Failed), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+			float32(tgSummary.Running), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+			float32(tgSummary.Starting), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+			float32(tgSummary.Lost), labels)
 	}
 }
 
@@ -856,6 +990,18 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 
 			s.iterateJobStatusMetrics(&iter)
 		}
+	}
+}
+
+func (s *Server) publishEventsForSinks() {
+	if !s.config.EnableEventBroker {
+		s.logger.Debug("event broker disabled, event sink manager will not run")
+		return
+	}
+
+	// Start the manager
+	if err := s.eventSinkManager.Run(); err != nil {
+		s.logger.Warn("event sink manager stopped", "error", err)
 	}
 }
 
@@ -923,6 +1069,9 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the volume watcher
 	s.volumeWatcher.SetEnabled(false, nil)
+
+	// Disable the event sink manager
+	s.eventSinkManager.Stop()
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {

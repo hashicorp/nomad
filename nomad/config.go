@@ -78,6 +78,13 @@ type Config struct {
 	// in the absence of ACLs
 	EnableDebug bool
 
+	// EnableEventBroker is used to enable or disable state store
+	// event publishing
+	EnableEventBroker bool
+
+	// EventBufferSize is the amount of events to hold in memory.
+	EventBufferSize int64
+
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
@@ -298,17 +305,9 @@ type Config struct {
 	// publishes metrics which are periodic in nature like updating gauges
 	StatsCollectionInterval time.Duration
 
-	// DisableTaggedMetrics determines whether metrics will be displayed via a
-	// key/value/tag format, or simply a key/value format
-	DisableTaggedMetrics bool
-
 	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
-
-	// BackwardsCompatibleMetrics determines whether to show methods of
-	// displaying metrics for older versions, or to only show the new format
-	BackwardsCompatibleMetrics bool
 
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
@@ -421,6 +420,8 @@ func DefaultConfig() *Config {
 		ReplicationBackoff:               30 * time.Second,
 		SentinelGCInterval:               30 * time.Second,
 		LicenseConfig:                    &LicenseConfig{},
+		EnableEventBroker:                true,
+		EventBufferSize:                  100,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,

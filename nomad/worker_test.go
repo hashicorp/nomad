@@ -100,7 +100,7 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 	eval2.JobID = eval1.JobID
 
 	// Insert the evals into the state store
-	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1, eval2}); err != nil {
+	if err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -128,7 +128,7 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 	}
 
 	// Update the modify index of the first eval
-	if err := s1.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1}); err != nil {
+	if err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -297,7 +297,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 	go func() {
 		time.Sleep(10 * time.Millisecond)
 		n := mock.Node()
-		errCh <- s1.fsm.state.UpsertNode(index+1, n)
+		errCh <- s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, index+1, n)
 	}()
 
 	// Wait for a future index
@@ -355,8 +355,8 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	job := mock.Job()
 	eval1 := mock.Eval()
 	eval1.JobID = job.ID
-	s1.fsm.State().UpsertJob(1000, job)
-	s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1})
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 
 	// Create the register request
 	s1.evalBroker.Enqueue(eval1)
@@ -422,12 +422,12 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	job := mock.Job()
 	eval1 := mock.Eval()
 	eval1.JobID = job.ID
-	s1.fsm.State().UpsertJob(0, job)
-	s1.fsm.State().UpsertEvals(0, []*structs.Evaluation{eval1})
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 0, job)
+	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{eval1})
 
 	stoppedAlloc := mock.Alloc()
 	preemptedAlloc := mock.Alloc()
-	s1.fsm.State().UpsertAllocs(5, []*structs.Allocation{stoppedAlloc, preemptedAlloc})
+	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{stoppedAlloc, preemptedAlloc})
 
 	// Create an allocation plan
 	plan := &structs.Plan{
@@ -472,7 +472,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 
 	// Create the job
 	job := mock.Job()
-	s1.fsm.State().UpsertJob(1000, job)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 
 	// Create the register request
 	eval1 := mock.Eval()
@@ -640,7 +640,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 	eval1.QueuedAllocations = map[string]int{"cache": 100}
 
 	// Insert it into the state store
-	if err := s1.fsm.State().UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+	if err := s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatal(err)
 	}
 

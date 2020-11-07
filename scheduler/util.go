@@ -377,6 +377,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		return true
 	}
 
+	// Check connect service(s) updated
+	if connectServiceUpdated(a.Services, b.Services) {
+		return true
+	}
+
 	// Check each task
 	for _, at := range a.Tasks {
 		bt := b.LookupTask(at.Name)
@@ -426,6 +431,78 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// connectServiceUpdated returns true if any services with a connect stanza have
+// been changed in such a way that requires a destructive update.
+//
+// Ordinary services can be updated in-place by updating the service definition
+// in Consul. Connect service changes mostly require destroying the task.
+func connectServiceUpdated(servicesA, servicesB []*structs.Service) bool {
+	for _, serviceA := range servicesA {
+		if serviceA.Connect != nil {
+			for _, serviceB := range servicesB {
+				if serviceA.Name == serviceB.Name {
+					if connectUpdated(serviceA.Connect, serviceB.Connect) {
+						return true
+					}
+					// Part of the Connect plumbing is derived from port label,
+					// if that changes we need to destroy the task.
+					if serviceA.PortLabel != serviceB.PortLabel {
+						return true
+					}
+					break
+				}
+			}
+		}
+	}
+	return false
+}
+
+// connectUpdated returns true if the connect block has been updated in a manner
+// that will require a destructive update.
+//
+// Fields that can be updated through consul-sync do not need a destructive
+// update.
+func connectUpdated(connectA, connectB *structs.ConsulConnect) bool {
+	if connectA == nil || connectB == nil {
+		return connectA == connectB
+	}
+
+	if connectA.Native != connectB.Native {
+		return true
+	}
+
+	if !connectA.Gateway.Equals(connectB.Gateway) {
+		return true
+	}
+
+	if !connectA.SidecarTask.Equals(connectB.SidecarTask) {
+		return true
+	}
+
+	// not everything in sidecar_service needs task destruction
+	if connectSidecarServiceUpdated(connectA.SidecarService, connectB.SidecarService) {
+		return true
+	}
+
+	return false
+}
+
+func connectSidecarServiceUpdated(ssA, ssB *structs.ConsulSidecarService) bool {
+	if ssA == nil || ssB == nil {
+		return ssA == ssB
+	}
+
+	if ssA.Port != ssB.Port {
+		return true
+	}
+
+	// sidecar_service.tags handled in-place (registration)
+
+	// sidecar_service.proxy handled in-place (registration + xDS)
+
 	return false
 }
 

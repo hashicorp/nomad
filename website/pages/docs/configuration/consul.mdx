@@ -87,6 +87,10 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
 
+- `namespace` `(string: "")` - Specifies the [Consul namespace](https://www.consul.io/docs/enterprise/namespaces)
+  used by the Consul integration. If non-empty, this namespace will be used on
+  all Consul API calls and for Consul Connect configurations.
+
 - `server_service_name` `(string: "nomad")` - Specifies the name of the service
   in Consul for the Nomad servers.
 
@@ -176,5 +180,37 @@ consul {
 }
 ```
 
+### Consul Namespace
+
+Consul does not allow ACL policies associated with namespaces to use agent
+permissions. Nomad requires `agent:read` permissions. In order to use the
+`consul_namespace` feature, Nomad will need a token generated in Consul's
+default namespace. That token should be created with `agent:read` as well
+as a `namespace` block with the other relevant permissions for running Nomad
+in the intended namespace. The Consul policy below shows an example policy
+configuration for a Nomad server:
+
+```
+agent_prefix "" {
+  policy = "read"
+}
+
+namespace "nomad-ns" {
+  acl = "write"
+
+  key_prefix "" {
+    policy = "read"
+  }
+
+  node_prefix "" {
+    policy = "read"
+  }
+
+  service_prefix "" {
+    policy = "write"
+  }
+}
+```
+
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
-[bootstrap]: https://learn.hashicorp.com/nomad/operating-nomad/clustering 'Automatic Bootstrapping'
+[bootstrap]: https://learn.hashicorp.com/tutorials/nomad/clustering 'Automatic Bootstrapping'

@@ -1,5 +1,5 @@
 docker:
-  - image: circleci/node:10-browsers
+  - image: docker.mirror.hashicorp.services/circleci/node:12-browsers
     environment:
       # See https://git.io/vdao3 for details.
       JOBS: 2

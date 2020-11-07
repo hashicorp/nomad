@@ -515,6 +515,53 @@ func TestParseToken(t *testing.T) {
 	}
 }
 
+func TestParseBool(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Input    string
+		Expected *bool
+		Err      bool // true if an error should be expected
+	}{
+		{
+			Input:    "",
+			Expected: nil,
+		},
+		{
+			Input:    "true",
+			Expected: helper.BoolToPtr(true),
+		},
+		{
+			Input:    "false",
+			Expected: helper.BoolToPtr(false),
+		},
+		{
+			Input: "1234",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?resources=" + tc.Input)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseBool(req, "resources")
+			if tc.Err {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
+			}
+		})
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {

@@ -5,6 +5,8 @@ import { generateResources } from '../common';
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 
 export default Factory.extend({
+  createRecommendations: false,
+
   // Hidden property used to compute the Summary hash
   groupNames: [],
 
@@ -16,7 +18,17 @@ export default Factory.extend({
   name: id => `task-${faker.hacker.noun().dasherize()}-${id}`,
   driver: () => faker.helpers.randomize(DRIVERS),
 
-  Resources: generateResources,
+  originalResources: generateResources,
+  resources: function() {
+    // Generate resources the usual way, but transform to the old
+    // shape because that's what the job spec uses.
+    const resources = this.originalResources;
+    return {
+      CPU: resources.Cpu.CpuShares,
+      MemoryMB: resources.Memory.MemoryMB,
+      DiskMB: resources.Disk.DiskMB,
+    };
+  },
 
   Lifecycle: i => {
     const cycle = i % 5;
@@ -31,6 +43,22 @@ export default Factory.extend({
       return { Hook: 'poststart', Sidecar: false };
     } else if (cycle === 4) {
       return { Hook: 'poststart', Sidecar: true };
+    }
+  },
+
+  afterCreate(task, server) {
+    if (task.createRecommendations) {
+      const recommendations = [];
+
+      if (faker.random.number(10) >= 1) {
+        recommendations.push(server.create('recommendation', { task, resource: 'CPU' }));
+      }
+
+      if (faker.random.number(10) >= 1) {
+        recommendations.push(server.create('recommendation', { task, resource: 'MemoryMB' }));
+      }
+
+      task.save({ recommendationIds: recommendations.mapBy('id') });
     }
   },
 });

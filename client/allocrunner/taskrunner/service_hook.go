@@ -44,6 +44,7 @@ type serviceHook struct {
 	canary     bool
 	services   []*structs.Service
 	networks   structs.Networks
+	ports      structs.AllocatedPorts
 	taskEnv    *taskenv.TaskEnv
 
 	// initialRegistrations tracks if Poststart has completed, initializing
@@ -62,6 +63,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		taskName:  c.task.Name,
 		services:  c.task.Services,
 		restarter: c.restarter,
+		ports:     c.alloc.AllocatedResources.Shared.Ports,
 	}
 
 	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
@@ -141,6 +143,7 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 	h.services = task.Services
 	h.networks = networks
 	h.canary = canary
+	h.ports = req.Alloc.AllocatedResources.Shared.Ports
 
 	return nil
 }
@@ -195,5 +198,6 @@ func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 		DriverNetwork: h.driverNet,
 		Networks:      h.networks,
 		Canary:        h.canary,
+		Ports:         h.ports,
 	}
 }

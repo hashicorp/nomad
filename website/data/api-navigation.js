@@ -18,6 +18,7 @@ export default [
   'client',
   'deployments',
   'evaluations',
+  'events',
   'jobs',
   'namespaces',
   'nodes',
@@ -25,6 +26,7 @@ export default [
   'operator',
   'plugins',
   'quotas',
+  'recommendations',
   'regions',
   'scaling-policies',
   'search',
@@ -33,5 +35,5 @@ export default [
   'system',
   'ui',
   'validate',
-  'volumes'
+  'volumes',
 ]

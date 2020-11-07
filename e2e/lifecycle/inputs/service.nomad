@@ -10,6 +10,11 @@ job "service-lifecycle" {
 
   type = "service"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "test" {
 
     task "init" {

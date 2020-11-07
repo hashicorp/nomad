@@ -30,9 +30,14 @@ export default class ApplicationRoute extends Route {
       .perform()
       .catch();
 
+    const fetchLicense = this.get('system.fetchLicense')
+      .perform()
+      .catch();
+
     return RSVP.all([
       this.get('system.regions'),
       this.get('system.defaultRegion'),
+      fetchLicense,
       fetchSelfTokenAndPolicies,
     ]).then(promises => {
       if (!this.get('system.shouldShowRegions')) return promises;

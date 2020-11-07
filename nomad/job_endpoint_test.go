@@ -12,6 +12,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/acl"
@@ -478,6 +479,7 @@ func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
 			Name:     "check2",
 			Type:     "script",
 			Command:  "/bin/true",
+			TaskName: "web",
 			Interval: 1 * time.Second,
 			Timeout:  1 * time.Second,
 		}, {
@@ -1770,12 +1772,12 @@ func TestJobEndpoint_Register_SemverConstraint(t *testing.T) {
 	node1 := mock.Node()
 	node1.Attributes["vault.version"] = "1.3.0-beta1+ent"
 	node1.ComputeClass()
-	require.NoError(t, state.UpsertNode(1, node1))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node1))
 
 	node2 := mock.Node()
 	delete(node2.Attributes, "vault.version")
 	node2.ComputeClass()
-	require.NoError(t, state.UpsertNode(2, node2))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 2, node2))
 
 	// Create the register request
 	req := &structs.JobRegisterRequest{
@@ -2127,6 +2129,83 @@ func evalUpdateFromRaft(t *testing.T, s *Server, evalID string) *structs.Evaluat
 	}
 
 	return nil
+}
+
+func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
+	t.Parallel()
+	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Policy with read on default namespace and write on non default
+	policy := &structs.ACLPolicy{
+		Name:        fmt.Sprintf("policy-%s", uuid.Generate()),
+		Description: "Super cool policy!",
+		Rules: `
+		namespace "default" {
+			policy = "read"
+		}
+		namespace "test" {
+			policy = "write"
+		}
+		node {
+			policy = "read"
+		}
+		agent {
+			policy = "read"
+		}
+		`,
+		CreateIndex: 10,
+		ModifyIndex: 20,
+	}
+	policy.SetHash()
+
+	assert := assert.New(t)
+
+	// Upsert policy and token
+	token := mock.ACLToken()
+	token.Policies = []string{policy.Name}
+	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy})
+	assert.Nil(err)
+
+	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token})
+	assert.Nil(err)
+
+	// Upsert namespace
+	ns := mock.Namespace()
+	ns.Name = "test"
+	err = s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns})
+	assert.Nil(err)
+
+	// Create the register request
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	req.AuthToken = token.SecretID
+	// Use token without write access to default namespace, expect failure
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	assert.NotNil(err, "expected permission denied")
+
+	req.Namespace = "test"
+	job.Namespace = "test"
+
+	// Use token with write access to default namespace, expect success
+	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	assert.Nil(err, "unexpected err: %v", err)
+	assert.NotEqual(resp.Index, 0, "bad index: %d", resp.Index)
+
+	// Check for the node in the FSM
+	state := s1.fsm.State()
+	ws := memdb.NewWatchSet()
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	assert.Nil(err)
+	assert.NotNil(out, "expected job")
 }
 
 func TestJobEndpoint_Revert(t *testing.T) {
@@ -2527,12 +2606,12 @@ func TestJobEndpoint_Revert_ACL(t *testing.T) {
 
 	// Create the jobs
 	job := mock.Job()
-	err := state.UpsertJob(300, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 300, job)
 	require.Nil(err)
 
 	job2 := job.Copy()
 	job2.Priority = 1
-	err = state.UpsertJob(400, job2)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 400, job2)
 	require.Nil(err)
 
 	// Create revert request and enforcing it be at the current version
@@ -2655,7 +2734,7 @@ func TestJobEndpoint_Stable_ACL(t *testing.T) {
 
 	// Register the job
 	job := mock.Job()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	// Create stability request
@@ -2832,7 +2911,7 @@ func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
 	alloc.TaskGroup = job.TaskGroups[0].Name
 	alloc.Namespace = job.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusFailed
-	err = s1.State().UpsertAllocs(resp.Index+1, []*structs.Allocation{alloc})
+	err = s1.State().UpsertAllocs(structs.MsgTypeTestSetup, resp.Index+1, []*structs.Allocation{alloc})
 	require.Nil(err)
 
 	// Force a re-evaluation
@@ -2886,7 +2965,7 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 
 	// Create the job
 	job := mock.Job()
-	err := state.UpsertJob(300, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 300, job)
 	require.Nil(err)
 
 	// Force a re-evaluation
@@ -3140,7 +3219,7 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 
 	// Create and register a job
 	job := mock.Job()
-	err := state.UpsertJob(100, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	require.Nil(err)
 
 	// Deregister and purge
@@ -3477,8 +3556,9 @@ func TestJobEndpoint_Deregister_EvalCreation_Modern(t *testing.T) {
 	})
 }
 
-// TestJobEndpoint_Register_EvalCreation_Legacy asserts that job deregister creates an eval
-// atomically with the registration, but handle legacy clients by adding a new eval update
+// TestJobEndpoint_Deregister_EvalCreation_Legacy asserts that job deregister
+// creates an eval atomically with the registration, but handle legacy clients
+// by adding a new eval update
 func TestJobEndpoint_Deregister_EvalCreation_Legacy(t *testing.T) {
 	t.Parallel()
 
@@ -3682,8 +3762,8 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 
 	// Create and register a job
 	job, job2 := mock.Job(), mock.Job()
-	require.Nil(state.UpsertJob(100, job))
-	require.Nil(state.UpsertJob(101, job2))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 101, job2))
 
 	// Deregister
 	req := &structs.JobBatchDeregisterRequest{
@@ -3827,7 +3907,7 @@ func TestJobEndpoint_GetJob_ACL(t *testing.T) {
 
 	// Create the job
 	job := mock.Job()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	// Lookup the job
@@ -3888,14 +3968,14 @@ func TestJobEndpoint_GetJob_Blocking(t *testing.T) {
 
 	// Upsert a job we are not interested in first.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(100, job1); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Upsert another job later which should trigger the watch.
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertJob(200, job2); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 200, job2); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -4036,11 +4116,11 @@ func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
 	// Create two versions of a job with different priorities
 	job := mock.Job()
 	job.Priority = 88
-	err := state.UpsertJob(10, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 10, job)
 	require.Nil(err)
 
 	job.Priority = 100
-	err = state.UpsertJob(100, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	require.Nil(err)
 
 	// Lookup the job
@@ -4205,14 +4285,14 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 
 	// Upsert a job we are not interested in first.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(100, job1); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
 
 	// Upsert another job later which should trigger the watch.
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertJob(200, job2); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 200, job2); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -4243,7 +4323,7 @@ func TestJobEndpoint_GetJobVersions_Blocking(t *testing.T) {
 
 	// Upsert the job again which should trigger the watch.
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(300, job3); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 300, job3); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -4434,7 +4514,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 	// Create a job and insert it
 	job1 := mock.Job()
 	time.AfterFunc(200*time.Millisecond, func() {
-		if err := state.UpsertJob(100, job1); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job1); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -4462,7 +4542,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.JobID = job1.ID
 		alloc.Job = job1
-		if err := state.UpsertAllocs(200, []*structs.Allocation{alloc}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -4527,7 +4607,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	state := s1.fsm.State()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4592,7 +4672,7 @@ func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
 	// Create the register request
 	job := mock.Job()
 	state := s1.fsm.State()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4659,7 +4739,7 @@ func TestJobEndpoint_ListJobs_WithACL(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	err = state.UpsertJob(1000, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	req := &structs.JobListRequest{
@@ -4717,7 +4797,7 @@ func TestJobEndpoint_ListJobs_Blocking(t *testing.T) {
 
 	// Upsert job triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertJob(100, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -4785,8 +4865,7 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	state := s1.fsm.State()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(1000,
-		[]*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -4828,8 +4907,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	alloc2.JobID = alloc1.JobID
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(1000,
-		[]*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	require.Nil(err)
 
 	// Look up allocations for that job
@@ -4892,7 +4970,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -4901,7 +4979,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
 		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -4970,8 +5048,7 @@ func TestJobEndpoint_Evaluations(t *testing.T) {
 	eval2 := mock.Eval()
 	eval2.JobID = eval1.JobID
 	state := s1.fsm.State()
-	err := state.UpsertEvals(1000,
-		[]*structs.Evaluation{eval1, eval2})
+	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -5011,8 +5088,7 @@ func TestJobEndpoint_Evaluations_ACL(t *testing.T) {
 	eval1 := mock.Eval()
 	eval2 := mock.Eval()
 	eval2.JobID = eval1.JobID
-	err := state.UpsertEvals(1000,
-		[]*structs.Evaluation{eval1, eval2})
+	err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
 	require.Nil(err)
 
 	// Lookup the jobs
@@ -5074,7 +5150,7 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertEvals(100, []*structs.Evaluation{eval1})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 100, []*structs.Evaluation{eval1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -5082,7 +5158,7 @@ func TestJobEndpoint_Evaluations_Blocking(t *testing.T) {
 
 	// Upsert an eval for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertEvals(200, []*structs.Evaluation{eval2})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 200, []*structs.Evaluation{eval2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -5130,7 +5206,7 @@ func TestJobEndpoint_Deployments(t *testing.T) {
 	d2 := mock.Deployment()
 	d1.JobID = j.ID
 	d2.JobID = j.ID
-	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j), "UpsertJob")
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
 
@@ -5167,7 +5243,7 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 	d2 := mock.Deployment()
 	d1.JobID = j.ID
 	d2.JobID = j.ID
-	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j), "UpsertJob")
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
 	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
@@ -5230,7 +5306,7 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
 	d2.JobID = j.ID
-	require.Nil(state.UpsertJob(50, j), "UpsertJob")
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 50, j), "UpsertJob")
 	d2.JobCreateIndex = j.CreateIndex
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -5280,7 +5356,7 @@ func TestJobEndpoint_LatestDeployment(t *testing.T) {
 	d2.JobID = j.ID
 	d2.CreateIndex = d1.CreateIndex + 100
 	d2.ModifyIndex = d2.CreateIndex + 100
-	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j), "UpsertJob")
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
 	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
@@ -5319,7 +5395,7 @@ func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
 	d2.JobID = j.ID
 	d2.CreateIndex = d1.CreateIndex + 100
 	d2.ModifyIndex = d2.CreateIndex + 100
-	require.Nil(state.UpsertJob(1000, j), "UpsertJob")
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j), "UpsertJob")
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
 	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
@@ -5385,7 +5461,7 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
 	d2.JobID = j.ID
-	require.Nil(state.UpsertJob(50, j), "UpsertJob")
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 50, j), "UpsertJob")
 	d2.JobCreateIndex = j.CreateIndex
 
 	// First upsert an unrelated eval
@@ -5588,7 +5664,7 @@ func TestJobEndpoint_Plan_Scaling(t *testing.T) {
 	job := mock.Job()
 	tg := job.TaskGroups[0]
 	tg.Tasks[0].Resources.MemoryMB = 999999999
-	scaling := &structs.ScalingPolicy{Min: 1, Max: 100}
+	scaling := &structs.ScalingPolicy{Min: 1, Max: 100, Type: structs.ScalingPolicyTypeHorizontal}
 	tg.Scaling = scaling.TargetTaskGroup(job, tg)
 	planReq := &structs.JobPlanRequest{
 		Job:  job,
@@ -5938,7 +6014,7 @@ func TestJobEndpoint_Dispatch_ACL(t *testing.T) {
 	// Create a parameterized job
 	job := mock.BatchJob()
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
-	err := state.UpsertJob(400, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 400, job)
 	require.Nil(err)
 
 	req := &structs.JobDispatchRequest{
@@ -6288,7 +6364,7 @@ func TestJobEndpoint_Scale(t *testing.T) {
 
 	job := mock.Job()
 	originalCount := job.TaskGroups[0].Count
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	groupName := job.TaskGroups[0].Name
@@ -6345,7 +6421,7 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 	for _, tc := range cases {
 		// create a job with a deployment history
 		job := mock.Job()
-		require.Nil(state.UpsertJob(1000, job), "UpsertJob")
+		require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, job), "UpsertJob")
 		d1 := mock.Deployment()
 		d1.Status = structs.DeploymentStatusCancelled
 		d1.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
@@ -6440,7 +6516,7 @@ func TestJobEndpoint_Scale_InformationalEventsShouldNotBeBlocked(t *testing.T) {
 	for _, tc := range cases {
 		// create a job with a deployment history
 		job := mock.Job()
-		require.Nil(state.UpsertJob(1000, job), "UpsertJob")
+		require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, job), "UpsertJob")
 		d1 := mock.Deployment()
 		d1.Status = structs.DeploymentStatusCancelled
 		d1.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
@@ -6506,7 +6582,7 @@ func TestJobEndpoint_Scale_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	job := mock.Job()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	scale := &structs.JobScaleRequest{
@@ -6620,7 +6696,7 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 	require.Contains(err.Error(), "not found")
 
 	// register the job
-	err = state.UpsertJob(1000, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	scale.Count = helper.Int64ToPtr(10)
@@ -6707,7 +6783,7 @@ func TestJobEndpoint_InvalidCount(t *testing.T) {
 	state := s1.fsm.State()
 
 	job := mock.Job()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	scale := &structs.JobScaleRequest{
@@ -6752,16 +6828,16 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	require.Nil(resp2.JobScaleStatus)
 
 	// stopped (previous version)
-	require.NoError(state.UpsertJob(1000, jobV1), "UpsertJob")
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1000, jobV1), "UpsertJob")
 	a0 := mock.Alloc()
 	a0.Job = jobV1
 	a0.Namespace = jobV1.Namespace
 	a0.JobID = jobV1.ID
 	a0.ClientStatus = structs.AllocClientStatusComplete
-	require.NoError(state.UpsertAllocs(1010, []*structs.Allocation{a0}), "UpsertAllocs")
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1010, []*structs.Allocation{a0}), "UpsertAllocs")
 
 	jobV2 := jobV1.Copy()
-	require.NoError(state.UpsertJob(1100, jobV2), "UpsertJob")
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1100, jobV2), "UpsertJob")
 	a1 := mock.Alloc()
 	a1.Job = jobV2
 	a1.Namespace = jobV2.Namespace
@@ -6797,7 +6873,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a4.JobID = jobV2.ID
 	a4.ClientStatus = structs.AllocClientStatusRunning
 	// upsert allocations
-	require.NoError(state.UpsertAllocs(1110, []*structs.Allocation{a1, a2, a3, a4}), "UpsertAllocs")
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1110, []*structs.Allocation{a1, a2, a3, a4}), "UpsertAllocs")
 
 	event := &structs.ScalingEvent{
 		Time:    time.Now().Unix(),
@@ -6854,7 +6930,7 @@ func TestJobEndpoint_GetScaleStatus_ACL(t *testing.T) {
 
 	// Create the job
 	job := mock.Job()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.Nil(err)
 
 	// Get the job scale status

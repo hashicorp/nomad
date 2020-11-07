@@ -9,6 +9,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	TableNamespaces = "namespaces"
+)
+
 var (
 	schemaFactories SchemaFactories
 	factoriesLock   sync.Mutex
@@ -52,6 +56,8 @@ func init() {
 		csiPluginTableSchema,
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
+		namespaceTableSchema,
+		eventSinkTableSchema,
 	}...)
 }
 
@@ -736,6 +742,10 @@ func csiPluginTableSchema() *memdb.TableSchema {
 // using reflection and builds an index on that field.
 type ScalingPolicyTargetFieldIndex struct {
 	Field string
+
+	// AllowMissing controls if the field should be ignored if the field is
+	// not provided.
+	AllowMissing bool
 }
 
 // FromObject is used to extract an index value from an
@@ -751,7 +761,7 @@ func (s *ScalingPolicyTargetFieldIndex) FromObject(obj interface{}) (bool, []byt
 	}
 
 	val, ok := policy.Target[s.Field]
-	if !ok {
+	if !ok && !s.AllowMissing {
 		return false, nil, nil
 	}
 
@@ -808,26 +818,42 @@ func scalingPolicyTableSchema() *memdb.TableSchema {
 			// Target index is used for listing by namespace or job, or looking up a specific target.
 			// A given task group can have only a single scaling policies, so this is guaranteed to be unique.
 			"target": {
-				Name:         "target",
-				AllowMissing: false,
-				Unique:       true,
+				Name:   "target",
+				Unique: false,
 
-				// Use a compound index so the tuple of (Namespace, Job, Group) is
-				// uniquely identifying
+				// Use a compound index so the tuple of (Namespace, Job, Group, Task) is
+				// used when looking for a policy
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&ScalingPolicyTargetFieldIndex{
-							Field: "Namespace",
+							Field:        "Namespace",
+							AllowMissing: true,
 						},
 
 						&ScalingPolicyTargetFieldIndex{
-							Field: "Job",
+							Field:        "Job",
+							AllowMissing: true,
 						},
 
 						&ScalingPolicyTargetFieldIndex{
-							Field: "Group",
+							Field:        "Group",
+							AllowMissing: true,
+						},
+
+						&ScalingPolicyTargetFieldIndex{
+							Field:        "Task",
+							AllowMissing: true,
 						},
 					},
+				},
+			},
+			// Type index is used for listing by policy type
+			"type": {
+				Name:         "type",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Type",
 				},
 			},
 			// Used to filter by enabled
@@ -877,6 +903,51 @@ func scalingEventTableSchema() *memdb.TableSchema {
 			// 		Field: "Error",
 			// 	},
 			// },
+		},
+	}
+}
+
+// namespaceTableSchema returns the MemDB schema for the namespace table.
+func namespaceTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableNamespaces,
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
+				},
+			},
+			"quota": {
+				Name:         "quota",
+				AllowMissing: true,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Quota",
+				},
+			},
+		},
+	}
+}
+
+func eventSinkTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "event_sink",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for event sink management and simple
+			// direct lookup. ID is required to be unique.
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+
+				// Sink ID is uniquely identifying
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
 		},
 	}
 }

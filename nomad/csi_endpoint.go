@@ -521,8 +521,6 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	metricsStart := time.Now()
 	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, metricsStart)
 
-	// TODO(tgross): ensure we have pass-thru of token for client-driven RPC
-	// ref https://github.com/hashicorp/nomad/issues/8373
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
 	if err != nil {

@@ -6,14 +6,15 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAllocEndpoint_List(t *testing.T) {
@@ -33,7 +34,7 @@ func TestAllocEndpoint_List(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -69,19 +70,111 @@ func TestAllocEndpoint_List(t *testing.T) {
 	}
 
 	var resp2 structs.AllocListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp2))
+	require.Equal(t, uint64(1000), resp2.Index)
+	require.Len(t, resp2.Allocations, 1)
+	require.Equal(t, alloc.ID, resp2.Allocations[0].ID)
+}
+
+func TestAllocEndpoint_List_Fields(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a running alloc
+	alloc := mock.Alloc()
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
 	}
-	if resp2.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
+	summary := mock.JobSummary(alloc.JobID)
+	state := s1.fsm.State()
+
+	require.NoError(t, state.UpsertJobSummary(999, summary))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+
+	cases := []struct {
+		Name   string
+		Fields *structs.AllocStubFields
+		Assert func(t *testing.T, allocs []*structs.AllocListStub)
+	}{
+		{
+			Name:   "None",
+			Fields: nil,
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.Nil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 1)
+			},
+		},
+		{
+			Name:   "Default",
+			Fields: structs.NewAllocStubFields(),
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.Nil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 1)
+			},
+		},
+		{
+			Name: "Resources",
+			Fields: &structs.AllocStubFields{
+				Resources:  true,
+				TaskStates: false,
+			},
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.NotNil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 0)
+			},
+		},
+		{
+			Name: "NoTaskStates",
+			Fields: &structs.AllocStubFields{
+				Resources:  false,
+				TaskStates: false,
+			},
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.Nil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 0)
+			},
+		},
+		{
+			Name: "Both",
+			Fields: &structs.AllocStubFields{
+				Resources:  true,
+				TaskStates: true,
+			},
+			Assert: func(t *testing.T, allocs []*structs.AllocListStub) {
+				require.NotNil(t, allocs[0].AllocatedResources)
+				require.Len(t, allocs[0].TaskStates, 1)
+			},
+		},
 	}
 
-	if len(resp2.Allocations) != 1 {
-		t.Fatalf("bad: %#v", resp2.Allocations)
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			get := &structs.AllocListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+				Fields: tc.Fields,
+			}
+			var resp structs.AllocListResponse
+			require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp))
+			require.Equal(t, uint64(1000), resp.Index)
+			require.Len(t, resp.Allocations, 1)
+			require.Equal(t, alloc.ID, resp.Allocations[0].ID)
+			tc.Assert(t, resp.Allocations)
+		})
 	}
-	if resp2.Allocations[0].ID != alloc.ID {
-		t.Fatalf("bad: %#v", resp2.Allocations[0])
-	}
+
 }
 
 func TestAllocEndpoint_List_ACL(t *testing.T) {
@@ -100,9 +193,9 @@ func TestAllocEndpoint_List_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
-	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs), "UpsertAllocs")
 
-	stubAllocs := []*structs.AllocListStub{alloc.Stub()}
+	stubAllocs := []*structs.AllocListStub{alloc.Stub(nil)}
 	stubAllocs[0].CreateIndex = 1000
 	stubAllocs[0].ModifyIndex = 1000
 
@@ -159,7 +252,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	}
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertAllocs(2, []*structs.Allocation{alloc}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -193,7 +286,7 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(3, mock.JobSummary(alloc2.JobID))
-		if err := state.UpdateAllocsFromClient(4, []*structs.Allocation{alloc2}); err != nil {
+		if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 4, []*structs.Allocation{alloc2}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -226,16 +319,26 @@ func TestAllocEndpoint_List_AllNamespaces_OSS(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	alloc := mock.Alloc()
-	summary := mock.JobSummary(alloc.JobID)
 	state := s1.fsm.State()
 
-	err := state.UpsertJobSummary(999, summary)
-	require.NoError(t, err)
-	err = state.UpsertAllocs(1000, []*structs.Allocation{alloc})
-	require.NoError(t, err)
+	// two namespaces
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(900, []*structs.Namespace{ns1, ns2}))
+
+	// Create the allocations
+	alloc1 := mock.Alloc()
+	alloc1.ID = "a" + alloc1.ID[1:]
+	alloc1.Namespace = ns1.Name
+	alloc2 := mock.Alloc()
+	alloc2.ID = "b" + alloc2.ID[1:]
+	alloc2.Namespace = ns2.Name
+	summary1 := mock.JobSummary(alloc1.JobID)
+	summary2 := mock.JobSummary(alloc2.JobID)
+
+	require.NoError(t, state.UpsertJobSummary(999, summary1))
+	require.NoError(t, state.UpsertJobSummary(999, summary2))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	t.Run("looking up all allocations", func(t *testing.T) {
 		get := &structs.AllocListRequest{
@@ -245,12 +348,12 @@ func TestAllocEndpoint_List_AllNamespaces_OSS(t *testing.T) {
 			},
 		}
 		var resp structs.AllocListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
-		require.NoError(t, err)
+		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp))
 		require.Equal(t, uint64(1000), resp.Index)
-		require.Len(t, resp.Allocations, 1)
-		require.Equal(t, alloc.ID, resp.Allocations[0].ID)
-		require.Equal(t, structs.DefaultNamespace, resp.Allocations[0].Namespace)
+		require.Len(t, resp.Allocations, 2)
+		require.ElementsMatch(t,
+			[]string{resp.Allocations[0].ID, resp.Allocations[1].ID},
+			[]string{alloc1.ID, alloc2.ID})
 	})
 
 	t.Run("looking up allocations with prefix", func(t *testing.T) {
@@ -258,26 +361,21 @@ func TestAllocEndpoint_List_AllNamespaces_OSS(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:    "global",
 				Namespace: "*",
-				Prefix:    alloc.ID[:4],
+				// allocations were constructed above to have non-matching prefix
+				Prefix: alloc1.ID[:4],
 			},
 		}
 		var resp structs.AllocListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
-		require.NoError(t, err)
+		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp))
 		require.Equal(t, uint64(1000), resp.Index)
 		require.Len(t, resp.Allocations, 1)
-		require.Equal(t, alloc.ID, resp.Allocations[0].ID)
-		require.Equal(t, structs.DefaultNamespace, resp.Allocations[0].Namespace)
+		require.Equal(t, alloc1.ID, resp.Allocations[0].ID)
+		require.Equal(t, alloc1.Namespace, resp.Allocations[0].Namespace)
 	})
 
 	t.Run("looking up allocations with mismatch prefix", func(t *testing.T) {
-		// ensure that prefix doesn't match the alloc
-		badPrefix := alloc.ID[:4]
-		if badPrefix[0] == '0' {
-			badPrefix = "1" + badPrefix[1:]
-		} else {
-			badPrefix = "0" + badPrefix[1:]
-		}
+		// allocations were constructed above to have prefix starting with "a" or "b"
+		badPrefix := "cc"
 
 		get := &structs.AllocListRequest{
 			QueryOptions: structs.QueryOptions{
@@ -287,12 +385,10 @@ func TestAllocEndpoint_List_AllNamespaces_OSS(t *testing.T) {
 			},
 		}
 		var resp structs.AllocListResponse
-		err = msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
-		require.NoError(t, err)
+		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp))
 		require.Equal(t, uint64(1000), resp.Index)
 		require.Empty(t, resp.Allocations)
 	})
-
 }
 
 func TestAllocEndpoint_GetAlloc(t *testing.T) {
@@ -313,7 +409,7 @@ func TestAllocEndpoint_GetAlloc(t *testing.T) {
 	}
 	state := s1.fsm.State()
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -352,7 +448,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
-	assert.Nil(state.UpsertAllocs(1000, allocs), "UpsertAllocs")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, allocs), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
@@ -402,7 +498,7 @@ func TestAllocEndpoint_GetAlloc_ACL(t *testing.T) {
 			Name: "valid-node-secret",
 			F: func(t *testing.T) {
 				node := mock.Node()
-				assert.Nil(state.UpsertNode(1005, node))
+				assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1005, node))
 				get := getReq()
 				get.AuthToken = node.SecretID
 				get.AllocID = alloc.ID
@@ -463,7 +559,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	// First create an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -472,7 +568,7 @@ func TestAllocEndpoint_GetAlloc_Blocking(t *testing.T) {
 	// Create the alloc we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
 		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -517,7 +613,7 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	state := s1.fsm.State()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -567,7 +663,7 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	// First create an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(100, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -576,7 +672,7 @@ func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {
 	// Create the alloc we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
 		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(200, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -622,7 +718,7 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	state := s1.fsm.State()
 	require.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
 	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc, alloc2}))
 
 	t1 := &structs.DesiredTransition{
 		Migrate: helper.BoolToPtr(true),
@@ -706,7 +802,7 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	state := s1.fsm.State()
 	require.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
 	require.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.Nil(state.UpsertAllocs(1000, []*structs.Allocation{alloc, alloc2}))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc, alloc2}))
 
 	req := &structs.AllocStopRequest{
 		AllocID: alloc.ID,
@@ -751,4 +847,190 @@ func TestAllocEndpoint_Stop_ACL(t *testing.T) {
 	require.NotNil(e2)
 	require.True(*out1.DesiredTransition.Migrate)
 	require.True(*out2.DesiredTransition.Migrate)
+}
+
+func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// two namespaces
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	require.NoError(t, state.UpsertNamespaces(900, []*structs.Namespace{ns1, ns2}))
+
+	// Create the allocations
+	alloc1 := mock.Alloc()
+	alloc1.ID = "a" + alloc1.ID[1:]
+	alloc1.Namespace = ns1.Name
+	alloc2 := mock.Alloc()
+	alloc2.ID = "b" + alloc2.ID[1:]
+	alloc2.Namespace = ns2.Name
+	summary1 := mock.JobSummary(alloc1.JobID)
+	summary2 := mock.JobSummary(alloc2.JobID)
+
+	require.NoError(t, state.UpsertJobSummary(999, summary1))
+	require.NoError(t, state.UpsertJobSummary(999, summary2))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	alloc1.CreateIndex = 1000
+	alloc1.ModifyIndex = 1000
+	alloc2.CreateIndex = 1000
+	alloc2.ModifyIndex = 1000
+
+	everythingButReadJob := []string{
+		acl.NamespaceCapabilityDeny,
+		acl.NamespaceCapabilityListJobs,
+		// acl.NamespaceCapabilityReadJob,
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityDispatchJob,
+		acl.NamespaceCapabilityReadLogs,
+		acl.NamespaceCapabilityReadFS,
+		acl.NamespaceCapabilityAllocExec,
+		acl.NamespaceCapabilityAllocNodeExec,
+		acl.NamespaceCapabilityAllocLifecycle,
+		acl.NamespaceCapabilitySentinelOverride,
+		acl.NamespaceCapabilityCSIRegisterPlugin,
+		acl.NamespaceCapabilityCSIWriteVolume,
+		acl.NamespaceCapabilityCSIReadVolume,
+		acl.NamespaceCapabilityCSIListVolume,
+		acl.NamespaceCapabilityCSIMountVolume,
+		acl.NamespaceCapabilityListScalingPolicies,
+		acl.NamespaceCapabilityReadScalingPolicy,
+		acl.NamespaceCapabilityReadJobScaling,
+		acl.NamespaceCapabilityScaleJob,
+		acl.NamespaceCapabilitySubmitRecommendation,
+	}
+
+	ns1token := mock.CreatePolicyAndToken(t, state, 1001, "ns1",
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	ns1tokenInsufficient := mock.CreatePolicyAndToken(t, state, 1001, "ns1-insufficient",
+		mock.NamespacePolicy(ns1.Name, "", everythingButReadJob))
+	ns2token := mock.CreatePolicyAndToken(t, state, 1001, "ns2",
+		mock.NamespacePolicy(ns2.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+	bothToken := mock.CreatePolicyAndToken(t, state, 1001, "nsBoth",
+		mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob})+
+			mock.NamespacePolicy(ns2.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+
+	cases := []struct {
+		Label     string
+		Namespace string
+		Token     string
+		Allocs    []*structs.Allocation
+		Error     bool
+		Message   string
+		Prefix    string
+	}{
+		{
+			Label:     "all namespaces with sufficient token",
+			Namespace: "*",
+			Token:     bothToken.SecretID,
+			Allocs:    []*structs.Allocation{alloc1, alloc2},
+		},
+		{
+			Label:     "all namespaces with root token",
+			Namespace: "*",
+			Token:     root.SecretID,
+			Allocs:    []*structs.Allocation{alloc1, alloc2},
+		},
+		{
+			Label:     "all namespaces with ns1 token",
+			Namespace: "*",
+			Token:     ns1token.SecretID,
+			Allocs:    []*structs.Allocation{alloc1},
+		},
+		{
+			Label:     "all namespaces with ns2 token",
+			Namespace: "*",
+			Token:     ns2token.SecretID,
+			Allocs:    []*structs.Allocation{alloc2},
+		},
+		{
+			Label:     "all namespaces with bad token",
+			Namespace: "*",
+			Token:     uuid.Generate(),
+			Error:     true,
+			Message:   structs.ErrTokenNotFound.Error(),
+		},
+		{
+			Label:     "all namespaces with insufficient token",
+			Namespace: "*",
+			Allocs:    []*structs.Allocation{},
+			Token:     ns1tokenInsufficient.SecretID,
+		},
+		{
+			Label:     "ns1 with ns1 token",
+			Namespace: ns1.Name,
+			Token:     ns1token.SecretID,
+			Allocs:    []*structs.Allocation{alloc1},
+		},
+		{
+			Label:     "ns1 with root token",
+			Namespace: ns1.Name,
+			Token:     root.SecretID,
+			Allocs:    []*structs.Allocation{alloc1},
+		},
+		{
+			Label:     "ns1 with ns2 token",
+			Namespace: ns1.Name,
+			Token:     ns2token.SecretID,
+			Error:     true,
+		},
+		{
+			Label:     "ns1 with invalid token",
+			Namespace: ns1.Name,
+			Token:     uuid.Generate(),
+			Error:     true,
+			Message:   structs.ErrTokenNotFound.Error(),
+		},
+		{
+			Label:     "bad namespace with root token",
+			Namespace: uuid.Generate(),
+			Token:     root.SecretID,
+			Allocs:    []*structs.Allocation{},
+		},
+		{
+			Label:     "all namespaces with prefix",
+			Namespace: "*",
+			Prefix:    alloc1.ID[:2],
+			Token:     root.SecretID,
+			Allocs:    []*structs.Allocation{alloc1},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Label, func(t *testing.T) {
+
+			get := &structs.AllocListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: tc.Namespace,
+					Prefix:    tc.Prefix,
+					AuthToken: tc.Token,
+				},
+			}
+			var resp structs.AllocListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Alloc.List", get, &resp)
+			if tc.Error {
+				require.Error(t, err)
+				if tc.Message != "" {
+					require.Equal(t, err.Error(), tc.Message)
+				} else {
+					require.Equal(t, err.Error(), structs.ErrPermissionDenied.Error())
+				}
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, uint64(1000), resp.Index)
+				exp := make([]*structs.AllocListStub, len(tc.Allocs))
+				for i, a := range tc.Allocs {
+					exp[i] = a.Stub(nil)
+				}
+				require.ElementsMatch(t, exp, resp.Allocations)
+			}
+		})
+	}
+
 }

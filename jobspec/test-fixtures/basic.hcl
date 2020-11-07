@@ -76,8 +76,9 @@ job "binstore-storagelocker" {
     }
 
     volume "bar" {
-      type   = "csi"
-      source = "bar-vol"
+      type      = "csi"
+      source    = "bar-vol"
+      read_only = true
 
       mount_options {
         fs_type = "ext4"

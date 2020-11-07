@@ -1,4 +1,6 @@
 .gutter {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   border-right: 1px solid $grey-blue;
   overflow: hidden;
@@ -55,6 +57,13 @@
 
   .menu {
     z-index: $z-gutter;
+  }
+
+  .gutter-footer {
+    text-align: center;
+    border-top: 1px solid lighten($grey-blue, 10%);
+    padding: 0.5em 0;
+    margin-top: auto;
   }
 }
 

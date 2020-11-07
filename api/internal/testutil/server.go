@@ -76,7 +76,8 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled bool              `json:"enabled"`
+	Options map[string]string `json:"options,omitempty"`
 }
 
 // VaultConfig is used to configure Vault
@@ -172,6 +173,13 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 
 	if cb != nil {
 		cb(nomadConfig)
+	}
+
+	if nomadConfig.DevMode {
+		if nomadConfig.Client.Options == nil {
+			nomadConfig.Client.Options = map[string]string{}
+		}
+		nomadConfig.Client.Options["test.tighten_network_timeouts"] = "true"
 	}
 
 	configContent, err := json.Marshal(nomadConfig)

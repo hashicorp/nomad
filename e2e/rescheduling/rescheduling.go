@@ -7,11 +7,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/hashicorp/nomad/e2e/e2eutil"
+	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
 )
+
+const ns = ""
 
 type RescheduleE2ETest struct {
 	framework.TC
@@ -31,8 +33,8 @@ func init() {
 }
 
 func (tc *RescheduleE2ETest) BeforeAll(f *framework.F) {
-	e2eutil.WaitForLeader(f.T(), tc.Nomad())
-	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
+	e2e.WaitForLeader(f.T(), tc.Nomad())
+	e2e.WaitForNodesReady(f.T(), tc.Nomad(), 1)
 }
 
 func (tc *RescheduleE2ETest) AfterEach(f *framework.F) {
@@ -41,86 +43,84 @@ func (tc *RescheduleE2ETest) AfterEach(f *framework.F) {
 	}
 
 	for _, id := range tc.jobIds {
-		_, err := e2eutil.Command("nomad", "job", "stop", "-purge", id)
-		f.NoError(err)
+		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
+		f.Assert().NoError(err)
 	}
 	tc.jobIds = []string{}
-	_, err := e2eutil.Command("nomad", "system", "gc")
-	f.NoError(err)
+	_, err := e2e.Command("nomad", "system", "gc")
+	f.Assert().NoError(err)
 }
 
 // TestNoReschedule runs a job that should fail and never reschedule
 func (tc *RescheduleE2ETest) TestNoReschedule(f *framework.F) {
 	jobID := "test-no-reschedule-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/norescheduling.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/norescheduling.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"failed", "failed", "failed"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 failed allocs",
 	)
-	f.NoError(err, "should have exactly 3 failed allocs")
 }
 
 // TestNoRescheduleSystem runs a system job that should fail and never reschedule
 func (tc *RescheduleE2ETest) TestNoRescheduleSystem(f *framework.F) {
 	jobID := "test-reschedule-system-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_system.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_system.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool {
-			for _, status := range got {
-				if status != "failed" {
-					return false
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
+			func(got []string) bool {
+				for _, status := range got {
+					if status != "failed" {
+						return false
+					}
 				}
-			}
-			return true
-		},
+				return true
+			}, nil,
+		),
+		"should have only failed allocs",
 	)
-	f.NoError(err, "should have only failed allocs")
 }
 
 // TestDefaultReschedule runs a job that should reschedule after delay
 func (tc *RescheduleE2ETest) TestDefaultReschedule(f *framework.F) {
 
 	jobID := "test-default-reschedule-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_default.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_default.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"failed", "failed", "failed"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 failed allocs",
 	)
-	f.NoError(err, "should have exactly 3 failed allocs")
 
 	// TODO(tgross): return early if "slow" isn't set
 	// wait until first exponential delay kicks in and rescheduling is attempted
 	time.Sleep(time.Second * 35)
 	expected = []string{"failed", "failed", "failed", "failed", "failed", "failed"}
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 6 failed allocs after 35s",
 	)
-	f.NoError(err, "should have exactly 6 failed allocs after 35s")
 }
 
 // TestRescheduleMaxAttempts runs a job with a maximum reschedule attempts
 func (tc *RescheduleE2ETest) TestRescheduleMaxAttempts(f *framework.F) {
 
 	jobID := "test-reschedule-fail-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_fail.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_fail.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"failed", "failed", "failed"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 failed allocs",
 	)
-	f.NoError(err, "should have exactly 3 failed allocs")
 
 	job, err := jobspec.ParseFile("rescheduling/input/rescheduling_fail.nomad")
 	f.NoError(err)
@@ -129,39 +129,43 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxAttempts(f *framework.F) {
 	_, _, err = tc.Nomad().Jobs().Register(job, nil)
 	f.NoError(err, "could not register updated job")
 
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool {
-			for _, status := range got {
-				if status == "running" {
-					return true
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
+			func(got []string) bool {
+				for _, status := range got {
+					if status == "running" {
+						return true
+					}
 				}
-			}
-			return false
-		},
+				return false
+			}, nil,
+		),
+		"should have at least 1 running alloc",
 	)
-	f.NoError(err, "should have at least 1 running alloc")
 }
 
 // TestRescheduleSuccess runs a job that should be running after rescheduling
 func (tc *RescheduleE2ETest) TestRescheduleSuccess(f *framework.F) {
 
 	jobID := "test-reschedule-success-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_success.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_success.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool {
-			for _, status := range got {
-				if status == "running" {
-					return true
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
+			func(got []string) bool {
+				for _, status := range got {
+					if status == "running" {
+						return true
+					}
 				}
-			}
-			return false
-		},
+				return false
+			}, nil,
+		),
+		"should have at least 1 running alloc",
 	)
-	f.NoError(err, "should have at least 1 running alloc")
 }
 
 // TestRescheduleWithUpdate updates a running job to fail, and verifies that
@@ -169,15 +173,14 @@ func (tc *RescheduleE2ETest) TestRescheduleSuccess(f *framework.F) {
 func (tc *RescheduleE2ETest) TestRescheduleWithUpdate(f *framework.F) {
 
 	jobID := "test-reschedule-update-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_update.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_update.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"running", "running", "running"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 running allocs",
 	)
-	f.NoError(err, "should have exactly 3 running allocs")
 
 	// reschedule to make fail
 	job, err := jobspec.ParseFile("rescheduling/input/rescheduling_update.nomad")
@@ -187,11 +190,13 @@ func (tc *RescheduleE2ETest) TestRescheduleWithUpdate(f *framework.F) {
 	_, _, err = tc.Nomad().Jobs().Register(job, nil)
 	f.NoError(err, "could not register updated job")
 
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatusesRescheduled(f, jobID), nil },
-		func(got []string) bool { return len(got) > 0 },
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
+			func(got []string) bool { return len(got) > 0 }, nil,
+		),
+		"should have rescheduled allocs until progress deadline",
 	)
-	f.NoError(err, "should have rescheduled allocs until progress deadline")
 }
 
 // TestRescheduleWithCanary updates a running job to fail, and verify that the
@@ -199,18 +204,18 @@ func (tc *RescheduleE2ETest) TestRescheduleWithUpdate(f *framework.F) {
 func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 
 	jobID := "test-reschedule-canary-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_canary.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_canary.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"running", "running", "running"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 running allocs",
 	)
-	f.NoError(err, "should have exactly 3 running allocs")
 
-	err = waitForLastDeploymentStatus(f, jobID, "successful")
-	f.NoError(err, "deployment should be successful")
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"deployment should be successful")
 
 	// reschedule to make fail
 	job, err := jobspec.ParseFile("rescheduling/input/rescheduling_canary.nomad")
@@ -220,14 +225,17 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 	_, _, err = tc.Nomad().Jobs().Register(job, nil)
 	f.NoError(err, "could not register updated job")
 
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatusesRescheduled(f, jobID), nil },
-		func(got []string) bool { return len(got) > 0 },
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
+			func(got []string) bool { return len(got) > 0 }, nil,
+		),
+		"should have rescheduled allocs until progress deadline",
 	)
-	f.NoError(err, "should have rescheduled allocs until progress deadline")
 
-	err = waitForLastDeploymentStatus(f, jobID, "running")
-	f.NoError(err, "deployment should be running")
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "running", nil),
+		"deployment should be running")
 }
 
 // TestRescheduleWithCanary updates a running job to fail, and verifies that
@@ -235,18 +243,18 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) {
 
 	jobID := "test-reschedule-canary-revert-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_canary_autorevert.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_canary_autorevert.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"running", "running", "running"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 running allocs",
 	)
-	f.NoError(err, "should have exactly 3 running allocs")
 
-	err = waitForLastDeploymentStatus(f, jobID, "successful")
-	f.NoError(err, "deployment should be successful")
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"deployment should be successful")
 
 	// reschedule to make fail
 	job, err := jobspec.ParseFile("rescheduling/input/rescheduling_canary_autorevert.nomad")
@@ -256,40 +264,42 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) 
 	_, _, err = tc.Nomad().Jobs().Register(job, nil)
 	f.NoError(err, "could not register updated job")
 
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatusesRescheduled(f, jobID), nil },
-		func(got []string) bool { return len(got) == 0 },
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
+			func(got []string) bool { return len(got) > 0 }, nil,
+		),
+		"should have new allocs after update",
 	)
-	f.NoError(err, "should have new allocs after update")
 
 	// then we'll fail and revert
 	expected = []string{"failed", "failed", "failed", "running", "running", "running"}
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 running reverted allocs",
 	)
-	f.NoError(err, "should have exactly 3 running reverted allocs")
 
-	err = waitForLastDeploymentStatus(f, jobID, "successful")
-	f.NoError(err, "deployment should be successful")
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"deployment should be successful")
 }
 
 // TestRescheduleMaxParallel updates a job with a max_parallel config
 func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 
 	jobID := "test-reschedule-maxp-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_maxp.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_maxp.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"running", "running", "running"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 running allocs",
 	)
-	f.NoError(err, "should have exactly 3 running allocs")
 
-	err = waitForLastDeploymentStatus(f, jobID, "successful")
-	f.NoError(err, "deployment should be successful")
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"deployment should be successful")
 
 	// reschedule to make fail
 	job, err := jobspec.ParseFile("rescheduling/input/rescheduling_maxp.nomad")
@@ -300,17 +310,21 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 	f.NoError(err, "could not register updated job")
 
 	expected = []string{"complete", "failed", "failed", "running", "running"}
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool {
-			sort.Strings(got)
-			return reflect.DeepEqual(got, expected)
-		},
-	)
-	f.NoError(err, "should have failed allocs including rescheduled failed allocs")
 
-	err = waitForLastDeploymentStatus(f, jobID, "running")
-	f.NoError(err, "deployment should be running")
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
+			func(got []string) bool {
+				sort.Strings(got)
+				return reflect.DeepEqual(got, expected)
+			}, nil,
+		),
+		"should have failed allocs including rescheduled failed allocs",
+	)
+
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "running", nil),
+		"deployment should be running")
 }
 
 // TestRescheduleMaxParallelAutoRevert updates a job with a max_parallel
@@ -318,18 +332,18 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallel(f *framework.F) {
 func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F) {
 
 	jobID := "test-reschedule-maxp-revert-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_maxp_autorevert.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_maxp_autorevert.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	expected := []string{"running", "running", "running"}
-	err := waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool { return reflect.DeepEqual(got, expected) },
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have exactly 3 running allocs",
 	)
-	f.NoError(err, "should have exactly 3 running allocs")
 
-	err = waitForLastDeploymentStatus(f, jobID, "successful")
-	f.NoError(err, "deployment should be successful")
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"deployment should be successful")
 
 	// reschedule to make fail
 	job, err := jobspec.ParseFile("rescheduling/input/rescheduling_maxp_autorevert.nomad")
@@ -337,52 +351,139 @@ func (tc *RescheduleE2ETest) TestRescheduleMaxParallelAutoRevert(f *framework.F)
 	job.ID = &jobID
 	job.TaskGroups[0].Tasks[0].Config["args"] = []string{"-c", "lol"}
 	_, _, err = tc.Nomad().Jobs().Register(job, nil)
-	f.NoError(err, "could not register updated job")
+	f.NoError(err, "could not e2e.Register updated job")
 
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatusesRescheduled(f, jobID), nil },
-		func(got []string) bool { return len(got) == 0 },
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatusesRescheduled(jobID, ns) },
+			func(got []string) bool { return len(got) > 0 }, nil,
+		),
+		"should have new allocs after update",
 	)
-	f.NoError(err, "should have new allocs after update")
 
 	// wait for the revert
 	expected = []string{"complete", "failed", "running", "running", "running"}
-	err = waitForAllocStatusComparison(
-		func() ([]string, error) { return allocStatuses(f, jobID), nil },
-		func(got []string) bool {
-			sort.Strings(got)
-			return reflect.DeepEqual(got, expected)
-		},
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
+			func(got []string) bool {
+				sort.Strings(got)
+				return reflect.DeepEqual(got, expected)
+			}, nil,
+		),
+		"should have one successful, one failed, and 3 reverted allocs",
 	)
-	f.NoError(err, "should have one successful, one failed, and 3 reverted allocs")
 
-	out, err := e2eutil.Command("nomad", "deployment", "status")
+	// at this point the allocs have been checked but we need to wait for the
+	// deployment to be marked complete before we can assert that it's successful
+	// and verify the count of deployments
+	f.NoError(
+		e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"most recent deployment should be successful")
+
+	out, err := e2e.Command("nomad", "deployment", "status")
 	f.NoError(err, "could not get deployment status")
 
-	results, err := e2eutil.ParseColumns(out)
+	results, err := e2e.ParseColumns(out)
 	f.NoError(err, "could not parse deployment status")
-	statuses := []string{}
+	statuses := map[string]int{}
 	for _, row := range results {
 		if row["Job ID"] == jobID {
-			statuses = append(statuses, row["Status"])
+			statuses[row["Status"]]++
 		}
 	}
-	f.True(reflect.DeepEqual([]string{"running", "failed", "successful"}, statuses),
-		fmt.Sprintf("deployment status was: %#v", statuses),
-	)
+
+	f.Equal(1, statuses["failed"],
+		fmt.Sprintf("expected only 1 failed deployment, got:\n%s", out))
+	f.Equal(2, statuses["successful"],
+		fmt.Sprintf("expected 2 successful deployments, got:\n%s", out))
 }
 
-// TestRescheduleProgressDeadline verifies a deployment succeeds by the
-// progress deadline
+// TestRescheduleProgressDeadline verifies the progress deadline is reset with
+// each healthy allocation, and that a rescheduled allocation does not.
 func (tc *RescheduleE2ETest) TestRescheduleProgressDeadline(f *framework.F) {
 
 	jobID := "test-reschedule-deadline-" + uuid.Generate()[0:8]
-	register(f, "rescheduling/input/rescheduling_progressdeadline.nomad", jobID)
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_progressdeadline.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
-	// TODO(tgross): return early if "slow" isn't set
-	// wait until first exponential delay kicks in and rescheduling is attempted
-	time.Sleep(time.Second * 30)
-	err := waitForLastDeploymentStatus(f, jobID, "successful")
-	f.NoError(err, "deployment should be successful")
+	expected := []string{"running"}
+	f.NoError(
+		e2e.WaitForAllocStatusExpected(jobID, ns, expected),
+		"should have a running allocation",
+	)
+
+	deploymentID, err := e2e.LastDeploymentID(jobID, ns)
+	f.NoError(err, "couldn't look up deployment")
+
+	oldDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get progress deadline")
+	time.Sleep(time.Second * 20)
+
+	newDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get new progress deadline")
+	f.NotEqual(oldDeadline, newDeadline, "progress deadline should have been updated")
+
+	f.NoError(e2e.WaitForLastDeploymentStatus(jobID, ns, "successful", nil),
+		"deployment should be successful")
+}
+
+// TestRescheduleProgressDeadlineFail verifies the progress deadline is reset with
+// each healthy allocation, and that a rescheduled allocation does not.
+func (tc *RescheduleE2ETest) TestRescheduleProgressDeadlineFail(f *framework.F) {
+
+	jobID := "test-reschedule-deadline-fail" + uuid.Generate()[0:8]
+	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_progressdeadline_fail.nomad"))
+	tc.jobIds = append(tc.jobIds, jobID)
+
+	deploymentID, err := e2e.LastDeploymentID(jobID, ns)
+	f.NoError(err, "couldn't look up deployment")
+
+	oldDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get progress deadline")
+	time.Sleep(time.Second * 20)
+
+	f.NoError(e2e.WaitForLastDeploymentStatus(jobID, ns, "failed", nil),
+		"deployment should be failed")
+
+	f.NoError(
+		e2e.WaitForAllocStatusComparison(
+			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
+			func(got []string) bool {
+				for _, status := range got {
+					if status != "failed" {
+						return false
+					}
+				}
+				return true
+			}, nil,
+		),
+		"should have only failed allocs",
+	)
+
+	newDeadline, err := getProgressDeadline(deploymentID)
+	f.NoError(err, "could not get new progress deadline")
+	f.Equal(oldDeadline, newDeadline, "progress deadline should not have been updated")
+}
+
+func getProgressDeadline(deploymentID string) (time.Time, error) {
+
+	out, err := e2e.Command("nomad", "deployment", "status", deploymentID)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not get deployment status: %v\n%v", err, out)
+	}
+
+	section, err := e2e.GetSection(out, "Deployed")
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not find Deployed section: %w", err)
+	}
+
+	rows, err := e2e.ParseColumns(section)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not parse Deployed section: %w", err)
+	}
+
+	layout := "2006-01-02T15:04:05Z07:00" // taken from command/helpers.go
+	raw := rows[0]["Progress Deadline"]
+	return time.Parse(layout, raw)
 }

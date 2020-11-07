@@ -1295,7 +1295,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 					break
 				}
 				node := raw.(*structs.Node)
-				nodes = append(nodes, node.Stub())
+				nodes = append(nodes, node.Stub(args.Fields))
 			}
 			reply.Nodes = nodes
 

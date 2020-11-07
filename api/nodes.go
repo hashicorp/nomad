@@ -786,6 +786,8 @@ type NodeListStub struct {
 	Status                string
 	StatusDescription     string
 	Drivers               map[string]*DriverInfo
+	NodeResources         *NodeResources         `json:",omitempty"`
+	ReservedResources     *NodeReservedResources `json:",omitempty"`
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }

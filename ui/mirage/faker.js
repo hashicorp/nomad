@@ -11,6 +11,12 @@ if (config.environment !== 'test' || searchIncludesSeed) {
   } else {
     faker.seed(1);
   }
+} else if (config.environment === 'test') {
+  const randomSeed = faker.random.number();
+  console.log(
+    `No seed specified with faker-seed query parameter, seeding Faker with ${randomSeed}`
+  );
+  faker.seed(randomSeed);
 }
 
 export default faker;

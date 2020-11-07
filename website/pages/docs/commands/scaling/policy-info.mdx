@@ -1,0 +1,65 @@
+---
+layout: docs
+page_title: 'Commands: scaling policy info'
+sidebar_title: policy info
+description: |
+  Display an individual Nomad scaling policy.
+---
+
+# Command: scaling policy info
+
+Info is used to return detailed information on the specified scaling policy.
+
+## Usage
+
+```plaintext
+nomad scaling policy info [options] <policy_id>
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Policy Info Options
+
+- `-json` : Output the scaling policy in its JSON format.
+- `-t` : Format and display the scaling policy using a Go template.
+
+## Examples
+
+Inspect an individual scaling policy:
+
+```shell-session
+$ nomad scaling policy info 31a53813-24df-b2ad-77dc-1b4bad4e7dca
+
+ID      = 31a53813-24df-b2ad-77dc-1b4bad4e7dca
+Enabled = true
+Target  = Namespace:default,Job:webapp,Group:demo
+Min     = 1
+Max     = 20
+
+Policy:
+{
+    "check": [
+        {
+            "avg_sessions": [
+                {
+                    "query": "scalar(sum(traefik_entrypoint_open_connections{entrypoint=\"horizontal-webapp\"}))",
+                    "source": "prometheus",
+                    "strategy": [
+                        {
+                            "target-value": [
+                                {
+                                    "target": 10.0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "cooldown": "1m",
+    "evaluation_interval": "30s"
+}
+```

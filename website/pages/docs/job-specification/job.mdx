@@ -15,8 +15,7 @@ description: |-
 The `job` stanza is the top-most configuration option in the job specification.
 A job is a declarative specification of tasks that Nomad should run. Jobs have
 one or more task groups, which are themselves collections of one or more tasks.
-Job names are unique per [region][region] or [namespace][namespace] (if Nomad
-Enterprise is used).
+Job names are unique per [region][region] or [namespace][namespace].
 
 ```hcl
 job "docs" {
@@ -81,7 +80,7 @@ job "docs" {
 - `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
-- `group` `([Group][group]: <required>)` - Specifies the start of a
+- `group` <code>([Group][group]: &lt;required&gt;)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
   groups. Group names must be unique within the job file.
 
@@ -96,7 +95,7 @@ job "docs" {
   applied. Only service jobs with a count greater than 1 support migrate stanzas.
 
 - `namespace` `(string: "default")` - The namespace in which to execute the job.
-  Values other than default are not allowed in non-Enterprise versions of Nomad.
+  Prior to Nomad 1.0 namespaces were Enterprise-only.
 
 - `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
   the job as a parameterized job such that it can be dispatched against.
@@ -244,10 +243,10 @@ $ VAULT_TOKEN="..." nomad job run example.nomad
 [group]: /docs/job-specification/group 'Nomad group Job Specification'
 [meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
 [migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
-[namespace]: https://learn.hashicorp.com/nomad/governance-and-policy/namespaces
+[namespace]: https://learn.hashicorp.com/tutorials/nomad/namespaces
 [parameterized]: /docs/job-specification/parameterized 'Nomad parameterized Job Specification'
 [periodic]: /docs/job-specification/periodic 'Nomad periodic Job Specification'
-[region]: https://learn.hashicorp.com/nomad/operating-nomad/federation
+[region]: https://learn.hashicorp.com/tutorials/nomad/federation
 [reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
 [scheduler]: /docs/schedulers 'Nomad Scheduler Types'
 [spread]: /docs/job-specification/spread 'Nomad spread Job Specification'

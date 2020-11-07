@@ -22,11 +22,13 @@ environment variable names such as `NOMAD_ADDR_<task>_<label>`.
 
 ## Task Identifiers
 
-Nomad will pass both the allocation ID and name as well as the task, group and
-job's names. These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`,
-`NOMAD_ALLOC_INDEX`, `NOMAD_JOB_NAME`, `NOMAD_GROUP_NAME` and `NOMAD_TASK_NAME`.
-The allocation ID and index can be useful when the task being run needs a unique
-identifier or to know its instance count.
+Nomad will pass both the allocation ID and name, the deployment ID that created
+the allocation, the job ID and name, the parent job ID as well as
+the task and group's names. These are given as `NOMAD_ALLOC_ID`, `NOMAD_ALLOC_NAME`,
+`NOMAD_ALLOC_INDEX`, `NOMAD_JOB_NAME`, `NOMAD_JOB_ID`,
+`NOMAD_JOB_PARENT_ID`, `NOMAD_GROUP_NAME` and `NOMAD_TASK_NAME`. The allocation ID
+and index can be useful when the task being run needs a unique identifier or to
+know its instance count.
 
 ## Resources
 
@@ -59,7 +61,12 @@ details.
 
 ### Task Directories
 
-Nomad makes the following directories available to tasks:
+Nomad creates a working directory for each allocation on a client. The
+allocation working directory contains a task working directory for each task
+in the allocation.
+
+Nomad makes the following directories available to tasks, relative to the task
+working directory:
 
 - `alloc/`: This directory is shared across all tasks in a task group and can be
   used to store data that needs to be used by multiple tasks, such as a log
@@ -75,12 +82,15 @@ These directories are persisted until the allocation is removed, which occurs
 hours after all the tasks in the task group enter terminal states. This gives
 time to view the data produced by tasks.
 
-Depending on the driver and operating system being targeted, the directories are
-made available in various ways. For example, on `docker` the directories are
-bound to the container, while on `exec` on Linux the directories are mounted into the
+Depending on the driver and operating system being targeted, the directories
+are made available in various ways. For example, on `docker` the directories
+are bound to the container, while on `exec` on Linux the chroot is built in
+the task working directory, and the directories are mounted into that
 chroot. Regardless of how the directories are made available, the path to the
 directories can be read through the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
 `NOMAD_SECRETS_DIR` environment variables.
+
+For more details on the task directories, see the [Filesystem internals].
 
 ## Meta
 
@@ -98,3 +108,4 @@ behavior.
 
 [jobspec]: /docs/job-specification 'Nomad Job Specification'
 [vault]: /docs/vault-integration 'Nomad Vault Integration'
+[Filesystem internals]: /docs/internals/filesystem

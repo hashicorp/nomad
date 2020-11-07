@@ -9,6 +9,11 @@ job "batch-lifecycle" {
 
   type = "batch"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "test" {
 
     task "init" {

@@ -8,9 +8,9 @@ import (
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
-	Limit          int            `mapstructure:"limit"`
-	Grace          *time.Duration `mapstructure:"grace"`
-	IgnoreWarnings bool           `mapstructure:"ignore_warnings"`
+	Limit          int            `mapstructure:"limit" hcl:"limit,optional"`
+	Grace          *time.Duration `mapstructure:"grace" hcl:"grace,optional"`
+	IgnoreWarnings bool           `mapstructure:"ignore_warnings" hcl:"ignore_warnings,optional"`
 }
 
 // Canonicalize CheckRestart fields if not nil.
@@ -73,46 +73,46 @@ func (c *CheckRestart) Merge(o *CheckRestart) *CheckRestart {
 // ServiceCheck represents the consul health check that Nomad registers.
 type ServiceCheck struct {
 	//FIXME Id is unused. Remove?
-	Id                     string
-	Name                   string
-	Type                   string
-	Command                string
-	Args                   []string
-	Path                   string
-	Protocol               string
-	PortLabel              string `mapstructure:"port"`
-	Expose                 bool
-	AddressMode            string `mapstructure:"address_mode"`
-	Interval               time.Duration
-	Timeout                time.Duration
-	InitialStatus          string `mapstructure:"initial_status"`
-	TLSSkipVerify          bool   `mapstructure:"tls_skip_verify"`
-	Header                 map[string][]string
-	Method                 string
-	CheckRestart           *CheckRestart `mapstructure:"check_restart"`
-	GRPCService            string        `mapstructure:"grpc_service"`
-	GRPCUseTLS             bool          `mapstructure:"grpc_use_tls"`
-	TaskName               string        `mapstructure:"task"`
-	SuccessBeforePassing   int           `mapstructure:"success_before_passing"`
-	FailuresBeforeCritical int           `mapstructure:"failures_before_critical"`
+	Id                     string              `hcl:"id,optional"`
+	Name                   string              `hcl:"name,optional"`
+	Type                   string              `hcl:"type,optional"`
+	Command                string              `hcl:"command,optional"`
+	Args                   []string            `hcl:"args,optional"`
+	Path                   string              `hcl:"path,optional"`
+	Protocol               string              `hcl:"protocol,optional"`
+	PortLabel              string              `mapstructure:"port" hcl:"port,optional"`
+	Expose                 bool                `hcl:"expose,optional"`
+	AddressMode            string              `mapstructure:"address_mode" hcl:"address_mode,optional"`
+	Interval               time.Duration       `hcl:"interval,optional"`
+	Timeout                time.Duration       `hcl:"timeout,optional"`
+	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
+	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
+	Header                 map[string][]string `hcl:"header,block"`
+	Method                 string              `hcl:"method,optional"`
+	CheckRestart           *CheckRestart       `mapstructure:"check_restart" hcl:"check_restart,block"`
+	GRPCService            string              `mapstructure:"grpc_service" hcl:"grpc_service,optional"`
+	GRPCUseTLS             bool                `mapstructure:"grpc_use_tls" hcl:"grpc_use_tls,optional"`
+	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
+	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
+	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
 }
 
 // Service represents a Consul service definition.
 type Service struct {
 	//FIXME Id is unused. Remove?
-	Id                string
-	Name              string
-	Tags              []string
-	CanaryTags        []string `mapstructure:"canary_tags"`
-	EnableTagOverride bool     `mapstructure:"enable_tag_override"`
-	PortLabel         string   `mapstructure:"port"`
-	AddressMode       string   `mapstructure:"address_mode"`
-	Checks            []ServiceCheck
-	CheckRestart      *CheckRestart `mapstructure:"check_restart"`
-	Connect           *ConsulConnect
-	Meta              map[string]string
-	CanaryMeta        map[string]string
-	TaskName          string `mapstructure:"task"`
+	Id                string            `hcl:"id,optional"`
+	Name              string            `hcl:"name,optional"`
+	Tags              []string          `hcl:"tags,optional"`
+	CanaryTags        []string          `mapstructure:"canary_tags" hcl:"canary_tags,optional"`
+	EnableTagOverride bool              `mapstructure:"enable_tag_override" hcl:"enable_tag_override,optional"`
+	PortLabel         string            `mapstructure:"port" hcl:"port,optional"`
+	AddressMode       string            `mapstructure:"address_mode" hcl:"address_mode,optional"`
+	Checks            []ServiceCheck    `hcl:"check,block"`
+	CheckRestart      *CheckRestart     `mapstructure:"check_restart" hcl:"check_restart,block"`
+	Connect           *ConsulConnect    `hcl:"connect,block"`
+	Meta              map[string]string `hcl:"meta,block"`
+	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
+	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
@@ -151,10 +151,10 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 // ConsulConnect represents a Consul Connect jobspec stanza.
 type ConsulConnect struct {
-	Native         bool
-	Gateway        *ConsulGateway
-	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service"`
-	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task"`
+	Native         bool                  `hcl:"native,optional"`
+	Gateway        *ConsulGateway        `hcl:"gateway,block"`
+	SidecarService *ConsulSidecarService `mapstructure:"sidecar_service" hcl:"sidecar_service,block"`
+	SidecarTask    *SidecarTask          `mapstructure:"sidecar_task" hcl:"sidecar_task,block"`
 }
 
 func (cc *ConsulConnect) Canonicalize() {
@@ -170,9 +170,9 @@ func (cc *ConsulConnect) Canonicalize() {
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
 // stanza.
 type ConsulSidecarService struct {
-	Tags  []string
-	Port  string
-	Proxy *ConsulProxy
+	Tags  []string     `hcl:"tags,optional"`
+	Port  string       `hcl:"port,optional"`
+	Proxy *ConsulProxy `hcl:"proxy,block"`
 }
 
 func (css *ConsulSidecarService) Canonicalize() {
@@ -190,17 +190,17 @@ func (css *ConsulSidecarService) Canonicalize() {
 // SidecarTask represents a subset of Task fields that can be set to override
 // the fields of the Task generated for the sidecar
 type SidecarTask struct {
-	Name          string
-	Driver        string
-	User          string
-	Config        map[string]interface{}
-	Env           map[string]string
-	Resources     *Resources
-	Meta          map[string]string
-	KillTimeout   *time.Duration `mapstructure:"kill_timeout"`
-	LogConfig     *LogConfig     `mapstructure:"logs"`
-	ShutdownDelay *time.Duration `mapstructure:"shutdown_delay"`
-	KillSignal    string         `mapstructure:"kill_signal"`
+	Name          string                 `hcl:"name,optional"`
+	Driver        string                 `hcl:"driver,optional"`
+	User          string                 `hcl:"user,optional"`
+	Config        map[string]interface{} `hcl:"config,block"`
+	Env           map[string]string      `hcl:"env,block"`
+	Resources     *Resources             `hcl:"resources,block"`
+	Meta          map[string]string      `hcl:"meta,block"`
+	KillTimeout   *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
+	LogConfig     *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
+	ShutdownDelay *time.Duration         `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
+	KillSignal    string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 }
 
 func (st *SidecarTask) Canonicalize() {
@@ -243,11 +243,11 @@ func (st *SidecarTask) Canonicalize() {
 
 // ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
 type ConsulProxy struct {
-	LocalServiceAddress string              `mapstructure:"local_service_address"`
-	LocalServicePort    int                 `mapstructure:"local_service_port"`
-	ExposeConfig        *ConsulExposeConfig `mapstructure:"expose"`
-	Upstreams           []*ConsulUpstream
-	Config              map[string]interface{}
+	LocalServiceAddress string                 `mapstructure:"local_service_address" hcl:"local_service_address,optional"`
+	LocalServicePort    int                    `mapstructure:"local_service_port" hcl:"local_service_port,optional"`
+	ExposeConfig        *ConsulExposeConfig    `mapstructure:"expose" hcl:"expose,block"`
+	Upstreams           []*ConsulUpstream      `hcl:"upstreams,block"`
+	Config              map[string]interface{} `hcl:"config,block"`
 }
 
 func (cp *ConsulProxy) Canonicalize() {
@@ -268,12 +268,12 @@ func (cp *ConsulProxy) Canonicalize() {
 
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.
 type ConsulUpstream struct {
-	DestinationName string `mapstructure:"destination_name"`
-	LocalBindPort   int    `mapstructure:"local_bind_port"`
+	DestinationName string `mapstructure:"destination_name" hcl:"destination_name,optional"`
+	LocalBindPort   int    `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
 }
 
 type ConsulExposeConfig struct {
-	Path []*ConsulExposePath `mapstructure:"path"`
+	Path []*ConsulExposePath `mapstructure:"path" hcl:"path,block"`
 }
 
 func (cec *ConsulExposeConfig) Canonicalize() {
@@ -287,19 +287,19 @@ func (cec *ConsulExposeConfig) Canonicalize() {
 }
 
 type ConsulExposePath struct {
-	Path          string
-	Protocol      string
-	LocalPathPort int    `mapstructure:"local_path_port"`
-	ListenerPort  string `mapstructure:"listener_port"`
+	Path          string `hcl:"path,optional"`
+	Protocol      string `hcl:"protocol,optional"`
+	LocalPathPort int    `mapstructure:"local_path_port" hcl:"local_path_port,optional"`
+	ListenerPort  string `mapstructure:"listener_port" hcl:"listener_port,optional"`
 }
 
 // ConsulGateway is used to configure one of the Consul Connect Gateway types.
 type ConsulGateway struct {
 	// Proxy is used to configure the Envoy instance acting as the gateway.
-	Proxy *ConsulGatewayProxy
+	Proxy *ConsulGatewayProxy `hcl:"proxy,block"`
 
 	// Ingress represents the Consul Configuration Entry for an Ingress Gateway.
-	Ingress *ConsulIngressConfigEntry
+	Ingress *ConsulIngressConfigEntry `hcl:"ingress,block"`
 
 	// Terminating is not yet supported.
 	// Terminating *ConsulTerminatingConfigEntry
@@ -328,8 +328,9 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 }
 
 type ConsulGatewayBindAddress struct {
-	Address string `mapstructure:"address"`
-	Port    int    `mapstructure:"port"`
+	Name    string `hcl:",label"`
+	Address string `mapstructure:"address" hcl:"address,optional"`
+	Port    int    `mapstructure:"port" hcl:"port,optional"`
 }
 
 var (
@@ -341,11 +342,11 @@ var (
 //
 // https://www.consul.io/docs/connect/proxies/envoy#gateway-options
 type ConsulGatewayProxy struct {
-	ConnectTimeout                  *time.Duration                       `mapstructure:"connect_timeout"`
-	EnvoyGatewayBindTaggedAddresses bool                                 `mapstructure:"envoy_gateway_bind_tagged_addresses"`
-	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses"`
-	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind"`
-	Config                          map[string]interface{}               // escape hatch envoy config
+	ConnectTimeout                  *time.Duration                       `mapstructure:"connect_timeout" hcl:"connect_timeout,optional"`
+	EnvoyGatewayBindTaggedAddresses bool                                 `mapstructure:"envoy_gateway_bind_tagged_addresses" hcl:"envoy_gateway_bind_tagged_addresses,optional"`
+	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses" hcl:"envoy_gateway_bind_addresses,block"`
+	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind" hcl:"envoy_gateway_no_default_bind,optional"`
+	Config                          map[string]interface{}               `hcl:"config,block"` // escape hatch envoy config
 }
 
 func (p *ConsulGatewayProxy) Canonicalize() {
@@ -399,7 +400,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled bool
+	Enabled bool `hcl:"enabled,optional"`
 }
 
 func (tc *ConsulGatewayTLSConfig) Canonicalize() {
@@ -419,9 +420,9 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 type ConsulIngressService struct {
 	// Namespace is not yet supported.
 	// Namespace string
-	Name string
+	Name string `hcl:"name,optional"`
 
-	Hosts []string
+	Hosts []string `hcl:"hosts,optional"`
 }
 
 func (s *ConsulIngressService) Canonicalize() {
@@ -458,9 +459,9 @@ const (
 // ConsulIngressListener is used to configure a listener on a Consul Ingress
 // Gateway.
 type ConsulIngressListener struct {
-	Port     int
-	Protocol string
-	Services []*ConsulIngressService
+	Port     int                     `hcl:"port,optional"`
+	Protocol string                  `hcl:"protocol,optional"`
+	Services []*ConsulIngressService `hcl:"service,block"`
 }
 
 func (l *ConsulIngressListener) Canonicalize() {
@@ -506,8 +507,8 @@ type ConsulIngressConfigEntry struct {
 	// Namespace is not yet supported.
 	// Namespace string
 
-	TLS       *ConsulGatewayTLSConfig
-	Listeners []*ConsulIngressListener
+	TLS       *ConsulGatewayTLSConfig  `hcl:"tls,block"`
+	Listeners []*ConsulIngressListener `hcl:"listener,block"`
 }
 
 func (e *ConsulIngressConfigEntry) Canonicalize() {

@@ -721,6 +721,23 @@ func ConnectIngressGatewayJob(mode string, inject bool) *structs.Job {
 	return job
 }
 
+func ConnectSidecarTask() *structs.Task {
+	return &structs.Task{
+		Name:   "mysidecar-sidecar-task",
+		Driver: "docker",
+		User:   "nobody",
+		Config: map[string]interface{}{
+			"image": structs.EnvoyImageFormat,
+		},
+		Env: nil,
+		Resources: &structs.Resources{
+			CPU:      150,
+			MemoryMB: 350,
+		},
+		Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "mysidecar"),
+	}
+}
+
 func BatchJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
@@ -1350,20 +1367,20 @@ func ACLManagementToken() *structs.ACLToken {
 
 func ScalingPolicy() *structs.ScalingPolicy {
 	return &structs.ScalingPolicy{
-		ID:  uuid.Generate(),
-		Min: 1,
-		Max: 100,
+		ID:   uuid.Generate(),
+		Min:  1,
+		Max:  100,
+		Type: structs.ScalingPolicyTypeHorizontal,
 		Target: map[string]string{
 			structs.ScalingTargetNamespace: structs.DefaultNamespace,
 			structs.ScalingTargetJob:       uuid.Generate(),
 			structs.ScalingTargetGroup:     uuid.Generate(),
+			structs.ScalingTargetTask:      uuid.Generate(),
 		},
 		Policy: map[string]interface{}{
 			"a": "b",
 		},
-		Enabled:     true,
-		CreateIndex: 10,
-		ModifyIndex: 20,
+		Enabled: true,
 	}
 }
 
@@ -1373,6 +1390,7 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 		ID:      uuid.Generate(),
 		Min:     int64(job.TaskGroups[0].Count),
 		Max:     int64(job.TaskGroups[0].Count),
+		Type:    structs.ScalingPolicyTypeHorizontal,
 		Policy:  map[string]interface{}{},
 		Enabled: true,
 	}
@@ -1449,5 +1467,61 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		ControllersExpected: len(plugin.Controllers),
 		NodesHealthy:        plugin.NodesHealthy,
 		NodesExpected:       len(plugin.Nodes),
+	}
+}
+
+func Events(index uint64) *structs.Events {
+	return &structs.Events{
+		Index: index,
+		Events: []structs.Event{
+			{
+				Index:   index,
+				Topic:   "Node",
+				Type:    "update",
+				Key:     uuid.Generate(),
+				Payload: Node(),
+			},
+			{
+				Index:   index,
+				Topic:   "Eval",
+				Type:    "update",
+				Key:     uuid.Generate(),
+				Payload: Eval(),
+			},
+		},
+	}
+}
+
+func AllocNetworkStatus() *structs.AllocNetworkStatus {
+	return &structs.AllocNetworkStatus{
+		InterfaceName: "eth0",
+		Address:       "192.168.0.100",
+		DNS: &structs.DNSConfig{
+			Servers:  []string{"1.1.1.1"},
+			Searches: []string{"localdomain"},
+			Options:  []string{"ndots:5"},
+		},
+	}
+}
+
+func Namespace() *structs.Namespace {
+	ns := &structs.Namespace{
+		Name:        fmt.Sprintf("team-%s", uuid.Generate()),
+		Description: "test namespace",
+		CreateIndex: 100,
+		ModifyIndex: 200,
+	}
+	ns.SetHash()
+	return ns
+}
+
+func EventSink() *structs.EventSink {
+	return &structs.EventSink{
+		ID:      fmt.Sprintf("webhook-sink-%s", uuid.Generate()[0:8]),
+		Type:    structs.SinkWebhook,
+		Address: "http://127.0.0.1/",
+		Topics: map[structs.Topic][]string{
+			structs.TopicAll: {"*"},
+		},
 	}
 }

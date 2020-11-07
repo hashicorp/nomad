@@ -9,7 +9,11 @@ job "elastic" {
         foo = "bar"
         b   = true
         val = 5
-        f   =.1
+        f   = 0.1
+
+        check "foo" {
+          query = "some_query"
+        }
       }
     }
   }

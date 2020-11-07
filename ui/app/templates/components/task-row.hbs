@@ -1,7 +1,7 @@
 <td class="is-narrow">
   {{#unless this.task.driverStatus.healthy}}
     <span data-test-icon="unhealthy-driver" class="tooltip text-center" aria-label="{{this.task.driver}} is unhealthy">
-      {{x-icon "warning" class="is-warning"}}
+      {{x-icon "alert-triangle" class="is-warning"}}
     </span>
   {{/unless}}
 </td>
@@ -44,7 +44,7 @@
       ...
     {{else if this.statsError}}
       <span class="tooltip text-center" role="tooltip" aria-label="Couldn't collect stats">
-        {{x-icon "warning" class="is-warning"}}
+        {{x-icon "alert-triangle" class="is-warning"}}
       </span>
     {{else}}
       <div class="inline-chart is-small tooltip" role="tooltip" aria-label="{{this.cpu.used}} / {{this.taskStats.reservedCPU}} MHz">
@@ -64,7 +64,7 @@
       ...
     {{else if this.statsError}}
       <span class="tooltip is-small text-center" role="tooltip" aria-label="Couldn't collect stats">
-        {{x-icon "warning" class="is-warning"}}
+        {{x-icon "alert-triangle" class="is-warning"}}
       </span>
     {{else}}
       <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-bytes this.memory.used}} / {{this.taskStats.reservedMemory}} MiB">

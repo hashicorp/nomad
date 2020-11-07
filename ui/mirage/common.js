@@ -5,10 +5,8 @@ import { provide } from './utils';
 const CPU_RESERVATIONS = [250, 500, 1000, 2000, 2500, 4000];
 const MEMORY_RESERVATIONS = [256, 512, 1024, 2048, 4096, 8192];
 const DISK_RESERVATIONS = [200, 500, 1000, 2000, 5000, 10000, 100000];
-const IOPS_RESERVATIONS = [100000, 250000, 500000, 1000000, 10000000, 20000000];
 
 // There is also a good chance that certain resource restrictions are unbounded
-IOPS_RESERVATIONS.push(...Array(1000).fill(0));
 DISK_RESERVATIONS.push(...Array(500).fill(0));
 
 const NETWORK_MODES = ['bridge', 'host'];
@@ -27,10 +25,15 @@ export const STORAGE_PROVIDERS = ['ebs', 'zfs', 'nfs', 'cow', 'moo'];
 
 export function generateResources(options = {}) {
   return {
-    CPU: options.CPU || faker.helpers.randomize(CPU_RESERVATIONS),
-    MemoryMB: options.MemoryMB || faker.helpers.randomize(MEMORY_RESERVATIONS),
-    DiskMB: options.DiskMB || faker.helpers.randomize(DISK_RESERVATIONS),
-    IOPS: options.IOPS || faker.helpers.randomize(IOPS_RESERVATIONS),
+    Cpu: {
+      CpuShares: options.CPU || faker.helpers.randomize(CPU_RESERVATIONS),
+    },
+    Memory: {
+      MemoryMB: options.MemoryMB || faker.helpers.randomize(MEMORY_RESERVATIONS),
+    },
+    Disk: {
+      DiskMB: options.DiskMB || faker.helpers.randomize(DISK_RESERVATIONS),
+    },
     Networks: generateNetworks(options.networks),
     Ports: generatePorts(options.networks),
   };

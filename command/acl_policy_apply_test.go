@@ -26,7 +26,7 @@ func TestACLPolicyApplyCommand(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLPolicyApplyCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a test policy

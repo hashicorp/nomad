@@ -1359,6 +1359,8 @@ func TestGetAddress(t *testing.T) {
 		PortLabel string
 		Host      map[string]int // will be converted to structs.Networks
 		Driver    *drivers.DriverNetwork
+		Ports     structs.AllocatedPorts
+		Status    *structs.AllocNetworkStatus
 
 		// Results
 		ExpectedIP   string
@@ -1487,6 +1489,162 @@ func TestGetAddress(t *testing.T) {
 			},
 			ExpectedIP: "10.1.2.3",
 		},
+
+		// Scenarios using port 0.12 networking fields (NetworkStatus, AllocatedPortMapping)
+		{
+			Name:      "ExampleServer_withAllocatedPorts",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12435,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12435,
+		},
+		{
+			Name:      "Host_withAllocatedPorts",
+			Mode:      structs.AddressModeHost,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   HostIP,
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "Driver_withAllocatedPorts",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Driver: &drivers.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "AutoDriver_withAllocatedPorts",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Driver: &drivers.DriverNetwork{
+				IP:            "10.1.2.3",
+				AutoAdvertise: true,
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "DriverCustomPort_withAllocatedPorts",
+			Mode:      structs.AddressModeDriver,
+			PortLabel: "7890",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Driver: &drivers.DriverNetwork{
+				IP: "10.1.2.3",
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "10.1.2.3",
+			ExpectedPort: 7890,
+		},
+		{
+			Name:      "Host_MultiHostInterface",
+			Mode:      structs.AddressModeAuto,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: "127.0.0.100",
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "127.0.0.100",
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "Alloc",
+			Mode:      structs.AddressModeAlloc,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					To:     6379,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "172.26.0.1",
+			ExpectedPort: 12345,
+		},
+		{
+			Name:      "AllocCustomPort",
+			Mode:      structs.AddressModeAlloc,
+			PortLabel: "6379",
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "172.26.0.1",
+			ExpectedPort: 6379,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1507,7 +1665,7 @@ func TestGetAddress(t *testing.T) {
 			}
 
 			// Run getAddress
-			ip, port, err := getAddress(tc.Mode, tc.PortLabel, networks, tc.Driver)
+			ip, port, err := getAddress(tc.Mode, tc.PortLabel, networks, tc.Driver, tc.Ports, tc.Status)
 
 			// Assert the results
 			assert.Equal(t, tc.ExpectedIP, ip, "IP mismatch")

@@ -25,7 +25,7 @@ func TestACLTokenUpdateCommand(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenUpdateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	state := srv.Agent.Server().State()
 

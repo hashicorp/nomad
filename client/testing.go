@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
-	consulApi "github.com/hashicorp/nomad/client/consul"
+	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/command/agent/consul"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -44,9 +44,9 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func() error) 
 	if conf.PluginSingletonLoader == nil {
 		conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, conf.PluginLoader)
 	}
-	catalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t, logger)
-	client, err := NewClient(conf, catalog, mockService)
+	mockCatalog := agentconsul.NewMockCatalog(logger)
+	mockService := consulapi.NewMockConsulServiceClient(t, logger)
+	client, err := NewClient(conf, mockCatalog, nil, mockService)
 	if err != nil {
 		cleanup()
 		t.Fatalf("err: %v", err)

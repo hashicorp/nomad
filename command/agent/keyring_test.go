@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 func TestAgent_LoadKeyrings(t *testing.T) {
@@ -56,8 +58,10 @@ func TestAgent_InitKeyring(t *testing.T) {
 
 	file := filepath.Join(dir, "keyring")
 
+	logger := hclog.NewNullLogger()
+
 	// First initialize the keyring
-	if err := initKeyring(file, key1); err != nil {
+	if err := initKeyring(file, key1, logger); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -70,7 +74,7 @@ func TestAgent_InitKeyring(t *testing.T) {
 	}
 
 	// Try initializing again with a different key
-	if err := initKeyring(file, key2); err != nil {
+	if err := initKeyring(file, key2, logger); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

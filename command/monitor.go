@@ -165,24 +165,18 @@ func (m *monitor) update(update *evalState) {
 
 // monitor is used to start monitoring the given evaluation ID. It
 // writes output directly to the monitor's ui, and returns the
-// exit code for the command. If allowPrefix is false, monitor will only accept
-// exact matching evalIDs.
+// exit code for the command.
 //
 // The return code will be 0 on successful evaluation. If there are
 // problems scheduling the job (impossible constraints, resources
 // exhausted, etc), then the return code will be 2. For any other
 // failures (API connectivity, internal errors, etc), the return code
 // will be 1.
-func (m *monitor) monitor(evalID string, allowPrefix bool) int {
+func (m *monitor) monitor(evalID string) int {
 	// Track if we encounter a scheduling failure. This can only be
 	// detected while querying allocations, so we use this bool to
 	// carry that status into the return code.
 	var schedFailure bool
-
-	// The user may have specified a prefix as eval id. We need to lookup the
-	// full id from the database first. Since we do this in a loop we need a
-	// variable to keep track if we've already written the header message.
-	var headerWritten bool
 
 	// Add the initial pending state
 	m.update(newEvalState())
@@ -191,51 +185,11 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		// Query the evaluation
 		eval, _, err := m.client.Evaluations().Info(evalID, nil)
 		if err != nil {
-			if !allowPrefix {
-				m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
-				return 1
-			}
-			if len(evalID) == 1 {
-				m.ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
-				return 1
-			}
-
-			evalID = sanitizeUUIDPrefix(evalID)
-			evals, _, err := m.client.Evaluations().PrefixList(evalID)
-			if err != nil {
-				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
-				return 1
-			}
-			if len(evals) == 0 {
-				m.ui.Error(fmt.Sprintf("No evaluation(s) with prefix or id %q found", evalID))
-				return 1
-			}
-			if len(evals) > 1 {
-				// Format the evaluations
-				out := make([]string, len(evals)+1)
-				out[0] = "ID|Priority|Type|Triggered By|Status"
-				for i, eval := range evals {
-					out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
-						limit(eval.ID, m.length),
-						eval.Priority,
-						eval.Type,
-						eval.TriggeredBy,
-						eval.Status)
-				}
-				m.ui.Output(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
-				return 0
-			}
-			// Prefix lookup matched a single evaluation
-			eval, _, err = m.client.Evaluations().Info(evals[0].ID, nil)
-			if err != nil {
-				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
-			}
+			m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
+			return 1
 		}
 
-		if !headerWritten {
-			m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", limit(eval.ID, m.length)))
-			headerWritten = true
-		}
+		m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", limit(eval.ID, m.length)))
 
 		// Create the new eval state.
 		state := newEvalState()
@@ -319,7 +273,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 
 			// Reset the state and monitor the new eval
 			m.state = newEvalState()
-			return m.monitor(eval.NextEval, allowPrefix)
+			return m.monitor(eval.NextEval)
 		}
 		break
 	}

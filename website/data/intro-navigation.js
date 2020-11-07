@@ -11,6 +11,6 @@ export default [
   { category: 'vs', content: ['kubernetes', 'ecs', 'mesos', 'terraform'] },
   {
     category: 'getting-started',
-    content: ['running', 'jobs', 'cluster', 'ui', 'next-steps']
-  }
+    content: ['running', 'jobs', 'cluster', 'ui', 'next-steps'],
+  },
 ]

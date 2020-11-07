@@ -484,13 +484,13 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.Job = job
 
 	state := s1.State()
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatal(err)
 	}
 	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
 		t.Fatal(err)
 	}
-	err := state.UpsertAllocs(102, []*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -515,7 +515,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	// alloc runner.
 	alloc2_2 := alloc2.Copy()
 	alloc2_2.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(104, []*structs.Allocation{alloc2_2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 104, []*structs.Allocation{alloc2_2}); err != nil {
 		t.Fatalf("err upserting stopped alloc: %v", err)
 	}
 
@@ -581,13 +581,13 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
 
 	state := s1.State()
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatal(err)
 	}
 	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
 		t.Fatal(err)
 	}
-	if err := state.UpsertAllocs(102, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -622,7 +622,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)
 	c1.config.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
 
-	c2, err := NewClient(c1.config, consulCatalog, mockService)
+	c2, err := NewClient(c1.config, consulCatalog, nil, mockService)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -687,13 +687,13 @@ func TestClient_AddAllocError(t *testing.T) {
 	alloc1.TaskResources = nil
 
 	state := s1.State()
-	err := state.UpsertJob(100, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	require.Nil(err)
 
 	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
 	require.Nil(err)
 
-	err = state.UpsertAllocs(102, []*structs.Allocation{alloc1})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1})
 	require.Nil(err)
 
 	// Push this alloc update to the client
@@ -795,7 +795,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	}
 
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 
 	// Wait until the client downloads and starts the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -818,7 +818,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
 	alloc2.PreviousAllocation = alloc.ID
-	if err := state.UpsertAllocs(200, []*structs.Allocation{alloc2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -839,7 +839,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	// Change the desired state of the parent alloc to stop
 	alloc1 := alloc.Copy()
 	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(300, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 300, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1211,7 +1211,7 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	client, cleanup = TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
 		c.Node.Name = name
-		c.Options["fingerprint.blacklist"] = "network"
+		c.Options["fingerprint.denylist"] = "network"
 		// Node is already a mock.Node, with a device
 		c.Node.NodeResources.Networks[0].Device = dev
 	})
@@ -1265,7 +1265,7 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
-		c.Options["fingerprint.blacklist"] = "network,cni,bridge"
+		c.Options["fingerprint.denylist"] = "network,cni,bridge"
 		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()

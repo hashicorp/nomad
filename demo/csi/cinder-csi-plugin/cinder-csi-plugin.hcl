@@ -33,10 +33,10 @@ EOF
 
         args = [
           "/bin/cinder-csi-plugin",
+          "-v=4",
           "--endpoint=unix:///csi/csi.sock",
           "--cloud-config=/etc/config/cloud.conf",
           "--nodeid=${node.unique.name}",
-          "--cluster=${NOMAD_DC}"
         ]
         privileged = true
       }
@@ -72,6 +72,7 @@ EOF
 
         args = [
           "/bin/cinder-csi-plugin",
+          "-v=4",
           "--endpoint=unix:///csi/csi.sock",
           "--cloud-config=/etc/config/cloud.conf",
           "--nodeid=${node.unique.name}",

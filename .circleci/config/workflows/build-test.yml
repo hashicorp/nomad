@@ -7,41 +7,70 @@ jobs:
           ignore:
             - stable-website
             - /^.-ui\b.*/
+
   - lint-go:
-      filters: &backend_branches_filter
+      # check branches are almost all the backend branches
+      filters: &backend_check_branches_filter
         branches:
           ignore:
             - /^.-ui\b.*/
             - /^docs-.*/
             - stable-website
 
+    # Note: comment-out this job in ENT
   - build-darwin-binaries:
-      filters: *backend_branches_filter
+      filters: *backend_check_branches_filter
+
+  - test-e2e:
+      filters: *backend_check_branches_filter
+
+  - test-ui:
+      filters:
+        branches:
+          ignore:
+            - stable-website
+            - /^docs-.*/
+            - /^e2e-.*/
+
+    # Note: comment-out this job in ENT
   - test-windows:
-      filters: *backend_branches_filter
+      filters:
+        branches:
+          ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
 
   - test-machine:
       name: "test-client"
       test_packages: "./client/..."
-      filters: *backend_branches_filter
+      # test branches are the branches that can impact unit tests
+      filters: &backend_test_branches_filter
+        branches:
+          ignore:
+            - /^.-ui\b.*/
+            - /^docs-.*/
+            - /^e2e-.*/
+            - stable-website
   - test-machine:
       name: "test-nomad"
       test_packages: "./nomad/..."
-      filters: *backend_branches_filter
+      filters: *backend_test_branches_filter
   - test-machine:
       # API Tests run in a VM rather than container due to the FS tests
       # requiring `mount` priviliges.
       name: "test-api"
       test_module: "api"
-      filters: *backend_branches_filter
+      filters: *backend_test_branches_filter
   - test-container:
       name: "test-devices"
       test_packages: "./devices/..."
-      filters: *backend_branches_filter
+      filters: *backend_test_branches_filter
   - test-machine:
       name: "test-other"
-      exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices"
-      filters: *backend_branches_filter
+      exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices|./e2e"
+      filters: *backend_test_branches_filter
   - test-machine:
       name: "test-docker"
       test_packages: "./drivers/docker"
@@ -49,27 +78,19 @@ jobs:
       # and we get unexpected failures
       # e.g. https://circleci.com/gh/hashicorp/nomad/3854
       executor: go-machine
-      filters: *backend_branches_filter
+      filters: *backend_test_branches_filter
   - test-machine:
       name: "test-exec"
       test_packages: "./drivers/exec"
-      filters: *backend_branches_filter
+      filters: *backend_test_branches_filter
   - test-machine:
       name: "test-shared-exec"
       test_packages: "./drivers/shared/executor"
-      filters: *backend_branches_filter
+      filters: *backend_test_branches_filter
   - test-machine:
       name: "test-32bit"
       # Currently we only explicitly test fingerprinting on 32bit
       # architectures.
       test_packages: "./client/fingerprint"
       goarch: "386"
-      filters: *backend_branches_filter
-  - test-e2e:
-      filters: *backend_branches_filter
-  - test-ui:
-      filters:
-        branches:
-          ignore:
-            - stable-website
-            - /^docs-.*/
+      filters: *backend_test_branches_filter

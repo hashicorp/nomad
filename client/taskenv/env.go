@@ -48,8 +48,14 @@ const (
 	// GroupName is the environment variable for passing the task group name.
 	GroupName = "NOMAD_GROUP_NAME"
 
+	// JobID is the environment variable for passing the job ID.
+	JobID = "NOMAD_JOB_ID"
+
 	// JobName is the environment variable for passing the job name.
 	JobName = "NOMAD_JOB_NAME"
+
+	// JobParentID is the environment variable for passing the ID of the parnt of the job
+	JobParentID = "NOMAD_JOB_PARENT_ID"
 
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
@@ -323,7 +329,9 @@ type Builder struct {
 	vaultToken       string
 	vaultNamespace   string
 	injectVaultToken bool
+	jobID            string
 	jobName          string
+	jobParentID      string
 
 	// otherPorts for tasks in the same alloc
 	otherPorts map[string]string
@@ -417,8 +425,14 @@ func (b *Builder) Build() *TaskEnv {
 	if b.taskName != "" {
 		envMap[TaskName] = b.taskName
 	}
+	if b.jobID != "" {
+		envMap[JobID] = b.jobID
+	}
 	if b.jobName != "" {
 		envMap[JobName] = b.jobName
+	}
+	if b.jobParentID != "" {
+		envMap[JobParentID] = b.jobParentID
 	}
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
@@ -580,7 +594,9 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.allocName = alloc.Name
 	b.groupName = alloc.TaskGroup
 	b.allocIndex = int(alloc.Index())
+	b.jobID = alloc.Job.ID
 	b.jobName = alloc.Job.Name
+	b.jobParentID = alloc.Job.ParentID
 	b.namespace = alloc.Namespace
 
 	// Set meta

@@ -9,38 +9,50 @@ export default [
   {
     category: 'install',
     content: [
-      { category: 'quickstart' },
+      'quickstart',
       {
         category: 'production',
         content: [
           'requirements',
           'nomad-agent',
-          'reference-architecture',
-          'deployment-guide'
-        ]
+          {
+            title: 'Reference Architecture',
+            href:
+              'https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul',
+          },
+          {
+            title: 'Deployment Guide',
+            href:
+              'https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul',
+          },
+        ],
       },
-      'windows-service'
-    ]
+      'windows-service',
+    ],
   },
-  { category: 'upgrade', content: ['upgrade-specific'] },
+  {category: 'upgrade', content: ['upgrade-specific']},
   {
     category: 'integrations',
-    content: ['consul-integration', 'consul-connect', 'vault-integration']
+    content: ['consul-integration', 'consul-connect', 'vault-integration'],
   },
   '-----------',
   {
     category: 'internals',
     content: [
       'architecture',
-      { category: 'plugins', content: ['base', 'task-drivers', 'devices', 'csi'] },
+      {
+        category: 'plugins',
+        content: ['base', 'task-drivers', 'devices', 'csi'],
+      },
       {
         category: 'scheduling',
-        content: ['scheduling', 'preemption']
+        content: ['scheduling', 'preemption'],
       },
       'consensus',
+      'filesystem',
       'gossip',
       'security'
-    ]
+    ],
   },
   {
     category: 'configuration',
@@ -56,8 +68,8 @@ export default [
       'server_join',
       'telemetry',
       'tls',
-      'vault'
-    ]
+      'vault',
+    ],
   },
   {
     category: 'commands',
@@ -75,18 +87,34 @@ export default [
           'token-info',
           'token-list',
           'token-self',
-          'token-update'
-        ]
+          'token-update',
+        ],
       },
       'agent',
       'agent-info',
       {
         category: 'alloc',
-        content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop']
+        content: ['exec', 'fs', 'logs', 'restart', 'signal', 'status', 'stop'],
       },
       {
         category: 'deployment',
-        content: ['fail', 'list', 'pause', 'promote', 'resume', 'status', 'unblock']
+        content: [
+          'fail',
+          'list',
+          'pause',
+          'promote',
+          'resume',
+          'status',
+          'unblock',
+        ],
+      },
+      {
+        category: 'event',
+        content: [
+          'sink-deregister',
+          'sink-list',
+          'sink-register',
+        ],
       },
       'eval-status',
       {
@@ -103,23 +131,25 @@ export default [
           'promote',
           'revert',
           'run',
+          'scale',
+          'scaling-events',
           'status',
           'stop',
-          'validate'
-        ]
+          'validate',
+        ],
       },
       {
         category: 'license',
-        content: ['get', 'put']
+        content: ['get', 'put'],
       },
       'monitor',
       {
         category: 'namespace',
-        content: ['apply', 'delete', 'inspect', 'list', 'status']
+        content: ['apply', 'delete', 'inspect', 'list', 'status'],
       },
       {
         category: 'node',
-        content: ['config', 'drain', 'eligibility', 'status']
+        content: ['config', 'drain', 'eligibility', 'status'],
       },
       {
         category: 'operator',
@@ -134,27 +164,33 @@ export default [
           'snapshot-agent',
           'snapshot-inspect',
           'snapshot-restore',
-          'snapshot-save'
-        ]
+          'snapshot-save',
+        ],
       },
-      { category: 'plugin', content: ['status'] },
+      {category: 'plugin', content: ['status']},
       {
         category: 'quota',
-        content: ['apply', 'delete', 'init', 'inspect', 'list', 'status']
+        content: ['apply', 'delete', 'init', 'inspect', 'list', 'status'],
       },
-      { category: 'sentinel', content: ['apply', 'delete', 'list', 'read'] },
-      { category: 'server', content: ['force-leave', 'join', 'members'] },
+      {category: 'recommendation', content: ['apply', 'dismiss', 'info', 'list']},
+      {category: 'scaling', content: ['policy-info', 'policy-list']},
+      {category: 'sentinel', content: ['apply', 'delete', 'list', 'read']},
+      {category: 'server', content: ['force-leave', 'join', 'members']},
       'status',
-      { category: 'system', content: ['gc', 'reconcile-summaries'] },
+      {category: 'system', content: ['gc', 'reconcile-summaries']},
       'ui',
       'version',
-      { category: 'volume', content: ['deregister', 'detach', 'status', 'register'] }
-    ]
+      {
+        category: 'volume',
+        content: ['deregister', 'detach', 'status', 'register'],
+      },
+    ],
   },
   '----------',
   {
     category: 'job-specification',
     content: [
+      'hcl2',
       'artifact',
       'affinity',
       'check_restart',
@@ -192,8 +228,8 @@ export default [
       'upstreams',
       'vault',
       'volume',
-      'volume_mount'
-    ]
+      'volume_mount',
+    ],
   },
   {
     category: 'drivers',
@@ -215,17 +251,17 @@ export default [
           'rkt',
           'singularity',
           'nspawn',
-          'iis'
-        ]
-      }
-    ]
+          'iis',
+        ],
+      },
+    ],
   },
   {
     category: 'devices',
-    content: ['nvidia', 'community']
+    content: ['nvidia', 'community'],
   },
   'schedulers',
-  { category: 'runtime', content: ['environment', 'interpolation'] },
+  {category: 'runtime', content: ['environment', 'interpolation']},
   {
     category: 'autoscaling',
     content: [
@@ -236,22 +272,16 @@ export default [
       'telemetry',
       {
         category: 'plugins',
-        content: [
-          'apm',
-          'strategy',
-          'target'
-        ]
+        content: ['apm', 'strategy', 'target'],
       },
       {
         category: 'internals',
-        content: [
-          'checks'
-        ]
-      }
-    ]
+        content: ['checks'],
+      },
+    ],
   },
-  { category: 'telemetry', content: ['metrics'] },
+  {category: 'telemetry', content: ['metrics']},
   '------------',
-  { category: 'enterprise' },
-  'faq'
+  'enterprise',
+  'faq',
 ]

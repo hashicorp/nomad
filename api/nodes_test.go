@@ -83,6 +83,45 @@ func TestNodes_PrefixList(t *testing.T) {
 	assertQueryMeta(t, qm)
 }
 
+// TestNodes_List_Resources asserts that ?resources=true includes allocated and
+// reserved resources in the response.
+func TestNodes_List_Resources(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	var out []*NodeListStub
+	var err error
+
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err = nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// By default resources should *not* be included
+	require.Nil(t, out[0].NodeResources)
+	require.Nil(t, out[0].ReservedResources)
+
+	qo := &QueryOptions{
+		Params: map[string]string{"resources": "true"},
+	}
+	out, _, err = nodes.List(qo)
+	require.NoError(t, err)
+	require.NotNil(t, out[0].NodeResources)
+	require.NotNil(t, out[0].ReservedResources)
+}
+
 func TestNodes_Info(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Unix()

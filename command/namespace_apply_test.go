@@ -17,7 +17,7 @@ func TestNamespaceApplyCommand_Implements(t *testing.T) {
 
 func TestNamespaceApplyCommand_Fails(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceApplyCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -45,7 +45,7 @@ func TestNamespaceApplyCommand_Good(t *testing.T) {
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NamespaceApplyCommand{Meta: Meta{Ui: ui}}
 
 	// Create a namespace

@@ -23,6 +23,7 @@ export default class Job extends Model {
   @attr('string') statusDescription;
   @attr('number') createIndex;
   @attr('number') modifyIndex;
+  @attr('date') submitTime;
 
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
@@ -120,6 +121,8 @@ export default class Job extends Model {
   @hasMany('evaluations') evaluations;
   @belongsTo('namespace') namespace;
   @belongsTo('job-scale') scaleState;
+
+  @hasMany('recommendation-summary') recommendationSummaries;
 
   @computed('taskGroups.@each.drivers')
   get drivers() {

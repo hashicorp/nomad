@@ -57,6 +57,8 @@ func TestAgent_ServerConfig(t *testing.T) {
 	out, err := a.serverConfig()
 	require.NoError(t, err)
 
+	require.True(t, out.EnableEventBroker)
+
 	serfAddr := out.SerfConfig.MemberlistConfig.AdvertiseAddr
 	require.Equal(t, "127.0.0.1", serfAddr)
 
@@ -521,8 +523,6 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 
 	conf := DefaultConfig()
 	conf.DevMode = true
-	conf.Telemetry.DisableTaggedMetrics = true
-	conf.Telemetry.BackwardsCompatibleMetrics = true
 
 	a := &Agent{config: conf}
 
@@ -534,8 +534,6 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
 	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
 	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
-	assert.Equal(c.DisableTaggedMetrics, telemetry.DisableTaggedMetrics)
-	assert.Equal(c.BackwardsCompatibleMetrics, telemetry.BackwardsCompatibleMetrics)
 }
 
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP

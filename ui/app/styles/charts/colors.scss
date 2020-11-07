@@ -47,6 +47,10 @@ $lost: $dark;
   vertical-align: middle;
   border-radius: $radius;
 
+  &.is-wide {
+    width: 2rem;
+  }
+
   $color-sequence: $orange, $yellow, $green, $turquoise, $blue, $purple, $red;
   @for $i from 1 through length($color-sequence) {
     &.swatch-#{$i - 1} {

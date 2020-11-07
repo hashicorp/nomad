@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import moment from 'moment';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
@@ -14,12 +15,42 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
   server.create('job', { type: 'system', shallow: true })
 );
-moduleForJob('Acceptance | job detail (periodic)', 'children', () =>
-  server.create('job', 'periodic', { shallow: true })
+moduleForJob(
+  'Acceptance | job detail (periodic)',
+  'children',
+  () => server.create('job', 'periodic', { shallow: true }),
+  {
+    'the default sort is submitTime descending': async function(job, assert) {
+      const mostRecentLaunch = server.db.jobs
+        .where({ parentId: job.id })
+        .sortBy('submitTime')
+        .reverse()[0];
+
+      assert.equal(
+        JobDetail.jobs[0].submitTime,
+        moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
+      );
+    },
+  }
 );
 
-moduleForJob('Acceptance | job detail (parameterized)', 'children', () =>
-  server.create('job', 'parameterized', { shallow: true })
+moduleForJob(
+  'Acceptance | job detail (parameterized)',
+  'children',
+  () => server.create('job', 'parameterized', { shallow: true }),
+  {
+    'the default sort is submitTime descending': async (job, assert) => {
+      const mostRecentLaunch = server.db.jobs
+        .where({ parentId: job.id })
+        .sortBy('submitTime')
+        .reverse()[0];
+
+      assert.equal(
+        JobDetail.jobs[0].submitTime,
+        moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
+      );
+    },
+  }
 );
 
 moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
@@ -65,7 +96,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  let job, clientToken;
+  let job, managementToken, clientToken;
 
   hooks.beforeEach(function() {
     server.createList('namespace', 2);
@@ -74,10 +105,14 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
       type: 'service',
       status: 'running',
       namespaceId: server.db.namespaces[1].name,
+      createRecommendations: true,
     });
-    server.createList('job', 3, { namespaceId: server.db.namespaces[0].name });
+    server.createList('job', 3, {
+      namespaceId: server.db.namespaces[0].name,
+      createRecommendations: true,
+    });
 
-    server.create('token');
+    managementToken = server.create('token');
     clientToken = server.create('token');
   });
 
@@ -174,5 +209,59 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
 
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
     assert.notOk(JobDetail.execButton.isDisabled);
+  });
+
+  test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+    await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
+
+    assert.equal(JobDetail.recommendations.length, job.taskGroups.length);
+
+    const recommendation = JobDetail.recommendations[0];
+
+    assert.equal(recommendation.group, job.taskGroups.models[0].name);
+    assert.ok(recommendation.card.isHidden);
+
+    const toggle = recommendation.toggleButton;
+
+    assert.equal(toggle.text, 'Show');
+
+    await toggle.click();
+
+    assert.ok(recommendation.card.isPresent);
+    assert.equal(toggle.text, 'Collapse');
+
+    await toggle.click();
+
+    assert.ok(recommendation.card.isHidden);
+
+    await toggle.click();
+
+    assert.equal(recommendation.card.slug.groupName, job.taskGroups.models[0].name);
+
+    await recommendation.card.acceptButton.click();
+
+    assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
+
+    await JobDetail.tabFor('definition').visit();
+    await JobDetail.tabFor('overview').visit();
+
+    assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
+  });
+
+  test('resource recommendations are not fetched when the feature doesn’t exist', async function(assert) {
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+    await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
+
+    assert.equal(JobDetail.recommendations.length, 0);
+
+    assert.equal(
+      server.pretender.handledRequests
+        .filter(request => request.url.includes('recommendations'))
+        .length,
+      0
+    );
   });
 });

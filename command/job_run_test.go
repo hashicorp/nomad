@@ -17,7 +17,7 @@ func TestRunCommand_Implements(t *testing.T) {
 
 func TestRunCommand_Output_Json(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 
 	fh, err := ioutil.TempFile("", "nomad")
@@ -33,7 +33,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -58,7 +58,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	s := testutil.NewTestServer(t, nil)
 	defer s.Stop()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui, flagAddress: "http://" + s.HTTPAddr}}
 
 	// Fails on misuse
@@ -127,7 +127,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -162,7 +162,7 @@ func TestRunCommand_From_STDIN(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta:      Meta{Ui: ui},
 		JobGetter: JobGetter{testStdin: stdinR},
@@ -177,7 +177,7 @@ job "job1" {
 		count = 1
 		task "task1" {
 			driver = "exec"
-			resources = {
+			resources {
 				cpu = 1000
 				memory = 512
 			}
@@ -200,7 +200,7 @@ job "job1" {
 
 func TestRunCommand_From_URL(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{
 		Meta: Meta{Ui: ui},
 	}

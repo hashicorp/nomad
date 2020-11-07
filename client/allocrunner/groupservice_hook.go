@@ -10,19 +10,23 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
 )
+
+type networkStatusGetter interface {
+	NetworkStatus() *structs.AllocNetworkStatus
+}
 
 // groupServiceHook manages task group Consul service registration and
 // deregistration.
 type groupServiceHook struct {
-	allocID      string
-	group        string
-	restarter    agentconsul.WorkloadRestarter
-	consulClient consul.ConsulServiceAPI
-	prerun       bool
-	delay        time.Duration
-	deregistered bool
+	allocID             string
+	group               string
+	restarter           agentconsul.WorkloadRestarter
+	consulClient        consul.ConsulServiceAPI
+	prerun              bool
+	delay               time.Duration
+	deregistered        bool
+	networkStatusGetter networkStatusGetter
 
 	logger log.Logger
 
@@ -30,6 +34,7 @@ type groupServiceHook struct {
 	canary         bool
 	services       []*structs.Service
 	networks       structs.Networks
+	ports          structs.AllocatedPorts
 	taskEnvBuilder *taskenv.Builder
 
 	// Since Update() may be called concurrently with any other hook all
@@ -38,11 +43,12 @@ type groupServiceHook struct {
 }
 
 type groupServiceHookConfig struct {
-	alloc          *structs.Allocation
-	consul         consul.ConsulServiceAPI
-	restarter      agentconsul.WorkloadRestarter
-	taskEnvBuilder *taskenv.Builder
-	logger         log.Logger
+	alloc               *structs.Allocation
+	consul              consul.ConsulServiceAPI
+	restarter           agentconsul.WorkloadRestarter
+	taskEnvBuilder      *taskenv.Builder
+	networkStatusGetter networkStatusGetter
+	logger              log.Logger
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
@@ -54,18 +60,20 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	}
 
 	h := &groupServiceHook{
-		allocID:        cfg.alloc.ID,
-		group:          cfg.alloc.TaskGroup,
-		restarter:      cfg.restarter,
-		consulClient:   cfg.consul,
-		taskEnvBuilder: cfg.taskEnvBuilder,
-		delay:          shutdownDelay,
+		allocID:             cfg.alloc.ID,
+		group:               cfg.alloc.TaskGroup,
+		restarter:           cfg.restarter,
+		consulClient:        cfg.consul,
+		taskEnvBuilder:      cfg.taskEnvBuilder,
+		delay:               shutdownDelay,
+		networkStatusGetter: cfg.networkStatusGetter,
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
 
 	if cfg.alloc.AllocatedResources != nil {
 		h.networks = cfg.alloc.AllocatedResources.Shared.Networks
+		h.ports = cfg.alloc.AllocatedResources.Shared.Ports
 	}
 
 	if cfg.alloc.DeploymentStatus != nil {
@@ -109,6 +117,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	var networks structs.Networks
 	if req.Alloc.AllocatedResources != nil {
 		networks = req.Alloc.AllocatedResources.Shared.Networks
+		h.ports = req.Alloc.AllocatedResources.Shared.Ports
 	}
 
 	tg := req.Alloc.Job.LookupTaskGroup(h.group)
@@ -167,22 +176,6 @@ func (h *groupServiceHook) Postrun() error {
 	return nil
 }
 
-func (h *groupServiceHook) driverNet() *drivers.DriverNetwork {
-	if len(h.networks) == 0 {
-		return nil
-	}
-
-	//TODO(schmichael) only support one network for now
-	net := h.networks[0]
-	//TODO(schmichael) there's probably a better way than hacking driver network
-	return &drivers.DriverNetwork{
-		AutoAdvertise: true,
-		IP:            net.IP,
-		// Copy PortLabels from group network
-		PortMap: net.PortLabels(),
-	}
-}
-
 // deregister services from Consul.
 func (h *groupServiceHook) deregister() {
 	if len(h.services) > 0 {
@@ -200,14 +193,20 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
+	var netStatus *structs.AllocNetworkStatus
+	if h.networkStatusGetter != nil {
+		netStatus = h.networkStatusGetter.NetworkStatus()
+	}
+
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
 		AllocID:       h.allocID,
 		Group:         h.group,
 		Restarter:     h.restarter,
 		Services:      interpolatedServices,
-		DriverNetwork: h.driverNet(),
 		Networks:      h.networks,
+		NetworkStatus: netStatus,
+		Ports:         h.ports,
 		Canary:        h.canary,
 	}
 }

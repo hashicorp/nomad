@@ -27,14 +27,14 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Stop = true
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob() failed: %v", err)
 	}
 
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.JobID = job.ID
-	if err := state.UpsertEvals(1001, []*structs.Evaluation{eval}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("UpsertEvals() failed: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	state := s1.fsm.State()
 	s1.fsm.State()
 	job := mock.Job()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob() failed: %v", err)
 	}
 

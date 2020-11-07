@@ -1,5 +1,10 @@
 package api
 
+const (
+	// ScalingPolicyTypeHorizontal indicates a policy that does horizontal scaling.
+	ScalingPolicyTypeHorizontal = "horizontal"
+)
+
 // Scaling is used to query scaling-related API endpoints
 type Scaling struct {
 	client *Client
@@ -36,6 +41,9 @@ func (p *ScalingPolicy) Canonicalize(taskGroupCount int) {
 		var m int64 = int64(taskGroupCount)
 		p.Min = &m
 	}
+	if p.Type == "" {
+		p.Type = ScalingPolicyTypeHorizontal
+	}
 }
 
 // ScalingRequest is the payload for a generic scaling action
@@ -52,13 +60,19 @@ type ScalingRequest struct {
 
 // ScalingPolicy is the user-specified API object for an autoscaling policy
 type ScalingPolicy struct {
+	/* fields set by user in HCL config */
+
+	Min     *int64                 `hcl:"min,optional"`
+	Max     *int64                 `hcl:"max,optional"`
+	Policy  map[string]interface{} `hcl:"policy,block"`
+	Enabled *bool                  `hcl:"enabled,optional"`
+	Type    string                 `hcl:"type,optional"`
+
+	/* fields set by server */
+
 	ID          string
 	Namespace   string
 	Target      map[string]string
-	Min         *int64
-	Max         *int64
-	Policy      map[string]interface{}
-	Enabled     *bool
 	CreateIndex uint64
 	ModifyIndex uint64
 }
@@ -68,6 +82,7 @@ type ScalingPolicy struct {
 type ScalingPolicyListStub struct {
 	ID          string
 	Enabled     bool
+	Type        string
 	Target      map[string]string
 	CreateIndex uint64
 	ModifyIndex uint64

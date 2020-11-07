@@ -95,6 +95,16 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 				"build": "0.8.1:'e9ca44d",
 			},
 		},
+		"xDS": {
+			"SupportedProxies": map[string]interface{}{
+				"envoy": []interface{}{
+					"1.14.2",
+					"1.13.2",
+					"1.12.4",
+					"1.11.2",
+				},
+			},
+		},
 	}
 	return s, nil
 }
@@ -187,6 +197,12 @@ func (c *MockAgent) ServiceDeregister(serviceID string) error {
 	defer c.mu.Unlock()
 	c.hits++
 	delete(c.services, serviceID)
+	for k, v := range c.checks {
+		if v.ServiceID == serviceID {
+			delete(c.checks, k)
+			delete(c.checkTTLs, k)
+		}
+	}
 	return nil
 }
 

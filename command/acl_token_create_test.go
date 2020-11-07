@@ -23,7 +23,7 @@ func TestACLTokenCreateCommand(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenCreateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Request to create a new token without providing a valid management token

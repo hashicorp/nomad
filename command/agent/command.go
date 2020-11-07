@@ -225,7 +225,7 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Merge in the enterprise overlay
-	config.Merge(DefaultEntConfig())
+	config = config.Merge(DefaultEntConfig())
 
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
@@ -299,6 +299,18 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
+		return false
+	}
+
+	// Check that the region does not contain invalid characters
+	if strings.ContainsAny(config.Region, "\000") {
+		c.Ui.Error("Region contains invalid characters")
+		return false
+	}
+
+	// Check that the datacenter name does not contain invalid characters
+	if strings.ContainsAny(config.Datacenter, "\000") {
+		c.Ui.Error("Datacenter contains invalid characters")
 		return false
 	}
 
@@ -968,8 +980,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	metricsConf.EnableHostname = !telConfig.DisableHostname
 
 	// Prefer the hostname as a label.
-	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
-		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname
 
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName

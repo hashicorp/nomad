@@ -24,7 +24,7 @@ var (
 	// connect proxy sidecar task.
 	connectSidecarDriverConfig = func() map[string]interface{} {
 		return map[string]interface{}{
-			"image": "${meta.connect.sidecar_image}",
+			"image": structs.EnvoyImageFormat,
 			"args": []interface{}{
 				"-c", structs.EnvoyBootstrapPath,
 				"-l", "${meta.connect.log_level}",
@@ -40,7 +40,7 @@ var (
 	// networking is being used the network_mode driver configuration is set here.
 	connectGatewayDriverConfig = func(hostNetwork bool) map[string]interface{} {
 		m := map[string]interface{}{
-			"image": "${meta.connect.gateway_image}",
+			"image": structs.EnvoyImageFormat,
 			"args": []interface{}{
 				"-c", structs.EnvoyBootstrapPath,
 				"-l", "${meta.connect.log_level}",

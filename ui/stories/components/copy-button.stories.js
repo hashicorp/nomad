@@ -14,6 +14,10 @@ export let CopyButton = () => {
         {{clipboardText}}
         <CopyButton @clipboardText={{clipboardText}} />
       </span>
+      <h5 class="title is-5">Copy Button with content</h5>
+      <span class="tag is-hollow is-small no-text-transform">
+        <CopyButton @clipboardText={{clipboardText}}>{{clipboardText}}</CopyButton>
+      </span>
       `,
     context: {
       clipboardText: text('Clipboard Text', 'e8c898a0-794b-9063-7a7f-bf0c4a405f83'),

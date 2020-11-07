@@ -115,9 +115,6 @@ limit {
     region_limit {
         cpu = 2500
         memory = 1000
-        network {
-           mbits = 50
-        }
     }
 }
 `)
@@ -131,10 +128,7 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
 			"Region": "global",
 			"RegionLimit": {
 				"CPU": 2500,
-				"MemoryMB": 1000,
-                                "Networks": [
-                                        { "MBits": 50 }
-                                ]
+				"MemoryMB": 1000
 			}
 		}
 	]

@@ -29,7 +29,15 @@ type WorkloadServices struct {
 	Services []*structs.Service
 
 	// Networks from the task's resources stanza.
+	// TODO: remove and use Ports
 	Networks structs.Networks
+
+	// NetworkStatus from alloc if network namespace is created
+	// Can be nil
+	NetworkStatus *structs.AllocNetworkStatus
+
+	// AllocatedPorts is the list of port mappings
+	Ports structs.AllocatedPorts
 
 	// DriverExec is the script executor for the task's driver.
 	// For group services this is nil and script execution is managed by

@@ -1,4 +1,5 @@
 import config from 'nomad-ui/config/environment';
+import * as topoScenarios from './topo';
 import { pickOne } from '../utils';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
@@ -14,6 +15,7 @@ const allScenarios = {
   allNodeTypes,
   everyFeature,
   emptyCluster,
+  ...topoScenarios,
 };
 
 const scenario = getConfigValue('mirageScenario', 'emptyCluster');
@@ -39,7 +41,7 @@ export default function(server) {
 function smallCluster(server) {
   server.createList('agent', 3);
   server.createList('node', 5);
-  server.createList('job', 5);
+  server.createList('job', 5, { createRecommendations: true });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);

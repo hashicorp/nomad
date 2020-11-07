@@ -323,6 +323,12 @@ export default function() {
     };
   });
 
+  this.get('/agent/self', function({ agents }) {
+    return {
+      member: this.serialize(agents.first()),
+    };
+  });
+
   this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
     const serverId = queryParams.server_id;
     const clientId = queryParams.client_id;
@@ -402,6 +408,20 @@ export default function() {
 
   this.get('/regions', function({ regions }) {
     return this.serialize(regions.all());
+  });
+
+  this.get('/operator/license', function({ features }) {
+    const records = features.all();
+
+    if (records.length) {
+      return {
+        License: {
+          Features: records.models.mapBy('name'),
+        }
+      };
+    }
+
+    return new Response(501, {}, null);
   });
 
   const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {
@@ -525,6 +545,54 @@ export default function() {
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
     });
+  });
+
+  this.get('/recommendations', function(
+    { jobs, namespaces, recommendations },
+    { queryParams: { job: id, namespace } }
+  ) {
+    if (id) {
+      if (!namespaces.all().length) {
+        namespace = null;
+      }
+
+      const job = jobs.findBy({ id, namespace });
+
+      if (!job) {
+        return [];
+      }
+
+      const taskGroups = job.taskGroups.models;
+
+      const tasks = taskGroups.reduce((tasks, taskGroup) => {
+        return tasks.concat(taskGroup.tasks.models);
+      }, []);
+
+      const recommendationIds = tasks.reduce((recommendationIds, task) => {
+        return recommendationIds.concat(task.recommendations.models.mapBy('id'));
+      }, []);
+
+      return recommendations.find(recommendationIds);
+    } else {
+      return recommendations.all();
+    }
+  });
+
+  this.post('/recommendations/apply', function({ recommendations }, { requestBody }) {
+    const { Apply, Dismiss } = JSON.parse(requestBody);
+
+    Apply.concat(Dismiss).forEach(id => {
+      const recommendation = recommendations.find(id);
+      const task = recommendation.task;
+
+      if (Apply.includes(id)) {
+        task.resources[recommendation.resource] = recommendation.value;
+      }
+      recommendation.destroy();
+      task.save();
+    });
+
+    return {};
   });
 }
 

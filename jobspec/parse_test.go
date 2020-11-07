@@ -135,9 +135,10 @@ func TestParse(t *testing.T) {
 								ExtraKeysHCL: nil,
 							},
 							"bar": {
-								Name:   "bar",
-								Type:   "csi",
-								Source: "bar-vol",
+								Name:     "bar",
+								Type:     "csi",
+								Source:   "bar-vol",
+								ReadOnly: true,
 								MountOptions: &api.CSIMountOptions{
 									FSType: "ext4",
 								},
@@ -1152,7 +1153,6 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
-
 		{
 			"tg-service-check.hcl",
 			&api.Job{
@@ -1382,7 +1382,6 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
-
 		{
 			"tg-scaling-policy.hcl",
 			&api.Job{
@@ -1392,15 +1391,63 @@ func TestParse(t *testing.T) {
 					{
 						Name: stringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
-							Min: int64ToPtr(5),
-							Max: int64ToPtr(100),
+							Type: "horizontal",
+							Min:  int64ToPtr(5),
+							Max:  int64ToPtr(100),
 							Policy: map[string]interface{}{
 								"foo": "bar",
 								"b":   true,
 								"val": 5,
 								"f":   .1,
+
+								"check": []map[string]interface{}{
+									{"foo": []map[string]interface{}{
+										{"query": "some_query"},
+									}},
+								},
 							},
 							Enabled: boolToPtr(false),
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
+			"task-scaling-policy.hcl",
+			&api.Job{
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: stringToPtr("bar"),
+						Tasks: []*api.Task{
+							{
+								Name:   "bar",
+								Driver: "docker",
+								ScalingPolicies: []*api.ScalingPolicy{
+									{
+										Type:   "vertical_cpu",
+										Target: nil,
+										Min:    int64ToPtr(50),
+										Max:    int64ToPtr(1000),
+										Policy: map[string]interface{}{
+											"test": "cpu",
+										},
+										Enabled: boolToPtr(true),
+									},
+									{
+										Type:   "vertical_mem",
+										Target: nil,
+										Min:    int64ToPtr(128),
+										Max:    int64ToPtr(1024),
+										Policy: map[string]interface{}{
+											"test": "mem",
+										},
+										Enabled: boolToPtr(false),
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1422,8 +1469,8 @@ func TestParse(t *testing.T) {
 									ConnectTimeout:                  timeToPtr(3 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: true,
 									EnvoyGatewayBindAddresses: map[string]*api.ConsulGatewayBindAddress{
-										"listener1": {Address: "10.0.0.1", Port: 8888},
-										"listener2": {Address: "10.0.0.2", Port: 8889},
+										"listener1": {Name: "listener1", Address: "10.0.0.1", Port: 8888},
+										"listener2": {Name: "listener2", Address: "10.0.0.2", Port: 8889},
 									},
 									EnvoyGatewayNoDefaultBind: true,
 									Config:                    map[string]interface{}{"foo": "bar"},
@@ -1473,6 +1520,7 @@ func TestParse(t *testing.T) {
 					{
 						Name: stringToPtr("group"),
 						Scaling: &api.ScalingPolicy{
+							Type:    "horizontal",
 							Min:     nil,
 							Max:     int64ToPtr(10),
 							Policy:  nil,
@@ -1483,19 +1531,51 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
-
 		{
 			"tg-scaling-policy-missing-max.hcl",
 			nil,
 			true,
 		},
-
 		{
 			"tg-scaling-policy-multi-policy.hcl",
 			nil,
 			true,
 		},
-
+		{
+			"tg-scaling-policy-with-label.hcl",
+			nil,
+			true,
+		},
+		{
+			"tg-scaling-policy-invalid-type.hcl",
+			nil,
+			true,
+		},
+		{
+			"task-scaling-policy-missing-name.hcl",
+			nil,
+			true,
+		},
+		{
+			"task-scaling-policy-multi-name.hcl",
+			nil,
+			true,
+		},
+		{
+			"task-scaling-policy-multi-cpu.hcl",
+			nil,
+			true,
+		},
+		{
+			"task-scaling-policy-invalid-type.hcl",
+			nil,
+			true,
+		},
+		{
+			"task-scaling-policy-invalid-resource.hcl",
+			nil,
+			true,
+		},
 		{
 			"multiregion.hcl",
 			&api.Job{

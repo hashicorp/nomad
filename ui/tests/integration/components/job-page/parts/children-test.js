@@ -64,6 +64,9 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
   });
 
   test('eventually paginates', async function(assert) {
+    const pageSize = 10;
+    window.localStorage.nomadPageSize = pageSize;
+
     this.server.create('job', 'periodic', {
       id: 'parent',
       childrenCount: 11,
@@ -86,8 +89,8 @@ module('Integration | Component | job-page/parts/children', function(hooks) {
     `);
 
     const childrenCount = parent.get('children.length');
-    assert.ok(childrenCount > 10, 'Parent has more children than one page size');
-    assert.equal(findAll('[data-test-job-name]').length, 10, 'Table length maxes out at 10');
+    assert.ok(childrenCount > pageSize, 'Parent has more children than one page size');
+    assert.equal(findAll('[data-test-job-name]').length, pageSize, 'Table length maxes out at 10');
     assert.ok(find('.pagination-next'), 'Next button is rendered');
 
     assert.ok(

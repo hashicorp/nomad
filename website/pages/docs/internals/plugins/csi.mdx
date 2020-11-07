@@ -113,7 +113,7 @@ into each task that mounts the volume.
 
 This cycle is reversed when a task that claims a volume becomes terminal. The
 client will send an "unpublish" RPC to the server, which will send "detach"
-RPCs to the node plugin.  The node plugin unmounts the bind-mount from the
+RPCs to the node plugin. The node plugin unmounts the bind-mount from the
 allocation and unmounts the volume from the plugin (if it's not in use by
 another task). The server will then send "unpublish" RPCs to the controller
 plugin (if any), and decrement the claim count for the volume. At this point

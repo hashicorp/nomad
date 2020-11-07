@@ -133,7 +133,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	require.NoError(t, state.UpsertNode(1000, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 
 	// Create the volume
 	vols := []*structs.CSIVolume{{
@@ -141,8 +141,12 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		Namespace:      "notTheNamespace",
 		PluginID:       "minnie",
 		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
+		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+		MountOptions: &structs.CSIMountOptions{
+			FSType: "ext4", MountFlags: []string{"sensitive"}},
+		Secrets:    structs.CSISecrets{"mysecret": "secretvalue"},
+		Parameters: map[string]string{"myparam": "paramvalue"},
+		Context:    map[string]string{"mycontext": "contextvalue"},
 	}}
 
 	// Create the register request
@@ -155,6 +159,11 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	}
 	resp1 := &structs.CSIVolumeRegisterResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
+	require.Error(t, err, "expected validation error")
+
+	// Fix the registration so that it passes validation
+	vols[0].AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), resp1.Index)
 
@@ -170,6 +179,10 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, resp1.Index, resp2.Index)
 	require.Equal(t, vols[0].ID, resp2.Volume.ID)
+	require.Equal(t, "csi.CSISecrets(map[mysecret:[REDACTED]])",
+		resp2.Volume.Secrets.String())
+	require.Equal(t, "csi.CSIOptions(FSType: ext4, MountFlags: [REDACTED])",
+		resp2.Volume.MountOptions.String())
 
 	// Registration does not update
 	req1.Volumes[0].PluginID = "adam"
@@ -219,7 +232,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
 
 	// Create an initial volume claim request; we expect it to fail
 	// because there's no such volume yet.
@@ -247,7 +260,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(index, node)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, node)
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
@@ -299,7 +312,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc2}))
 	claimReq.AllocationID = alloc2.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	require.EqualError(t, err, "volume max claim reached",
@@ -324,6 +337,25 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, id0, volGetResp.Volume.ID)
 	require.Len(t, volGetResp.Volume.ReadAllocs, 1)
+	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
+
+	// Make a second reader claim
+	alloc3 := mock.Alloc()
+	alloc3.JobID = uuid.Generate()
+	summary = mock.JobSummary(alloc3.JobID)
+	index++
+	require.NoError(t, state.UpsertJobSummary(index, summary))
+	index++
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc3}))
+	claimReq.AllocationID = alloc3.ID
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
+	require.NoError(t, err)
+
+	// Verify the new claim was set
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", volGetReq, volGetResp)
+	require.NoError(t, err)
+	require.Equal(t, id0, volGetResp.Volume.ID)
+	require.Len(t, volGetResp.Volume.ReadAllocs, 2)
 	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
 }
 
@@ -369,7 +401,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 			NodeInfo: &structs.CSINodeInfo{},
 		},
 	}
-	err := state.UpsertNode(1002, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 1002, node)
 	require.NoError(t, err)
 	vols := []*structs.CSIVolume{{
 		ID:                 id0,
@@ -387,7 +419,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	alloc.NodeID = node.ID
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(1005, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	// Make the volume claim
 	claimReq := &structs.CSIVolumeClaimRequest{
@@ -449,7 +481,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 		},
 	}
 	index++
-	require.NoError(t, state.UpsertNode(index, node))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	type tc struct {
 		name           string
@@ -497,7 +529,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			alloc.ClientStatus = structs.AllocClientStatusFailed
 
 			index++
-			require.NoError(t, state.UpsertAllocs(index, []*structs.Allocation{alloc}))
+			require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
 
 			// setup: claim the volume for our alloc
 			claim := &structs.CSIVolumeClaim{
@@ -867,7 +899,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	node.CSINodePlugins = map[string]*structs.CSIInfo{
 		"adam": {PluginID: "adam", Healthy: true},
 	}
-	err := state.UpsertNode(3, node)
+	err := state.UpsertNode(structs.MsgTypeTestSetup, 3, node)
 	require.NoError(t, err)
 
 	// Create 2 volumes

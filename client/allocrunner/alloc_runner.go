@@ -64,6 +64,10 @@ type allocRunner struct {
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
 
+	// consulProxiesClient is the client used by the envoy version hook for
+	// looking up supported envoy versions of the consul agent.
+	consulProxiesClient consul.SupportedProxiesAPI
+
 	// sidsClient is the client used by the service identity hook for
 	// managing SI tokens
 	sidsClient consul.ServiceIdentityAPI
@@ -186,6 +190,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		alloc:                    alloc,
 		clientConfig:             config.ClientConfig,
 		consulClient:             config.Consul,
+		consulProxiesClient:      config.ConsulProxies,
 		sidsClient:               config.ConsulSI,
 		vaultClient:              config.Vault,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
@@ -236,7 +241,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 // initTaskRunners creates task runners but does *not* run them.
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
-		config := &taskrunner.Config{
+		trConfig := &taskrunner.Config{
 			Alloc:                ar.alloc,
 			ClientConfig:         ar.clientConfig,
 			Task:                 task,
@@ -246,6 +251,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			StateUpdater:         ar,
 			DynamicRegistry:      ar.dynamicRegistry,
 			Consul:               ar.consulClient,
+			ConsulProxies:        ar.consulProxiesClient,
 			ConsulSI:             ar.sidsClient,
 			Vault:                ar.vaultClient,
 			DeviceStatsReporter:  ar.deviceStatsReporter,
@@ -257,7 +263,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 		}
 
 		// Create, but do not Run, the task runner
-		tr, err := taskrunner.NewTaskRunner(config)
+		tr, err := taskrunner.NewTaskRunner(trConfig)
 		if err != nil {
 			return fmt.Errorf("failed creating runner for task %q: %v", task.Name, err)
 		}
@@ -386,8 +392,14 @@ func (ar *allocRunner) Restore() error {
 		return err
 	}
 
+	ns, err := ar.stateDB.GetNetworkStatus(ar.id)
+	if err != nil {
+		return err
+	}
+
 	ar.stateLock.Lock()
 	ar.state.DeploymentStatus = ds
+	ar.state.NetworkStatus = ns
 	ar.stateLock.Unlock()
 
 	states := make(map[string]*structs.TaskState)
@@ -655,6 +667,22 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 		}
 	}
 
+	// Set the NetworkStatus and default DNSConfig if one is not returned from the client
+	netStatus := ar.state.NetworkStatus
+	if netStatus != nil {
+		a.NetworkStatus = netStatus
+	} else {
+		a.NetworkStatus = new(structs.AllocNetworkStatus)
+	}
+
+	if a.NetworkStatus.DNS == nil {
+		alloc := ar.Alloc()
+		nws := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Networks
+		if len(nws) > 0 {
+			a.NetworkStatus.DNS = nws[0].DNS.Copy()
+		}
+	}
+
 	return a
 }
 
@@ -698,6 +726,18 @@ func (ar *allocRunner) SetClientStatus(clientStatus string) {
 	ar.stateLock.Lock()
 	defer ar.stateLock.Unlock()
 	ar.state.ClientStatus = clientStatus
+}
+
+func (ar *allocRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	ar.state.NetworkStatus = s.Copy()
+}
+
+func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	return ar.state.NetworkStatus.Copy()
 }
 
 // AllocState returns a copy of allocation state including a snapshot of task
@@ -848,17 +888,33 @@ func (ar *allocRunner) PersistState() error {
 	defer ar.destroyedLock.Unlock()
 
 	if ar.destroyed {
-		err := ar.stateDB.DeleteAllocationBucket(ar.id)
+		err := ar.stateDB.DeleteAllocationBucket(ar.id, cstate.WithBatchMode())
 		if err != nil {
 			ar.logger.Warn("failed to delete allocation bucket", "error", err)
 		}
 		return nil
 	}
 
+	// persist network status, wrapping in a func to release state lock as early as possible
+	err := func() error {
+		ar.stateLock.Lock()
+		defer ar.stateLock.Unlock()
+		if ar.state.NetworkStatus != nil {
+			err := ar.stateDB.PutNetworkStatus(ar.id, ar.state.NetworkStatus, cstate.WithBatchMode())
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
+	}
+
 	// TODO: consider persisting deployment state along with task status.
 	// While we study why only the alloc is persisted, I opted to maintain current
 	// behavior and not risk adding yet more IO calls unnecessarily.
-	return ar.stateDB.PutAllocation(ar.Alloc())
+	return ar.stateDB.PutAllocation(ar.Alloc(), cstate.WithBatchMode())
 }
 
 // Destroy the alloc runner by stopping it if it is still running and cleaning

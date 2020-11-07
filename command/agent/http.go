@@ -326,6 +326,14 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
 
+	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
+	s.mux.HandleFunc("/v1/event/sinks", s.wrap(s.EventSinksRequest))
+	s.mux.HandleFunc("/v1/event/sink/", s.wrap(s.EventSinkSpecificRequest))
+
+	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
+	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
+	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
+
 	if uiEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
 	} else {
@@ -651,6 +659,20 @@ func parseNamespace(req *http.Request, n *string) {
 	} else if *n == "" {
 		*n = structs.DefaultNamespace
 	}
+}
+
+// parseBool parses a query parameter to a boolean or returns (nil, nil) if the
+// parameter is not present.
+func parseBool(req *http.Request, field string) (*bool, error) {
+	if str := req.URL.Query().Get(field); str != "" {
+		param, err := strconv.ParseBool(str)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", field, str, err)
+		}
+		return &param, nil
+	}
+
+	return nil, nil
 }
 
 // parseToken is used to parse the X-Nomad-Token param

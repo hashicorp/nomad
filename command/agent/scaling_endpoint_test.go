@@ -12,6 +12,7 @@ import (
 )
 
 func TestHTTP_ScalingPoliciesList(t *testing.T) {
+	require := require.New(t)
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		for i := 0; i < 3; i++ {
@@ -26,40 +27,75 @@ func TestHTTP_ScalingPoliciesList(t *testing.T) {
 				},
 			}
 			var resp structs.JobRegisterResponse
-			if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
-				t.Fatalf("err: %v", err)
-			}
+			require.NoError(s.Agent.RPC("Job.Register", &args, &resp))
 		}
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/scaling/policies", nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
+
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.ScalingPoliciesRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 
 		// Check for the index
-		if respW.Header().Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.Header().Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"), "missing index")
+		require.NotEmpty(respW.Header().Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(respW.Header().Get("X-Nomad-LastContact"), "missing last contact")
 
 		// Check the list
 		l := obj.([]*structs.ScalingPolicyListStub)
-		if len(l) != 3 {
-			t.Fatalf("bad: %#v", l)
+		require.Len(l, 3)
+	})
+}
+
+func TestHTTP_ScalingPoliciesList_Filter(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		var job *structs.Job
+		for i := 0; i < 3; i++ {
+			// Create the job
+			job, _ = mock.JobWithScalingPolicy()
+
+			args := structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+			}
+			var resp structs.JobRegisterResponse
+			require.NoError(s.Agent.RPC("Job.Register", &args, &resp))
 		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/scaling/policies?job="+job.ID, nil)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.ScalingPoliciesRequest(respW, req)
+		require.NoError(err)
+
+		// Check the list
+		l := obj.([]*structs.ScalingPolicyListStub)
+		require.Len(l, 1)
+
+		// Request again, with policy type filter
+		req, err = http.NewRequest("GET", "/v1/scaling/policies?type=cluster", nil)
+		require.NoError(err)
+		respW = httptest.NewRecorder()
+
+		// Make the request
+		obj, err = s.Server.ScalingPoliciesRequest(respW, req)
+		require.NoError(err)
+
+		// Check the list
+		l = obj.([]*structs.ScalingPolicyListStub)
+		require.Len(l, 0)
 	})
 }
 
@@ -90,15 +126,9 @@ func TestHTTP_ScalingPolicyGet(t *testing.T) {
 		require.NoError(err)
 
 		// Check for the index
-		if respW.Header().Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.Header().Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"), "missing index")
+		require.NotEmpty(respW.Header().Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(respW.Header().Get("X-Nomad-LastContact"), "missing last contact")
 
 		// Check the policy
 		require.Equal(p.ID, obj.(*structs.ScalingPolicy).ID)

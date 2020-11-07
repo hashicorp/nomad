@@ -38,18 +38,18 @@ documentation above.
 
 The `podman` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
 
-| Feature | Implementation |
-| --- | --- |
-| `nomad alloc signal` | true |
-| `nomad alloc exec` | false |
-| filesystem isolation | none |
-| network isolation | host, group, task, none |
-| volume mounting | none |
+| Feature              | Implementation          |
+| -------------------- | ----------------------- |
+| `nomad alloc signal` | true                    |
+| `nomad alloc exec`   | false                   |
+| filesystem isolation | none                    |
+| network isolation    | host, group, task, none |
+| volume mounting      | none                    |
 
 ## Known Limitations
 
 The Podman task driver is under active development. It currently does not support [stderr logging][stderr-logging] and [devices][devices].
-Podman recently released [Podman v2](https://podman.io/blogs/2020/06/29/podman-v2-announce.html). The task driver currently supports v1 
+Podman recently released [Podman v2](https://podman.io/blogs/2020/06/29/podman-v2-announce.html). The task driver currently supports v1
 and will be working on supporting v2 in upcoming releases.
 
 ## Task Configuration
@@ -278,5 +278,4 @@ plugin "nomad-driver-podman" {
 [slirp-issue]: https://github.com/containers/libpod/issues/6097
 [stderr-logging]: https://github.com/hashicorp/nomad-driver-podman/issues/4
 [devices]: https://github.com/hashicorp/nomad-driver-podman/issues/41
-[downloaded]: https://releases.hashicorp.com/nomad-driver-podman 
-
+[downloaded]: https://releases.hashicorp.com/nomad-driver-podman

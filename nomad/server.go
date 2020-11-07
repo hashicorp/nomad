@@ -244,6 +244,10 @@ type Server struct {
 	// Nomad router.
 	statsFetcher *StatsFetcher
 
+	// eventSinkManager is used by the leader to send events to configured
+	// event sinks
+	eventSinkManager *SinkManager
+
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -275,6 +279,8 @@ type endpoints struct {
 	ACL        *ACL
 	Scaling    *Scaling
 	Enterprise *EnterpriseEndpoints
+	Event      *Event
+	Namespace  *Namespace
 
 	// Client endpoints
 	ClientStats       *ClientStats
@@ -363,6 +369,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
+
+	// Initialize the event sink manager the leader will use
+	s.eventSinkManager = NewSinkManager(s.shutdownCtx, s, s.logger)
 
 	// Setup Consul (more)
 	s.setupConsul(consulConfigEntries, consulACLs)
@@ -1148,6 +1157,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
 		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
 		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
+		s.staticEndpoints.Namespace = &Namespace{srv: s}
 		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
 		// Client endpoints
@@ -1162,6 +1172,10 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 		s.staticEndpoints.Agent = &Agent{srv: s}
 		s.staticEndpoints.Agent.register()
+
+		s.staticEndpoints.Event = &Event{srv: s}
+		s.staticEndpoints.Event.register()
+
 	}
 
 	// Register the static handlers
@@ -1186,6 +1200,8 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.ClientCSI)
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
+	server.Register(s.staticEndpoints.Namespace)
+	server.Register(s.staticEndpoints.Event)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
@@ -1207,11 +1223,13 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM
 	fsmConfig := &FSMConfig{
-		EvalBroker: s.evalBroker,
-		Periodic:   s.periodicDispatcher,
-		Blocked:    s.blockedEvals,
-		Logger:     s.logger,
-		Region:     s.Region(),
+		EvalBroker:        s.evalBroker,
+		Periodic:          s.periodicDispatcher,
+		Blocked:           s.blockedEvals,
+		Logger:            s.logger,
+		Region:            s.Region(),
+		EnableEventBroker: s.config.EnableEventBroker,
+		EventBufferSize:   s.config.EventBufferSize,
 	}
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)
