@@ -324,10 +324,9 @@ func NewManagedSink(ctx context.Context, sinkID string, stateFn func() *state.St
 		return nil, fmt.Errorf("error getting sink %s: %w", sinkID, err)
 	}
 
-	// TODO(drew) generate writer based off type
-	writer, err := stream.NewWebhookSink(sink)
+	writer, err := createSinkWriter(sink)
 	if err != nil {
-		return nil, fmt.Errorf("generating sink writer for sink %w", err)
+		return nil, err
 	}
 
 	sinkCtx, cancel := context.WithCancel(ctx)
@@ -343,6 +342,17 @@ func NewManagedSink(ctx context.Context, sinkID string, stateFn func() *state.St
 	}
 
 	return ms, nil
+}
+
+func createSinkWriter(sink *structs.EventSink) (writer stream.SinkWriter, err error) {
+	if sink.Type == structs.SinkWebhook {
+		writer, err = stream.NewWebhookSink(sink)
+	} else if sink.Type == structs.SinkAWSEventBridge {
+		writer, err = stream.NewAWSEventBridgeSink(sink)
+	} else {
+		err = fmt.Errorf("sink '%s' has unknown sink type '%s'", sink.Type, sink.ID)
+	}
+	return
 }
 
 func (m *ManagedSink) Unsubscribe() {
@@ -477,7 +487,7 @@ func (m *ManagedSink) subscribe() error {
 	}
 
 	// Generate the sink writer
-	writer, err := stream.NewWebhookSink(m.Sink)
+	writer, err := createSinkWriter(m.Sink)
 	if err != nil {
 		return fmt.Errorf("generating sink writer for sink %w", err)
 	}

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
@@ -31,13 +30,11 @@ type WebhookSink struct {
 	Address string
 }
 
-func NewWebhookSink(eventSink *structs.EventSink) (*WebhookSink, error) {
-	if eventSink.Address == "" {
-		return nil, fmt.Errorf("invalid address for websink")
-	} else if _, err := url.Parse(eventSink.Address); err != nil {
-		return nil, fmt.Errorf("invalid address '%s' : %v", eventSink.Address, err)
+func NewWebhookSink(eventSink *structs.EventSink) (SinkWriter, error) {
+	err := structs.SinkWebHookAddressValidator(eventSink.Address)
+	if err != nil {
+		return nil, err
 	}
-
 	httpClient := defaultHttpClient()
 
 	return &WebhookSink{

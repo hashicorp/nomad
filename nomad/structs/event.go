@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"strings"
 
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/aws/aws-sdk-go/aws/arn"
+	"github.com/hashicorp/go-multierror"
 )
 
 // EventStreamRequest is used to stream events from a servers EventBroker
@@ -115,7 +116,8 @@ type EventSinkListResponse struct {
 type SinkType string
 
 const (
-	SinkWebhook SinkType = "webhook"
+	SinkWebhook        SinkType = "webhook"
+	SinkAWSEventBridge SinkType = "awseventbridge"
 )
 
 type EventSink struct {
@@ -135,6 +137,38 @@ type EventSink struct {
 	ModifyIndex uint64
 }
 
+func SinkWebHookAddressValidator(address string) error {
+	if address == "" {
+		return fmt.Errorf("Webhook sink requires a valid Address")
+	} else if _, err := url.Parse(address); err != nil {
+		return fmt.Errorf("Webhook sink Address '%s' must be a valid url: %w", address, err)
+	}
+	return nil
+}
+
+func SinkAWSEventBridgeSinkAddressValidator(address string) (busArn string, source string, err error) {
+	if address == "" {
+		err = fmt.Errorf("invalid address for AWSEventBridgeSink")
+		return
+	}
+	addressParts := strings.Split(address, "//")
+	if len(addressParts) != 2 {
+		err = fmt.Errorf("invalid address '%s' : expected to be 2 parts, bus-arn//source-name", address)
+		return
+	}
+	busArn = addressParts[0]
+	if !arn.IsARN(busArn) {
+		err = fmt.Errorf("invalid address '%s' : expected '%s' to be valid arn", address, busArn)
+		return
+	}
+	source = addressParts[1]
+	if source == "" {
+		err = fmt.Errorf("empty source, must provide string identifier")
+		return
+	}
+	return
+}
+
 func (e *EventSink) Validate() error {
 	var mErr multierror.Error
 
@@ -148,15 +182,18 @@ func (e *EventSink) Validate() error {
 
 	switch e.Type {
 	case SinkWebhook:
-		if e.Address == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink requires a valid Address"))
-		} else if _, err := url.Parse(e.Address); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink Address must be a valid url: %w", err))
+		err := SinkWebHookAddressValidator(e.Address)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	case SinkAWSEventBridge:
+		_, _, err := SinkAWSEventBridgeSinkAddressValidator(e.Address)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
 		}
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink type invalid"))
 	}
-
 	return mErr.ErrorOrNil()
 }
 

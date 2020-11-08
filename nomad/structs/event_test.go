@@ -87,3 +87,54 @@ func TestEventSink_Changed(t *testing.T) {
 	c.Topics["Deployment"] = []string{"5bccc81a-2514-48d3-890b-03bea3c84856"}
 	require.False(t, c.EqualSubscriptionValues(a))
 }
+
+func Test_AWSEventBridgeSinkAddressValidator(t *testing.T) {
+	type args struct {
+	}
+	var tests = []struct {
+		name       string
+		address    string
+		wantBusArn string
+		wantSource string
+		wantErr    bool
+	}{
+		{"default",
+			"arn:aws:events:us-east-1:123456789012:event-bus/default//nomad-cluster-main",
+			"arn:aws:events:us-east-1:123456789012:event-bus/default",
+			"nomad-cluster-main",
+			false},
+		{"badArn",
+			"badArn//nomad-cluster-main",
+			"badArn",
+			"",
+			true,
+		},
+		{"noSource",
+			"arn:aws:events:us-east-1:123456789012:event-bus/default",
+			"",
+			"",
+			true,
+		},
+		{"badSource",
+			"arn:aws:events:us-east-1:123456789012:event-bus/default//",
+			"arn:aws:events:us-east-1:123456789012:event-bus/default",
+			"",
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			busArn, source, err := SinkAWSEventBridgeSinkAddressValidator(tt.address)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AWSEventBridgeSinkAddressValidator() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if busArn != tt.wantBusArn {
+				t.Errorf("AWSEventBridgeSinkAddressValidator() busArn = %v, want %v", busArn, tt.wantBusArn)
+			}
+			if source != tt.wantSource {
+				t.Errorf("AWSEventBridgeSinkAddressValidator() source = %v, want %v", source, tt.wantSource)
+			}
+		})
+	}
+}
