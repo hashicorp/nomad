@@ -413,6 +413,53 @@ module('Acceptance | optimize search and facets', function(hooks) {
     assert.equal(Optimize.empty.headline, 'No Matches');
   });
 
+  test('processing a summary moves to the next one in the sorted list', async function(assert) {
+    server.createList('job', 1, {
+      name: 'ooo111',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+    });
+
+    server.createList('job', 1, {
+      name: 'pppppp',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+    });
+
+    server.createList('job', 1, {
+      name: 'ooo222',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+    });
+
+    // Directly set the sorting of the above jobs’s summaries in the table
+    const futureSubmitTime = (Date.now() + 10000) * 1000000;
+    const nowSubmitTime = Date.now() * 1000000;
+    const pastSubmitTime = (Date.now() - 10000) * 1000000;
+
+    const jobNameToRecommendationSubmitTime = {
+      ooo111: futureSubmitTime,
+      pppppp: nowSubmitTime,
+      ooo222: pastSubmitTime,
+    };
+
+    server.schema.recommendations.all().models.forEach(recommendation => {
+      const parentJob = recommendation.task.taskGroup.job;
+      const submitTimeForJob = jobNameToRecommendationSubmitTime[parentJob.name];
+      recommendation.submitTime = submitTimeForJob;
+      recommendation.save();
+    });
+
+    await Optimize.visit();
+    await Optimize.search.fillIn('ooo');
+    await Optimize.card.acceptButton.click();
+
+    assert.equal(Optimize.card.slug.jobName, 'ooo222');
+  });
+
   test('the optimize page has appropriate faceted search options', async function(assert) {
     server.createList('job', 4, {
       status: 'running',

@@ -158,8 +158,8 @@ export default class OptimizeController extends Controller {
   // This is a task because the accordion uses timeouts for animation
   // eslint-disable-next-line require-yield
   @(task(function*() {
-    const currentSummaryIndex = this.model.indexOf(this.activeRecommendationSummary);
-    const nextSummary = this.model.objectAt(currentSummaryIndex + 1);
+    const currentSummaryIndex = this.filteredSummaries.indexOf(this.activeRecommendationSummary);
+    const nextSummary = this.filteredSummaries.objectAt(currentSummaryIndex + 1);
 
     if (nextSummary) {
       this.transitionToSummary(nextSummary);
