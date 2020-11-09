@@ -97,6 +97,11 @@ func decode(c *jobConfig) error {
 		file, diags = hcljson.Parse(pc.Body, pc.Path)
 
 	}
+
+	parsedVarFiles, mdiags := parseVarFiles(pc.VarFiles)
+	pc.parsedVarFiles = parsedVarFiles
+	diags = append(diags, mdiags...)
+
 	if diags.HasErrors() {
 		return diags
 	}
@@ -116,6 +121,41 @@ func decode(c *jobConfig) error {
 	}
 	diags = append(diags, decodeMapInterfaceType(&c, c.EvalContext())...)
 	return nil
+}
+
+func parseVarFiles(paths []string) ([]*hcl.File, hcl.Diagnostics) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	files := make([]*hcl.File, 0, len(paths))
+	var diags hcl.Diagnostics
+
+	for _, p := range paths {
+		body, err := ioutil.ReadFile(p)
+		if err != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to read file",
+				Detail:   fmt.Sprintf("failed to read %q: %v", p, err),
+			})
+			continue
+		}
+
+		var file *hcl.File
+		var mdiags hcl.Diagnostics
+		if !isJSON(body) {
+			file, mdiags = hclsyntax.ParseConfig(body, p, hcl.Pos{Line: 1, Column: 1})
+		} else {
+			file, mdiags = hcljson.Parse(body, p)
+
+		}
+
+		files = append(files, file)
+		diags = append(diags, mdiags...)
+	}
+
+	return files, diags
 }
 
 func isJSON(src []byte) bool {
