@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package stream;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/hashicorp/nomad/nomad/stream/proto";
+
+service EventStream {
+  rpc Subscribe(SubscribeRequest) returns (stream EventBatch) {}
+}
+
+enum Topic {
+  TopicUnknown = 0;
+
+  TopicDeployment = 1;
+  TopicEvaluation = 2;
+  TopicAllocation = 3;
+  TopicJob = 4;
+  TopicNode = 5;
+  TopicAll = 6;
+}
+
+
+message TopicFilter {
+  Topic Topic = 1;
+  repeated string FilterKeys = 2;
+}
+
+message SubscribeRequest {
+  string Token = 1;
+  string Index = 2;
+  string Namespace = 3;
+
+  repeated TopicFilter Topics = 4;
+}
+
+message EventBatch {
+  uint64 Index = 1;
+
+  repeated Event Event = 2;
+}
+
+message Event {
+  Topic Topic = 1;
+  string Type = 2;
+  string Key = 3;
+  string Namespace = 4;
+  repeated string FilterKeys = 5;
+  uint64 Index = 6;
+
+
+  google.protobuf.Struct Payload = 7;
+}
