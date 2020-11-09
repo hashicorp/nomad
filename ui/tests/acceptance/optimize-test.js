@@ -366,7 +366,7 @@ module('Acceptance | optimize search and facets', function(hooks) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
-  test('search field narrows summary table results', async function(assert) {
+  test('search field narrows summary table results and displays a no matches message when there are none', async function(assert) {
     server.createList('job', 1, {
       name: 'oooooo',
       createRecommendations: true,
@@ -389,6 +389,12 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     assert.equal(Optimize.recommendationSummaries.length, 2);
     assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('oooooo'));
+
+    await Optimize.search.fillIn('qqq');
+
+    assert.notOk(Optimize.card.isPresent);
+    assert.ok(Optimize.empty.isPresent);
+    assert.equal(Optimize.empty.headline, 'No Matches');
   });
 
   test('the optimize page has appropriate faceted search options', async function(assert) {
