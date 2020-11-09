@@ -13,16 +13,7 @@ export default class OptimizeController extends Controller {
 
   queryParams = [
     // {
-    //   currentPage: 'page',
-    // },
-    // {
     //   searchTerm: 'search',
-    // },
-    // {
-    //   sortProperty: 'sort',
-    // },
-    // {
-    //   sortDescending: 'desc',
     // },
     {
       qpType: 'type',
