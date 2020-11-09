@@ -3,49 +3,10 @@ package jobspec2
 import (
 	"time"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/nomad/api"
 )
 
-type jobWrapper struct {
-	JobID string `hcl:",label"`
-	Job   *api.Job
-
-	Extra struct {
-		Vault *api.Vault  `hcl:"vault,block"`
-		Tasks []*api.Task `hcl:"task,block"`
-	}
-}
-
-func decodeJob(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
-	m := val.(*jobWrapper)
-	extra, _ := gohcl.ImpliedBodySchema(m.Extra)
-	content, job, diags := body.PartialContent(extra)
-	if len(diags) != 0 {
-		return diags
-	}
-
-	for _, b := range content.Blocks {
-		if b.Type == "vault" {
-			v := &api.Vault{}
-			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, v)...)
-			m.Extra.Vault = v
-		} else if b.Type == "task" {
-			t := &api.Task{}
-			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, t)...)
-			if len(b.Labels) == 1 {
-				t.Name = b.Labels[0]
-				m.Extra.Tasks = append(m.Extra.Tasks, t)
-			}
-		}
-	}
-
-	m.Job = &api.Job{}
-	return hclDecoder.DecodeBody(job, ctx, m.Job)
-}
-
-func normalizeJob(jw *jobWrapper) {
+func normalizeJob(jw *jobConfig) {
 	j := jw.Job
 	if j.Name == nil {
 		j.Name = &jw.JobID
@@ -59,11 +20,11 @@ func normalizeJob(jw *jobWrapper) {
 		j.Periodic.SpecType = &v
 	}
 
-	normalizeVault(jw.Extra.Vault)
+	normalizeVault(jw.Vault)
 
-	if len(jw.Extra.Tasks) != 0 {
-		alone := make([]*api.TaskGroup, 0, len(jw.Extra.Tasks))
-		for _, t := range jw.Extra.Tasks {
+	if len(jw.Tasks) != 0 {
+		alone := make([]*api.TaskGroup, 0, len(jw.Tasks))
+		for _, t := range jw.Tasks {
 			alone = append(alone, &api.TaskGroup{
 				Name:  &t.Name,
 				Tasks: []*api.Task{t},
@@ -86,7 +47,7 @@ func normalizeJob(jw *jobWrapper) {
 			normalizeVault(t.Vault)
 
 			if t.Vault == nil {
-				t.Vault = jw.Extra.Vault
+				t.Vault = jw.Vault
 			}
 		}
 	}
