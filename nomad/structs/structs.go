@@ -693,13 +693,12 @@ type JobPlanRequest struct {
 // JobScaleRequest is used for the Job.Scale endpoint to scale one of the
 // scaling targets in a job
 type JobScaleRequest struct {
-	Namespace string
-	JobID     string
-	Target    map[string]string
-	Count     *int64
-	Message   string
-	Error     bool
-	Meta      map[string]interface{}
+	JobID   string
+	Target  map[string]string
+	Count   *int64
+	Message string
+	Error   bool
+	Meta    map[string]interface{}
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 	WriteRequest

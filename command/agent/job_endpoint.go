@@ -495,7 +495,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, err.Error())
 	}
 
-	namespace := args.Target[structs.ScalingTargetNamespace]
 	targetJob := args.Target[structs.ScalingTargetJob]
 	if targetJob != "" && targetJob != jobName {
 		return nil, CodedError(400, "job ID in payload did not match URL")
@@ -503,7 +502,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 
 	scaleReq := structs.JobScaleRequest{
 		JobID:          jobName,
-		Namespace:      namespace,
 		Target:         args.Target,
 		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
