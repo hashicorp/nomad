@@ -351,7 +351,7 @@ module('Acceptance | optimize', function(hooks) {
   });
 });
 
-module('Acceptance | optimize facets', function(hooks) {
+module('Acceptance | optimize search and facets', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
@@ -364,6 +364,29 @@ module('Acceptance | optimize facets', function(hooks) {
 
     window.localStorage.clear();
     window.localStorage.nomadTokenSecret = managementToken.secretId;
+  });
+
+  test('search field narrows summary table results', async function(assert) {
+    server.createList('job', 1, {
+      name: 'oooooo',
+      createRecommendations: true,
+      groupsCount: 2,
+      groupTaskCount: 4,
+    });
+
+    server.createList('job', 1, {
+      name: 'pppppp',
+      createRecommendations: true,
+      groupsCount: 2,
+      groupTaskCount: 4,
+    });
+
+    await Optimize.visit();
+
+    await Optimize.search.fillIn('ooo');
+
+    assert.equal(Optimize.recommendationSummaries.length, 2);
+    assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('oooooo'));
   });
 
   test('the optimize page has appropriate faceted search options', async function(assert) {

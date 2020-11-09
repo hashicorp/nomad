@@ -24,6 +24,10 @@ export default create({
     return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
   },
 
+  search: {
+    scope: '[data-test-recommendation-summaries-search] input',
+  },
+
   card: recommendationCard,
 
   recommendationSummaries: collection('[data-test-recommendation-summary-row]', {

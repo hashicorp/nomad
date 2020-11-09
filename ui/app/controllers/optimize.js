@@ -8,13 +8,18 @@ import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
 import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
 
+import EmberObject, { computed } from '@ember/object';
+import { alias } from '@ember/object/computed';
+import Searchable from 'nomad-ui/mixins/searchable';
+import classic from 'ember-classic-decorator';
+
 export default class OptimizeController extends Controller {
   @controller('optimize/summary') summaryController;
 
   queryParams = [
-    // {
-    //   searchTerm: 'search',
-    // },
+    {
+      searchTerm: 'search',
+    },
     {
       qpType: 'type',
     },
@@ -28,6 +33,16 @@ export default class OptimizeController extends Controller {
       qpPrefix: 'prefix',
     },
   ];
+
+  constructor() {
+    super(...arguments);
+
+    this.summarySearch = RecommendationSummarySearch.create({
+      dataSource: this,
+    });
+  }
+
+  @tracked searchTerm = '';
 
   @tracked qpType = '';
   @tracked qpStatus = '';
@@ -112,7 +127,7 @@ export default class OptimizeController extends Controller {
 
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
-    return this.model.filter(summary => {
+    return this.summarySearch.listSearched.filter(summary => {
       const job = summary.get('job');
 
       if (types.length && !types.includes(job.get('displayType'))) {
@@ -165,4 +180,19 @@ export default class OptimizeController extends Controller {
   setFacetQueryParam(queryParam, selection) {
     this[queryParam] = serialize(selection);
   }
+}
+
+@classic
+class RecommendationSummarySearch extends EmberObject.extend(Searchable) {
+  @computed
+  get fuzzySearchProps() {
+    return ['slug'];
+  }
+
+  @alias('dataSource.model') listToSearch;
+  @alias('dataSource.searchTerm') searchTerm;
+
+  exactMatchEnabled = false;
+  fuzzySearchEnabled = true;
+  includeFuzzySearchMatches = true;
 }

@@ -4,11 +4,10 @@
       <div class="toolbar">
         <div class="toolbar-item">
           {{#if @model}}
-            {{!-- <SearchBox
-              data-test-jobs-search
+            <SearchBox
+              data-test-recommendation-summaries-search
               @searchTerm={{mut this.searchTerm}}
-              @onChange={{action this.resetPagination}}
-              @placeholder="Search jobs..." /> --}}
+              @placeholder="Search recommendations..." />
           {{/if}}
         </div>
         <div class="toolbar-item is-right-aligned is-mobile-full-width">
