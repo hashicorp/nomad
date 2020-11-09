@@ -7,7 +7,7 @@
             <SearchBox
               data-test-recommendation-summaries-search
               @searchTerm={{mut this.searchTerm}}
-              @placeholder="Search recommendations..." />
+              @placeholder="Search {{this.model.length}} {{pluralize "recommendation" this.model.length}}..." />
           {{/if}}
         </div>
         <div class="toolbar-item is-right-aligned is-mobile-full-width">

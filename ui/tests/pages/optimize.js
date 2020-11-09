@@ -26,6 +26,7 @@ export default create({
 
   search: {
     scope: '[data-test-recommendation-summaries-search] input',
+    placeholder: attribute('placeholder'),
   },
 
   card: recommendationCard,

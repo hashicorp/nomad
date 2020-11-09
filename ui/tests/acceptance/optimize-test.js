@@ -383,6 +383,8 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     await Optimize.visit();
 
+    assert.equal(Optimize.search.placeholder, `Search ${Optimize.recommendationSummaries.length} recommendations...`);
+
     await Optimize.search.fillIn('ooo');
 
     assert.equal(Optimize.recommendationSummaries.length, 2);
