@@ -69,19 +69,19 @@ func (c *jobConfig) decodeBody(body hcl.Body) hcl.Diagnostics {
 // decodeInputVariables looks in the found blocks for 'variables' and
 // 'variable' blocks. It should be called firsthand so that other blocks can
 // use the variables.
-func (j *jobConfig) decodeInputVariables(content *hcl.BodyContent) hcl.Diagnostics {
+func (c *jobConfig) decodeInputVariables(content *hcl.BodyContent) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	for _, block := range content.Blocks {
 		switch block.Type {
 		case variableLabel:
-			moreDiags := j.InputVariables.decodeVariableBlock(block, nil)
+			moreDiags := c.InputVariables.decodeVariableBlock(block, nil)
 			diags = append(diags, moreDiags...)
 		case variablesLabel:
 			attrs, moreDiags := block.Body.JustAttributes()
 			diags = append(diags, moreDiags...)
 			for key, attr := range attrs {
-				moreDiags = j.InputVariables.decodeVariable(key, attr, nil)
+				moreDiags = c.InputVariables.decodeVariable(key, attr, nil)
 				diags = append(diags, moreDiags...)
 			}
 		}

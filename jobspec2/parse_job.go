@@ -6,13 +6,13 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-func normalizeJob(jw *jobConfig) {
-	j := jw.Job
+func normalizeJob(jc *jobConfig) {
+	j := jc.Job
 	if j.Name == nil {
-		j.Name = &jw.JobID
+		j.Name = &jc.JobID
 	}
 	if j.ID == nil {
-		j.ID = &jw.JobID
+		j.ID = &jc.JobID
 	}
 
 	if j.Periodic != nil && j.Periodic.Spec != nil {
@@ -20,11 +20,11 @@ func normalizeJob(jw *jobConfig) {
 		j.Periodic.SpecType = &v
 	}
 
-	normalizeVault(jw.Vault)
+	normalizeVault(jc.Vault)
 
-	if len(jw.Tasks) != 0 {
-		alone := make([]*api.TaskGroup, 0, len(jw.Tasks))
-		for _, t := range jw.Tasks {
+	if len(jc.Tasks) != 0 {
+		alone := make([]*api.TaskGroup, 0, len(jc.Tasks))
+		for _, t := range jc.Tasks {
 			alone = append(alone, &api.TaskGroup{
 				Name:  &t.Name,
 				Tasks: []*api.Task{t},
@@ -47,7 +47,7 @@ func normalizeJob(jw *jobConfig) {
 			normalizeVault(t.Vault)
 
 			if t.Vault == nil {
-				t.Vault = jw.Vault
+				t.Vault = jc.Vault
 			}
 		}
 	}
