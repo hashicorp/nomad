@@ -378,7 +378,7 @@ func (v *CSIVolume) WriteSchedulable() bool {
 func (v *CSIVolume) WriteFreeClaims() bool {
 	switch v.AccessMode {
 	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
-		return len(v.WriteAllocs) == 0
+		return len(v.WriteClaims) == 0
 	case CSIVolumeAccessModeMultiNodeMultiWriter:
 		// the CSI spec doesn't allow for setting a max number of writers.
 		// we track node resource exhaustion through v.ResourceExhausted
@@ -496,7 +496,7 @@ func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	if !v.WriteFreeClaims() {
 		// Check the blocking allocations to see if they belong to this job
 		for _, a := range v.WriteAllocs {
-			if a.Namespace != alloc.Namespace || a.JobID != alloc.JobID {
+			if a != nil && (a.Namespace != alloc.Namespace || a.JobID != alloc.JobID) {
 				return fmt.Errorf("volume max claim reached")
 			}
 		}

@@ -2072,6 +2072,17 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 			v.ModifyIndex = index
 		}
 
+		// Allocations are copy on write, so we want to keep the Allocation ID
+		// but we need to clear the pointer so that we don't store it when we
+		// write the volume to the state store. We'll get it from the db in
+		// denormalize.
+		for allocID := range v.ReadAllocs {
+			v.ReadAllocs[allocID] = nil
+		}
+		for allocID := range v.WriteAllocs {
+			v.WriteAllocs[allocID] = nil
+		}
+
 		err = txn.Insert("csi_volumes", v)
 		if err != nil {
 			return fmt.Errorf("volume insert: %v", err)
@@ -2262,6 +2273,17 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 	}
 
 	volume.ModifyIndex = index
+
+	// Allocations are copy on write, so we want to keep the Allocation ID
+	// but we need to clear the pointer so that we don't store it when we
+	// write the volume to the state store. We'll get it from the db in
+	// denormalize.
+	for allocID := range volume.ReadAllocs {
+		volume.ReadAllocs[allocID] = nil
+	}
+	for allocID := range volume.WriteAllocs {
+		volume.WriteAllocs[allocID] = nil
+	}
 
 	if err = txn.Insert("csi_volumes", volume); err != nil {
 		return fmt.Errorf("volume update failed: %s: %v", id, err)
