@@ -244,8 +244,7 @@ generate-structs: ## Update generated code
 proto:
 	@echo "--> Generating proto bindings..."
 	@for file in $$(git ls-files "*.proto" | grep -E -v -- "vendor\/.*.proto|demo\/.*.proto"); do \
-		protoc -I . \
-			--go_out=plugins=grpc\
+		protoc -I . --go_out=plugins=grpc\
 	,Mplugins/shared/hclspec/hcl_spec.proto=github.com/hashicorp/nomad/plugins/shared/hclspec\
 	,Mplugins/shared/structs/proto/stats.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
 	,Mplugins/shared/structs/proto/attribute.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
