@@ -42,9 +42,7 @@ func Parse(path string, r io.Reader) (*api.Job, error) {
 func ParseWithConfig(args *ParseConfig) (*api.Job, error) {
 	args.normalize()
 
-	c := &jobConfig{
-		ParseConfig: args,
-	}
+	c := newJobConfig(args)
 	err := decode(c)
 	if err != nil {
 		return nil, err

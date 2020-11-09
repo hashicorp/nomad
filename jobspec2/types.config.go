@@ -35,6 +35,15 @@ type jobConfig struct {
 	LocalBlocks []*LocalBlock
 }
 
+func newJobConfig(parseConfig *ParseConfig) *jobConfig {
+	return &jobConfig{
+		ParseConfig: parseConfig,
+
+		InputVariables: Variables{},
+		LocalVariables: Variables{},
+	}
+}
+
 var jobConfigSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{Type: variablesLabel},
