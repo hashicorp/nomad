@@ -203,7 +203,7 @@ locals {
   # literal local
   dc = "local_dc"
   # local that depends on a variable
-  region = "${var.region_var}.local"
+  region = "${var.region_var}.example"
 }
 
 job "example" {
@@ -222,7 +222,7 @@ job "example" {
 
 		require.Equal(t, []string{"local_dc"}, out.Datacenters)
 		require.NotNil(t, out.Region)
-		require.Equal(t, "default_region.local", *out.Region)
+		require.Equal(t, "default_region.example", *out.Region)
 	})
 
 	t.Run("set via -var argments", func(t *testing.T) {
@@ -236,7 +236,7 @@ job "example" {
 
 		require.Equal(t, []string{"local_dc"}, out.Datacenters)
 		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region.local", *out.Region)
+		require.Equal(t, "set_region.example", *out.Region)
 	})
 }
 
