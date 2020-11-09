@@ -388,10 +388,10 @@ type JobGetter struct {
 
 // StructJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
-	return j.ApiJobWithArgs(jpath, nil)
+	return j.ApiJobWithArgs(jpath, nil, nil)
 }
 
-func (j *JobGetter) ApiJobWithArgs(jpath string, vars map[string]string) (*api.Job, error) {
+func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string) (*api.Job, error) {
 	var jobfile io.Reader
 	pathName := filepath.Base(jpath)
 	switch jpath {
@@ -447,7 +447,17 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars map[string]string) (*api.J
 	if j.hcl1 {
 		jobStruct, err = jobspec.Parse(jobfile)
 	} else {
-		jobStruct, err = jobspec2.ParseWithArgs(pathName, jobfile, vars, true)
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, jobfile)
+		if err != nil {
+			return nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
+		}
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:    pathName,
+			Body:    buf.Bytes(),
+			ArgVars: vars,
+			AllowFS: true,
+		})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
@@ -522,26 +532,4 @@ func (w *uiErrorWriter) Close() error {
 		w.buf.Reset()
 	}
 	return nil
-}
-
-// parseVars decodes a slice of `<key>=<val>` or `<key>` strings into a golang map.
-//
-// `<key>` without corresponding value, is mapped to the `<key>` environment variable.
-func parseVars(vars []string) map[string]string {
-	if len(vars) == 0 {
-		return nil
-	}
-
-	result := make(map[string]string, len(vars))
-	for _, v := range vars {
-		parts := strings.SplitN(v, "=", 2)
-		k := parts[0]
-		if len(parts) == 2 {
-			result[k] = parts[1]
-		} else {
-			result[k] = os.Getenv(k)
-		}
-	}
-
-	return result
 }

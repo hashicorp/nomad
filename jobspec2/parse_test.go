@@ -3,7 +3,6 @@ package jobspec2
 import (
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/jobspec"
@@ -57,13 +56,21 @@ func TestEquivalentToHCL1_ComplexConfig(t *testing.T) {
 
 func TestParse_VarsAndFunctions(t *testing.T) {
 	hcl := `
+variables {
+  region_var = "default"
+}
 job "example" {
   datacenters = [for s in ["dc1", "dc2"] : upper(s)]
-  region      = vars.region_var
+  region      = var.region_var
 }
 `
 
-	out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), map[string]string{"region_var": "aug"}, true)
+	out, err := ParseWithConfig(&ParseConfig{
+		Path:    "input.hcl",
+		Body:    []byte(hcl),
+		ArgVars: []string{"region_var=aug"},
+		AllowFS: true,
+	})
 	require.NoError(t, err)
 
 	require.Equal(t, []string{"DC1", "DC2"}, out.Datacenters)
@@ -71,20 +78,112 @@ job "example" {
 	require.Equal(t, "aug", *out.Region)
 }
 
+func TestParse_VariablesDefaultsAndSet(t *testing.T) {
+	hcl := `
+variables {
+  region_var = "default_region"
+}
+
+variable "dc_var" {
+  default = "default_dc"
+}
+
+job "example" {
+  datacenters = [var.dc_var]
+  region      = var.region_var
+}
+`
+
+	t.Run("defaults", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"default_dc"}, out.Datacenters)
+		require.NotNil(t, out.Region)
+		require.Equal(t, "default_region", *out.Region)
+	})
+
+	t.Run("set via -var args", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{"dc_var=set_dc", "region_var=set_region"},
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"set_dc"}, out.Datacenters)
+		require.NotNil(t, out.Region)
+		require.Equal(t, "set_region", *out.Region)
+	})
+
+	t.Run("set via envvars", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path: "input.hcl",
+			Body: []byte(hcl),
+			Envs: []string{
+				"NOMAD_VAR_dc_var=set_dc",
+				"NOMAD_VAR_region_var=set_region",
+			},
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"set_dc"}, out.Datacenters)
+		require.NotNil(t, out.Region)
+		require.Equal(t, "set_region", *out.Region)
+	})
+
+	t.Run("set via var-files", func(t *testing.T) {
+		varFile, err := ioutil.TempFile("", "")
+		require.NoError(t, err)
+		defer os.Remove(varFile.Name())
+
+		content := `dc_var = "set_dc"
+region_var = "set_region"`
+		_, err = varFile.WriteString(content)
+		require.NoError(t, err)
+
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:     "input.hcl",
+			Body:     []byte(hcl),
+			VarFiles: []string{varFile.Name()},
+			AllowFS:  true,
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"set_dc"}, out.Datacenters)
+		require.NotNil(t, out.Region)
+		require.Equal(t, "set_region", *out.Region)
+	})
+}
+
 // TestParse_UnknownVariables asserts that unknown variables are left intact for further processing
 func TestParse_UnknownVariables(t *testing.T) {
 	hcl := `
+variables {
+  region_var = "default"
+}
 job "example" {
   datacenters = [for s in ["dc1", "dc2"] : upper(s)]
-  region      = vars.region_var
+  region      = var.region_var
   meta {
-    known_var   = "${vars.region_var}"
+    known_var   = "${var.region_var}"
     unknown_var = "${UNKNOWN}"
   }
 }
 `
 
-	out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), map[string]string{"region_var": "aug"}, true)
+	out, err := ParseWithConfig(&ParseConfig{
+		Path:    "input.hcl",
+		Body:    []byte(hcl),
+		ArgVars: []string{"region_var=aug"},
+		AllowFS: true,
+	})
 	require.NoError(t, err)
 
 	meta := map[string]string{
@@ -93,6 +192,52 @@ job "example" {
 	}
 
 	require.Equal(t, meta, out.Meta)
+}
+func TestParse_Locals(t *testing.T) {
+	hcl := `
+variables {
+  region_var = "default_region"
+}
+
+locals {
+  # literal local
+  dc = "local_dc"
+  # local that depends on a variable
+  region = "${var.region_var}.example"
+}
+
+job "example" {
+  datacenters = [local.dc]
+  region      = local.region
+}
+`
+
+	t.Run("defaults", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"local_dc"}, out.Datacenters)
+		require.NotNil(t, out.Region)
+		require.Equal(t, "default_region.example", *out.Region)
+	})
+
+	t.Run("set via -var argments", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{"region_var=set_region"},
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"local_dc"}, out.Datacenters)
+		require.NotNil(t, out.Region)
+		require.Equal(t, "set_region.example", *out.Region)
+	})
 }
 
 func TestParse_FileOperators(t *testing.T) {
@@ -103,7 +248,12 @@ job "example" {
 `
 
 	t.Run("enabled", func(t *testing.T) {
-		out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), nil, true)
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: nil,
+			AllowFS: true,
+		})
 		require.NoError(t, err)
 
 		expected, err := ioutil.ReadFile("parse_test.go")
@@ -114,7 +264,12 @@ job "example" {
 	})
 
 	t.Run("disabled", func(t *testing.T) {
-		_, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), nil, false)
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: nil,
+			AllowFS: false,
+		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "filesystem function disabled")
 	})
@@ -137,7 +292,12 @@ dynamic "group" {
 }
 }
 `
-	out, err := ParseWithArgs("input.hcl", strings.NewReader(hcl), nil, true)
+	out, err := ParseWithConfig(&ParseConfig{
+		Path:    "input.hcl",
+		Body:    []byte(hcl),
+		ArgVars: nil,
+		AllowFS: false,
+	})
 	require.NoError(t, err)
 
 	require.Len(t, out.TaskGroups, 3)
@@ -295,7 +455,11 @@ job "example" {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := ParseWithArgs(c.name+".hcl", strings.NewReader(c.hcl), nil, true)
+			_, err := ParseWithConfig(&ParseConfig{
+				Path:    c.name + ".hcl",
+				Body:    []byte(c.hcl),
+				AllowFS: false,
+			})
 			if c.expectedErr == "" {
 				require.NoError(t, err)
 			} else {
