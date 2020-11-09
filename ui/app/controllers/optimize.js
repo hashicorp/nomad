@@ -179,6 +179,20 @@ export default class OptimizeController extends Controller {
   @action
   setFacetQueryParam(queryParam, selection) {
     this[queryParam] = serialize(selection);
+    this.ensureActiveSummaryIsNotExcluded();
+  }
+
+  @action
+  ensureActiveSummaryIsNotExcluded() {
+    scheduleOnce('actions', () => {
+      if (!this.filteredSummaries.includes(this.activeRecommendationSummary)) {
+        const firstFilteredSummary = this.filteredSummaries.objectAt(0);
+
+        if (firstFilteredSummary) {
+          this.transitionToSummary(firstFilteredSummary);
+        }
+      }
+    });
   }
 }
 

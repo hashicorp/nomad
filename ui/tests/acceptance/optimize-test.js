@@ -366,7 +366,18 @@ module('Acceptance | optimize search and facets', function(hooks) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
-  test('search field narrows summary table results and displays a no matches message when there are none', async function(assert) {
+  test('search field narrows summary table results, changes the active summary if it no longer matches, and displays a no matches message when there are none', async function(assert) {
+    server.createList('job', 1, {
+      name: 'zzzzzz',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 6,
+    });
+
+    // Ensure this job’s recommendations are sorted to the top of the table
+    const futureSubmitTime = (Date.now() + 10000) * 1000000;
+    server.db.recommendations.update({ submitTime: futureSubmitTime });
+
     server.createList('job', 1, {
       name: 'oooooo',
       createRecommendations: true,
@@ -383,12 +394,17 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     await Optimize.visit();
 
+    assert.equal(Optimize.card.slug.jobName, 'zzzzzz');
+
     assert.equal(Optimize.search.placeholder, `Search ${Optimize.recommendationSummaries.length} recommendations...`);
 
     await Optimize.search.fillIn('ooo');
 
     assert.equal(Optimize.recommendationSummaries.length, 2);
     assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('oooooo'));
+
+    assert.equal(Optimize.card.slug.jobName, 'oooooo');
+    assert.ok(currentURL().includes('oooooo'));
 
     await Optimize.search.fillIn('qqq');
 
