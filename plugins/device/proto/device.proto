@@ -4,8 +4,8 @@ option go_package = "proto";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
-import "github.com/hashicorp/nomad/plugins/shared/structs/proto/attribute.proto";
-import "github.com/hashicorp/nomad/plugins/shared/structs/proto/stats.proto";
+import "plugins/shared/structs/proto/attribute.proto";
+import "plugins/shared/structs/proto/stats.proto";
 
 // DevicePlugin is the API exposed by device plugins
 service DevicePlugin {

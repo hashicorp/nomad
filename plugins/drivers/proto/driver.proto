@@ -5,8 +5,8 @@ option go_package = "proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
-import "github.com/hashicorp/nomad/plugins/shared/structs/proto/attribute.proto";
+import "plugins/shared/hclspec/hcl_spec.proto";
+import "plugins/shared/structs/proto/attribute.proto";
 
 // Driver service defines RPCs used to communicate with a nomad runtime driver.
 // Some rpcs may not be implemented by the driver based on it's capabilities.
