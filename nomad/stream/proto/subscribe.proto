@@ -1,24 +1,21 @@
 syntax = "proto3";
 
-package stream;
-
+package hashicorp.nomad.stream.proto;
 import "google/protobuf/struct.proto";
 
-option go_package = "github.com/hashicorp/nomad/nomad/stream/proto";
+option go_package = "pbstream";
 
 service EventStream {
   rpc Subscribe(SubscribeRequest) returns (stream EventBatch) {}
 }
 
 enum Topic {
-  TopicUnknown = 0;
-
-  TopicDeployment = 1;
-  TopicEvaluation = 2;
-  TopicAllocation = 3;
-  TopicJob = 4;
-  TopicNode = 5;
-  TopicAll = 6;
+  All = 0;
+  Deployment = 1;
+  Evaluation = 2;
+  Allocation = 3;
+  Job = 4;
+  Node = 5;
 }
 
 
@@ -33,6 +30,8 @@ message SubscribeRequest {
   string Namespace = 3;
 
   repeated TopicFilter Topics = 4;
+  // TODO see if we prefer map or repeated TopicFilter
+  /* map<string, TopicFilter> Topics = 4; */
 }
 
 message EventBatch {
