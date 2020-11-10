@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package hashicorp.nomad.stream.proto;
+
 import "google/protobuf/struct.proto";
 
 option go_package = "pbstream";
@@ -26,7 +27,7 @@ message TopicFilter {
 
 message SubscribeRequest {
   string Token = 1;
-  string Index = 2;
+  uint64 Index = 2;
   string Namespace = 3;
 
   repeated TopicFilter Topics = 4;
