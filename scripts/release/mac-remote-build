@@ -56,7 +56,7 @@ REPO_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
 mkdir -p "${TMP_WORKSPACE}/tmp"
 
 install_go() {
-  local go_version="1.15.1"
+  local go_version="1.15.4"
   local download=
 
   download="https://storage.googleapis.com/golang/go${go_version}.darwin-amd64.tar.gz"
