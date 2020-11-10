@@ -19,13 +19,11 @@ standard upgrade flow.
 
 ### Docker volume mounts
 
-Nomad 0.11.7 includes security fixes for the handling of Docker volume mounts:
-
-- The `docker.volumes.enabled` flag now defaults to `false` as documented.
-- Docker driver mounts of type "volume" (but not "bind") were not sandboxed
-  and could mount arbitrary locations from the client host. The
-  `docker.volumes.enabled` configuration will now disable Docker mounts with
-  type "volume" when set to `false` (the default).
+Nomad 0.11.7 includes a security fixes for the handling of Docker volume
+mounts. Docker driver mounts of type "volume" (but not "bind") were not
+sandboxed and could mount arbitrary locations from the client host. The
+`docker.volumes.enabled` configuration will now disable Docker mounts with
+type "volume" when set to `false`.
 
 This change Docker impacts jobs that use a `mounts` with type "volume", as
 shown below. This job will fail when placed unless `docker.volumes.enabled =
@@ -137,13 +135,11 @@ new task driver as soon as possible.
 
 ### Docker volume mounts
 
-Nomad 0.10.8 includes security fixes for the handling of Docker volume mounts:
-
-- The `docker.volumes.enabled` flag now defaults to `false` as documented.
-- Docker driver mounts of type "volume" (but not "bind") were not sandboxed
-  and could mount arbitrary locations from the client host. The
-  `docker.volumes.enabled` configuration will now disable Docker mounts with
-  type "volume" when set to `false` (the default).
+Nomad 0.10.8 includes a security fixes for the handling of Docker volume
+mounts. Docker driver mounts of type "volume" (but not "bind") were not
+sandboxed and could mount arbitrary locations from the client host. The
+`docker.volumes.enabled` configuration will now disable Docker mounts with
+type "volume" when set to `false`.
 
 This change Docker impacts jobs that use a `mounts` with type "volume", as
 shown below. This job will fail when placed unless `docker.volumes.enabled =
