@@ -183,15 +183,6 @@ export default class OptimizeController extends Controller {
   }
 
   @action
-  transitionToFirstSummary() {
-    const firstFilteredSummary = this.filteredSummaries.objectAt(0);
-
-    if (firstFilteredSummary) {
-      this.transitionToSummary(firstFilteredSummary);
-    }
-  }
-
-  @action
   ensureActiveSummaryIsNotExcluded() {
     scheduleOnce('actions', () => {
       if (!this.filteredSummaries.includes(this.activeRecommendationSummary)) {
