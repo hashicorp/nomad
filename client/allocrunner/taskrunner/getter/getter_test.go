@@ -48,8 +48,15 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 		},
 	}
 
+	// Create the task
+	task := &structs.Task{
+		Name:      "demo-task",
+		Artifacts: []*structs.TaskArtifact{artifact},
+	}
+
 	// Download the artifact
-	if err := GetArtifact(taskEnv, artifact, taskDir); err != nil {
+	sut := GoGetter{}
+	if err := sut.GetArtifact(taskEnv, artifact, task, taskDir); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -82,8 +89,15 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 		RelativeDest: relative,
 	}
 
+	// Create the task
+	task := &structs.Task{
+		Name:      "demo-task",
+		Artifacts: []*structs.TaskArtifact{artifact},
+	}
+
 	// Download the artifact
-	if err := GetArtifact(taskEnv, artifact, taskDir); err != nil {
+	sut := GoGetter{}
+	if err := sut.GetArtifact(taskEnv, artifact, task, taskDir); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -116,8 +130,15 @@ func TestGetArtifact_File_EscapeDest(t *testing.T) {
 		RelativeDest: relative,
 	}
 
+	// Create the task
+	task := &structs.Task{
+		Name:      "demo-task",
+		Artifacts: []*structs.TaskArtifact{artifact},
+	}
+
 	// attempt to download the artifact
-	err = GetArtifact(taskEnv, artifact, taskDir)
+	sut := GoGetter{}
+	err = sut.GetArtifact(taskEnv, artifact, task, taskDir)
 	if err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected GetArtifact to disallow sandbox escape: %v", err)
 	}
@@ -166,8 +187,15 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 		},
 	}
 
+	// Create the task
+	task := &structs.Task{
+		Name:      "demo-task",
+		Artifacts: []*structs.TaskArtifact{artifact},
+	}
+
 	// Download the artifact and expect an error
-	if err := GetArtifact(taskEnv, artifact, taskDir); err == nil {
+	sut := GoGetter{}
+	if err := sut.GetArtifact(taskEnv, artifact, task, taskDir); err == nil {
 		t.Fatalf("GetArtifact should have failed")
 	}
 }
@@ -232,7 +260,14 @@ func TestGetArtifact_Archive(t *testing.T) {
 		},
 	}
 
-	if err := GetArtifact(taskEnv, artifact, taskDir); err != nil {
+	// Create the task
+	task := &structs.Task{
+		Name:      "demo-task",
+		Artifacts: []*structs.TaskArtifact{artifact},
+	}
+
+	sut := GoGetter{}
+	if err := sut.GetArtifact(taskEnv, artifact, task, taskDir); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -265,7 +300,14 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GetArtifact(taskEnv, artifact, taskDir))
+	// Create the task
+	task := &structs.Task{
+		Name:      "demo-task",
+		Artifacts: []*structs.TaskArtifact{artifact},
+	}
+
+	sut := GoGetter{}
+	require.NoError(t, sut.GetArtifact(taskEnv, artifact, task, taskDir))
 
 	var expected map[string]int
 
@@ -292,6 +334,44 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		p := os.FileMode(perm)
 		o := s.Mode()
 		require.Equalf(t, p, o, "%s expected %o found %o", file, p, o)
+	}
+}
+
+func TestGetArtifact_File_FailedExecution(t *testing.T) {
+	// Create the test server hosting the file to download
+	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("./test-fixtures/"))))
+	defer ts.Close()
+
+	// Create a temp directory to download into
+	taskDir, err := ioutil.TempDir("", "nomad-test")
+	if err != nil {
+		t.Fatalf("failed to make temp directory: %v", err)
+	}
+	defer os.RemoveAll(taskDir)
+
+	// Create the artifact
+	file := "test.sh"
+	relative := "foo/"
+	artifact := &structs.TaskArtifact{
+		GetterSource: fmt.Sprintf("%s/%s", ts.URL, file),
+		GetterOptions: map[string]string{
+			"checksum": "md5:bce963762aa2dbfed13caf492a45fb72",
+		},
+		RelativeDest: relative,
+	}
+
+	// Create the task
+	task := &structs.Task{
+		Name:      "demo-task",
+		Artifacts: []*structs.TaskArtifact{artifact},
+	}
+
+	// Download the artifact
+	sut := ExternalGetter{
+        ExternalCommand: "/bin/false",
+    }
+	if err := sut.GetArtifact(taskEnv, artifact, task, taskDir); err == nil {
+		t.Fatalf("GetArtifact succeeded though it should have failed")
 	}
 }
 

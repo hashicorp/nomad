@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -30,13 +31,26 @@ func (m *mockEmitter) EmitEvent(ev *structs.TaskEvent) {
 	m.events = append(m.events, ev)
 }
 
+// TestTaskRunner_ArtifactHook_Getter asserts that an external getter is
+// used if one is provided, and not otherwise
+func TestTaskRunner_ArtifactHook_Getter(t *testing.T) {
+    t.Parallel()
+
+    me := &mockEmitter{}
+    artifactHook := newArtifactHook(me, "", testlog.HCLogger(t))
+    require.IsType(t, &getter.GoGetter{}, artifactHook.artifactGetter)
+
+    artifactHook = newArtifactHook(me, "/bin/false", testlog.HCLogger(t))
+    require.IsType(t, &getter.ExternalGetter{}, artifactHook.artifactGetter)
+}
+
 // TestTaskRunner_ArtifactHook_Recoverable asserts that failures to download
 // artifacts are a recoverable error.
 func TestTaskRunner_ArtifactHook_Recoverable(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, "", testlog.HCLogger(t))
 
 	req := &interfaces.TaskPrestartRequest{
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
@@ -69,7 +83,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	t.Parallel()
 
 	me := &mockEmitter{}
-	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+	artifactHook := newArtifactHook(me, "", testlog.HCLogger(t))
 
 	// Create a source directory with 1 of the 2 artifacts
 	srcdir, err := ioutil.TempDir("", "nomadtest-src")
