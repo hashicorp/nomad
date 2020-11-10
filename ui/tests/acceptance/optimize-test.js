@@ -414,6 +414,33 @@ module('Acceptance | optimize search and facets', function(hooks) {
     assert.equal(currentURL(), '/optimize?search=qqq');
   });
 
+  test('turning off the namespaces toggle narrows summaries to only the current namespace', async function(assert) {
+    server.create('job', {
+      name: 'oooooo',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 6,
+      namespaceId: server.db.namespaces[0].id,
+    });
+
+    server.create('job', {
+      name: 'pppppp',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+      namespaceId: server.db.namespaces[1].id,
+    });
+
+    await Optimize.visit();
+
+    assert.ok(Optimize.allNamespacesToggle.isActive);
+
+    await Optimize.allNamespacesToggle.toggle();
+
+    assert.equal(Optimize.recommendationSummaries.length, 1);
+    assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('ooo'));
+  });
+
   test('processing a summary moves to the next one in the sorted list', async function(assert) {
     server.create('job', {
       name: 'ooo111',

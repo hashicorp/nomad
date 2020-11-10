@@ -3,6 +3,7 @@ import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as controller } from '@ember/controller';
+import { inject as service } from '@ember/service';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
@@ -15,6 +16,7 @@ import classic from 'ember-classic-decorator';
 
 export default class OptimizeController extends Controller {
   @controller('optimize/summary') summaryController;
+  @service system;
 
   queryParams = [
     {
@@ -48,6 +50,8 @@ export default class OptimizeController extends Controller {
   @tracked qpStatus = '';
   @tracked qpDatacenter = '';
   @tracked qpPrefix = '';
+
+  @tracked includeAllNamespaces = true;
 
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
@@ -125,10 +129,16 @@ export default class OptimizeController extends Controller {
       selectionPrefix: prefixes,
     } = this;
 
+    const activeNamespace = this.system.activeNamespace.name;
+
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.summarySearch.listSearched.filter(summary => {
       const job = summary.get('job');
+
+      if (!this.includeAllNamespaces && activeNamespace !== summary.jobNamespace) {
+        return false;
+      }
 
       if (types.length && !types.includes(job.get('displayType'))) {
         return false;

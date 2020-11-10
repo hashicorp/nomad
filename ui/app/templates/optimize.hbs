@@ -40,6 +40,20 @@
           </div>
         </div>
       </div>
+      <div class="toolbar">
+        <div class="toolbar-item is-right-aligned is-mobile-full-width">
+          <Toggle
+            data-test-all-namespaces-toggle
+            @class="is-size-7"
+            @isActive={{this.includeAllNamespaces}}
+            @onToggle={{toggle-action 'includeAllNamespaces' this}}
+            @isDisabled={{false}} {{!-- only if namespaces exist??? probably hide if not? --}}
+            title="Include all namespaces FIXME wha?"
+          >
+            &nbsp;Include all namespaces
+          </Toggle>
+        </div>
+      </div>
 
       {{#if this.filteredSummaries}}
         {{outlet}}
