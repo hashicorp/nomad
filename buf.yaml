@@ -1,0 +1,25 @@
+version: v1beta1
+build:
+  roots:
+    - .
+  excludes:
+    - vendor
+lint:
+  use:
+    - BASIC
+    - FILE_LOWER_SNAKE_CASE
+  except:
+    - ENUM_NO_ALLOW_ALIAS
+    - IMPORT_NO_PUBLIC
+    - PACKAGE_AFFINITY
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_SAME_DIRECTORY
+  ignore_only:
+    FIELD_LOWER_SNAKE_CASE:
+      - plugins/base/proto/base.proto
+      - plugins/device/proto/device.proto
+      - plugins/drivers/proto/driver.proto
+      - plugins/shared/hclspec/hcl_spec.proto
+breaking:
+  use:
+    - WIRE_JSON
