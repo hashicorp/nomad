@@ -195,7 +195,8 @@ $ make dev-ui
 $ bin/nomad
 ...
 
-To compile protobuf files, installing protoc is required: See
+To compile protobuf files, installing protoc and
+[buf](https://docs.buf.build/installation) is required: See
 https://github.com/google/protobuf for more information.
 ```
 
