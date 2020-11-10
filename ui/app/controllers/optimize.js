@@ -132,15 +132,17 @@ export default class OptimizeController extends Controller {
       selectionPrefix: prefixes,
     } = this;
 
+    const shouldShowNamespaces = this.system.shouldShowNamespaces;
+
     const onlyActiveNamespace = this.namespaceFilter === 'active';
-    const activeNamespace = this.system.activeNamespace.name;
+    const activeNamespace = shouldShowNamespaces ? this.system.activeNamespace.name : undefined;
 
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.summarySearch.listSearched.filter(summary => {
       const job = summary.get('job');
 
-      if (onlyActiveNamespace && activeNamespace !== summary.jobNamespace) {
+      if (shouldShowNamespaces && onlyActiveNamespace && activeNamespace !== summary.jobNamespace) {
         return false;
       }
 
