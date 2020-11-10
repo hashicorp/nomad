@@ -411,6 +411,7 @@ module('Acceptance | optimize search and facets', function(hooks) {
     assert.notOk(Optimize.card.isPresent);
     assert.ok(Optimize.empty.isPresent);
     assert.equal(Optimize.empty.headline, 'No Matches');
+    assert.equal(currentURL(), '/optimize?search=qqq');
   });
 
   test('processing a summary moves to the next one in the sorted list', async function(assert) {

@@ -1,8 +1,9 @@
 import Route from '@ember/routing/route';
 
 export default class OptimizeIndexRoute extends Route {
-  async redirect() {
-    const summaries = this.modelFor('optimize');
+  async activate() {
+    // This runs late in the loading lifecycle to ensure .filteredSummaries is populated
+    const summaries = this.controllerFor('optimize').filteredSummaries;
 
     if (summaries.length) {
       const firstSummary = summaries.objectAt(0);
