@@ -442,6 +442,20 @@ module('Acceptance | optimize search and facets', function(hooks) {
     assert.ok(currentURL().includes('namespaces=active'));
   });
 
+  test('the namespaces toggle doesn’t show when there aren’t namespaces', async function(assert) {
+    server.db.namespaces.remove();
+
+    server.create('job', {
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+    });
+
+    await Optimize.visit();
+
+    assert.ok(Optimize.allNamespacesToggle.isHidden);
+  });
+
   test('processing a summary moves to the next one in the sorted list', async function(assert) {
     server.create('job', {
       name: 'ooo111',
