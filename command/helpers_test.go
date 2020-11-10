@@ -280,6 +280,54 @@ func TestJobGetter_LocalFile(t *testing.T) {
 	}
 }
 
+// TestJobGetter_LocalFile_InvalidHCL2 asserts that a custom message is emited
+// if the file is a valid HCL1 but not HCL2
+func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name              string
+		hcl               string
+		expectHCL1Message bool
+	}{
+		{
+			"invalid HCL",
+			"nothing",
+			false,
+		},
+		{
+			"invalid HCL2",
+			`job "example" {
+  meta = { "a" = "b" }
+}`,
+			true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fh, err := ioutil.TempFile("", "nomad")
+			require.NoError(t, err)
+			defer os.Remove(fh.Name())
+			defer fh.Close()
+
+			_, err = fh.WriteString(c.hcl)
+			require.NoError(t, err)
+
+			j := &JobGetter{}
+			_, err = j.ApiJob(fh.Name())
+			require.Error(t, err)
+
+			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
+			if c.expectHCL1Message {
+				require.Contains(t, err.Error(), exptMessage)
+			} else {
+				require.NotContains(t, err.Error(), exptMessage)
+			}
+		})
+	}
+}
+
 // Test StructJob with jobfile from HTTP Server
 func TestJobGetter_HTTPServer(t *testing.T) {
 	t.Parallel()
