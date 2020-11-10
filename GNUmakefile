@@ -240,11 +240,21 @@ generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
 
+## The ",M<path/to/proto>=<package name>" below is required to tell
+## protoc-gen-go what the import path for a given proto file should be. This is
+## necessary when a proto file foo/a.proto imports a proto file from another
+## directory, e.g. bar/b.proto
 .PHONY: proto
 proto:
 	@echo "--> Generating proto bindings..."
 	@for file in $$(git ls-files "*.proto" | grep -E -v -- "vendor\/.*.proto|demo\/.*.proto"); do \
-		protoc -I . -I $(shell go env GOPATH)/src --go_out=plugins=grpc:. $$file; \
+		protoc -I . --go_out=plugins=grpc\
+	,Mplugins/shared/hclspec/hcl_spec.proto=github.com/hashicorp/nomad/plugins/shared/hclspec\
+	,Mplugins/shared/structs/proto/stats.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
+	,Mplugins/shared/structs/proto/attribute.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
+	,Mplugins/shared/structs/proto/recoverable_error.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
+	,Mplugins/drivers/proto/driver.proto=github.com/hashicorp/nomad/plugins/drivers/proto\
+	:. $$file; \
 	done
 
 .PHONY: generate-examples
