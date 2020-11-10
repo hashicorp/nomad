@@ -45,8 +45,8 @@
           <Toggle
             data-test-all-namespaces-toggle
             @class="is-size-7"
-            @isActive={{this.includeAllNamespaces}}
-            @onToggle={{toggle-action 'includeAllNamespaces' this}}
+            @isActive={{eq this.namespaceFilter 'all'}}
+            @onToggle={{toggle-action 'namespaceFilter' this 'all' 'active'}}
             @isDisabled={{false}} {{!-- only if namespaces exist??? probably hide if not? --}}
             title="Include all namespaces FIXME wha?"
           >

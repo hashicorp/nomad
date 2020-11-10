@@ -20,6 +20,9 @@ export default class OptimizeController extends Controller {
 
   queryParams = [
     {
+      namespaceFilter: 'namespaces',
+    },
+    {
       searchTerm: 'search',
     },
     {
@@ -51,7 +54,7 @@ export default class OptimizeController extends Controller {
   @tracked qpDatacenter = '';
   @tracked qpPrefix = '';
 
-  @tracked includeAllNamespaces = true;
+  @tracked namespaceFilter = 'all';
 
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
@@ -129,6 +132,7 @@ export default class OptimizeController extends Controller {
       selectionPrefix: prefixes,
     } = this;
 
+    const onlyActiveNamespace = this.namespaceFilter === 'active';
     const activeNamespace = this.system.activeNamespace.name;
 
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
@@ -136,7 +140,7 @@ export default class OptimizeController extends Controller {
     return this.summarySearch.listSearched.filter(summary => {
       const job = summary.get('job');
 
-      if (!this.includeAllNamespaces && activeNamespace !== summary.jobNamespace) {
+      if (onlyActiveNamespace && activeNamespace !== summary.jobNamespace) {
         return false;
       }
 

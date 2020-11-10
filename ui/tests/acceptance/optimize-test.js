@@ -439,6 +439,7 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     assert.equal(Optimize.recommendationSummaries.length, 1);
     assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('ooo'));
+    assert.ok(currentURL().includes('namespaces=active'));
   });
 
   test('processing a summary moves to the next one in the sorted list', async function(assert) {
