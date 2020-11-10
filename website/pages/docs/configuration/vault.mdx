@@ -47,7 +47,7 @@ vault {
   compatibility. It is recommended to set the `create_from_role` field if Nomad
   is deriving child tokens from a role.
 
-- `task_token_ttl` `(string: "")` - Specifies the TTL of created tokens when
+- `task_token_ttl` `(string: "72h")` - Specifies the TTL of created tokens when
   using a root token. This is specified using a label suffix like "30s" or "1h".
 
 - `ca_file` `(string: "")` - Specifies an optional path to the CA
