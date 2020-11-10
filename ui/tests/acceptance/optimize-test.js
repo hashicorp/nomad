@@ -367,7 +367,7 @@ module('Acceptance | optimize search and facets', function(hooks) {
   });
 
   test('search field narrows summary table results, changes the active summary if it no longer matches, and displays a no matches message when there are none', async function(assert) {
-    server.createList('job', 1, {
+    server.create('job', {
       name: 'zzzzzz',
       createRecommendations: true,
       groupsCount: 1,
@@ -378,14 +378,14 @@ module('Acceptance | optimize search and facets', function(hooks) {
     const futureSubmitTime = (Date.now() + 10000) * 1000000;
     server.db.recommendations.update({ submitTime: futureSubmitTime });
 
-    server.createList('job', 1, {
+    server.create('job', {
       name: 'oooooo',
       createRecommendations: true,
       groupsCount: 2,
       groupTaskCount: 4,
     });
 
-    server.createList('job', 1, {
+    server.create('job', {
       name: 'pppppp',
       createRecommendations: true,
       groupsCount: 2,
@@ -415,21 +415,21 @@ module('Acceptance | optimize search and facets', function(hooks) {
   });
 
   test('processing a summary moves to the next one in the sorted list', async function(assert) {
-    server.createList('job', 1, {
+    server.create('job', {
       name: 'ooo111',
       createRecommendations: true,
       groupsCount: 1,
       groupTaskCount: 4,
     });
 
-    server.createList('job', 1, {
+    server.create('job', {
       name: 'pppppp',
       createRecommendations: true,
       groupsCount: 1,
       groupTaskCount: 4,
     });
 
-    server.createList('job', 1, {
+    server.create('job', {
       name: 'ooo222',
       createRecommendations: true,
       groupsCount: 1,
