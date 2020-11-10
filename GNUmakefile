@@ -240,6 +240,10 @@ generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
 
+## The ",M<path/to/proto>=<package name>" below is required to tell
+## protoc-gen-go what the import path for a given proto file should be. This is
+## necessary when a proto file foo/a.proto imports a proto file from another
+## directory, e.g. bar/b.proto
 .PHONY: proto
 proto:
 	@echo "--> Generating proto bindings..."
