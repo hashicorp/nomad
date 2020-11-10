@@ -68,12 +68,6 @@ func runTestServer(t *testing.T, server *SinkServer) net.Addr {
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		if err := lis.Close(); err != nil {
-			t.Logf(err.Error())
-		}
-	})
-
 	grpcServer := grpc.NewServer()
 	pbstream.RegisterEventStreamServer(grpcServer, server)
 
