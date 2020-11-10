@@ -16,8 +16,8 @@ function install() {
     # Download
     curl -sSL --fail "$DOWNLOAD" | tar -C /tmp -xvzf - buf/bin
 
-    # all buf files should be world-wide readable
-    chmod -R a+r /tmp/buf/bin/*
+    # all buf files should be world-executable
+    chmod a+x /tmp/buf/bin/*
 
     # Move buf binaries to /usr/local/bin/
     mv /tmp/buf/bin/* /usr/local/bin/
