@@ -203,6 +203,9 @@ check: ## Lint the source code
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/pages/
 
+	@echo "==> Checking for breaking changes in protos..."
+	@buf check breaking --against-config buf.yaml --against .git\#branch=master
+
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
 	@if (git status -s | grep -q .pb.go); then echo the following proto files are out of sync; git status -s | grep .pb.go; exit 1; fi
