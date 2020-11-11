@@ -5830,6 +5830,106 @@ func TestNodeResources_Merge(t *testing.T) {
 	}, res)
 }
 
+func TestAllocatedResources_Canonicalize(t *testing.T) {
+	cases := map[string]struct {
+		input    *AllocatedResources
+		expected *AllocatedResources
+	}{
+		"base": {
+			input: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+			},
+			expected: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "admin",
+							Value:  8080,
+							To:     0,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+		},
+		"base with existing": {
+			input: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "http",
+							Value:  80,
+							To:     8080,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+			expected: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "http",
+							Value:  80,
+							To:     8080,
+							HostIP: "127.0.0.1",
+						},
+						{
+							Label:  "admin",
+							Value:  8080,
+							To:     0,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		tc.input.Canonicalize()
+		require.Exactly(t, tc.expected, tc.input, "case %s did not match", name)
+	}
+}
+
 func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
 	a := &AllocatedSharedResources{
 		Networks: []*NetworkResource{

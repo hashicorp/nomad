@@ -3391,6 +3391,23 @@ func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
 	return m
 }
 
+func (a *AllocatedResources) Canonicalize() {
+	a.Shared.Canonicalize()
+
+	for _, r := range a.Tasks {
+		for _, nw := range r.Networks {
+			for _, port := range append(nw.DynamicPorts, nw.ReservedPorts...) {
+				a.Shared.Ports = append(a.Shared.Ports, AllocatedPortMapping{
+					Label:  port.Label,
+					Value:  port.Value,
+					To:     port.To,
+					HostIP: nw.IP,
+				})
+			}
+		}
+	}
+}
+
 // AllocatedTaskResources are the set of resources allocated to a task.
 type AllocatedTaskResources struct {
 	Cpu      AllocatedCpuResources
