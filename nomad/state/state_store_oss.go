@@ -20,3 +20,13 @@ func (s *StateStore) quotaReconcile(index uint64, txn *txn, newQuota, oldQuota s
 func (s *StateStore) updateEntWithAlloc(index uint64, new, existing *structs.Allocation, txn *txn) error {
 	return nil
 }
+
+// deleteRecommendationsByJob deletes all recommendations for the specified job
+func (s *StateStore) deleteRecommendationsByJob(index uint64, txn Txn, job *structs.Job) error {
+	return nil
+}
+
+// updateJobRecommendations updates/deletes job recommendations as necessary for a job update
+func (s *StateStore) updateJobRecommendations(index uint64, txn Txn, prevJob, newJob *structs.Job) error {
+	return nil
+}

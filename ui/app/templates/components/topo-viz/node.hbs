@@ -11,7 +11,14 @@
       <span class="bumper-left is-faded">{{@node.memory}} MiB, {{@node.cpu}} Mhz</span>
     </p>
   {{/unless}}
-  <svg class="chart" height="{{this.totalHeight}}px" {{did-insert this.render}} {{did-update this.updateRender}} {{window-resize this.render}}>
+  <svg
+    data-test-topo-node-svg
+    class="chart"
+    height="{{this.totalHeight}}px"
+    {{did-insert this.render}}
+    {{did-update this.updateRender}}
+    {{window-resize this.render}}
+    {{on "mouseout" this.allocationBlur}}>
     <defs>
       <clipPath id="{{this.maskId}}">
         <rect class="mask" x="0" y="0" width="{{this.dimensionsWidth}}px" height="{{this.maskHeight}}px" rx="2px" ry="2px" />
@@ -32,7 +39,7 @@
         width="{{this.dimensionsWidth}}px"
         height="{{this.maskHeight}}px"
         pointer-events="all"
-        {{on "mouseout" this.clearHighlight}}
+        {{on "mouseleave" this.clearHighlight}}
       >
         <g class="memory">
           {{#if this.data.memoryLabel}}

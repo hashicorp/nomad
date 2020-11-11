@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import sinon from 'sinon';
 import faker from 'nomad-ui/mirage/faker';
 import topoVizPageObject from 'nomad-ui/tests/pages/components/topo-viz';
@@ -31,6 +32,7 @@ const node = (datacenter, id, memory, cpu) => ({
 
 module('Integration | Component | TopoViz', function(hooks) {
   setupRenderingTest(hooks);
+  setupMirage(hooks);
 
   const commonTemplate = hbs`
     <TopoViz
@@ -110,7 +112,10 @@ module('Integration | Component | TopoViz', function(hooks) {
       nodes: [
         node('dc1', 'node0', 1000, 500),
         node('dc1', 'node1', 1000, 500),
-        node('dc2', 'node2', 1000, 500),
+        node('dc1', 'node2', 1000, 500),
+        node('dc2', 'node3', 1000, 500),
+        node('dc2', 'node4', 1000, 500),
+        node('dc2', 'node5', 1000, 500),
       ],
       allocations: [
         alloc('node0', 'job1', 'group', 100, 100),
@@ -140,5 +145,26 @@ module('Integration | Component | TopoViz', function(hooks) {
 
     await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();
     assert.notOk(TopoViz.allocationAssociationsArePresent);
+  });
+
+  test('when the count of sibling allocations is high enough relative to the node count, curves are not rendered', async function(assert) {
+    this.setProperties({
+      nodes: [node('dc1', 'node0', 1000, 500), node('dc1', 'node1', 1000, 500)],
+      allocations: [
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'groupTwo', 100, 100),
+      ],
+      onNodeSelect: sinon.spy(),
+      onAllocationSelect: sinon.spy(),
+    });
+
+    await this.render(commonTemplate);
+    assert.notOk(TopoViz.allocationAssociationsArePresent);
+
+    await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();
+    assert.equal(TopoViz.allocationAssociations.length, 0);
   });
 });

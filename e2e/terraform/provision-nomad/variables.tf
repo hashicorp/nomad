@@ -52,12 +52,6 @@ variable "index" {
   default     = ""
 }
 
-variable "config_path" {
-  type        = string
-  description = "The path to the config directory"
-  default     = "../config"
-}
-
 variable "connection" {
   type = object({
     type        = string

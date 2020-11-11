@@ -106,6 +106,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityAllocLifecycle,
 							NamespaceCapabilityCSIMountVolume,
 							NamespaceCapabilityCSIWriteVolume,
+							NamespaceCapabilitySubmitRecommendation,
 						},
 					},
 					{

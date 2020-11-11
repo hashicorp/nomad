@@ -223,6 +223,18 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			return fp
 		}
 	}
+	if runtime.GOOS == "darwin" {
+		_, err := checkForMacJVM()
+		if err != nil {
+			// return no error, as it isn't an error to not find java, it just means we
+			// can't use it.
+
+			fp.Health = drivers.HealthStateUndetected
+			fp.HealthDescription = ""
+			d.logger.Trace("macOS jvm not found", "error", err)
+			return fp
+		}
+	}
 
 	version, runtime, vm, err := javaVersionInfo()
 	if err != nil {

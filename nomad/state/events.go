@@ -1,8 +1,7 @@
 package state
 
 import (
-	"fmt"
-
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -63,6 +62,7 @@ type JobDrainDetails struct {
 
 var MsgTypeEvents = map[structs.MessageType]string{
 	structs.NodeRegisterRequestType:                 TypeNodeRegistration,
+	structs.NodeDeregisterRequestType:               TypeNodeDeregistration,
 	structs.UpsertNodeEventsType:                    TypeNodeEvent,
 	structs.EvalUpdateRequestType:                   TypeEvalUpdated,
 	structs.AllocClientUpdateRequestType:            TypeAllocUpdated,
@@ -81,138 +81,106 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ApplyPlanResultsRequestType:             TypePlanResult,
 }
 
-// GenericEventsFromChanges returns a set of events for a given set of
-// transaction changes. It currently ignores Delete operations.
-func GenericEventsFromChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
+func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
 	eventType, ok := MsgTypeEvents[changes.MsgType]
 	if !ok {
-		return nil, nil
+		return nil
 	}
 
 	var events []structs.Event
 	for _, change := range changes.Changes {
-		switch change.Table {
-		case "evals":
-			if change.Deleted() {
-				return nil, nil
-			}
-			after, ok := change.After.(*structs.Evaluation)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Evaluation")
-			}
-
-			event := structs.Event{
-				Topic: structs.TopicEval,
-				Type:  eventType,
-				Index: changes.Index,
-				Key:   after.ID,
-				FilterKeys: []string{
-					after.JobID,
-					after.DeploymentID,
-				},
-				Namespace: after.Namespace,
-				Payload: &EvalEvent{
-					Eval: after,
-				},
-			}
-
-			events = append(events, event)
-
-		case "allocs":
-			if change.Deleted() {
-				return nil, nil
-			}
-			after, ok := change.After.(*structs.Allocation)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Allocation")
-			}
-
-			alloc := after.Copy()
-
-			filterKeys := []string{
-				alloc.JobID,
-				alloc.DeploymentID,
-			}
-
-			// remove job info to help keep size of alloc event down
-			alloc.Job = nil
-
-			event := structs.Event{
-				Topic:      structs.TopicAlloc,
-				Type:       eventType,
-				Index:      changes.Index,
-				Key:        after.ID,
-				FilterKeys: filterKeys,
-				Namespace:  after.Namespace,
-				Payload: &AllocEvent{
-					Alloc: alloc,
-				},
-			}
-
-			events = append(events, event)
-		case "jobs":
-			if change.Deleted() {
-				return nil, nil
-			}
-			after, ok := change.After.(*structs.Job)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not an Allocation")
-			}
-
-			event := structs.Event{
-				Topic:     structs.TopicJob,
-				Type:      eventType,
-				Index:     changes.Index,
-				Key:       after.ID,
-				Namespace: after.Namespace,
-				Payload: &JobEvent{
-					Job: after,
-				},
-			}
-
-			events = append(events, event)
-		case "nodes":
-			if change.Deleted() {
-				return nil, nil
-			}
-			after, ok := change.After.(*structs.Node)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
-			}
-
-			event := structs.Event{
-				Topic: structs.TopicNode,
-				Type:  eventType,
-				Index: changes.Index,
-				Key:   after.ID,
-				Payload: &NodeEvent{
-					Node: after,
-				},
-			}
-			events = append(events, event)
-		case "deployment":
-			if change.Deleted() {
-				return nil, nil
-			}
-			after, ok := change.After.(*structs.Deployment)
-			if !ok {
-				return nil, fmt.Errorf("transaction change was not a Node")
-			}
-
-			event := structs.Event{
-				Topic:      structs.TopicDeployment,
-				Type:       eventType,
-				Index:      changes.Index,
-				Key:        after.ID,
-				Namespace:  after.Namespace,
-				FilterKeys: []string{after.JobID},
-				Payload: &DeploymentEvent{
-					Deployment: after,
-				},
-			}
+		if event, ok := eventFromChange(change); ok {
+			event.Type = eventType
+			event.Index = changes.Index
 			events = append(events, event)
 		}
 	}
 
-	return &structs.Events{Index: changes.Index, Events: events}, nil
+	return &structs.Events{Index: changes.Index, Events: events}
+}
+
+func eventFromChange(change memdb.Change) (structs.Event, bool) {
+	if change.Deleted() {
+		switch before := change.Before.(type) {
+		case *structs.Node:
+			return structs.Event{
+				Topic: structs.TopicNode,
+				Key:   before.ID,
+				Payload: &NodeEvent{
+					Node: before,
+				},
+			}, true
+		}
+
+		return structs.Event{}, false
+	}
+
+	switch after := change.After.(type) {
+	case *structs.Evaluation:
+		return structs.Event{
+			Topic: structs.TopicEval,
+			Key:   after.ID,
+			FilterKeys: []string{
+				after.JobID,
+				after.DeploymentID,
+			},
+			Namespace: after.Namespace,
+			Payload: &EvalEvent{
+				Eval: after,
+			},
+		}, true
+
+	case *structs.Allocation:
+		alloc := after.Copy()
+
+		filterKeys := []string{
+			alloc.JobID,
+			alloc.DeploymentID,
+		}
+
+		// remove job info to help keep size of alloc event down
+		alloc.Job = nil
+
+		return structs.Event{
+			Topic:      structs.TopicAlloc,
+			Key:        after.ID,
+			FilterKeys: filterKeys,
+			Namespace:  after.Namespace,
+			Payload: &AllocEvent{
+				Alloc: alloc,
+			},
+		}, true
+
+	case *structs.Job:
+		return structs.Event{
+			Topic:     structs.TopicJob,
+			Key:       after.ID,
+			Namespace: after.Namespace,
+			Payload: &JobEvent{
+				Job: after,
+			},
+		}, true
+
+	case *structs.Node:
+		return structs.Event{
+			Topic: structs.TopicNode,
+			Key:   after.ID,
+			Payload: &NodeEvent{
+				Node: after,
+			},
+		}, true
+
+	case *structs.Deployment:
+		return structs.Event{
+			Topic:      structs.TopicDeployment,
+			Key:        after.ID,
+			Namespace:  after.Namespace,
+			FilterKeys: []string{after.JobID},
+			Payload: &DeploymentEvent{
+				Deployment: after,
+			},
+		}, true
+	}
+
+	return structs.Event{}, false
 }

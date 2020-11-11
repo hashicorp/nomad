@@ -22,7 +22,7 @@ steps:
         make deps
   - run:
       name: Pre-download docker test image
-      command: docker pull hashicorpnomad/busybox-windows:server2016-0.1
+      command: docker pull docker.mirror.hashicorp.services/hashicorpnomad/busybox-windows:server2016-0.1
   - run:
       name: Build nomad
       command: | 

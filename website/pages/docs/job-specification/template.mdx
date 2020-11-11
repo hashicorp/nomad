@@ -61,9 +61,10 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
 - `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the [task working
   directory]. Only drivers without filesystem isolation (ex. `raw_exec`) or
-  that buiold a chroot in the task working directory (ex. `exec`) can render
+  that build a chroot in the task working directory (ex. `exec`) can render
   templates outside of the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or
-  `NOMAD_SECRETS_DIR`.
+  `NOMAD_SECRETS_DIR`. For more details on how `destination` interacts with
+  task drivers, see the [Filesystem internals] documentation.
 
 - `env` `(bool: false)` - Specifies the template should be read back in as
   environment variables for the task. ([See below](#environment-variables))
@@ -370,8 +371,14 @@ rather than `secret/...`.
 The `template` block has the following [client configuration
 options](/docs/configuration/client#options):
 
-- `template.allow_host_source` - Allows templates to specify their source
-  template as an absolute path referencing host directories. Defaults to `true`.
+- `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
+  rendering functions that should be disallowed in job specs. By default the
+  `plugin` function is disallowed as it allows running arbitrary commands on
+  the host as root (unless Nomad is configured to run as a non-root user).
+
+- `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
+  files on the client host via the `file` function. By default templates can
+  access files only within the [task working directory].
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
@@ -379,3 +386,4 @@ options](/docs/configuration/client#options):
 [nodevars]: /docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'
 [go-envparse]: https://github.com/hashicorp/go-envparse#readme 'The go-envparse Readme'
 [task working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[Filesystem internals]: /docs/internals/filesystem#templates-artifacts-and-dispatch-payloads

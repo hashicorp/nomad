@@ -1,0 +1,42 @@
+<PageLayout>
+  <section class="section">
+    {{#if @model}}
+      {{outlet}}
+
+      <ListTable
+        @source={{this.model}} as |t|>
+        <t.head>
+          <th>Job</th>
+          <th>Recommended At</th>
+          <th># Allocs</th>
+          <th>CPU</th>
+          <th>Mem</th>
+          <th>Agg. CPU</th>
+          <th>Agg. Mem</th>
+        </t.head>
+        <t.body as |row|>
+          {{#if row.model.isProcessed}}
+            <Das::RecommendationRow
+              class="is-disabled"
+              @summary={{row.model}}
+            />
+          {{else}}
+            <Das::RecommendationRow
+              class="is-interactive {{if (eq row.model this.activeRecommendationSummary) 'is-active'}}"
+              @summary={{row.model}}
+              {{on "click" (fn this.transitionToSummary row.model)}}
+            />
+          {{/if}}
+
+        </t.body>
+      </ListTable>
+    {{else}}
+      <div class="empty-message" data-test-empty-recommendations>
+        <h3 class="empty-message-headline" data-test-empty-recommendations-headline>No Recommendations</h3>
+        <p class="empty-message-body">
+          All recommendations have been accepted or dismissed. Nomad will continuously monitor applications so expect more recommendations in the future.
+        </p>
+      </div>
+    {{/if}}
+  </section>
+</PageLayout>

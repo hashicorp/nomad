@@ -67,7 +67,7 @@ Who Uses Nomad
 * Roblox
   * [How Roblox built a platform for 100 million players with Nomad (2020)](https://www.hashicorp.com/case-studies/roblox/)
   * [How Roblox runs a platform for 70 million gamers on Nomad (2019)](https://portworx.com/architects-corner-roblox-runs-platform-70-million-gamers-hashicorp-nomad/)
-* CloudFlare
+* Cloudflare
   * [How We Use HashiCorp Nomad (2020)](https://blog.cloudflare.com/how-we-use-hashicorp-nomad/)
 * BetterHelp
   * [How the world's largest online therapy provider runs on Nomad (2020)](https://www.youtube.com/watch?v=eN2ghrGpiUo)
@@ -121,7 +121,7 @@ Who Uses Nomad
 Contributing to Nomad
 --------------------
 
-If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.15.1+ is *required*, and `gcc-go` is not supported).
+If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.15.4+ is *required*, and `gcc-go` is not supported).
 
 See the [`contributing`](contributing/) directory for more developer documentation.
 

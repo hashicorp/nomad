@@ -1,0 +1,142 @@
+{{#if this.interstitialComponent}}
+  <section class="das-interstitial" style={{this.interstitialStyle}}>
+    {{component (concat 'das/' this.interstitialComponent) proceed=this.proceedPromiseResolve error=this.error}}
+  </section>
+{{else if @summary.taskGroup}}
+  <section
+    ...attributes
+    data-test-task-group-recommendations
+    class='recommendation-card'
+    {{will-destroy this.recommendationCardDestroying}}
+  >
+
+    <h2 class="top overview inner-container">Resource Recommendation</h2>
+
+    <header class="overview inner-container">
+      <h3 class="slug">
+        <span class="job" data-test-job-name>{{@summary.taskGroup.job.name}}</span>
+        <span class="group" data-test-task-group-name>{{@summary.taskGroup.name}}</span>
+      </h3>
+      <h4 class="namespace">
+        <span class="namespace-label">Namespace:</span> <span data-test-namespace>{{@summary.jobNamespace}}</span>
+      </h4>
+    </header>
+
+    <section class="diffs overview inner-container">
+      <Das::DiffsTable
+        data-test-group-totals
+        @model={{@summary.taskGroup}}
+        @recommendations={{@summary.recommendations}}
+        @excludedRecommendations={{@summary.excludedRecommendations}}
+      />
+    </section>
+
+    <section class="narrative overview inner-container">
+      <p data-test-narrative>{{this.narrative}}</p>
+    </section>
+
+    <section class="main overview inner-container task-toggles">
+      <table data-test-toggles-table>
+        <thead data-test-tasks-head>
+          <tr>
+            {{#if this.showToggleAllToggles}}
+              <th>Task</th>
+              <th class="toggle-all">Toggle All</th>
+              <th class="toggle-cell">
+                <Toggle
+                  data-test-cpu-toggle
+                  @isActive={{and this.allCpuToggleActive (not this.allCpuToggleDisabled)}}
+                  @isDisabled={{this.allCpuToggleDisabled}}
+                  @onToggle={{action this.toggleAllRecommendationsForResource 'CPU'}}
+                  title='Toggle CPU recommendations for all tasks'
+                >
+                  <div class="label-wrapper">CPU</div>
+                </Toggle>
+              </th>
+              <th class="toggle-cell">
+                <Toggle
+                  data-test-memory-toggle
+                  @isActive={{and this.allMemoryToggleActive (not this.allMemoryToggleDisabled)}}
+                  @isDisabled={{this.allMemoryToggleDisabled}}
+                  @onToggle={{action this.toggleAllRecommendationsForResource 'MemoryMB'}}
+                  title='Toggle memory recommendations for all tasks'
+                >
+                  <div class="label-wrapper">Mem</div>
+                </Toggle>
+              </th>
+            {{else}}
+              <th colspan="2">Task</th>
+              <th class="toggle-cell">CPU</th>
+              <th class="toggle-cell">Mem</th>
+            {{/if}}
+          </tr>
+        </thead>
+        <tbody>
+          {{#each this.taskToggleRows key="task.name" as |taskToggleRow index|}}
+            <Das::TaskRow
+              @task={{taskToggleRow.task}}
+              @active={{eq this.activeTaskToggleRowIndex index}}
+              @cpu={{taskToggleRow.cpu}}
+              @memory={{taskToggleRow.memory}}
+              @onClick={{action (mut this.activeTaskToggleRowIndex) index}}
+              @toggleRecommendation={{@summary.toggleRecommendation}}
+            />
+          {{/each}}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="actions overview inner-container">
+      <button class='button is-primary' type='button' disabled={{this.cannotAccept}} data-test-accept {{on "click" this.accept}}>Accept</button>
+      <button class='button is-light' type='button' data-test-dismiss {{on "click" this.dismiss}}>Dismiss</button>
+    </section>
+
+    <section class="active-task-group" data-test-active-task>
+      <section class="top active-task inner-container">
+        <CopyButton data-test-copy-button @clipboardText={{this.copyButtonLink}}>
+          {{@summary.taskGroup.job.name}}
+          /
+          {{@summary.taskGroup.name}}
+        </CopyButton>
+
+        {{#if @onCollapse}}
+          <button
+            data-test-accordion-toggle
+            class="button is-light is-compact pull-right accordion-toggle"
+            {{on "click" @onCollapse}}
+            type="button">
+            Collapse
+          </button>
+        {{/if}}
+      </section>
+
+      <header class="active-task inner-container">
+        <h3 data-test-task-name>{{this.activeTask.name}} task</h3>
+      </header>
+
+      <section class="diffs active-task inner-container">
+        <Das::DiffsTable
+          @model={{this.activeTask}}
+          @recommendations={{this.activeTaskToggleRow.recommendations}}
+          @excludedRecommendations={{@summary.excludedRecommendations}}
+        />
+      </section>
+
+      <ul class="main active-task inner-container">
+        {{#each this.activeTaskToggleRow.recommendations as |recommendation|}}
+          <li data-test-recommendation>
+            <Das::RecommendationChart
+              data-test-chart-for={{recommendation.resource}}
+              @resource={{recommendation.resource}}
+              @currentValue={{recommendation.currentValue}}
+              @recommendedValue={{recommendation.value}}
+              @stats={{recommendation.stats}}
+              @disabled={{contains recommendation @summary.excludedRecommendations}}
+            />
+          </li>
+        {{/each}}
+      </ul>
+    </section>
+
+  </section>
+{{/if}}

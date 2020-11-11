@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -99,7 +100,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})
-		s.db = NewChangeTrackerDB(db, broker, processDBChanges)
+		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges)
 	} else {
 		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
 	}
@@ -110,6 +111,15 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	}
 
 	return s, nil
+}
+
+// NewWatchSet returns a new memdb.WatchSet that adds the state stores abandonCh
+// as a watcher. This is important in that it will notify when this specific
+// state store is no longer valid, usually due to a new snapshot being loaded
+func (s *StateStore) NewWatchSet() memdb.WatchSet {
+	ws := memdb.NewWatchSet()
+	ws.Add(s.AbandonCh())
+	return ws
 }
 
 func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
@@ -1518,6 +1528,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 		return fmt.Errorf("unable to update job scaling policies: %v", err)
 	}
 
+	if err := s.updateJobRecommendations(index, txn, existingJob, job); err != nil {
+		return fmt.Errorf("unable to update job recommendations: %v", err)
+	}
+
 	if err := s.updateJobCSIPlugins(index, job, existingJob, txn); err != nil {
 		return fmt.Errorf("unable to update job scaling policies: %v", err)
 	}
@@ -1633,6 +1647,11 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	// Delete any remaining job scaling policies
 	if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
+	}
+
+	// Delete any job recommendations
+	if err := s.deleteRecommendationsByJob(index, txn, job); err != nil {
+		return fmt.Errorf("deleting job recommendatons failed: %v", err)
 	}
 
 	// Delete the scaling events
@@ -2208,7 +2227,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 	}
 
 	var alloc *structs.Allocation
-	if claim.Mode != structs.CSIVolumeClaimRelease {
+	if claim.State == structs.CSIVolumeClaimStateTaken {
 		alloc, err = s.AllocByID(ws, claim.AllocationID)
 		if err != nil {
 			s.logger.Error("AllocByID failed", "error", err)
@@ -3310,35 +3329,17 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 }
 
 // AllocsByIDPrefix is used to lookup allocs by prefix
-func (s *StateStore) AllocsByIDPrefixInNSes(ws memdb.WatchSet, namespaces map[string]bool, prefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) AllocsByIDPrefixAllNSs(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	var iter memdb.ResultIterator
-	var err error
-	if prefix != "" {
-		iter, err = txn.Get("allocs", "id_prefix", prefix)
-	} else {
-		iter, err = txn.Get("allocs", "id")
-
-	}
+	iter, err := txn.Get("allocs", "id_prefix", prefix)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	ws.Add(iter.WatchCh())
 
-	// Wrap the iterator in a filter
-	nsesFilter := func(raw interface{}) bool {
-		alloc, ok := raw.(*structs.Allocation)
-		if !ok {
-			return true
-		}
-
-		return namespaces[alloc.Namespace]
-	}
-
-	wrap := memdb.NewFilterIterator(iter, nsesFilter)
-	return wrap, nil
+	return iter, nil
 }
 
 // AllocsByNode returns all the allocations by node
@@ -4558,17 +4559,10 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 
 	ws := memdb.NewWatchSet()
 
-	if job.Stop {
-		if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
-			return fmt.Errorf("deleting job scaling policies failed: %v", err)
-		}
-		return nil
-	}
-
 	scalingPolicies := job.GetScalingPolicies()
-	newTargets := map[string]struct{}{}
+	newTargets := map[string]bool{}
 	for _, p := range scalingPolicies {
-		newTargets[p.Target[structs.ScalingTargetGroup]] = struct{}{}
+		newTargets[p.JobKey()] = true
 	}
 	// find existing policies that need to be deleted
 	deletedPolicies := []string{}
@@ -4576,13 +4570,9 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 	if err != nil {
 		return fmt.Errorf("ScalingPoliciesByJob lookup failed: %v", err)
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		oldPolicy := raw.(*structs.ScalingPolicy)
-		if _, ok := newTargets[oldPolicy.Target[structs.ScalingTargetGroup]]; !ok {
+		if !newTargets[oldPolicy.JobKey()] {
 			deletedPolicies = append(deletedPolicies, oldPolicy.ID)
 		}
 	}
@@ -5451,12 +5441,11 @@ func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*s
 			}
 			policy.ID = existing.ID
 			policy.CreateIndex = existing.CreateIndex
-			policy.ModifyIndex = index
 		} else {
 			// policy.ID must have been set already in Job.Register before log apply
 			policy.CreateIndex = index
-			policy.ModifyIndex = index
 		}
+		policy.ModifyIndex = index
 
 		// Insert the scaling policy
 		hadUpdates = true
@@ -5465,7 +5454,7 @@ func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*s
 		}
 	}
 
-	// Update the indexes table for scaling policy
+	// Update the indexes table for scaling policy if we updated any policies
 	if hadUpdates {
 		if err := txn.Insert("index", &IndexEntry{"scaling_policy", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
@@ -5731,19 +5720,6 @@ func (s *StateStore) ScalingPolicies(ws memdb.WatchSet) (memdb.ResultIterator, e
 	return iter, nil
 }
 
-// ScalingPoliciesByType returns an iterator over scaling policies of a certain type.
-func (s *StateStore) ScalingPoliciesByType(ws memdb.WatchSet, t string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get("scaling_policy", "type", t)
-	if err != nil {
-		return nil, err
-	}
-
-	ws.Add(iter.WatchCh())
-	return iter, nil
-}
-
 // ScalingPoliciesByTypePrefix returns an iterator over scaling policies with a certain type prefix.
 func (s *StateStore) ScalingPoliciesByTypePrefix(ws memdb.WatchSet, t string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
@@ -5757,7 +5733,7 @@ func (s *StateStore) ScalingPoliciesByTypePrefix(ws memdb.WatchSet, t string) (m
 	return iter, nil
 }
 
-func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace, typ string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("scaling_policy", "target_prefix", namespace)
@@ -5766,23 +5742,45 @@ func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace str
 	}
 
 	ws.Add(iter.WatchCh())
+
+	// Wrap the iterator in a filter to exact match the namespace
+	iter = memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
+
+	// If policy type is specified as well, wrap again
+	if typ != "" {
+		iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+			p, ok := raw.(*structs.ScalingPolicy)
+			if !ok {
+				return true
+			}
+			return !strings.HasPrefix(p.Type, typ)
+		})
+	}
+
+	return iter, nil
+}
+
+func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID, policyType string) (memdb.ResultIterator,
+	error) {
+	txn := s.db.ReadTxn()
+	iter, err := s.ScalingPoliciesByJobTxn(ws, namespace, jobID, txn)
+	if err != nil {
+		return nil, err
+	}
+
+	if policyType == "" {
+		return iter, nil
+	}
+
 	filter := func(raw interface{}) bool {
-		d, ok := raw.(*structs.ScalingPolicy)
+		p, ok := raw.(*structs.ScalingPolicy)
 		if !ok {
 			return true
 		}
-
-		return d.Target[structs.ScalingTargetNamespace] != namespace
+		return policyType != p.Type
 	}
 
-	// Wrap the iterator in a filter
-	wrap := memdb.NewFilterIterator(iter, filter)
-	return wrap, nil
-}
-
-func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-	return s.ScalingPoliciesByJobTxn(ws, namespace, jobID, txn)
+	return memdb.NewFilterIterator(iter, filter), nil
 }
 
 func (s *StateStore) ScalingPoliciesByJobTxn(ws memdb.WatchSet, namespace, jobID string,
@@ -5825,6 +5823,8 @@ func (s *StateStore) ScalingPolicyByID(ws memdb.WatchSet, id string) (*structs.S
 	return nil, nil
 }
 
+// ScalingPolicyByTargetAndType returns a fully-qualified policy against a target and policy type,
+// or nil if it does not exist. This method does not honor the watchset on the policy type, just the target.
 func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[string]string, typ string) (*structs.ScalingPolicy,
 	error) {
 	txn := s.db.ReadTxn()
@@ -5838,6 +5838,7 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	if err != nil {
 		return nil, fmt.Errorf("scaling_policy lookup failed: %v", err)
 	}
+
 	ws.Add(it.WatchCh())
 
 	// Check for type
@@ -5855,6 +5856,34 @@ func (s *StateStore) ScalingPolicyByTargetAndType(ws memdb.WatchSet, target map[
 	}
 
 	return nil, nil
+}
+
+func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace string, prefix string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("scaling_policy", "id_prefix", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("scaling policy lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+
+	iter = memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
+
+	return iter, nil
+}
+
+// scalingPolicyNamespaceFilter returns a filter function that filters all
+// scaling policies not targeting the given namespace.
+func scalingPolicyNamespaceFilter(namespace string) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		p, ok := raw.(*structs.ScalingPolicy)
+		if !ok {
+			return true
+		}
+
+		return p.Target[structs.ScalingTargetNamespace] != namespace
+	}
 }
 
 func (s *StateStore) EventSinks(ws memdb.WatchSet) (memdb.ResultIterator, error) {
@@ -5927,6 +5956,34 @@ func (s *StateStore) DeleteEventSinks(idx uint64, sinks []string) error {
 		}
 	}
 	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
+func (s *StateStore) BatchUpdateEventSinks(index uint64, sinks []*structs.EventSink) error {
+	txn := s.db.WriteTxn(index)
+	defer txn.Abort()
+
+	for _, update := range sinks {
+		existing, err := txn.First("event_sink", "id", update.ID)
+		if err != nil || existing == nil {
+			return fmt.Errorf("event sink lookup failed: %w", err)
+		}
+
+		sink := existing.(*structs.EventSink)
+
+		// Copy over authoritative fields
+		sink.LatestIndex = update.LatestIndex
+		sink.ModifyIndex = index
+
+		if err := txn.Insert("event_sink", sink); err != nil {
+			return err
+		}
+	}
+
+	// Update the indexes table for event_sink
+	if err := txn.Insert("index", &IndexEntry{"event_sink", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 	return txn.Commit()
@@ -6179,6 +6236,7 @@ func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
 	return nil
 }
 
+// ScalingEventsRestore is used to restore scaling events for a job
 func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents) error {
 	if err := r.txn.Insert("scaling_event", jobEvents); err != nil {
 		return fmt.Errorf("scaling event insert failed: %v", err)

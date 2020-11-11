@@ -30,7 +30,7 @@ export default [
       'windows-service',
     ],
   },
-  { category: 'upgrade', content: ['upgrade-specific'] },
+  {category: 'upgrade', content: ['upgrade-specific']},
   {
     category: 'integrations',
     content: ['consul-integration', 'consul-connect', 'vault-integration'],
@@ -49,8 +49,9 @@ export default [
         content: ['scheduling', 'preemption'],
       },
       'consensus',
+      'filesystem',
       'gossip',
-      'security',
+      'security'
     ],
   },
   {
@@ -107,6 +108,14 @@ export default [
           'unblock',
         ],
       },
+      {
+        category: 'event',
+        content: [
+          'sink-deregister',
+          'sink-list',
+          'sink-register',
+        ],
+      },
       'eval-status',
       {
         category: 'job',
@@ -122,6 +131,8 @@ export default [
           'promote',
           'revert',
           'run',
+          'scale',
+          'scaling-events',
           'status',
           'stop',
           'validate',
@@ -156,15 +167,17 @@ export default [
           'snapshot-save',
         ],
       },
-      { category: 'plugin', content: ['status'] },
+      {category: 'plugin', content: ['status']},
       {
         category: 'quota',
         content: ['apply', 'delete', 'init', 'inspect', 'list', 'status'],
       },
-      { category: 'sentinel', content: ['apply', 'delete', 'list', 'read'] },
-      { category: 'server', content: ['force-leave', 'join', 'members'] },
+      {category: 'recommendation', content: ['apply', 'dismiss', 'info', 'list']},
+      {category: 'scaling', content: ['policy-info', 'policy-list']},
+      {category: 'sentinel', content: ['apply', 'delete', 'list', 'read']},
+      {category: 'server', content: ['force-leave', 'join', 'members']},
       'status',
-      { category: 'system', content: ['gc', 'reconcile-summaries'] },
+      {category: 'system', content: ['gc', 'reconcile-summaries']},
       'ui',
       'version',
       {
@@ -177,6 +190,7 @@ export default [
   {
     category: 'job-specification',
     content: [
+      'hcl2',
       'artifact',
       'affinity',
       'check_restart',
@@ -247,7 +261,7 @@ export default [
     content: ['nvidia', 'community'],
   },
   'schedulers',
-  { category: 'runtime', content: ['environment', 'interpolation'] },
+  {category: 'runtime', content: ['environment', 'interpolation']},
   {
     category: 'autoscaling',
     content: [
@@ -266,7 +280,7 @@ export default [
       },
     ],
   },
-  { category: 'telemetry', content: ['metrics'] },
+  {category: 'telemetry', content: ['metrics']},
   '------------',
   'enterprise',
   'faq',

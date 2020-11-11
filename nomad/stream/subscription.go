@@ -124,68 +124,60 @@ func (s *Subscription) Unsubscribe() {
 // filter events to only those that match a subscriptions topic/keys/namespace
 func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 	if len(events) == 0 {
-		return events
-	}
-
-	var count int
-	for _, e := range events {
-		_, allTopics := req.Topics[structs.TopicAll]
-		if _, ok := req.Topics[e.Topic]; ok || allTopics {
-			var keys []string
-			if allTopics {
-				keys = req.Topics[structs.TopicAll]
-			} else {
-				keys = req.Topics[e.Topic]
-			}
-			if req.Namespace != "" && e.Namespace != "" && e.Namespace != req.Namespace {
-				continue
-			}
-			for _, k := range keys {
-				if e.Key == k || k == string(structs.TopicAll) || filterKeyContains(e.FilterKeys, k) {
-					count++
-				}
-			}
-		}
-	}
-
-	// Only allocate a new slice if some events need to be filtered out
-	switch count {
-	case 0:
 		return nil
-	case len(events):
+	}
+
+	allTopicKeys := req.Topics[structs.TopicAll]
+
+	if req.Namespace == "" && len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
 		return events
 	}
 
-	// Return filtered events
-	result := make([]structs.Event, 0, count)
-	for _, e := range events {
-		_, allTopics := req.Topics[structs.TopicAll]
-		if _, ok := req.Topics[e.Topic]; ok || allTopics {
-			var keys []string
-			if allTopics {
-				keys = req.Topics[structs.TopicAll]
-			} else {
-				keys = req.Topics[e.Topic]
-			}
-			// filter out non matching namespaces
-			if req.Namespace != "" && e.Namespace != "" && e.Namespace != req.Namespace {
+	var result []structs.Event
+
+	for _, event := range events {
+		if req.Namespace != "" && event.Namespace != "" && event.Namespace != req.Namespace {
+			continue
+		}
+
+		// *[*] always matches
+		if len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
+			result = append(result, event)
+			continue
+		}
+
+		keys := allTopicKeys
+
+		if topicKeys, ok := req.Topics[event.Topic]; ok {
+			keys = append(keys, topicKeys...)
+		}
+
+		if len(keys) == 1 && keys[0] == string(structs.TopicAll) {
+			result = append(result, event)
+			continue
+		}
+
+		for _, key := range keys {
+			if eventMatchesKey(event, key) {
+				result = append(result, event)
 				continue
-			}
-			for _, k := range keys {
-				if e.Key == k || k == string(structs.TopicAll) || filterKeyContains(e.FilterKeys, k) {
-					result = append(result, e)
-				}
 			}
 		}
 	}
+
 	return result
 }
 
-func filterKeyContains(filterKeys []string, key string) bool {
-	for _, fk := range filterKeys {
+func eventMatchesKey(event structs.Event, key string) bool {
+	if event.Key == key {
+		return true
+	}
+
+	for _, fk := range event.FilterKeys {
 		if fk == key {
 			return true
 		}
 	}
+
 	return false
 }

@@ -8,21 +8,24 @@ FEATURES:
 
 IMPROVEMENTS:
  * core: Improved job deregistration error logging. [[GH-8745](https://github.com/hashicorp/nomad/issues/8745)]
+ * acl: Allow operators with `namespace:dispatch-job` capability to force periodic job invocation [[GH-9205](https://github.com/hashicorp/nomad/issues/9205)]
  * api: Added support for cancellation contexts to HTTP API. [[GH-8836](https://github.com/hashicorp/nomad/issues/8836)]
  * api: Job Register API now permits non-zero initial Version to accommodate multi-region deployments. [[GH-9071](https://github.com/hashicorp/nomad/issues/9071)]
  * api: Added ?resources=true query parameter to /v1/nodes and /v1/allocations to include resource allocations in listings. [[GH-9055](https://github.com/hashicorp/nomad/issues/9055)]
  * api: Added ?task_states=false query parameter to /v1/allocations to remove TaskStates from listings. Defaults to being included as before. [[GH-9055](https://github.com/hashicorp/nomad/issues/9055)]
+ * build: Updated to Go 1.15.4. [[GH-9305](https://github.com/hashicorp/nomad/issues/9305)]
+ * cli: Added autocompletion for `recommendation` commands [[GH-9317](https://github.com/hashicorp/nomad/issues/9317)]
  * cli: Added `scale` and `scaling-events` subcommands to the `job` command. [[GH-9023](https://github.com/hashicorp/nomad/pull/9023)]
  * cli: Added `scaling` command for interaction with the scaling API endpoint. [[GH-9025](https://github.com/hashicorp/nomad/pull/9025)]
- * client: Batch state store writes to reduce disk IO. [[GH-9093](https://github.com/hashicorp/nomad/issues/9093)]
  * client: Use ec2 CPU perf data from AWS API [[GH-7830](https://github.com/hashicorp/nomad/issues/7830)]
  * client: Added support for Azure fingerprinting. [[GH-8979](https://github.com/hashicorp/nomad/issues/8979)]
+ * client: Batch state store writes to reduce disk IO. [[GH-9093](https://github.com/hashicorp/nomad/issues/9093)]
  * client: Added support for fingerprinting the client node's Consul segment. [[GH-7214](https://github.com/hashicorp/nomad/issues/7214)]
  * client: Added `NOMAD_JOB_ID` and `NOMAD_PARENT_JOB_ID` environment variables to those made available to jobs. [[GH-8967](https://github.com/hashicorp/nomad/issues/8967)]
  * client: Updated consul-template to v0.25.0 - config `function_blacklist` deprecated and replaced with `function_denylist` [[GH-8988](https://github.com/hashicorp/nomad/pull/8988)]
  * config: Deprecated terms `blacklist` and `whitelist` from configuration and replaced them with `denylist` and `allowlist`. [[GH-9019](https://github.com/hashicorp/nomad/issues/9019)]
- * consul: Support Consul namespace (Consul Enterprise) in client configuration. [[GH-8849](https://github.com/hashicorp/nomad/pull/8849)]
  * consul: Support advertising CNI and multi-host network addresses to consul [[GH-8801](https://github.com/hashicorp/nomad/issues/8801)]
+ * consul: Support Consul namespace (Consul Enterprise) in client configuration. [[GH-8849](https://github.com/hashicorp/nomad/pull/8849)]
  * consul/connect: Dynamically select envoy sidecar at runtime [[GH-8945](https://github.com/hashicorp/nomad/pull/8945)]
  * csi: Relaxed validation requirements when checking volume capabilities with controller plugins, to accommodate existing plugin behaviors. [[GH-9049](https://github.com/hashicorp/nomad/issues/9049)]
  * driver/docker: Upgrade pause container and detect architecture [[GH-8957](https://github.com/hashicorp/nomad/pull/8957)]
@@ -36,14 +39,28 @@ __BACKWARDS INCOMPATIBILITIES:__
 
 BUG FIXES:
 
+ * agent (Enterprise): Fixed a bug where audit logging caused websocket and streaming http endpoints to fail [[GH-9319](https://github.com/hashicorp/nomad/issues/9319)]
+ * core: Fixed a bug where ACL handling prevented cross-namespace allocation listing [[GH-9278](https://github.com/hashicorp/nomad/issues/9278)]
+ * core: Fixed a bug where scaling policy filtering would ignore type query if job query was present [[GH-9312](https://github.com/hashicorp/nomad/issues/9312)]
+ * core: Fixed a bug where a request to scale a job would fail if the job was not in the default namespace. [[GH-9296](https://github.com/hashicorp/nomad/pull/9296)]
  * core: Fixed a bug where blocking queries would not include the query's maximum wait time when calculating whether it was safe to retry. [[GH-8921](https://github.com/hashicorp/nomad/issues/8921)]
  * config (Enterprise): Fixed default enterprise config merging. [[GH-9083](https://github.com/hashicorp/nomad/pull/9083)]
- * consul: Fixed a bug to correctly validate task when using script-checks in group-level services [[GH-8952](https://github.com/hashicorp/nomad/issues/8952)]
+ * client: Fixed an fingerprinter issue detecting bridge kernel module [[GH-9299](https://github.com/hashicorp/nomad/pull/9299)]
+ * client: Fixed an issue with the Java fingerprinter on macOS causing pop-up notifications when no JVM installed. [[GH-9225](https://github.com/hashicorp/nomad/pull/9225)]
+ * client: Fixed an issue in processing device plugin fingerprints which would temporarily hang nomad if no devices were found [[GH-9311](https://github.com/hashicorp/nomad/issues/9311)]
+ * client: Fixed an in-place upgrade bug, where a Nomad client may fail to manage tasks that were started with pre-0.9 Nomad client. [[GH-9304](https://github.com/hashicorp/nomad/pull/9304)]
  * consul: Fixed a bug where canary_meta was not being interpolated with environment variables [[GH-9096](https://github.com/hashicorp/nomad/pull/9096)]
+ * consul: Fixed a bug to correctly validate task when using script-checks in group-level services [[GH-8952](https://github.com/hashicorp/nomad/issues/8952)]
  * consul/connect: Fixed a bug to correctly trigger updates on jobspec changes [[GH-9029](https://github.com/hashicorp/nomad/pull/9029)]
  * csi: Fixed a bug where multi-writer volumes were allowed only 1 write claim. [[GH-9040](https://github.com/hashicorp/nomad/issues/9040)]
  * csi: Fixed a bug where `nomad volume detach` would not accept prefixes for the node ID parameter. [[GH-9041](https://github.com/hashicorp/nomad/issues/9041)]
  * driver/docker: Fixed a bug where the default `image_delay` configuration was ignored if the `gc` configuration was not set. [[GH-9101](https://github.com/hashicorp/nomad/issues/9101)]
+
+## 0.12.8 (November 10, 2020)
+
+SECURITY:
+* docker: Fixed a bug where the `docker.volumes.enabled` configuration was not set to the default `false` if left unset. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+* docker: Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
 
 ## 0.12.7 (October 23, 2020)
 
@@ -220,6 +237,11 @@ BUG FIXES:
  * ui: The task group detail page no longer makes excessive requests to the allocation and stats endpoints. [[GH-8216](https://github.com/hashicorp/nomad/issues/8216)]
  * ui: Polling endpoints that have yet to be fetched normally works as expected (regression from 0.11.3). [[GH-8207](https://github.com/hashicorp/nomad/issues/8207)]
 
+## 0.11.7 (November 10, 2020)
+
+SECURITY:
+* docker: _Backport from v0.12.8_ - Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+
 ## 0.11.6 (October 23, 2020)
 
 BUG FIXES:
@@ -377,6 +399,11 @@ BUG FIXES:
  * driver/docker: Fixed a bug causing docker containers to use swap memory unexpectedly [[GH-7550](https://github.com/hashicorp/nomad/issues/7550)]
  * scheduler: Fixed a bug where changes to task group `shutdown_delay` were not persisted or displayed in plan output [[GH-7618](https://github.com/hashicorp/nomad/issues/7618)]
  * ui: Fixed handling of multi-byte unicode characters in allocation log view [[GH-7470](https://github.com/hashicorp/nomad/issues/7470)] [[GH-7551](https://github.com/hashicorp/nomad/pull/7551)]
+
+## 0.10.8 (November 10, 2020)
+
+SECURITY:
+* docker: _Backport from v0.12.8_ - Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
 
 ## 0.10.7 (October 23, 2020)
 

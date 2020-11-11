@@ -1,13 +1,10 @@
 /* eslint-disable ember-a11y-testing/a11y-audit-called */ // Covered in behaviours/fs
-import { module, test } from 'qunit';
+import { module } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
-import Response from 'ember-cli-mirage/response';
 
 import browseFilesystem from './behaviors/fs';
-
-import FS from 'nomad-ui/tests/pages/allocations/fs';
 
 let allocation;
 let task;
@@ -37,10 +34,18 @@ module('Acceptance | task fs', function(hooks) {
     files.push(taskDirectory);
 
     // Nested files
-    directory = server.create('allocFile', { isDir: true, name: 'directory', parent: taskDirectory });
+    directory = server.create('allocFile', {
+      isDir: true,
+      name: 'directory',
+      parent: taskDirectory,
+    });
     files.push(directory);
 
-    nestedDirectory = server.create('allocFile', { isDir: true, name: 'another', parent: directory });
+    nestedDirectory = server.create('allocFile', {
+      isDir: true,
+      name: 'another',
+      parent: directory,
+    });
     files.push(nestedDirectory);
 
     files.push(
@@ -51,7 +56,9 @@ module('Acceptance | task fs', function(hooks) {
       })
     );
 
-    files.push(server.create('allocFile', { isDir: true, name: 'empty-directory', parent: taskDirectory }));
+    files.push(
+      server.create('allocFile', { isDir: true, name: 'empty-directory', parent: taskDirectory })
+    );
     files.push(server.create('allocFile', 'file', { fileType: 'txt', parent: taskDirectory }));
     files.push(server.create('allocFile', 'file', { fileType: 'txt', parent: taskDirectory }));
 
@@ -60,29 +67,11 @@ module('Acceptance | task fs', function(hooks) {
     this.nestedDirectory = nestedDirectory;
   });
 
-  test('when the task is not running, an empty state is shown', async function(assert) {
-    // The API 500s on stat when not running
-    this.server.get('/client/fs/stat/:allocation_id', () => {
-      return new Response(500, {}, 'no such file or directory');
-    });
-
-    task.update({
-      finishedAt: new Date(),
-    });
-
-    await FS.visitTask({ id: allocation.id, name: task.name });
-    assert.ok(FS.hasEmptyState, 'Non-running task has no files');
-    assert.ok(
-      FS.emptyState.headline.includes('Task is not Running'),
-      'Empty state explains the condition'
-    );
-  });
-
   browseFilesystem({
-    visitSegments: ({allocation,task}) => ({ id: allocation.id, name: task.name }),
-    getExpectedPathBase: ({allocation,task}) => `/allocations/${allocation.id}/${task.name}/fs/`,
-    getTitleComponent: ({task}) => `Task ${task.name} filesystem`,
-    getBreadcrumbComponent: ({task}) => task.name,
+    visitSegments: ({ allocation, task }) => ({ id: allocation.id, name: task.name }),
+    getExpectedPathBase: ({ allocation, task }) => `/allocations/${allocation.id}/${task.name}/fs/`,
+    getTitleComponent: ({ task }) => `Task ${task.name} filesystem`,
+    getBreadcrumbComponent: ({ task }) => task.name,
     getFilesystemRoot: ({ task }) => task.name,
     pageObjectVisitFunctionName: 'visitTask',
     pageObjectVisitPathFunctionName: 'visitTaskPath',

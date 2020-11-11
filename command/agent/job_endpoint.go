@@ -495,7 +495,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, err.Error())
 	}
 
-	namespace := args.Target[structs.ScalingTargetNamespace]
 	targetJob := args.Target[structs.ScalingTargetJob]
 	if targetJob != "" && targetJob != jobName {
 		return nil, CodedError(400, "job ID in payload did not match URL")
@@ -503,7 +502,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 
 	scaleReq := structs.JobScaleRequest{
 		JobID:          jobName,
-		Namespace:      namespace,
 		Target:         args.Target,
 		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
@@ -675,14 +673,16 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(400, "Job spec is empty")
 	}
 
-	jobfile := strings.NewReader(args.JobHCL)
-
 	var jobStruct *api.Job
 	var err error
 	if args.HCLv1 {
-		jobStruct, err = jobspec.Parse(jobfile)
+		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
-		jobStruct, err = jobspec2.ParseWithArgs("input.hcl", jobfile, nil, false)
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(args.JobHCL),
+			AllowFS: false,
+		})
 	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
@@ -982,7 +982,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		tg.Tasks = make([]*structs.Task, l)
 		for l, task := range taskGroup.Tasks {
 			t := &structs.Task{}
-			ApiTaskToStructsTask(task, t)
+			ApiTaskToStructsTask(job, tg, task, t)
 
 			// Set the tasks vault namespace from Job if it was not
 			// specified by the task or group
@@ -996,7 +996,9 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 
 // ApiTaskToStructsTask is a copy and type conversion between the API
 // representation of a task from a struct representation of a task.
-func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
+func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
+	apiTask *api.Task, structsTask *structs.Task) {
+
 	structsTask.Name = apiTask.Name
 	structsTask.Driver = apiTask.Driver
 	structsTask.User = apiTask.User
@@ -1030,6 +1032,13 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 				ReadOnly:        *mount.ReadOnly,
 				PropagationMode: *mount.PropagationMode,
 			}
+		}
+	}
+
+	if l := len(apiTask.ScalingPolicies); l != 0 {
+		structsTask.ScalingPolicies = make([]*structs.ScalingPolicy, l)
+		for i, policy := range apiTask.ScalingPolicies {
+			structsTask.ScalingPolicies[i] = ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask)
 		}
 	}
 

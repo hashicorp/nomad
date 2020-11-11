@@ -1,5 +1,7 @@
 import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
+import { alias } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
 import classic from 'ember-classic-decorator';
 import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
 
@@ -7,6 +9,10 @@ const sumAggregator = (sum, value) => sum + (value || 0);
 
 @classic
 export default class TopologyControllers extends Controller {
+  @service userSettings;
+
+  @alias('userSettings.showTopoVizPollingNotice') showPollingNotice;
+
   @computed('model.nodes.@each.datacenter')
   get datacenters() {
     return Array.from(new Set(this.model.nodes.mapBy('datacenter'))).compact();

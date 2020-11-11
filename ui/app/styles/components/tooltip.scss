@@ -4,6 +4,7 @@
 }
 
 .tooltip::after {
+  text-transform: none;
   content: attr(aria-label);
   background: $black;
   border-radius: $radius;

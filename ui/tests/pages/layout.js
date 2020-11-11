@@ -23,23 +23,28 @@ export default create({
         resetScope: true,
         name: text('.ember-power-select-group-name'),
 
-        options: collection('.ember-power-select-option', create({
-          label: text(),
+        options: collection(
+          '.ember-power-select-option',
+          create({
+            label: text(),
 
-          substrings: collection('[data-test-match-substring]', {
-            isHighlighted: hasClass('highlighted'),
-          }),
+            substrings: collection('[data-test-match-substring]', {
+              isHighlighted: hasClass('highlighted'),
+            }),
 
-          get formattedText() {
-            return this.substrings.map(string => {
-              if (string.isHighlighted) {
-                return `*${string.text}*`;
-              } else {
-                return string.text;
-              }
-            }).join('');
-          }
-        })),
+            get formattedText() {
+              return this.substrings
+                .map(string => {
+                  if (string.isHighlighted) {
+                    return `*${string.text}*`;
+                  } else {
+                    return string.text;
+                  }
+                })
+                .join('');
+            },
+          })
+        ),
       }),
 
       field: {
@@ -61,6 +66,11 @@ export default create({
       }),
     },
     visitJobs: clickable('[data-test-gutter-link="jobs"]'),
+
+    optimize: {
+      scope: '[data-test-gutter-link="optimize"]',
+    },
+
     visitClients: clickable('[data-test-gutter-link="clients"]'),
     visitServers: clickable('[data-test-gutter-link="servers"]'),
     visitStorage: clickable('[data-test-gutter-link="storage"]'),

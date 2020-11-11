@@ -1476,10 +1476,25 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		mapping, ok := ports.Get(portLabel)
 		if !ok {
 			ip, port := networks.Port(portLabel)
-			if ip == "" && port <= 0 {
+			if port > 0 {
+				return ip, port, nil
+			}
+
+			// If port isn't a label, try to parse it as a literal port number
+			port, err := strconv.Atoi(portLabel)
+			if err != nil {
+				// Don't include Atoi error message as user likely
+				// never intended it to be a numeric and it creates a
+				// confusing error message
 				return "", 0, fmt.Errorf("invalid port %q: port label not found", portLabel)
 			}
-			return ip, port, nil
+			if port <= 0 {
+				return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
+			}
+
+			// A number was given which will use the Consul agent's address and the given port
+			// Returning a blank string as an address will use the Consul agent's address
+			return "", port, nil
 		}
 		return mapping.HostIP, mapping.Value, nil
 

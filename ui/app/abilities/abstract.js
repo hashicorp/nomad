@@ -34,6 +34,18 @@ export default class Abstract extends Ability {
     }, []);
   }
 
+  @computed('token.selfTokenPolicies.[]')
+  get capabilitiesForAllNamespaces() {
+    return (this.get('token.selfTokenPolicies') || [])
+      .toArray()
+      .reduce((allCapabilities, policy) => {
+        (get(policy, 'rulesJSON.Namespaces') || []).forEach(({ Capabilities }) => {
+          allCapabilities = allCapabilities.concat(Capabilities);
+        });
+        return allCapabilities;
+      }, []);
+  }
+
   activeNamespaceIncludesCapability(capability) {
     return this.rulesForActiveNamespace.some(rules => {
       let capabilities = get(rules, 'Capabilities') || [];
@@ -41,8 +53,17 @@ export default class Abstract extends Ability {
     });
   }
 
+  @computed('system.features.[]')
+  get features() {
+    return this.system.features;
+  }
+
+  featureIsPresent(featureName) {
+    return this.features.includes(featureName);
+  }
+
   // Chooses the closest namespace as described at the bottom here:
-  // https://www.nomadproject.io/guides/security/acl.html#namespace-rules
+  // https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control#namespace-rules
   _findMatchingNamespace(policyNamespaces, activeNamespace) {
     let namespaceNames = policyNamespaces.mapBy('Name');
 

@@ -1,12 +1,16 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action, set } from '@ember/object';
+import { inject as service } from '@ember/service';
 import { run } from '@ember/runloop';
 import { scaleLinear } from 'd3-scale';
 import { extent, deviation, mean } from 'd3-array';
 import { line, curveBasis } from 'd3-shape';
+import styleStringProperty from '../utils/properties/style-string';
 
 export default class TopoViz extends Component {
+  @service system;
+
   @tracked element = null;
   @tracked topology = { datacenters: [] };
 
@@ -14,9 +18,15 @@ export default class TopoViz extends Component {
   @tracked activeAllocation = null;
   @tracked activeEdges = [];
   @tracked edgeOffset = { x: 0, y: 0 };
+  @tracked viewportColumns = 2;
+
+  @tracked highlightAllocation = null;
+  @tracked tooltipProps = {};
+
+  @styleStringProperty('tooltipProps') tooltipStyle;
 
   get isSingleColumn() {
-    if (this.topology.datacenters.length <= 1) return true;
+    if (this.topology.datacenters.length <= 1 || this.viewportColumns === 1) return true;
 
     // Compute the coefficient of variance to determine if it would be
     // better to stack datacenters or place them in columns
@@ -32,6 +42,7 @@ export default class TopoViz extends Component {
   get datacenterIsSingleColumn() {
     // If there are enough nodes, use two columns of nodes within
     // a single column layout of datacenters to increase density.
+    if (this.viewportColumns === 1) return true;
     return !this.isSingleColumn || (this.isSingleColumn && this.args.nodes.length <= 20);
   }
 
@@ -124,6 +135,7 @@ export default class TopoViz extends Component {
   @action
   captureElement(element) {
     this.element = element;
+    this.determineViewportColumns();
   }
 
   @action
@@ -139,6 +151,19 @@ export default class TopoViz extends Component {
     }
 
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
+  }
+
+  @action showTooltip(allocation, element) {
+    const bbox = element.getBoundingClientRect();
+    this.highlightAllocation = allocation;
+    this.tooltipProps = {
+      left: window.scrollX + bbox.left + bbox.width / 2,
+      top: window.scrollY + bbox.top,
+    };
+  }
+
+  @action hideTooltip() {
+    this.highlightAllocation = null;
   }
 
   @action
@@ -177,11 +202,21 @@ export default class TopoViz extends Component {
         });
       }
 
-      this.computedActiveEdges();
+      // Only show the lines if the selected allocations are sparse (low count relative to the client count).
+      if (newAllocations.length < this.args.nodes.length * 0.75) {
+        this.computedActiveEdges();
+      } else {
+        this.activeEdges = [];
+      }
     }
     if (this.args.onAllocationSelect)
       this.args.onAllocationSelect(this.activeAllocation && this.activeAllocation.allocation);
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
+  }
+
+  @action
+  determineViewportColumns() {
+    this.viewportColumns = this.element.clientWidth < 900 ? 1 : 2;
   }
 
   @action
@@ -229,7 +264,7 @@ export default class TopoViz extends Component {
       });
 
       this.activeEdges = curves.map(curve => path(curve));
-      this.edgeOffset = { x: window.visualViewport.pageLeft, y: window.visualViewport.pageTop };
+      this.edgeOffset = { x: window.scrollX, y: window.scrollY };
     });
   }
 }

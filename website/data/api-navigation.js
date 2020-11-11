@@ -26,6 +26,7 @@ export default [
   'operator',
   'plugins',
   'quotas',
+  'recommendations',
   'regions',
   'scaling-policies',
   'search',

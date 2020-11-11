@@ -1,0 +1,25 @@
+---
+layout: docs
+page_title: 'Commands: event'
+sidebar_title: event <sup>Beta</sup>
+description: |
+  The event command is used to interact with event sinks.
+---
+
+# Command: event
+
+The `event` command is used to interact with event sinks.
+
+## Usage
+
+Usage: `nomad event sink <subcommand> [options]`
+
+Run `nomad event sink <subcommand> -h` for help on that subcommand. The following subcommands are available.
+
+- [`event sink deregister`][sink-deregister] - Deregister an event sink.
+- [`event sink list`][sink-list] - List all registered event sinks.
+- [`event sink register`][sink-register] - Register or update an event sink.
+
+[sink-deregister]: /docs/commands/event/sink-deregister 'Deregister an event sink'
+[sink-list]: /docs/commands/event/sink-list 'List a event sinks'
+[sink-register]: /docs/commands/event/sink-register 'Register or update an event sink'

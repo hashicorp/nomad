@@ -9,9 +9,10 @@ description: >
 
 # Nomad Autoscaler Scaling Policies
 
-Nomad Autoscaler scaling policies can be configured via the
-[task group `scaling` stanza][jobspec_scaling_stanza] or by configuration
-files stored on disk.
+Nomad Autoscaler scaling policies can be configured via the [`scaling` stanza][jobspec_scaling_stanza]
+or by configuration files stored on disk. The options available differ whether
+you are performing horizontal application/cluster scaling or Dynamic Application
+Sizing.
 
 ## Top Level Options
 
@@ -24,7 +25,10 @@ files stored on disk.
 - `max` - The maximum running count of the targeted resource. This can be 0 or any
   positive integer.
 
-## `policy` Options
+## Task Group and Cluster Scaling `policy` Options
+
+The following options are available when using the Nomad Autoscaler to perform
+horizontal application scaling or horizontal cluster scaling.
 
 - `cooldown` - A time interval after a scaling action during which no additional
   scaling will be performed on the resource. It should be provided as a duration
@@ -83,6 +87,68 @@ policy {
 
     strategy "target_value" {
       target = 10
+    }
+  }
+}
+```
+
+## Task (DAS) `policy` Options
+
+~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+Enterprise. This is not present in the open source version of Nomad Autoscaler.
+
+The following options are available when using the Nomad Autoscaler Enterprise
+to perform Dynamic Application Sizing recommendations for task resources. When
+using the [`scaling` stanza][jobspec_scaling_stanza] for Dynamic Application
+Sizing, the stanza requires a label to identify which resource it relates to. It
+currently supports `cpu` and `mem` labels, examples of which can be seen below.
+
+- `cooldown` - A time interval after a scaling action during which no additional
+  scaling will be performed on the resource. It should be provided as a duration
+  (e.g.: `"5s"`, `"1m"`). If omitted the configuration value
+  [policy_default_cooldown][policy_default_cooldown_agent] from the agent will
+  be used.
+
+- `evaluation_interval` - Defines how often the policy is evaluated by the
+  Autoscaler. It should be provided as a duration (e.g.: `"5s"`, `"1m"`). If
+  omitted the configuration value [default_evaluation_interval][eval_interval_agent]
+  from the agent will be used.
+
+- `target` - Defines where the autoscaling target is running. Detailed information
+  on the configuration options can be found on the [Target Plugins][target_plugin_docs]
+  page.
+
+- `check` - Specifies one check to be executed when determining if a recommendation
+  is required. Only one check is permitted per scaling block within Dynamic
+  Application Sizing.
+
+## `check` Options
+
+- `strategy` - The strategy to use, and it's configuration when calculating the
+  desired state based on the current value and the available historic data. Detailed
+  information on the configuration options can be found on the
+  [Strategy Plugins][strategy_plugin_docs] page.
+
+### Example
+
+The following examples are minimal blocks which can be used to configure CPU and
+Memory based sizing recommendations for a Nomad job task.
+
+```hcl
+scaling "cpu" {
+  policy {
+    check "96pct" {
+      strategy "app-sizing-percentile" {
+        percentile = "96"
+      }
+    }
+  }
+}
+
+scaling "mem" {
+  policy {
+    check "max" {
+      strategy "app-sizing-max" {}
     }
   }
 }

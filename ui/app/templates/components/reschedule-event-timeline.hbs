@@ -7,7 +7,7 @@
   {{/if}}
   {{#if @allocation.hasStoppedRescheduling}}
     <li class="timeline-note" data-test-stop-warning>
-      {{x-icon "warning" class="is-warning is-text"}} Nomad has stopped attempting to reschedule this allocation.
+      {{x-icon "alert-triangle" class="is-warning is-text"}} Nomad has stopped attempting to reschedule this allocation.
     </li>
   {{/if}}
   {{#if (and @allocation.followUpEvaluation.waitUntil (not @allocation.nextAllocation))}}

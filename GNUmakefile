@@ -171,7 +171,7 @@ deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
 	GO111MODULE=on cd tools && go get github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	GO111MODULE=on cd tools && go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
-	GO111MODULE=on cd tools && go get github.com/a8m/tree/cmd/tree
+	GO111MODULE=on cd tools && go get github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
 	GO111MODULE=on cd tools && go get gotest.tools/gotestsum@v0.4.2
 	GO111MODULE=on cd tools && go get github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	GO111MODULE=on cd tools && go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
@@ -240,11 +240,21 @@ generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
 
+## The ",M<path/to/proto>=<package name>" below is required to tell
+## protoc-gen-go what the import path for a given proto file should be. This is
+## necessary when a proto file foo/a.proto imports a proto file from another
+## directory, e.g. bar/b.proto
 .PHONY: proto
 proto:
 	@echo "--> Generating proto bindings..."
 	@for file in $$(git ls-files "*.proto" | grep -E -v -- "vendor\/.*.proto|demo\/.*.proto"); do \
-		protoc -I . -I $(shell go env GOPATH)/src --go_out=plugins=grpc:. $$file; \
+		protoc -I . --go_out=plugins=grpc\
+	,Mplugins/shared/hclspec/hcl_spec.proto=github.com/hashicorp/nomad/plugins/shared/hclspec\
+	,Mplugins/shared/structs/proto/stats.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
+	,Mplugins/shared/structs/proto/attribute.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
+	,Mplugins/shared/structs/proto/recoverable_error.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
+	,Mplugins/drivers/proto/driver.proto=github.com/hashicorp/nomad/plugins/drivers/proto\
+	:. $$file; \
 	done
 
 .PHONY: generate-examples

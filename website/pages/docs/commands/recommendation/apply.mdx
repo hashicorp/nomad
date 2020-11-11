@@ -1,0 +1,68 @@
+---
+layout: docs
+page_title: 'Commands: recommendation apply'
+sidebar_title: apply
+description: |
+  The recommendation apply command is used to apply recommendations.
+---
+
+# Command: recommendation apply
+
+The `recommendation apply` command is used to apply recommendations.
+
+~> Recommendation commands are new in Nomad 1.0 and are only available with
+Nomad Enterprise.
+
+## Usage
+
+```plaintext
+nomad recommendation apply [options] <recommendation_ids>
+```
+
+The `recommendation apply` command requires at least one recommendation ID to
+be passed to it. Multiple IDs can be passed, with each recommendation ID
+separated from the next by a space.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Apply Options
+
+- `-detach`: Return immediately instead of entering monitor mode. After applying
+  a recommendation, the evaluation ID will be printed to the screen, which can
+  be used to examine the evaluation using the [`eval status`][/docs/commands/eval-status] command. If applying
+  recommendations for multiple jobs, this value will always be true.
+
+- `-policy-override`: If set, any soft mandatory Sentinel policies will be
+  overridden. This allows a recommendation to be applied when it would be denied
+  by a policy.
+
+- `-verbose`: Display full information.
+
+## Examples
+
+Apply a single recommendation and enter monitor mode:
+
+```shell-session
+$ nomad recommendation apply a9c041c5-3c04-aa24-bd55-0a80cded4f10
+==> Monitoring evaluation "529cc88e"
+    Evaluation triggered by job "job1"
+    Evaluation within deployment: "28a3378f"
+    Allocation "2a4df8ca" created: node "2f0a2f93", group "group1"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "529cc88e" finished with status "complete"
+```
+
+Apply multiple recommendations for different jobs:
+
+```shell-session
+$ nomad recommendation apply a9c041c5-3c04-aa24-bd55-0a80cded4f10 811900b6-da11-ef08-f515-f5e6684007a8
+Errors
+None
+
+Results
+IDs                                   Namespace  Job ID   Eval ID                               Warnings
+a9c041c5-3c04-aa24-bd55-0a80cded4f10  default    example  7c39ad13-0246-ab8e-6c50-9f3ee500bf5f  <none>
+811900b6-da11-ef08-f515-f5e6684007a8  default    demoapp  68236421-c90f-efa6-fc02-37ae2d59bf03  <none>
+```

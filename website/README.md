@@ -48,7 +48,7 @@ The docker image is pre-built with all the website dependencies installed, which
 
 ### With Node
 
-If your local development environment has a supported version (v10.0.0+) of [node installed](https://nodejs.org/en/) you can run:
+If your local development environment has a supported version (v12.0.0+) of [node installed](https://nodejs.org/en/) you can run:
 
 - `npm install`
 - `npm start`
@@ -145,6 +145,7 @@ $ curl ...
 
 </Tab>
 </Tabs>
+
 
 Contined normal markdown content
 ````

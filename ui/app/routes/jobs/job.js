@@ -7,6 +7,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class JobRoute extends Route {
+  @service can;
   @service store;
   @service token;
 
@@ -20,10 +21,17 @@ export default class JobRoute extends Route {
     const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
+
     return this.store
       .findRecord('job', fullId, { reload: true })
       .then(job => {
-        return RSVP.all([job.get('allocations'), job.get('evaluations')]).then(() => job);
+        const relatedModelsQueries = [job.get('allocations'), job.get('evaluations')];
+
+        if (this.can.can('accept recommendation')) {
+          relatedModelsQueries.push(job.get('recommendationSummaries'));
+        }
+
+        return RSVP.all(relatedModelsQueries).then(() => job);
       })
       .catch(notifyError(this));
   }
