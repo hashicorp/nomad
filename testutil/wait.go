@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/hashicorp/nomad/client"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	testing "github.com/mitchellh/go-testing-interface"
@@ -92,6 +94,24 @@ func WaitForLeader(t testing.T, rpc rpcFn) {
 		return leader != "", err
 	}, func(err error) {
 		t.Fatalf("failed to find leader: %v", err)
+	})
+}
+
+// WaitForClient waits for a client to connect to the specified server
+func WaitForClient(t testing.T, server *nomad.Server, client *client.Client) {
+	t.Helper()
+	WaitForResult(func() (bool, error) {
+		node, err := server.State().NodeByID(nil, client.NodeID())
+		if err != nil {
+			return false, err
+		}
+		if node == nil {
+			return false, fmt.Errorf("no node")
+		}
+
+		return node.Status == structs.NodeStatusReady, fmt.Errorf("wrong status: %s", node.Status)
+	}, func(err error) {
+		t.Fatalf("should have a client: %v", err)
 	})
 }
 
