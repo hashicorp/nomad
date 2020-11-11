@@ -10,6 +10,7 @@ import {
 } from 'ember-cli-page-object';
 
 import recommendationCard from 'nomad-ui/tests/pages/components/recommendation-card';
+import facet from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   visit: visitable('/optimize'),
@@ -21,6 +22,18 @@ export default create({
 
   breadcrumbFor(id) {
     return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
+  },
+
+  search: {
+    scope: '[data-test-recommendation-summaries-search] input',
+    placeholder: attribute('placeholder'),
+  },
+
+  facets: {
+    type: facet('[data-test-type-facet]'),
+    status: facet('[data-test-status-facet]'),
+    datacenter: facet('[data-test-datacenter-facet]'),
+    prefix: facet('[data-test-prefix-facet]'),
   },
 
   card: recommendationCard,

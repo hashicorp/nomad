@@ -47,6 +47,6 @@ export default class RecommendationSummary extends Model {
   }
 
   get slug() {
-    return `${this.jobId}/${this.taskGroupName}`;
+    return `${get(this, 'job.name')}/${this.taskGroupName}`;
   }
 }
