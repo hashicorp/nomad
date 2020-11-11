@@ -9201,7 +9201,7 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 
 	iter, err := state.ScalingPoliciesByJob(nil,
 		policyA.Target[structs.ScalingTargetNamespace],
-		policyA.Target[structs.ScalingTargetJob])
+		policyA.Target[structs.ScalingTargetJob], "")
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -9223,7 +9223,7 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 
 	iter, err = state.ScalingPoliciesByJob(nil,
 		policyB1.Target[structs.ScalingTargetNamespace],
-		policyB1.Target[structs.ScalingTargetJob])
+		policyB1.Target[structs.ScalingTargetJob], "")
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -9267,7 +9267,7 @@ func TestStateStore_ScalingPoliciesByJob_PrefixBug(t *testing.T) {
 
 	iter, err := state.ScalingPoliciesByJob(nil,
 		policy1.Target[structs.ScalingTargetNamespace],
-		jobPrefix)
+		jobPrefix, "")
 	require.NoError(err)
 
 	// Ensure we see expected policies
