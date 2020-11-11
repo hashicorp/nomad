@@ -33,7 +33,11 @@ func TestRecommendationInfoCommand_Run(t *testing.T) {
 	})
 
 	ui := cli.NewMockUi()
-	cmd := &RecommendationInfoCommand{Meta: Meta{Ui: ui}}
+	cmd := &RecommendationInfoCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{Ui: ui},
+		},
+	}
 
 	// Perform an initial call, which should return a not found error.
 	code := cmd.Run([]string{"-address=" + url, "2c13f001-f5b6-ce36-03a5-e37afe160df5"})
@@ -84,10 +88,17 @@ func TestRecommendationInfoCommand_Run(t *testing.T) {
 }
 
 func TestRecommendationInfoCommand_AutocompleteArgs(t *testing.T) {
-	srv, client, url := testServer(t, true, nil)
+	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	cmd := RecommendationInfoCommand{Meta: Meta{Ui: ui, flagAddress: url}}
-	testRecommendationAutocompleteCommand(t, client, srv, ui, &cmd.RecommendationAutocompleteCommand)
+	cmd := RecommendationInfoCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{
+				Ui:          ui,
+				flagAddress: url,
+			},
+		},
+	}
+	testRecommendationAutocompleteCommand(t, client, srv, &cmd.RecommendationAutocompleteCommand)
 }

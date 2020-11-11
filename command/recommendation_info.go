@@ -14,7 +14,6 @@ var _ cli.Command = &RecommendationInfoCommand{}
 
 // RecommendationInfoCommand implements cli.Command.
 type RecommendationInfoCommand struct {
-	Meta
 	RecommendationAutocompleteCommand
 }
 
