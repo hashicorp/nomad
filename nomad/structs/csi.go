@@ -226,6 +226,7 @@ const (
 	CSIVolumeClaimStateNodeDetached
 	CSIVolumeClaimStateControllerDetached
 	CSIVolumeClaimStateReadyToFree
+	CSIVolumeClaimStateUnpublishing
 )
 
 // CSIVolume is the full representation of a CSI Volume
@@ -443,15 +444,17 @@ func (v *CSIVolume) Copy() *CSIVolume {
 
 // Claim updates the allocations and changes the volume state
 func (v *CSIVolume) Claim(claim *CSIVolumeClaim, alloc *Allocation) error {
-	switch claim.Mode {
-	case CSIVolumeClaimRead:
-		return v.ClaimRead(claim, alloc)
-	case CSIVolumeClaimWrite:
-		return v.ClaimWrite(claim, alloc)
-	case CSIVolumeClaimRelease:
-		return v.ClaimRelease(claim)
+
+	if claim.State == CSIVolumeClaimStateTaken {
+		switch claim.Mode {
+		case CSIVolumeClaimRead:
+			return v.ClaimRead(claim, alloc)
+		case CSIVolumeClaimWrite:
+			return v.ClaimWrite(claim, alloc)
+		}
 	}
-	return nil
+	// either GC or a Unpublish checkpoint
+	return v.ClaimRelease(claim)
 }
 
 // ClaimRead marks an allocation as using a volume read-only
@@ -633,7 +636,11 @@ type CSIVolumeClaimMode int
 const (
 	CSIVolumeClaimRead CSIVolumeClaimMode = iota
 	CSIVolumeClaimWrite
-	CSIVolumeClaimRelease
+
+	// for GC we don't have a specific claim to set the state on, so instead we
+	// create a new claim for GC in order to bump the ModifyIndex and trigger
+	// volumewatcher
+	CSIVolumeClaimGC
 )
 
 type CSIVolumeClaimBatchRequest struct {

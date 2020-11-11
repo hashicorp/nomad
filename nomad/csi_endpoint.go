@@ -368,10 +368,13 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return fmt.Errorf("missing volume ID")
 	}
 
+	isNewClaim := args.Claim != structs.CSIVolumeClaimGC &&
+		args.State == structs.CSIVolumeClaimStateTaken
+
 	// COMPAT(1.0): the NodeID field was added after 0.11.0 and so we
 	// need to ensure it's been populated during upgrades from 0.11.0
 	// to later patch versions. Remove this block in 1.0
-	if args.Claim != structs.CSIVolumeClaimRelease && args.NodeID == "" {
+	if isNewClaim && args.NodeID == "" {
 		state := v.srv.fsm.State()
 		ws := memdb.NewWatchSet()
 		alloc, err := state.AllocByID(ws, args.AllocationID)
@@ -385,7 +388,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		args.NodeID = alloc.NodeID
 	}
 
-	if args.Claim != structs.CSIVolumeClaimRelease {
+	if isNewClaim {
 		// if this is a new claim, add a Volume and PublishContext from the
 		// controller (if any) to the reply
 		err = v.controllerPublishVolume(args, reply)
@@ -548,7 +551,6 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	}
 
 	claim := args.Claim
-	claim.Mode = structs.CSIVolumeClaimRelease
 
 	// previous checkpoints may have set the past claim state already.
 	// in practice we should never see CSIVolumeClaimStateControllerDetached

@@ -2951,7 +2951,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	// Claims
 	r := structs.CSIVolumeClaimRead
 	w := structs.CSIVolumeClaimWrite
-	u := structs.CSIVolumeClaimRelease
+	u := structs.CSIVolumeClaimGC
 	claim0 := &structs.CSIVolumeClaim{
 		AllocationID: a0.ID,
 		NodeID:       node.ID,

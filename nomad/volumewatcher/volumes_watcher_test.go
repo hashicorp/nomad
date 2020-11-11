@@ -35,7 +35,10 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	err := srv.State().CSIVolumeRegister(index, []*structs.CSIVolume{vol})
 	require.NoError(err)
 
-	claim := &structs.CSIVolumeClaim{Mode: structs.CSIVolumeClaimRelease}
+	claim := &structs.CSIVolumeClaim{
+		Mode:  structs.CSIVolumeClaimGC,
+		State: structs.CSIVolumeClaimStateNodeDetached,
+	}
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
 	require.NoError(err)
@@ -147,7 +150,6 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	claim = &structs.CSIVolumeClaim{
 		AllocationID: alloc1.ID,
 		NodeID:       node.ID,
-		Mode:         structs.CSIVolumeClaimRelease,
 	}
 	index++
 	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
