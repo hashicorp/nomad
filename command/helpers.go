@@ -458,7 +458,14 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 			ArgVars: vars,
 			AllowFS: true,
 		})
+
+		if err != nil {
+			if _, merr := jobspec.Parse(&buf); merr == nil {
+				return nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
+			}
+		}
 	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}
