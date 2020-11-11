@@ -655,17 +655,23 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"recommendation apply": func() (cli.Command, error) {
 			return &RecommendationApplyCommand{
-				Meta: meta,
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 		"recommendation dismiss": func() (cli.Command, error) {
 			return &RecommendationDismissCommand{
-				Meta: meta,
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 		"recommendation info": func() (cli.Command, error) {
 			return &RecommendationInfoCommand{
-				Meta: meta,
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 		"recommendation list": func() (cli.Command, error) {

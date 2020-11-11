@@ -36,7 +36,6 @@ func (r *RecommendationAutocompleteCommand) AutocompleteArgs() complete.Predicto
 
 // RecommendationDismissCommand implements cli.Command.
 type RecommendationDismissCommand struct {
-	Meta
 	RecommendationAutocompleteCommand
 }
 
