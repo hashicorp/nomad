@@ -246,7 +246,7 @@ generate-structs: ## Update generated code
 .PHONY: proto
 proto:
 	@echo "--> Generating proto bindings..."
-	buf generate
+	@buf generate
 
 .PHONY: generate-examples
 generate-examples: command/job_init.bindata_assetfs.go
