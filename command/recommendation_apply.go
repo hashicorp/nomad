@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -15,6 +16,7 @@ var _ cli.Command = &RecommendationApplyCommand{}
 // RecommendationApplyCommand implements cli.Command.
 type RecommendationApplyCommand struct {
 	Meta
+	RecommendationAutocompleteCommand
 }
 
 // Help satisfies the cli.Command Help function.

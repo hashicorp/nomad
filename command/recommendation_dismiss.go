@@ -6,14 +6,38 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+
+	"github.com/hashicorp/nomad/api/contexts"
 )
 
 // Ensure RecommendationDismissCommand satisfies the cli.Command interface.
 var _ cli.Command = &RecommendationDismissCommand{}
 
+// RecommendationAutocompleteCommand provides AutocompleteArgs for all
+// recommendation commands that support prefix-search autocompletion
+type RecommendationAutocompleteCommand struct {
+	Meta
+}
+
+func (r *RecommendationAutocompleteCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := r.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Recommendations, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Recommendations]
+	})
+}
+
 // RecommendationDismissCommand implements cli.Command.
 type RecommendationDismissCommand struct {
 	Meta
+	RecommendationAutocompleteCommand
 }
 
 // Help satisfies the cli.Command Help function.

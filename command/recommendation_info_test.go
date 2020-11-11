@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestRecommendationInfoCommand_Run(t *testing.T) {
@@ -80,4 +81,13 @@ func TestRecommendationInfoCommand_Run(t *testing.T) {
 		require.Contains(out, "1.13")
 		require.Contains(out, recResp.ID)
 	}
+}
+
+func TestRecommendationInfoCommand_AutocompleteArgs(t *testing.T) {
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := RecommendationInfoCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	testRecommendationAutocompleteCommand(t, client, srv, ui, &cmd.RecommendationAutocompleteCommand)
 }
