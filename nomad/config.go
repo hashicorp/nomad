@@ -323,8 +323,8 @@ type Config struct {
 	AutopilotInterval time.Duration
 
 	// DefaultSchedulerConfig configures the initial scheduler config to be persisted in Raft.
-	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API),
-	// This value is ignored.
+	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API)
+	// and this value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
 	// PluginLoader is used to load plugins.
@@ -433,9 +433,10 @@ func DefaultConfig() *Config {
 		DefaultSchedulerConfig: structs.SchedulerConfiguration{
 			SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
 			PreemptionConfig: structs.PreemptionConfig{
-				SystemSchedulerEnabled:  true,
-				BatchSchedulerEnabled:   false,
-				ServiceSchedulerEnabled: false,
+				SystemSchedulerEnabled:   true,
+				SysBatchSchedulerEnabled: false,
+				BatchSchedulerEnabled:    false,
+				ServiceSchedulerEnabled:  false,
 			},
 		},
 	}

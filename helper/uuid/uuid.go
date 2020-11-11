@@ -19,3 +19,9 @@ func Generate() string {
 		buf[8:10],
 		buf[10:16])
 }
+
+// Short is used to generate a random shortened UUID.
+func Short() string {
+	id := Generate()
+	return id[len(id)-8:]
+}

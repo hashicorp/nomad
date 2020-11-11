@@ -282,6 +282,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 
 		// Only system jobs can preempt other jobs by default.
 		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(out.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 		require.False(out.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
 		require.False(out.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 	})
@@ -314,6 +315,8 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		err = s.RPC("Operator.SchedulerGetConfiguration", &args, &reply)
 		require.Nil(err)
 		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
 		require.True(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 	})
 }
@@ -324,6 +327,7 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 		require := require.New(t)
 		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
                      "SystemSchedulerEnabled": true,
+                     "SysBatchSchedulerEnabled":true,
                      "BatchSchedulerEnabled":true
         }}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
@@ -346,7 +350,9 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.True(reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 		require.True(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 
 		// Create a CAS request, bad index
 		{
@@ -387,7 +393,9 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 		require.False(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 	})
 }
 

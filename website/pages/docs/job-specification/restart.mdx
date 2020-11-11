@@ -14,7 +14,7 @@ description: The "restart" stanza configures a group's behavior on task failure.
   ]}
 />
 
-The `restart` stanza configures a tasks's behavior on task failure. Restarts
+The `restart` stanza configures a task's behavior on task failure. Restarts
 happen on the client that is running the task.
 
 ```hcl
@@ -36,9 +36,9 @@ For example, assuming that the task group restart policy is:
 
 ```hcl
 restart {
-  interval = "30m"
   attempts = 2
   delay    = "15s"
+  interval = "30m"
   mode     = "fail"
 }
 ```
@@ -55,9 +55,9 @@ then the effective restart policy for the task will be:
 
 ```hcl
 restart {
-  interval = "30m"
   attempts = 5
   delay    = "15s"
+  interval = "30m"
   mode     = "fail"
 }
 ```
@@ -87,7 +87,7 @@ restart {
 The values for many of the `restart` parameters vary by job type. Here are the
 defaults by job type:
 
-- The default batch restart policy is:
+- The default restart policy for `batch` jobs is:
 
   ```hcl
   restart {
@@ -98,13 +98,13 @@ defaults by job type:
   }
   ```
 
-- The default service and system job restart policy is:
+- The default restart policy for `service`, `system`, and `sysbatch` jobs is:
 
   ```hcl
   restart {
-    interval = "30m"
     attempts = 2
     delay    = "15s"
+    interval = "30m"
     mode     = "fail"
   }
   ```

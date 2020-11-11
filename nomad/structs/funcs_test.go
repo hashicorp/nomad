@@ -335,8 +335,8 @@ func TestAllocsFit(t *testing.T) {
 				DiskMB: 5000,
 				Networks: Networks{
 					{
-						Mode: "host",
-						IP: "10.0.0.1",
+						Mode:          "host",
+						IP:            "10.0.0.1",
 						ReservedPorts: []Port{{"main", 8000, 0, ""}},
 					},
 				},

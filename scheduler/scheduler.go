@@ -21,9 +21,10 @@ const (
 // BuiltinSchedulers contains the built in registered schedulers
 // which are available
 var BuiltinSchedulers = map[string]Factory{
-	"service": NewServiceScheduler,
-	"batch":   NewBatchScheduler,
-	"system":  NewSystemScheduler,
+	"service":  NewServiceScheduler,
+	"batch":    NewBatchScheduler,
+	"system":   NewSystemScheduler,
+	"sysbatch": NewSysBatchScheduler,
 }
 
 // NewScheduler is used to instantiate and return a new scheduler
