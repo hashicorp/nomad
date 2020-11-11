@@ -1,0 +1,40 @@
+---
+layout: docs
+page_title: setintersection - Functions - Configuration Language
+sidebar_title: setintersection
+description: |-
+  The setintersection function takes multiple sets and produces a single set
+  containing only the elements that all of the given sets have in common.
+---
+
+# `setintersection` Function
+
+The `setintersection` function takes multiple sets and produces a single set
+containing only the elements that all of the given sets have in common.
+In other words, it computes the
+[intersection](<https://en.wikipedia.org/wiki/Intersection_(set_theory)>) of the sets.
+
+```hcl
+setintersection(sets...)
+```
+
+## Examples
+
+```shell-session
+> setintersection(["a", "b"], ["b", "c"], ["b", "d"])
+[
+  "b",
+]
+```
+
+The given arguments are converted to sets, so the result is also a set and
+the ordering of the given elements is not preserved.
+
+## Related Functions
+
+- [`contains`](/docs/job-specification/hcl2/functions/collection/contains) tests whether a given list or set contains
+  a given element value.
+- [`setproduct`](/docs/job-specification/hcl2/functions/collection/setproduct) computes the _Cartesian product_ of multiple
+  sets.
+- [`setunion`](/docs/job-specification/hcl2/functions/collection/setunion) computes the _union_ of
+  multiple sets.

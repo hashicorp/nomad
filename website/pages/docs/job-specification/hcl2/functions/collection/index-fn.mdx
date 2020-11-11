@@ -1,0 +1,29 @@
+---
+layout: docs
+page_title: index - Functions - Configuration Language
+sidebar_title: index
+description: The index function finds the element index for a given value in a list.
+---
+
+# `index` Function
+
+`index` finds the element index for a given value in a list.
+
+```hcl
+index(list, value)
+```
+
+The returned index is zero-based. This function produces an error if the given
+value is not present in the list.
+
+## Examples
+
+```shell-session
+> index(["a", "b", "c"], "b")
+1
+```
+
+## Related Functions
+
+- [`element`](/docs/job-specification/hcl2/functions/collection/element) retrieves a particular element from a list given
+  its index.
