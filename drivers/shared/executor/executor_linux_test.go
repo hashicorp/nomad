@@ -571,3 +571,46 @@ func TestExecutor_cmdMounts(t *testing.T) {
 
 	require.EqualValues(t, expected, cmdMounts(input))
 }
+
+// TestUniversalExecutor_NoCgroup asserts that commands are executed in the
+// same cgroup as parent process
+func TestUniversalExecutor_NoCgroup(t *testing.T) {
+	t.Parallel()
+	testutil.ExecCompatible(t)
+
+	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
+	require.NoError(t, err)
+
+	expected := strings.TrimSpace(string(expectedBytes))
+
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/cat"
+	execCmd.Args = []string{"/proc/self/cgroup"}
+	defer allocDir.Destroy()
+
+	execCmd.BasicProcessCgroup = false
+	execCmd.ResourceLimits = false
+
+	executor := NewExecutor(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	_, err = executor.Launch(execCmd)
+	require.NoError(t, err)
+
+	_, err = executor.Wait(context.Background())
+	require.NoError(t, err)
+
+	tu.WaitForResult(func() (bool, error) {
+		act := strings.TrimSpace(string(testExecCmd.stdout.String()))
+		if expected != act {
+			return false, fmt.Errorf("expected:\n%s actual:\n%s", expected, act)
+		}
+		return true, nil
+	}, func(err error) {
+		stderr := strings.TrimSpace(string(testExecCmd.stderr.String()))
+		t.Logf("stderr: %v", stderr)
+		require.NoError(t, err)
+	})
+
+}
