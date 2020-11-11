@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -17,6 +16,7 @@ var _ cli.Command = &RecommendationApplyCommand{}
 // RecommendationApplyCommand implements cli.Command.
 type RecommendationApplyCommand struct {
 	Meta
+	RecommendationAutocompleteCommand
 }
 
 // Help satisfies the cli.Command Help function.
@@ -60,21 +60,6 @@ func (r *RecommendationApplyCommand) AutocompleteFlags() complete.Flags {
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
 		})
-}
-
-func (r *RecommendationApplyCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := r.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Recommendations, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Recommendations]
-	})
 }
 
 // Name returns the name of this command.

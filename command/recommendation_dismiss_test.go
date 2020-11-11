@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -84,15 +85,21 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 }
 
 func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {
-	assert := assert.New(t)
-	t.Parallel()
-
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	// Register a test job to write a recommendation against.
 	ui := cli.NewMockUi()
-	testJob := testJob("recommendation_list")
+	cmd := &RecommendationDismissCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	testRecommendationAutocompleteCommand(t, client, srv, ui, &cmd.RecommendationAutocompleteCommand)
+}
+
+func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv *agent.TestAgent, ui *cli.MockUi, cmd *RecommendationAutocompleteCommand) {
+	assert := assert.New(t)
+	t.Parallel()
+
+	// Register a test job to write a recommendation against.
+	testJob := testJob("recommendation_autocomplete")
 	regResp, _, err := client.Jobs().Register(testJob, nil)
 	require.NoError(t, err)
 	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
@@ -116,7 +123,6 @@ func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {
 		return
 	}
 
-	cmd := &RecommendationDismissCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	prefix := rec.ID[:5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()

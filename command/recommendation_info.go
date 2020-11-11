@@ -7,8 +7,6 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-
-	"github.com/hashicorp/nomad/api/contexts"
 )
 
 // Ensure RecommendationInfoCommand satisfies the cli.Command interface.
@@ -17,6 +15,7 @@ var _ cli.Command = &RecommendationInfoCommand{}
 // RecommendationInfoCommand implements cli.Command.
 type RecommendationInfoCommand struct {
 	Meta
+	RecommendationAutocompleteCommand
 }
 
 // Help satisfies the cli.Command Help function.
@@ -52,21 +51,6 @@ func (r *RecommendationInfoCommand) AutocompleteFlags() complete.Flags {
 			"-json": complete.PredictNothing,
 			"-t":    complete.PredictAnything,
 		})
-}
-
-func (r *RecommendationInfoCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := r.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Recommendations, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Recommendations]
-	})
 }
 
 // Name returns the name of this command.

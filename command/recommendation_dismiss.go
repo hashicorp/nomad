@@ -13,9 +13,31 @@ import (
 // Ensure RecommendationDismissCommand satisfies the cli.Command interface.
 var _ cli.Command = &RecommendationDismissCommand{}
 
+// RecommendationAutocompleteCommand provides AutocompleteArgs for all
+// recommendation commands that support prefix-search autocompletion
+type RecommendationAutocompleteCommand struct {
+	Meta
+}
+
+func (r *RecommendationAutocompleteCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := r.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Recommendations, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Recommendations]
+	})
+}
+
 // RecommendationDismissCommand implements cli.Command.
 type RecommendationDismissCommand struct {
 	Meta
+	RecommendationAutocompleteCommand
 }
 
 // Help satisfies the cli.Command Help function.
@@ -39,21 +61,6 @@ func (r *RecommendationDismissCommand) Synopsis() string {
 func (r *RecommendationDismissCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(r.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{})
-}
-
-func (r *RecommendationDismissCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := r.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Recommendations, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Recommendations]
-	})
 }
 
 // Name returns the name of this command.
