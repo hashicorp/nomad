@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	pbstream "github.com/hashicorp/nomad/nomad/stream/proto"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
@@ -1007,4 +1008,53 @@ func TestRPC_Limits_Streaming(t *testing.T) {
 	}, func(err error) {
 		require.NoError(t, err)
 	})
+}
+
+func TestRPC_GRPCHandler(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
+		c.BootstrapExpect = 2
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "node1")
+	})
+	defer cleanupS1()
+
+	broker, err := s1.State().EventBroker()
+	require.NoError(err)
+	broker.Publish(&structs.Events{
+		Index:  1,
+		Events: []structs.Event{{Topic: structs.TopicDeployment}},
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	clientPool := &ClientConnPool{}
+
+	conn, err := clientPool.ClientConn(s1.serverRpcAdvertise.String())
+	require.NoError(err)
+
+	t.Cleanup(func() {
+		if err := conn.Close(); err != nil {
+			t.Logf(err.Error())
+		}
+	})
+
+	c := pbstream.NewEventStreamClient(conn)
+	sub, err := c.Subscribe(ctx, &pbstream.SubscribeRequest{
+		Index: 0,
+		Topics: []*pbstream.TopicFilter{
+			{Topic: pbstream.Topic_All},
+		},
+	})
+	require.NoError(err)
+	eventBatch, err := sub.Recv()
+	require.NoError(err)
+
+	require.NotNil(eventBatch)
+	require.Len(eventBatch.Event, 1)
 }

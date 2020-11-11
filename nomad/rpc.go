@@ -316,6 +316,8 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 	case pool.RpcMultiplexV2:
 		r.handleMultiplexV2(ctx, conn, rpcCtx)
 
+	case pool.RpcGRPC:
+		r.Server.grpcHandler.Handle(conn)
 	default:
 		r.logger.Error("unrecognized RPC byte", "byte", buf[0])
 		conn.Close()
@@ -495,6 +497,9 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 		}
 	}
 
+}
+
+func (r *rpcHandler) handleGRPC(conn net.Conn) {
 }
 
 // forward is used to forward to a remote region or to forward to the local leader

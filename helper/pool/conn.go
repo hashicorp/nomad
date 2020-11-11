@@ -12,4 +12,6 @@ const (
 	// RpcMultiplexV2 allows a multiplexed connection to switch modes between
 	// RpcNomad and RpcStreaming per opened stream.
 	RpcMultiplexV2 = 0x06
+
+	RpcGRPC = 0x07
 )

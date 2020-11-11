@@ -33,6 +33,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/stream"
+	pbstream "github.com/hashicorp/nomad/nomad/stream/proto"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
@@ -40,6 +42,7 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -137,6 +140,8 @@ type Server struct {
 
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
+
+	grpcHandler connHandler
 
 	// clientRpcAdvertise is the advertised RPC address for Nomad clients to connect
 	// to this server
@@ -288,6 +293,12 @@ type endpoints struct {
 	Agent             *Agent
 	ClientAllocations *ClientAllocations
 	ClientCSI         *ClientCSI
+}
+
+type connHandler interface {
+	Run() error
+	Handle(conn net.Conn)
+	Shutdown() error
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -443,6 +454,25 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Start ingesting events for Serf
 	go s.serfEventHandler()
+
+	// handler := NewHandler(s.rpc)
+	broker, err := s.State().EventBroker()
+	if err != nil {
+		s.logger.Error("failed to retrieve event broker", "error", err)
+		return nil, fmt.Errorf("failed to retrieve event broker %v", err)
+	}
+
+	register := func(srv *grpc.Server) {
+		pbstream.RegisterEventStreamServer(srv, stream.NewSinkServer(broker))
+	}
+
+	s.grpcHandler = NewHandler(s.config.RPCAddr, register)
+
+	go func() {
+		if err := s.grpcHandler.Run(); err != nil {
+			s.logger.Error("gRPC server failed", "error", err)
+		}
+	}()
 
 	// start the RPC listener for the server
 	s.startRPCListener()
