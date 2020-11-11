@@ -1381,6 +1381,53 @@ func TestDockerDriver_DNS(t *testing.T) {
 
 }
 
+func TestDockerDriver_CPUSetCPUs(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support CPUSetCPUs.")
+	}
+
+	testCases := []struct {
+		Name       string
+		CPUSetCPUs string
+	}{
+		{
+			Name:       "Single CPU",
+			CPUSetCPUs: "0",
+		},
+		{
+			Name:       "Comma separated list of CPUs",
+			CPUSetCPUs: "0,1",
+		},
+		{
+			Name:       "Range of CPUs",
+			CPUSetCPUs: "0-1",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			task, cfg, ports := dockerTask(t)
+			defer freeport.Return(ports)
+
+			cfg.CPUSetCPUs = testCase.CPUSetCPUs
+			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			client, d, handle, cleanup := dockerSetup(t, task, nil)
+			defer cleanup()
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+			container, err := client.InspectContainer(handle.containerID)
+			require.NoError(t, err)
+
+			require.Equal(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
+		})
+	}
+}
+
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()

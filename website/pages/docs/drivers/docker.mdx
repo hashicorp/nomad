@@ -77,6 +77,20 @@ The `docker` driver supports the following configuration in the job spec. Only
     command = "my-command"
   }
   ```
+- `cpuset_cpus` - (Optional) CPUs in which to allow execution (0-3, 0,1).
+Limit the specific CPUs or cores a container can use. A comma-separated list
+or hyphen-separated range of CPUs a container can use, if you have more than
+one CPU. The first CPU is numbered 0. A valid value might be 0-3 (to use the
+first, second, third, and fourth CPU) or 1,3 (to use the second and fourth CPU).
+
+Note: `cpuset_cpus` pins the workload to the CPUs but doesn't give the workload
+exclusive access to those CPUs.
+
+  ```hcl
+  config {
+    cpuset_cpus = "0-3"
+  }
+  ```
 
 - `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.

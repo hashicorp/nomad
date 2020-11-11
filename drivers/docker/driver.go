@@ -823,6 +823,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		Runtime: containerRuntime,
 	}
 
+	// This translates to docker create/run --cpuset-cpus option.
+	// --cpuset-cpus limit the specific CPUs or cores a container can use.
+	if driverConfig.CPUSetCPUs != "" {
+		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
+	}
+
 	// Calculate CPU Quota
 	// cfs_quota_us is the time per core, so we must
 	// multiply the time by the number of cores available

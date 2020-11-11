@@ -300,6 +300,7 @@ var (
 		"cap_add":        hclspec.NewAttr("cap_add", "list(string)", false),
 		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
 		"command":        hclspec.NewAttr("command", "string", false),
+		"cpuset_cpus":    hclspec.NewAttr("cpuset_cpus", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
 		"cpu_cfs_period": hclspec.NewDefault(
 			hclspec.NewAttr("cpu_cfs_period", "number", false),
@@ -407,6 +408,7 @@ type TaskConfig struct {
 	Command           string             `codec:"command"`
 	CPUCFSPeriod      int64              `codec:"cpu_cfs_period"`
 	CPUHardLimit      bool               `codec:"cpu_hard_limit"`
+	CPUSetCPUs        string             `codec:"cpuset_cpus"`
 	Devices           []DockerDevice     `codec:"devices"`
 	DNSSearchDomains  []string           `codec:"dns_search_domains"`
 	DNSOptions        []string           `codec:"dns_options"`
