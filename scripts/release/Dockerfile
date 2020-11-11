@@ -24,8 +24,8 @@ RUN /tmp/scripts/vagrant-linux-priv-config.sh
 COPY ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
 RUN /tmp/scripts/vagrant-linux-priv-go.sh
 
-COPY ./scripts/vagrant-linux-priv-protoc.sh /tmp/scripts/vagrant-linux-priv-protoc.sh
-RUN /tmp/scripts/vagrant-linux-priv-protoc.sh
+COPY ./scripts/vagrant-linux-priv-buf.sh /tmp/scripts/vagrant-linux-priv-buf.sh
+RUN /tmp/scripts/vagrant-linux-priv-buf.sh
 
 USER vagrant
 
