@@ -6,20 +6,54 @@ build:
     - vendor
 lint:
   use:
-    - BASIC
-    - FILE_LOWER_SNAKE_CASE
-  except:
-    - ENUM_NO_ALLOW_ALIAS
-    - IMPORT_NO_PUBLIC
-    - PACKAGE_AFFINITY
-    - PACKAGE_DIRECTORY_MATCH
-    - PACKAGE_SAME_DIRECTORY
+    - DEFAULT
   ignore_only:
-    FIELD_LOWER_SNAKE_CASE:
+    ENUM_NO_ALLOW_ALIAS:
+      - plugins/drivers/proto/driver.proto
+    ENUM_VALUE_PREFIX:
+      - plugins/base/proto/base.proto
+      - plugins/drivers/proto/driver.proto
+    ENUM_ZERO_VALUE_SUFFIX:
+      - plugins/base/proto/base.proto
+      - plugins/drivers/proto/driver.proto
+    PACKAGE_DIRECTORY_MATCH:
+      - client/logmon/proto/logmon.proto
+      - drivers/docker/docklog/proto/docker_logger.proto
+      - drivers/shared/executor/proto/executor.proto
       - plugins/base/proto/base.proto
       - plugins/device/proto/device.proto
       - plugins/drivers/proto/driver.proto
       - plugins/shared/hclspec/hcl_spec.proto
+      - plugins/shared/structs/proto/attribute.proto
+      - plugins/shared/structs/proto/recoverable_error.proto
+      - plugins/shared/structs/proto/stats.proto
+    PACKAGE_VERSION_SUFFIX:
+      - client/logmon/proto/logmon.proto
+      - drivers/docker/docklog/proto/docker_logger.proto
+      - drivers/shared/executor/proto/executor.proto
+      - plugins/base/proto/base.proto
+      - plugins/device/proto/device.proto
+      - plugins/drivers/proto/driver.proto
+      - plugins/shared/hclspec/hcl_spec.proto
+      - plugins/shared/structs/proto/attribute.proto
+      - plugins/shared/structs/proto/recoverable_error.proto
+      - plugins/shared/structs/proto/stats.proto
+    RPC_REQUEST_RESPONSE_UNIQUE:
+      - drivers/shared/executor/proto/executor.proto
+      - plugins/drivers/proto/driver.proto
+    RPC_REQUEST_STANDARD_NAME:
+      - drivers/shared/executor/proto/executor.proto
+    RPC_RESPONSE_STANDARD_NAME:
+      - drivers/shared/executor/proto/executor.proto
+      - plugins/drivers/proto/driver.proto
+    SERVICE_SUFFIX:
+      - client/logmon/proto/logmon.proto
+      - drivers/docker/docklog/proto/docker_logger.proto
+      - drivers/shared/executor/proto/executor.proto
+      - plugins/base/proto/base.proto
+      - plugins/device/proto/device.proto
+      - plugins/drivers/proto/driver.proto
+
 breaking:
   use:
     - WIRE_JSON
