@@ -94,6 +94,44 @@ the time of the upgrade for each node will ensure Connect workloads are properly
 rescheduled onto nodes in such a way that the Nomad Clients, Consul agents, and
 Envoy sidecar tasks maintain compatibility with one another.
 
+## Nomad 0.12.8
+
+### Docker volume mounts
+
+Nomad 0.12.8 includes security fixes for the handling of Docker volume mounts:
+
+- The `docker.volumes.enabled` flag now defaults to `false` as documented.
+- Docker driver mounts of type "volume" (but not "bind") were not sandboxed
+  and could mount arbitrary locations from the client host. The
+  `docker.volumes.enabled` configuration will now disable Docker mounts with
+  type "volume" when set to `false` (the default).
+
+This change Docker impacts jobs that use a `mounts` with type "volume", as
+shown below. This job will fail when placed unless `docker.volumes.enabled =
+true`.
+
+```hcl
+mounts = [
+  {
+    type     = "volume"
+    target   = "/path/in/container"
+    source   = "docker_volume"
+    volume_options = {
+      driver_config = {
+        name = "local"
+        options = [
+          {
+            device = "/"
+            o      = "ro,bind"
+            type   = "ext4"
+          }
+        ]
+      }
+    }
+  }
+]
+```
+
 ## Nomad 0.12.6
 
 ### Artifact and Template Paths
@@ -193,6 +231,42 @@ plugin "qemu" {
 }
 ```
 
+## Nomad 0.11.7
+
+### Docker volume mounts
+
+Nomad 0.11.7 includes a security fix for the handling of Docker volume
+mounts. Docker driver mounts of type "volume" (but not "bind") were not
+sandboxed and could mount arbitrary locations from the client host. The
+`docker.volumes.enabled` configuration will now disable Docker mounts with
+type "volume" when set to `false`.
+
+This change Docker impacts jobs that use a `mounts` with type "volume", as
+shown below. This job will fail when placed unless `docker.volumes.enabled =
+true`.
+
+```hcl
+mounts = [
+  {
+    type     = "volume"
+    target   = "/path/in/container"
+    source   = "docker_volume"
+    volume_options = {
+      driver_config = {
+        name = "local"
+        options = [
+          {
+            device = "/"
+            o      = "ro,bind"
+            type   = "ext4"
+          }
+        ]
+      }
+    }
+  }
+]
+```
+
 ## Nomad 0.11.5
 
 ### Artifact and Template Paths
@@ -272,6 +346,42 @@ code is available in an external repository,
 it will not be maintained as `rkt` is [no longer being developed
 upstream](https://github.com/rkt/rkt). We encourage all `rkt` users to find a
 new task driver as soon as possible.
+
+## Nomad 0.10.8
+
+### Docker volume mounts
+
+Nomad 0.10.8 includes a security fix for the handling of Docker volume
+mounts. Docker driver mounts of type "volume" (but not "bind") were not
+sandboxed and could mount arbitrary locations from the client host. The
+`docker.volumes.enabled` configuration will now disable Docker mounts with
+type "volume" when set to `false`.
+
+This change Docker impacts jobs that use a `mounts` with type "volume", as
+shown below. This job will fail when placed unless `docker.volumes.enabled =
+true`.
+
+```hcl
+mounts = [
+  {
+    type     = "volume"
+    target   = "/path/in/container"
+    source   = "docker_volume"
+    volume_options = {
+      driver_config = {
+        name = "local"
+        options = [
+          {
+            device = "/"
+            o      = "ro,bind"
+            type   = "ext4"
+          }
+        ]
+      }
+    }
+  }
+]
+```
 
 ## Nomad 0.10.6
 
