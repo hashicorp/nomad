@@ -2,4 +2,4 @@ steps:
   - run:
       name: install buf
       command: |
-        sudo ./scripts/vagrant-linux-priv-protoc.sh
+        sudo ./scripts/vagrant-linux-priv-buf.sh
