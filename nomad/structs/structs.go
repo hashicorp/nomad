@@ -193,16 +193,17 @@ var (
 type Context string
 
 const (
-	Allocs      Context = "allocs"
-	Deployments Context = "deployment"
-	Evals       Context = "evals"
-	Jobs        Context = "jobs"
-	Nodes       Context = "nodes"
-	Namespaces  Context = "namespaces"
-	Quotas      Context = "quotas"
-	All         Context = "all"
-	Plugins     Context = "plugins"
-	Volumes     Context = "volumes"
+	Allocs          Context = "allocs"
+	Deployments     Context = "deployment"
+	Evals           Context = "evals"
+	Jobs            Context = "jobs"
+	Nodes           Context = "nodes"
+	Namespaces      Context = "namespaces"
+	Quotas          Context = "quotas"
+	Recommendations Context = "recommendations"
+	All             Context = "all"
+	Plugins         Context = "plugins"
+	Volumes         Context = "volumes"
 )
 
 // NamespacedID is a tuple of an ID and a namespace

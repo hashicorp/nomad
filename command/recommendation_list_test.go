@@ -1,15 +1,14 @@
 package command
 
 import (
-	"fmt"
 	"sort"
 	"testing"
 
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api"
 )
 
 func TestRecommendationListCommand_Run(t *testing.T) {
@@ -17,21 +16,6 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 	t.Parallel()
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
-		}
-		if len(nodes) == 0 {
-			return false, fmt.Errorf("missing node")
-		}
-		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
-			return false, fmt.Errorf("mock_driver not ready")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
 
 	ui := cli.NewMockUi()
 	cmd := &RecommendationListCommand{Meta: Meta{Ui: ui}}
@@ -89,7 +73,7 @@ func TestRecommendationListCommand_Run(t *testing.T) {
 	}
 }
 
-func TestRecommendationList_Sort(t *testing.T) {
+func TestRecommendationListCommand_Sort(t *testing.T) {
 	testCases := []struct {
 		inputRecommendationList []*api.Recommendation
 		expectedOutputList      []*api.Recommendation
