@@ -216,7 +216,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the time durations
+	// Parse the capture duration
 	d, err := time.ParseDuration(duration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing duration: %s: %s", duration, err.Error()))
@@ -224,6 +224,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.duration = d
 
+	// Parse the capture interval
 	i, err := time.ParseDuration(interval)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing interval: %s: %s", interval, err.Error()))
@@ -231,6 +232,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.interval = i
 
+	// Verify there are no extra arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
@@ -238,6 +240,41 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Initialize capture variables and structs
+	c.manifest = make([]string, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	c.ctx = ctx
+	c.cancel = cancel
+	c.trap()
+
+	// Generate timestamped file name
+	format := "2006-01-02-150405Z"
+	c.timestamp = time.Now().UTC().Format(format)
+	stamped := "nomad-debug-" + c.timestamp
+
+	// Create the output directory
+	var tmp string
+	if output != "" {
+		// User specified output directory
+		tmp = filepath.Join(output, stamped)
+		_, err := os.Stat(tmp)
+		if !os.IsNotExist(err) {
+			c.Ui.Error("Output directory already exists")
+			return 2
+		}
+	} else {
+		// Generate temp directory
+		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error creating tmp directory: %s", err.Error()))
+			return 2
+		}
+		defer os.RemoveAll(tmp)
+	}
+
+	c.collectDir = tmp
+
+	// Create an instance of the API client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err.Error()))
@@ -334,16 +371,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.manifest = make([]string, 0)
-	ctx, cancel := context.WithCancel(context.Background())
-	c.ctx = ctx
-	c.cancel = cancel
-	c.trap()
-
-	format := "2006-01-02-150405Z"
-	c.timestamp = time.Now().UTC().Format(format)
-	stamped := "nomad-debug-" + c.timestamp
-
 	// Display general info about the capture
 	c.Ui.Output("Starting debugger...")
 	c.Ui.Output("")
@@ -363,39 +390,23 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
 
-	// Create the output path
-	var tmp string
-	if output != "" {
-		tmp = filepath.Join(output, stamped)
-		_, err := os.Stat(tmp)
-		if !os.IsNotExist(err) {
-			c.Ui.Error("Output directory already exists")
-			return 2
-		}
-	} else {
-		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error creating tmp directory: %s", err.Error()))
-			return 2
-		}
-		defer os.RemoveAll(tmp)
-	}
-
-	c.collectDir = tmp
-
+	// Start collecting data
 	err = c.collect(client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
 	}
 
+	// Write index json/html manifest files
 	c.writeManifest()
 
+	// Exit before archive if output directory was specified
 	if output != "" {
 		c.Ui.Output(fmt.Sprintf("Created debug directory: %s", c.collectDir))
 		return 0
 	}
 
+	// Create archive tarball
 	archiveFile := stamped + ".tar.gz"
 	err = TarCZF(archiveFile, tmp, stamped)
 	if err != nil {
@@ -403,6 +414,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 2
 	}
 
+	// Final output with name of tarball
 	c.Ui.Output(fmt.Sprintf("Created debug archive: %s", archiveFile))
 	return 0
 }

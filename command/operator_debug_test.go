@@ -190,7 +190,7 @@ func TestDebugFails(t *testing.T) {
 	os.MkdirAll(path, 0755)
 	defer os.Remove(path)
 	// short duration to prevent timeout
-	code = cmd.Run([]string{"-output", os.TempDir(), "-duration", "250ms"})
+	code = cmd.Run([]string{"-output", os.TempDir(), "-duration", "50ms"})
 	require.Equal(t, 2, code)
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
