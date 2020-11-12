@@ -35,7 +35,7 @@ RUN /tmp/scripts/vagrant-linux-unpriv-ui.sh
 COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
 
 # Update PATH with GO bin, yarn, and node
-ENV NODE_VERSION=v10.15.3
+ENV NODE_VERSION=v12.19.0
 ENV GOPATH="/opt/gopath" \
     PATH="/home/vagrant/.nvm/versions/node/${NODE_VERSION}/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.yarn/bin:/home/vagrant/.config/yarn/global/node_modules/.bin:$PATH"
 
