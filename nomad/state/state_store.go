@@ -100,7 +100,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})
-		s.db = NewChangeTrackerDB(db, broker, processDBChanges)
+		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges)
 	} else {
 		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
 	}
@@ -2227,7 +2227,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 	}
 
 	var alloc *structs.Allocation
-	if claim.Mode != structs.CSIVolumeClaimRelease {
+	if claim.State == structs.CSIVolumeClaimStateTaken {
 		alloc, err = s.AllocByID(ws, claim.AllocationID)
 		if err != nil {
 			s.logger.Error("AllocByID failed", "error", err)
@@ -3329,35 +3329,17 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 }
 
 // AllocsByIDPrefix is used to lookup allocs by prefix
-func (s *StateStore) AllocsByIDPrefixInNSes(ws memdb.WatchSet, namespaces map[string]bool, prefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) AllocsByIDPrefixAllNSs(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	var iter memdb.ResultIterator
-	var err error
-	if prefix != "" {
-		iter, err = txn.Get("allocs", "id_prefix", prefix)
-	} else {
-		iter, err = txn.Get("allocs", "id")
-
-	}
+	iter, err := txn.Get("allocs", "id_prefix", prefix)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	ws.Add(iter.WatchCh())
 
-	// Wrap the iterator in a filter
-	nsesFilter := func(raw interface{}) bool {
-		alloc, ok := raw.(*structs.Allocation)
-		if !ok {
-			return true
-		}
-
-		return namespaces[alloc.Namespace]
-	}
-
-	wrap := memdb.NewFilterIterator(iter, nsesFilter)
-	return wrap, nil
+	return iter, nil
 }
 
 // AllocsByNode returns all the allocations by node
@@ -5778,9 +5760,27 @@ func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace, ty
 	return iter, nil
 }
 
-func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID string) (memdb.ResultIterator, error) {
+func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID, policyType string) (memdb.ResultIterator,
+	error) {
 	txn := s.db.ReadTxn()
-	return s.ScalingPoliciesByJobTxn(ws, namespace, jobID, txn)
+	iter, err := s.ScalingPoliciesByJobTxn(ws, namespace, jobID, txn)
+	if err != nil {
+		return nil, err
+	}
+
+	if policyType == "" {
+		return iter, nil
+	}
+
+	filter := func(raw interface{}) bool {
+		p, ok := raw.(*structs.ScalingPolicy)
+		if !ok {
+			return true
+		}
+		return policyType != p.Type
+	}
+
+	return memdb.NewFilterIterator(iter, filter), nil
 }
 
 func (s *StateStore) ScalingPoliciesByJobTxn(ws memdb.WatchSet, namespace, jobID string,

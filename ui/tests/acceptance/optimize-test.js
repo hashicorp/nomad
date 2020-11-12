@@ -28,6 +28,8 @@ module('Acceptance | optimize', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+
     server.create('node');
 
     server.createList('namespace', 2);
@@ -356,6 +358,8 @@ module('Acceptance | optimize search and facets', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+
     server.create('node');
 
     server.createList('namespace', 2);
@@ -396,7 +400,10 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     assert.equal(Optimize.card.slug.jobName, 'zzzzzz');
 
-    assert.equal(Optimize.search.placeholder, `Search ${Optimize.recommendationSummaries.length} recommendations...`);
+    assert.equal(
+      Optimize.search.placeholder,
+      `Search ${Optimize.recommendationSummaries.length} recommendations...`
+    );
 
     await Optimize.search.fillIn('ooo');
 
@@ -563,7 +570,11 @@ module('Acceptance | optimize search and facets', function(hooks) {
         groupTaskCount: 2,
         childrenCount: 0,
       });
-      server.createList('job', 2, { status: 'dead', createRecommendations: true, childrenCount: 0 });
+      server.createList('job', 2, {
+        status: 'dead',
+        createRecommendations: true,
+        childrenCount: 0,
+      });
       await Optimize.visit();
     },
     filter: (taskGroup, selection) => selection.includes(taskGroup.job.status),
@@ -640,7 +651,8 @@ module('Acceptance | optimize search and facets', function(hooks) {
       });
       await Optimize.visit();
     },
-    filter: (taskGroup, selection) => selection.find(prefix => taskGroup.job.name.startsWith(prefix)),
+    filter: (taskGroup, selection) =>
+      selection.find(prefix => taskGroup.job.name.startsWith(prefix)),
   });
 
   function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
@@ -673,10 +685,13 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
       const selection = [option.key];
 
-      const sortedRecommendations = server.db.recommendations
-        .sortBy('submitTime').reverse();
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
 
-      const recommendationTaskGroups = server.schema.tasks.find(sortedRecommendations.mapBy('taskId').uniq()).models.mapBy('taskGroup').uniqBy('id').filter(group => filter(group, selection));
+      const recommendationTaskGroups = server.schema.tasks
+        .find(sortedRecommendations.mapBy('taskId').uniq())
+        .models.mapBy('taskGroup')
+        .uniqBy('id')
+        .filter(group => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];
@@ -697,10 +712,13 @@ module('Acceptance | optimize search and facets', function(hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
-      const sortedRecommendations = server.db.recommendations
-        .sortBy('submitTime').reverse();
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
 
-      const recommendationTaskGroups = server.schema.tasks.find(sortedRecommendations.mapBy('taskId').uniq()).models.mapBy('taskGroup').uniqBy('id').filter(group => filter(group, selection));
+      const recommendationTaskGroups = server.schema.tasks
+        .find(sortedRecommendations.mapBy('taskId').uniq())
+        .models.mapBy('taskGroup')
+        .uniqBy('id')
+        .filter(group => filter(group, selection));
 
       Optimize.recommendationSummaries.forEach((summary, index) => {
         const group = recommendationTaskGroups[index];

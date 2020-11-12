@@ -139,7 +139,7 @@ export let IconItems = () => {
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
-                <li><a href="javascript:;">{{x-icon "warning"}} Feature One</a></li>
+                <li><a href="javascript:;">{{x-icon "alert-triangle"}} Feature One</a></li>
                 <li><a href="javascript:;">{{x-icon "media-pause"}} Feature Two</a></li>
               </ul>
             </aside>
@@ -172,7 +172,7 @@ export let TaggedItems = () => {
 
               <p class="menu-label">Features</p>
               <ul class="menu-list">
-                <li><a href="javascript:;">{{x-icon "warning"}} Feature One</a></li>
+                <li><a href="javascript:;">{{x-icon "alert-triangle"}} Feature One</a></li>
                 <li><a href="javascript:;">{{x-icon "media-pause"}} Feature Two <span class="tag is-small is-warning">3</span></a></li>
               </ul>
             </aside>

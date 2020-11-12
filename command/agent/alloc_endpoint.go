@@ -127,7 +127,7 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 	alloc.SetEventDisplayMessages()
 
 	// Handle 0.12 ports upgrade path
-	alloc.AllocatedResources.Shared.Canonicalize()
+	alloc.AllocatedResources.Canonicalize()
 
 	return alloc, nil
 }

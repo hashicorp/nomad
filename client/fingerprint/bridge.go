@@ -3,8 +3,9 @@ package fingerprint
 import log "github.com/hashicorp/go-hclog"
 
 type BridgeFingerprint struct {
-	logger log.Logger
 	StaticFingerprinter
+
+	logger log.Logger
 }
 
 func NewBridgeFingerprint(logger log.Logger) Fingerprint {

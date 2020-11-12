@@ -96,7 +96,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  let job, clientToken;
+  let job, managementToken, clientToken;
 
   hooks.beforeEach(function() {
     server.createList('namespace', 2);
@@ -112,7 +112,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
       createRecommendations: true,
     });
 
-    server.create('token');
+    managementToken = server.create('token');
     clientToken = server.create('token');
   });
 
@@ -212,6 +212,9 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   });
 
   test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
 
     assert.equal(JobDetail.recommendations.length, job.taskGroups.length);
@@ -246,5 +249,19 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     await JobDetail.tabFor('overview').visit();
 
     assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
+  });
+
+  test('resource recommendations are not fetched when the feature doesn’t exist', async function(assert) {
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+    await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
+
+    assert.equal(JobDetail.recommendations.length, 0);
+
+    assert.equal(
+      server.pretender.handledRequests
+        .filter(request => request.url.includes('recommendations'))
+        .length,
+      0
+    );
   });
 });

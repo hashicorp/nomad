@@ -193,16 +193,17 @@ var (
 type Context string
 
 const (
-	Allocs      Context = "allocs"
-	Deployments Context = "deployment"
-	Evals       Context = "evals"
-	Jobs        Context = "jobs"
-	Nodes       Context = "nodes"
-	Namespaces  Context = "namespaces"
-	Quotas      Context = "quotas"
-	All         Context = "all"
-	Plugins     Context = "plugins"
-	Volumes     Context = "volumes"
+	Allocs          Context = "allocs"
+	Deployments     Context = "deployment"
+	Evals           Context = "evals"
+	Jobs            Context = "jobs"
+	Nodes           Context = "nodes"
+	Namespaces      Context = "namespaces"
+	Quotas          Context = "quotas"
+	Recommendations Context = "recommendations"
+	All             Context = "all"
+	Plugins         Context = "plugins"
+	Volumes         Context = "volumes"
 )
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -693,13 +694,12 @@ type JobPlanRequest struct {
 // JobScaleRequest is used for the Job.Scale endpoint to scale one of the
 // scaling targets in a job
 type JobScaleRequest struct {
-	Namespace string
-	JobID     string
-	Target    map[string]string
-	Count     *int64
-	Message   string
-	Error     bool
-	Meta      map[string]interface{}
+	JobID   string
+	Target  map[string]string
+	Count   *int64
+	Message string
+	Error   bool
+	Meta    map[string]interface{}
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 	WriteRequest
@@ -3389,6 +3389,23 @@ func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
 	}
 
 	return m
+}
+
+func (a *AllocatedResources) Canonicalize() {
+	a.Shared.Canonicalize()
+
+	for _, r := range a.Tasks {
+		for _, nw := range r.Networks {
+			for _, port := range append(nw.DynamicPorts, nw.ReservedPorts...) {
+				a.Shared.Ports = append(a.Shared.Ports, AllocatedPortMapping{
+					Label:  port.Label,
+					Value:  port.Value,
+					To:     port.To,
+					HostIP: nw.IP,
+				})
+			}
+		}
+	}
 }
 
 // AllocatedTaskResources are the set of resources allocated to a task.

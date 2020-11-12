@@ -109,6 +109,12 @@ Run Options:
     If set, the passed Vault namespace is stored in the job before sending to the
     Nomad servers.
 
+  -var 'key=value'
+    Variable for template, can be used multiple times.
+
+  -var-file=path
+    Path to HCL2 file containing user variables.
+
   -verbose
     Display full information.
 `
@@ -133,6 +139,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-preserve-counts": complete.PredictNothing,
 			"-hcl1":            complete.PredictNothing,
 			"-var":             complete.PredictAnything,
+			"-var-file":        complete.PredictFiles("*.var"),
 		})
 }
 
@@ -145,7 +152,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts bool
 	var checkIndexStr, consulToken, vaultToken, vaultNamespace string
-	var varArgs cflags.AppendSliceValue
+	var varArgs, varFiles cflags.AppendSliceValue
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -160,6 +167,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 	flags.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flags.Var(&varArgs, "var", "")
+	flags.Var(&varFiles, "var-file", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -180,7 +188,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], parseVars(varArgs))
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1

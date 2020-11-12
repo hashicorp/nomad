@@ -162,7 +162,8 @@ module('Acceptance | regions (many)', function(hooks) {
     await PageLayout.gutter.visitClients();
     await PageLayout.gutter.visitServers();
     const [
-      ,
+      , // License request
+      , // Token/policies request
       regionsRequest,
       defaultRegionRequest,
       ...appRequests

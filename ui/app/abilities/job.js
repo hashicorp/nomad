@@ -14,6 +14,12 @@ export default class Job extends AbstractAbility {
   )
   canScale;
 
+  // TODO: A person can also see all jobs if their token grants read access to all namespaces,
+  // but given the complexity of namespaces and policy precedence, there isn't a good quick way
+  // to confirm this.
+  @or('bypassAuthorization', 'selfTokenIsManagement')
+  canListAll;
+
   @computed('rulesForActiveNamespace.@each.capabilities')
   get policiesSupportRunning() {
     return this.activeNamespaceIncludesCapability('submit-job');

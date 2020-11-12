@@ -79,6 +79,12 @@ Plan Options:
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
+  -var 'key=value'
+    Variable for template, can be used multiple times.
+
+  -var-file=path
+    Path to HCL2 file containing user variables.
+
   -verbose
     Increase diff verbosity.
 `
@@ -97,6 +103,7 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-verbose":         complete.PredictNothing,
 			"-hcl1":            complete.PredictNothing,
 			"-var":             complete.PredictAnything,
+			"-var-file":        complete.PredictFiles("*.var"),
 		})
 }
 
@@ -107,7 +114,7 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
-	var varArgs cflags.AppendSliceValue
+	var varArgs, varFiles cflags.AppendSliceValue
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -116,6 +123,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
 	flags.Var(&varArgs, "var", "")
+	flags.Var(&varFiles, "var-file", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 255
@@ -131,7 +139,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], parseVars(varArgs))
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255

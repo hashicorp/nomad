@@ -30,6 +30,15 @@ export default create({
     placeholder: attribute('placeholder'),
   },
 
+  facets: {
+    type: facet('[data-test-type-facet]'),
+    status: facet('[data-test-status-facet]'),
+    datacenter: facet('[data-test-datacenter-facet]'),
+    prefix: facet('[data-test-prefix-facet]'),
+  },
+
+  allNamespacesToggle: toggle('[data-test-all-namespaces-toggle]'),
+
   card: recommendationCard,
 
   recommendationSummaries: collection('[data-test-recommendation-summary-row]', {
@@ -62,13 +71,4 @@ export default create({
     isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
   },
-
-  facets: {
-    type: facet('[data-test-type-facet]'),
-    status: facet('[data-test-status-facet]'),
-    datacenter: facet('[data-test-datacenter-facet]'),
-    prefix: facet('[data-test-prefix-facet]'),
-  },
-
-  allNamespacesToggle: toggle('[data-test-all-namespaces-toggle]'),
 });

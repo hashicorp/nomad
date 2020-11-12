@@ -1,18 +1,10 @@
 .dashboard-metric {
-  width: 350px;
-  max-width: 350px;
-
   &:not(:last-child) {
     margin-bottom: 1.5em;
   }
 
   &.column:not(:last-child) {
     margin-bottom: 0;
-  }
-
-  &.column {
-    width: auto;
-    max-width: auto;
   }
 
   .metric {

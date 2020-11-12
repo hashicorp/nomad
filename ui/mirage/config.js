@@ -410,6 +410,20 @@ export default function() {
     return this.serialize(regions.all());
   });
 
+  this.get('/operator/license', function({ features }) {
+    const records = features.all();
+
+    if (records.length) {
+      return {
+        License: {
+          Features: records.models.mapBy('name'),
+        }
+      };
+    }
+
+    return new Response(501, {}, null);
+  });
+
   const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {
     return this.serialize(clientAllocationStats.find(params.id));
   };

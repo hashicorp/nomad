@@ -3,7 +3,7 @@ package hashicorp.nomad.plugins.executor.proto;
 option go_package = "proto";
 
 import "google/protobuf/timestamp.proto";
-import "github.com/hashicorp/nomad/plugins/drivers/proto/driver.proto";
+import "plugins/drivers/proto/driver.proto";
 
 service Executor {
     rpc Launch(LaunchRequest) returns (LaunchResponse) {}
