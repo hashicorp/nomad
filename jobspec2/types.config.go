@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec2/hclutil"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -240,6 +242,9 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 			continue
 		}
 
+		body := hclutil.BlocksAsAttrs(b.Body)
+		body = dynblock.Expand(body, ctx)
+
 		if found != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -256,12 +261,13 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 
 		c.JobID = b.Labels[0]
 
-		extra, remain, mdiags := b.Body.PartialContent(&hcl.BodySchema{
+		extra, remain, mdiags := body.PartialContent(&hcl.BodySchema{
 			Blocks: []hcl.BlockHeaderSchema{
 				{Type: "vault"},
 				{Type: "task", LabelNames: []string{"name"}},
 			},
 		})
+
 		diags = append(diags, mdiags...)
 		diags = append(diags, c.decodeTopLevelExtras(extra, ctx)...)
 		diags = append(diags, hclDecoder.DecodeBody(remain, ctx, c.Job)...)
