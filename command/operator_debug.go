@@ -33,6 +33,8 @@ type OperatorDebugCommand struct {
 	interval   time.Duration
 	logLevel   string
 	stale      bool
+	maxNodes   int
+	nodeClass  string
 	nodeIDs    []string
 	serverIDs  []string
 	consul     *external
@@ -69,9 +71,15 @@ Debug Options:
   -log-level=<level>
     The log level to monitor. Defaults to DEBUG.
 
+  -max-nodes=<count>
+    Cap the maximum number of client nodes included in the capture.  Defaults to 10, set to 0 for unlimited.
+
   -node-id=<node>,<node>
     Comma separated list of Nomad client node ids, to monitor for logs and include pprof
-    profiles. Accepts id prefixes.
+    profiles. Accepts id prefixes, and "all" to select all nodes (up to count = max-nodes).
+
+  -node-class=<node-class>
+    Filter client nodes based on node class.
 
   -server-id=<server>,<server>
     Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
@@ -150,6 +158,8 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 			"-duration":     complete.PredictAnything,
 			"-interval":     complete.PredictAnything,
 			"-log-level":    complete.PredictAnything,
+			"-max-nodes":    complete.PredictAnything,
+			"-node-class":   complete.PredictAnything,
 			"-node-id":      complete.PredictAnything,
 			"-server-id":    complete.PredictAnything,
 			"-output":       complete.PredictAnything,
@@ -174,6 +184,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&duration, "duration", "2m", "")
 	flags.StringVar(&interval, "interval", "2m", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
+	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
+	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
@@ -204,7 +216,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Parse the time durations
+	// Parse the capture duration
 	d, err := time.ParseDuration(duration)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing duration: %s: %s", duration, err.Error()))
@@ -212,6 +224,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.duration = d
 
+	// Parse the capture interval
 	i, err := time.ParseDuration(interval)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing interval: %s: %s", interval, err.Error()))
@@ -219,6 +232,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.interval = i
 
+	// Verify there are no extra arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
@@ -226,33 +240,109 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Initialize capture variables and structs
+	c.manifest = make([]string, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	c.ctx = ctx
+	c.cancel = cancel
+	c.trap()
+
+	// Generate timestamped file name
+	format := "2006-01-02-150405Z"
+	c.timestamp = time.Now().UTC().Format(format)
+	stamped := "nomad-debug-" + c.timestamp
+
+	// Create the output directory
+	var tmp string
+	if output != "" {
+		// User specified output directory
+		tmp = filepath.Join(output, stamped)
+		_, err := os.Stat(tmp)
+		if !os.IsNotExist(err) {
+			c.Ui.Error("Output directory already exists")
+			return 2
+		}
+	} else {
+		// Generate temp directory
+		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error creating tmp directory: %s", err.Error()))
+			return 2
+		}
+		defer os.RemoveAll(tmp)
+	}
+
+	c.collectDir = tmp
+
+	// Create an instance of the API client
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err.Error()))
 		return 1
 	}
 
-	// Resolve node prefixes
+	// Search all nodes If a node class is specified without a list of node id prefixes
+	if c.nodeClass != "" && nodeIDs == "" {
+		nodeIDs = "all"
+	}
+
+	// Resolve client node id prefixes
+	nodesFound := 0
+	nodeLookupFailCount := 0
+	nodeCaptureCount := 0
+
 	for _, id := range argNodes(nodeIDs) {
-		id = sanitizeUUIDPrefix(id)
+		if id == "all" {
+			// Capture from all nodes using empty prefix filter
+			id = ""
+		} else {
+			// Capture from nodes starting with prefix id
+			id = sanitizeUUIDPrefix(id)
+		}
 		nodes, _, err := client.Nodes().PrefixList(id)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying node info: %s", err))
 			return 1
 		}
-		// Return error if no nodes are found
-		if len(nodes) == 0 {
+
+		// Increment fail count if no nodes are found
+		nodesFound = len(nodes)
+		if nodesFound == 0 {
 			c.Ui.Error(fmt.Sprintf("No node(s) with prefix %q found", id))
-			return 1
+			nodeLookupFailCount++
+			continue
 		}
 
+		// Apply constraints to nodes found
 		for _, n := range nodes {
+			// Ignore nodes that do not match specified class
+			if c.nodeClass != "" && n.NodeClass != c.nodeClass {
+				continue
+			}
+
+			// Add node to capture list
 			c.nodeIDs = append(c.nodeIDs, n.ID)
+			nodeCaptureCount++
+
+			// Stop looping when we reach the max
+			if c.maxNodes != 0 && nodeCaptureCount >= c.maxNodes {
+				break
+			}
 		}
+	}
+
+	// Return error if nodes were specified but none were found
+	if len(nodeIDs) > 0 && nodeCaptureCount == 0 {
+		c.Ui.Error(fmt.Sprintf("Failed to retrieve clients, 0 nodes found in list: %s", nodeIDs))
+		return 1
 	}
 
 	// Resolve servers
 	members, err := client.Agent().Members()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
+		return 1
+	}
 	c.writeJSON("version", "members.json", members, err)
 	// We always write the error to the file, but don't range if no members found
 	if serverIDs == "all" && members != nil {
@@ -266,62 +356,58 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		}
 	}
 
+	serversFound := 0
+	serverCaptureCount := 0
+
+	if members != nil {
+		serversFound = len(members.Members)
+	}
+	if c.serverIDs != nil {
+		serverCaptureCount = len(c.serverIDs)
+	}
+
 	// Return error if servers were specified but not found
-	if len(serverIDs) > 0 && len(c.serverIDs) == 0 {
+	if len(serverIDs) > 0 && serverCaptureCount == 0 {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve servers, 0 members found in list: %s", serverIDs))
 		return 1
 	}
 
-	c.manifest = make([]string, 0)
-	ctx, cancel := context.WithCancel(context.Background())
-	c.ctx = ctx
-	c.cancel = cancel
-	c.trap()
-
-	format := "2006-01-02-150405Z"
-	c.timestamp = time.Now().UTC().Format(format)
-	stamped := "nomad-debug-" + c.timestamp
-
-	c.Ui.Output("Starting debugger and capturing cluster data...")
-	c.Ui.Output(fmt.Sprintf("Capturing from servers: %v", c.serverIDs))
-	c.Ui.Output(fmt.Sprintf("Capturing from client nodes: %v", c.nodeIDs))
-
-	c.Ui.Output(fmt.Sprintf("    Interval: '%s'", interval))
-	c.Ui.Output(fmt.Sprintf("    Duration: '%s'", duration))
-
-	// Create the output path
-	var tmp string
-	if output != "" {
-		tmp = filepath.Join(output, stamped)
-		_, err := os.Stat(tmp)
-		if !os.IsNotExist(err) {
-			c.Ui.Error("Output directory already exists")
-			return 2
-		}
-	} else {
-		tmp, err = ioutil.TempDir(os.TempDir(), stamped)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error creating tmp directory: %s", err.Error()))
-			return 2
-		}
-		defer os.RemoveAll(tmp)
+	// Display general info about the capture
+	c.Ui.Output("Starting debugger...")
+	c.Ui.Output("")
+	c.Ui.Output(fmt.Sprintf("          Servers: (%d/%d) %v", serverCaptureCount, serversFound, c.serverIDs))
+	c.Ui.Output(fmt.Sprintf("          Clients: (%d/%d) %v", nodeCaptureCount, nodesFound, c.nodeIDs))
+	if nodeCaptureCount > 0 && nodeCaptureCount == c.maxNodes {
+		c.Ui.Output(fmt.Sprintf("                   Max node count reached (%d)", c.maxNodes))
 	}
+	if nodeLookupFailCount > 0 {
+		c.Ui.Output(fmt.Sprintf("Client fail count: %v", nodeLookupFailCount))
+	}
+	if c.nodeClass != "" {
+		c.Ui.Output(fmt.Sprintf("       Node Class: %s", c.nodeClass))
+	}
+	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
+	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
+	c.Ui.Output("")
+	c.Ui.Output("Capturing cluster data...")
 
-	c.collectDir = tmp
-
+	// Start collecting data
 	err = c.collect(client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error collecting data: %s", err.Error()))
 		return 2
 	}
 
+	// Write index json/html manifest files
 	c.writeManifest()
 
+	// Exit before archive if output directory was specified
 	if output != "" {
 		c.Ui.Output(fmt.Sprintf("Created debug directory: %s", c.collectDir))
 		return 0
 	}
 
+	// Create archive tarball
 	archiveFile := stamped + ".tar.gz"
 	err = TarCZF(archiveFile, tmp, stamped)
 	if err != nil {
@@ -329,6 +415,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 2
 	}
 
+	// Final output with name of tarball
 	c.Ui.Output(fmt.Sprintf("Created debug archive: %s", archiveFile))
 	return 0
 }
