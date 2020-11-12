@@ -1103,7 +1103,8 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		for k, ta := range apiTask.Artifacts {
 			structsTask.Artifacts[k] = &structs.TaskArtifact{
 				GetterSource:  *ta.GetterSource,
-				GetterOptions: ta.GetterOptions,
+				GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
+				GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
 				GetterMode:    *ta.GetterMode,
 				RelativeDest:  *ta.RelativeDest,
 			}

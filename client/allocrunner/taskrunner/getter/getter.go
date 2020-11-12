@@ -3,6 +3,7 @@ package getter
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -34,28 +35,53 @@ type EnvReplacer interface {
 	ReplaceEnv(string) string
 }
 
-// getClient returns a client that is suitable for Nomad downloading artifacts.
-func getClient(src string, mode gg.ClientMode, dst string) *gg.Client {
-	lock.Lock()
-	defer lock.Unlock()
-
-	// Return the pre-initialized client
-	if getters == nil {
-		getters = make(map[string]gg.Getter, len(supported))
-		for _, getter := range supported {
-			if impl, ok := gg.Getters[getter]; ok {
-				getters[getter] = impl
+func makeGetters(headers http.Header) map[string]gg.Getter {
+	getters := make(map[string]gg.Getter, len(supported))
+	for _, getter := range supported {
+		switch {
+		case getter == "http" && len(headers) > 0:
+			fallthrough
+		case getter == "https" && len(headers) > 0:
+			getters[getter] = &gg.HttpGetter{
+				Netrc:  true,
+				Header: headers,
+			}
+		default:
+			if defaultGetter, ok := gg.Getters[getter]; ok {
+				getters[getter] = defaultGetter
 			}
 		}
 	}
+	return getters
+}
 
-	return &gg.Client{
-		Src:     src,
-		Dst:     dst,
-		Mode:    mode,
-		Getters: getters,
-		Umask:   060000000,
+// getClient returns a client that is suitable for Nomad downloading artifacts.
+func getClient(src string, headers http.Header, mode gg.ClientMode, dst string) *gg.Client {
+	client := &gg.Client{
+		Src:   src,
+		Dst:   dst,
+		Mode:  mode,
+		Umask: 060000000,
 	}
+
+	switch len(headers) {
+	case 0:
+		// When no headers are present use the memoized getters, creating them
+		// on demand if they do not exist yet.
+		lock.Lock()
+		if getters == nil {
+			getters = makeGetters(nil)
+		}
+		lock.Unlock()
+		client.Getters = getters
+	default:
+		// When there are headers present, we must create fresh gg.HttpGetter
+		// objects, because that is where gg stores the headers to use in its
+		// artifact HTTP GET requests.
+		client.Getters = makeGetters(headers)
+	}
+
+	return client
 }
 
 // getGetterUrl returns the go-getter URL to download the artifact.
@@ -83,17 +109,29 @@ func getGetterUrl(taskEnv EnvReplacer, artifact *structs.TaskArtifact) (string, 
 	u.RawQuery = q.Encode()
 
 	// Add the prefix back
-	url := u.String()
+	ggURL := u.String()
 	if gitSSH {
-		url = fmt.Sprintf("%s%s", gitSSHPrefix, url)
+		ggURL = fmt.Sprintf("%s%s", gitSSHPrefix, ggURL)
 	}
 
-	return url, nil
+	return ggURL, nil
+}
+
+func getHeaders(env EnvReplacer, m map[string]string) http.Header {
+	if len(m) == 0 {
+		return nil
+	}
+
+	headers := make(http.Header, len(m))
+	for k, v := range m {
+		headers.Set(k, env.ReplaceEnv(v))
+	}
+	return headers
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
 func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string) error {
-	url, err := getGetterUrl(taskEnv, artifact)
+	ggURL, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
 	}
@@ -118,8 +156,9 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 		mode = gg.ClientModeDir
 	}
 
-	if err := getClient(url, mode, dest).Get(); err != nil {
-		return newGetError(url, err, true)
+	headers := getHeaders(taskEnv, artifact.GetterHeaders)
+	if err := getClient(ggURL, headers, mode, dest).Get(); err != nil {
+		return newGetError(ggURL, err, true)
 	}
 
 	return nil
