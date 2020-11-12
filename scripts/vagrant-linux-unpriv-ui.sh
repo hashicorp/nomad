@@ -9,7 +9,7 @@ export NVM_DIR="/home/vagrant/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # This loads nvm
 
 # Install Node, Ember CLI, and Phantom for UI development
-# Use exact full version version (e.g. not 12) and update scripts/release/Dockerfile
+# Use exact full version version (e.g. not 12) for reproducibility purposes
 nvm install 12.19.0
 nvm alias default 12.19.0
 npm install -g ember-cli
