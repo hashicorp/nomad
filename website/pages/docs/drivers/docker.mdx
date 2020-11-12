@@ -77,7 +77,7 @@ The `docker` driver supports the following configuration in the job spec. Only
     command = "my-command"
   }
   ```
-- `cpuset_cpus` - (Optional) CPUs in which to allow execution (0-3, 0,1).
+- `cpuset_cpus` <sup>Beta</sup> - (Optional) CPUs in which to allow execution (0-3, 0,1).
 Limit the specific CPUs or cores a container can use. A comma-separated list
 or hyphen-separated range of CPUs a container can use, if you have more than
 one CPU. The first CPU is numbered 0. A valid value might be 0-3 (to use the

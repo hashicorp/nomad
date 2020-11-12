@@ -5,6 +5,7 @@ FEATURES:
 * **Event Stream**: Subscribe to change events as they occur in real time. [[GH-9013](https://github.com/hashicorp/nomad/issues/9013)]
 * **Namespaces OSS**: Namespaces are now available in open source Nomad. [[GH-9135](https://github.com/hashicorp/nomad/issues/9135)]
 * **Topology Visualization**: See all of the clients and allocations in a cluster at once. [[GH-9077](https://github.com/hashicorp/nomad/issues/9077)]
+* **HCL 2**: Job files can contain variables, expressions, and advanced templating.
 
 IMPROVEMENTS:
  * core: Improved job deregistration error logging. [[GH-8745](https://github.com/hashicorp/nomad/issues/8745)]
@@ -29,6 +30,7 @@ IMPROVEMENTS:
  * consul/connect: Dynamically select envoy sidecar at runtime [[GH-8945](https://github.com/hashicorp/nomad/pull/8945)]
  * csi: Relaxed validation requirements when checking volume capabilities with controller plugins, to accommodate existing plugin behaviors. [[GH-9049](https://github.com/hashicorp/nomad/issues/9049)]
  * driver/docker: Upgrade pause container and detect architecture [[GH-8957](https://github.com/hashicorp/nomad/pull/8957)]
+ * driver/docker: Support pinning tasks to specific CPUs with `cpuset_cpus` option. [[GH-8291](https://github.com/hashicorp/nomad/pull/8291)]
  * jobspec: Lowered minimum CPU allowed from 10 to 1. [[GH-8996](https://github.com/hashicorp/nomad/issues/8996)]
 
 __BACKWARDS INCOMPATIBILITIES:__
@@ -56,13 +58,16 @@ BUG FIXES:
  * csi: Fixed a bug where multi-writer volumes were allowed only 1 write claim. [[GH-9040](https://github.com/hashicorp/nomad/issues/9040)]
  * csi: Fixed a bug where `nomad volume detach` would not accept prefixes for the node ID parameter. [[GH-9041](https://github.com/hashicorp/nomad/issues/9041)]
  * driver/docker: Fixed a bug where the default `image_delay` configuration was ignored if the `gc` configuration was not set. [[GH-9101](https://github.com/hashicorp/nomad/issues/9101)]
- * driver/rawexec: Fixed a bug where raw_exec attempts to create a freezer cgroups for the tasks even when `no_cgroups` is set. [[GH-9328](https://github.com/hashicorp/nomad/issues/9328)]
+ * driver/raw_exec: Fixed a bug where raw_exec attempts to create a freezer cgroups for the tasks even when `no_cgroups` is set. [[GH-9328](https://github.com/hashicorp/nomad/issues/9328)]
 
 ## 0.12.8 (November 10, 2020)
 
 SECURITY:
-* docker: Fixed a bug where the `docker.volumes.enabled` configuration was not set to the default `false` if left unset. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
-* docker: Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+ * docker: Fixed a bug where the `docker.volumes.enabled` configuration was not set to the default `false` if left unset. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+ * docker: Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+
+BUG FIXES:
+ * client: Fixed an in-place upgrade bug, where a Nomad client may fail to manage tasks that were started with pre-0.9 Nomad client. [[GH-9304](https://github.com/hashicorp/nomad/pull/9304)]
 
 ## 0.12.7 (October 23, 2020)
 
@@ -74,9 +79,9 @@ BUG FIXES:
 
 SECURITY:
 
- * artifact: Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
- * template: Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
- * template: Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
+ * artifact: Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
 
 ## 0.12.5 (September 17, 2020)
 
@@ -242,7 +247,10 @@ BUG FIXES:
 ## 0.11.7 (November 10, 2020)
 
 SECURITY:
-* docker: _Backport from v0.12.8_ - Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+ * docker: _Backport from v0.12.8_ - Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+
+BUG FIXES:
+ * client: _Backport from v0.12.8_ - Fixed an in-place upgrade bug, where a Nomad client may fail to manage tasks that were started with pre-0.9 Nomad client. [[GH-9304](https://github.com/hashicorp/nomad/pull/9304)]
 
 ## 0.11.6 (October 23, 2020)
 
@@ -254,9 +262,9 @@ BUG FIXES:
 
 SECURITY:
 
- * artifact: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
- * template: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
- * template: _Backport from v0.12.6_ - Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
+ * artifact: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: _Backport from v0.12.6_ - Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
 
 ## 0.11.4 (August 7, 2020)
 
@@ -405,7 +413,10 @@ BUG FIXES:
 ## 0.10.8 (November 10, 2020)
 
 SECURITY:
-* docker: _Backport from v0.12.8_ - Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+ * docker: _Backport from v0.12.8_ - Fixed a bug where Docker driver mounts of type "volume" (but not "bind") were not sandboxed when `docker.volumes.enabled` is set to `false`. The `docker.volumes.enabled` configuration will now disable Docker mounts with type "volume" when set to `false`. CVE-2020-28348 [[GH-9303](https://github.com/hashicorp/nomad/issues/9303)]
+
+BUG FIXES:
+ * client: _Backport from v0.12.8_ - Fixed an in-place upgrade bug, where a Nomad client may fail to manage tasks that were started with pre-0.9 Nomad client. [[GH-9304](https://github.com/hashicorp/nomad/pull/9304)]
 
 ## 0.10.7 (October 23, 2020)
 
@@ -417,9 +428,9 @@ BUG FIXES:
 
 SECURITY:
 
- * artifact: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
- * template: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
- * template: _Backport from v0.12.6_ - Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-TBD](https://github.com/hashicorp/nomad/issues/TBD)]
+ * artifact: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the artifact `destination` field to write artifact payloads outside the allocation directory. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: _Backport from v0.12.6_ - Fixed a bug where interpolation can be used in the template `source` and `destination` fields to read or write files outside the allocation directory even when `disable_file_sandbox` was set to `false` (the default). CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
+ * template: _Backport from v0.12.6_ - Fixed a bug where the `disable_file_sandbox` configuration was only respected for the template `file` function and not the template `source` and `destination` fields. CVE-2020-27195 [[GH-9129](https://github.com/hashicorp/nomad/issues/9129)]
 
 ## 0.10.5 (March 24, 2020)
 
