@@ -45,12 +45,12 @@
           <div class="toolbar-item is-right-aligned is-mobile-full-width">
             <Toggle
               data-test-all-namespaces-toggle
-              @class="is-size-7"
+              @class="is-flex"
               @isActive={{eq this.namespaceFilter 'all'}}
               @onToggle={{toggle-action 'namespaceFilter' this 'all' 'active'}}
               title="Include all namespaces FIXME wha?"
             >
-              &nbsp;Include all namespaces
+              <div class="is-size-7 label">Include all namespaces</div>
             </Toggle>
           </div>
         </div>
