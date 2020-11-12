@@ -31,7 +31,7 @@ USER vagrant
 
 COPY ./scripts/vagrant-linux-unpriv-ui.sh /tmp/scripts/vagrant-linux-unpriv-ui.sh
 RUN /tmp/scripts/vagrant-linux-unpriv-ui.sh
-# avoid requiring loading nvm.sh by using a well defined path as an lias to the node version
+# avoid requiring loading nvm.sh by using a well defined path as an alias to the node version
 RUN /bin/bash -c '. ~/.nvm/nvm.sh && ln -s ~/.nvm/versions/node/$(nvm current) ~/.nvm/versions/node/.default'
 
 COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
