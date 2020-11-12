@@ -310,22 +310,23 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		if nodesFound == 0 {
 			c.Ui.Error(fmt.Sprintf("No node(s) with prefix %q found", id))
 			nodeLookupFailCount++
-		} else {
-			// Apply constraints to nodes found
-			for _, n := range nodes {
-				// Ignore nodes that do not match specified class
-				if c.nodeClass != "" && n.NodeClass != c.nodeClass {
-					continue
-				}
+			continue
+		}
 
-				// Add node to capture list
-				c.nodeIDs = append(c.nodeIDs, n.ID)
-				nodeCaptureCount++
+		// Apply constraints to nodes found
+		for _, n := range nodes {
+			// Ignore nodes that do not match specified class
+			if c.nodeClass != "" && n.NodeClass != c.nodeClass {
+				continue
+			}
 
-				// Stop looping when we reach the max
-				if c.maxNodes != 0 && nodeCaptureCount >= c.maxNodes {
-					break
-				}
+			// Add node to capture list
+			c.nodeIDs = append(c.nodeIDs, n.ID)
+			nodeCaptureCount++
+
+			// Stop looping when we reach the max
+			if c.maxNodes != 0 && nodeCaptureCount >= c.maxNodes {
+				break
 			}
 		}
 	}
