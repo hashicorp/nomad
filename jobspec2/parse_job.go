@@ -113,6 +113,10 @@ func normalizeTemplates(templates []*api.Template) {
 	}
 }
 
+func intToPtr(v int) *int {
+	return &v
+}
+
 func int8ToPtr(v int8) *int8 {
 	return &v
 }

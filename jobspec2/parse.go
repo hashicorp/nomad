@@ -11,11 +11,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec2/hclutil"
 )
 
 func Parse(path string, r io.Reader) (*api.Job, error) {
@@ -104,9 +102,7 @@ func decode(c *jobConfig) error {
 		return diags
 	}
 
-	body := hclutil.BlocksAsAttrs(file.Body)
-	body = dynblock.Expand(body, c.EvalContext())
-	diags = c.decodeBody(body)
+	diags = c.decodeBody(file.Body)
 	if diags.HasErrors() {
 		var str strings.Builder
 		for i, diag := range diags {
@@ -117,7 +113,9 @@ func decode(c *jobConfig) error {
 		}
 		return errors.New(str.String())
 	}
-	diags = append(diags, decodeMapInterfaceType(&c, c.EvalContext())...)
+	diags = append(diags, decodeMapInterfaceType(&c.Job, c.EvalContext())...)
+	diags = append(diags, decodeMapInterfaceType(&c.Tasks, c.EvalContext())...)
+	diags = append(diags, decodeMapInterfaceType(&c.Vault, c.EvalContext())...)
 	return nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/stretchr/testify/require"
 )
@@ -466,6 +467,135 @@ job "example" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectedErr)
 			}
+		})
+	}
+}
+
+func TestParseJob_JobWithFunctionsAndLookups(t *testing.T) {
+	hcl := `
+variable "env" {
+  description = "target environment for the job"
+}
+
+locals {
+  environments = {
+    prod    = { count = 20, dcs = ["prod-dc1", "prod-dc2"] },
+    staging = { count = 3, dcs = ["dc1"] },
+  }
+
+  env = lookup(local.environments, var.env, { count = 0, dcs = [] })
+}
+
+job "job-webserver" {
+  datacenters = local.env.dcs
+  group "group-webserver" {
+    count = local.env.count
+
+    task "server" {
+      driver = "docker"
+
+      config {
+        image = "hashicorp/http-echo"
+        args  = ["-text", "Hello from ${var.env}"]
+      }
+    }
+  }
+}
+`
+	cases := []struct {
+		env         string
+		expectedJob *api.Job
+	}{
+		{
+			"prod",
+			&api.Job{
+				ID:          stringToPtr("job-webserver"),
+				Name:        stringToPtr("job-webserver"),
+				Datacenters: []string{"prod-dc1", "prod-dc2"},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  stringToPtr("group-webserver"),
+						Count: intToPtr(20),
+
+						Tasks: []*api.Task{
+							{
+								Name:   "server",
+								Driver: "docker",
+
+								Config: map[string]interface{}{
+									"image": "hashicorp/http-echo",
+									"args":  []interface{}{"-text", "Hello from prod"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"staging",
+			&api.Job{
+				ID:          stringToPtr("job-webserver"),
+				Name:        stringToPtr("job-webserver"),
+				Datacenters: []string{"dc1"},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  stringToPtr("group-webserver"),
+						Count: intToPtr(3),
+
+						Tasks: []*api.Task{
+							{
+								Name:   "server",
+								Driver: "docker",
+
+								Config: map[string]interface{}{
+									"image": "hashicorp/http-echo",
+									"args":  []interface{}{"-text", "Hello from staging"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			"unknown",
+			&api.Job{
+				ID:          stringToPtr("job-webserver"),
+				Name:        stringToPtr("job-webserver"),
+				Datacenters: []string{},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name:  stringToPtr("group-webserver"),
+						Count: intToPtr(0),
+
+						Tasks: []*api.Task{
+							{
+								Name:   "server",
+								Driver: "docker",
+
+								Config: map[string]interface{}{
+									"image": "hashicorp/http-echo",
+									"args":  []interface{}{"-text", "Hello from unknown"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.env, func(t *testing.T) {
+			found, err := ParseWithConfig(&ParseConfig{
+				Path:    "example.hcl",
+				Body:    []byte(hcl),
+				AllowFS: false,
+				ArgVars: []string{"env=" + c.env},
+			})
+			require.NoError(t, err)
+			require.Equal(t, c.expectedJob, found)
 		})
 	}
 }

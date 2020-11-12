@@ -41,6 +41,11 @@ func (w *walker) Map(m reflect.Value) error {
 		return nil
 	}
 
+	// ignore private map fields
+	if !m.CanSet() {
+		return nil
+	}
+
 	for _, k := range m.MapKeys() {
 		v := m.MapIndex(k)
 		if attr, ok := v.Interface().(*hcl.Attribute); ok {
