@@ -15,7 +15,7 @@ IMPROVEMENTS:
  * api: Job Register API now permits non-zero initial Version to accommodate multi-region deployments. [[GH-9071](https://github.com/hashicorp/nomad/issues/9071)]
  * api: Added ?resources=true query parameter to /v1/nodes and /v1/allocations to include resource allocations in listings. [[GH-9055](https://github.com/hashicorp/nomad/issues/9055)]
  * api: Added ?task_states=false query parameter to /v1/allocations to remove TaskStates from listings. Defaults to being included as before. [[GH-9055](https://github.com/hashicorp/nomad/issues/9055)]
- * build: Updated to Go 1.15.4. [[GH-9305](https://github.com/hashicorp/nomad/issues/9305)]
+ * build: Updated to Go 1.15.5. [[GH-9345](https://github.com/hashicorp/nomad/issues/9345)]
  * cli: Added autocompletion for `recommendation` commands [[GH-9317](https://github.com/hashicorp/nomad/issues/9317)]
  * cli: Added `scale` and `scaling-events` subcommands to the `job` command. [[GH-9023](https://github.com/hashicorp/nomad/pull/9023)]
  * cli: Added `scaling` command for interaction with the scaling API endpoint. [[GH-9025](https://github.com/hashicorp/nomad/pull/9025)]
