@@ -198,6 +198,12 @@ export default class OptimizeController extends Controller {
   }
 
   @action
+  toggleIncludeAllNamespaces() {
+    this.includeAllNamespaces = !this.includeAllNamespaces;
+    this.ensureActiveSummaryIsNotExcluded();
+  }
+
+  @action
   ensureActiveSummaryIsNotExcluded() {
     scheduleOnce('actions', () => {
       if (!this.filteredSummaries.includes(this.activeRecommendationSummary)) {
