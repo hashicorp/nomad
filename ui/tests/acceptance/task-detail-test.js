@@ -42,6 +42,9 @@ module('Acceptance | task detail', function(hooks) {
     if (lifecycle && (lifecycle.Hook === 'prestart' || lifecycle.Hook === 'poststart')) {
       lifecycleName = `${lifecycle.Hook}-${lifecycle.Sidecar ? 'sidecar' : 'ephemeral'}`;
     }
+    if (lifecycle && lifecycle.Hook === 'poststop') {
+      lifecycleName = 'poststop';
+    }
 
     assert.equal(Task.lifecycle, lifecycleName);
 
