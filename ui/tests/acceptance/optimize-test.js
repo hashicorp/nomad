@@ -446,7 +446,7 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     assert.equal(Optimize.recommendationSummaries.length, 1);
     assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('ooo'));
-    assert.ok(currentURL().includes('namespaces=active'));
+    assert.ok(currentURL().includes('all-namespaces=false'));
   });
 
   test('the namespaces toggle doesn’t show when there aren’t namespaces', async function(assert) {

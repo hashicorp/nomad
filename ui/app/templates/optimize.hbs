@@ -46,8 +46,8 @@
             <Toggle
               data-test-all-namespaces-toggle
               @class="is-flex"
-              @isActive={{eq this.namespaceFilter 'all'}}
-              @onToggle={{toggle-action 'namespaceFilter' this 'all' 'active'}}
+              @isActive={{this.includeAllNamespaces}}
+              @onToggle={{toggle-action 'includeAllNamespaces' this}}
             >
               <div class="is-size-7 label">Include all namespaces</div>
             </Toggle>

@@ -20,7 +20,7 @@ export default class OptimizeController extends Controller {
 
   queryParams = [
     {
-      namespaceFilter: 'namespaces',
+      includeAllNamespaces: 'all-namespaces',
     },
     {
       searchTerm: 'search',
@@ -54,17 +54,14 @@ export default class OptimizeController extends Controller {
   @tracked qpDatacenter = '';
   @tracked qpPrefix = '';
 
-  @tracked namespaceFilter = 'all';
+  @tracked includeAllNamespaces = true;
 
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
 
-  optionsType = [
-    { key: 'service', label: 'Service' },
-    { key: 'system', label: 'System' },
-  ];
+  optionsType = [{ key: 'service', label: 'Service' }, { key: 'system', label: 'System' }];
 
   optionsStatus = [
     { key: 'pending', label: 'Pending' },
@@ -133,8 +130,6 @@ export default class OptimizeController extends Controller {
     } = this;
 
     const shouldShowNamespaces = this.system.shouldShowNamespaces;
-
-    const onlyActiveNamespace = this.namespaceFilter === 'active';
     const activeNamespace = shouldShowNamespaces ? this.system.activeNamespace.name : undefined;
 
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
@@ -142,7 +137,11 @@ export default class OptimizeController extends Controller {
     return this.summarySearch.listSearched.filter(summary => {
       const job = summary.get('job');
 
-      if (shouldShowNamespaces && onlyActiveNamespace && activeNamespace !== summary.jobNamespace) {
+      if (
+        shouldShowNamespaces &&
+        !this.includeAllNamespaces &&
+        activeNamespace !== summary.jobNamespace
+      ) {
         return false;
       }
 
