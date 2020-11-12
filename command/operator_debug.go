@@ -301,10 +301,10 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	// Resolve servers
 	members, err := client.Agent().Members()
-	// if err != nil {
-	// 	c.Ui.Error(fmt.Sprintf("Failed to retrieve server list -- check API address: %s", client.Address()))
-	// 	return 1
-	// }
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
+		return 1
+	}
 	c.writeJSON("version", "members.json", members, err)
 	// We always write the error to the file, but don't range if no members found
 	if serverIDs == "all" && members != nil {
@@ -317,11 +317,19 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 			c.serverIDs = append(c.serverIDs, id)
 		}
 	}
-	serversFound := len(members.Members)
-	serverCaptureCount := len(c.serverIDs)
+
+	serversFound := 0
+	serverCaptureCount := 0
+
+	if members != nil {
+		serversFound = len(members.Members)
+	}
+	if c.serverIDs != nil {
+		serverCaptureCount = len(c.serverIDs)
+	}
 
 	// Return error if servers were specified but not found
-	if len(serverIDs) > 0 && len(c.serverIDs) == 0 {
+	if len(serverIDs) > 0 && serverCaptureCount == 0 {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve servers, 0 members found in list: %s", serverIDs))
 		return 1
 	}
