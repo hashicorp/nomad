@@ -737,13 +737,14 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	ns, _, err := client.Nodes().List(qo)
 	c.writeJSON(dir, "nodes.json", ns, err)
 
+	// CSI Plugins - /v1/plugins?type=csi
 	ps, _, err := client.CSIPlugins().List(qo)
 	c.writeJSON(dir, "plugins.json", ps, err)
 
-	// Loop over each plugin - /v1/plugin/csi/:plugin_id
+	// CSI Plugin details - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
 		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, qo)
-		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s", p.ID)
+		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s.json", p.ID)
 		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
 	}
 
@@ -751,10 +752,11 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	csiVolumes, _, err := client.CSIVolumes().List(qo)
 	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
 
-	if metricBytes, err := client.Operator().Metrics(qo); err != nil {
-		c.writeError(dir, "metrics.json", err)
-	} else {
-		c.writeBytes(dir, "metrics.json", metricBytes)
+	// Loop over each volume - /v1/volumes/csi/:volume-id
+	for _, v := range csiVolumes {
+		csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
+		csiFileName := fmt.Sprintf("csi-volume-id-%s.json", v.ID)
+		c.writeJSON(dir, csiFileName, csiVolume, err)
 	}
 
 	metrics, _, err := client.Operator().MetricsSummary(qo)
