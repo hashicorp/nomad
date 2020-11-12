@@ -377,7 +377,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.Ui.Output("")
 	c.Ui.Output(fmt.Sprintf("          Servers: (%d/%d) %v", serverCaptureCount, serversFound, c.serverIDs))
 	c.Ui.Output(fmt.Sprintf("          Clients: (%d/%d) %v", nodeCaptureCount, nodesFound, c.nodeIDs))
-	if nodeCaptureCount == c.maxNodes {
+	if nodeCaptureCount > 0 && nodeCaptureCount == c.maxNodes {
 		c.Ui.Output(fmt.Sprintf("                   Max node count reached (%d)", c.maxNodes))
 	}
 	if nodeLookupFailCount > 0 {
