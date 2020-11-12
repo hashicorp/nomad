@@ -633,6 +633,7 @@ type DispatchPayloadConfig struct {
 const (
 	TaskLifecycleHookPrestart  = "prestart"
 	TaskLifecycleHookPoststart = "poststart"
+	TaskLifecycleHookPoststop  = "poststop"
 )
 
 type TaskLifecycle struct {

@@ -495,6 +495,7 @@ func (tr *TaskRunner) Run() {
 
 	select {
 	case <-tr.startConditionMetCtx:
+		tr.logger.Debug("lifecycle start condition has been met, proceeding")
 		// yay proceed
 	case <-tr.killCtx.Done():
 	case <-tr.shutdownCtx.Done():
@@ -502,7 +503,7 @@ func (tr *TaskRunner) Run() {
 	}
 
 MAIN:
-	for !tr.Alloc().TerminalStatus() {
+	for !tr.shouldShutdown() {
 		select {
 		case <-tr.killCtx.Done():
 			break MAIN
@@ -623,6 +624,18 @@ MAIN:
 	}
 
 	tr.logger.Debug("task run loop exiting")
+}
+
+func (tr *TaskRunner) shouldShutdown() bool {
+	if tr.alloc.ClientTerminalStatus() {
+		return true
+	}
+
+	if !tr.IsPoststopTask() && tr.alloc.ServerTerminalStatus() {
+		return true
+	}
+
+	return false
 }
 
 // handleTaskExitResult handles the results returned by the task exiting. If
