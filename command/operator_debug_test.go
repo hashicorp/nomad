@@ -113,6 +113,34 @@ func TestDebug_NodeClass(t *testing.T) {
 	require.Empty(t, ui.ErrorWriter.String(), "errorwriter should be empty")
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	require.Contains(t, ui.OutputWriter.String(), "Node Class: clienta")
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+}
+
+func TestDebugFail_Pprof(t *testing.T) {
+	// Setup agent config with debug endpoints disabled
+	agentConfFunc := func(c *agent.Config) {
+		c.EnableDebug = false
+	}
+
+	// Start test server and API client
+	srv, _, url := testServer(t, false, agentConfFunc)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Debug on client - node class = "clienta"
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
+
+	assert.Equal(t, 0, code) // Pprof failure isn't fatal
+	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof profile.prof")
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

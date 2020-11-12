@@ -27,21 +27,22 @@ import (
 type OperatorDebugCommand struct {
 	Meta
 
-	timestamp  string
-	collectDir string
-	duration   time.Duration
-	interval   time.Duration
-	logLevel   string
-	stale      bool
-	maxNodes   int
-	nodeClass  string
-	nodeIDs    []string
-	serverIDs  []string
-	consul     *external
-	vault      *external
-	manifest   []string
-	ctx        context.Context
-	cancel     context.CancelFunc
+	timestamp     string
+	collectDir    string
+	duration      time.Duration
+	interval      time.Duration
+	pprofDuration time.Duration
+	logLevel      string
+	stale         bool
+	maxNodes      int
+	nodeClass     string
+	nodeIDs       []string
+	serverIDs     []string
+	consul        *external
+	vault         *external
+	manifest      []string
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
 const (
@@ -85,6 +86,9 @@ Debug Options:
 
   -node-class=<node-class>
     Filter client nodes based on node class.
+
+  -pprof-duration=<duration>
+    Duration for pprof collection. Defaults to 1s.
 
   -server-id=<server>,<server>
     Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
@@ -160,16 +164,17 @@ func (c *OperatorDebugCommand) Synopsis() string {
 func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-duration":     complete.PredictAnything,
-			"-interval":     complete.PredictAnything,
-			"-log-level":    complete.PredictAnything,
-			"-max-nodes":    complete.PredictAnything,
-			"-node-class":   complete.PredictAnything,
-			"-node-id":      complete.PredictAnything,
-			"-server-id":    complete.PredictAnything,
-			"-output":       complete.PredictAnything,
-			"-consul-token": complete.PredictAnything,
-			"-vault-token":  complete.PredictAnything,
+			"-duration":       complete.PredictAnything,
+			"-interval":       complete.PredictAnything,
+			"-log-level":      complete.PredictAnything,
+			"-max-nodes":      complete.PredictAnything,
+			"-node-class":     complete.PredictAnything,
+			"-node-id":        complete.PredictAnything,
+			"-server-id":      complete.PredictAnything,
+			"-output":         complete.PredictAnything,
+			"-pprof-duration": complete.PredictAnything,
+			"-consul-token":   complete.PredictAnything,
+			"-vault-token":    complete.PredictAnything,
 		})
 }
 
@@ -183,7 +188,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, output string
+	var duration, interval, output, pprofDuration string
 	var nodeIDs, serverIDs string
 
 	flags.StringVar(&duration, "duration", "2m", "")
@@ -195,6 +200,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&serverIDs, "server-id", "", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
+	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
 	flags.StringVar(&c.consul.addrVal, "consul-http-addr", os.Getenv("CONSUL_HTTP_ADDR"), "")
@@ -236,6 +242,14 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.interval = i
+
+	// Parse the pprof capture duration
+	pd, err := time.ParseDuration(pprofDuration)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof duration: %s: %s", pprofDuration, err.Error()))
+		return 1
+	}
+	c.pprofDuration = pd
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -393,6 +407,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
+	if c.pprofDuration.Seconds() != 1 {
+		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
+	}
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
 
@@ -582,7 +599,8 @@ func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
 
 // collectPprof captures pprof data for the node
 func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
-	opts := api.PprofOptions{Seconds: 1}
+	pprofDurationSeconds := int(c.pprofDuration.Seconds())
+	opts := api.PprofOptions{Seconds: pprofDurationSeconds}
 	if path == "server" {
 		opts.ServerID = id
 	} else {
@@ -598,16 +616,22 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err := client.Agent().CPUProfile(opts, nil)
 	if err == nil {
 		c.writeBytes(path, "profile.prof", bs)
+	} else {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
 	}
 
 	bs, err = client.Agent().Trace(opts, nil)
 	if err == nil {
 		c.writeBytes(path, "trace.prof", bs)
+	} else {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
 	}
 
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
 		c.writeBytes(path, "goroutine.prof", bs)
+	} else {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
 	}
 
 	// Gather goroutine text output - debug type 1
@@ -616,6 +640,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
 		c.writeBytes(path, "goroutine-debug1.txt", bs)
+	} else {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
 	}
 
 	// Gather goroutine text output - debug type 2
@@ -625,6 +651,13 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err == nil {
 		c.writeBytes(path, "goroutine-debug2.txt", bs)
+	} else {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
+	}
+
+	// Only need to cover this once, but lets drop a helpful hint for 403 permission denied
+	if err != nil && strings.Contains(err.Error(), "403 (Permission denied)") {
+		c.Ui.Error(fmt.Sprintf("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information."))
 	}
 }
 
