@@ -3,7 +3,6 @@ package stream
 import (
 	"context"
 
-	"github.com/davecgh/go-spew/spew"
 	pbstream "github.com/hashicorp/nomad/nomad/stream/proto"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,7 +20,6 @@ func NewSinkServer(broker *EventBroker) *SinkServer {
 }
 
 func (s *SinkServer) Subscribe(pbReq *pbstream.SubscribeRequest, serverStream pbstream.EventStream_SubscribeServer) error {
-	spew.Dump("HANDLER!!!!!!!!!!!!!!!")
 	req := &SubscribeRequest{
 		Index:  pbReq.Index,
 		Topics: map[structs.Topic][]string{},
@@ -41,7 +39,6 @@ func (s *SinkServer) Subscribe(pbReq *pbstream.SubscribeRequest, serverStream pb
 		return err
 	}
 
-	spew.Dump("SUB NEXT!!!!!!!!!!!!!!!")
 	event, err := sub.Next(context.Background())
 	if err != nil {
 		return err
@@ -59,13 +56,11 @@ func (s *SinkServer) Subscribe(pbReq *pbstream.SubscribeRequest, serverStream pb
 		eventBatch.Event = append(eventBatch.Event, ebEvent)
 	}
 
-	spew.Dump("SENTT!!!!!!!!!!!!!!!")
 	err = serverStream.Send(eventBatch)
 	if err != nil {
 		return err
 	}
 
-	spew.Dump("RET!!!!!!!!!!!!!!!")
 	return nil
 }
 
