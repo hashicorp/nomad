@@ -50,7 +50,6 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup Client 1 (nodeclass = clienta)
 	agentConfFunc1 := func(c *agent.Config) {
 		c.Region = "global"
-		c.EnableDebug = true
 		c.Server.Enabled = false
 		c.Client.NodeClass = "clienta"
 		c.Client.Enabled = true
@@ -69,7 +68,6 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup Client 2 (nodeclass = clientb)
 	agentConfFunc2 := func(c *agent.Config) {
 		c.Region = "global"
-		c.EnableDebug = true
 		c.Server.Enabled = false
 		c.Client.NodeClass = "clientb"
 		c.Client.Enabled = true
@@ -88,7 +86,6 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup Client 3 (nodeclass = clienta)
 	agentConfFunc3 := func(c *agent.Config) {
 		c.Server.Enabled = false
-		c.EnableDebug = false
 		c.Client.NodeClass = "clienta"
 		c.Client.Servers = []string{srvRPCAddr}
 	}
