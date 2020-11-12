@@ -566,7 +566,6 @@ func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 	for _, n := range c.serverIDs {
 		c.collectAgentHost("server", n, client)
 	}
-
 }
 
 // collectAgentHost gets the agent host data
@@ -604,7 +603,6 @@ func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
 	for _, n := range c.serverIDs {
 		c.collectPprof("server", n, client)
 	}
-
 }
 
 // collectPprof captures pprof data for the node
@@ -758,6 +756,9 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	} else {
 		c.writeBytes(dir, "metrics.json", metricBytes)
 	}
+
+	metrics, _, err := client.Operator().MetricsSummary(qo)
+	c.writeJSON(dir, "metrics.json", metrics, err)
 
 	return nil
 }

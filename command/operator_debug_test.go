@@ -109,10 +109,13 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Debug on client - node class = "clienta"
 	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"})
 
-	assert.Equal(t, 0, code) // take note of failed return code, but continue to allow buffer content checks
+	assert.Equal(t, 0, code)
 	require.Empty(t, ui.ErrorWriter.String(), "errorwriter should be empty")
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	require.Contains(t, ui.OutputWriter.String(), "Max node count reached (2)")
 	require.Contains(t, ui.OutputWriter.String(), "Node Class: clienta")
+	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
+
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 }
