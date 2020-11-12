@@ -62,8 +62,9 @@ func TestDebug_NodeClass(t *testing.T) {
 	defer client1.Shutdown()
 
 	// Wait for the client to connect
-	testutil.WaitForClient(t, srv.Agent.Server(), client1.Agent.Client())
-	t.Logf("[TEST] Client1 ready")
+	client1NodeID := client1.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID)
+	t.Logf("[TEST] Client1 ready, id: %s", client1NodeID)
 
 	// Setup Client 2 (nodeclass = clientb)
 	agentConfFunc2 := func(c *agent.Config) {
@@ -80,8 +81,9 @@ func TestDebug_NodeClass(t *testing.T) {
 	defer client2.Shutdown()
 
 	// Wait for the client to connect
-	testutil.WaitForClient(t, srv.Agent.Server(), client2.Agent.Client())
-	t.Logf("[TEST] Client2 ready")
+	client2NodeID := client2.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.RPC, client2NodeID)
+	t.Logf("[TEST] Client2 ready, id: %s", client2NodeID)
 
 	// Setup Client 3 (nodeclass = clienta)
 	agentConfFunc3 := func(c *agent.Config) {
@@ -96,8 +98,9 @@ func TestDebug_NodeClass(t *testing.T) {
 	defer client3.Shutdown()
 
 	// Wait for the client to connect
-	testutil.WaitForClient(t, srv.Agent.Server(), client3.Agent.Client())
-	t.Logf("[TEST] Client3 ready")
+	client3NodeID := client3.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.RPC, client3NodeID)
+	t.Logf("[TEST] Client3 ready, id: %s", client3NodeID)
 
 	// Setup mock UI
 	ui := cli.NewMockUi()

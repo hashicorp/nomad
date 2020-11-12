@@ -5,8 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashicorp/nomad/client"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	testing "github.com/mitchellh/go-testing-interface"
@@ -97,21 +95,26 @@ func WaitForLeader(t testing.T, rpc rpcFn) {
 	})
 }
 
-// WaitForClient waits for a client to connect to the specified server
-func WaitForClient(t testing.T, server *nomad.Server, client *client.Client) {
+// WaitForClient blocks until the client can be found
+func WaitForClient(t testing.T, rpc rpcFn, nodeID string) {
 	t.Helper()
 	WaitForResult(func() (bool, error) {
-		node, err := server.State().NodeByID(nil, client.NodeID())
+		req := structs.NodeSpecificRequest{
+			NodeID:       nodeID,
+			QueryOptions: structs.QueryOptions{Region: "global"},
+		}
+		var out structs.SingleNodeResponse
+
+		err := rpc("Node.GetNode", &req, &out)
 		if err != nil {
 			return false, err
 		}
-		if node == nil {
-			return false, fmt.Errorf("no node")
+		if out.Node == nil {
+			return false, fmt.Errorf("node not found")
 		}
-
-		return node.Status == structs.NodeStatusReady, fmt.Errorf("wrong status: %s", node.Status)
+		return out.Node.Status == structs.NodeStatusReady, nil
 	}, func(err error) {
-		t.Fatalf("should have a client: %v", err)
+		t.Fatalf("failed to find node: %v", err)
 	})
 }
 
