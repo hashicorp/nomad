@@ -52,6 +52,6 @@ func (e *EventSinks) Register(eventSink *EventSink, w *WriteOptions) (*WriteMeta
 	return wm, nil
 }
 
-func (e *EventSinks) Deregister(name string, w *WriteOptions) (*WriteMeta, error) {
-	return e.client.delete("/v1/event/sink/"+name, nil, w)
+func (e *EventSinks) Deregister(id string, w *WriteOptions) (*WriteMeta, error) {
+	return e.client.delete("/v1/event/sink/"+id, nil, w)
 }

@@ -384,7 +384,7 @@ github.com/hashicorp/go-checkpoint
 # github.com/hashicorp/go-cleanhttp v0.5.1
 ## explicit
 github.com/hashicorp/go-cleanhttp
-# github.com/hashicorp/go-connlimit v0.2.0
+# github.com/hashicorp/go-connlimit v0.3.0
 ## explicit
 github.com/hashicorp/go-connlimit
 # github.com/hashicorp/go-cty-funcs v0.0.0-20200930094925-2721b1e36840
