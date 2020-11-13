@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"golang.org/x/net/http2"
 )
 
 // supportedTLSVersions are the current TLS versions that Nomad supports
@@ -360,6 +361,7 @@ func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 		CipherSuites:             c.CipherSuites,
 		MinVersion:               c.MinVersion,
 		PreferServerCipherSuites: c.PreferServerCipherSuites,
+		NextProtos:               []string{http2.NextProtoTLS},
 	}
 
 	// Parse the CA cert if any

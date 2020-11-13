@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 )
 
 // makeHTTPServer returns a test server whose logs will be written to
@@ -1179,6 +1180,54 @@ func Test_decodeBody(t *testing.T) {
 			assert.Equal(t, tc.expectedOut, tc.inputOut, tc.name)
 		})
 	}
+}
+
+func Test_GRPCServer(t *testing.T) {
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	cb := func(c *Config) {
+		c.Region = "foo" // match the region on foocert
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:        true,
+			VerifyHTTPSClient: true,
+			CAFile:            cafile,
+			CertFile:          foocert,
+			KeyFile:           fookey,
+		}
+	}
+
+	httpTest(t, cb, func(s *TestAgent) {
+		req := &http.Request{
+			ProtoMajor: 2,
+			Method:     "POST",
+			Header: http.Header{
+				"Content-Type": {"application/grpc"},
+			},
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   s.Server.Addr,
+				Path:   "/hashicorp.nomad.stream.proto.EventStream/Subscribe",
+			},
+		}
+
+		certs, err := tls.LoadX509KeyPair(foocert, fookey)
+		require.NoError(t, err)
+
+		client := &http.Client{
+			Transport: &http2.Transport{
+				TLSClientConfig: &tls.Config{
+					Certificates:       []tls.Certificate{certs},
+					InsecureSkipVerify: true,
+				},
+			},
+		}
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
 }
 
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {

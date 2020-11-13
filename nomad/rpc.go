@@ -317,7 +317,7 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 		r.handleMultiplexV2(ctx, conn, rpcCtx)
 
 	case pool.RpcGRPC:
-		r.Server.grpcHandler.Handle(conn)
+		r.Server.GRPCHandler.Handle(conn)
 	default:
 		r.logger.Error("unrecognized RPC byte", "byte", buf[0])
 		conn.Close()

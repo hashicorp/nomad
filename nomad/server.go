@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"net/rpc"
 	"os"
 	"path/filepath"
@@ -141,7 +142,7 @@ type Server struct {
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
 
-	grpcHandler connHandler
+	GRPCHandler ConnHandler
 
 	// clientRpcAdvertise is the advertised RPC address for Nomad clients to connect
 	// to this server
@@ -295,10 +296,11 @@ type endpoints struct {
 	ClientCSI         *ClientCSI
 }
 
-type connHandler interface {
+type ConnHandler interface {
 	Run() error
 	Handle(conn net.Conn)
 	Shutdown() error
+	ServeHTTP(http.ResponseWriter, *http.Request)
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -466,10 +468,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		pbstream.RegisterEventStreamServer(srv, stream.NewSinkServer(broker))
 	}
 
-	s.grpcHandler = NewHandler(s.config.RPCAddr, register)
+	s.GRPCHandler = NewHandler(s.config.RPCAddr, register)
 
 	go func() {
-		if err := s.grpcHandler.Run(); err != nil {
+		if err := s.GRPCHandler.Run(); err != nil {
 			s.logger.Error("gRPC server failed", "error", err)
 		}
 	}()

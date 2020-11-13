@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 	"net"
+	"net/http"
 
 	"google.golang.org/grpc"
 )
@@ -35,6 +36,10 @@ func (h *Handler) Run() error {
 func (h *Handler) Shutdown() error {
 	h.srv.Stop()
 	return nil
+}
+
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.srv.ServeHTTP(w, r)
 }
 
 // chanListener implements net.Listener for grpc.Server.
