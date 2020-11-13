@@ -414,7 +414,7 @@ github.com/hashicorp/go-discover/provider/vsphere
 # github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 ## explicit
 github.com/hashicorp/go-envparse
-# github.com/hashicorp/go-getter v1.5.0
+# github.com/hashicorp/go-getter v1.5.1
 ## explicit
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
