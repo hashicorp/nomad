@@ -121,6 +121,7 @@ func TestSinkServer_Subscribe(t *testing.T) {
 
 	// Wait for subscriptions to be unsubscribed
 	testutil.WaitForResult(func() (bool, error) {
+		// TODO helper method to return subscription length or entire subscription
 		ok := assert.Len(t, broker.subscriptions.byToken[""], 0)
 		if ok {
 			return true, nil
