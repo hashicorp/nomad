@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"hash/crc32"
 	"math"
 	"net"
@@ -7872,6 +7873,10 @@ type TaskArtifact struct {
 	// go-getter.
 	GetterOptions map[string]string
 
+	// GetterHeaders are headers to use when downloading the artifact using
+	// go-getter.
+	GetterHeaders map[string]string
+
 	// GetterMode is the go-getter.ClientMode for fetching resources.
 	// Defaults to "any" but can be set to "file" or "dir".
 	GetterMode string
@@ -7885,40 +7890,48 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	if ta == nil {
 		return nil
 	}
-	nta := new(TaskArtifact)
-	*nta = *ta
-	nta.GetterOptions = helper.CopyMapStringString(ta.GetterOptions)
-	return nta
+	return &TaskArtifact{
+		GetterSource:  ta.GetterSource,
+		GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
+		GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+		GetterMode:    ta.GetterMode,
+		RelativeDest:  ta.RelativeDest,
+	}
 }
 
 func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
 }
 
-// Hash creates a unique identifier for a TaskArtifact as the same GetterSource
-// may be specified multiple times with different destinations.
-func (ta *TaskArtifact) Hash() string {
-	hash, err := blake2b.New256(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	hash.Write([]byte(ta.GetterSource))
-
-	// Must iterate over keys in a consistent order
-	keys := make([]string, 0, len(ta.GetterOptions))
-	for k := range ta.GetterOptions {
+// hashStringMap appends a deterministic hash of m onto h.
+func hashStringMap(h hash.Hash, m map[string]string) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		hash.Write([]byte(k))
-		hash.Write([]byte(ta.GetterOptions[k]))
+		h.Write([]byte(k))
+		h.Write([]byte(m[k]))
+	}
+}
+
+// Hash creates a unique identifier for a TaskArtifact as the same GetterSource
+// may be specified multiple times with different destinations.
+func (ta *TaskArtifact) Hash() string {
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
 	}
 
-	hash.Write([]byte(ta.GetterMode))
-	hash.Write([]byte(ta.RelativeDest))
-	return base64.RawStdEncoding.EncodeToString(hash.Sum(nil))
+	h.Write([]byte(ta.GetterSource))
+
+	hashStringMap(h, ta.GetterOptions)
+	hashStringMap(h, ta.GetterHeaders)
+
+	h.Write([]byte(ta.GetterMode))
+	h.Write([]byte(ta.RelativeDest))
+	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation

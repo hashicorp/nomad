@@ -2628,12 +2628,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Artifacts: []*api.TaskArtifact{
 							{
-								GetterSource: helper.StringToPtr("source"),
-								GetterOptions: map[string]string{
-									"a": "b",
-								},
-								GetterMode:   helper.StringToPtr("dir"),
-								RelativeDest: helper.StringToPtr("dest"),
+								GetterSource:  helper.StringToPtr("source"),
+								GetterOptions: map[string]string{"a": "b"},
+								GetterHeaders: map[string]string{"User-Agent": "nomad"},
+								GetterMode:    helper.StringToPtr("dir"),
+								RelativeDest:  helper.StringToPtr("dest"),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -2752,12 +2751,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Artifacts: []*structs.TaskArtifact{
 							{
-								GetterSource: "source",
-								GetterOptions: map[string]string{
-									"a": "b",
-								},
-								GetterMode:   "dir",
-								RelativeDest: "dest",
+								GetterSource:  "source",
+								GetterOptions: map[string]string{"a": "b"},
+								GetterHeaders: map[string]string{"User-Agent": "nomad"},
+								GetterMode:    "dir",
+								RelativeDest:  "dest",
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{

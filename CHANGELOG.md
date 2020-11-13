@@ -33,6 +33,7 @@ IMPROVEMENTS:
  * driver/docker: Upgrade pause container and detect architecture [[GH-8957](https://github.com/hashicorp/nomad/pull/8957)]
  * driver/docker: Support pinning tasks to specific CPUs with `cpuset_cpus` option. [[GH-8291](https://github.com/hashicorp/nomad/pull/8291)]
  * jobspec: Lowered minimum CPU allowed from 10 to 1. [[GH-8996](https://github.com/hashicorp/nomad/issues/8996)]
+ * jobspec: Added support for `headers` option in `artifact` stanza [[GH-9306](https://github.com/hashicorp/nomad/issues/9306)]
 
 __BACKWARDS INCOMPATIBILITIES:__
  * core: null characters are prohibited in region, datacenter, job name/ID, task group name, and task name [[GH-9020](https://github.com/hashicorp/nomad/issues/9020)]
