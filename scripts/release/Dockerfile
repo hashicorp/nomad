@@ -31,13 +31,14 @@ USER vagrant
 
 COPY ./scripts/vagrant-linux-unpriv-ui.sh /tmp/scripts/vagrant-linux-unpriv-ui.sh
 RUN /tmp/scripts/vagrant-linux-unpriv-ui.sh
+# avoid requiring loading nvm.sh by using a well defined path as an alias to the node version
+RUN /bin/bash -c '. ~/.nvm/nvm.sh && ln -s ~/.nvm/versions/node/$(nvm current) ~/.nvm/versions/node/.default'
 
 COPY ./scripts/release/docker-build-all /tmp/scripts/docker-build-all
 
 # Update PATH with GO bin, yarn, and node
-ENV NODE_VERSION=v12.19.0
 ENV GOPATH="/opt/gopath" \
-    PATH="/home/vagrant/.nvm/versions/node/${NODE_VERSION}/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.yarn/bin:/home/vagrant/.config/yarn/global/node_modules/.bin:$PATH"
+    PATH="/home/vagrant/.nvm/versions/node/.default/bin:/home/vagrant/bin:/opt/gopath/bin:/home/vagrant/.yarn/bin:/home/vagrant/.config/yarn/global/node_modules/.bin:$PATH"
 
 RUN mkdir -p /opt/gopath/src/github.com/hashicorp/nomad
 RUN mkdir -p /home/vagrant/bin \
