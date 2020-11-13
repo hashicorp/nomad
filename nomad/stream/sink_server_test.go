@@ -6,9 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
 	pbstream "github.com/hashicorp/nomad/nomad/stream/proto"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -27,7 +25,20 @@ func TestSinkServer_Subscribe(t *testing.T) {
 			{
 				Topic: structs.TopicDeployment,
 				Key:   "some-job",
-				Payload: state.DeploymentEvent{
+				Payload: structs.DeploymentEvent{
+					Deployment: mock.Deployment(),
+				},
+			},
+		},
+	}
+	broker.Publish(events)
+	events = &structs.Events{
+		Index: 2,
+		Events: []structs.Event{
+			{
+				Topic: structs.TopicDeployment,
+				Key:   "some-key",
+				Payload: structs.DeploymentEvent{
 					Deployment: mock.Deployment(),
 				},
 			},
@@ -65,10 +76,19 @@ func TestSinkServer_Subscribe(t *testing.T) {
 	eventBatch, err := sub.Recv()
 	r.NoError(err)
 
-	spew.Dump(eventBatch)
 	r.NotNil(eventBatch)
 	r.Len(eventBatch.Event, 1)
+	r.Equal(int(eventBatch.Index), 1)
 	r.Equal("some-job", eventBatch.Event[0].Key)
+
+	eventBatch, err = sub.Recv()
+	r.NoError(err)
+
+	r.NotNil(eventBatch)
+	r.Len(eventBatch.Event, 1)
+	r.Equal(int(eventBatch.Index), 2)
+	r.Equal("some-key", eventBatch.Event[0].Key)
+
 }
 
 func runTestServer(t *testing.T, server *SinkServer) net.Addr {

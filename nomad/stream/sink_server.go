@@ -2,7 +2,6 @@ package stream
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 
@@ -11,6 +10,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/golang/protobuf/jsonpb"
 )
 
 var _ pbstream.EventStreamServer = (*SinkServer)(nil)
@@ -65,68 +66,14 @@ func (s *SinkServer) Subscribe(pbReq *pbstream.SubscribeRequest, serverStream pb
 			return err
 		}
 	}
-
-	// resultCh := make(chan result, 10)
-	// go func() {
-	// 	defer cancel()
-	// 	for {
-	// 		events, err := sub.Next(ctx)
-	// 		if err != nil {
-	// 			select {
-	// 			case resultCh <- result{err: err}:
-	// 			case <-ctx.Done():
-	// 			}
-	// 			return
-	// 		}
-
-	// 		e := newEventFrom
-	// 		eventBatch := &pbstream.EventBatch{
-	// 			Index: events.Index,
-	// 		}
-
-	// 		for _, e := range events.Events {
-	// 			ebEvent := &pbstream.Event{
-	// 				Topic:   pbstream.Topic(pbstream.Topic_value[string(e.Topic)]),
-	// 				Key:     e.Key,
-	// 				Payload: e.Payload,
-	// 			}
-	// 			eventBatch.Event = append(eventBatch.Event, ebEvent)
-	// 		}
-	// 	}
-
-	// }()
-
-	event, err := sub.Next(context.Background())
-	if err != nil {
-		return err
-	}
-
-	eventBatch := &pbstream.EventBatch{
-		Index: event.Index,
-	}
-
-	for _, e := range event.Events {
-		ebEvent := &pbstream.Event{
-			Topic: pbstream.Topic(pbstream.Topic_value[string(e.Topic)]),
-			Key:   e.Key,
-		}
-		eventBatch.Event = append(eventBatch.Event, ebEvent)
-	}
-
-	err = serverStream.Send(eventBatch)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func newEventFromStreamEvent(events structs.Events) (*pbstream.EventBatch, error) {
-	e := &pbstream.EventBatch{Index: events.Index}
+	batch := &pbstream.EventBatch{Index: events.Index}
 
 	var pbEvents []*pbstream.Event
-	for _, evnts := range events.Events {
-		payload, err := eventToProtoStruct(evnts.Payload)
+	for _, e := range events.Events {
+		payload, err := eventToProtoStruct(e.Payload)
 		if err != nil {
 			return nil, err
 		}
@@ -137,9 +84,9 @@ func newEventFromStreamEvent(events structs.Events) (*pbstream.EventBatch, error
 		}
 		pbEvents = append(pbEvents, pbe)
 	}
-	e.Event = pbEvents
+	batch.Event = pbEvents
 
-	return e, nil
+	return batch, nil
 }
 
 func eventToProtoStruct(payload interface{}) (*pbstruct.Struct, error) {

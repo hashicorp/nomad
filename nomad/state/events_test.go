@@ -53,7 +53,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	require.Equal(t, uint64(100), got.Index)
 	require.Equal(t, d.ID, got.Key)
 
-	de := got.Payload.(*DeploymentEvent)
+	de := got.Payload.(*structs.DeploymentEvent)
 	require.Equal(t, structs.DeploymentStatusPaused, de.Deployment.Status)
 	require.Contains(t, got.FilterKeys, j.ID)
 }
@@ -130,7 +130,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	require.Equal(t, uint64(100), got.Index)
 	require.Equal(t, d.ID, got.Key)
 
-	de := got.Payload.(*DeploymentEvent)
+	de := got.Payload.(*structs.DeploymentEvent)
 	require.Equal(t, structs.DeploymentStatusRunning, de.Deployment.Status)
 	require.Equal(t, TypeDeploymentPromotion, got.Type)
 }
@@ -266,7 +266,7 @@ func TestEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 	for _, e := range events {
 		require.Equal(t, structs.TopicNode, e.Topic)
 		require.Equal(t, TypeNodeEvent, e.Type)
-		event := e.Payload.(*NodeEvent)
+		event := e.Payload.(*structs.NodeStreamEvent)
 		require.Equal(t, "update", event.Node.Events[len(event.Node.Events)-1].Message)
 	}
 
@@ -298,7 +298,7 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 	e := events[0]
 	require.Equal(t, structs.TopicNode, e.Topic)
 	require.Equal(t, TypeNodeEvent, e.Type)
-	event := e.Payload.(*NodeEvent)
+	event := e.Payload.(*structs.NodeStreamEvent)
 	require.Equal(t, "down", event.Node.Events[len(event.Node.Events)-1].Message)
 	require.Equal(t, structs.NodeStatusDown, event.Node.Status)
 }
@@ -333,7 +333,7 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	require.Equal(t, TypeEvalUpdated, e.Type)
 	require.Contains(t, e.FilterKeys, e2.JobID)
 	require.Contains(t, e.FilterKeys, e2.DeploymentID)
-	event := e.Payload.(*EvalEvent)
+	event := e.Payload.(*structs.EvalEvent)
 	require.Equal(t, "blocked", event.Eval.Status)
 }
 
@@ -448,7 +448,7 @@ func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
 		require.Equal(t, 100, int(e.Index))
 		require.Equal(t, TypeNodeDrain, e.Type)
 		require.Equal(t, structs.TopicNode, e.Topic)
-		ne := e.Payload.(*NodeEvent)
+		ne := e.Payload.(*structs.NodeStreamEvent)
 		require.Equal(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
 	}
 }
@@ -487,7 +487,7 @@ func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 		require.Equal(t, 100, int(e.Index))
 		require.Equal(t, TypeNodeDrain, e.Type)
 		require.Equal(t, structs.TopicNode, e.Topic)
-		ne := e.Payload.(*NodeEvent)
+		ne := e.Payload.(*structs.NodeStreamEvent)
 		require.Equal(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
 		require.Equal(t, structs.NodeSchedulingIneligible, ne.Node.SchedulingEligibility)
 	}
@@ -621,7 +621,7 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 
 	require.Len(t, event.FilterKeys, 0)
 
-	nodeEvent, ok := event.Payload.(*NodeEvent)
+	nodeEvent, ok := event.Payload.(*structs.NodeStreamEvent)
 	require.True(t, ok)
 	require.Equal(t, *before, *nodeEvent.Node)
 }
@@ -647,7 +647,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				Type:  TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: testNode(),
 				},
 			}},
@@ -664,7 +664,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				Type:  TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: testNode(nodeNotReady),
 				},
 			}},
@@ -684,7 +684,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				Type:  TypeNodeDeregistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: testNode(),
 				},
 			}},
@@ -706,7 +706,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					Type:  TypeNodeDeregistration,
 					Key:   testNodeID(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(),
 					},
 				},
@@ -715,7 +715,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					Type:  TypeNodeDeregistration,
 					Key:   testNodeIDTwo(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(nodeIDTwo),
 					},
 				},
@@ -757,7 +757,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					Type:  TypeNodeEvent,
 					Key:   testNodeID(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(),
 					},
 				},
@@ -766,7 +766,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 					Type:  TypeNodeEvent,
 					Key:   testNodeIDTwo(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(nodeIDTwo),
 					},
 				},
@@ -860,7 +860,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	require.Equal(t, TypeNodeDrain, got.Events[0].Type)
 	require.Equal(t, uint64(100), got.Events[0].Index)
 
-	nodeEvent, ok := got.Events[0].Payload.(*NodeEvent)
+	nodeEvent, ok := got.Events[0].Payload.(*structs.NodeStreamEvent)
 	require.True(t, ok)
 
 	require.Equal(t, structs.NodeSchedulingIneligible, nodeEvent.Node.SchedulingEligibility)
@@ -870,8 +870,8 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 	t.Helper()
 
-	wantPayload := want.Payload.(*NodeEvent)
-	gotPayload := got.Payload.(*NodeEvent)
+	wantPayload := want.Payload.(*structs.NodeStreamEvent)
+	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
 	// Check payload equality for the fields that we can easily control
 	require.Equal(t, wantPayload.Node.Status, gotPayload.Node.Status)
@@ -882,15 +882,15 @@ func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 func requireNodeDeregistrationEventEqual(t *testing.T, want, got structs.Event) {
 	t.Helper()
 
-	wantPayload := want.Payload.(*NodeEvent)
-	gotPayload := got.Payload.(*NodeEvent)
+	wantPayload := want.Payload.(*structs.NodeStreamEvent)
+	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
 	require.Equal(t, wantPayload.Node.ID, gotPayload.Node.ID)
 	require.NotEqual(t, wantPayload.Node.Events, gotPayload.Node.Events)
 }
 
 func requireNodeEventEqual(t *testing.T, want, got structs.Event) {
-	gotPayload := got.Payload.(*NodeEvent)
+	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
 	require.Len(t, gotPayload.Node.Events, 3)
 }

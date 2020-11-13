@@ -167,3 +167,30 @@ func (e *EventSink) EqualSubscriptionValues(old *EventSink) bool {
 		e.Type == old.Type &&
 		reflect.DeepEqual(e.Topics, old.Topics)
 }
+
+// JobEvent holds a newly updated Job.
+type JobEvent struct {
+	Job *Job
+}
+
+// EvalEvent holds a newly updated Eval.
+type EvalEvent struct {
+	Eval *Evaluation
+}
+
+// AllocEvent holds a newly updated Allocation. The
+// Allocs embedded Job has been removed to reduce size.
+type AllocEvent struct {
+	Alloc *Allocation
+}
+
+// DeploymentEvent holds a newly updated Deployment.
+type DeploymentEvent struct {
+	Deployment *Deployment
+}
+
+// NodeStreamEvent holds a newly updated Node
+type NodeStreamEvent struct {
+	Node *Node
+}
+

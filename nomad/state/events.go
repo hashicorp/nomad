@@ -10,7 +10,7 @@ const (
 	TypeNodeDeregistration       = "NodeDeregistration"
 	TypeNodeEligibilityUpdate    = "NodeEligibility"
 	TypeNodeDrain                = "NodeDrain"
-	TypeNodeEvent                = "NodeEvent"
+	TypeNodeEvent                = "NodeStreamEvent"
 	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
 	TypeDeploymentPromotion      = "DeploymentPromotion"
 	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
@@ -23,32 +23,6 @@ const (
 	TypeJobBatchDeregistered     = "JobBatchDeregistered"
 	TypePlanResult               = "PlanResult"
 )
-
-// JobEvent holds a newly updated Job.
-type JobEvent struct {
-	Job *structs.Job
-}
-
-// EvalEvent holds a newly updated Eval.
-type EvalEvent struct {
-	Eval *structs.Evaluation
-}
-
-// AllocEvent holds a newly updated Allocation. The
-// Allocs embedded Job has been removed to reduce size.
-type AllocEvent struct {
-	Alloc *structs.Allocation
-}
-
-// DeploymentEvent holds a newly updated Deployment.
-type DeploymentEvent struct {
-	Deployment *structs.Deployment
-}
-
-// NodeEvent holds a newly updated Node
-type NodeEvent struct {
-	Node *structs.Node
-}
 
 var MsgTypeEvents = map[structs.MessageType]string{
 	structs.NodeRegisterRequestType:                 TypeNodeRegistration,
@@ -96,7 +70,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{
 				Topic: structs.TopicNode,
 				Key:   before.ID,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: before,
 				},
 			}, true
@@ -115,7 +89,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				after.DeploymentID,
 			},
 			Namespace: after.Namespace,
-			Payload: &EvalEvent{
+			Payload: &structs.EvalEvent{
 				Eval: after,
 			},
 		}, true
@@ -136,7 +110,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &AllocEvent{
+			Payload: &structs.AllocEvent{
 				Alloc: alloc,
 			},
 		}, true
@@ -146,7 +120,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Topic:     structs.TopicJob,
 			Key:       after.ID,
 			Namespace: after.Namespace,
-			Payload: &JobEvent{
+			Payload: &structs.JobEvent{
 				Job: after,
 			},
 		}, true
@@ -155,7 +129,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		return structs.Event{
 			Topic: structs.TopicNode,
 			Key:   after.ID,
-			Payload: &NodeEvent{
+			Payload: &structs.NodeStreamEvent{
 				Node: after,
 			},
 		}, true
@@ -166,7 +140,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:        after.ID,
 			Namespace:  after.Namespace,
 			FilterKeys: []string{after.JobID},
-			Payload: &DeploymentEvent{
+			Payload: &structs.DeploymentEvent{
 				Deployment: after,
 			},
 		}, true
