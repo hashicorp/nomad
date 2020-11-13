@@ -52,7 +52,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 	require.Equal(t, uint64(100), got.Index)
 	require.Equal(t, d.ID, got.Key)
 
-	de := got.Payload.(*DeploymentEvent)
+	de := got.Payload.(*structs.DeploymentEvent)
 	require.Equal(t, structs.DeploymentStatusPaused, de.Deployment.Status)
 	require.Contains(t, got.FilterKeys, j.ID)
 
