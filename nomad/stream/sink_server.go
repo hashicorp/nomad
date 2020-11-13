@@ -1,10 +1,16 @@
 package stream
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 
+	pbstruct "github.com/golang/protobuf/ptypes/struct"
 	pbstream "github.com/hashicorp/nomad/nomad/stream/proto"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var _ pbstream.EventStreamServer = (*SinkServer)(nil)
@@ -38,6 +44,57 @@ func (s *SinkServer) Subscribe(pbReq *pbstream.SubscribeRequest, serverStream pb
 	if err != nil {
 		return err
 	}
+	defer sub.Unsubscribe()
+	ctx := serverStream.Context()
+
+	for {
+		event, err := sub.Next(ctx)
+		switch {
+		case errors.Is(err, ErrSubscriptionClosed):
+			return status.Error(codes.Aborted, err.Error())
+		case err != nil:
+			return err
+		}
+
+		e, err := newEventFromStreamEvent(event)
+		if err != nil {
+			return err
+		}
+
+		if err := serverStream.Send(e); err != nil {
+			return err
+		}
+	}
+
+	// resultCh := make(chan result, 10)
+	// go func() {
+	// 	defer cancel()
+	// 	for {
+	// 		events, err := sub.Next(ctx)
+	// 		if err != nil {
+	// 			select {
+	// 			case resultCh <- result{err: err}:
+	// 			case <-ctx.Done():
+	// 			}
+	// 			return
+	// 		}
+
+	// 		e := newEventFrom
+	// 		eventBatch := &pbstream.EventBatch{
+	// 			Index: events.Index,
+	// 		}
+
+	// 		for _, e := range events.Events {
+	// 			ebEvent := &pbstream.Event{
+	// 				Topic:   pbstream.Topic(pbstream.Topic_value[string(e.Topic)]),
+	// 				Key:     e.Key,
+	// 				Payload: e.Payload,
+	// 			}
+	// 			eventBatch.Event = append(eventBatch.Event, ebEvent)
+	// 		}
+	// 	}
+
+	// }()
 
 	event, err := sub.Next(context.Background())
 	if err != nil {
@@ -64,8 +121,39 @@ func (s *SinkServer) Subscribe(pbReq *pbstream.SubscribeRequest, serverStream pb
 	return nil
 }
 
-// func (s *SinkServer)
+func newEventFromStreamEvent(events structs.Events) (*pbstream.EventBatch, error) {
+	e := &pbstream.EventBatch{Index: events.Index}
 
-// input SubscribeRequest
+	var pbEvents []*pbstream.Event
+	for _, evnts := range events.Events {
+		payload, err := eventToProtoStruct(evnts.Payload)
+		if err != nil {
+			return nil, err
+		}
+		pbe := &pbstream.Event{
+			Topic:   pbstream.Topic(pbstream.Topic_value[string(e.Topic)]),
+			Key:     e.Key,
+			Payload: payload,
+		}
+		pbEvents = append(pbEvents, pbe)
+	}
+	e.Event = pbEvents
 
-// output stream Event
+	return e, nil
+}
+
+func eventToProtoStruct(payload interface{}) (*pbstruct.Struct, error) {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := bytes.NewReader(b)
+
+	pbs := &pbstruct.Struct{}
+
+	if err = jsonpb.Unmarshal(reader, pbs); err != nil {
+		return nil, err
+	}
+	return pbs, nil
+}

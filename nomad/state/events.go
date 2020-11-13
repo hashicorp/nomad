@@ -50,16 +50,6 @@ type NodeEvent struct {
 	Node *structs.Node
 }
 
-type NodeDrainAllocDetails struct {
-	ID      string
-	Migrate *structs.MigrateStrategy
-}
-
-type JobDrainDetails struct {
-	Type         string
-	AllocDetails map[string]NodeDrainAllocDetails
-}
-
 var MsgTypeEvents = map[structs.MessageType]string{
 	structs.NodeRegisterRequestType:                 TypeNodeRegistration,
 	structs.NodeDeregisterRequestType:               TypeNodeDeregistration,
