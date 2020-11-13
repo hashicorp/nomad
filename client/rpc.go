@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"net/rpc"
-	"reflect"
 	"strings"
 	"time"
 
@@ -47,32 +46,6 @@ func (c *Client) StreamingRpcHandler(method string) (structs.StreamingRpcHandler
 	return c.streamingRpcs.GetHandler(method)
 }
 
-// Given a type that is or eventually points to a concrete type with an embedded QueryOptions
-// returns the value reference to that options. Otherwise returns reflect.Value{}
-func getEmbeddedQueryOptsValue(arg interface{}) reflect.Value {
-	// Dereference interfaces or pointers for their concrete types
-	maybeOpts := reflect.ValueOf(arg)
-	for maybeOpts.Kind() == reflect.Ptr || maybeOpts.Kind() == reflect.Interface {
-		maybeOpts = maybeOpts.Elem()
-	}
-	return maybeOpts.FieldByName("QueryOptions")
-}
-
-// Given a type that is or eventually points to a concrete type with an embedded QueryOptions
-// returns a copy of that QueryOptions.
-func getEmbeddedQueryOpts(arg interface{}) (structs.QueryOptions, bool) {
-	if maybeOpts := getEmbeddedQueryOptsValue(arg); maybeOpts != (reflect.Value{}) {
-		return maybeOpts.Interface().(structs.QueryOptions), true
-	}
-	return structs.QueryOptions{}, false
-}
-
-// Sets the query options embedded in the concrete type backing the arg
-// will panic if there isn't a query opts in there
-func setEmbeddedQueryOpts(arg interface{}, opts structs.QueryOptions) {
-	getEmbeddedQueryOptsValue(arg).Set(reflect.ValueOf(opts))
-}
-
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers.
 func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	// Invoke the RPCHandler if it exists
@@ -91,8 +64,8 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 	deadline = deadline.Add(c.config.RPCHoldTimeout)
 
 	// If its a blocking query, allow the time specified by the request
-	if opts, ok := getEmbeddedQueryOpts(args); ok {
-		deadline = deadline.Add(opts.TimeToBlock())
+	if info, ok := args.(structs.RPCInfo); ok {
+		deadline = deadline.Add(info.TimeToBlock())
 	}
 
 TRY:
@@ -128,10 +101,8 @@ TRY:
 		// Blocking queries are tricky.  jitters and rpcholdtimes in multiple places can result in our server call taking longer than we wanted it to. For example:
 		// a block time of 5s may easily turn into the server blocking for 10s since it applies its own RPCHoldTime. If the server dies at t=7s we still want to retry
 		// so before we give up on blocking queries make one last attempt for an immediate answer
-		if opts, ok := getEmbeddedQueryOpts(args); ok && opts.TimeToBlock() > 0 {
-			opts.MinQueryIndex = 0
-			opts.MaxQueryTime = 0
-			setEmbeddedQueryOpts(args, opts)
+		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
+			info.SetTimeToBlock(0)
 			return c.RPC(method, args, reply)
 		}
 		c.rpcLogger.Error("error performing RPC to server, deadline exceeded, cannot retry", "error", rpcErr, "rpc", method, "server", server.Addr)
@@ -142,14 +113,13 @@ TRY:
 	select {
 	case <-time.After(lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)):
 		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
-		if opts, ok := getEmbeddedQueryOpts(args); ok && opts.TimeToBlock() > 0 {
-			opts.MaxQueryTime = deadline.Sub(time.Now())
+		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
+			newBlockTime := deadline.Sub(time.Now())
 			// We can get below 0 here on slow computers because we slept for jitter so at least try to get an immediate response
-			if opts.MaxQueryTime <= 0 {
-				opts.MinQueryIndex = 0
-				opts.MaxQueryTime = 0
+			if newBlockTime < 0 {
+				newBlockTime = 0
 			}
-			setEmbeddedQueryOpts(args, opts)
+			info.SetTimeToBlock(newBlockTime)
 			return c.RPC(method, args, reply)
 		}
 
