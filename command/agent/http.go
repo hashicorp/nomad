@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/rs/cors"
 )
@@ -146,7 +145,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Create HTTP server with timeouts
 	httpServer := http.Server{
 		Addr:      srv.Addr,
-		Handler:   gRPCInterceptorHandler(agent.Server().GRPCHandler, gzip(mux)),
+		Handler:   gRPCInterceptorHandler(agent, gzip(mux)),
 		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
 		ErrorLog:  newHTTPServerLogger(srv.logger),
 	}
@@ -159,15 +158,19 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	return srv, nil
 }
 
-func gRPCInterceptorHandler(connHandler nomad.ConnHandler, defaultHandler http.Handler) http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		contentType := req.Header.Get("Content-Type")
-		if strings.HasPrefix(contentType, "application/grpc") && req.ProtoMajor >= 2 {
-			connHandler.ServeHTTP(res, req)
-		} else {
-			defaultHandler.ServeHTTP(res, req)
+func gRPCInterceptorHandler(agent *Agent, defaultHandler http.Handler) http.HandlerFunc {
+	if server := agent.Server(); server != nil {
+		return func(res http.ResponseWriter, req *http.Request) {
+			contentType := req.Header.Get("Content-Type")
+			if strings.HasPrefix(contentType, "application/grpc") && req.ProtoMajor >= 2 {
+				server.GRPCHandler.ServeHTTP(res, req)
+			} else {
+				defaultHandler.ServeHTTP(res, req)
+			}
 		}
 	}
+
+	return defaultHandler.ServeHTTP
 }
 
 // makeConnState returns a ConnState func for use in an http.Server. If
