@@ -301,22 +301,7 @@ this behavior optional :
 |                                 |          no default          | `default = null` | `default = "xy"` |
 | :-----------------------------: | :--------------------------: | :--------------: | :--------------: |
 |          foo unused             | error, "foo needs to be set" |        -         |        -         |
-|            var.foo              | error, "foo needs to be set" |      null¹       |        xy        |
+|            var.foo              | error, "foo needs to be set" |      null        |        xy        |
 | `NOMAD_VAR_foo=yz`<br />var.foo |              yz              |        yz        |        yz        |
 |  `-var foo=yz`<br />var.foo     |              yz              |        yz        |        yz        |
 
-1: Null is a valid value. Nomad will only error when the receiving field needs
-a value, example:
-
-```hcl
-variable "example" {
-  type = string
-  default = null
-}
-
-source "example" "foo" {
-  arg = var.example
-}
-```
-
-In the above case, as long as "arg" is optional for an "example" source, there is no error and arg won’t be set.

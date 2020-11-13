@@ -20,11 +20,9 @@ features such as symlinks.
 If the leading segment in the path is not `~` then the given path is returned
 unmodified.
 
-Using this function in resource arguments will cause spurious diffs if the
+Using this function in job arguments will cause spurious diffs if the
 same configuration is run by multiple users with different home directory
-paths, or used on different host operating systems. We recommend using this
-function only for transient values, such as in `connection` and `provisioner`
-blocks to locate SSH keys, etc.
+paths, or used on different host operating systems.
 
 The rules for determining the "home directory" for the current user vary
 depending on host operating system.

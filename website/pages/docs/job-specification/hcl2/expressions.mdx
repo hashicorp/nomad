@@ -13,9 +13,8 @@ description: |-
 
 _Expressions_ are used to refer to or compute values within a configuration.
 The simplest expressions are just literal values, like `"hello"` or `5`, but
-HCL also allows more complex expressions such as references to data exported by
-sources, arithmetic, conditional evaluation, and a number of built-in
-functions.
+HCL also allows more complex expressions such as arithmetic, conditional
+evaluation, and a number of built-in functions.
 
 Expressions can be used in a number of places in HCL, but some contexts limit
 which expression constructs are allowed, such as requiring a literal value of a
@@ -52,7 +51,7 @@ types,_ or _collection types._
 Finally, there is one special value that has _no_ type:
 
 - `null`: a value that represents _absence_ or _omission._ If you set an
-  argument of a source or module to `null`, Nomad behaves as though you
+  argument to `null`, Nomad behaves as though you
   had completely omitted it — it will use the argument's default value if it has
   one, or raise an error if the argument is mandatory. `null` is most useful in
   conditional expressions, so you can dynamically omit an argument if a
@@ -64,10 +63,6 @@ In most situations, lists and tuples behave identically, as do maps and objects.
 Whenever the distinction isn't relevant, the Nomad documentation uses each
 pair of terms interchangeably (with a historical preference for "list" and
 "map").
-
-However, plugin authors should understand the differences between these similar
-types (and the related `set` type), since they offer different ways to restrict
-the allowed values for input variables and source arguments.
 
 ### Type Conversion
 
@@ -188,6 +183,8 @@ together results that have a common key:
 ```text
 {for s in var.list : substr(s, 0, 1) => s... if s != ""}
 ```
+<!---
+## TODO: revamp this section
 
 ## Splat Expressions
 
@@ -244,6 +241,8 @@ The above will produce a list of ids whether `aws_instance.example` has `count`
 set or not, avoiding the need to revise various other expressions in the
 configuration when a particular resource switches to and from having `count`
 set.
+
+--->
 
 ## `dynamic` blocks
 
@@ -314,9 +313,6 @@ The iterator object (`check` in the example above) has two attributes:
   `for_each` expression produces a _set_ value then `key` is identical to
   `value` and should not be used.
 - `value` is the value of the current element.
-
-A `dynamic` block can only generate arguments that belong to the source type,
-data source or provisioner being configured.
 
 The `for_each` value must be a map or set with one element per desired nested
 block. If you need to declare resource instances based on a nested data

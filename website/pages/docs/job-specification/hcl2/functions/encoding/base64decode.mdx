@@ -18,13 +18,6 @@ than bytes, so this function will also interpret the resulting bytes as
 UTF-8. If the bytes after Base64 decoding are _not_ valid UTF-8, this function
 produces an error.
 
-While we do not recommend manipulating large, raw binary data in the Nomad
-language, Base64 encoding is the standard way to represent arbitrary byte
-sequences, and so resource types that accept or return binary data will use
-Base64 themselves, which avoids the need to encode or decode it directly in
-most cases. Various other functions with names containing "base64" can generate
-or manipulate Base64 data directly.
-
 ## Examples
 
 ```shell-session

@@ -12,7 +12,7 @@ description: The yamlencode function encodes a given value as a YAML string.
 
 ~> **Warning:** This function is currently **experimental** and its exact
 result format may change in future versions of Nomad, based on feedback.
-Do not use `yamldecode` to construct a value for any resource argument where
+Do not use `yamldecode` to construct a value for any argument where
 changes to the result would be disruptive. To get a consistent string
 representation of a value use [`jsonencode`](/docs/job-specification/hcl2/functions/encoding/jsonencode) instead; its
 results are also valid YAML because YAML is a JSON superset.

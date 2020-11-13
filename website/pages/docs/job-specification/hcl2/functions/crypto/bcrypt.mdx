@@ -22,10 +22,8 @@ The `cost` argument is optional and will default to 10 if unspecified.
 
 Since a bcrypt hash value includes a randomly selected salt, each call to this
 function will return a different value, even if the given string and cost are
-the same. Using this function directly with resource arguments will therefore
-cause spurious diffs. We recommend using this function only in `provisioner` or
-`post-processor` blocks, or in data resources whose results are only used in
-those blocks.
+the same. Using this function directly with job arguments will therefore
+cause spurious job updates.
 
 The version prefix on the generated string (e.g. `$2a$`) may change in future
 versions of Nomad.

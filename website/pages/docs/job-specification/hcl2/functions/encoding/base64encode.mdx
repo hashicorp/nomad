@@ -20,12 +20,6 @@ The Nomad language applies Unicode normalization to all strings, and so
 passing a string through `base64decode` and then `base64encode` may not yield
 the original result exactly.
 
-While we do not recommend manipulating large, raw binary data in the Nomad
-language, Base64 encoding is the standard way to represent arbitrary byte
-sequences, and so resource types that accept or return binary data will use
-Base64 themselves, and so this function exists primarily to allow string
-data to be easily provided to resource types that expect Base64 bytes.
-
 ## Examples
 
 ```shell-session
