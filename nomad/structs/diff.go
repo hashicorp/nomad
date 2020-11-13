@@ -1434,11 +1434,12 @@ func multiregionRegionDiff(r, other *MultiregionRegion, contextual bool) *Object
 	sort.Sort(FieldDiffs(diff.Fields))
 
 	var added, deleted, edited bool
+Loop:
 	for _, f := range diff.Fields {
 		switch f.Type {
 		case DiffTypeEdited:
 			edited = true
-			break
+			break Loop
 		case DiffTypeDeleted:
 			deleted = true
 		case DiffTypeAdded:
@@ -1990,11 +1991,12 @@ func primitiveObjectDiff(old, new interface{}, filter []string, name string, con
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
 	var added, deleted, edited bool
+Loop:
 	for _, f := range diff.Fields {
 		switch f.Type {
 		case DiffTypeEdited:
 			edited = true
-			break
+			break Loop
 		case DiffTypeDeleted:
 			deleted = true
 		case DiffTypeAdded:
