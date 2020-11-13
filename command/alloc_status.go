@@ -785,7 +785,7 @@ FOUND:
 	hostVolumesOutput = append(hostVolumesOutput, "ID|Read Only")
 	if verbose {
 		csiVolumesOutput = append(csiVolumesOutput,
-			"ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
+			"Name|ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
 	} else {
 		csiVolumesOutput = append(csiVolumesOutput, "ID|Read Only")
 	}
@@ -800,15 +800,16 @@ FOUND:
 			if verbose {
 				// there's an extra API call per volume here so we toggle it
 				// off with the -verbose flag
-				vol, _, err := client.CSIVolumes().Info(volReq.Name, nil)
+				vol, _, err := client.CSIVolumes().Info(volReq.Source, nil)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error retrieving volume info for %q: %s",
 						volReq.Name, err))
 					continue
 				}
 				csiVolumesOutput = append(csiVolumesOutput,
-					fmt.Sprintf("%s|%s|%s|%v|%v|%s",
+					fmt.Sprintf("%s|%s|%s|%s|%v|%v|%s",
 						volReq.Name,
+						vol.ID,
 						vol.PluginID,
 						vol.Provider,
 						vol.Schedulable,
