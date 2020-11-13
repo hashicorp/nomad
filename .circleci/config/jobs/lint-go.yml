@@ -4,7 +4,7 @@ steps:
   - run: apt-get update; apt-get install -y shellcheck sudo unzip
   - install-protoc
   - install-circleci-local-cli
-  - run: make deps lint-deps
+  - run: make deps
   - run: make check
   - run: make checkscripts
   - run: mkdir -p ui/dist && make generate-all static-assets
