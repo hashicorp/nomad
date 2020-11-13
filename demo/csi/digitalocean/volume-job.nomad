@@ -29,7 +29,7 @@ job "example" {
 
         network {
           mbits = 14
-          port  "db"  {}
+          port "db" {}
         }
       }
     }
