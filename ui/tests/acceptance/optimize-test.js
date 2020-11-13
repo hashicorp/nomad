@@ -419,6 +419,11 @@ module('Acceptance | optimize search and facets', function(hooks) {
     assert.ok(Optimize.empty.isPresent);
     assert.equal(Optimize.empty.headline, 'No Matches');
     assert.equal(currentURL(), '/optimize?search=qqq');
+
+    await Optimize.search.fillIn('');
+
+    assert.equal(Optimize.card.slug.jobName, 'zzzzzz');
+    assert.ok(Optimize.recommendationSummaries[0].isActive);
   });
 
   test('turning off the namespaces toggle narrows summaries to only the current namespace and changes an active summary if it has become filtered out', async function(assert) {

@@ -16,6 +16,7 @@ import classic from 'ember-classic-decorator';
 
 export default class OptimizeController extends Controller {
   @controller('optimize/summary') summaryController;
+  @service router;
   @service system;
 
   queryParams = [
@@ -61,10 +62,7 @@ export default class OptimizeController extends Controller {
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
 
-  optionsType = [
-    { key: 'service', label: 'Service' },
-    { key: 'system', label: 'System' },
-  ];
+  optionsType = [{ key: 'service', label: 'Service' }, { key: 'system', label: 'System' }];
 
   optionsStatus = [
     { key: 'pending', label: 'Pending' },
@@ -170,7 +168,11 @@ export default class OptimizeController extends Controller {
   }
 
   get activeRecommendationSummary() {
-    return this.summaryController.model;
+    if (this.router.currentRouteName === 'optimize.summary') {
+      return this.summaryController.model;
+    } else {
+      return undefined;
+    }
   }
 
   // This is a task because the accordion uses timeouts for animation
@@ -197,19 +199,22 @@ export default class OptimizeController extends Controller {
   @action
   setFacetQueryParam(queryParam, selection) {
     this[queryParam] = serialize(selection);
-    this.ensureActiveSummaryIsNotExcluded();
+    this.syncActiveSummary();
   }
 
   @action
   toggleIncludeAllNamespaces() {
     this.includeAllNamespaces = !this.includeAllNamespaces;
-    this.ensureActiveSummaryIsNotExcluded();
+    this.syncActiveSummary();
   }
 
   @action
-  ensureActiveSummaryIsNotExcluded() {
+  syncActiveSummary() {
     scheduleOnce('actions', () => {
-      if (!this.filteredSummaries.includes(this.activeRecommendationSummary)) {
+      if (
+        !this.activeRecommendationSummary ||
+        !this.filteredSummaries.includes(this.activeRecommendationSummary)
+      ) {
         const firstFilteredSummary = this.filteredSummaries.objectAt(0);
 
         if (firstFilteredSummary) {

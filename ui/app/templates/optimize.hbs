@@ -6,7 +6,7 @@
           {{#if @model}}
             <SearchBox
               data-test-recommendation-summaries-search
-              @onChange={{this.ensureActiveSummaryIsNotExcluded}}
+              @onChange={{this.syncActiveSummary}}
               @searchTerm={{mut this.searchTerm}}
               @placeholder="Search {{this.model.length}} {{pluralize "recommendation" this.model.length}}..." />
           {{/if}}
