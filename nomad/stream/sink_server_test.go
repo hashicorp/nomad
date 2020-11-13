@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -9,9 +10,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	pbstream "github.com/hashicorp/nomad/nomad/stream/proto"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestSinkServer_Subscribe(t *testing.T) {
@@ -89,6 +94,41 @@ func TestSinkServer_Subscribe(t *testing.T) {
 	r.Equal(int(eventBatch.Index), 2)
 	r.Equal("some-key", eventBatch.Event[0].Key)
 
+	// shutdown assertions
+	for i := 0; i < 3; i++ {
+		events := &structs.Events{
+			Index: uint64(10 + i),
+			Events: []structs.Event{
+				{
+					Topic: structs.TopicDeployment,
+					Key:   "some-job",
+					Payload: structs.DeploymentEvent{
+						Deployment: mock.Deployment(),
+					},
+				},
+			},
+		}
+		broker.Publish(events)
+	}
+
+	// Stop our subscription
+	cancel()
+
+	// Ensure the code is what we expect
+	_, err = sub.Recv()
+	r.Error(err)
+	r.Equal(status.Code(err), codes.Canceled)
+
+	// Wait for subscriptions to be unsubscribed
+	testutil.WaitForResult(func() (bool, error) {
+		ok := assert.Len(t, broker.subscriptions.byToken[""], 0)
+		if ok {
+			return true, nil
+		}
+		return false, fmt.Errorf("expected broker subscriptions len to be 0")
+	}, func(err error) {
+		r.Fail(err.Error())
+	})
 }
 
 func runTestServer(t *testing.T, server *SinkServer) net.Addr {
