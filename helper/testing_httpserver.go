@@ -8,11 +8,6 @@ import (
 	"github.com/hashicorp/consul/sdk/freeport"
 )
 
-// FormatAddressPort Helper for net.JoinHostPort that takes int for port
-func FormatAddressPort(address string, port int) string {
-	return net.JoinHostPort(address, strconv.Itoa(port))
-}
-
 // StartTestServer fires up a web server on a random unused port to serve the
 // given handler body. The address it is listening on is returned. When the
 // test case terminates the server will be stopped via cleanup functions.
@@ -24,7 +19,7 @@ func FormatAddressPort(address string, port int) string {
 // you'd end up with test cross-talk and weirdness.
 func StartTestServer(handler http.Handler) (string, func()) {
 	ports := freeport.MustTake(1)
-	addr := FormatAddressPort("127.0.0.1", ports[0])
+	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(ports[0]))
 
 	server := &http.Server{Addr: addr, Handler: handler}
 	go server.ListenAndServe()
