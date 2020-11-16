@@ -3,7 +3,7 @@
 set -o errexit
 
 # Make sure you grab the latest version
-VERSION=0.30.0
+VERSION=0.30.1
 DOWNLOAD=https://github.com/bufbuild/buf/releases/download/v${VERSION}/buf-Linux-x86_64
 
 function install() {
