@@ -811,10 +811,13 @@ func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
 
 // writeBytes writes a file to the archive, recording it in the manifest
 func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
-	relativePath := filepath.Join(dir, file)
+	// Replace invalid characters in filename
+	filename := helper.CleanFilename(file, "_")
+
+	relativePath := filepath.Join(dir, filename)
 	c.manifest = append(c.manifest, relativePath)
 	dirPath := filepath.Join(c.collectDir, dir)
-	filePath := filepath.Join(dirPath, file)
+	filePath := filepath.Join(dirPath, filename)
 
 	// Ensure parent directories exist
 	err := os.MkdirAll(dirPath, os.ModePerm)
