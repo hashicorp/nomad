@@ -58,58 +58,58 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 
 	// Test that connect-proxy task is inserted for backend service
 	job := mock.Job()
+
+	job.Meta = map[string]string{
+		"backend_name": "backend",
+		"admin_name":   "admin",
+	}
+
 	job.TaskGroups[0] = &structs.TaskGroup{
-		Networks: structs.Networks{
-			{
-				Mode: "bridge",
+		Networks: structs.Networks{{
+			Mode: "bridge",
+		}},
+		Services: []*structs.Service{{
+			Name:      "${NOMAD_META_backend_name}",
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
 			},
-		},
-		Services: []*structs.Service{
-			{
-				Name:      "backend",
-				PortLabel: "8080",
-				Connect: &structs.ConsulConnect{
-					SidecarService: &structs.ConsulSidecarService{},
-				},
+		}, {
+			Name:      "${NOMAD_META_admin_name}",
+			PortLabel: "9090",
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
 			},
-			{
-				Name:      "admin",
-				PortLabel: "9090",
-				Connect: &structs.ConsulConnect{
-					SidecarService: &structs.ConsulSidecarService{},
-				},
-			},
-		},
+		}},
 	}
 
 	// Expected tasks
-	tgOut := job.TaskGroups[0].Copy()
-	tgOut.Tasks = []*structs.Task{
-		newConnectTask(tgOut.Services[0].Name),
-		newConnectTask(tgOut.Services[1].Name),
+	tgExp := job.TaskGroups[0].Copy()
+	tgExp.Tasks = []*structs.Task{
+		newConnectTask("backend"),
+		newConnectTask("admin"),
 	}
+	tgExp.Services[0].Name = "backend"
+	tgExp.Services[1].Name = "admin"
 
 	// Expect sidecar tasks to be properly canonicalized
-	tgOut.Tasks[0].Canonicalize(job, tgOut)
-	tgOut.Tasks[1].Canonicalize(job, tgOut)
-	tgOut.Networks[0].DynamicPorts = []structs.Port{
-		{
-			Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, "backend"),
-			To:    -1,
-		},
-		{
-			Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, "admin"),
-			To:    -1,
-		},
-	}
-	tgOut.Networks[0].Canonicalize()
+	tgExp.Tasks[0].Canonicalize(job, tgExp)
+	tgExp.Tasks[1].Canonicalize(job, tgExp)
+	tgExp.Networks[0].DynamicPorts = []structs.Port{{
+		Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, "backend"),
+		To:    -1,
+	}, {
+		Label: fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, "admin"),
+		To:    -1,
+	}}
+	tgExp.Networks[0].Canonicalize()
 
 	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
-	require.Exactly(t, tgOut, job.TaskGroups[0])
+	require.Exactly(t, tgExp, job.TaskGroups[0])
 
 	// Test that hook is idempotent
 	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
-	require.Exactly(t, tgOut, job.TaskGroups[0])
+	require.Exactly(t, tgExp, job.TaskGroups[0])
 }
 
 func TestJobEndpointConnect_groupConnectHook_IngressGateway(t *testing.T) {
@@ -120,11 +120,18 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway(t *testing.T) {
 	// block with correct configuration.
 	job := mock.ConnectIngressGatewayJob("bridge", false)
 
+	job.Meta = map[string]string{
+		"gateway_name": "my-gateway",
+	}
+
+	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(expTG.Services[0].Name, false),
+		newConnectGatewayTask("my-gateway", false),
 	}
+	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
 	expTG.Networks[0].Canonicalize()
 

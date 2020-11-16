@@ -1212,6 +1212,7 @@ func TestJobEndpoint_Register_Dispatched(t *testing.T) {
 	// Create the register request with a job with 'Dispatch' set to true
 	job := mock.Job()
 	job.Dispatched = true
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
