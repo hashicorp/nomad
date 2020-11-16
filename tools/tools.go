@@ -6,6 +6,7 @@ package tools
 
 import (
 	_ "github.com/a8m/tree/cmd/tree"
+	_ "github.com/bufbuild/buf/cmd/buf"
 	_ "github.com/client9/misspell/cmd/misspell"
 	_ "github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs"
 	_ "github.com/golang/protobuf/protoc-gen-go"
