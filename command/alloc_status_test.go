@@ -491,7 +491,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		vol0: {
 			Name:   vol0,
 			Type:   structs.VolumeTypeCSI,
-			Source: "/tmp/vol0",
+			Source: vol0,
 		},
 	}
 	job.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
