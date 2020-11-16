@@ -204,7 +204,7 @@ check: ## Lint the source code
 	@misspell -error -source=text website/pages/
 
 	@echo "==> Checking for breaking changes in protos..."
-	@buf check breaking --against-config buf.yaml --against .git#branch=master
+	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=v1.0.0-beta3
 
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
