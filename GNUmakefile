@@ -168,7 +168,7 @@ bootstrap: deps git-hooks # Install all dependencies
 .PHONY: deps
 deps: ## Install build and development dependencies
 	@echo "==> Installing dependencies..."
-	@cd tools && ./install.sh
+	@cd tools && go list --tags tools -f '{{join .Imports "\n"}}' . | xargs -n1 -t go install
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
