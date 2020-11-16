@@ -168,7 +168,7 @@ func TestCopyMapSliceInterface(t *testing.T) {
 	require.False(t, reflect.DeepEqual(m, c))
 }
 
-func TestClearEnvVar(t *testing.T) {
+func TestCleanEnvVar(t *testing.T) {
 	type testCase struct {
 		input    string
 		expected string
