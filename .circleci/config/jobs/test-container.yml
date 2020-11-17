@@ -17,7 +17,7 @@ steps:
   - checkout
   - run: apt-get update; apt-get install -y shellcheck sudo unzip
   - run: make deps
-  - install-protoc
+  - install-buf
   - install-consul
   - install-vault
   - run-tests

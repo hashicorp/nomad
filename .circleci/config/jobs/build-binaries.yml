@@ -6,7 +6,7 @@ steps:
   - checkout
   - run: apt-get update; apt-get install -y sudo unzip zip
   - run: make deps
-  - install-protoc
+  - install-buf
   - run: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
   - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip
   - store_artifacts:

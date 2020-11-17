@@ -23,7 +23,7 @@ environment:
 steps:
   - checkout
   - install-golang
-  - install-protoc
+  - install-buf
   - install-consul
   - install-vault
   - run:

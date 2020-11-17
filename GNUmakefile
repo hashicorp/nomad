@@ -203,6 +203,9 @@ check: ## Lint the source code
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/pages/
 
+	@echo "==> Checking for breaking changes in protos..."
+	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=v1.0.0-beta3
+
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
 	@if (git status -s | grep -q .pb.go); then echo the following proto files are out of sync; git status -s | grep .pb.go; exit 1; fi
@@ -240,22 +243,10 @@ generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
 
-## The ",M<path/to/proto>=<package name>" below is required to tell
-## protoc-gen-go what the import path for a given proto file should be. This is
-## necessary when a proto file foo/a.proto imports a proto file from another
-## directory, e.g. bar/b.proto
 .PHONY: proto
 proto:
 	@echo "--> Generating proto bindings..."
-	@for file in $$(git ls-files "*.proto" | grep -E -v -- "vendor\/.*.proto|demo\/.*.proto"); do \
-		protoc -I . --go_out=plugins=grpc\
-	,Mplugins/shared/hclspec/hcl_spec.proto=github.com/hashicorp/nomad/plugins/shared/hclspec\
-	,Mplugins/shared/structs/proto/stats.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
-	,Mplugins/shared/structs/proto/attribute.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
-	,Mplugins/shared/structs/proto/recoverable_error.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
-	,Mplugins/drivers/proto/driver.proto=github.com/hashicorp/nomad/plugins/drivers/proto\
-	:. $$file; \
-	done
+	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
 .PHONY: generate-examples
 generate-examples: command/job_init.bindata_assetfs.go
