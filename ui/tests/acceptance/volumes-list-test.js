@@ -9,11 +9,13 @@ import Layout from 'nomad-ui/tests/pages/layout';
 
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
+  volume.allocations.add(alloc);
   volume.save();
 };
 
 const assignReadAlloc = (volume, alloc) => {
   volume.readAllocs.add(alloc);
+  volume.allocations.add(alloc);
   volume.save();
 };
 

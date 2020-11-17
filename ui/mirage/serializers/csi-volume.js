@@ -9,7 +9,7 @@ const groupBy = (list, attr) => {
 
 export default ApplicationSerializer.extend({
   embed: true,
-  include: ['writeAllocs', 'readAllocs'],
+  include: ['writeAllocs', 'readAllocs', 'allocations'],
 
   serialize() {
     var json = ApplicationSerializer.prototype.serialize.apply(this, arguments);

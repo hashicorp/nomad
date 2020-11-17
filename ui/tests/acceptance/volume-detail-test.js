@@ -9,11 +9,13 @@ import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
 
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
+  volume.allocations.add(alloc);
   volume.save();
 };
 
 const assignReadAlloc = (volume, alloc) => {
   volume.readAllocs.add(alloc);
+  volume.allocations.add(alloc);
   volume.save();
 };
 
