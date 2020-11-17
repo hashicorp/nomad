@@ -118,100 +118,86 @@ Who Uses Nomad
 
 ...and more!
 
-Contributing to Nomad
+Contributing
 --------------------
-
-If you wish to contribute to Nomad, you will  need [Go](https://www.golang.org) installed on your machine (version 1.15.5+ is *required*, and `gcc-go` is not supported).
-
 See the [`contributing`](contributing/) directory for more developer documentation.
 
-**Developing with Vagrant**
-There is an included Vagrantfile that can help bootstrap the process. The
-created virtual machine is based off of Ubuntu 16, and installs several of the
-base libraries that can be used by Nomad.
+### Developing with Vagrant
+A development environment is supplied via Vagrant to make getting started easier.
 
-To use this virtual machine, checkout Nomad and run `vagrant up` from the root
-of the repository:
-
-```sh
-$ git clone https://github.com/hashicorp/nomad.git
-$ cd nomad
-$ vagrant up
-```
+1. Install [Vagrant](https://www.vagrantup.com/docs/installation)
+1. Install [Virtualbox](https://www.virtualbox.org/)
+1. Bring up the Vagrant project
+    ```sh
+    $ git clone https://github.com/hashicorp/nomad.git
+    $ cd nomad
+    $ vagrant up
+    ```
 
 The virtual machine will launch, and a provisioning script will install the
-needed dependencies.
+needed dependencies within the VM.
 
-**Developing locally**
-For local dev first make sure Go is properly installed, including setting up a
-[GOPATH](https://golang.org/doc/code.html#GOPATH). After setting up Go, clone this
-repository into `$GOPATH/src/github.com/hashicorp/nomad`. Then you can
-download the required build tools such as vet, cover, godep etc by bootstrapping
-your environment.
+### Developing without Vagrant
+1. Install [Go 1.15.5+](https://golang.org/) *(Note: `gcc-go` is not supported)*
+1. Clone this repo
+   ```sh
+   $ git clone https://github.com/hashicorp/nomad.git
+   $ cd nomad
+   ```
+1. Bootstrap your environment
+   ```sh
+   $ make bootstrap
+   ```
+1. (Optionally) Set a higher ulimit, as Nomad creates many file handles during normal operations
+   ```sh
+   $ [ "$(ulimit -n)" -lt 1024 ] && ulimit -n 1024
+   ```
+1. Verify you can run tests
+   ```sh
+   $ make test
+   ```
 
-```sh
-$ make bootstrap
-...
-```
+### Running a development build
 
-Nomad creates many file handles for communicating with tasks, log handlers, etc.
-In some development environments, particularly macOS, the default number of file
-descriptors is too small to run Nomad's test suite. You should set
-`ulimit -n 1024` or higher in your shell. This setting is scoped to your current
-shell and doesn't affect other running shells or future shells.
+1. Compile a development binary (see the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) to include the web UI in the binary)
+    ```sh
+    $ make dev
+    # find the built binary at ./bin/nomad
+    ```
+1. Start the agent in dev mode
+    ```sh
+    $ sudo bin/nomad agent -dev
+    ```
+1. (Optionally) Run Consul to enable service discovery and health checks
+    1. Download [Consul](https://www.consul.io/downloads)
+    1. Start Consul in dev mode
+        ```sh
+        $ consul agent -dev
+        ```
 
-Afterwards type `make test`. This will run the tests. If this exits with exit status 0,
-then everything is working!
+### Compiling Protobufs
+If in the course of your development you change a Protobuf file (those ending in .proto), you'll need to recompile the protos.
 
-```sh
-$ make test
-...
-```
+1. Install [Buf](https://docs.buf.build/installation)
+1. Compile Protobufs
+    ```sh
+    $ make proto
+    ```
 
-To compile a development version of Nomad, run `make dev`. This will put the
-Nomad binary in the `bin` and `$GOPATH/bin` folders:
+### Building the Web UI
+See the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for instructions.
 
-```sh
-$ make dev
-```
-
-Optionally run Consul to enable service discovery and health checks:
-
-```sh
-$ sudo consul agent -dev
-```
-
-And finally start the nomad agent:
-
-```sh
-$ sudo bin/nomad agent -dev
-```
-
-If the Nomad UI is desired in the development version, run `make dev-ui`. This will build the UI from source and compile it into the dev binary.
-
-```sh
-$ make dev-ui
-...
-$ bin/nomad
-...
-
-To compile protobuf files, installing [buf](https://docs.buf.build/installation) is required.
-
-```
-
-**Note:** Building the Nomad UI from source requires Node, Yarn, and Ember CLI. These tools are already in the Vagrant VM. Read the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for more info.
-
-To cross-compile Nomad, run `make prerelease` and `make release`.
-This will generate all the static assets, compile Nomad for multiple
-platforms and place the resulting binaries into the `./pkg` directory:
+### Create a release binary
+To create a release binary:
 
 ```sh
 $ make prerelease
 $ make release
-...
 $ ls ./pkg
-...
 ```
+
+This will generate all the static assets, compile Nomad for multiple
+platforms and place the resulting binaries into the `./pkg` directory.
 
 API Compatibility
 --------------------
