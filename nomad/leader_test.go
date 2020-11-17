@@ -886,7 +886,7 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 
 	// Write a policy to the authoritative region
 	p1 := mock.ACLPolicy()
-	if err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{p1}); err != nil {
+	if err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -909,7 +909,7 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
 	p3 := mock.ACLPolicy()
-	assert.Nil(t, state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1, p2, p3}))
+	assert.Nil(t, state.UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()

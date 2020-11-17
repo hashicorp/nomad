@@ -31,7 +31,7 @@ func TestClient_ACL_resolveTokenValue(t *testing.T) {
 	token2 := mock.ACLToken()
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
-	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy, policy2})
+	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
 	assert.Nil(t, err)
 	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token, token2})
 	assert.Nil(t, err)
@@ -80,7 +80,7 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	token2 := mock.ACLToken()
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
-	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy, policy2})
+	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
 	assert.Nil(t, err)
 	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token, token2})
 	assert.Nil(t, err)
@@ -136,7 +136,7 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	token2 := mock.ACLToken()
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
-	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy, policy2})
+	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
 	assert.Nil(t, err)
 	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token, token2})
 	assert.Nil(t, err)

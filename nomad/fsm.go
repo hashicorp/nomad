@@ -246,7 +246,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.JobStabilityRequestType:
 		return n.applyJobStability(buf[1:], log.Index)
 	case structs.ACLPolicyUpsertRequestType:
-		return n.applyACLPolicyUpsert(buf[1:], log.Index)
+		return n.applyACLPolicyUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLPolicyDeleteRequestType:
 		return n.applyACLPolicyDelete(buf[1:], log.Index)
 	case structs.ACLTokenUpsertRequestType:
@@ -1071,14 +1071,14 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_upsert"}, time.Now())
 	var req structs.ACLPolicyUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLPolicies(index, req.Policies); err != nil {
+	if err := n.state.UpsertACLPolicies(msgType, index, req.Policies); err != nil {
 		n.logger.Error("UpsertACLPolicies failed", "error", err)
 		return err
 	}

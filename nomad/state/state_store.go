@@ -5015,7 +5015,7 @@ func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.J
 }
 
 // UpsertACLPolicies is used to create or update a set of ACL policies
-func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error {
+func (s *StateStore) UpsertACLPolicies(msgType structs.MessageType, index uint64, policies []*structs.ACLPolicy) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 

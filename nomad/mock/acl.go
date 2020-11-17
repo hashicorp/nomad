@@ -14,7 +14,7 @@ import (
 // StateStore defines the methods required from state.StateStore but avoids a
 // circular dependency.
 type StateStore interface {
-	UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error
+	UpsertACLPolicies(msgType structs.MessageType, index uint64, policies []*structs.ACLPolicy) error
 	UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error
 }
 
@@ -88,7 +88,7 @@ func CreatePolicy(t testing.T, state StateStore, index uint64, name, rule string
 		Rules: rule,
 	}
 	policy.SetHash()
-	assert.Nil(t, state.UpsertACLPolicies(index, []*structs.ACLPolicy{policy}))
+	assert.Nil(t, state.UpsertACLPolicies(structs.MsgTypeTestSetup, index, []*structs.ACLPolicy{policy}))
 }
 
 // CreateToken creates a local, client token for the given policies
