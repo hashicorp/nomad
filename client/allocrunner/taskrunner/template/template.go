@@ -2,6 +2,7 @@ package template
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	envparse "github.com/hashicorp/go-envparse"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -36,6 +38,11 @@ const (
 	// DefaultMaxTemplateEventRate is the default maximum rate at which a
 	// template event should be fired.
 	DefaultMaxTemplateEventRate = 3 * time.Second
+)
+
+var (
+	sourceEscapesErr = errors.New("template source path escapes alloc directory")
+	destEscapesErr   = errors.New("template destination path escapes alloc directory")
 )
 
 // TaskTemplateManager is used to run a set of templates for a given task
@@ -545,6 +552,18 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 	sandboxEnabled := !config.ClientConfig.TemplateConfig.DisableSandbox
 	taskEnv := config.EnvBuilder.Build()
 
+	// Make NOMAD_{ALLOC,TASK,SECRETS}_DIR relative paths to avoid treating
+	// them as sandbox escapes when using containers.
+	if taskEnv.EnvMap[taskenv.AllocDir] == allocdir.SharedAllocContainerPath {
+		taskEnv.EnvMap[taskenv.AllocDir] = allocdir.SharedAllocName
+	}
+	if taskEnv.EnvMap[taskenv.TaskLocalDir] == allocdir.TaskLocalContainerPath {
+		taskEnv.EnvMap[taskenv.TaskLocalDir] = allocdir.TaskLocal
+	}
+	if taskEnv.EnvMap[taskenv.SecretsDir] == allocdir.TaskSecretsContainerPath {
+		taskEnv.EnvMap[taskenv.SecretsDir] = allocdir.TaskSecrets
+	}
+
 	ctmpls := make(map[*ctconf.TemplateConfig]*structs.Template, len(config.Templates))
 	for _, tmpl := range config.Templates {
 		var src, dest string
@@ -557,7 +576,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 			escapes := helper.PathEscapesSandbox(config.TaskDir, src)
 			if escapes && sandboxEnabled {
-				return nil, fmt.Errorf("template source path escapes alloc directory")
+				return nil, sourceEscapesErr
 			}
 		}
 
@@ -569,7 +588,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			dest = filepath.Join(config.TaskDir, dest)
 			escapes := helper.PathEscapesSandbox(config.TaskDir, dest)
 			if escapes && sandboxEnabled {
-				return nil, fmt.Errorf("template destination path escapes alloc directory")
+				return nil, destEscapesErr
 			}
 		}
 
