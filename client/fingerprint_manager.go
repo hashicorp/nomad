@@ -122,42 +122,40 @@ func (fm *FingerprintManager) Reload() {
 // setupFingerprints is used to fingerprint the node to see if these attributes are
 // supported
 func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
-	var appliedFingerprints []string
-
 	for _, name := range fingerprints {
 		f, err := fingerprint.NewFingerprint(name, fm.logger)
-
 		if err != nil {
 			fm.logger.Error("error fingerprinting", "error", err, "fingerprinter", name)
 			return err
 		}
 
-		detected, err := fm.fingerprint(name, f)
-		if err != nil {
-			return err
-		}
-
-		// log the fingerprinters which have been applied
-		if detected {
-			appliedFingerprints = append(appliedFingerprints, name)
-		}
-
-		p, period := f.Periodic()
-		if p {
-			go fm.runFingerprint(f, period, name)
-		}
+		go fm.runFingerprint(f, name)
 
 		if rfp, ok := f.(fingerprint.ReloadableFingerprint); ok {
 			fm.reloadableFps[name] = rfp
 		}
 	}
 
-	fm.logger.Debug("detected fingerprints", "node_attrs", appliedFingerprints)
 	return nil
 }
 
 // runFingerprint runs each fingerprinter individually on an ongoing basis
-func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, period time.Duration, name string) {
+func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, name string) {
+	detected, err := fm.fingerprint(name, f)
+	if err != nil {
+		fm.logger.Debug("error periodic fingerprinting", "error", err, "fingerprinter", name)
+		return
+	}
+
+	if detected {
+		fm.logger.Debug("detected fingerprint", "name", name)
+	}
+
+	periodic, period := f.Periodic()
+	if !periodic {
+		return
+	}
+
 	fm.logger.Debug("fingerprinting periodically", "fingerprinter", name, "period", period)
 
 	timer := time.NewTimer(period)
