@@ -1,6 +1,11 @@
 package lz4
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"os"
+	rdebug "runtime/debug"
+)
 
 var (
 	// ErrInvalidSourceShortBuffer is returned by UncompressBlock or CompressBLock when a compressed
@@ -13,7 +18,11 @@ var (
 )
 
 func recoverBlock(e *error) {
-	if recover() != nil && *e == nil {
+	if r := recover(); r != nil && *e == nil {
+		if debugFlag {
+			fmt.Fprintln(os.Stderr, r)
+			rdebug.PrintStack()
+		}
 		*e = ErrInvalidSourceShortBuffer
 	}
 }

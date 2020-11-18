@@ -54,6 +54,7 @@ func (client Client) WaitForInstanceDiskStatus(ctx context.Context, instanceID i
 				return nil, err
 			}
 			for _, disk := range disks {
+				disk := disk
 				if disk.ID == diskID {
 					complete := (disk.Status == status)
 					if complete {
@@ -139,11 +140,12 @@ func (client Client) WaitForVolumeLinodeID(ctx context.Context, volumeID int, li
 				return volume, err
 			}
 
-			if linodeID == nil && volume.LinodeID == nil {
+			switch {
+			case linodeID == nil && volume.LinodeID == nil:
 				return volume, nil
-			} else if linodeID == nil || volume.LinodeID == nil {
+			case linodeID == nil || volume.LinodeID == nil:
 				// continue waiting
-			} else if *volume.LinodeID == *linodeID {
+			case *volume.LinodeID == *linodeID:
 				return volume, nil
 			}
 
@@ -158,15 +160,7 @@ func (client Client) WaitForVolumeLinodeID(ctx context.Context, volumeID int, li
 // If the event indicates a failure both the failed event and the error will be returned.
 func (client Client) WaitForEventFinished(ctx context.Context, id interface{}, entityType EntityType, action EventAction, minStart time.Time, timeoutSeconds int) (*Event, error) {
 	titledEntityType := strings.Title(string(entityType))
-	filter, _ := json.Marshal(map[string]interface{}{
-		// Entity is not filtered by the API
-		// Perhaps one day they will permit Entity ID/Type filtering.
-		// We'll have to verify these values manually, for now.
-		//"entity": map[string]interface{}{
-		//	"id":   fmt.Sprintf("%v", id),
-		//	"type": entityType,
-		//},
-
+	filterStruct := map[string]interface{}{
 		// Nor is action
 		//"action": action,
 
@@ -177,16 +171,33 @@ func (client Client) WaitForEventFinished(ctx context.Context, id interface{}, e
 		//},
 
 		// With potentially 1000+ events coming back, we should filter on something
+		// Warning: This optimization has the potential to break if users are clearing
+		// events before we see them.
 		"seen": false,
 
 		// Float the latest events to page 1
 		"+order_by": "created",
 		"+order":    "desc",
-	})
+	}
 
 	// Optimistically restrict results to page 1.  We should remove this when more
 	// precise filtering options exist.
-	listOptions := NewListOptions(1, string(filter))
+	pages := 1
+
+	// The API has limitted filtering support for Event ID and Event Type
+	// Optimize the list, if possible
+	switch entityType {
+	case EntityDisk, EntityLinode, EntityDomain, EntityNodebalancer:
+		// All of the filter supported types have int ids
+		filterableEntityID, err := strconv.Atoi(fmt.Sprintf("%v", id))
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing Entity ID %q for optimized WaitForEventFinished EventType %q: %s", id, entityType, err)
+		}
+		filterStruct["entity.id"] = filterableEntityID
+		filterStruct["entity.type"] = entityType
+
+		// TODO: are we conformatable with pages = 0 with the event type and id filter?
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -197,10 +208,27 @@ func (client Client) WaitForEventFinished(ctx context.Context, id interface{}, e
 	}
 
 	ticker := time.NewTicker(client.millisecondsPerPoll * time.Millisecond)
+
+	// avoid repeating log messages
+	nextLog := ""
+	lastLog := ""
+	lastEventID := 0
+
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
+			if lastEventID > 0 {
+				filterStruct["id"] = map[string]interface{}{
+					"+gte": lastEventID,
+				}
+			}
+
+			filter, err := json.Marshal(filterStruct)
+			if err != nil {
+				return nil, err
+			}
+			listOptions := NewListOptions(pages, string(filter))
 
 			events, err := client.ListEvents(ctx, listOptions)
 			if err != nil {
@@ -209,6 +237,8 @@ func (client Client) WaitForEventFinished(ctx context.Context, id interface{}, e
 
 			// If there are events for this instance + action, inspect them
 			for _, event := range events {
+				event := event
+
 				if event.Action != action {
 					// log.Println("action mismatch", event.Action, action)
 					continue
@@ -220,21 +250,21 @@ func (client Client) WaitForEventFinished(ctx context.Context, id interface{}, e
 
 				var entID string
 
-				switch event.Entity.ID.(type) {
+				switch id := event.Entity.ID.(type) {
 				case float64, float32:
-					entID = fmt.Sprintf("%.f", event.Entity.ID)
+					entID = fmt.Sprintf("%.f", id)
 				case int:
-					entID = strconv.Itoa(event.Entity.ID.(int))
+					entID = strconv.Itoa(id)
 				default:
-					entID = fmt.Sprintf("%v", event.Entity.ID)
+					entID = fmt.Sprintf("%v", id)
 				}
 
 				var findID string
-				switch id.(type) {
+				switch id := id.(type) {
 				case float64, float32:
 					findID = fmt.Sprintf("%.f", id)
 				case int:
-					findID = strconv.Itoa(id.(int))
+					findID = strconv.Itoa(id)
 				default:
 					findID = fmt.Sprintf("%v", id)
 				}
@@ -252,19 +282,28 @@ func (client Client) WaitForEventFinished(ctx context.Context, id interface{}, e
 					// Not the event we were looking for
 					// log.Println(event.Created, "is not >=", minStart)
 					continue
-
 				}
 
-				if event.Status == EventFailed {
+				// This is the event we are looking for. Save our place.
+				if lastEventID == 0 {
+					lastEventID = event.ID
+				}
+
+				switch event.Status {
+				case EventFailed:
 					return &event, fmt.Errorf("%s %v action %s failed", titledEntityType, id, action)
-				} else if event.Status == EventScheduled {
-					log.Printf("[INFO] %s %v action %s is scheduled", titledEntityType, id, action)
-				} else if event.Status == EventFinished {
+				case EventFinished:
 					log.Printf("[INFO] %s %v action %s is finished", titledEntityType, id, action)
 					return &event, nil
 				}
 				// TODO(displague) can we bump the ticker to TimeRemaining/2 (>=1) when non-nil?
-				log.Printf("[INFO] %s %v action %s is %s", titledEntityType, id, action, event.Status)
+				nextLog = fmt.Sprintf("[INFO] %s %v action %s is %s", titledEntityType, id, action, event.Status)
+			}
+
+			// de-dupe logging statements
+			if nextLog != lastLog {
+				log.Print(nextLog)
+				lastLog = nextLog
 			}
 		case <-ctx.Done():
 			return nil, fmt.Errorf("Error waiting for Event Status '%s' of %s %v action '%s': %s", EventFinished, titledEntityType, id, action, ctx.Err())

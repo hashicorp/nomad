@@ -196,6 +196,9 @@ func (configFile *ConfigFile) Save() error {
 		os.Remove(temp.Name())
 		return err
 	}
+	// Try copying the current config file (if any) ownership and permissions
+	copyFilePermissions(configFile.Filename, temp.Name())
+
 	return os.Rename(temp.Name(), configFile.Filename)
 }
 

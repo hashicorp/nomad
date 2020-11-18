@@ -30,9 +30,9 @@ const (
 	// hashLog determines the size of the hash table used to quickly find a previous match position.
 	// Its value influences the compression speed and memory usage, the lower the faster,
 	// but at the expense of the compression ratio.
-	// 16 seems to be the best compromise.
-	hashLog   = 16
-	hashShift = uint((minMatch * 8) - hashLog)
+	// 16 seems to be the best compromise for fast compression.
+	hashLog = 16
+	htSize  = 1 << hashLog
 
 	mfLimit = 8 + minMatch // The last match cannot start within the last 12 bytes.
 )

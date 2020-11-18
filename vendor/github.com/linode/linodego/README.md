@@ -84,7 +84,7 @@ kernels, err := linodego.ListKernels(context.Background(), nil)
 Or, use a page value of "0":
 
 ```go
-opts := NewListOptions(0,"")
+opts := linodego.NewListOptions(0,"")
 kernels, err := linodego.ListKernels(context.Background(), opts)
 // len(kernels) == 218
 ```
@@ -92,8 +92,8 @@ kernels, err := linodego.ListKernels(context.Background(), opts)
 #### Single Page
 
 ```go
-opts := NewListOptions(2,"")
-// or opts := ListOptions{PageOptions: &PageOptions: {Page: 2 }}
+opts := linodego.NewListOptions(2,"")
+// or opts := linodego.ListOptions{PageOptions: &PageOptions: {Page: 2 }}
 kernels, err := linodego.ListKernels(context.Background(), opts)
 // len(kernels) == 100
 ```
@@ -108,8 +108,8 @@ values are set in the supplied ListOptions.
 #### Filtering
 
 ```go
-opts := ListOptions{Filter: "{\"mine\":true}"}
-// or opts := NewListOptions(0, "{\"mine\":true}")
+opts := linodego.ListOptions{Filter: "{\"mine\":true}"}
+// or opts := linodego.NewListOptions(0, "{\"mine\":true}")
 stackscripts, err := linodego.ListStackscripts(context.Background(), opts)
 ```
 
@@ -118,7 +118,7 @@ stackscripts, err := linodego.ListStackscripts(context.Background(), opts)
 #### Getting Single Entities
 
 ```go
-linode, err := linodego.GetLinode(context.Background(), 555) // any Linode ID that does not exist or is not yours
+linode, err := linodego.GetInstance(context.Background(), 555) // any Linode ID that does not exist or is not yours
 // linode == nil: true
 // err.Error() == "[404] Not Found"
 // err.Code == "404"
@@ -130,7 +130,7 @@ linode, err := linodego.GetLinode(context.Background(), 555) // any Linode ID th
 For lists, the list is still returned as `[]`, but `err` works the same way as on the `Get` request.
 
 ```go
-linodes, err := linodego.ListLinodes(context.Background(), NewListOptions(0, "{\"foo\":bar}"))
+linodes, err := linodego.ListInstances(context.Background(), linodego.NewListOptions(0, "{\"foo\":bar}"))
 // linodes == []
 // err.Error() == "[400] [X-Filter] Cannot filter on foo"
 ```
@@ -138,7 +138,7 @@ linodes, err := linodego.ListLinodes(context.Background(), NewListOptions(0, "{\
 Otherwise sane requests beyond the last page do not trigger an error, just an empty result:
 
 ```go
-linodes, err := linodego.ListLinodes(context.Background(), NewListOptions(9999, ""))
+linodes, err := linodego.ListInstances(context.Background(), linodego.NewListOptions(9999, ""))
 // linodes == []
 // err = nil
 ```

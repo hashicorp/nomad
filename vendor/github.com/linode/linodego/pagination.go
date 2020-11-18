@@ -28,8 +28,8 @@ type ListOptions struct {
 
 // NewListOptions simplified construction of ListOptions using only
 // the two writable properties, Page and Filter
-func NewListOptions(Page int, Filter string) *ListOptions {
-	return &ListOptions{PageOptions: &PageOptions{Page: Page}, Filter: Filter}
+func NewListOptions(page int, filter string) *ListOptions {
+	return &ListOptions{PageOptions: &PageOptions{Page: page}, Filter: filter}
 
 }
 
@@ -102,7 +102,7 @@ func (c *Client) listHelper(ctx context.Context, i interface{}, opts *ListOption
 		if r, err = coupleAPIErrors(req.SetResult(DomainsPagedResponse{}).Get(v.endpoint(c))); err == nil {
 			response, ok := r.Result().(*DomainsPagedResponse)
 			if !ok {
-				return fmt.Errorf("Response is not a *DomainsPagedResponse")
+				return fmt.Errorf("response is not a *DomainsPagedResponse")
 			}
 			pages = response.Pages
 			results = response.Results
@@ -149,7 +149,7 @@ func (c *Client) listHelper(ctx context.Context, i interface{}, opts *ListOption
 		if r, err = coupleAPIErrors(req.SetResult(SSHKeysPagedResponse{}).Get(v.endpoint(c))); err == nil {
 			response, ok := r.Result().(*SSHKeysPagedResponse)
 			if !ok {
-				return fmt.Errorf("Response is not a *SSHKeysPagedResponse")
+				return fmt.Errorf("response is not a *SSHKeysPagedResponse")
 			}
 			pages = response.Pages
 			results = response.Results
@@ -172,6 +172,18 @@ func (c *Client) listHelper(ctx context.Context, i interface{}, opts *ListOption
 			pages = r.Result().(*NotificationsPagedResponse).Pages
 			results = r.Result().(*NotificationsPagedResponse).Results
 			v.appendData(r.Result().(*NotificationsPagedResponse))
+		}
+	case *OAuthClientsPagedResponse:
+		if r, err = coupleAPIErrors(req.SetResult(OAuthClientsPagedResponse{}).Get(v.endpoint(c))); err == nil {
+			pages = r.Result().(*OAuthClientsPagedResponse).Pages
+			results = r.Result().(*OAuthClientsPagedResponse).Results
+			v.appendData(r.Result().(*OAuthClientsPagedResponse))
+		}
+	case *PaymentsPagedResponse:
+		if r, err = coupleAPIErrors(req.SetResult(PaymentsPagedResponse{}).Get(v.endpoint(c))); err == nil {
+			pages = r.Result().(*PaymentsPagedResponse).Pages
+			results = r.Result().(*PaymentsPagedResponse).Results
+			v.appendData(r.Result().(*PaymentsPagedResponse))
 		}
 	case *NodeBalancersPagedResponse:
 		if r, err = coupleAPIErrors(req.SetResult(NodeBalancersPagedResponse{}).Get(v.endpoint(c))); err == nil {
@@ -198,8 +210,6 @@ func (c *Client) listHelper(ctx context.Context, i interface{}, opts *ListOption
 			v.appendData(r.Result().(*UsersPagedResponse))
 		}
 	/**
-	case AccountOauthClientsPagedResponse:
-	case AccountPaymentsPagedResponse:
 	case ProfileAppsPagedResponse:
 	case ProfileWhitelistPagedResponse:
 	case ManagedContactsPagedResponse:
@@ -217,7 +227,7 @@ func (c *Client) listHelper(ctx context.Context, i interface{}, opts *ListOption
 	}
 
 	if opts == nil {
-		for page := 2; page <= pages; page = page + 1 {
+		for page := 2; page <= pages; page++ {
 			if err := c.listHelper(ctx, i, &ListOptions{PageOptions: &PageOptions{Page: page}}); err != nil {
 				return err
 			}
@@ -228,7 +238,7 @@ func (c *Client) listHelper(ctx context.Context, i interface{}, opts *ListOption
 		}
 
 		if opts.Page == 0 {
-			for page := 2; page <= pages; page = page + 1 {
+			for page := 2; page <= pages; page++ {
 				opts.Page = page
 				if err := c.listHelper(ctx, i, opts); err != nil {
 					return err
@@ -277,7 +287,7 @@ func (c *Client) listHelperWithID(ctx context.Context, i interface{}, idRaw inte
 		if r, err = coupleAPIErrors(req.SetResult(DomainRecordsPagedResponse{}).Get(v.endpointWithID(c, id))); err == nil {
 			response, ok := r.Result().(*DomainRecordsPagedResponse)
 			if !ok {
-				return fmt.Errorf("Response is not a *DomainRecordsPagedResponse")
+				return fmt.Errorf("response is not a *DomainRecordsPagedResponse")
 			}
 			pages = response.Pages
 			results = response.Results
@@ -342,7 +352,7 @@ func (c *Client) listHelperWithID(ctx context.Context, i interface{}, idRaw inte
 	}
 
 	if opts == nil {
-		for page := 2; page <= pages; page = page + 1 {
+		for page := 2; page <= pages; page++ {
 			if err := c.listHelperWithID(ctx, i, id, &ListOptions{PageOptions: &PageOptions{Page: page}}); err != nil {
 				return err
 			}
@@ -352,7 +362,7 @@ func (c *Client) listHelperWithID(ctx context.Context, i interface{}, idRaw inte
 			opts.PageOptions = &PageOptions{}
 		}
 		if opts.Page == 0 {
-			for page := 2; page <= pages; page = page + 1 {
+			for page := 2; page <= pages; page++ {
 				opts.Page = page
 				if err := c.listHelperWithID(ctx, i, id, opts); err != nil {
 					return err
@@ -405,7 +415,7 @@ func (c *Client) listHelperWithTwoIDs(ctx context.Context, i interface{}, firstI
 	}
 
 	if opts == nil {
-		for page := 2; page <= pages; page = page + 1 {
+		for page := 2; page <= pages; page++ {
 			if err := c.listHelper(ctx, i, &ListOptions{PageOptions: &PageOptions{Page: page}}); err != nil {
 				return err
 			}
@@ -415,7 +425,7 @@ func (c *Client) listHelperWithTwoIDs(ctx context.Context, i interface{}, firstI
 			opts.PageOptions = &PageOptions{}
 		}
 		if opts.Page == 0 {
-			for page := 2; page <= pages; page = page + 1 {
+			for page := 2; page <= pages; page++ {
 				opts.Page = page
 				if err := c.listHelperWithTwoIDs(ctx, i, firstID, secondID, opts); err != nil {
 					return err

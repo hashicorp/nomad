@@ -155,25 +155,25 @@ func (t TaggedObjectList) SortedObjects() (SortedObjects, error) {
 			if instance, ok := o.Data.(Instance); ok {
 				so.Instances = append(so.Instances, instance)
 			} else {
-				return so, errors.New("Expected an Instance when Type was \"linode\"")
+				return so, errors.New("expected an Instance when Type was \"linode\"")
 			}
 		case "domain":
 			if domain, ok := o.Data.(Domain); ok {
 				so.Domains = append(so.Domains, domain)
 			} else {
-				return so, errors.New("Expected a Domain when Type was \"domain\"")
+				return so, errors.New("expected a Domain when Type was \"domain\"")
 			}
 		case "volume":
 			if volume, ok := o.Data.(Volume); ok {
 				so.Volumes = append(so.Volumes, volume)
 			} else {
-				return so, errors.New("Expected an Volume when Type was \"volume\"")
+				return so, errors.New("expected an Volume when Type was \"volume\"")
 			}
 		case "nodebalancer":
 			if nodebalancer, ok := o.Data.(NodeBalancer); ok {
 				so.NodeBalancers = append(so.NodeBalancers, nodebalancer)
 			} else {
-				return so, errors.New("Expected an NodeBalancer when Type was \"nodebalancer\"")
+				return so, errors.New("expected an NodeBalancer when Type was \"nodebalancer\"")
 			}
 		}
 	}

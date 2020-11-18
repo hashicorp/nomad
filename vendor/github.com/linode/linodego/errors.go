@@ -60,7 +60,7 @@ func coupleAPIErrors(r *resty.Response, err error) (*resty.Response, error) {
 }
 
 func (e APIError) Error() string {
-	var x []string
+	x := []string{}
 	for _, msg := range e.Errors {
 		x = append(x, msg.Error())
 	}

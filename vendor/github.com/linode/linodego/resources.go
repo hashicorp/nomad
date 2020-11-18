@@ -18,6 +18,7 @@ const (
 	instanceIPsName           = "ips"
 	instanceSnapshotsName     = "snapshots"
 	instanceVolumesName       = "instancevolumes"
+	instanceStatsName         = "instancestats"
 	ipaddressesName           = "ipaddresses"
 	ipv6poolsName             = "ipv6pools"
 	ipv6rangesName            = "ipv6ranges"
@@ -34,10 +35,12 @@ const (
 	nodebalancerconfigsName   = "nodebalancerconfigs"
 	nodebalancernodesName     = "nodebalancernodes"
 	notificationsName         = "notifications"
+	oauthClientsName          = "oauthClients"
 	sshkeysName               = "sshkeys"
 	ticketsName               = "tickets"
 	tokensName                = "tokens"
 	accountName               = "account"
+	accountSettingsName       = "accountsettings"
 	eventsName                = "events"
 	invoicesName              = "invoices"
 	invoiceItemsName          = "invoiceitems"
@@ -45,7 +48,7 @@ const (
 	managedName               = "managed"
 	tagsName                  = "tags"
 	usersName                 = "users"
-	// notificationsName = "notifications"
+	paymentsName              = "payments"
 
 	stackscriptsEndpoint          = "linode/stackscripts"
 	imagesEndpoint                = "images"
@@ -55,6 +58,7 @@ const (
 	instanceSnapshotsEndpoint     = "linode/instances/{{ .ID }}/backups"
 	instanceIPsEndpoint           = "linode/instances/{{ .ID }}/ips"
 	instanceVolumesEndpoint       = "linode/instances/{{ .ID }}/volumes"
+	instanceStatsEndpoint         = "linode/instances/{{ .ID }}/stats"
 	ipaddressesEndpoint           = "networking/ips"
 	ipv6poolsEndpoint             = "networking/ipv6/pools"
 	ipv6rangesEndpoint            = "networking/ipv6/ranges"
@@ -78,6 +82,7 @@ const (
 	ticketsEndpoint             = "support/tickets"
 	tokensEndpoint              = "profile/tokens"
 	accountEndpoint             = "account"
+	accountSettingsEndpoint     = "account/settings"
 	eventsEndpoint              = "account/events"
 	invoicesEndpoint            = "account/invoices"
 	invoiceItemsEndpoint        = "account/invoices/{{ .ID }}/items"
@@ -86,6 +91,8 @@ const (
 	tagsEndpoint                = "tags"
 	usersEndpoint               = "account/users"
 	notificationsEndpoint       = "account/notifications"
+	oauthClientsEndpoint        = "account/oauth-clients"
+	paymentsEndpoint            = "account/payments"
 )
 
 // Resource represents a linode API resource
@@ -125,14 +132,15 @@ func (r Resource) render(data ...interface{}) (string, error) {
 	buf := bytes.NewBufferString(out)
 
 	var substitutions interface{}
-	if len(data) == 1 {
+	switch len(data) {
+	case 1:
 		substitutions = struct{ ID interface{} }{data[0]}
-	} else if len(data) == 2 {
+	case 2:
 		substitutions = struct {
 			ID       interface{}
 			SecondID interface{}
 		}{data[0], data[1]}
-	} else {
+	default:
 		return "", NewError("Too many arguments to render template (expected 1 or 2)")
 	}
 	if err := r.endpointTemplate.Execute(buf, substitutions); err != nil {
