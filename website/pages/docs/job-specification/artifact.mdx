@@ -95,6 +95,17 @@ artifact {
 }
 ```
 
+To use HTTP basic authentication, preprend the username and password to the
+hostname in the URL. All special characters, including the username and
+password, must be URL encoded. For example, for a username `exampleUser` and
+the password `pass/word!`:
+
+```hcl
+artifact {
+  source = "https://exampleUser:pass%2Fword%21@example.com/file.txt"
+}
+```
+
 ### Download using git
 
 This example downloads the artifact from the provided GitHub URL and places it at
@@ -108,14 +119,30 @@ artifact {
 ```
 
 To download from private repo, sshkey needs to be set. The key must be
-base64-encoded string. Run `base64 -w0 <file>`
+base64-encoded string. On Linux, you can run `base64 -w0 <file>` to encode the
+file. Or use [HCL2](https://www.nomadproject.io/docs/job-specification/hcl2)
+expressions to read and encode the key from a file on your machine:
 
 ```hcl
 artifact {
   source      = "git@github.com:example/nomad-examples"
   destination = "local/repo"
   options {
-    sshkey = "<string>"
+    sshkey = "${base64encode(file(pathexpand("~/.ssh/id_rsa")))}"
+  }
+}
+```
+
+To clone specific refs or at a specific depth, use the `ref` and `depth`
+options:
+
+```hcl
+artifact {
+  source      = "git::https://github.com/example/nomad-examples"
+  destination = "local/repo"
+  options {
+    ref = "main"
+    depth = 1
   }
 }
 ```
