@@ -143,7 +143,7 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, name string) {
 	detected, err := fm.fingerprint(name, f)
 	if err != nil {
-		fm.logger.Debug("error periodic fingerprinting", "error", err, "fingerprinter", name)
+		fm.logger.Debug("error fingerprinting", "error", err, "fingerprinter", name)
 		return
 	}
 
