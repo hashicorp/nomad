@@ -508,6 +508,13 @@ $ curl \
 
 #### Field Reference
 
+- `Job` - A copy of the job at the time that the allocation is created or
+  updated. This is primarily intended for use by the Nomad client when running
+  the allocation, and it may include stale information on some job fields.
+  Up-to-date information about the job status is available from the
+  [jobs API](/api-docs/jobs); take care to fetch the version of the job
+  associated with this allocation.
+
 - `TaskStates` - A map of tasks to their current state and the latest events
   that have effected the state. `TaskState` objects contain the following
   fields:
