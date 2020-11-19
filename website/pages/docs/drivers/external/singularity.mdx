@@ -105,7 +105,7 @@ The `Singularity` driver supports the following configuration in the job spec:
   }
   ```
 
-- `contain` - (Optional) Use minimal `/dev` and empty other directories (e.g. /tmp and \$HOME) instead of sharing filesystems from your host.
+- `contain` - (Optional) Use minimal `/dev` and empty other directories (e.g. `/tmp` and `$HOME`) instead of sharing filesystems from your host.
 
   ```hcl
   config {
@@ -113,7 +113,7 @@ The `Singularity` driver supports the following configuration in the job spec:
   }
   ```
 
-- `workdir` - (Optional) Working directory to be used for `/tmp`, `/var/tmp` and \$HOME (if -c/--contain was also used).
+- `workdir` - (Optional) Working directory to be used for `/tmp`, `/var/tmp` and `$HOME` (if -c/--contain was also used).
 
   ```hcl
   config {
