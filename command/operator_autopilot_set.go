@@ -112,7 +112,7 @@ Usage: nomad operator autopilot set-config [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Set Config Options:
 

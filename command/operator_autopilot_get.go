@@ -66,7 +66,7 @@ Usage: nomad operator autopilot get-config [options]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }

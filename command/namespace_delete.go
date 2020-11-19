@@ -19,7 +19,7 @@ Usage: nomad namespace delete [options] <namespace>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }

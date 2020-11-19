@@ -23,7 +23,7 @@ Usage: nomad acl policy apply [options] <name> <path>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Apply Options:
 

@@ -26,7 +26,7 @@ Usage: nomad status [options] <identifier>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 

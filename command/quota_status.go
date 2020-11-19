@@ -23,7 +23,7 @@ Usage: nomad quota status [options] <quota>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 
 	return strings.TrimSpace(helpText)
 }

@@ -23,7 +23,7 @@ Usage: nomad alloc signal [options] <signal> <allocation> <task>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Signal Specific Options:
 

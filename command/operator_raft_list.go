@@ -21,7 +21,7 @@ Usage: nomad operator raft list-peers [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 List Peers Options:
 

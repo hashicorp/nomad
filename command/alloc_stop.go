@@ -24,7 +24,7 @@ Alias: nomad stop
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Stop Specific Options:
 

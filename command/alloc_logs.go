@@ -28,7 +28,7 @@ Alias: nomad logs
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Logs Specific Options:
 

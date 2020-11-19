@@ -24,7 +24,7 @@ Usage: nomad node config [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Client Config Options:
 

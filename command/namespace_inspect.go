@@ -19,7 +19,7 @@ Usage: nomad namespace inspect [options] <namespace>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Inspect Options:
 

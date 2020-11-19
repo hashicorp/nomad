@@ -20,7 +20,7 @@ Usage: nomad volume detach [options] <vol id> <node id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 `
 	return strings.TrimSpace(helpText)

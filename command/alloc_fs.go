@@ -42,7 +42,7 @@ Alias: nomad fs
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 FS Specific Options:
 

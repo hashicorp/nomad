@@ -19,7 +19,7 @@ Usage: nomad sentinel delete [options] <name>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 `
 	return strings.TrimSpace(helpText)

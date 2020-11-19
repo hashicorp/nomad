@@ -25,7 +25,7 @@ Usage: nomad scaling policy info [options] <policy_id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Policy Info Options:
 

@@ -22,7 +22,7 @@ Usage: nomad server force-leave [options] <node>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 	return strings.TrimSpace(helpText)
 }
 

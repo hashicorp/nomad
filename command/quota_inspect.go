@@ -26,7 +26,7 @@ Usage: nomad quota inspect [options] <quota>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Inspect Options:
 

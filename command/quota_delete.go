@@ -19,7 +19,7 @@ Usage: nomad quota delete [options] <quota>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 
 	return strings.TrimSpace(helpText)
 }

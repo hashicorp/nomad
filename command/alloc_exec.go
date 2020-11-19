@@ -34,7 +34,7 @@ Usage: nomad alloc exec [options] <allocation> <command>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Exec Specific Options:
 

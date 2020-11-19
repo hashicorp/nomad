@@ -24,7 +24,7 @@ Usage: nomad deployment status [options] <deployment id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 

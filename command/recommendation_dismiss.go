@@ -48,7 +48,7 @@ Usage: nomad recommendation dismiss [options] <recommendation_ids>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 	return strings.TrimSpace(helpText)
 }
 

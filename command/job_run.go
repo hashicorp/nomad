@@ -63,7 +63,7 @@ Alias: nomad run
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Run Options:
 

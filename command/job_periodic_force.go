@@ -22,7 +22,7 @@ Usage: nomad job periodic force <job id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Periodic Force Options:
 

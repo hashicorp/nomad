@@ -33,7 +33,7 @@ Usage: nomad operator keyring [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Keyring Options:
 

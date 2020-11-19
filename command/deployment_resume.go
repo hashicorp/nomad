@@ -21,7 +21,7 @@ Usage: nomad deployment resume [options] <deployment id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Resume Options:
 

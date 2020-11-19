@@ -25,7 +25,7 @@ Usage: nomad eval status [options] <evaluation>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Eval Status Options:
 

@@ -16,7 +16,7 @@ Usage: nomad event sink deregister <event sink id>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 
 	return helpText
 }

@@ -21,7 +21,7 @@ Usage: nomad deployment unblock [options] <deployment id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Unblock Options:
 
