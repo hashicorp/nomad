@@ -63,6 +63,11 @@ BUG FIXES:
  * driver/docker: Fixed a bug where the default `image_delay` configuration was ignored if the `gc` configuration was not set. [[GH-9101](https://github.com/hashicorp/nomad/issues/9101)]
  * driver/raw_exec: Fixed a bug where raw_exec attempts to create a freezer cgroups for the tasks even when `no_cgroups` is set. [[GH-9328](https://github.com/hashicorp/nomad/issues/9328)]
 
+## 0.12.9 (November 18, 2020)
+
+BUG FIXES:
+ * client: Fixed a regression where `NOMAD_{ALLOC,TASK,SECRETS}_DIR` variables would cause an error when interpolated into `template.source` stanzas. [[GH-9391](https://github.com/hashicorp/nomad/issues/9391)]
+
 ## 0.12.8 (November 10, 2020)
 
 SECURITY:
@@ -247,6 +252,11 @@ BUG FIXES:
  * ui: The task group detail page no longer makes excessive requests to the allocation and stats endpoints. [[GH-8216](https://github.com/hashicorp/nomad/issues/8216)]
  * ui: Polling endpoints that have yet to be fetched normally works as expected (regression from 0.11.3). [[GH-8207](https://github.com/hashicorp/nomad/issues/8207)]
 
+## 0.11.8 (November 19, 2020)
+
+BUG FIXES:
+ * client: _Backport from v0.12.9_ - Fixed a regression where `NOMAD_{ALLOC,TASK,SECRETS}_DIR` variables would cause an error when interpolated into `template.source` stanzas. [[GH-9402](https://github.com/hashicorp/nomad/issues/9402)]
+
 ## 0.11.7 (November 10, 2020)
 
 SECURITY:
@@ -412,6 +422,11 @@ BUG FIXES:
  * driver/docker: Fixed a bug causing docker containers to use swap memory unexpectedly [[GH-7550](https://github.com/hashicorp/nomad/issues/7550)]
  * scheduler: Fixed a bug where changes to task group `shutdown_delay` were not persisted or displayed in plan output [[GH-7618](https://github.com/hashicorp/nomad/issues/7618)]
  * ui: Fixed handling of multi-byte unicode characters in allocation log view [[GH-7470](https://github.com/hashicorp/nomad/issues/7470)] [[GH-7551](https://github.com/hashicorp/nomad/pull/7551)]
+
+## 0.10.9 (November 19, 2020)
+
+BUG FIXES:
+ * client: _Backport from v0.12.9_ - Fixed a regression where `NOMAD_{ALLOC,TASK,SECRETS}_DIR` variables would cause an error when interpolated into `template.source` stanzas. [[GH-9405](https://github.com/hashicorp/nomad/issues/9405)]
 
 ## 0.10.8 (November 10, 2020)
 
