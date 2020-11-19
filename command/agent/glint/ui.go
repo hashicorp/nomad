@@ -1,10 +1,15 @@
 package agent
 
 import (
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/fatih/color"
 )
+
+// ErrNonInteractive is returned when Input is called on a non-Interactive UI.
+var ErrNonInteractive = errors.New("noninteractive UI doesn't support this operation")
 
 type UI interface {
 	// Input asks the user for input. This will immediately return an error
@@ -46,6 +51,42 @@ type UI interface {
 	// called until the StepGroup is complete.
 	// StepGroup() StepGroup
 }
+
+// Interpret decomposes the msg and arguments into the message, style, and writer
+func Interpret(msg string, raw ...interface{}) (string, string, io.Writer) {
+	// Build our args and options
+	var args []interface{}
+	var opts []Option
+	for _, r := range raw {
+		if opt, ok := r.(Option); ok {
+			opts = append(opts, opt)
+		} else {
+			args = append(args, r)
+		}
+	}
+
+	// Build our message
+	msg = fmt.Sprintf(msg, args...)
+
+	// Build our config and set our options
+	cfg := &config{Writer: color.Output}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	return msg, cfg.Style, cfg.Writer
+}
+
+const (
+	HeaderStyle      = "header"
+	ErrorStyle       = "error"
+	ErrorBoldStyle   = "error-bold"
+	WarningStyle     = "warning"
+	WarningBoldStyle = "warning-bold"
+	InfoStyle        = "info"
+	SuccessStyle     = "success"
+	SuccessBoldStyle = "success-bold"
+)
 
 type config struct {
 	// Writer is where the message will be written to.

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -604,12 +605,16 @@ func (c *Command) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *Command) Run(args []string) int {
-	c.Ui = &cli.PrefixedUi{
-		OutputPrefix: "==> ",
-		InfoPrefix:   "    ",
-		ErrorPrefix:  "==> ",
-		Ui:           c.Ui,
-	}
+	ui := GlintUI(context.Background())
+
+	c.Ui = ui
+
+	// c.Ui = &cli.PrefixedUi{
+	// 	OutputPrefix: "==> ",
+	// 	InfoPrefix:   "    ",
+	// 	ErrorPrefix:  "==> ",
+	// 	Ui:           c.Ui,
+	// }
 
 	// Parse our configs
 	c.args = args

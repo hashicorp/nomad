@@ -93,6 +93,7 @@ require (
 	github.com/mitchellh/cli v1.1.2
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db
 	github.com/mitchellh/copystructure v1.0.0
+	github.com/mitchellh/go-glint v0.0.0-20201015034436-f80573c636de
 	github.com/mitchellh/go-ps v0.0.0-20190716172923-621e5597135b
 	github.com/mitchellh/go-testing-interface v1.14.1
 	github.com/mitchellh/hashstructure v1.0.0
