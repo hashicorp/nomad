@@ -483,7 +483,21 @@ func SetupLoggers(ui UI, config *Config) (*logutils.LevelFilter, *gatedwriter.Wr
 
 // setupAgent is used to start the agent and various interfaces
 func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
-	c.Ui.Output("Starting Nomad agent...")
+	// We'll update the user in real time
+	sg := c.Ui.StepGroup()
+	defer sg.Wait()
+
+	// If we have a step set, abort it on exit
+	var s Step
+	defer func() {
+		if s != nil {
+			s.Abort()
+		}
+	}()
+
+	s = sg.Add("Starting Nomad Agent...")
+
+	// c.Ui.Output("Starting Nomad agent...")
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
@@ -525,6 +539,7 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 		}()
 	}
 
+	s.Done()
 	return nil
 }
 
