@@ -280,7 +280,25 @@ export default [
       },
     ],
   },
-  {category: 'telemetry', content: ['metrics']},
+  {
+    category: 'operations',
+    content: [
+      'telemetry',
+      'metrics',
+      {
+        title: 'Cluster Management',
+        href: 'https://learn.hashicorp.com/collections/nomad/manage-clusters'
+      },
+      {
+        title: 'Transport Security',
+        href: 'https://learn.hashicorp.com/collections/nomad/transport-security'
+      },
+      {
+        title: 'Access Control',
+        href: 'https://learn.hashicorp.com/collections/nomad/access-control'
+      }
+    ]
+  },
   '------------',
   'enterprise',
   'faq',
