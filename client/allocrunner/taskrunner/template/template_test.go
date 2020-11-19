@@ -13,9 +13,11 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/consul/testutil"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1453,6 +1455,255 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	assert.Nil(err, "Building Runner Config")
 	assert.NotNil(ctconf.Vault.Grace, "Vault Grace Pointer")
 	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
+}
+
+// TestTaskTemplateManager_Escapes asserts that when sandboxing is enabled
+// interpolated paths are not incorrectly treated as escaping the alloc dir.
+func TestTaskTemplateManager_Escapes(t *testing.T) {
+	t.Parallel()
+
+	clientConf := config.DefaultConfig()
+	require.False(t, clientConf.TemplateConfig.DisableSandbox, "expected sandbox to be disabled")
+
+	// Set a fake alloc dir to make test output more realistic
+	clientConf.AllocDir = "/fake/allocdir"
+
+	clientConf.Node = mock.Node()
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	logger := testlog.HCLogger(t)
+	allocDir := allocdir.NewAllocDir(logger, filepath.Join(clientConf.AllocDir, alloc.ID))
+	taskDir := allocDir.NewTaskDir(task.Name)
+
+	containerEnv := func() *taskenv.Builder {
+		// To emulate a Docker or exec tasks we must copy the
+		// Set{Alloc,Task,Secrets}Dir logic in taskrunner/task_dir_hook.go
+		b := taskenv.NewBuilder(clientConf.Node, alloc, task, clientConf.Region)
+		b.SetAllocDir(allocdir.SharedAllocContainerPath)
+		b.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		b.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+		return b
+	}
+
+	rawExecEnv := func() *taskenv.Builder {
+		// To emulate a unisolated tasks we must copy the
+		// Set{Alloc,Task,Secrets}Dir logic in taskrunner/task_dir_hook.go
+		b := taskenv.NewBuilder(clientConf.Node, alloc, task, clientConf.Region)
+		b.SetAllocDir(taskDir.SharedAllocDir)
+		b.SetTaskLocalDir(taskDir.LocalDir)
+		b.SetSecretsDir(taskDir.SecretsDir)
+		return b
+	}
+
+	cases := []struct {
+		Name   string
+		Config func() *TaskTemplateManagerConfig
+
+		// Set to skip a test; remove once bugs are fixed
+		Skip bool
+
+		// Expected paths to be returned if Err is nil
+		SourcePath string
+		DestPath   string
+
+		// Err is the expected error to be returned or nil
+		Err error
+	}{
+		{
+			Name: "ContainerOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "secrets/dst"),
+		},
+		{
+			Name: "ContainerSrcEscapesErr",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "/etc/src_escapes",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			Err: sourceEscapesErr,
+		},
+		{
+			Name: "ContainerSrcEscapesOk",
+			Config: func() *TaskTemplateManagerConfig {
+				unsafeConf := clientConf.Copy()
+				unsafeConf.TemplateConfig.DisableSandbox = true
+				return &TaskTemplateManagerConfig{
+					ClientConfig: unsafeConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "/etc/src_escapes_ok",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			SourcePath: "/etc/src_escapes_ok",
+			DestPath:   filepath.Join(taskDir.Dir, "secrets/dst"),
+		},
+		{
+			Name: "ContainerDstAbsoluteOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "/etc/absolutely_relative",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "etc/absolutely_relative"),
+		},
+		{
+			Name: "ContainerDstAbsoluteEscapesErr",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "../escapes",
+						},
+					},
+				}
+			},
+			Err: destEscapesErr,
+		},
+		{
+			Name: "ContainerDstAbsoluteEscapesOk",
+			Config: func() *TaskTemplateManagerConfig {
+				unsafeConf := clientConf.Copy()
+				unsafeConf.TemplateConfig.DisableSandbox = true
+				return &TaskTemplateManagerConfig{
+					ClientConfig: unsafeConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "../escapes",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "..", "escapes"),
+		},
+		//TODO: Fix this test. I *think* it should pass. The double
+		//      joining of the task dir onto the destination seems like
+		//      a bug. https://github.com/hashicorp/nomad/issues/9389
+		{
+			Skip: true,
+			Name: "RawExecOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   rawExecEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "secrets/dst"),
+		},
+		{
+			Name: "RawExecSrcEscapesErr",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   rawExecEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "/etc/src_escapes",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			Err: sourceEscapesErr,
+		},
+		{
+			Name: "RawExecDstAbsoluteOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   rawExecEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "/etc/absolutely_relative",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "etc/absolutely_relative"),
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.Skip {
+				t.Skip("FIXME: Skipping broken test")
+			}
+			config := tc.Config()
+			mapping, err := parseTemplateConfigs(config)
+			if tc.Err == nil {
+				// Ok path
+				require.NoError(t, err)
+				require.NotNil(t, mapping)
+				require.Len(t, mapping, 1)
+				for k := range mapping {
+					require.Equal(t, tc.SourcePath, *k.Source)
+					require.Equal(t, tc.DestPath, *k.Destination)
+					t.Logf("Rendering %s => %s", *k.Source, *k.Destination)
+				}
+			} else {
+				// Err path
+				assert.EqualError(t, err, tc.Err.Error())
+				require.Nil(t, mapping)
+			}
+
+		})
+	}
 }
 
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
