@@ -1,3 +1,8 @@
+## 0.10.9 (November 19, 2020)
+
+BUG FIXES:
+ * client: _Backport from v0.12.9_ - Fixed a regression where `NOMAD_{ALLOC,TASK,SECRETS}_DIR` variables would cause an error when interpolated into `template.source` stanzas. [[GH-9405](https://github.com/hashicorp/nomad/issues/9405)]
+
 ## 0.10.8 (November 10, 2020)
 
 SECURITY:
