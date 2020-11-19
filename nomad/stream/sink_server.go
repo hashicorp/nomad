@@ -33,12 +33,17 @@ func (s *SinkServer) Subscribe(pbReq *pbstream.SubscribeRequest, serverStream pb
 	}
 
 	for _, topicFilter := range pbReq.Topics {
-		topicKey := topicFilter.String()
-		if topicFilter.GetTopic() == pbstream.Topic_All {
+		topic := topicFilter.GetTopic()
+		topicKey := topic.String()
+		if topic == pbstream.Topic_All {
 			topicKey = "*"
 		}
 
-		req.Topics[structs.Topic(topicKey)] = []string{"*"}
+		if len(topicFilter.FilterKeys) == 0 {
+			req.Topics[structs.Topic(topicKey)] = []string{"*"}
+		} else {
+			req.Topics[structs.Topic(topicKey)] = topicFilter.FilterKeys
+		}
 	}
 
 	sub, err := s.broker.Subscribe(req)
