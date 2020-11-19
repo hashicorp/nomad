@@ -49,6 +49,9 @@ Usage: nomad node status [options] <node>
   short-hand list of all nodes will be displayed. The -self flag is useful to
   quickly access the status of the local node.
 
+  If ACLs are enabled, this option requires a token with the 'node:read'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

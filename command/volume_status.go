@@ -24,6 +24,10 @@ Usage: nomad volume status [options] <id>
   Display status information about a CSI volume. If no volume id is given, a
   list of all volumes will be displayed.
 
+  When ACLs are enabled, this command requires a token with the
+  'csi-read-volume' and 'csi-list-volumes' capability for the volume's
+  namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

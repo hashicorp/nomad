@@ -33,6 +33,9 @@ Usage: nomad status [options] <job>
   Display status information about a job. If no job ID is given, a list of all
   known jobs will be displayed.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

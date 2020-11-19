@@ -26,6 +26,10 @@ Stop will issue a request to stop and reschedule the allocation. An interactive
 monitoring session will display log lines as the allocation completes shutting
 down. It is safe to exit the monitor early with ctrl-c.
 
+When ACLs are enabled, this command requires a token with the
+`alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
+allocation's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

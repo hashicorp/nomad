@@ -23,6 +23,10 @@ The `recommendation apply` command requires at least one recommendation ID to
 be passed to it. Multiple IDs can be passed, with each recommendation ID
 separated from the next by a space.
 
+When ACLs are enabled, this command requires a token with the `submit-job`,
+`read-job`, and `submit-recommendation` capabilities for the recommendation's
+namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

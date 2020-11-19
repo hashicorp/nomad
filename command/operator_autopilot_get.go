@@ -64,6 +64,9 @@ Usage: nomad operator autopilot get-config [options]
 
   Displays the current Autopilot configuration.
 
+  If ACLs are enabled, this command requires a token with the 'operator:read'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

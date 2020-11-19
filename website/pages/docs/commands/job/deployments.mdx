@@ -20,6 +20,9 @@ nomad job deployments [options] <job>
 The `job deployments` command requires a single argument, the job ID or an ID
 prefix of a job to display the list of deployments for.
 
+When ACLs are enabled, this command requires a token with the `read-job` and
+`list-jobs` capabilities for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

@@ -22,6 +22,9 @@ nomad quota apply [options] <path>
 The `quota apply` command requires the path to the specification file. The
 specification can be read from stdin by setting the path to "-".
 
+If ACLs are enabled, this command requires a token with the `quota:write`
+capability.
+
 ## General Options
 
 @include 'general_options.mdx'

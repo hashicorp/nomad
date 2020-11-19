@@ -20,6 +20,9 @@ Usage: nomad server force-leave [options] <node>
   Note that if the member is actually still alive, it will
   eventually rejoin the cluster again.
 
+  If ACLs are enabled, this option requires a token with the 'agent:write'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

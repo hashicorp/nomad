@@ -17,6 +17,9 @@ Usage: nomad sentinel read [options] <name>
 
   Read is used to inspect a Sentinel policy.
 
+  Sentinel commands are only available when ACLs are enabled. This command
+  requires a management token.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

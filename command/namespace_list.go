@@ -19,6 +19,10 @@ Usage: nomad namespace list [options]
 
   List is used to list available namespaces.
 
+  If ACLs are enabled, this command requires a management ACL token to view
+  all namespaces. A non-management token can be used to list namespaces for
+  which it has an associated capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

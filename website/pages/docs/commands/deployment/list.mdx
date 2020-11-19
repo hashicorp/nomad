@@ -18,6 +18,9 @@ nomad deployment list [options]
 
 The `deployment list` command requires no arguments.
 
+When ACLs are enabled, this command requires a token with the 'read-job'
+capability for the deployment's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

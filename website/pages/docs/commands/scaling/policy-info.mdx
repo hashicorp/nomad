@@ -16,6 +16,9 @@ Info is used to return detailed information on the specified scaling policy.
 nomad scaling policy info [options] <policy_id>
 ```
 
+If ACLs are enabled, this command requires a token with the `read-job` and
+`list-jobs` capabilities for the policy's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

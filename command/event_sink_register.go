@@ -20,8 +20,10 @@ func (c *EventSinkRegisterCommand) Help() string {
 	helpText := `
 Usage: nomad event sink register <path>
 
-   Register is used to register a new event sink. The event sink is
-   sourced from <path> or from stdin if path is "-".
+  Register is used to register a new event sink. The event sink is
+  sourced from <path> or from stdin if path is "-".
+
+  When ACLs are enabled, this command requires a management token.
 
 General Options:
 

@@ -19,6 +19,9 @@ Usage: nomad job deployments [options] <job>
 
   Deployments is used to display the deployments for a particular job.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

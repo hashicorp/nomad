@@ -12,7 +12,9 @@ func (c *EventSinkDeregisterCommand) Help() string {
 	helpText := `
 Usage: nomad event sink deregister <event sink id>
 
-   Deregister is used to deregister a registered event sink.
+  Deregister is used to deregister a registered event sink.
+
+  When ACLs are enabled, this command requires a management token.
 
 General Options:
 

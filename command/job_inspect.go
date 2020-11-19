@@ -20,6 +20,9 @@ Alias: nomad inspect
 
   Inspect is used to see the specification of a submitted job.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

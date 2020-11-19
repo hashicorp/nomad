@@ -29,6 +29,9 @@ Alias: nomad validate
   it is read from the file at the supplied path or downloaded and
   read from URL specified.
 
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the job's namespace.
+
 Validate Options:
 
   -hcl1

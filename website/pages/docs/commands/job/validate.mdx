@@ -30,6 +30,9 @@ supports `go-getter` syntax.
 On successful validation, exit code 0 will be returned, otherwise an exit code
 of 1 indicates an error.
 
+When ACLs are enabled, this command requires a token with the `read-job`
+capability for the job's namespace.
+
 ## Examples
 
 Validate a job with invalid syntax:

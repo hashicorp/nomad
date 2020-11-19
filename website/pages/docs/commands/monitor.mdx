@@ -25,6 +25,9 @@ the agent at a relatively high log level (such as "warn"),
 but still access debug logs and watch the debug logs if necessary.
 The monitor command also allows you to specify a single client node id to follow.
 
+When ACLs are enabled, this command requires a token with the `agent:read`
+capability.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

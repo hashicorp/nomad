@@ -35,6 +35,9 @@ nomad job revert [options] <job> <version>
 The `job revert` command requires two inputs, the job ID and the version of that
 job to revert to.
 
+When ACLs are enabled, this command requires a token with the `submit-job`
+and `list-jobs` capabilities for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

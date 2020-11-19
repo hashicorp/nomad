@@ -21,6 +21,8 @@ nomad event sink deregister <id>
 The `event sink deregister` command requires a single argument, the event sink
 ID.
 
+When ACLs are enabled, this command requires a management token.
+
 ## General Options
 
 @include 'general_options.mdx'
@@ -33,4 +35,3 @@ Deregister an event sink:
 $ nomad event sink deregister job-webhook
 Successfully deregistered "job-webhook" event sink!
 ```
-

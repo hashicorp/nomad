@@ -21,6 +21,9 @@ Usage: nomad job revert [options] <job> <version>
   Revert is used to revert a job to a prior version of the job. The available
   versions to revert to can be found using "nomad job history" command.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

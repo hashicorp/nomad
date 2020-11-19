@@ -22,6 +22,9 @@ Usage: nomad deployment status [options] <deployment id>
   Status is used to display the status of a deployment. The status will display
   the number of desired changes as well as the currently applied changes.
 
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the deployment's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

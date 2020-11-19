@@ -23,6 +23,9 @@ Usage: nomad node eligibility [options] <node>
   It is required that either -enable or -disable is specified, but not both.
   The -self flag is useful to set the scheduling eligibility of the local node.
 
+  If ACLs are enabled, this option requires a token with the 'node:write'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

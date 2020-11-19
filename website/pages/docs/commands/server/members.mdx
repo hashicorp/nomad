@@ -19,6 +19,9 @@ which is only run on server nodes.
 nomad server members [options]
 ```
 
+If ACLs are enabled, this option requires a token with the `node:read`
+capability.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

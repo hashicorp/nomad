@@ -25,6 +25,8 @@ Usage: nomad operator raft remove-peer [options]
   server-members" command, it is preferable to clean up by simply running "nomad
   server-force-leave" instead of this command.
 
+  If ACLs are enabled, this command requires a management token.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

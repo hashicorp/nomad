@@ -40,6 +40,9 @@ there are job placement issues encountered (unsatisfiable constraints, resource
 exhaustion, etc), then the exit code will be 2. Any other errors, including
 client connection issues or internal errors, are indicated by exit code 1.
 
+When ACLs are enabled, this command requires a token with the `dispatch-job`
+capability for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

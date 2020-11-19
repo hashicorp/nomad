@@ -25,6 +25,10 @@ Usage: nomad recommendation apply [options] <recommendation_ids>
 
   Apply one or more Nomad recommendations.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'submit-recommendation' capabilities for the
+  recommendation's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

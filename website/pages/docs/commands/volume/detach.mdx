@@ -25,6 +25,10 @@ Note that you can use a node ID prefix just as you can with other Nomad
 commands, but if the node has been garbage collected, you may need to pass the
 full node ID.
 
+When ACLs are enabled, this command requires a token with the
+`csi-write-volume` and `csi-read-volume` capabilities for the volume's
+namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

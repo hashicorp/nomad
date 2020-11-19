@@ -16,6 +16,9 @@ The `event sink list` command is used to list all registered event sinks.
 nomad event sink list
 ```
 
+When ACLs are enabled, this command requires a token with the `operator:read`
+capability.
+
 ## General Options
 
 @include 'general_options.mdx'

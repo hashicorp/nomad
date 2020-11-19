@@ -36,9 +36,12 @@ func (f *AllocFSCommand) Help() string {
 Usage: nomad alloc fs [options] <allocation> <path>
 Alias: nomad fs
 
-  fs displays either the contents of an allocation directory for the passed allocation,
-  or displays the file at the given path. The path is relative to the root of the alloc
-  dir and defaults to root if unspecified.
+  fs displays either the contents of an allocation directory for the passed
+  allocation, or displays the file at the given path. The path is relative to
+  the root of the alloc dir and defaults to root if unspecified.
+
+  When ACLs are enabled, this command requires a token with the 'read-fs',
+  'read-job', and 'list-jobs' capabilities for the allocation's namespace.
 
 General Options:
 

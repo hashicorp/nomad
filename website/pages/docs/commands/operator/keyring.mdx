@@ -24,6 +24,9 @@ All variations of the `keyring` command return 0 if all nodes reply and there
 are no errors. If any node fails to reply or reports failure, the exit code
 will be 1.
 
+If ACLs are enabled, this command requires a token with the `agent:write`
+capability.
+
 ## Usage
 
 ```plaintext

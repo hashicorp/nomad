@@ -21,6 +21,10 @@ This command accepts a single allocation ID and a task name. The task name must
 be part of the allocation and the task must be currently running. The task name
 is optional and if omitted every task in the allocation will be restarted.
 
+When ACLs are enabled, this command requires a token with the
+`alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
+allocation's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

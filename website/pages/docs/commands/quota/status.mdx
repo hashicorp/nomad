@@ -21,6 +21,9 @@ Enterprise.
 nomad quota status [options] <quota_name>
 ```
 
+If ACLs are enabled, this command requires a token with the `quota:read`
+capability and access to any namespaces that the quota is applied to.
+
 ## General Options
 
 @include 'general_options.mdx'

@@ -21,6 +21,10 @@ nomad namespace list [options]
 
 The `namespace list` command requires no arguments.
 
+If ACLs are enabled, this command requires a management ACL token to view all
+namespaces. A non-management token can be used to list namespaces for which it
+has an associated capability.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

@@ -23,6 +23,9 @@ Usage: nomad server members [options]
   Display a list of the known servers and their status. Only Nomad servers are
   able to service this command.
 
+  If ACLs are enabled, this option requires a token with the 'node:read'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

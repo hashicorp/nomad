@@ -20,6 +20,9 @@ Usage: nomad job periodic force <job id>
   This is used to immediately run a periodic job, even if it violates the job's
   prohibit_overlap setting.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

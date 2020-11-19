@@ -16,11 +16,15 @@ func (a *AllocStopCommand) Help() string {
 Usage: nomad alloc stop [options] <allocation>
 Alias: nomad stop
 
-  stop an existing allocation. This command is used to signal a specific alloc
+  Stop an existing allocation. This command is used to signal a specific alloc
   to shut down. When the allocation has been shut down, it will then be
   rescheduled. An interactive monitoring session will display log lines as the
   allocation completes shutting down. It is safe to exit the monitor early with
   ctrl-c.
+
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
 
 General Options:
 

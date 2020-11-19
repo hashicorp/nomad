@@ -19,6 +19,9 @@ Usage: nomad deployment pause [options] <deployment id>
   Pause is used to pause a deployment. Pausing a deployment will pause the
   placement of new allocations as part of rolling deployment.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'read-job' capabilities for the deployment's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

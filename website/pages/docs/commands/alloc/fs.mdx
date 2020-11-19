@@ -36,6 +36,9 @@ specified, in which case an allocation is chosen from the given job) and a
 path.  The path is optional and relative to the root of the [allocation working
 directory].
 
+When ACLs are enabled, this command requires a token with the `read-fs`,
+`read-job`, and `list-jobs` capabilities for the allocation's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

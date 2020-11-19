@@ -28,6 +28,9 @@ including resource usage statistics. Otherwise, a list of matching nodes and
 information will be displayed. If running the command on a Nomad Client, the
 `-self` flag is useful to quickly access the status of the local node.
 
+If ACLs are enabled, this option requires a token with the 'node:read'
+capability.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

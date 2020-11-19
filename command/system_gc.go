@@ -17,6 +17,8 @@ Usage: nomad system gc [options]
 
   Initializes a garbage collection of jobs, evaluations, allocations, and nodes.
 
+  If ACLs are enabled, this option requires a management token.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

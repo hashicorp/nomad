@@ -20,6 +20,8 @@ Usage: nomad namespace apply [options] <namespace>
   Apply is used to create or update a namespace. It takes the namespace name to
   create or update as its only argument.
 
+  If ACLs are enabled, this command requires a management ACL token.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

@@ -61,6 +61,12 @@ Alias: nomad run
   precedence, going from highest to lowest: the -vault-token flag, the
   $VAULT_TOKEN environment variable and finally the value in the job file.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  capability for the job's namespace. Jobs that mount CSI volumes require a
+  token with the 'csi-mount-volume' capability for the volume's
+  namespace. Jobs that mount host volumes require a token with the
+  'host_volume' capability for that volume.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

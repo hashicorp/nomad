@@ -21,6 +21,9 @@ Usage: nomad quota status [options] <quota>
 
   Status is used to view the status of a particular quota specification.
 
+  If ACLs are enabled, this command requires a token with the 'quota:read'
+  capability and access to any namespaces that the quota is applied to.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault)

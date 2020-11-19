@@ -26,6 +26,9 @@ job will be submitted to Nomad for scheduling. If the supplied path is
 "-", the job file is read from STDIN. Otherwise it is read from the
 file at the supplied path.
 
+When ACLs are enabled, this command requires a token with the
+`csi-write-volume` capability for the volume's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'
