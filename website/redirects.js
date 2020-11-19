@@ -4,8 +4,8 @@ module.exports = [
   // Playground for testing url pattern matching: https://npm.runkit.com/path-to-regexp
 
   {
-    source: '/docs/telemetry/overview',
-    destination: '/docs/telemetry',
+    source: '/docs/operations/overview',
+    destination: '/docs/operations',
     permanent: true,
   },
 
@@ -802,6 +802,18 @@ module.exports = [
   {
     source: '/docs/agent/configuration/vault',
     destination: '/docs/configuration/vault',
+    permanent: true,
+  },
+  // Moved telemetry under operations
+  {
+    source: '/docs/telemetry',
+    destination: '/docs/operations/telemetry',
+    permanent: true,
+  },
+
+  {
+    source: '/docs/telemetry/metrics',
+    destination: '/docs/operations/metrics',
     permanent: true,
   },
 
