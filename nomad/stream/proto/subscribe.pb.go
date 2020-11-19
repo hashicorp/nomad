@@ -7,7 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
-	_struct "github.com/golang/protobuf/ptypes/struct"
+	_ "github.com/golang/protobuf/ptypes/struct"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -30,8 +30,8 @@ type Topic int32
 const (
 	Topic_All        Topic = 0
 	Topic_Deployment Topic = 1
-	Topic_Evaluation Topic = 2
-	Topic_Allocation Topic = 3
+	Topic_Eval       Topic = 2
+	Topic_Alloc      Topic = 3
 	Topic_Job        Topic = 4
 	Topic_Node       Topic = 5
 )
@@ -39,8 +39,8 @@ const (
 var Topic_name = map[int32]string{
 	0: "All",
 	1: "Deployment",
-	2: "Evaluation",
-	3: "Allocation",
+	2: "Eval",
+	3: "Alloc",
 	4: "Job",
 	5: "Node",
 }
@@ -48,8 +48,8 @@ var Topic_name = map[int32]string{
 var Topic_value = map[string]int32{
 	"All":        0,
 	"Deployment": 1,
-	"Evaluation": 2,
-	"Allocation": 3,
+	"Eval":       2,
+	"Alloc":      3,
 	"Job":        4,
 	"Node":       5,
 }
@@ -219,14 +219,371 @@ func (m *EventBatch) GetEvent() []*Event {
 	return nil
 }
 
+type Node struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Datacenter           string   `protobuf:"bytes,2,opt,name=Datacenter,proto3" json:"Datacenter,omitempty"`
+	Name                 string   `protobuf:"bytes,3,opt,name=Name,proto3" json:"Name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Node) Reset()         { *m = Node{} }
+func (m *Node) String() string { return proto.CompactTextString(m) }
+func (*Node) ProtoMessage()    {}
+func (*Node) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{3}
+}
+
+func (m *Node) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Node.Unmarshal(m, b)
+}
+func (m *Node) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Node.Marshal(b, m, deterministic)
+}
+func (m *Node) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Node.Merge(m, src)
+}
+func (m *Node) XXX_Size() int {
+	return xxx_messageInfo_Node.Size(m)
+}
+func (m *Node) XXX_DiscardUnknown() {
+	xxx_messageInfo_Node.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Node proto.InternalMessageInfo
+
+func (m *Node) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *Node) GetDatacenter() string {
+	if m != nil {
+		return m.Datacenter
+	}
+	return ""
+}
+
+func (m *Node) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type NodeEvent struct {
+	Node                 *Node    `protobuf:"bytes,1,opt,name=Node,proto3" json:"Node,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *NodeEvent) Reset()         { *m = NodeEvent{} }
+func (m *NodeEvent) String() string { return proto.CompactTextString(m) }
+func (*NodeEvent) ProtoMessage()    {}
+func (*NodeEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{4}
+}
+
+func (m *NodeEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NodeEvent.Unmarshal(m, b)
+}
+func (m *NodeEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NodeEvent.Marshal(b, m, deterministic)
+}
+func (m *NodeEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NodeEvent.Merge(m, src)
+}
+func (m *NodeEvent) XXX_Size() int {
+	return xxx_messageInfo_NodeEvent.Size(m)
+}
+func (m *NodeEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_NodeEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NodeEvent proto.InternalMessageInfo
+
+func (m *NodeEvent) GetNode() *Node {
+	if m != nil {
+		return m.Node
+	}
+	return nil
+}
+
+type JobEvent struct {
+	Job                  *Job     `protobuf:"bytes,1,opt,name=Job,proto3" json:"Job,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *JobEvent) Reset()         { *m = JobEvent{} }
+func (m *JobEvent) String() string { return proto.CompactTextString(m) }
+func (*JobEvent) ProtoMessage()    {}
+func (*JobEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{5}
+}
+
+func (m *JobEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_JobEvent.Unmarshal(m, b)
+}
+func (m *JobEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_JobEvent.Marshal(b, m, deterministic)
+}
+func (m *JobEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_JobEvent.Merge(m, src)
+}
+func (m *JobEvent) XXX_Size() int {
+	return xxx_messageInfo_JobEvent.Size(m)
+}
+func (m *JobEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_JobEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_JobEvent proto.InternalMessageInfo
+
+func (m *JobEvent) GetJob() *Job {
+	if m != nil {
+		return m.Job
+	}
+	return nil
+}
+
+type Job struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Name                 string   `protobuf:"bytes,3,opt,name=Name,proto3" json:"Name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Job) Reset()         { *m = Job{} }
+func (m *Job) String() string { return proto.CompactTextString(m) }
+func (*Job) ProtoMessage()    {}
+func (*Job) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{6}
+}
+
+func (m *Job) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Job.Unmarshal(m, b)
+}
+func (m *Job) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Job.Marshal(b, m, deterministic)
+}
+func (m *Job) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Job.Merge(m, src)
+}
+func (m *Job) XXX_Size() int {
+	return xxx_messageInfo_Job.Size(m)
+}
+func (m *Job) XXX_DiscardUnknown() {
+	xxx_messageInfo_Job.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Job proto.InternalMessageInfo
+
+func (m *Job) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *Job) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type DeploymentEvent struct {
+	Deployment           *Deployment `protobuf:"bytes,1,opt,name=Deployment,proto3" json:"Deployment,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *DeploymentEvent) Reset()         { *m = DeploymentEvent{} }
+func (m *DeploymentEvent) String() string { return proto.CompactTextString(m) }
+func (*DeploymentEvent) ProtoMessage()    {}
+func (*DeploymentEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{7}
+}
+
+func (m *DeploymentEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DeploymentEvent.Unmarshal(m, b)
+}
+func (m *DeploymentEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DeploymentEvent.Marshal(b, m, deterministic)
+}
+func (m *DeploymentEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeploymentEvent.Merge(m, src)
+}
+func (m *DeploymentEvent) XXX_Size() int {
+	return xxx_messageInfo_DeploymentEvent.Size(m)
+}
+func (m *DeploymentEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeploymentEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeploymentEvent proto.InternalMessageInfo
+
+func (m *DeploymentEvent) GetDeployment() *Deployment {
+	if m != nil {
+		return m.Deployment
+	}
+	return nil
+}
+
+type Deployment struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	JobID                string   `protobuf:"bytes,2,opt,name=JobID,proto3" json:"JobID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Deployment) Reset()         { *m = Deployment{} }
+func (m *Deployment) String() string { return proto.CompactTextString(m) }
+func (*Deployment) ProtoMessage()    {}
+func (*Deployment) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{8}
+}
+
+func (m *Deployment) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Deployment.Unmarshal(m, b)
+}
+func (m *Deployment) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Deployment.Marshal(b, m, deterministic)
+}
+func (m *Deployment) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Deployment.Merge(m, src)
+}
+func (m *Deployment) XXX_Size() int {
+	return xxx_messageInfo_Deployment.Size(m)
+}
+func (m *Deployment) XXX_DiscardUnknown() {
+	xxx_messageInfo_Deployment.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Deployment proto.InternalMessageInfo
+
+func (m *Deployment) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *Deployment) GetJobID() string {
+	if m != nil {
+		return m.JobID
+	}
+	return ""
+}
+
+type EvaluationEvent struct {
+	Evaluation           *Evaluation `protobuf:"bytes,1,opt,name=Evaluation,proto3" json:"Evaluation,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *EvaluationEvent) Reset()         { *m = EvaluationEvent{} }
+func (m *EvaluationEvent) String() string { return proto.CompactTextString(m) }
+func (*EvaluationEvent) ProtoMessage()    {}
+func (*EvaluationEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{9}
+}
+
+func (m *EvaluationEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_EvaluationEvent.Unmarshal(m, b)
+}
+func (m *EvaluationEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_EvaluationEvent.Marshal(b, m, deterministic)
+}
+func (m *EvaluationEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_EvaluationEvent.Merge(m, src)
+}
+func (m *EvaluationEvent) XXX_Size() int {
+	return xxx_messageInfo_EvaluationEvent.Size(m)
+}
+func (m *EvaluationEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_EvaluationEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_EvaluationEvent proto.InternalMessageInfo
+
+func (m *EvaluationEvent) GetEvaluation() *Evaluation {
+	if m != nil {
+		return m.Evaluation
+	}
+	return nil
+}
+
+type Evaluation struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	JobID                string   `protobuf:"bytes,3,opt,name=JobID,proto3" json:"JobID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Evaluation) Reset()         { *m = Evaluation{} }
+func (m *Evaluation) String() string { return proto.CompactTextString(m) }
+func (*Evaluation) ProtoMessage()    {}
+func (*Evaluation) Descriptor() ([]byte, []int) {
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{10}
+}
+
+func (m *Evaluation) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Evaluation.Unmarshal(m, b)
+}
+func (m *Evaluation) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Evaluation.Marshal(b, m, deterministic)
+}
+func (m *Evaluation) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Evaluation.Merge(m, src)
+}
+func (m *Evaluation) XXX_Size() int {
+	return xxx_messageInfo_Evaluation.Size(m)
+}
+func (m *Evaluation) XXX_DiscardUnknown() {
+	xxx_messageInfo_Evaluation.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Evaluation proto.InternalMessageInfo
+
+func (m *Evaluation) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *Evaluation) GetJobID() string {
+	if m != nil {
+		return m.JobID
+	}
+	return ""
+}
+
 type Event struct {
-	Topic                Topic           `protobuf:"varint,1,opt,name=Topic,proto3,enum=hashicorp.nomad.stream.proto.Topic" json:"Topic,omitempty"`
-	Type                 string          `protobuf:"bytes,2,opt,name=Type,proto3" json:"Type,omitempty"`
-	Key                  string          `protobuf:"bytes,3,opt,name=Key,proto3" json:"Key,omitempty"`
-	Namespace            string          `protobuf:"bytes,4,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
-	FilterKeys           []string        `protobuf:"bytes,5,rep,name=FilterKeys,proto3" json:"FilterKeys,omitempty"`
-	Index                uint64          `protobuf:"varint,6,opt,name=Index,proto3" json:"Index,omitempty"`
-	Payload              *_struct.Struct `protobuf:"bytes,7,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	Topic      Topic    `protobuf:"varint,1,opt,name=Topic,proto3,enum=hashicorp.nomad.stream.proto.Topic" json:"Topic,omitempty"`
+	Type       string   `protobuf:"bytes,2,opt,name=Type,proto3" json:"Type,omitempty"`
+	Key        string   `protobuf:"bytes,3,opt,name=Key,proto3" json:"Key,omitempty"`
+	Namespace  string   `protobuf:"bytes,4,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
+	FilterKeys []string `protobuf:"bytes,5,rep,name=FilterKeys,proto3" json:"FilterKeys,omitempty"`
+	Index      uint64   `protobuf:"varint,6,opt,name=Index,proto3" json:"Index,omitempty"`
+	// Types that are valid to be assigned to Payload:
+	//	*Event_NodeEvent
+	//	*Event_JobEvent
+	//	*Event_EvaluationEvent
+	//	*Event_DeploymentEvent
+	Payload              isEvent_Payload `protobuf_oneof:"Payload"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
 	XXX_sizecache        int32           `json:"-"`
@@ -236,7 +593,7 @@ func (m *Event) Reset()         { *m = Event{} }
 func (m *Event) String() string { return proto.CompactTextString(m) }
 func (*Event) ProtoMessage()    {}
 func (*Event) Descriptor() ([]byte, []int) {
-	return fileDescriptor_1fbaa8c5f6fb9626, []int{3}
+	return fileDescriptor_1fbaa8c5f6fb9626, []int{11}
 }
 
 func (m *Event) XXX_Unmarshal(b []byte) error {
@@ -299,11 +656,77 @@ func (m *Event) GetIndex() uint64 {
 	return 0
 }
 
-func (m *Event) GetPayload() *_struct.Struct {
+type isEvent_Payload interface {
+	isEvent_Payload()
+}
+
+type Event_NodeEvent struct {
+	NodeEvent *NodeEvent `protobuf:"bytes,7,opt,name=NodeEvent,proto3,oneof"`
+}
+
+type Event_JobEvent struct {
+	JobEvent *JobEvent `protobuf:"bytes,8,opt,name=JobEvent,proto3,oneof"`
+}
+
+type Event_EvaluationEvent struct {
+	EvaluationEvent *EvaluationEvent `protobuf:"bytes,9,opt,name=EvaluationEvent,proto3,oneof"`
+}
+
+type Event_DeploymentEvent struct {
+	DeploymentEvent *DeploymentEvent `protobuf:"bytes,10,opt,name=DeploymentEvent,proto3,oneof"`
+}
+
+func (*Event_NodeEvent) isEvent_Payload() {}
+
+func (*Event_JobEvent) isEvent_Payload() {}
+
+func (*Event_EvaluationEvent) isEvent_Payload() {}
+
+func (*Event_DeploymentEvent) isEvent_Payload() {}
+
+func (m *Event) GetPayload() isEvent_Payload {
 	if m != nil {
 		return m.Payload
 	}
 	return nil
+}
+
+func (m *Event) GetNodeEvent() *NodeEvent {
+	if x, ok := m.GetPayload().(*Event_NodeEvent); ok {
+		return x.NodeEvent
+	}
+	return nil
+}
+
+func (m *Event) GetJobEvent() *JobEvent {
+	if x, ok := m.GetPayload().(*Event_JobEvent); ok {
+		return x.JobEvent
+	}
+	return nil
+}
+
+func (m *Event) GetEvaluationEvent() *EvaluationEvent {
+	if x, ok := m.GetPayload().(*Event_EvaluationEvent); ok {
+		return x.EvaluationEvent
+	}
+	return nil
+}
+
+func (m *Event) GetDeploymentEvent() *DeploymentEvent {
+	if x, ok := m.GetPayload().(*Event_DeploymentEvent); ok {
+		return x.DeploymentEvent
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Event) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*Event_NodeEvent)(nil),
+		(*Event_JobEvent)(nil),
+		(*Event_EvaluationEvent)(nil),
+		(*Event_DeploymentEvent)(nil),
+	}
 }
 
 func init() {
@@ -311,6 +734,14 @@ func init() {
 	proto.RegisterType((*TopicFilter)(nil), "hashicorp.nomad.stream.proto.TopicFilter")
 	proto.RegisterType((*SubscribeRequest)(nil), "hashicorp.nomad.stream.proto.SubscribeRequest")
 	proto.RegisterType((*EventBatch)(nil), "hashicorp.nomad.stream.proto.EventBatch")
+	proto.RegisterType((*Node)(nil), "hashicorp.nomad.stream.proto.Node")
+	proto.RegisterType((*NodeEvent)(nil), "hashicorp.nomad.stream.proto.NodeEvent")
+	proto.RegisterType((*JobEvent)(nil), "hashicorp.nomad.stream.proto.JobEvent")
+	proto.RegisterType((*Job)(nil), "hashicorp.nomad.stream.proto.Job")
+	proto.RegisterType((*DeploymentEvent)(nil), "hashicorp.nomad.stream.proto.DeploymentEvent")
+	proto.RegisterType((*Deployment)(nil), "hashicorp.nomad.stream.proto.Deployment")
+	proto.RegisterType((*EvaluationEvent)(nil), "hashicorp.nomad.stream.proto.EvaluationEvent")
+	proto.RegisterType((*Evaluation)(nil), "hashicorp.nomad.stream.proto.Evaluation")
 	proto.RegisterType((*Event)(nil), "hashicorp.nomad.stream.proto.Event")
 }
 
@@ -319,35 +750,47 @@ func init() {
 }
 
 var fileDescriptor_1fbaa8c5f6fb9626 = []byte{
-	// 442 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x52, 0x41, 0x6b, 0xdb, 0x30,
-	0x18, 0xad, 0x63, 0x27, 0xa9, 0x3f, 0x43, 0x31, 0x62, 0x30, 0x53, 0xc2, 0x30, 0xde, 0xc5, 0xdb,
-	0x41, 0xd9, 0xb2, 0x53, 0x8f, 0x29, 0xeb, 0x60, 0x2b, 0x94, 0xa1, 0xf4, 0x34, 0xd8, 0x41, 0x76,
-	0xbe, 0x35, 0x66, 0x8a, 0xe5, 0xd9, 0x72, 0xa9, 0x7f, 0xcd, 0x7e, 0xe2, 0xfe, 0xc2, 0xf0, 0xa7,
-	0x64, 0x49, 0x73, 0xe8, 0x02, 0xbd, 0xe9, 0x49, 0xef, 0x49, 0xef, 0x7b, 0x7a, 0x90, 0x94, 0x7a,
-	0x2d, 0x97, 0xd3, 0xc6, 0xd4, 0x28, 0xd7, 0xd3, 0xaa, 0xd6, 0x46, 0x4f, 0x9b, 0x36, 0x6b, 0xf2,
-	0xba, 0xc8, 0x90, 0x13, 0x66, 0x93, 0x95, 0x6c, 0x56, 0x45, 0xae, 0xeb, 0x8a, 0x13, 0x9b, 0x5b,
-	0xb6, 0x3d, 0x3d, 0x9f, 0xdc, 0x69, 0x7d, 0xa7, 0xd0, 0x6a, 0xb3, 0xf6, 0x47, 0x7f, 0x57, 0x9b,
-	0x1b, 0x7b, 0x9a, 0xac, 0x20, 0xb8, 0xd5, 0x55, 0x91, 0x7f, 0x2a, 0x94, 0xc1, 0x9a, 0x5d, 0xc0,
-	0x90, 0x60, 0xe4, 0xc4, 0x4e, 0x7a, 0x36, 0x7b, 0xcd, 0x9f, 0xba, 0x9a, 0x13, 0x55, 0x58, 0x05,
-	0x7b, 0x05, 0x60, 0x2f, 0xb9, 0xc6, 0xae, 0x89, 0x06, 0xb1, 0x9b, 0xfa, 0x62, 0x6f, 0x27, 0xf9,
-	0xed, 0x40, 0xb8, 0xd8, 0x3a, 0x17, 0xf8, 0xab, 0xc5, 0xc6, 0xb0, 0x17, 0xfd, 0x7b, 0x3f, 0xb1,
-	0xa4, 0xf7, 0x7c, 0x61, 0x41, 0xbf, 0xfb, 0xb9, 0x5c, 0xe2, 0x43, 0x34, 0x88, 0x9d, 0xd4, 0x13,
-	0x16, 0xb0, 0x09, 0xf8, 0x37, 0x72, 0x8d, 0x4d, 0x25, 0x73, 0x8c, 0x5c, 0xe2, 0xef, 0x36, 0xd8,
-	0x1c, 0x46, 0xe4, 0xa3, 0x89, 0xbc, 0xd8, 0x4d, 0x83, 0xd9, 0x9b, 0x23, 0xac, 0x5b, 0x77, 0x62,
-	0x23, 0x4c, 0xbe, 0x03, 0x5c, 0xdd, 0x63, 0x69, 0x2e, 0xa5, 0xc9, 0x57, 0x3b, 0x13, 0xce, 0xbe,
-	0x89, 0x0b, 0x18, 0x12, 0x87, 0x06, 0x0c, 0xfe, 0x17, 0x10, 0x51, 0x85, 0x55, 0x24, 0x7f, 0x9c,
-	0x8d, 0xf6, 0x39, 0x29, 0x33, 0xf0, 0x6e, 0xbb, 0x0a, 0x29, 0x19, 0x5f, 0xd0, 0x9a, 0x85, 0xe0,
-	0x5e, 0x63, 0xb7, 0x89, 0xa4, 0x5f, 0x3e, 0x8e, 0xca, 0x3b, 0x8c, 0xea, 0xf1, 0x4f, 0x0d, 0x0f,
-	0x7f, 0x6a, 0x37, 0xf9, 0x68, 0x7f, 0xf2, 0xf7, 0x30, 0xfe, 0x2a, 0x3b, 0xa5, 0xe5, 0x32, 0x1a,
-	0xc7, 0x4e, 0x1a, 0xcc, 0x5e, 0x72, 0xdb, 0x2c, 0xbe, 0x6d, 0x16, 0x5f, 0x50, 0xb3, 0xc4, 0x96,
-	0xf7, 0x76, 0xb1, 0x99, 0x93, 0x8d, 0xc1, 0x9d, 0x2b, 0x15, 0x9e, 0xb0, 0x33, 0x80, 0x8f, 0x58,
-	0x29, 0xdd, 0xad, 0xb1, 0x34, 0xa1, 0xd3, 0xe3, 0xab, 0x7b, 0xa9, 0x5a, 0x69, 0x0a, 0x5d, 0x86,
-	0x83, 0x1e, 0xcf, 0x95, 0xd2, 0xb9, 0xc5, 0x6e, 0x2f, 0xfc, 0xa2, 0xb3, 0xd0, 0x63, 0xa7, 0xe0,
-	0xdd, 0xe8, 0x25, 0x86, 0xc3, 0xd9, 0x03, 0x04, 0x94, 0xe2, 0x82, 0x32, 0x62, 0x05, 0xf8, 0xff,
-	0x5a, 0xc5, 0xf8, 0xd3, 0x49, 0x1e, 0xd6, 0xef, 0x3c, 0x3d, 0xe2, 0xfb, 0xa8, 0x0d, 0xc9, 0xc9,
-	0x3b, 0xe7, 0x12, 0xbe, 0x9d, 0x56, 0x99, 0x25, 0x64, 0x23, 0x62, 0x7c, 0xf8, 0x1b, 0x00, 0x00,
-	0xff, 0xff, 0xe9, 0xee, 0x6e, 0xfe, 0xa0, 0x03, 0x00, 0x00,
+	// 634 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0x41, 0x6b, 0xdb, 0x4c,
+	0x10, 0x8d, 0x2c, 0x29, 0xb1, 0xc6, 0x90, 0x4f, 0x2c, 0x39, 0x88, 0x10, 0x3e, 0x5c, 0x15, 0x5a,
+	0xa5, 0x50, 0xa5, 0x38, 0x50, 0xc8, 0xa9, 0x24, 0x55, 0xda, 0x58, 0x81, 0x50, 0x36, 0xb9, 0xa4,
+	0xa5, 0x87, 0x95, 0xbc, 0x8d, 0x45, 0x65, 0xad, 0x2a, 0xc9, 0x21, 0xfe, 0x0f, 0xfd, 0x0f, 0xfd,
+	0xab, 0x65, 0x67, 0xe5, 0x48, 0xb1, 0x5b, 0xdb, 0xd0, 0x9b, 0x66, 0xf6, 0xcd, 0x9b, 0x37, 0xab,
+	0x37, 0x0b, 0x6e, 0x26, 0x26, 0x6c, 0x74, 0x54, 0x56, 0x05, 0x67, 0x93, 0xa3, 0xbc, 0x10, 0x95,
+	0x38, 0x2a, 0xa7, 0x51, 0x19, 0x17, 0x49, 0xc4, 0x7d, 0x8c, 0xc9, 0xc1, 0x98, 0x95, 0xe3, 0x24,
+	0x16, 0x45, 0xee, 0x23, 0xda, 0x57, 0x68, 0x75, 0xba, 0x7f, 0x70, 0x27, 0xc4, 0x5d, 0xca, 0x55,
+	0x6d, 0x34, 0xfd, 0x26, 0xb9, 0xa6, 0x71, 0xa5, 0x4e, 0xdd, 0x31, 0xf4, 0x6e, 0x44, 0x9e, 0xc4,
+	0x1f, 0x92, 0xb4, 0xe2, 0x05, 0x39, 0x01, 0x13, 0x43, 0x47, 0xeb, 0x6b, 0xde, 0xee, 0xe0, 0xb9,
+	0xbf, 0x8a, 0xda, 0x47, 0x28, 0x55, 0x15, 0xe4, 0x7f, 0x00, 0x45, 0x72, 0xc9, 0x67, 0xa5, 0xd3,
+	0xe9, 0xeb, 0x9e, 0x45, 0x5b, 0x19, 0xf7, 0x97, 0x06, 0xf6, 0xf5, 0x5c, 0x39, 0xe5, 0x3f, 0xa6,
+	0xbc, 0xac, 0xc8, 0x9e, 0xec, 0xf7, 0x9d, 0x67, 0xd8, 0xcf, 0xa2, 0x2a, 0x90, 0xd9, 0x61, 0x36,
+	0xe2, 0x0f, 0x4e, 0xa7, 0xaf, 0x79, 0x06, 0x55, 0x01, 0x39, 0x00, 0xeb, 0x8a, 0x4d, 0x78, 0x99,
+	0xb3, 0x98, 0x3b, 0x3a, 0xe2, 0x9b, 0x04, 0x39, 0x85, 0x6d, 0xd4, 0x51, 0x3a, 0x46, 0x5f, 0xf7,
+	0x7a, 0x83, 0xc3, 0x0d, 0xa4, 0x2b, 0x75, 0xb4, 0x2e, 0x74, 0xbf, 0x02, 0x9c, 0xdf, 0xf3, 0xac,
+	0x3a, 0x63, 0x55, 0x3c, 0x6e, 0x44, 0x68, 0x6d, 0x11, 0x27, 0x60, 0x22, 0x06, 0x07, 0xec, 0xad,
+	0xbb, 0x20, 0x84, 0x52, 0x55, 0xe1, 0x86, 0x60, 0x5c, 0x89, 0x11, 0x27, 0xbb, 0xd0, 0x19, 0x06,
+	0xf5, 0xc0, 0x9d, 0x61, 0x20, 0x2f, 0x2e, 0x60, 0x15, 0x8b, 0x79, 0x56, 0xf1, 0x02, 0x47, 0xb6,
+	0x68, 0x2b, 0x43, 0x08, 0x18, 0x72, 0xcc, 0x7a, 0x64, 0xfc, 0x76, 0xdf, 0x83, 0x25, 0xb9, 0x90,
+	0x98, 0xbc, 0x55, 0xc4, 0x48, 0xd9, 0x1b, 0xb8, 0xab, 0x25, 0x49, 0x24, 0x45, 0xbc, 0xfb, 0x0e,
+	0xba, 0xa1, 0x88, 0x14, 0xc7, 0x31, 0xe8, 0xa1, 0x88, 0x6a, 0x8a, 0x67, 0xab, 0x29, 0x42, 0x11,
+	0x51, 0x89, 0x76, 0x0f, 0xb1, 0x68, 0x69, 0xa0, 0x3f, 0x09, 0xfe, 0x02, 0xff, 0x05, 0x3c, 0x4f,
+	0xc5, 0x6c, 0xc2, 0xb3, 0x4a, 0xb5, 0xbc, 0x00, 0x68, 0x52, 0x75, 0x67, 0x6f, 0x75, 0xe7, 0x06,
+	0x4f, 0x5b, 0xb5, 0xee, 0xa0, 0xcd, 0xb4, 0x24, 0x67, 0x0f, 0xcc, 0x50, 0x44, 0xc3, 0xa0, 0xbe,
+	0x5a, 0x15, 0x48, 0x41, 0xe7, 0xf7, 0x2c, 0x9d, 0xb2, 0x2a, 0x11, 0xd9, 0xa3, 0xa0, 0x26, 0xb5,
+	0x99, 0xa0, 0x06, 0x4f, 0x5b, 0xb5, 0x52, 0x50, 0x13, 0xfd, 0x5d, 0x90, 0xde, 0x16, 0xf4, 0xd3,
+	0xa8, 0xad, 0xf5, 0x2f, 0x4b, 0x48, 0xc0, 0xb8, 0x99, 0xe5, 0xbc, 0x1e, 0x15, 0xbf, 0x89, 0x0d,
+	0xfa, 0x25, 0x9f, 0xd5, 0xcd, 0xe4, 0xe7, 0xd3, 0x4d, 0x32, 0x16, 0x37, 0xe9, 0xe9, 0x22, 0x9b,
+	0x8b, 0x8b, 0xdc, 0x2c, 0xc6, 0x76, 0x7b, 0x31, 0x3e, 0xb6, 0x1c, 0xe9, 0xec, 0xe0, 0xdd, 0xbd,
+	0x5c, 0xef, 0x44, 0x84, 0x5f, 0x6c, 0xd1, 0x96, 0x9b, 0x83, 0xc6, 0x95, 0x4e, 0x17, 0x79, 0x5e,
+	0xac, 0xb5, 0xe3, 0x9c, 0xa6, 0xf1, 0xf3, 0xed, 0xd2, 0xef, 0x75, 0x2c, 0x24, 0x7b, 0xbd, 0xe9,
+	0x0f, 0x9d, 0x73, 0x2e, 0xd9, 0xe4, 0x76, 0xc9, 0xca, 0x0e, 0x6c, 0x42, 0xbd, 0x50, 0x24, 0xa9,
+	0x17, 0x52, 0x67, 0x16, 0xec, 0x7c, 0x62, 0xb3, 0x54, 0xb0, 0xd1, 0xab, 0x8b, 0xda, 0x04, 0x64,
+	0x07, 0xf4, 0xd3, 0x34, 0xb5, 0xb7, 0xc8, 0x6e, 0xdb, 0xe5, 0xb6, 0x46, 0xba, 0x60, 0x48, 0x69,
+	0x76, 0x87, 0x58, 0x60, 0x9e, 0xa6, 0xa9, 0x88, 0x6d, 0x5d, 0xa2, 0x43, 0x11, 0xd9, 0x86, 0x3c,
+	0x95, 0x77, 0x6a, 0x9b, 0x83, 0x07, 0xe8, 0x21, 0xfb, 0x35, 0x8a, 0x21, 0x09, 0x58, 0x8f, 0xcf,
+	0x30, 0xf1, 0x57, 0x4b, 0x5e, 0x7c, 0xaf, 0xf7, 0xbd, 0x0d, 0xde, 0x3b, 0x7c, 0x3e, 0xdd, 0xad,
+	0x37, 0xda, 0x19, 0x7c, 0xee, 0xe6, 0x91, 0x02, 0x44, 0xdb, 0x88, 0x38, 0xfe, 0x1d, 0x00, 0x00,
+	0xff, 0xff, 0x9f, 0x59, 0x6d, 0x35, 0xd1, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.

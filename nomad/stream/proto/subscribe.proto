@@ -13,8 +13,8 @@ service EventStream {
 enum Topic {
   All = 0;
   Deployment = 1;
-  Evaluation = 2;
-  Allocation = 3;
+  Eval = 2;
+  Alloc = 3;
   Job = 4;
   Node = 5;
 }
@@ -41,6 +41,43 @@ message EventBatch {
   repeated Event Event = 2;
 }
 
+message Node {
+  string ID = 1;
+  string Datacenter = 2;
+  string Name = 3;
+}
+
+message NodeEvent {
+  Node Node = 1;
+}
+
+message JobEvent {
+  Job Job = 1;
+}
+
+message Job {
+  string ID = 1;
+  string Name = 3;
+}
+
+message DeploymentEvent {
+  Deployment Deployment = 1;
+}
+
+message Deployment {
+  string ID = 1;
+  string JobID = 2;
+}
+
+message EvaluationEvent {
+  Evaluation Evaluation = 1;
+}
+
+message Evaluation {
+  string ID = 1;
+  string JobID = 3;
+}
+
 message Event {
   Topic Topic = 1;
   string Type = 2;
@@ -49,6 +86,10 @@ message Event {
   repeated string FilterKeys = 5;
   uint64 Index = 6;
 
-
-  google.protobuf.Struct Payload = 7;
+  oneof Payload {
+    NodeEvent NodeEvent = 7;
+    JobEvent JobEvent = 8;
+    EvaluationEvent EvaluationEvent = 9;
+    DeploymentEvent DeploymentEvent = 10;
+  }
 }

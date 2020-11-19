@@ -73,15 +73,52 @@ func newEventFromStreamEvent(events structs.Events) (*pbstream.EventBatch, error
 
 	var pbEvents []*pbstream.Event
 	for _, e := range events.Events {
-		payload, err := eventToProtoStruct(e.Payload)
-		if err != nil {
-			return nil, err
-		}
 		pbe := &pbstream.Event{
-			Topic:   pbstream.Topic(pbstream.Topic_value[string(e.Topic)]),
-			Key:     e.Key,
-			Payload: payload,
+			Topic: pbstream.Topic(pbstream.Topic_value[string(e.Topic)]),
+			Type:  e.Type,
+			Key:   e.Key,
 		}
+
+		switch p := e.Payload.(type) {
+		case *structs.NodeStreamEvent:
+			pbe.Payload = &pbstream.Event_NodeEvent{
+				NodeEvent: &pbstream.NodeEvent{
+					Node: &pbstream.Node{
+						ID:         p.Node.ID,
+						Datacenter: p.Node.Datacenter,
+						Name:       p.Node.Name,
+					},
+				},
+			}
+		case *structs.DeploymentEvent:
+			pbe.Payload = &pbstream.Event_DeploymentEvent{
+				DeploymentEvent: &pbstream.DeploymentEvent{
+					Deployment: &pbstream.Deployment{
+						ID:    p.Deployment.ID,
+						JobID: p.Deployment.JobID,
+					},
+				},
+			}
+		case *structs.EvalEvent:
+			pbe.Payload = &pbstream.Event_EvaluationEvent{
+				EvaluationEvent: &pbstream.EvaluationEvent{
+					Evaluation: &pbstream.Evaluation{
+						ID:    p.Eval.ID,
+						JobID: p.Eval.JobID,
+					},
+				},
+			}
+		case *structs.JobEvent:
+			pbe.Payload = &pbstream.Event_JobEvent{
+				JobEvent: &pbstream.JobEvent{
+					Job: &pbstream.Job{
+						ID:   p.Job.ID,
+						Name: p.Job.Name,
+					},
+				},
+			}
+		}
+
 		pbEvents = append(pbEvents, pbe)
 	}
 	batch.Event = pbEvents
