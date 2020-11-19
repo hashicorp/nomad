@@ -45,7 +45,8 @@ automatically unarchived before the starting the task.
   `local/`. The destination is treated as a directory unless `mode` is set to
   `file`. Source files will be downloaded into that directory path. For more
   details on how the `destination` interacts with task drivers, see the
-  [Filesystem internals] documentation.
+  [Filesystem internals] documentation. [Interpolation is not yet
+  supported.][gh-6929]
 
 - `mode` `(string: "any")` - One of `any`, `file`, or `dir`. If set to `file`
   the `destination` must be a file, not a directory. By default the
@@ -54,7 +55,11 @@ automatically unarchived before the starting the task.
 - `options` `(map<string|string>: nil)` - Specifies configuration parameters to
   fetch the artifact. The key-value pairs map directly to parameters appended to
   the supplied `source` URL. Please see the [`go-getter`
-  documentation][go-getter] for a complete list of options and examples
+  documentation][go-getter] for a complete list of options and examples.
+
+- `headers` `(map<string|string>: nil)` - Specifies HTTP headers to set when
+  fetching the artifact using `http` or `https` protocol. Please see the
+  [`go-getter` headers documentation][go-getter-headers] for more information.
 
 - `source` `(string: <required>)` - Specifies the URL of the artifact to download.
   See [`go-getter`][go-getter] for details.
@@ -73,6 +78,20 @@ directory].
 ```hcl
 artifact {
   source = "https://example.com/file.txt"
+}
+```
+
+To set HTTP headers in the request for the source the optional `headers` field
+can be configured.
+
+```hcl
+artifact {
+  source = "https://example.com/file.txt"
+
+  headers {
+    User-Agent    = "nomad-[${NOMAD_JOB_ID}]-[${NOMAD_GROUP_NAME}]-[${NOMAD_TASK_NAME}]"
+    X-Nomad-Alloc = "${NOMAD_ALLOC_ID}"
+  }
 }
 ```
 
@@ -185,7 +204,9 @@ artifact {
 }
 ```
 
+[gh-6929]: https://github.com/hashicorp/nomad/issues/6929
 [go-getter]: https://github.com/hashicorp/go-getter 'HashiCorp go-getter Library'
+[go-getter-headers]: https://github.com/hashicorp/go-getter#headers 'HashiCorp go-getter Headers'
 [minio]: https://www.minio.io/
 [s3-bucket-addr]: http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro 'Amazon S3 Bucket Addressing'
 [s3-region-endpoints]: http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region 'Amazon S3 Region Endpoints'

@@ -353,6 +353,355 @@ module('Acceptance | optimize', function(hooks) {
   });
 });
 
+module('Acceptance | optimize search and facets', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function() {
+    server.create('feature', { name: 'Dynamic Application Sizing' });
+
+    server.create('node');
+
+    server.createList('namespace', 2);
+
+    managementToken = server.create('token');
+
+    window.localStorage.clear();
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+  });
+
+  test('search field narrows summary table results, changes the active summary if it no longer matches, and displays a no matches message when there are none', async function(assert) {
+    server.create('job', {
+      name: 'zzzzzz',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 6,
+    });
+
+    // Ensure this job’s recommendations are sorted to the top of the table
+    const futureSubmitTime = (Date.now() + 10000) * 1000000;
+    server.db.recommendations.update({ submitTime: futureSubmitTime });
+
+    server.create('job', {
+      name: 'oooooo',
+      createRecommendations: true,
+      groupsCount: 2,
+      groupTaskCount: 4,
+    });
+
+    server.create('job', {
+      name: 'pppppp',
+      createRecommendations: true,
+      groupsCount: 2,
+      groupTaskCount: 4,
+    });
+
+    await Optimize.visit();
+
+    assert.equal(Optimize.card.slug.jobName, 'zzzzzz');
+
+    assert.equal(
+      Optimize.search.placeholder,
+      `Search ${Optimize.recommendationSummaries.length} recommendations...`
+    );
+
+    await Optimize.search.fillIn('ooo');
+
+    assert.equal(Optimize.recommendationSummaries.length, 2);
+    assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('oooooo'));
+
+    assert.equal(Optimize.card.slug.jobName, 'oooooo');
+    assert.ok(currentURL().includes('oooooo'));
+
+    await Optimize.search.fillIn('qqq');
+
+    assert.notOk(Optimize.card.isPresent);
+    assert.ok(Optimize.empty.isPresent);
+    assert.equal(Optimize.empty.headline, 'No Matches');
+    assert.equal(currentURL(), '/optimize?search=qqq');
+  });
+
+  test('processing a summary moves to the next one in the sorted list', async function(assert) {
+    server.create('job', {
+      name: 'ooo111',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+    });
+
+    server.create('job', {
+      name: 'pppppp',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+    });
+
+    server.create('job', {
+      name: 'ooo222',
+      createRecommendations: true,
+      groupsCount: 1,
+      groupTaskCount: 4,
+    });
+
+    // Directly set the sorting of the above jobs’s summaries in the table
+    const futureSubmitTime = (Date.now() + 10000) * 1000000;
+    const nowSubmitTime = Date.now() * 1000000;
+    const pastSubmitTime = (Date.now() - 10000) * 1000000;
+
+    const jobNameToRecommendationSubmitTime = {
+      ooo111: futureSubmitTime,
+      pppppp: nowSubmitTime,
+      ooo222: pastSubmitTime,
+    };
+
+    server.schema.recommendations.all().models.forEach(recommendation => {
+      const parentJob = recommendation.task.taskGroup.job;
+      const submitTimeForJob = jobNameToRecommendationSubmitTime[parentJob.name];
+      recommendation.submitTime = submitTimeForJob;
+      recommendation.save();
+    });
+
+    await Optimize.visit();
+    await Optimize.search.fillIn('ooo');
+    await Optimize.card.acceptButton.click();
+
+    assert.equal(Optimize.card.slug.jobName, 'ooo222');
+  });
+
+  test('the optimize page has appropriate faceted search options', async function(assert) {
+    server.createList('job', 4, {
+      status: 'running',
+      createRecommendations: true,
+      childrenCount: 0,
+    });
+
+    await Optimize.visit();
+
+    assert.ok(Optimize.facets.type.isPresent, 'Type facet found');
+    assert.ok(Optimize.facets.status.isPresent, 'Status facet found');
+    assert.ok(Optimize.facets.datacenter.isPresent, 'Datacenter facet found');
+    assert.ok(Optimize.facets.prefix.isPresent, 'Prefix facet found');
+  });
+
+  testFacet('Type', {
+    facet: Optimize.facets.type,
+    paramName: 'type',
+    expectedOptions: ['Service', 'System'],
+    async beforeEach() {
+      server.createList('job', 2, {
+        type: 'service',
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+      });
+
+      server.createList('job', 2, {
+        type: 'system',
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+      });
+      await Optimize.visit();
+    },
+    filter(taskGroup, selection) {
+      let displayType = taskGroup.job.type;
+      return selection.includes(displayType);
+    },
+  });
+
+  testFacet('Status', {
+    facet: Optimize.facets.status,
+    paramName: 'status',
+    expectedOptions: ['Pending', 'Running', 'Dead'],
+    async beforeEach() {
+      server.createList('job', 2, {
+        status: 'pending',
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        status: 'running',
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+        childrenCount: 0,
+      });
+      server.createList('job', 2, {
+        status: 'dead',
+        createRecommendations: true,
+        childrenCount: 0,
+      });
+      await Optimize.visit();
+    },
+    filter: (taskGroup, selection) => selection.includes(taskGroup.job.status),
+  });
+
+  testFacet('Datacenter', {
+    facet: Optimize.facets.datacenter,
+    paramName: 'dc',
+    expectedOptions(jobs) {
+      const allDatacenters = new Set(
+        jobs.mapBy('datacenters').reduce((acc, val) => acc.concat(val), [])
+      );
+      return Array.from(allDatacenters).sort();
+    },
+    async beforeEach() {
+      server.create('job', {
+        datacenters: ['pdx', 'lax'],
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+        childrenCount: 0,
+      });
+      server.create('job', {
+        datacenters: ['pdx', 'ord'],
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+        childrenCount: 0,
+      });
+      server.create('job', {
+        datacenters: ['lax', 'jfk'],
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+        childrenCount: 0,
+      });
+      server.create('job', {
+        datacenters: ['jfk', 'dfw'],
+        createRecommendations: true,
+        groupsCount: 1,
+        groupTaskCount: 2,
+        childrenCount: 0,
+      });
+      server.create('job', { datacenters: ['pdx'], createRecommendations: true, childrenCount: 0 });
+      await Optimize.visit();
+    },
+    filter: (taskGroup, selection) => taskGroup.job.datacenters.find(dc => selection.includes(dc)),
+  });
+
+  testFacet('Prefix', {
+    facet: Optimize.facets.prefix,
+    paramName: 'prefix',
+    expectedOptions: ['hashi (3)', 'nmd (2)', 'pre (2)'],
+    async beforeEach() {
+      [
+        'pre-one',
+        'hashi_one',
+        'nmd.one',
+        'one-alone',
+        'pre_two',
+        'hashi.two',
+        'hashi-three',
+        'nmd_two',
+        'noprefix',
+      ].forEach(name => {
+        server.create('job', {
+          name,
+          createRecommendations: true,
+          createAllocations: true,
+          groupsCount: 1,
+          groupTaskCount: 2,
+          childrenCount: 0,
+        });
+      });
+      await Optimize.visit();
+    },
+    filter: (taskGroup, selection) =>
+      selection.find(prefix => taskGroup.job.name.startsWith(prefix)),
+  });
+
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+    test(`the ${label} facet has the correct options`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      let expectation;
+      if (typeof expectedOptions === 'function') {
+        expectation = expectedOptions(server.db.jobs);
+      } else {
+        expectation = expectedOptions;
+      }
+
+      assert.deepEqual(
+        facet.options.map(option => option.label.trim()),
+        expectation,
+        'Options for facet are as expected'
+      );
+    });
+
+    test(`the ${label} facet filters the recommendation summaries by ${label}`, async function(assert) {
+      let option;
+
+      await beforeEach();
+      await facet.toggle();
+
+      option = facet.options.objectAt(0);
+      await option.toggle();
+
+      const selection = [option.key];
+
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
+
+      const recommendationTaskGroups = server.schema.tasks
+        .find(sortedRecommendations.mapBy('taskId').uniq())
+        .models.mapBy('taskGroup')
+        .uniqBy('id')
+        .filter(group => filter(group, selection));
+
+      Optimize.recommendationSummaries.forEach((summary, index) => {
+        const group = recommendationTaskGroups[index];
+        assert.equal(summary.slug, `${group.job.name} / ${group.name}`);
+      });
+    });
+
+    test(`selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
+      const selection = [];
+
+      await beforeEach();
+      await facet.toggle();
+
+      const option1 = facet.options.objectAt(0);
+      const option2 = facet.options.objectAt(1);
+      await option1.toggle();
+      selection.push(option1.key);
+      await option2.toggle();
+      selection.push(option2.key);
+
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
+
+      const recommendationTaskGroups = server.schema.tasks
+        .find(sortedRecommendations.mapBy('taskId').uniq())
+        .models.mapBy('taskGroup')
+        .uniqBy('id')
+        .filter(group => filter(group, selection));
+
+      Optimize.recommendationSummaries.forEach((summary, index) => {
+        const group = recommendationTaskGroups[index];
+        assert.equal(summary.slug, `${group.job.name} / ${group.name}`);
+      });
+    });
+
+    test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+      const selection = [];
+
+      await beforeEach();
+      await facet.toggle();
+
+      const option1 = facet.options.objectAt(0);
+      const option2 = facet.options.objectAt(1);
+      await option1.toggle();
+      selection.push(option1.key);
+      await option2.toggle();
+      selection.push(option2.key);
+
+      assert.ok(currentURL().includes(encodeURIComponent(JSON.stringify(selection))));
+    });
+  }
+});
+
 function formattedMemDiff(memDiff) {
   const absMemDiff = Math.abs(memDiff);
   const negativeSign = memDiff < 0 ? '-' : '';

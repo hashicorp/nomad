@@ -2,7 +2,7 @@ executor: go
 steps:
   - checkout
   - run: apt-get update; apt-get install -y shellcheck sudo unzip
-  - install-protoc
+  - install-buf
   - install-circleci-local-cli
   - run: make deps lint-deps
   - run: make check

@@ -19,7 +19,7 @@ job "use-ebs-volume" {
       config {
         image   = "busybox:1"
         command = "/bin/sh"
-        args    = ["-c", "touch /local/test/${NOMAD_ALLOC_ID}; sleep 3600"]
+        args    = ["-c", "echo 'ok' > ${NOMAD_TASK_DIR}/test/${NOMAD_ALLOC_ID}; sleep 3600"]
       }
 
       volume_mount {

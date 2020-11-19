@@ -199,6 +199,37 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 	})
 }
 
+func TestSyncLogic_tagsDifferent(t *testing.T) {
+	t.Run("nil nil", func(t *testing.T) {
+		require.False(t, tagsDifferent(nil, nil))
+	})
+
+	t.Run("empty nil", func(t *testing.T) {
+		// where reflect.DeepEqual does not work
+		require.False(t, tagsDifferent([]string{}, nil))
+	})
+
+	t.Run("empty empty", func(t *testing.T) {
+		require.False(t, tagsDifferent([]string{}, []string{}))
+	})
+
+	t.Run("set empty", func(t *testing.T) {
+		require.True(t, tagsDifferent([]string{"A"}, []string{}))
+	})
+
+	t.Run("set nil", func(t *testing.T) {
+		require.True(t, tagsDifferent([]string{"A"}, nil))
+	})
+
+	t.Run("different content", func(t *testing.T) {
+		require.True(t, tagsDifferent([]string{"A"}, []string{"B"}))
+	})
+
+	t.Run("different lengths", func(t *testing.T) {
+		require.True(t, tagsDifferent([]string{"A"}, []string{"A", "B"}))
+	})
+}
+
 func TestSyncLogic_maybeTweakTags(t *testing.T) {
 	t.Parallel()
 

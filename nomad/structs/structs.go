@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"hash/crc32"
 	"math"
 	"net"
@@ -193,16 +194,17 @@ var (
 type Context string
 
 const (
-	Allocs      Context = "allocs"
-	Deployments Context = "deployment"
-	Evals       Context = "evals"
-	Jobs        Context = "jobs"
-	Nodes       Context = "nodes"
-	Namespaces  Context = "namespaces"
-	Quotas      Context = "quotas"
-	All         Context = "all"
-	Plugins     Context = "plugins"
-	Volumes     Context = "volumes"
+	Allocs          Context = "allocs"
+	Deployments     Context = "deployment"
+	Evals           Context = "evals"
+	Jobs            Context = "jobs"
+	Nodes           Context = "nodes"
+	Namespaces      Context = "namespaces"
+	Quotas          Context = "quotas"
+	Recommendations Context = "recommendations"
+	All             Context = "all"
+	Plugins         Context = "plugins"
+	Volumes         Context = "volumes"
 )
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -693,13 +695,12 @@ type JobPlanRequest struct {
 // JobScaleRequest is used for the Job.Scale endpoint to scale one of the
 // scaling targets in a job
 type JobScaleRequest struct {
-	Namespace string
-	JobID     string
-	Target    map[string]string
-	Count     *int64
-	Message   string
-	Error     bool
-	Meta      map[string]interface{}
+	JobID   string
+	Target  map[string]string
+	Count   *int64
+	Message string
+	Error   bool
+	Meta    map[string]interface{}
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 	WriteRequest
@@ -3348,6 +3349,7 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	prestartSidecarTasks := &AllocatedTaskResources{}
 	prestartEphemeralTasks := &AllocatedTaskResources{}
 	main := &AllocatedTaskResources{}
+	poststopTasks := &AllocatedTaskResources{}
 
 	for taskName, r := range a.Tasks {
 		lc := a.TaskLifecycles[taskName]
@@ -3359,11 +3361,14 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 			} else {
 				prestartEphemeralTasks.Add(r)
 			}
+		} else if lc.Hook == TaskLifecycleHookPoststop {
+			poststopTasks.Add(r)
 		}
 	}
 
 	// update this loop to account for lifecycle hook
 	prestartEphemeralTasks.Max(main)
+	prestartEphemeralTasks.Max(poststopTasks)
 	prestartSidecarTasks.Add(prestartEphemeralTasks)
 	c.Flattened.Add(prestartSidecarTasks)
 
@@ -3389,6 +3394,23 @@ func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
 	}
 
 	return m
+}
+
+func (a *AllocatedResources) Canonicalize() {
+	a.Shared.Canonicalize()
+
+	for _, r := range a.Tasks {
+		for _, nw := range r.Networks {
+			for _, port := range append(nw.DynamicPorts, nw.ReservedPorts...) {
+				a.Shared.Ports = append(a.Shared.Ports, AllocatedPortMapping{
+					Label:  port.Label,
+					Value:  port.Value,
+					To:     port.To,
+					HostIP: nw.IP,
+				})
+			}
+		}
+	}
 }
 
 // AllocatedTaskResources are the set of resources allocated to a task.
@@ -5088,6 +5110,7 @@ func (d *DispatchPayloadConfig) Validate() error {
 const (
 	TaskLifecycleHookPrestart  = "prestart"
 	TaskLifecycleHookPoststart = "poststart"
+	TaskLifecycleHookPoststop  = "poststop"
 )
 
 type TaskLifecycleConfig struct {
@@ -5112,6 +5135,7 @@ func (d *TaskLifecycleConfig) Validate() error {
 	switch d.Hook {
 	case TaskLifecycleHookPrestart:
 	case TaskLifecycleHookPoststart:
+	case TaskLifecycleHookPoststop:
 	case "":
 		return fmt.Errorf("no lifecycle hook provided")
 	default:
@@ -7849,6 +7873,10 @@ type TaskArtifact struct {
 	// go-getter.
 	GetterOptions map[string]string
 
+	// GetterHeaders are headers to use when downloading the artifact using
+	// go-getter.
+	GetterHeaders map[string]string
+
 	// GetterMode is the go-getter.ClientMode for fetching resources.
 	// Defaults to "any" but can be set to "file" or "dir".
 	GetterMode string
@@ -7862,40 +7890,48 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 	if ta == nil {
 		return nil
 	}
-	nta := new(TaskArtifact)
-	*nta = *ta
-	nta.GetterOptions = helper.CopyMapStringString(ta.GetterOptions)
-	return nta
+	return &TaskArtifact{
+		GetterSource:  ta.GetterSource,
+		GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
+		GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+		GetterMode:    ta.GetterMode,
+		RelativeDest:  ta.RelativeDest,
+	}
 }
 
 func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
 }
 
-// Hash creates a unique identifier for a TaskArtifact as the same GetterSource
-// may be specified multiple times with different destinations.
-func (ta *TaskArtifact) Hash() string {
-	hash, err := blake2b.New256(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	hash.Write([]byte(ta.GetterSource))
-
-	// Must iterate over keys in a consistent order
-	keys := make([]string, 0, len(ta.GetterOptions))
-	for k := range ta.GetterOptions {
+// hashStringMap appends a deterministic hash of m onto h.
+func hashStringMap(h hash.Hash, m map[string]string) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		hash.Write([]byte(k))
-		hash.Write([]byte(ta.GetterOptions[k]))
+		h.Write([]byte(k))
+		h.Write([]byte(m[k]))
+	}
+}
+
+// Hash creates a unique identifier for a TaskArtifact as the same GetterSource
+// may be specified multiple times with different destinations.
+func (ta *TaskArtifact) Hash() string {
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
 	}
 
-	hash.Write([]byte(ta.GetterMode))
-	hash.Write([]byte(ta.RelativeDest))
-	return base64.RawStdEncoding.EncodeToString(hash.Sum(nil))
+	h.Write([]byte(ta.GetterSource))
+
+	hashStringMap(h, ta.GetterOptions)
+	hashStringMap(h, ta.GetterHeaders)
+
+	h.Write([]byte(ta.GetterMode))
+	h.Write([]byte(ta.RelativeDest))
+	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
 // PathEscapesAllocDir returns if the given path escapes the allocation

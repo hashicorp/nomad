@@ -338,3 +338,62 @@ func TestRawExec_ExecTaskStreaming(t *testing.T) {
 	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
 
 }
+
+func TestRawExecDriver_NoCgroup(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux only test")
+	}
+
+	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
+	require.NoError(t, err)
+	expected := strings.TrimSpace(string(expectedBytes))
+
+	d := newEnabledRawExecDriver(t)
+	d.config.NoCgroups = true
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "nocgroup",
+	}
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	tc := &TaskConfig{
+		Command: "/bin/cat",
+		Args:    []string{"/proc/self/cgroup"},
+	}
+	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
+
+	_, _, err = harness.StartTask(task)
+	require.NoError(t, err)
+
+	// Task should terminate quickly
+	waitCh, err := harness.WaitTask(context.Background(), task.ID)
+	require.NoError(t, err)
+	select {
+	case res := <-waitCh:
+		require.True(t, res.Successful())
+		require.Zero(t, res.ExitCode)
+	case <-time.After(time.Duration(testutil.TestMultiplier()*6) * time.Second):
+		require.Fail(t, "WaitTask timeout")
+	}
+
+	// Check the log file to see it exited because of the signal
+	outputFile := filepath.Join(task.TaskDir().LogDir, "nocgroup.stdout.0")
+	testutil.WaitForResult(func() (bool, error) {
+		act, err := ioutil.ReadFile(outputFile)
+		if err != nil {
+			return false, fmt.Errorf("Couldn't read expected output: %v", err)
+		}
+
+		if strings.TrimSpace(string(act)) != expected {
+			t.Logf("Read from %v", outputFile)
+			return false, fmt.Errorf("Command outputted\n%v; want\n%v", string(act), expected)
+		}
+		return true, nil
+	}, func(err error) { require.NoError(t, err) })
+}

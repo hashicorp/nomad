@@ -24,7 +24,7 @@ func Register(jobID, jobFilePath string) error {
 	}
 
 	// hack off the first line to replace with our unique ID
-	var re = regexp.MustCompile(`^job "\w+" \{`)
+	var re = regexp.MustCompile(`(?m)^job ".*" \{`)
 	jobspec := re.ReplaceAllString(string(content),
 		fmt.Sprintf("job \"%s\" {", jobID))
 

@@ -413,11 +413,6 @@ func (i *instanceManager) handleFingerprintError() {
 // handleFingerprint stores the new devices and triggers the fingerprint output
 // channel. An error is returned if the passed devices don't pass validation.
 func (i *instanceManager) handleFingerprint(f *device.FingerprintResponse) error {
-	// If no devices are returned then there is nothing to do.
-	if f.Devices == nil {
-		return nil
-	}
-
 	// Validate the received devices
 	var validationErr multierror.Error
 	for i, d := range f.Devices {

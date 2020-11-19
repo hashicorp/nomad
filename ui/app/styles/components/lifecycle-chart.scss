@@ -33,6 +33,7 @@
     position: absolute;
     bottom: 0;
     top: 0;
+
     border-top: 2px solid transparent;
 
     .name {
@@ -58,12 +59,12 @@
 
     &.main {
       left: 25%;
-      right: 0;
+      right: 25%;
     }
 
     &.poststart {
-      left: 40%;
-      right: 0;
+      left: 35%;
+      right: 25%;
     }
 
     &.poststop {
@@ -126,20 +127,28 @@
 
     &.main {
       margin-left: 25%;
-      margin-right: 0;
+      margin-right: 25%;
     }
 
     &.prestart-ephemeral {
       margin-right: 75%;
     }
 
+    &.prestart-sidecar {
+      margin-right: 25%;
+    }
+
     &.poststart-ephemeral,
     &.poststart-sidecar {
-      margin-left: 40%;
+      margin-left: 35%;
+    }
+
+    &.poststart-sidecar {
+      margin-right: 25%;
     }
 
     &.poststart-ephemeral {
-      margin-right: 10%;
+      margin-right: 35%;
     }
 
     &.poststop {

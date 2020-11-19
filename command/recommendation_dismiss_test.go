@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestRecommendationDismissCommand_Run(t *testing.T) {
@@ -32,7 +35,14 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 	})
 
 	ui := cli.NewMockUi()
-	cmd := &RecommendationDismissCommand{Meta: Meta{Ui: ui}}
+	cmd := &RecommendationDismissCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{
+				Ui:          ui,
+				flagAddress: url,
+			},
+		},
+	}
 
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_dismiss")
@@ -79,4 +89,57 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 	recInfo, _, err := client.Recommendations().Info(recResp.ID, nil)
 	require.Error(err, "not found")
 	require.Nil(recInfo)
+}
+
+func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {
+	srv, client, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &RecommendationDismissCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{
+				Ui:          ui,
+				flagAddress: url,
+			},
+		},
+	}
+
+	testRecommendationAutocompleteCommand(t, client, srv, &cmd.RecommendationAutocompleteCommand)
+}
+
+func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv *agent.TestAgent, cmd *RecommendationAutocompleteCommand) {
+	require := require.New(t)
+	t.Parallel()
+
+	// Register a test job to write a recommendation against.
+	testJob := testJob("recommendation_autocomplete")
+	_, _, err := client.Jobs().Register(testJob, nil)
+	require.NoError(err)
+
+	// Write a recommendation.
+	rec := &api.Recommendation{
+		JobID:    *testJob.ID,
+		Group:    *testJob.TaskGroups[0].Name,
+		Task:     testJob.TaskGroups[0].Tasks[0].Name,
+		Resource: "CPU",
+		Value:    1050,
+		Meta:     map[string]interface{}{"test-meta-entry": "test-meta-value"},
+		Stats:    map[string]float64{"p13": 1.13},
+	}
+	rec, _, err = client.Recommendations().Upsert(rec, nil)
+	if srv.Enterprise {
+		require.NoError(err)
+	} else {
+		require.Error(err, "Nomad Enterprise only endpoint")
+		return
+	}
+
+	prefix := rec.ID[:5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	require.Equal(1, len(res))
+	require.Equal(rec.ID, res[0])
 }

@@ -561,6 +561,10 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			if tc.expectedErrMsg == "" {
 				require.NoError(t, err)
+				vol, err = state.CSIVolumeByID(nil, ns, volID)
+				require.NoError(t, err)
+				require.NotNil(t, vol)
+				require.Len(t, vol.ReadAllocs, 0)
 			} else {
 				require.Error(t, err)
 				require.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),

@@ -1381,6 +1381,53 @@ func TestDockerDriver_DNS(t *testing.T) {
 
 }
 
+func TestDockerDriver_CPUSetCPUs(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support CPUSetCPUs.")
+	}
+
+	testCases := []struct {
+		Name       string
+		CPUSetCPUs string
+	}{
+		{
+			Name:       "Single CPU",
+			CPUSetCPUs: "0",
+		},
+		{
+			Name:       "Comma separated list of CPUs",
+			CPUSetCPUs: "0,1",
+		},
+		{
+			Name:       "Range of CPUs",
+			CPUSetCPUs: "0-1",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			task, cfg, ports := dockerTask(t)
+			defer freeport.Return(ports)
+
+			cfg.CPUSetCPUs = testCase.CPUSetCPUs
+			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			client, d, handle, cleanup := dockerSetup(t, task, nil)
+			defer cleanup()
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+			container, err := client.InspectContainer(handle.containerID)
+			require.NoError(t, err)
+
+			require.Equal(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
+		})
+	}
+}
+
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
@@ -2022,6 +2069,15 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
+	cfg := map[string]interface{}{
+		"volumes": map[string]interface{}{
+			"enabled": true,
+		},
+		"gc": map[string]interface{}{
+			"image": false,
+		},
+	}
+
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	require.NoError(t, err)
 
@@ -2029,7 +2085,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	tmpvol, err = filepath.EvalSymlinks(tmpvol)
 	require.NoError(t, err)
 
-	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, nil, tmpvol)
+	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 	defer cleanup()
 
 	_, _, err = driver.StartTask(task)
@@ -2094,6 +2150,9 @@ func TestDockerDriver_Mounts(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			d := dockerDriverHarness(t, nil)
+			driver := d.Impl().(*Driver)
+			driver.config.Volumes.Enabled = true
+
 			// Build the task
 			task, cfg, ports := dockerTask(t)
 			defer freeport.Return(ports)

@@ -28,6 +28,21 @@ const (
 	FilterConstraintDevices                     = "missing devices"
 )
 
+var (
+	// predatesBridgeFingerprint returns true if the constraint matches a version
+	// of nomad that predates the addition of the bridge network finger-printer,
+	// which was added in Nomad v0.12
+	predatesBridgeFingerprint = mustBridgeConstraint()
+)
+
+func mustBridgeConstraint() version.Constraints {
+	versionC, err := version.NewConstraint("< 0.12")
+	if err != nil {
+		panic(err)
+	}
+	return versionC
+}
+
 // FeasibleIterator is used to iteratively yield nodes that
 // match feasibility constraints. The iterators may manage
 // some state for performance optimizations.
@@ -343,6 +358,18 @@ func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
 
 func (c *NetworkChecker) Feasible(option *structs.Node) bool {
 	if !c.hasNetwork(option) {
+
+		// special case - if the client is running a version older than 0.12 but
+		// the server is 0.12 or newer, we need to maintain an upgrade path for
+		// jobs looking for a bridge network that will not have been fingerprinted
+		// on the client (which was added in 0.12)
+		if c.networkMode == "bridge" {
+			sv, err := version.NewSemver(option.Attributes["nomad.version"])
+			if err == nil && predatesBridgeFingerprint.Check(sv) {
+				return true
+			}
+		}
+
 		c.ctx.Metrics().FilterNode(option, "missing network")
 		return false
 	}

@@ -165,8 +165,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 func (tr *TaskRunner) prestart() error {
 	// Determine if the allocation is terminal and we should avoid running
 	// prestart hooks.
-	alloc := tr.Alloc()
-	if alloc.TerminalStatus() {
+	if tr.shouldShutdown() {
 		tr.logger.Trace("skipping prestart hooks since allocation is terminal")
 		return nil
 	}

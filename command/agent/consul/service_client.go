@@ -190,15 +190,42 @@ func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentSer
 // critical fields are not deeply equal, they considered different.
 func different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
 
-	return !(wanted.Kind == existing.Kind &&
-		wanted.ID == existing.ID &&
-		wanted.Port == existing.Port &&
-		wanted.Address == existing.Address &&
-		wanted.Name == existing.Service &&
-		wanted.EnableTagOverride == existing.EnableTagOverride &&
-		reflect.DeepEqual(wanted.Meta, existing.Meta) &&
-		reflect.DeepEqual(wanted.Tags, existing.Tags) &&
-		!connectSidecarDifferent(wanted, sidecar))
+	switch {
+	case wanted.Kind != existing.Kind:
+		return true
+	case wanted.ID != existing.ID:
+		return true
+	case wanted.Port != existing.Port:
+		return true
+	case wanted.Address != existing.Address:
+		return true
+	case wanted.Name != existing.Service:
+		return true
+	case wanted.EnableTagOverride != existing.EnableTagOverride:
+		return true
+	case !reflect.DeepEqual(wanted.Meta, existing.Meta):
+		return true
+	case !reflect.DeepEqual(wanted.Tags, existing.Tags):
+		return true
+	case connectSidecarDifferent(wanted, sidecar):
+		return true
+	}
+
+	return false
+}
+
+func tagsDifferent(a, b []string) bool {
+	if len(a) != len(b) {
+		return true
+	}
+
+	for i, valueA := range a {
+		if b[i] != valueA {
+			return true
+		}
+	}
+
+	return false
 }
 
 func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.AgentService) bool {
@@ -207,7 +234,7 @@ func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.
 			// consul lost our sidecar (?)
 			return true
 		}
-		if !reflect.DeepEqual(wanted.Connect.SidecarService.Tags, sidecar.Tags) {
+		if tagsDifferent(wanted.Connect.SidecarService.Tags, sidecar.Tags) {
 			// tags on the nomad definition have been modified
 			return true
 		}

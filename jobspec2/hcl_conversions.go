@@ -33,7 +33,6 @@ func newHCLDecoder() *gohcl.Decoder {
 	// custom nomad types
 	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
 	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
-	decoder.RegisterBlockDecoder(reflect.TypeOf(jobWrapper{}), decodeJob)
 
 	return decoder
 }
