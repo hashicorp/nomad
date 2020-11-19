@@ -17,9 +17,13 @@ func (a *AllocRestartCommand) Help() string {
 	helpText := `
 Usage: nomad alloc restart [options] <allocation> <task>
 
-  restart an existing allocation. This command is used to restart a specific alloc
+  Restart an existing allocation. This command is used to restart a specific alloc
   and its tasks. If no task is provided then all of the allocation's tasks will
   be restarted.
+
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
 
 General Options:
 

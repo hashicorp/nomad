@@ -21,6 +21,9 @@ nomad deployment status [options] <deployment id>
 The `deployment status` command requires a single argument, a deployment ID or
 prefix.
 
+When ACLs are enabled, this command requires a token with the 'read-job'
+capability for the deployment's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

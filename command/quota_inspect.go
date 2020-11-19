@@ -24,6 +24,9 @@ Usage: nomad quota inspect [options] <quota>
 
   Inspect is used to view raw information about a particular quota.
 
+  If ACLs are enabled, this command requires a token with the 'quota:read'
+  capability and access to any namespaces that the quota is applied to.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

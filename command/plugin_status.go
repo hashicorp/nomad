@@ -21,8 +21,11 @@ func (c *PluginStatusCommand) Help() string {
 	helpText := `
 Usage nomad plugin status [options] <plugin>
 
-    Display status information about a plugin. If no plugin id is given,
-    a list of all plugins will be displayed.
+  Display status information about a plugin. If no plugin id is given,
+  a list of all plugins will be displayed.
+
+  If ACLs are enabled, this command requires a token with the 'plugin:read'
+  capability.
 
 General Options:
 

@@ -18,6 +18,9 @@ Usage: nomad agent-info [options]
 
   Display status information about the local agent.
 
+  When ACLs are enabled, this command requires a token with the 'agent:read'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

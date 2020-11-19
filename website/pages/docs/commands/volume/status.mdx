@@ -25,6 +25,10 @@ and information will be displayed.
 If the ID is omitted, the command lists out all of the existing volumes and a few
 of the most useful status fields for each.
 
+When ACLs are enabled, this command requires a token with the
+`csi-read-volume` and `csi-list-volumes` capability for the volume's
+namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

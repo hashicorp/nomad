@@ -18,6 +18,9 @@ is connected to. This is useful for troubleshooting and performance monitoring.
 nomad agent-info [options]
 ```
 
+When ACLs are enabled, this command requires a token with the `agent:read`
+capability.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

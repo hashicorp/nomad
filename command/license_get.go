@@ -12,7 +12,11 @@ func (c *LicenseGetCommand) Help() string {
 	helpText := `
 Usage: nomad license get [options]
 
-Gets a new license in Servers and Clients
+  Gets a new license in Servers and Clients
+
+  When ACLs are enabled, this command requires a token with the
+  'operator:read' capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

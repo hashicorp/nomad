@@ -17,6 +17,9 @@ Usage: nomad namespace inspect [options] <namespace>
 
   Inspect is used to view raw information about a particular namespace.
 
+  If ACLs are enabled, this command requires a management ACL token or a token
+  that has a capability associated with the namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

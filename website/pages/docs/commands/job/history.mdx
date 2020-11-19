@@ -22,6 +22,9 @@ nomad job history [options] <job>
 The `job history` command requires a single argument, the job ID or an ID prefix
 of a job to display the history for.
 
+When ACLs are enabled, this command requires a token with the `read-job` and
+`list-jobs` capabilities for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

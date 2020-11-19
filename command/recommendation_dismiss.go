@@ -46,6 +46,10 @@ Usage: nomad recommendation dismiss [options] <recommendation_ids>
 
   Dismiss one or more Nomad recommendations.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'submit-recommendation' capabilities for the
+  recommendation's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault)

@@ -29,6 +29,9 @@ Usage: nomad quota apply [options] <input>
   will be read from stdin by specifying "-", otherwise a path to the file is
   expected.
 
+  If ACLs are enabled, this command requires a token with the 'quota:write'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

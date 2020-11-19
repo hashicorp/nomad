@@ -25,9 +25,12 @@ func (c *NodeDrainCommand) Help() string {
 	helpText := `
 Usage: nomad node drain [options] <node>
 
-  Toggles node draining on a specified node. It is required
-  that either -enable or -disable is specified, but not both.
-  The -self flag is useful to drain the local node.
+  Toggles node draining on a specified node. It is required that either
+  -enable or -disable is specified, but not both.  The -self flag is useful to
+  drain the local node.
+
+  If ACLs are enabled, this option requires a token with the 'node:write'
+  capability.
 
 General Options:
 

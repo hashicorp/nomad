@@ -32,6 +32,12 @@ Usage: nomad alloc exec [options] <allocation> <command>
 
   Run command inside the environment of the given allocation and task.
 
+  When ACLs are enabled, this command requires a token with the 'alloc-exec',
+  'read-job', and 'list-jobs' capabilities for the allocation's namespace. If
+  the task driver does not have file system isolation (as with 'raw_exec'),
+  this command requires the 'alloc-node-exec', 'read-job', and 'list-jobs'
+  capabilities for the allocation's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

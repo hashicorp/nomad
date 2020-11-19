@@ -25,6 +25,9 @@ Usage: nomad volume register [options] <input>
   If the supplied path is "-" the volume file is read from stdin. Otherwise, it
   is read from the file at the supplied path.
 
+  When ACLs are enabled, this command requires a token with the
+  'csi-write-volume' capability for the volume's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault)

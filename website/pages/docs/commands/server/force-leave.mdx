@@ -23,6 +23,9 @@ nomad server force-leave [options] <node>
 This command expects only one argument - the node which should be forced
 to enter the "left" state.
 
+If ACLs are enabled, this option requires a token with the `agent:write`
+capability.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

@@ -20,6 +20,9 @@ nomad job scaling-events [options] <job>
 The `job scaling-events` command requires a single argument, a submitted job's
 ID, and will output the stored scaling events for the job if there are any.
 
+When ACLs are enabled, this command requires a token with the
+`read-job-scaling` capability for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

@@ -25,6 +25,10 @@ Usage: nomad recommendation list [options]
 
   List is used to list the available recommendations.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'submit-recommendation' capabilities for the namespace being
+  queried.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

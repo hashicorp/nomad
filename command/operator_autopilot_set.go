@@ -110,6 +110,9 @@ Usage: nomad operator autopilot set-config [options]
 
   Modifies the current Autopilot configuration.
 
+  If ACLs are enabled, this command requires a token with the 'operator:write'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

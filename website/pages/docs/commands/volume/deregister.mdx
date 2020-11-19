@@ -24,6 +24,9 @@ the ID of volume to be deregistered. Deregistration will fail if the
 volume is still in use by an allocation or in the process of being
 unpublished.
 
+When ACLs are enabled, this command requires a token with the
+`csi-write-volume` capability for the volume's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

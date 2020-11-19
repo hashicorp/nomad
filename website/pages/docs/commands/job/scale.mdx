@@ -29,6 +29,9 @@ Scale will issue a request to update the matched job and then invoke an interact
 monitor that exits automatically once the scheduler has processed the request.
 It is safe to exit the monitor early using ctrl+c.
 
+When ACLs are enabled, this command requires a token with the `scale-job`
+capability for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

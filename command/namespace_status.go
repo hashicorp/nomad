@@ -18,6 +18,9 @@ Usage: nomad namespace status [options] <namespace>
 
   Status is used to view the status of a particular namespace.
 
+  If ACLs are enabled, this command requires a management ACL token or a token
+  that has a capability associated with the namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

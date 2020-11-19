@@ -25,6 +25,11 @@ Usage: nomad scaling policy list [options]
 
   List is used to list the currently configured scaling policies.
 
+  If ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the namespace of all policies. Any namespaces
+  that the token does not have access to will have its policies filtered from
+  the results.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

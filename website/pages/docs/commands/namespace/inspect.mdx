@@ -21,6 +21,9 @@ namespace.
 nomad namespace inspect [options] <namespace_name>
 ```
 
+If ACLs are enabled, this command requires a management ACL token or a token
+that has a capability associated with the namespace.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

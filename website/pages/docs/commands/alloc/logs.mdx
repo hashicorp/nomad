@@ -23,6 +23,9 @@ allocation is only running a single task, the task name can be omitted.
 Optionally, the `-job` option may be used in which case a random allocation from
 the given job will be chosen.
 
+When ACLs are enabled, this command requires a token with the `read-logs`,
+`read-job`, and `list-jobs` capabilities for the allocation's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

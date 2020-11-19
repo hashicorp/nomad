@@ -16,7 +16,10 @@ func (c *EventSinkListCommand) Help() string {
 	helpText := `
 Usage: nomad event sink list
 
-    List is used to list event sinks that have been registered.
+  List is used to list event sinks that have been registered.
+
+  When ACLs are enabled, this command requires a token with the
+  'operator:read' capability.
 
 General Options:
 

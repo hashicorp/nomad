@@ -17,6 +17,9 @@ configuration. See the [Autopilot Guide] for more information about Autopilot.
 nomad operator autopilot get-config [options]
 ```
 
+If ACLs are enabled, this command requires a token with the `operator:read`
+capability.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

@@ -28,6 +28,9 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   triggered evaluation will be monitored. This can be disabled by supplying the
   detach flag.
 
+  When ACLs are enabled, this command requires a token with the 'dispatch-job'
+  capability for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

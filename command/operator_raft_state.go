@@ -23,6 +23,8 @@ Usage: nomad operator raft _state <path to nomad data dir>
   This is a low-level debugging tool and not subject to Nomad's usual backward
   compatibility guarantees.
 
+  If ACLs are enabled, this command requires a management token.
+
 Options:
 
   -last-index=<last_index>

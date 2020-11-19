@@ -19,6 +19,8 @@ Usage: nomad operator raft list-peers [options]
 
   Displays the current Raft peer configuration.
 
+  If ACLs are enabled, this command requires a management token.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

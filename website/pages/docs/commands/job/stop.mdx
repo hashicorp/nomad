@@ -28,6 +28,9 @@ Stop will issue a request to deregister the matched job and then invoke an
 interactive monitor that exits automatically once the scheduler has processed
 the request. It is safe to exit the monitor early using ctrl+c.
 
+When ACLs are enabled, this command requires a token with the `submit-job`,
+`read-job`, and `list-jobs` capabilities for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

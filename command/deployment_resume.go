@@ -19,6 +19,9 @@ Usage: nomad deployment resume [options] <deployment id>
   Resume is used to unpause a paused deployment. Resuming a deployment will
   resume the placement of new allocations as part of rolling deployment.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'read-job' capabilities for the deployment's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

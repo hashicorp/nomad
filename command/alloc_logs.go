@@ -26,6 +26,9 @@ Alias: nomad logs
 
   Streams the stdout/stderr of the given allocation and task.
 
+  When ACLs are enabled, this command requires a token with the 'read-logs',
+  'read-job', and 'list-jobs' capabilities for the allocation's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

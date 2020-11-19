@@ -29,16 +29,21 @@ General Options:
 Client Config Options:
 
   -servers
-    List the known server addresses of the client node. Client
-    nodes do not participate in the gossip pool, and instead
-    register with these servers periodically over the network.
+    List the known server addresses of the client node. Client nodes do not
+    participate in the gossip pool, and instead register with these servers
+    periodically over the network.
+
+    If ACLs are enabled, this option requires a token with the 'agent:read'
+    capability.
 
   -update-servers
-    Updates the client's server list using the provided
-    arguments. Multiple server addresses may be passed using
-    multiple arguments. IMPORTANT: When updating the servers
-    list, you must specify ALL of the server nodes you wish
-    to configure. The set is updated atomically.
+    Updates the client's server list using the provided arguments. Multiple
+    server addresses may be passed using multiple arguments. IMPORTANT: When
+    updating the servers list, you must specify ALL of the server nodes you
+    wish to configure. The set is updated atomically.
+
+    If ACLs are enabled, this option requires a token with the 'agent:write'
+    capability.
 
     Example:
       $ nomad node config -update-servers foo:4647 bar:4647

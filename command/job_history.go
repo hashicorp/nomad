@@ -26,6 +26,9 @@ Usage: nomad job history [options] <job>
   the changes that occurred to the job as well as deciding job versions to revert
   to.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

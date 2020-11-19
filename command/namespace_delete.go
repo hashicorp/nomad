@@ -17,6 +17,8 @@ Usage: nomad namespace delete [options] <namespace>
 
   Delete is used to remove a namespace.
 
+  If ACLs are enabled, this command requires a management ACL token.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

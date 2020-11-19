@@ -27,6 +27,9 @@ Usage: nomad monitor [options]
   example your agent may only be logging at INFO level, but with the monitor
   command you can set -log-level DEBUG
 
+  When ACLs are enabled, this command requires a token with the 'agent:read'
+  capability.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `

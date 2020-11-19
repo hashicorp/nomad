@@ -28,6 +28,9 @@ prefix. When run without specifying any groups to promote, the promote command
 promotes all task groups. The group flag can be specified multiple times to
 select particular groups to promote.
 
+When ACLs are enabled, this command requires a token with the `submit-job`,
+`list-jobs`, and `read-job` capabilities for the job's namespace.
+
 ## General Options
 
 @include 'general_options.mdx'

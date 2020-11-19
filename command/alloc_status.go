@@ -29,6 +29,9 @@ Usage: nomad alloc status [options] <allocation>
   status, metadata, and verbose failure messages reported by internal
   subsystems.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the allocation's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

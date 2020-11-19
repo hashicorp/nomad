@@ -21,6 +21,10 @@ Usage: nomad alloc signal [options] <signal> <allocation> <task>
   and its subtasks. If no task is provided then all of the allocations subtasks
   will receive the signal.
 
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

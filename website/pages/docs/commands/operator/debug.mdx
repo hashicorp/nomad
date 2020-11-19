@@ -35,6 +35,11 @@ creates a compressed tar archive in the current directory.
 Consul and Vault status and version information are included if
 configured.
 
+If ACLs are enabled, this command will require a token with the 'node:read'
+capability to run. In order to collect information, the token will also
+require the 'agent:read' and 'operator:read' capabilities, as well as the
+'list-jobs' capability for all namespaces.
+
 ## General Options
 
 @include 'general_options_no_namespace.mdx'

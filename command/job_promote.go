@@ -27,6 +27,9 @@ Usage: nomad job promote [options] <job id>
   a new version or failed backwards by reverting to an older version using the
   "nomad job revert" command.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'list-jobs', and 'read-job' capabilities for the job's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `

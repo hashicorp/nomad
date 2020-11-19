@@ -23,6 +23,9 @@ Usage: nomad scaling policy info [options] <policy_id>
 
   Info is used to read the specified scaling policy.
 
+  If ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the policy's namespace.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
