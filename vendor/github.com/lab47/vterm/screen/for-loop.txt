@@ -1,0 +1,422 @@
+TEXT command-line-arguments.(*ScreenCell).reset(SB) gofile../Users/evan/git/vterm/screen/buffer.go
+  buffer.go:12		0x1c4b			65488b0c2500000000	MOVQ GS:0, CX						[5:9]R_TLS_LE		
+  buffer.go:12		0x1c54			483b6110		CMPQ 0x10(CX), SP					
+  buffer.go:12		0x1c58			766f			JBE 0x1cc9						
+  buffer.go:12		0x1c5a			4883ec08		SUBQ $0x8, SP						
+  buffer.go:12		0x1c5e			48892c24		MOVQ BP, 0(SP)						
+  buffer.go:12		0x1c62			488d2c24		LEAQ 0(SP), BP						
+  buffer.go:13		0x1c66			8b4c2418		MOVL 0x18(SP), CX					
+  buffer.go:13		0x1c6a			488b542410		MOVQ 0x10(SP), DX					
+  buffer.go:13		0x1c6f			890a			MOVL CX, 0(DX)						
+  buffer.go:14		0x1c71			833d0000000000		CMPL $0x0, 0(IP)					[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:14		0x1c78			753f			JNE 0x1cb9						
+  buffer.go:14		0x1c7a			488b4c2420		MOVQ 0x20(SP), CX					
+  buffer.go:14		0x1c7f			48894a08		MOVQ CX, 0x8(DX)					
+  buffer.go:15		0x1c83			0f57c0			XORPS X0, X0						
+  buffer.go:15		0x1c86			0f114218		MOVUPS X0, 0x18(DX)					
+  buffer.go:15		0x1c8a			833d0000000000		CMPL $0x0, 0(IP)					[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:15		0x1c91			7516			JNE 0x1ca9						
+  buffer.go:15		0x1c93			48c7421000000000	MOVQ $0x0, 0x10(DX)					
+  buffer.go:16		0x1c9b			0f11442428		MOVUPS X0, 0x28(SP)					
+  buffer.go:16		0x1ca0			488b2c24		MOVQ 0(SP), BP						
+  buffer.go:16		0x1ca4			4883c408		ADDQ $0x8, SP						
+  buffer.go:16		0x1ca8			c3			RET							
+  buffer.go:15		0x1ca9			488d7a10		LEAQ 0x10(DX), DI					
+  buffer.go:15		0x1cad			31c0			XORL AX, AX						
+  buffer.go:15		0x1caf			e800000000		CALL 0x1cb4						[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:15		0x1cb4			0f57c0			XORPS X0, X0						
+  buffer.go:15		0x1cb7			ebe2			JMP 0x1c9b						
+  buffer.go:14		0x1cb9			488d7a08		LEAQ 0x8(DX), DI					
+  buffer.go:14		0x1cbd			488b442420		MOVQ 0x20(SP), AX					
+  buffer.go:14		0x1cc2			e800000000		CALL 0x1cc7						[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:14		0x1cc7			ebba			JMP 0x1c83						
+  buffer.go:12		0x1cc9			e800000000		CALL 0x1cce						[1:5]R_CALL:runtime.morestack_noctxt	
+  buffer.go:12		0x1cce			e978ffffff		JMP command-line-arguments.(*ScreenCell).reset(SB)	
+
+TEXT command-line-arguments.(*ScreenCell).resetTo(SB) gofile../Users/evan/git/vterm/screen/buffer.go
+  buffer.go:19		0x1d1d			65488b0c2500000000	MOVQ GS:0, CX						[5:9]R_TLS_LE		
+  buffer.go:19		0x1d26			483b6110		CMPQ 0x10(CX), SP					
+  buffer.go:19		0x1d2a			0f8644010000		JBE 0x1e74						
+  buffer.go:19		0x1d30			4883ec70		SUBQ $0x70, SP						
+  buffer.go:19		0x1d34			48896c2468		MOVQ BP, 0x68(SP)					
+  buffer.go:19		0x1d39			488d6c2468		LEAQ 0x68(SP), BP					
+  buffer.go:20		0x1d3e			488b8c2480000000	MOVQ 0x80(SP), CX					
+  buffer.go:20		0x1d46			8b11			MOVL 0(CX), DX						
+  buffer.go:20		0x1d48			488b5c2478		MOVQ 0x78(SP), BX					
+  buffer.go:20		0x1d4d			8913			MOVL DX, 0(BX)						
+  buffer.go:21		0x1d4f			488b4108		MOVQ 0x8(CX), AX					
+  buffer.go:21		0x1d53			833d0000000000		CMPL $0x0, 0(IP)					[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:21		0x1d5a			0f8506010000		JNE 0x1e66						
+  buffer.go:21		0x1d60			48894308		MOVQ AX, 0x8(BX)					
+  buffer.go:22		0x1d64			0f57c0			XORPS X0, X0						
+  buffer.go:22		0x1d67			0f114318		MOVUPS X0, 0x18(BX)					
+  buffer.go:22		0x1d6b			488d7b10		LEAQ 0x10(BX), DI					
+  buffer.go:22		0x1d6f			833d0000000000		CMPL $0x0, 0(IP)					[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:22		0x1d76			0f85de000000		JNE 0x1e5a						
+  buffer.go:22		0x1d7c			48c7431000000000	MOVQ $0x0, 0x10(BX)					
+  buffer.go:22		0x1d84			48897c2460		MOVQ DI, 0x60(SP)					
+  buffer.go:24		0x1d89			488b4118		MOVQ 0x18(CX), AX					
+  buffer.go:24		0x1d8d			4889442448		MOVQ AX, 0x48(SP)					
+  buffer.go:24		0x1d92			488b4910		MOVQ 0x10(CX), CX					
+  buffer.go:24		0x1d96			48894c2458		MOVQ CX, 0x58(SP)					
+  buffer.go:22		0x1d9b			31d2			XORL DX, DX						
+  buffer.go:24		0x1d9d			eb0f			JMP 0x1dae						
+  buffer.go:25		0x1d9f			4d8d4101		LEAQ 0x1(R9), R8					
+  buffer.go:25		0x1da3			4c894318		MOVQ R8, 0x18(BX)					
+  buffer.go:25		0x1da7			4389348b		MOVL SI, 0(R11)(R9*4)					
+  buffer.go:24		0x1dab			48ffc2			INCQ DX							
+  buffer.go:24		0x1dae			4839c2			CMPQ AX, DX						
+  buffer.go:24		0x1db1			0f8d99000000		JGE 0x1e50						
+  buffer.go:24		0x1db7			8b3491			MOVL 0(CX)(DX*4), SI					
+  buffer.go:25		0x1dba			4c8b4320		MOVQ 0x20(BX), R8					
+  buffer.go:25		0x1dbe			4c8b4b18		MOVQ 0x18(BX), R9					
+  buffer.go:25		0x1dc2			4d8d5101		LEAQ 0x1(R9), R10					
+  buffer.go:25		0x1dc6			4c8b5b10		MOVQ 0x10(BX), R11					
+  buffer.go:25		0x1dca			4d39c2			CMPQ R8, R10						
+  buffer.go:25		0x1dcd			76d0			JBE 0x1d9f						
+  buffer.go:24		0x1dcf			4889542450		MOVQ DX, 0x50(SP)					
+  buffer.go:24		0x1dd4			89742444		MOVL SI, 0x44(SP)					
+  buffer.go:25		0x1dd8			488d0500000000		LEAQ 0(IP), AX						[3:7]R_PCREL:type.int32	
+  buffer.go:25		0x1ddf			48890424		MOVQ AX, 0(SP)						
+  buffer.go:25		0x1de3			4c895c2408		MOVQ R11, 0x8(SP)					
+  buffer.go:25		0x1de8			4c894c2410		MOVQ R9, 0x10(SP)					
+  buffer.go:25		0x1ded			4c89442418		MOVQ R8, 0x18(SP)					
+  buffer.go:25		0x1df2			4c89542420		MOVQ R10, 0x20(SP)					
+  buffer.go:25		0x1df7			e800000000		CALL 0x1dfc						[1:5]R_CALL:runtime.growslice	
+  buffer.go:25		0x1dfc			488b442428		MOVQ 0x28(SP), AX					
+  buffer.go:25		0x1e01			488b4c2430		MOVQ 0x30(SP), CX					
+  buffer.go:25		0x1e06			488b542438		MOVQ 0x38(SP), DX					
+  buffer.go:25		0x1e0b			488b5c2478		MOVQ 0x78(SP), BX					
+  buffer.go:25		0x1e10			48895320		MOVQ DX, 0x20(BX)					
+  buffer.go:25		0x1e14			833d0000000000		CMPL $0x0, 0(IP)					[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:25		0x1e1b			7527			JNE 0x1e44						
+  buffer.go:25		0x1e1d			48894310		MOVQ AX, 0x10(BX)					
+  buffer.go:24		0x1e21			488b542450		MOVQ 0x50(SP), DX					
+  buffer.go:25		0x1e26			8b742444		MOVL 0x44(SP), SI					
+  buffer.go:25		0x1e2a			488b7c2460		MOVQ 0x60(SP), DI					
+  buffer.go:25		0x1e2f			4989c9			MOVQ CX, R9						
+  buffer.go:25		0x1e32			4989c3			MOVQ AX, R11						
+  buffer.go:24		0x1e35			488b442448		MOVQ 0x48(SP), AX					
+  buffer.go:24		0x1e3a			488b4c2458		MOVQ 0x58(SP), CX					
+  buffer.go:25		0x1e3f			e95bffffff		JMP 0x1d9f						
+  buffer.go:25		0x1e44			488b7c2460		MOVQ 0x60(SP), DI					
+  buffer.go:25		0x1e49			e800000000		CALL 0x1e4e						[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:25		0x1e4e			ebd1			JMP 0x1e21						
+  buffer.go:25		0x1e50			488b6c2468		MOVQ 0x68(SP), BP					
+  buffer.go:25		0x1e55			4883c470		ADDQ $0x70, SP						
+  buffer.go:25		0x1e59			c3			RET							
+  buffer.go:22		0x1e5a			31c0			XORL AX, AX						
+  buffer.go:22		0x1e5c			e800000000		CALL 0x1e61						[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:22		0x1e61			e91effffff		JMP 0x1d84						
+  buffer.go:21		0x1e66			488d7b08		LEAQ 0x8(BX), DI					
+  buffer.go:21		0x1e6a			e800000000		CALL 0x1e6f						[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:21		0x1e6f			e9f0feffff		JMP 0x1d64						
+  buffer.go:19		0x1e74			e800000000		CALL 0x1e79						[1:5]R_CALL:runtime.morestack_noctxt	
+  buffer.go:19		0x1e79			e99ffeffff		JMP command-line-arguments.(*ScreenCell).resetTo(SB)	
+
+TEXT command-line-arguments.(*ScreenCell).addExtra(SB) gofile../Users/evan/git/vterm/screen/buffer.go
+  buffer.go:29		0x1f05			65488b0c2500000000	MOVQ GS:0, CX						[5:9]R_TLS_LE		
+  buffer.go:29		0x1f0e			483b6110		CMPQ 0x10(CX), SP					
+  buffer.go:29		0x1f12			0f86a8000000		JBE 0x1fc0						
+  buffer.go:29		0x1f18			4883ec48		SUBQ $0x48, SP						
+  buffer.go:29		0x1f1c			48896c2440		MOVQ BP, 0x40(SP)					
+  buffer.go:29		0x1f21			488d6c2440		LEAQ 0x40(SP), BP					
+  buffer.go:30		0x1f26			488b442450		MOVQ 0x50(SP), AX					
+  buffer.go:30		0x1f2b			488b4818		MOVQ 0x18(AX), CX					
+  buffer.go:30		0x1f2f			488b5020		MOVQ 0x20(AX), DX					
+  buffer.go:30		0x1f33			488b5810		MOVQ 0x10(AX), BX					
+  buffer.go:30		0x1f37			488d7101		LEAQ 0x1(CX), SI					
+  buffer.go:30		0x1f3b			4839d6			CMPQ DX, SI						
+  buffer.go:30		0x1f3e			7721			JA 0x1f61						
+  buffer.go:30		0x1f40			488d5101		LEAQ 0x1(CX), DX					
+  buffer.go:30		0x1f44			48895018		MOVQ DX, 0x18(AX)					
+  buffer.go:30		0x1f48			8b442458		MOVL 0x58(SP), AX					
+  buffer.go:30		0x1f4c			89048b			MOVL AX, 0(BX)(CX*4)					
+  buffer.go:31		0x1f4f			0f57c0			XORPS X0, X0						
+  buffer.go:31		0x1f52			0f11442460		MOVUPS X0, 0x60(SP)					
+  buffer.go:31		0x1f57			488b6c2440		MOVQ 0x40(SP), BP					
+  buffer.go:31		0x1f5c			4883c448		ADDQ $0x48, SP						
+  buffer.go:31		0x1f60			c3			RET							
+  buffer.go:30		0x1f61			488d0500000000		LEAQ 0(IP), AX						[3:7]R_PCREL:type.int32	
+  buffer.go:30		0x1f68			48890424		MOVQ AX, 0(SP)						
+  buffer.go:30		0x1f6c			48895c2408		MOVQ BX, 0x8(SP)					
+  buffer.go:30		0x1f71			48894c2410		MOVQ CX, 0x10(SP)					
+  buffer.go:30		0x1f76			4889542418		MOVQ DX, 0x18(SP)					
+  buffer.go:30		0x1f7b			4889742420		MOVQ SI, 0x20(SP)					
+  buffer.go:30		0x1f80			e800000000		CALL 0x1f85						[1:5]R_CALL:runtime.growslice	
+  buffer.go:30		0x1f85			488b442428		MOVQ 0x28(SP), AX					
+  buffer.go:30		0x1f8a			488b4c2430		MOVQ 0x30(SP), CX					
+  buffer.go:30		0x1f8f			488b542438		MOVQ 0x38(SP), DX					
+  buffer.go:30		0x1f94			488b5c2450		MOVQ 0x50(SP), BX					
+  buffer.go:30		0x1f99			48895320		MOVQ DX, 0x20(BX)					
+  buffer.go:30		0x1f9d			833d0000000000		CMPL $0x0, 0(IP)					[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:30		0x1fa4			750f			JNE 0x1fb5						
+  buffer.go:30		0x1fa6			48894310		MOVQ AX, 0x10(BX)					
+  buffer.go:30		0x1faa			4889c2			MOVQ AX, DX						
+  buffer.go:30		0x1fad			4889d8			MOVQ BX, AX						
+  buffer.go:30		0x1fb0			4889d3			MOVQ DX, BX						
+  buffer.go:30		0x1fb3			eb8b			JMP 0x1f40						
+  buffer.go:30		0x1fb5			488d7b10		LEAQ 0x10(BX), DI					
+  buffer.go:30		0x1fb9			e800000000		CALL 0x1fbe						[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:30		0x1fbe			ebea			JMP 0x1faa						
+  buffer.go:29		0x1fc0			e800000000		CALL 0x1fc5						[1:5]R_CALL:runtime.morestack_noctxt	
+  buffer.go:29		0x1fc5			e93bffffff		JMP command-line-arguments.(*ScreenCell).addExtra(SB)	
+
+TEXT command-line-arguments.NewBuffer(SB) gofile../Users/evan/git/vterm/screen/buffer.go
+  buffer.go:34		0x2022			65488b0c2500000000	MOVQ GS:0, CX					[5:9]R_TLS_LE		
+  buffer.go:34		0x202b			483b6110		CMPQ 0x10(CX), SP				
+  buffer.go:34		0x202f			0f8693000000		JBE 0x20c8					
+  buffer.go:34		0x2035			4883ec38		SUBQ $0x38, SP					
+  buffer.go:34		0x2039			48896c2430		MOVQ BP, 0x30(SP)				
+  buffer.go:34		0x203e			488d6c2430		LEAQ 0x30(SP), BP				
+  buffer.go:36		0x2043			488d0500000000		LEAQ 0(IP), AX					[3:7]R_PCREL:type.command-line-arguments.ScreenCell	
+  buffer.go:36		0x204a			48890424		MOVQ AX, 0(SP)					
+  buffer.go:36		0x204e			488b442440		MOVQ 0x40(SP), AX				
+  buffer.go:36		0x2053			488b4c2448		MOVQ 0x48(SP), CX				
+  buffer.go:36		0x2058			480fafc1		IMULQ CX, AX					
+  buffer.go:36		0x205c			4889442420		MOVQ AX, 0x20(SP)				
+  buffer.go:36		0x2061			4889442408		MOVQ AX, 0x8(SP)				
+  buffer.go:36		0x2066			4889442410		MOVQ AX, 0x10(SP)				
+  buffer.go:36		0x206b			e800000000		CALL 0x2070					[1:5]R_CALL:runtime.makeslice	
+  buffer.go:36		0x2070			488b442418		MOVQ 0x18(SP), AX				
+  buffer.go:36		0x2075			4889442428		MOVQ AX, 0x28(SP)				
+  buffer.go:36		0x207a			488d0d00000000		LEAQ 0(IP), CX					[3:7]R_PCREL:type.command-line-arguments.Buffer	
+  buffer.go:36		0x2081			48890c24		MOVQ CX, 0(SP)					
+  buffer.go:36		0x2085			e800000000		CALL 0x208a					[1:5]R_CALL:runtime.newobject	
+  buffer.go:36		0x208a			488b7c2408		MOVQ 0x8(SP), DI				
+  buffer.go:36		0x208f			488b442420		MOVQ 0x20(SP), AX				
+  buffer.go:36		0x2094			48894708		MOVQ AX, 0x8(DI)				
+  buffer.go:36		0x2098			48894710		MOVQ AX, 0x10(DI)				
+  buffer.go:36		0x209c			833d0000000000		CMPL $0x0, 0(IP)				[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:36		0x20a3			7517			JNE 0x20bc					
+  buffer.go:36		0x20a5			488b442428		MOVQ 0x28(SP), AX				
+  buffer.go:36		0x20aa			488907			MOVQ AX, 0(DI)					
+  buffer.go:39		0x20ad			48897c2450		MOVQ DI, 0x50(SP)				
+  buffer.go:39		0x20b2			488b6c2430		MOVQ 0x30(SP), BP				
+  buffer.go:39		0x20b7			4883c438		ADDQ $0x38, SP					
+  buffer.go:39		0x20bb			c3			RET						
+  buffer.go:36		0x20bc			488b442428		MOVQ 0x28(SP), AX				
+  buffer.go:36		0x20c1			e800000000		CALL 0x20c6					[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:36		0x20c6			ebe5			JMP 0x20ad					
+  buffer.go:34		0x20c8			e800000000		CALL 0x20cd					[1:5]R_CALL:runtime.morestack_noctxt	
+  buffer.go:34		0x20cd			e950ffffff		JMP command-line-arguments.NewBuffer(SB)	
+
+TEXT command-line-arguments.(*Buffer).getCell(SB) gofile../Users/evan/git/vterm/screen/buffer.go
+  buffer.go:46		0x2119			4883ec18		SUBQ $0x18, SP		
+  buffer.go:46		0x211d			48896c2410		MOVQ BP, 0x10(SP)	
+  buffer.go:46		0x2122			488d6c2410		LEAQ 0x10(SP), BP	
+  buffer.go:47		0x2127			488b542420		MOVQ 0x20(SP), DX	
+  buffer.go:47		0x212c			488b4a08		MOVQ 0x8(DX), CX	
+  buffer.go:47		0x2130			488b12			MOVQ 0(DX), DX		
+  buffer.go:47		0x2133			488b442428		MOVQ 0x28(SP), AX	
+  buffer.go:47		0x2138			4839c8			CMPQ CX, AX		
+  buffer.go:47		0x213b			7317			JAE 0x2154		
+  buffer.go:47		0x213d			488d0480		LEAQ 0(AX)(AX*4), AX	
+  buffer.go:47		0x2141			488d04c2		LEAQ 0(DX)(AX*8), AX	
+  buffer.go:47		0x2145			4889442430		MOVQ AX, 0x30(SP)	
+  buffer.go:47		0x214a			488b6c2410		MOVQ 0x10(SP), BP	
+  buffer.go:47		0x214f			4883c418		ADDQ $0x18, SP		
+  buffer.go:47		0x2153			c3			RET			
+  buffer.go:47		0x2154			e800000000		CALL 0x2159		[1:5]R_CALL:runtime.panicIndex	
+  buffer.go:47		0x2159			90			NOPL			
+
+TEXT command-line-arguments.(*Buffer).move(SB) gofile../Users/evan/git/vterm/screen/buffer.go
+  buffer.go:50		0x2180			65488b0c2500000000	MOVQ GS:0, CX					[5:9]R_TLS_LE		
+  buffer.go:50		0x2189			488d4424f0		LEAQ -0x10(SP), AX				
+  buffer.go:50		0x218e			483b4110		CMPQ 0x10(CX), AX				
+  buffer.go:50		0x2192			0f8670020000		JBE 0x2408					
+  buffer.go:50		0x2198			4881ec90000000		SUBQ $0x90, SP					
+  buffer.go:50		0x219f			4889ac2488000000	MOVQ BP, 0x88(SP)				
+  buffer.go:50		0x21a7			488dac2488000000	LEAQ 0x88(SP), BP				
+  buffer.go:51		0x21af			488b8424a0000000	MOVQ 0xa0(SP), AX				
+  buffer.go:51		0x21b7			488b9c24a8000000	MOVQ 0xa8(SP), BX				
+  buffer.go:51		0x21bf			4839d8			CMPQ BX, AX					
+  buffer.go:51		0x21c2			0f8de9000000		JGE 0x22b1					
+  buffer.go:52		0x21c8			488b9424b0000000	MOVQ 0xb0(SP), DX				
+  buffer.go:52		0x21d0			488d3402		LEAQ 0(DX)(AX*1), SI				
+  buffer.go:52		0x21d4			488d76ff		LEAQ -0x1(SI), SI				
+  buffer.go:53		0x21d8			488d141a		LEAQ 0(DX)(BX*1), DX				
+  buffer.go:53		0x21dc			488d52ff		LEAQ -0x1(DX), DX				
+  buffer.go:53		0x21e0			488bbc2498000000	MOVQ 0x98(SP), DI				
+  buffer.go:53		0x21e8			eb06			JMP 0x21f0					
+  buffer.go:53		0x21ea			48ffca			DECQ DX						
+  buffer.go:55		0x21ed			48ffce			DECQ SI						
+  buffer.go:53		0x21f0			4839da			CMPQ BX, DX					
+  buffer.go:53		0x21f3			0f8ca8000000		JL 0x22a1					
+  buffer.go:54		0x21f9			4c8b07			MOVQ 0(DI), R8					
+  buffer.go:54		0x21fc			488b4f08		MOVQ 0x8(DI), CX				
+  buffer.go:54		0x2200			4839ce			CMPQ CX, SI					
+  buffer.go:54		0x2203			0f83f6010000		JAE 0x23ff					
+  buffer.go:54		0x2209			4c8d0cb6		LEAQ 0(SI)(SI*4), R9				
+  buffer.go:54		0x220d			4f8d14c8		LEAQ 0(R8)(R9*8), R10				
+  buffer.go:54		0x2211			4839ca			CMPQ CX, DX					
+  buffer.go:54		0x2214			0f83dd010000		JAE 0x23f7					
+  buffer.go:54		0x221a			4c8d1c92		LEAQ 0(DX)(DX*4), R11				
+  buffer.go:54		0x221e			4f8d24d8		LEAQ 0(R8)(R11*8), R12				
+  buffer.go:54		0x2222			833d0000000000		CMPL $0x0, 0(IP)				[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:54		0x2229			7533			JNE 0x225e					
+  buffer.go:54		0x222b			4f8b14c8		MOVQ 0(R8)(R9*8), R10				
+  buffer.go:54		0x222f			4f8914d8		MOVQ R10, 0(R8)(R11*8)				
+  buffer.go:54		0x2233			4f8d14d8		LEAQ 0(R8)(R11*8), R10				
+  buffer.go:54		0x2237			4d8d5208		LEAQ 0x8(R10), R10				
+  buffer.go:54		0x223b			4f8d1cc8		LEAQ 0(R8)(R9*8), R11				
+  buffer.go:54		0x223f			4d8d5b08		LEAQ 0x8(R11), R11				
+  buffer.go:54		0x2243			410f1003		MOVUPS 0(R11), X0				
+  buffer.go:54		0x2247			410f1102		MOVUPS X0, 0(R10)				
+  buffer.go:54		0x224b			4f8d04c8		LEAQ 0(R8)(R9*8), R8				
+  buffer.go:54		0x224f			4d8d4018		LEAQ 0x18(R8), R8				
+  buffer.go:54		0x2253			410f1000		MOVUPS 0(R8), X0				
+  buffer.go:54		0x2257			410f114210		MOVUPS X0, 0x10(R10)				
+  buffer.go:54		0x225c			eb8c			JMP 0x21ea					
+  buffer.go:53		0x225e			4889542418		MOVQ DX, 0x18(SP)				
+  buffer.go:54		0x2263			4889742428		MOVQ SI, 0x28(SP)				
+  buffer.go:54		0x2268			488d0500000000		LEAQ 0(IP), AX					[3:7]R_PCREL:type.command-line-arguments.ScreenCell	
+  buffer.go:54		0x226f			48890424		MOVQ AX, 0(SP)					
+  buffer.go:54		0x2273			4c89642408		MOVQ R12, 0x8(SP)				
+  buffer.go:54		0x2278			4c89542410		MOVQ R10, 0x10(SP)				
+  buffer.go:54		0x227d			e800000000		CALL 0x2282					[1:5]R_CALL:runtime.typedmemmove	
+  buffer.go:53		0x2282			488b542418		MOVQ 0x18(SP), DX				
+  buffer.go:53		0x2287			488b9c24a8000000	MOVQ 0xa8(SP), BX				
+  buffer.go:55		0x228f			488b742428		MOVQ 0x28(SP), SI				
+  buffer.go:54		0x2294			488bbc2498000000	MOVQ 0x98(SP), DI				
+  buffer.go:54		0x229c			e949ffffff		JMP 0x21ea					
+  buffer.go:54		0x22a1			488bac2488000000	MOVQ 0x88(SP), BP				
+  buffer.go:54		0x22a9			4881c490000000		ADDQ $0x90, SP					
+  buffer.go:54		0x22b0			c3			RET						
+  buffer.go:58		0x22b1			488bb42498000000	MOVQ 0x98(SP), SI				
+  buffer.go:58		0x22b9			488b3e			MOVQ 0(SI), DI					
+  buffer.go:58		0x22bc			488b5610		MOVQ 0x10(SI), DX				
+  buffer.go:58		0x22c0			4c8b8424b0000000	MOVQ 0xb0(SP), R8				
+  buffer.go:58		0x22c8			498d0c00		LEAQ 0(R8)(AX*1), CX				
+  buffer.go:58		0x22cc			4839d1			CMPQ DX, CX					
+  buffer.go:58		0x22cf			0f871d010000		JA 0x23f2					
+  buffer.go:58		0x22d5			4839c8			CMPQ CX, AX					
+  buffer.go:58		0x22d8			0f870f010000		JA 0x23ed					
+  buffer.go:58		0x22de			4829c2			SUBQ AX, DX					
+  buffer.go:58		0x22e1			4c8d0c80		LEAQ 0(AX)(AX*4), R9				
+  buffer.go:58		0x22e5			48f7da			NEGQ DX						
+  buffer.go:58		0x22e8			49c1e103		SHLQ $0x3, R9					
+  buffer.go:58		0x22ec			48c1fa3f		SARQ $0x3f, DX					
+  buffer.go:58		0x22f0			4921d1			ANDQ DX, R9					
+  buffer.go:58		0x22f3			4a8d140f		LEAQ 0(DI)(R9*1), DX				
+  buffer.go:58		0x22f7			4d85c0			TESTQ R8, R8					
+  buffer.go:58		0x22fa			7ea5			JLE 0x22a1					
+  buffer.go:58		0x22fc			31c0			XORL AX, AX					
+  buffer.go:58		0x22fe			eb07			JMP 0x2307					
+  buffer.go:58		0x2300			4883c228		ADDQ $0x28, DX					
+  buffer.go:58		0x2304			4889f8			MOVQ DI, AX					
+  buffer.go:58		0x2307			488b3a			MOVQ 0(DX), DI					
+  buffer.go:58		0x230a			48897c2460		MOVQ DI, 0x60(SP)				
+  buffer.go:58		0x230f			0f104208		MOVUPS 0x8(DX), X0				
+  buffer.go:58		0x2313			0f11442468		MOVUPS X0, 0x68(SP)				
+  buffer.go:58		0x2318			0f104218		MOVUPS 0x18(DX), X0				
+  buffer.go:58		0x231c			0f11442478		MOVUPS X0, 0x78(SP)				
+  buffer.go:58		0x2321			488b7c2460		MOVQ 0x60(SP), DI				
+  buffer.go:58		0x2326			48897c2438		MOVQ DI, 0x38(SP)				
+  buffer.go:58		0x232b			0f10442468		MOVUPS 0x68(SP), X0				
+  buffer.go:58		0x2330			0f11442440		MOVUPS X0, 0x40(SP)				
+  buffer.go:58		0x2335			0f10442478		MOVUPS 0x78(SP), X0				
+  buffer.go:58		0x233a			0f11442450		MOVUPS X0, 0x50(SP)				
+  buffer.go:59		0x233f			488b4e08		MOVQ 0x8(SI), CX				
+  buffer.go:59		0x2343			488b3e			MOVQ 0(SI), DI					
+  buffer.go:59		0x2346			4c8d0c18		LEAQ 0(AX)(BX*1), R9				
+  buffer.go:59		0x234a			4939c9			CMPQ CX, R9					
+  buffer.go:59		0x234d			0f8392000000		JAE 0x23e5					
+  buffer.go:59		0x2353			4f8d0c89		LEAQ 0(R9)(R9*4), R9				
+  buffer.go:59		0x2357			4e8d14cf		LEAQ 0(DI)(R9*8), R10				
+  buffer.go:59		0x235b			833d0000000000		CMPL $0x0, 0(IP)				[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:59		0x2362			7534			JNE 0x2398					
+  buffer.go:59		0x2364			4c8b542438		MOVQ 0x38(SP), R10				
+  buffer.go:59		0x2369			4e8914cf		MOVQ R10, 0(DI)(R9*8)				
+  buffer.go:59		0x236d			4a8d3ccf		LEAQ 0(DI)(R9*8), DI				
+  buffer.go:59		0x2371			488d7f08		LEAQ 0x8(DI), DI				
+  buffer.go:59		0x2375			0f10442440		MOVUPS 0x40(SP), X0				
+  buffer.go:59		0x237a			0f1107			MOVUPS X0, 0(DI)				
+  buffer.go:59		0x237d			0f10442450		MOVUPS 0x50(SP), X0				
+  buffer.go:59		0x2382			0f114710		MOVUPS X0, 0x10(DI)				
+  buffer.go:58		0x2386			488d7801		LEAQ 0x1(AX), DI				
+  buffer.go:58		0x238a			4c39c7			CMPQ R8, DI					
+  buffer.go:58		0x238d			0f8c6dffffff		JL 0x2300					
+  buffer.go:58		0x2393			e909ffffff		JMP 0x22a1					
+  buffer.go:58		0x2398			4889542430		MOVQ DX, 0x30(SP)				
+  buffer.go:58		0x239d			4889442420		MOVQ AX, 0x20(SP)				
+  buffer.go:59		0x23a2			488d0500000000		LEAQ 0(IP), AX					[3:7]R_PCREL:type.command-line-arguments.ScreenCell	
+  buffer.go:59		0x23a9			48890424		MOVQ AX, 0(SP)					
+  buffer.go:59		0x23ad			4c89542408		MOVQ R10, 0x8(SP)				
+  buffer.go:59		0x23b2			488d442438		LEAQ 0x38(SP), AX				
+  buffer.go:59		0x23b7			4889442410		MOVQ AX, 0x10(SP)				
+  buffer.go:59		0x23bc			e800000000		CALL 0x23c1					[1:5]R_CALL:runtime.typedmemmove	
+  buffer.go:58		0x23c1			488b442420		MOVQ 0x20(SP), AX				
+  buffer.go:58		0x23c6			488b542430		MOVQ 0x30(SP), DX				
+  buffer.go:59		0x23cb			488b9c24a8000000	MOVQ 0xa8(SP), BX				
+  buffer.go:59		0x23d3			488bb42498000000	MOVQ 0x98(SP), SI				
+  buffer.go:58		0x23db			4c8b8424b0000000	MOVQ 0xb0(SP), R8				
+  buffer.go:59		0x23e3			eba1			JMP 0x2386					
+  buffer.go:59		0x23e5			4c89c8			MOVQ R9, AX					
+  buffer.go:59		0x23e8			e800000000		CALL 0x23ed					[1:5]R_CALL:runtime.panicIndex		
+  buffer.go:58		0x23ed			e800000000		CALL 0x23f2					[1:5]R_CALL:runtime.panicSliceB		
+  buffer.go:58		0x23f2			e800000000		CALL 0x23f7					[1:5]R_CALL:runtime.panicSliceAcap	
+  buffer.go:54		0x23f7			4889d0			MOVQ DX, AX					
+  buffer.go:54		0x23fa			e800000000		CALL 0x23ff					[1:5]R_CALL:runtime.panicIndex	
+  buffer.go:54		0x23ff			4889f0			MOVQ SI, AX					
+  buffer.go:54		0x2402			e800000000		CALL 0x2407					[1:5]R_CALL:runtime.panicIndex	
+  buffer.go:54		0x2407			90			NOPL						
+  buffer.go:50		0x2408			e800000000		CALL 0x240d					[1:5]R_CALL:runtime.morestack_noctxt	
+  buffer.go:50		0x240d			e96efdffff		JMP command-line-arguments.(*Buffer).move(SB)	
+
+TEXT command-line-arguments.(*Buffer).erase(SB) gofile../Users/evan/git/vterm/screen/buffer.go
+  buffer.go:64		0x2499			65488b0c2500000000	MOVQ GS:0, CX					[5:9]R_TLS_LE		
+  buffer.go:64		0x24a2			483b6110		CMPQ 0x10(CX), SP				
+  buffer.go:64		0x24a6			0f86d4000000		JBE 0x2580					
+  buffer.go:64		0x24ac			4883ec18		SUBQ $0x18, SP					
+  buffer.go:64		0x24b0			48896c2410		MOVQ BP, 0x10(SP)				
+  buffer.go:64		0x24b5			488d6c2410		LEAQ 0x10(SP), BP				
+  buffer.go:65		0x24ba			488b542428		MOVQ 0x28(SP), DX				
+  buffer.go:65		0x24bf			488b5c2420		MOVQ 0x20(SP), BX				
+  buffer.go:65		0x24c4			488b742430		MOVQ 0x30(SP), SI				
+  buffer.go:64		0x24c9			4889d0			MOVQ DX, AX					
+  buffer.go:65		0x24cc			eb03			JMP 0x24d1					
+  buffer.go:65		0x24ce			48ffc2			INCQ DX						
+  buffer.go:65		0x24d1			4c8d0406		LEAQ 0(SI)(AX*1), R8				
+  buffer.go:65		0x24d5			4c39c2			CMPQ R8, DX					
+  buffer.go:65		0x24d8			0f8d8f000000		JGE 0x256d					
+  buffer.go:66		0x24de			488b4b08		MOVQ 0x8(BX), CX				
+  buffer.go:66		0x24e2			4c8b03			MOVQ 0(BX), R8					
+  buffer.go:66		0x24e5			4839ca			CMPQ CX, DX					
+  buffer.go:66		0x24e8			0f8389000000		JAE 0x2577					
+  buffer.go:66		0x24ee			4c8d0c92		LEAQ 0(DX)(DX*4), R9				
+  buffer.go:66		0x24f2			4d89ca			MOVQ R9, R10					
+  buffer.go:66		0x24f5			49c1e103		SHLQ $0x3, R9					
+  buffer.go:13		0x24f9			43c7040800000000	MOVL $0x0, 0(R8)(R9*1)				
+  buffer.go:14		0x2501			4b8d3cd0		LEAQ 0(R8)(R10*8), DI				
+  buffer.go:14		0x2505			488d7f08		LEAQ 0x8(DI), DI				
+  buffer.go:15		0x2509			4f8d0cd0		LEAQ 0(R8)(R10*8), R9				
+  buffer.go:15		0x250d			4d8d4910		LEAQ 0x10(R9), R9				
+  buffer.go:14		0x2511			833d0000000000		CMPL $0x0, 0(IP)				[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:14		0x2518			7544			JNE 0x255e					
+  buffer.go:14		0x251a			4bc744d00800000000	MOVQ $0x0, 0x8(R8)(R10*8)			
+  buffer.go:15		0x2523			4bc744d01800000000	MOVQ $0x0, 0x18(R8)(R10*8)			
+  buffer.go:15		0x252c			4bc744d02000000000	MOVQ $0x0, 0x20(R8)(R10*8)			
+  buffer.go:15		0x2535			833d0000000000		CMPL $0x0, 0(IP)				[2:6]R_PCREL:runtime.writeBarrier+-1	
+  buffer.go:15		0x253c			750b			JNE 0x2549					
+  buffer.go:15		0x253e			4bc744d01000000000	MOVQ $0x0, 0x10(R8)(R10*8)			
+  buffer.go:15		0x2547			eb85			JMP 0x24ce					
+  buffer.go:15		0x2549			4c89cf			MOVQ R9, DI					
+  buffer.go:64		0x254c			4889c1			MOVQ AX, CX					
+  buffer.go:15		0x254f			31c0			XORL AX, AX					
+  buffer.go:15		0x2551			e800000000		CALL 0x2556					[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:65		0x2556			4889c8			MOVQ CX, AX					
+  buffer.go:15		0x2559			e970ffffff		JMP 0x24ce					
+  buffer.go:64		0x255e			4889c1			MOVQ AX, CX					
+  buffer.go:14		0x2561			31c0			XORL AX, AX					
+  buffer.go:14		0x2563			e800000000		CALL 0x2568					[1:5]R_CALL:runtime.gcWriteBarrier	
+  buffer.go:65		0x2568			4889c8			MOVQ CX, AX					
+  buffer.go:14		0x256b			ebb6			JMP 0x2523					
+  buffer.go:14		0x256d			488b6c2410		MOVQ 0x10(SP), BP				
+  buffer.go:14		0x2572			4883c418		ADDQ $0x18, SP					
+  buffer.go:14		0x2576			c3			RET						
+  buffer.go:66		0x2577			4889d0			MOVQ DX, AX					
+  buffer.go:66		0x257a			e800000000		CALL 0x257f					[1:5]R_CALL:runtime.panicIndex	
+  buffer.go:66		0x257f			90			NOPL						
+  buffer.go:64		0x2580			e800000000		CALL 0x2585					[1:5]R_CALL:runtime.morestack_noctxt	
+  buffer.go:64		0x2585			e90fffffff		JMP command-line-arguments.(*Buffer).erase(SB)	
