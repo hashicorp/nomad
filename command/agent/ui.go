@@ -57,6 +57,8 @@ type UI interface {
 	// the keystrokes to the terminal.
 	AskSecret(string) (string, error)
 
+	Info(string)
+	Warn(string)
 	Error(string)
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 	// processes along side of a task. By early importing them we can avoid
 	// additional code being imported and thus reserving memory
 	_ "github.com/hashicorp/nomad/client/logmon"
+	"github.com/hashicorp/nomad/command/agent"
 	_ "github.com/hashicorp/nomad/drivers/docker/docklog"
 	_ "github.com/hashicorp/nomad/drivers/shared/executor"
 
@@ -108,11 +110,7 @@ func RunCustom(args []string) int {
 	}
 
 	// The Nomad agent never outputs color
-	agentUi := &cli.BasicUi{
-		Reader:      os.Stdin,
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
-	}
+	agentUi := agent.GlintUI(context.Background())
 
 	// Only use colored UI if stdout is a tty, and not disabled
 	if isTerminal && color {

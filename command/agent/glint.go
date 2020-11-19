@@ -40,8 +40,8 @@ func (ui *glintUI) Close() error {
 	return ui.d.Close()
 }
 
-func (ui *glintUI) Info(s string) {
-}
+func (ui *glintUI) Info(s string) {}
+func (ui *glintUI) Warn(s string) {}
 
 func (ui *glintUI) Input(input *Input) (string, error) {
 	return "", ErrNonInteractive
@@ -202,4 +202,16 @@ func (ui *glintUI) Table(tbl *Table, opts ...Option) {
 	table.Render()
 
 	ui.d.Append(glint.Finalize(glint.Text(buf.String())))
+}
+
+const (
+	Yellow = "yellow"
+	Green  = "green"
+	Red    = "red"
+)
+
+var colorMapping = map[string]int{
+	Green:  tablewriter.FgGreenColor,
+	Yellow: tablewriter.FgYellowColor,
+	Red:    tablewriter.FgRedColor,
 }

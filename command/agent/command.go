@@ -29,11 +29,9 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
-	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/helper/winsvc"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -46,7 +44,7 @@ const gracefulTimeout = 5 * time.Second
 // exit.
 type Command struct {
 	Version    *version.VersionInfo
-	Ui         cli.Ui
+	Ui         UI
 	ShutdownCh <-chan struct{}
 
 	args           []string
@@ -397,13 +395,27 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
+type cliUiWriter struct {
+	Ui UI
+}
+
+func (w *cliUiWriter) Write(p []byte) (n int, err error) {
+	n = len(p)
+	if n > 0 && p[n-1] == '\n' {
+		p = p[:n-1]
+	}
+
+	w.Ui.Output(string(p), WithInfoStyle())
+	return n, nil
+}
+
 // setupLoggers is used to setup the logGate, and our logOutput
-func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
+func SetupLoggers(ui UI, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
 	logGate := &gatedwriter.Writer{
-		Writer: &cli.UiWriter{Ui: ui},
+		Writer: &cliUiWriter{Ui: ui},
 	}
 
 	logFilter := LevelFilter()
@@ -608,13 +620,7 @@ func (c *Command) Run(args []string) int {
 	ui := GlintUI(context.Background())
 
 	c.Ui = ui
-
-	// c.Ui = &cli.PrefixedUi{
-	// 	OutputPrefix: "==> ",
-	// 	InfoPrefix:   "    ",
-	// 	ErrorPrefix:  "==> ",
-	// 	Ui:           c.Ui,
-	// }
+	c.Ui.Output("Starting Nomad Agent in dev mode", WithSuccessStyle())
 
 	// Parse our configs
 	c.args = args
@@ -641,14 +647,14 @@ func (c *Command) Run(args []string) int {
 
 	// Swap out UI implementation if json logging is enabled
 	if config.LogJson {
-		c.Ui = &logging.HcLogUI{Log: logger}
+		// c.Ui = &logging.HcLogUI{Log: logger}
 	}
 
 	// Log config files
 	if len(config.Files) > 0 {
 		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
 	} else {
-		c.Ui.Output("No configuration files loaded")
+		c.Ui.Output("No configuration files loaded", WithHeaderStyle())
 	}
 
 	// Initialize the telemetry
