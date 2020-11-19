@@ -26,7 +26,7 @@ Usage nomad plugin status [options] <plugin>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Status Options:
 

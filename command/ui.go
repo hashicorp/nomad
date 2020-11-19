@@ -29,7 +29,7 @@ object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }

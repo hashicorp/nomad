@@ -20,7 +20,7 @@ Usage: nomad acl token list
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 List Options:
 

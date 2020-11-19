@@ -27,7 +27,7 @@ Usage: nomad recommendation list [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Recommendation List Options:
 

@@ -22,7 +22,7 @@ Alias: nomad inspect
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Inspect Options:
 

@@ -51,7 +51,7 @@ Usage: nomad node status [options] <node>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Node Status Options:
 

@@ -31,7 +31,7 @@ Usage: nomad alloc status [options] <allocation>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Alloc Status Options:
 

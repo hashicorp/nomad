@@ -29,7 +29,7 @@ Usage: nomad job promote [options] <job id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Promote Options:
 

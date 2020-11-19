@@ -23,7 +23,7 @@ Usage: nomad alloc restart [options] <allocation> <task>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Restart Specific Options:
 

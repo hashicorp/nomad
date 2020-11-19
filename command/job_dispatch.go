@@ -30,7 +30,7 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Dispatch Options:
 

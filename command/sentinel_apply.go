@@ -24,7 +24,7 @@ Usage: nomad sentinel apply [options] <name> <file>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Apply Options:
 

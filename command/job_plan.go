@@ -65,7 +65,7 @@ Alias: nomad plan
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Plan Options:
 

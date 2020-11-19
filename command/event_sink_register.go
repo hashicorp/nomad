@@ -25,7 +25,7 @@ Usage: nomad event sink register <path>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 
 	return helpText
 }

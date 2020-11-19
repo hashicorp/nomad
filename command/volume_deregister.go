@@ -20,7 +20,7 @@ Usage: nomad volume deregister [options] <id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Volume Deregister Options:
 

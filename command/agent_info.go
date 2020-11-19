@@ -20,7 +20,7 @@ Usage: nomad agent-info [options]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 	return strings.TrimSpace(helpText)
 }
 

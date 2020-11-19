@@ -20,7 +20,7 @@ Usage: nomad event sink list
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 
 	return helpText
 }

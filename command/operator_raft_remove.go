@@ -27,7 +27,7 @@ Usage: nomad operator raft remove-peer [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Remove Peer Options:
 

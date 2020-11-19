@@ -25,7 +25,7 @@ Puts a new license in Servers and Clients
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Install a new license from a file:
 

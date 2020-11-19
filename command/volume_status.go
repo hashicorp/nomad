@@ -26,7 +26,7 @@ Usage: nomad volume status [options] <id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 

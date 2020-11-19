@@ -29,7 +29,7 @@ Usage: nomad monitor [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Monitor Specific Options:
 

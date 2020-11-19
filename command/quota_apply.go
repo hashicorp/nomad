@@ -31,7 +31,7 @@ Usage: nomad quota apply [options] <input>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Apply Options:
 

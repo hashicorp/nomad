@@ -24,7 +24,7 @@ Usage: nomad job eval [options] <job_id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Eval Options:
 

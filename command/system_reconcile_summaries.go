@@ -19,7 +19,7 @@ Usage: nomad system reconcile summaries [options]
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 	return strings.TrimSpace(helpText)
 }
 

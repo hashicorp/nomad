@@ -19,7 +19,7 @@ Usage: nomad operator metrics [options]
 Get Nomad metrics
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Metrics Specific Options
 

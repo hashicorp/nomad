@@ -15,7 +15,7 @@ Usage: nomad license get [options]
 Gets a new license in Servers and Clients
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return helpText
 }

@@ -23,7 +23,7 @@ Usage: nomad deployment fail [options] <deployment id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Fail Options:
 

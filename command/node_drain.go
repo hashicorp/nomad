@@ -31,7 +31,7 @@ Usage: nomad node drain [options] <node>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Node Drain Options:
 

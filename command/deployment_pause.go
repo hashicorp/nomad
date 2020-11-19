@@ -21,7 +21,7 @@ Usage: nomad deployment pause [options] <deployment id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Pause Options:
 

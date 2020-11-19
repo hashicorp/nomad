@@ -28,7 +28,7 @@ Usage: nomad deployment promote [options] <deployment id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Promote Options:
 

@@ -29,7 +29,7 @@ Usage: nomad job scaling-events [options] <args>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Scaling-Events Options:
 

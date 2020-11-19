@@ -25,7 +25,7 @@ Usage: nomad server members [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Server Members Options:
 

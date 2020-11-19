@@ -23,7 +23,7 @@ Usage: nomad job revert [options] <job> <version>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Revert Options:
 
@@ -36,8 +36,8 @@ Revert Options:
    The Consul token used to verify that the caller has access to the Service
    Identity policies associated in the targeted version of the job.
 
-  -vault-token 
-   The Vault token used to verify that the caller has access to the Vault 
+  -vault-token
+   The Vault token used to verify that the caller has access to the Vault
    policies in the targeted version of the job.
 
   -verbose

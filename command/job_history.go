@@ -28,7 +28,7 @@ Usage: nomad job history [options] <job>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 History Options:
 

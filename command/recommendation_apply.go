@@ -27,7 +27,7 @@ Usage: nomad recommendation apply [options] <recommendation_ids>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Recommendation Apply Options:
 

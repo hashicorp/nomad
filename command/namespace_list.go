@@ -21,7 +21,7 @@ Usage: nomad namespace list [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 List Options:
 

@@ -21,7 +21,7 @@ Usage: nomad job deployments [options] <job>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Deployments Options:
 
@@ -38,7 +38,7 @@ Deployments Options:
     Display full information.
 
   -all
-    Display all deployments matching the job ID, including those 
+    Display all deployments matching the job ID, including those
     from an older instance of the job.
 `
 	return strings.TrimSpace(helpText)

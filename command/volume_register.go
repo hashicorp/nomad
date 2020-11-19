@@ -27,7 +27,7 @@ Usage: nomad volume register [options] <input>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 
 	return strings.TrimSpace(helpText)
 }

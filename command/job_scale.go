@@ -34,7 +34,7 @@ Usage: nomad job scale [options] <job> [<group>] <count>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Scale Options:
 

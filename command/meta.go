@@ -161,8 +161,16 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 	}
 }
 
+type usageOptsFlags uint8
+
+const (
+	usageOptsDefault     usageOptsFlags = 0
+	usageOptsNoNamespace                = 1 << iota
+)
+
 // generalOptionsUsage returns the help string for the global options.
-func generalOptionsUsage() string {
+func generalOptionsUsage(usageOpts usageOptsFlags) string {
+
 	helpText := `
   -address=<addr>
     The address of the Nomad server.
@@ -173,14 +181,21 @@ func generalOptionsUsage() string {
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
+`
 
+	namespaceText := `
   -namespace=<namespace>
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
     If set to '*', job and alloc subcommands query all namespaces authorized
     to user.
     Defaults to the "default" namespace.
+`
 
+	// note: that although very few commands use color explicitly, all of them
+	// return red-colored text on error so we don't want to make this
+	// configurable
+	remainingText := `
   -no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
     set.
@@ -218,6 +233,12 @@ func generalOptionsUsage() string {
     The SecretID of an ACL token to use to authenticate API requests with.
     Overrides the NOMAD_TOKEN environment variable if set.
 `
+
+	if usageOpts&usageOptsNoNamespace == 0 {
+		helpText = helpText + namespaceText
+	}
+
+	helpText = helpText + remainingText
 	return strings.TrimSpace(helpText)
 }
 

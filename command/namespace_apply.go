@@ -22,7 +22,7 @@ Usage: nomad namespace apply [options] <namespace>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Apply Options:
 

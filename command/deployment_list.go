@@ -20,7 +20,7 @@ Usage: nomad deployment list [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 List Options:
 

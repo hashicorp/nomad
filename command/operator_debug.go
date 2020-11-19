@@ -57,7 +57,7 @@ Usage: nomad operator debug [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Debug Options:
 

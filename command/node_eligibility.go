@@ -25,7 +25,7 @@ Usage: nomad node eligibility [options] <node>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Node Eligibility Options:
 

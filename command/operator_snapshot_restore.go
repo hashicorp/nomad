@@ -34,7 +34,7 @@ Usage: nomad operator snapshot restore [options] <file>
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 	return strings.TrimSpace(helpText)
 }
 

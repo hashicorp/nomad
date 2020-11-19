@@ -19,7 +19,7 @@ Usage: nomad sentinel read [options] <name>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Read Options:
 

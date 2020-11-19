@@ -26,7 +26,7 @@ Usage: nomad recommendation info [options] <recommendation_id>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Recommendation Info Options:
 

@@ -35,7 +35,7 @@ Usage: nomad status [options] <job>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 
