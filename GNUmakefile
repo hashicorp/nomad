@@ -240,6 +240,9 @@ checkscripts: ## Lint shell scripts
 
 .PHONY: checkproto
 checkproto: ## Lint protobuf files
+	@echo "==> Lint proto files..."
+	@buf check lint --config tools/buf/buf.yaml
+
 	@echo "==> Checking for breaking changes in protos..."
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
