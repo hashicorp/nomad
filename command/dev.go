@@ -67,9 +67,9 @@ func (c *DevCommand) Run(_ []string) int {
 		introIcon,
 		introStartText,
 	).Row()
-	es.Append(uuid.Generate(), intro, nil)
+	es.Append("0", intro, nil)
 
-	es.Append(uuid.Generate(), cc.LineSpacing(), nil)
+	es.Append("1", cc.LineSpacing(), nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go c.UI.Render(ctx)
@@ -125,6 +125,8 @@ type component struct {
 type componentState struct {
 	subtleText string
 	mainText   string
+	icon       string
+	eventType  string
 }
 
 func (e *EventStreamComponent) handleEvent(event api.Event) {
@@ -136,7 +138,6 @@ func (e *EventStreamComponent) handleEvent(event api.Event) {
 			return
 		}
 		e.JobEvent(job, event.Type, event.Key)
-		// e.Append(event.Key, e.JobEvent(job, event.Type, event.Key))
 	case api.TopicDeployment:
 	case api.TopicNode:
 		node, err := event.Node()
@@ -152,11 +153,6 @@ func (e *EventStreamComponent) handleEvent(event api.Event) {
 
 func (c *EventStreamComponent) Append(key string, gcomponent glint.Component, state *componentState) {
 	c.components[key] = &component{state: state, component: gcomponent}
-	// if _, ok := c.components[key]; !ok {
-	// } else {
-	// 	// c.components[key] = append(c.components[key], component)
-	// 	c.components[key] = component
-	// }
 }
 
 func (c *EventStreamComponent) Body(context.Context) glint.Component {
@@ -185,18 +181,22 @@ func (e *EventStreamComponent) JobEvent(job *api.Job, eventType, key string) {
 		state = &componentState{}
 	}
 
+	state.eventType = eventType
 	switch status {
 	case "pending":
 		state.subtleText = "pending"
+		state.icon = "Running"
 	case "running":
 		state.subtleText = "running"
+		state.icon = "Success"
 	case "dead":
 		state.subtleText = "dead"
+		state.icon = "Warning"
 	}
 
 	if !existing {
 		layout := glint.Layout(
-			glint.Layout(cc.IconWarning(), cc.Warning(state.subtleText)).Row().MarginRight(1),
+			glint.Layout(cc.IconFor(state.icon), cc.Status(state.subtleText, state.icon)).Row().MarginRight(1),
 			cc.Text(eventType),
 			cc.Text(fmt.Sprintf(" %s ", *job.Name)).Bold(),
 			cc.Subtle(fmt.Sprintf("(ns: %s, type: %s, priority: %v)", *job.Namespace, *job.Type, *job.Priority)),

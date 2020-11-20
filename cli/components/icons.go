@@ -25,6 +25,23 @@ func IconHealthy() glint.Component {
 	return Success(icons.Healthy + " ")
 }
 
+func IconFor(status string) glint.Component {
+	switch status {
+	case "Warning":
+		return IconWarning()
+	case "Failure":
+		return IconFailure()
+	case "Success":
+		return IconSuccess()
+	case "Healthy":
+		return IconHealthy()
+	case "Running":
+		return IconRunning()
+	default:
+		return IconWarning()
+	}
+}
+
 // A stateless variation of the Spinner that comes with go-glint
 // This still has to be a struct with a Body method or else it doesn't
 // rerender
