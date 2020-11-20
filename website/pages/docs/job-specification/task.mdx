@@ -60,8 +60,10 @@ job "docs" {
   task, which has a default value of 30 seconds.
 
 - `kill_signal` `(string)` - Specifies a configurable kill signal for a task,
-  where the default is SIGINT (or SIGTERM for `docker`). Note that this is only
-  supported for drivers sending signals (currently `docker`, `exec`, `raw_exec`, and `java` drivers).
+  where the default is SIGINT (or SIGTERM for `docker`, or CTRL_BREAK_EVENT
+  for `raw_exec` on Windows). Note that this is only supported for drivers
+  sending signals (currently `docker`, `exec`, `raw_exec`, and `java`
+  drivers).
 
 - `leader` `(bool: false)` - Specifies whether the task is the leader task of
   the task group. If set to true, when the leader task completes, all other
