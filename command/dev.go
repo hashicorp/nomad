@@ -3,11 +3,18 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"sort"
+	"syscall"
+	"time"
 
 	"github.com/mitchellh/go-glint"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/cli/components"
 	cc "github.com/hashicorp/nomad/cli/components"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 type DevCommand struct {
@@ -41,67 +48,179 @@ func (c *DevCommand) Run(_ []string) int {
 	// a slice representation of components without us needing to know about it
 	// here in the stream reader.
 	// But also idk, I'm just spitballing.
-	es := &EventStreamComponent{}
+	es := &EventStreamComponent{
+		components: make(map[string]*component),
+	}
 
 	c.UI.Append(es)
 
-	es.Append(glint.Layout(
-		cc.IconRunning(),
-		cc.Text("Running that sweet sweet dev command"),
-	).Row())
-	es.Append(cc.LineSpacing())
+	introIcon := cc.IconRunning()
+	// Imaginary wait time to set icon from spinner to success
+	go func() {
+		time.Sleep(5 * time.Second)
+		introIcon.SetFinal(cc.IconHealthy())
+	}()
 
-	go c.UI.Render(context.Background())
+	introStartText := cc.Text("Running that sweet sweet dev command")
+
+	intro := glint.Layout(
+		introIcon,
+		introStartText,
+	).Row()
+	es.Append(uuid.Generate(), intro, nil)
+
+	es.Append(uuid.Generate(), cc.LineSpacing(), nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go c.UI.Render(ctx)
+
+	// Trap signals
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	go func() {
+		<-sigCh
+		cancel()
+	}()
 
 	events := client.EventStream()
 	q := &api.QueryOptions{}
 	topics := map[api.Topic][]string{
-		"Job": {"*"},
+		"*": {"*"},
 	}
 
 	streamCh, err := events.Stream(context.Background(), topics, 0, q)
 
-	for frame := range streamCh {
-		for _, event := range frame.Events {
-			es.Append(JobEvent(event))
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return 0
+		case event := <-streamCh:
+			if event.Err != nil {
+				es.Append(uuid.Generate(), components.Error(event.Err.Error()), nil)
+				return 1
+			}
+
+			for _, event := range event.Events {
+				es.handleEvent(event)
+			}
 		}
+
 	}
-
-	fmt.Scanln()
-
-	return 0
 }
 
 type EventStreamComponent struct {
-	components []glint.Component
+	components map[string]*component
 }
 
-func (c *EventStreamComponent) Append(component glint.Component) {
-	c.components = append(c.components, component)
+type component struct {
+	state     *componentState
+	component glint.Component
+}
+
+type componentState struct {
+	subtleText string
+	mainText   string
+}
+
+func (e *EventStreamComponent) handleEvent(event api.Event) {
+	switch event.Topic {
+	case api.TopicJob:
+		job, err := event.Job()
+		if err != nil {
+			e.Append(event.Key, components.Error(err.Error()), nil)
+			return
+		}
+		e.JobEvent(job, event.Type, event.Key)
+		// e.Append(event.Key, e.JobEvent(job, event.Type, event.Key))
+	case api.TopicDeployment:
+	case api.TopicNode:
+		node, err := event.Node()
+		if err != nil {
+			e.Append(event.Key, components.Error(err.Error()), nil)
+			return
+		}
+		e.Append(event.Key, e.NodeEvent(node, event.Type, event.Key), nil)
+
+	default:
+	}
+}
+
+func (c *EventStreamComponent) Append(key string, gcomponent glint.Component, state *componentState) {
+	c.components[key] = &component{state: state, component: gcomponent}
+	// if _, ok := c.components[key]; !ok {
+	// } else {
+	// 	// c.components[key] = append(c.components[key], component)
+	// 	c.components[key] = component
+	// }
 }
 
 func (c *EventStreamComponent) Body(context.Context) glint.Component {
-	return glint.Layout(c.components...)
+	var keys []string
+	for k := range c.components {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var comps []glint.Component
+	for _, k := range keys {
+		comps = append(comps, c.components[k].component)
+	}
+
+	return glint.Layout(comps...)
 }
 
-func JobEvent(event api.Event) glint.Component {
-	job := event.Payload["Job"].(map[string]interface{})
-	status := job["Status"].(string)
-	var statusComponent *glint.LayoutComponent
+func (e *EventStreamComponent) JobEvent(job *api.Job, eventType, key string) {
+	status := *job.Status
+
+	var existing bool
+	var state *componentState
+	if component, existing := e.components[key]; existing {
+		state = component.state
+	} else {
+		state = &componentState{}
+	}
 
 	switch status {
 	case "pending":
-		statusComponent = glint.Layout(cc.IconRunning(), cc.Subtle("pending")).Row()
+		state.subtleText = "pending"
 	case "running":
-		statusComponent = glint.Layout(cc.IconSuccess(), cc.Success("running")).Row()
+		state.subtleText = "running"
 	case "dead":
-		statusComponent = glint.Layout(cc.IconWarning(), cc.Warning("dead   ")).Row()
+		state.subtleText = "dead"
+	}
+
+	if !existing {
+		layout := glint.Layout(
+			glint.Layout(cc.IconWarning(), cc.Warning(state.subtleText)).Row().MarginRight(1),
+			cc.Text(eventType),
+			cc.Text(fmt.Sprintf(" %s ", *job.Name)).Bold(),
+			cc.Subtle(fmt.Sprintf("(ns: %s, type: %s, priority: %v)", *job.Namespace, *job.Type, *job.Priority)),
+		).Row()
+
+		e.Append(key, layout, state)
+	}
+
+}
+
+func (e *EventStreamComponent) NodeEvent(node *api.Node, eventType, key string) glint.Component {
+	var statusComponent *glint.LayoutComponent
+	switch node.Status {
+	case api.NodeStatusInit:
+		statusComponent = glint.Layout(cc.IconRunning(), cc.Subtle("pending")).Row()
+	case api.NodeStatusReady:
+		statusComponent = glint.Layout(cc.IconSuccess(), cc.Subtle("ready")).Row()
+	case api.NodeStatusDown:
+		statusComponent = glint.Layout(cc.IconWarning(), cc.Subtle("down")).Row()
 	}
 
 	return glint.Layout(
 		statusComponent.MarginRight(1),
-		cc.Text(event.Type),
-		cc.Text(fmt.Sprintf(" %s ", job["Name"])).Bold(),
-		cc.Subtle(fmt.Sprintf("(ns: %s, type: %s, priority: %v)", job["Namespace"], job["Type"], job["Priority"])),
+		cc.Text(eventType),
+		cc.Text(fmt.Sprintf(" %s ", node.ID[0:8])).Bold(),
 	).Row()
 }
