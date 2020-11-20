@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/version"
 	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
+	"github.com/mitchellh/go-glint"
 )
 
 const (
@@ -247,6 +248,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+    "dev": func() (cli.Command, error) {
+      return &DevCommand{
+        Meta: meta,
+        UI: glint.New(), // yolo
+      }, nil
+    },
 		"eval": func() (cli.Command, error) {
 			return &EvalCommand{
 				Meta: meta,
