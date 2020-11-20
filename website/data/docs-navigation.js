@@ -159,6 +159,7 @@ export default [
           'debug',
           'keygen',
           'keyring',
+          'metrics',
           'raft-list-peers',
           'raft-remove-peer',
           'snapshot-agent',
