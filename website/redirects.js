@@ -810,10 +810,16 @@ module.exports = [
     destination: '/docs/operations/telemetry',
     permanent: true,
   },
-
   {
     source: '/docs/telemetry/metrics',
     destination: '/docs/operations/metrics',
+    permanent: true,
+  },
+
+  // Moved installing agent under operations as ope
+  {
+    source: '/docs/install/production/nomad-agent',
+    destination: '/docs/operations/nomad-agent',
     permanent: true,
   },
 

@@ -14,7 +14,6 @@ export default [
         category: 'production',
         content: [
           'requirements',
-          'nomad-agent',
           {
             title: 'Reference Architecture',
             href:
@@ -283,6 +282,7 @@ export default [
   {
     category: 'operations',
     content: [
+      'nomad-agent',
       'telemetry',
       'metrics',
       {
