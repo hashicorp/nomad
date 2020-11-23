@@ -96,3 +96,20 @@ meta {
   organization = "..."
 }
 ```
+
+### Multiline "here doc" strings
+
+Nomad supports multi-line string literals in the so-called "heredoc" style, inspired by Unix shell languages:
+
+```hcl
+template {
+  data = <<EOF
+hello
+  world
+  EOF
+}
+```
+
+HCL2 trims the whitespace preceeding the delimiter in the last line.  So in the
+above example, `data` is read as `"hello\n  world\n  "` in HCL1, but `"hello\n
+world\n"` (note lack of trailing whitespace) in HCL2.
