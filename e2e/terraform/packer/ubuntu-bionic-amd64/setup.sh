@@ -27,6 +27,7 @@ mkdir_for_root /opt
 
 # Dependencies
 sudo apt-get update
+sudo apt-get upgrade -y
 sudo apt-get install -y \
      software-properties-common \
      dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
