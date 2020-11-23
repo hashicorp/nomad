@@ -65,32 +65,92 @@ horizontal application scaling or horizontal cluster scaling.
   Detailed information on the configuration options can be found on the
   [Strategy Plugins][strategy_plugin_docs] page.
 
-### Example
+### Example in a Job
 
 A full example of a policy document that can be written into the Nomad task group
-`scaling` stanza or via a file within the `policy_dir` can be seen below.
+`scaling` stanza can be seen below.
 
 ```hcl
-min     = 2
-max     = 10
-enabled = true
+job "example" {
+  group "app" {
+    scaling {
+      min     = 2
+      max     = 10
+      enabled = true
 
-policy {
-  evaluation_interval = "5s"
-  cooldown            = "1m"
+      policy {
+        evaluation_interval = "5s"
+        cooldown            = "1m"
 
-  target "target" {
-    Job   = "example"
-    Group = "example"
+        check "active_connections" {
+          source = "prometheus"
+          query  = "scalar(open_connections_example_cache)"
+
+          strategy "target_value" {
+            target = 10
+          }
+        }
+      }
+    }
   }
+}
+```
 
-  check "active_connections" {
-    source = "prometheus"
-    query  = "scalar(open_connections_example_cache)"
-    query_window = "5m"
+### Example in a File
 
-    strategy "target_value" {
-      target = 10
+An example of a policy document that can be placed in a file within the
+`policy_dir` can be seen below. Multiple policies can be defined in the same
+file using multiple `stanza` blocks.
+
+```hcl
+scaling "aws_cluster_policy" {
+  enabled = true
+  min     = 1
+  max     = 2
+
+  policy {
+    cooldown            = "2m"
+    evaluation_interval = "1m"
+
+    check "cpu_allocated_percentage" {
+      source = "prometheus"
+      query  = "..."
+
+      strategy "target-value" {
+        target = 70
+      }
+    }
+
+    check "mem_allocated_percentage" {
+      source = "prometheus"
+      query  = "..."
+
+      strategy "target-value" {
+        target = 70
+      }
+    }
+
+    target "aws-asg" {
+      dry-run             = "false"
+      aws_asg_name        = "hashistack-nomad_client"
+      node_class          = "hashistack"
+      node_drain_deadline = "5m"
+    }
+  }
+}
+
+scaling "azure_cluster_policy" {
+  enabled = true
+  min     = 1
+  max     = 2
+
+  policy {
+    ...
+    target "azure-vmss" {
+      resource_group      = "hashistack"
+      vm_scale_set        = "clients"
+      node_class          = "hashistack"
+      node_drain_deadline = "5m"
     }
   }
 }
