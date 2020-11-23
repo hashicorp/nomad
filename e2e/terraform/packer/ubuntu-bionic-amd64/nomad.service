@@ -2,6 +2,7 @@
 Description=Nomad Agent
 Requires=network-online.target
 After=network-online.target
+StartLimitIntervalSec=10
 
 [Service]
 ExecReload=/bin/kill -HUP $MAINPID
@@ -13,9 +14,7 @@ LimitNPROC=infinity
 TasksMax=infinity
 Restart=on-failure
 RestartSec=2
-StartLimitIntervalSec=10
 StartLimitBurst=3
-
 
 [Install]
 WantedBy=multi-user.target
