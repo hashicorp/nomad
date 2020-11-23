@@ -31,6 +31,23 @@ const (
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
 	TopicAll        Topic = "*"
+
+	TypeNodeRegistration         = "NodeRegistration"
+	TypeNodeDeregistration       = "NodeDeregistration"
+	TypeNodeEligibilityUpdate    = "NodeEligibility"
+	TypeNodeDrain                = "NodeDrain"
+	TypeNodeEvent                = "NodeStreamEvent"
+	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
+	TypeDeploymentPromotion      = "DeploymentPromotion"
+	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
+	TypeAllocCreated             = "AllocCreated"
+	TypeAllocUpdated             = "AllocUpdated"
+	TypeAllocUpdateDesiredStatus = "AllocUpdateDesiredStatus"
+	TypeEvalUpdated              = "EvalUpdated"
+	TypeJobRegistered            = "JobRegistered"
+	TypeJobDeregistered          = "JobDeregistered"
+	TypeJobBatchDeregistered     = "JobBatchDeregistered"
+	TypePlanResult               = "PlanResult"
 )
 
 // Event represents a change in Nomads state.
@@ -166,4 +183,30 @@ func (e *EventSink) EqualSubscriptionValues(old *EventSink) bool {
 	return e.Address == old.Address &&
 		e.Type == old.Type &&
 		reflect.DeepEqual(e.Topics, old.Topics)
+}
+
+// JobEvent holds a newly updated Job.
+type JobEvent struct {
+	Job *Job
+}
+
+// EvalEvent holds a newly updated Eval.
+type EvalEvent struct {
+	Eval *Evaluation
+}
+
+// AllocEvent holds a newly updated Allocation. The
+// Allocs embedded Job has been removed to reduce size.
+type AllocEvent struct {
+	Alloc *Allocation
+}
+
+// DeploymentEvent holds a newly updated Deployment.
+type DeploymentEvent struct {
+	Deployment *Deployment
+}
+
+// NodeStreamEvent holds a newly updated Node
+type NodeStreamEvent struct {
+	Node *Node
 }

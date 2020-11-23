@@ -5,80 +5,25 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	TypeNodeRegistration         = "NodeRegistration"
-	TypeNodeDeregistration       = "NodeDeregistration"
-	TypeNodeEligibilityUpdate    = "NodeEligibility"
-	TypeNodeDrain                = "NodeDrain"
-	TypeNodeEvent                = "NodeEvent"
-	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
-	TypeDeploymentPromotion      = "DeploymentPromotion"
-	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
-	TypeAllocCreated             = "AllocCreated"
-	TypeAllocUpdated             = "AllocUpdated"
-	TypeAllocUpdateDesiredStatus = "AllocUpdateDesiredStatus"
-	TypeEvalUpdated              = "EvalUpdated"
-	TypeJobRegistered            = "JobRegistered"
-	TypeJobDeregistered          = "JobDeregistered"
-	TypeJobBatchDeregistered     = "JobBatchDeregistered"
-	TypePlanResult               = "PlanResult"
-)
-
-// JobEvent holds a newly updated Job.
-type JobEvent struct {
-	Job *structs.Job
-}
-
-// EvalEvent holds a newly updated Eval.
-type EvalEvent struct {
-	Eval *structs.Evaluation
-}
-
-// AllocEvent holds a newly updated Allocation. The
-// Allocs embedded Job has been removed to reduce size.
-type AllocEvent struct {
-	Alloc *structs.Allocation
-}
-
-// DeploymentEvent holds a newly updated Deployment.
-type DeploymentEvent struct {
-	Deployment *structs.Deployment
-}
-
-// NodeEvent holds a newly updated Node
-type NodeEvent struct {
-	Node *structs.Node
-}
-
-type NodeDrainAllocDetails struct {
-	ID      string
-	Migrate *structs.MigrateStrategy
-}
-
-type JobDrainDetails struct {
-	Type         string
-	AllocDetails map[string]NodeDrainAllocDetails
-}
-
 var MsgTypeEvents = map[structs.MessageType]string{
-	structs.NodeRegisterRequestType:                 TypeNodeRegistration,
-	structs.NodeDeregisterRequestType:               TypeNodeDeregistration,
-	structs.UpsertNodeEventsType:                    TypeNodeEvent,
-	structs.EvalUpdateRequestType:                   TypeEvalUpdated,
-	structs.AllocClientUpdateRequestType:            TypeAllocUpdated,
-	structs.JobRegisterRequestType:                  TypeJobRegistered,
-	structs.AllocUpdateRequestType:                  TypeAllocUpdated,
-	structs.NodeUpdateStatusRequestType:             TypeNodeEvent,
-	structs.JobDeregisterRequestType:                TypeJobDeregistered,
-	structs.JobBatchDeregisterRequestType:           TypeJobBatchDeregistered,
-	structs.AllocUpdateDesiredTransitionRequestType: TypeAllocUpdateDesiredStatus,
-	structs.NodeUpdateEligibilityRequestType:        TypeNodeDrain,
-	structs.NodeUpdateDrainRequestType:              TypeNodeDrain,
-	structs.BatchNodeUpdateDrainRequestType:         TypeNodeDrain,
-	structs.DeploymentStatusUpdateRequestType:       TypeDeploymentUpdate,
-	structs.DeploymentPromoteRequestType:            TypeDeploymentPromotion,
-	structs.DeploymentAllocHealthRequestType:        TypeDeploymentAllocHealth,
-	structs.ApplyPlanResultsRequestType:             TypePlanResult,
+	structs.NodeRegisterRequestType:                 structs.TypeNodeRegistration,
+	structs.NodeDeregisterRequestType:               structs.TypeNodeDeregistration,
+	structs.UpsertNodeEventsType:                    structs.TypeNodeEvent,
+	structs.EvalUpdateRequestType:                   structs.TypeEvalUpdated,
+	structs.AllocClientUpdateRequestType:            structs.TypeAllocUpdated,
+	structs.JobRegisterRequestType:                  structs.TypeJobRegistered,
+	structs.AllocUpdateRequestType:                  structs.TypeAllocUpdated,
+	structs.NodeUpdateStatusRequestType:             structs.TypeNodeEvent,
+	structs.JobDeregisterRequestType:                structs.TypeJobDeregistered,
+	structs.JobBatchDeregisterRequestType:           structs.TypeJobBatchDeregistered,
+	structs.AllocUpdateDesiredTransitionRequestType: structs.TypeAllocUpdateDesiredStatus,
+	structs.NodeUpdateEligibilityRequestType:        structs.TypeNodeDrain,
+	structs.NodeUpdateDrainRequestType:              structs.TypeNodeDrain,
+	structs.BatchNodeUpdateDrainRequestType:         structs.TypeNodeDrain,
+	structs.DeploymentStatusUpdateRequestType:       structs.TypeDeploymentUpdate,
+	structs.DeploymentPromoteRequestType:            structs.TypeDeploymentPromotion,
+	structs.DeploymentAllocHealthRequestType:        structs.TypeDeploymentAllocHealth,
+	structs.ApplyPlanResultsRequestType:             structs.TypePlanResult,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -106,7 +51,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{
 				Topic: structs.TopicNode,
 				Key:   before.ID,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: before,
 				},
 			}, true
@@ -125,7 +70,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				after.DeploymentID,
 			},
 			Namespace: after.Namespace,
-			Payload: &EvalEvent{
+			Payload: &structs.EvalEvent{
 				Eval: after,
 			},
 		}, true
@@ -146,7 +91,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &AllocEvent{
+			Payload: &structs.AllocEvent{
 				Alloc: alloc,
 			},
 		}, true
@@ -156,7 +101,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Topic:     structs.TopicJob,
 			Key:       after.ID,
 			Namespace: after.Namespace,
-			Payload: &JobEvent{
+			Payload: &structs.JobEvent{
 				Job: after,
 			},
 		}, true
@@ -165,7 +110,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		return structs.Event{
 			Topic: structs.TopicNode,
 			Key:   after.ID,
-			Payload: &NodeEvent{
+			Payload: &structs.NodeStreamEvent{
 				Node: after,
 			},
 		}, true
@@ -176,7 +121,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:        after.ID,
 			Namespace:  after.Namespace,
 			FilterKeys: []string{after.JobID},
-			Payload: &DeploymentEvent{
+			Payload: &structs.DeploymentEvent{
 				Deployment: after,
 			},
 		}, true
