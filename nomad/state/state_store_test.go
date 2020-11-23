@@ -8181,7 +8181,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.EqualValues(t, 0, resetIdx)
 
-	if err := state.BootstrapACLTokens(1000, 0, tk1); err != nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1000, 0, tk1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8194,7 +8194,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	assert.Equal(t, false, ok)
 	assert.EqualValues(t, 1000, resetIdx)
 
-	if err := state.BootstrapACLTokens(1001, 0, tk2); err == nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1001, 0, tk2); err == nil {
 		t.Fatalf("expected error")
 	}
 
@@ -8232,7 +8232,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	}
 
 	// Should allow bootstrap with reset index
-	if err := state.BootstrapACLTokens(1001, 1000, tk2); err != nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1001, 1000, tk2); err != nil {
 		t.Fatalf("err %v", err)
 	}
 

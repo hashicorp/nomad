@@ -77,6 +77,15 @@ type StateStore struct {
 	stopEventBroker func()
 }
 
+type streamACLDelegate struct {
+	s *StateStore
+}
+
+func (a *streamACLDelegate) TokenProvider() stream.ACLTokenProvider {
+	resolver, _ := a.s.Snapshot()
+	return resolver
+}
+
 // NewStateStore is used to create a new state store
 func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	// Create the MemDB
@@ -96,7 +105,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		// Create new event publisher using provided config
-		broker := stream.NewEventBroker(ctx, stream.EventBrokerCfg{
+		broker := stream.NewEventBroker(ctx, &streamACLDelegate{s}, stream.EventBrokerCfg{
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})
@@ -5275,8 +5284,8 @@ func (s *StateStore) CanBootstrapACLToken() (bool, uint64, error) {
 }
 
 // BootstrapACLToken is used to create an initial ACL token
-func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs.ACLToken) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) BootstrapACLTokens(msgType structs.MessageType, index uint64, resetIndex uint64, token *structs.ACLToken) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Check if we have already done a bootstrap

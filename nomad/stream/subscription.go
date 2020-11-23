@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -74,6 +75,7 @@ func (s *Subscription) Next(ctx context.Context) (structs.Events, error) {
 
 	for {
 		next, err := s.currentItem.Next(ctx, s.forceClosed)
+		println("subscription got next item")
 		switch {
 		case err != nil && atomic.LoadUint32(&s.state) == subscriptionStateClosed:
 			return structs.Events{}, ErrSubscriptionClosed
@@ -84,6 +86,10 @@ func (s *Subscription) Next(ctx context.Context) (structs.Events, error) {
 
 		events := filter(s.req, next.Events.Events)
 		if len(events) == 0 {
+			println("filtered all events:")
+			for _, ev := range next.Events.Events {
+				fmt.Printf("%v\n", ev)
+			}
 			continue
 		}
 		return structs.Events{Index: next.Events.Index, Events: events}, nil
@@ -107,13 +113,6 @@ func (s *Subscription) NextNoBlock() ([]structs.Event, error) {
 			continue
 		}
 		return events, nil
-	}
-}
-
-func (s *Subscription) forceClose() {
-	swapped := atomic.CompareAndSwapUint32(&s.state, subscriptionStateOpen, subscriptionStateClosed)
-	if swapped {
-		close(s.forceClosed)
 	}
 }
 

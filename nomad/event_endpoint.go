@@ -216,6 +216,7 @@ func aclCheckForEvents(subReq *stream.SubscribeRequest, aclObj *acl.ACL) error {
 			reqPolicies["node-read"] = required
 		case structs.TopicAll:
 			reqPolicies["management"] = required
+		// TODO handle ACL
 		default:
 			return fmt.Errorf("unknown topic %s", topic)
 		}

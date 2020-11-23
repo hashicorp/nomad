@@ -70,7 +70,7 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 	ns := structs.DefaultNamespace
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
 	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIReadVolume})
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "csi-access", policy)
@@ -372,7 +372,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 
 	ns := structs.DefaultNamespace
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 
 	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
 		mock.PluginPolicy("read")
@@ -455,7 +455,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 	index := uint64(1000)
 	ns := structs.DefaultNamespace
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 
 	policy := mock.NamespacePolicy(ns, "", []string{acl.NamespaceCapabilityCSIMountVolume}) +
 		mock.PluginPolicy("read")
@@ -584,7 +584,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
@@ -665,7 +665,7 @@ func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	defer deleteNodes()
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
@@ -814,7 +814,7 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 	defer deleteNodes()
 
 	state := srv.fsm.State()
-	state.BootstrapACLTokens(1, 0, mock.ACLManagementToken())
+	state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, mock.ACLManagementToken())
 	srv.config.ACLEnabled = true
 	codec := rpcClient(t, srv)
 
