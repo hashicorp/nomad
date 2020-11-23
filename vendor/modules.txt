@@ -191,7 +191,6 @@ github.com/coreos/go-systemd/v22/dbus
 ## explicit
 github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
-## explicit
 github.com/davecgh/go-spew/spew
 # github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba
 github.com/denverdino/aliyungo/common
@@ -295,7 +294,6 @@ github.com/godbus/dbus/v5
 github.com/gogo/protobuf/proto
 # github.com/golang/protobuf v1.4.2 => github.com/golang/protobuf v1.3.4
 ## explicit
-github.com/golang/protobuf/jsonpb
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go
 github.com/golang/protobuf/protoc-gen-go/descriptor

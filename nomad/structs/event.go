@@ -31,6 +31,23 @@ const (
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
 	TopicAll        Topic = "*"
+
+	TypeNodeRegistration         = "NodeRegistration"
+	TypeNodeDeregistration       = "NodeDeregistration"
+	TypeNodeEligibilityUpdate    = "NodeEligibility"
+	TypeNodeDrain                = "NodeDrain"
+	TypeNodeEvent                = "NodeStreamEvent"
+	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
+	TypeDeploymentPromotion      = "DeploymentPromotion"
+	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
+	TypeAllocCreated             = "AllocCreated"
+	TypeAllocUpdated             = "AllocUpdated"
+	TypeAllocUpdateDesiredStatus = "AllocUpdateDesiredStatus"
+	TypeEvalUpdated              = "EvalUpdated"
+	TypeJobRegistered            = "JobRegistered"
+	TypeJobDeregistered          = "JobDeregistered"
+	TypeJobBatchDeregistered     = "JobBatchDeregistered"
+	TypePlanResult               = "PlanResult"
 )
 
 // Event represents a change in Nomads state.
@@ -193,4 +210,3 @@ type DeploymentEvent struct {
 type NodeStreamEvent struct {
 	Node *Node
 }
-
