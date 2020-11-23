@@ -15,7 +15,7 @@ import (
 // circular dependency.
 type StateStore interface {
 	UpsertACLPolicies(msgType structs.MessageType, index uint64, policies []*structs.ACLPolicy) error
-	UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error
+	UpsertACLTokens(msgType structs.MessageType, index uint64, tokens []*structs.ACLToken) error
 }
 
 // NamespacePolicy is a helper for generating the policy hcl for a given
@@ -99,7 +99,7 @@ func CreateToken(t testing.T, state StateStore, index uint64, policies []string)
 	token := ACLToken()
 	token.Policies = policies
 	token.SetHash()
-	assert.Nil(t, state.UpsertACLTokens(index, []*structs.ACLToken{token}))
+	assert.Nil(t, state.UpsertACLTokens(structs.MsgTypeTestSetup, index, []*structs.ACLToken{token}))
 	return token
 }
 

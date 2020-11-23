@@ -2170,7 +2170,7 @@ func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
 	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy})
 	assert.Nil(err)
 
-	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token})
+	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token})
 	assert.Nil(err)
 
 	// Upsert namespace

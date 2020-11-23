@@ -5115,7 +5115,7 @@ func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error
 }
 
 // UpsertACLTokens is used to create or update a set of ACL tokens
-func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error {
+func (s *StateStore) UpsertACLTokens(msgType structs.MessageType, index uint64, tokens []*structs.ACLToken) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 

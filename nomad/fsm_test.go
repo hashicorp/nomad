@@ -2426,7 +2426,7 @@ func TestFSM_DeleteACLTokens(t *testing.T) {
 	fsm := testFSM(t)
 
 	token := mock.ACLToken()
-	err := fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	err := fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 	assert.Nil(t, err)
 
 	req := structs.ACLTokenDeleteRequest{
@@ -2829,7 +2829,7 @@ func TestFSM_SnapshotRestore_ACLTokens(t *testing.T) {
 	state := fsm.State()
 	tk1 := mock.ACLToken()
 	tk2 := mock.ACLToken()
-	state.UpsertACLTokens(1000, []*structs.ACLToken{tk1, tk2})
+	state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2})
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)

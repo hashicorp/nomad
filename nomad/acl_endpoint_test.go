@@ -37,7 +37,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	// Create a token with one the policy
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(1002, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1002, []*structs.ACLToken{token})
 
 	// Lookup the policy
 	get := &structs.ACLPolicySpecificRequest{
@@ -239,7 +239,7 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 
 	// Lookup the policy which is a subset of our tokens
 	get := &structs.ACLPolicySetRequest{
@@ -365,7 +365,7 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 	// Create a token with one of those policies
 	token := mock.ACLToken()
 	token.Policies = []string{p1.Name}
-	s1.fsm.State().UpsertACLTokens(1001, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1001, []*structs.ACLToken{token})
 
 	// Lookup the policies
 	get := &structs.ACLPolicyListRequest{
@@ -622,7 +622,7 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 
 	// Create the register request
 	token := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 
 	// Lookup the token
 	get := &structs.ACLTokenSpecificRequest{
@@ -673,7 +673,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 	// First create an unrelated token
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertACLTokens(100, []*structs.ACLToken{p1})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -681,7 +681,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 	// Upsert the token we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertACLTokens(200, []*structs.ACLToken{p2})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 200, []*structs.ACLToken{p2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -749,7 +749,7 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 	// Create the register request
 	token := mock.ACLToken()
 	token2 := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token, token2})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token, token2})
 
 	// Lookup the token
 	get := &structs.ACLTokenSetRequest{
@@ -792,7 +792,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 	// First create an unrelated token
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertACLTokens(100, []*structs.ACLToken{p1})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -800,7 +800,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 	// Upsert the token we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertACLTokens(200, []*structs.ACLToken{p2})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 200, []*structs.ACLToken{p2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -872,7 +872,7 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 
 	p1.AccessorID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	p2.AccessorID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{p1, p2})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{p1, p2})
 
 	// Lookup the tokens
 	get := &structs.ACLTokenListRequest{
@@ -933,7 +933,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 
 	// Upsert eval triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertACLTokens(3, []*structs.ACLToken{token}); err != nil {
+		if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 3, []*structs.ACLToken{token}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -990,7 +990,7 @@ func TestACLEndpoint_DeleteTokens(t *testing.T) {
 
 	// Create the register request
 	p1 := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{p1})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{p1})
 
 	// Lookup the tokens
 	req := &structs.ACLTokenDeleteRequest{
@@ -1225,7 +1225,7 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 
 	// Create the register request
 	token := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 
 	// Lookup the token
 	get := &structs.ResolveACLTokenRequest{
