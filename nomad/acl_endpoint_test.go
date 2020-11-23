@@ -714,7 +714,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLTokens(300, []string{p2.AccessorID})
+		err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 300, []string{p2.AccessorID})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -833,7 +833,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLTokens(300, []string{p2.AccessorID})
+		err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 300, []string{p2.AccessorID})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -961,7 +961,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 
 	// Eval deletion triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteACLTokens(4, []string{token.AccessorID}); err != nil {
+		if err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 4, []string{token.AccessorID}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})

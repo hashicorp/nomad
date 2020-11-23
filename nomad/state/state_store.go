@@ -5161,8 +5161,8 @@ func (s *StateStore) UpsertACLTokens(msgType structs.MessageType, index uint64, 
 }
 
 // DeleteACLTokens deletes the tokens with the given accessor ids
-func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) DeleteACLTokens(msgType structs.MessageType, index uint64, ids []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Delete the tokens

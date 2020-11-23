@@ -8342,8 +8342,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 	}
 
 	// Delete the token
-	if err := state.DeleteACLTokens(1001,
-		[]string{tk1.AccessorID, tk2.AccessorID}); err != nil {
+	if err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 1001, []string{tk1.AccessorID, tk2.AccessorID}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
