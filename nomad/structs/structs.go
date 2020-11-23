@@ -6973,12 +6973,24 @@ func validateServices(t *Task, tgNetworks Networks) error {
 		}
 	}
 
-	// Get the set of port labels.
+	// Get the set of group port labels.
 	portLabels := make(map[string]struct{})
 	if len(tgNetworks) > 0 {
 		ports := tgNetworks[0].PortLabels()
 		for portLabel := range ports {
 			portLabels[portLabel] = struct{}{}
+		}
+	}
+
+	// COMPAT(0.13)
+	// Append the set of task port labels. (Note that network resources on the
+	// task resources are deprecated, but we must let them continue working; a
+	// warning will be emitted on job submission).
+	if t.Resources != nil {
+		for _, network := range t.Resources.Networks {
+			for portLabel := range network.PortLabels() {
+				portLabels[portLabel] = struct{}{}
+			}
 		}
 	}
 
