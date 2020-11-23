@@ -160,7 +160,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLPolicies(300, []string{p2.Name})
+		err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 300, []string{p2.Name})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -321,7 +321,7 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLPolicies(300, []string{p2.Name})
+		err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 300, []string{p2.Name})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -507,7 +507,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 
 	// Eval deletion triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteACLPolicies(3, []string{policy.Name}); err != nil {
+		if err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 3, []string{policy.Name}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})

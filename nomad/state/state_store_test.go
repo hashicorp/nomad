@@ -8072,8 +8072,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	}
 
 	// Delete the policy
-	if err := state.DeleteACLPolicies(1001,
-		[]string{policy.Name, policy2.Name}); err != nil {
+	if err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 1001, []string{policy.Name, policy2.Name}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

@@ -5056,8 +5056,8 @@ func (s *StateStore) UpsertACLPolicies(msgType structs.MessageType, index uint64
 }
 
 // DeleteACLPolicies deletes the policies with the given names
-func (s *StateStore) DeleteACLPolicies(index uint64, names []string) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) DeleteACLPolicies(msgType structs.MessageType, index uint64, names []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Delete the policy

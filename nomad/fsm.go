@@ -248,7 +248,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.ACLPolicyUpsertRequestType:
 		return n.applyACLPolicyUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLPolicyDeleteRequestType:
-		return n.applyACLPolicyDelete(buf[1:], log.Index)
+		return n.applyACLPolicyDelete(msgType, buf[1:], log.Index)
 	case structs.ACLTokenUpsertRequestType:
 		return n.applyACLTokenUpsert(buf[1:], log.Index)
 	case structs.ACLTokenDeleteRequestType:
@@ -1086,14 +1086,14 @@ func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte,
 }
 
 // applyACLPolicyDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_delete"}, time.Now())
 	var req structs.ACLPolicyDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteACLPolicies(index, req.Names); err != nil {
+	if err := n.state.DeleteACLPolicies(msgType, index, req.Names); err != nil {
 		n.logger.Error("DeleteACLPolicies failed", "error", err)
 		return err
 	}
