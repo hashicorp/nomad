@@ -67,11 +67,11 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   task drivers, see the [Filesystem internals] documentation.
 
 - `env` `(bool: false)` - Specifies the template should be read back in as
-  environment variables for the task. ([See below](#environment-variables))
-  Note that if `noop` mode is used for the `change_mode`, the task will not be
-  restarted and the environment variables wwon't be changed in the task. If
-  you set `env = true`, then the `change_mode` should be one of `restart` or
-  `signal`.
+  environment variables for the task ([see below](#environment-variables)). To
+  update the environment on changes, you must set `change_mode` to
+  `restart`. Setting `env` when the `change_mode` is `signal` will return a
+  validation error. Setting `env` when the `change_mode` is `noop` is
+  permitted but will not update the environment variables in the task.
 
 - `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
   template. The default is "{{" for some templates, it may be easier to use a
