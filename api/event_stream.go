@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -141,6 +142,10 @@ func (e *EventStream) Stream(ctx context.Context, topics map[Topic][]string, ind
 		return nil, err
 	}
 	q = q.WithContext(ctx)
+	if q.Params == nil {
+		q.Params = map[string]string{}
+	}
+	q.Params["index"] = strconv.FormatUint(index, 10)
 	r.setQueryOptions(q)
 
 	// Build topic query params
