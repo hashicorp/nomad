@@ -53,13 +53,13 @@ func vault(path string, key string) (cty.Value, error) {
 
 	data, ok := secret.Data["data"]
 	if !ok {
-		// maybe ths is v1, not v2 kv store
+		// maybe this is v1, not v2 kv store
 		value, ok := secret.Data[key]
 		if ok {
 			return cty.StringVal(value.(string)), nil
 		}
 
-		// neither v1 nor v2 proudced a valid value
+		// neither v1 nor v2 produced a valid value
 		return cty.StringVal(""), fmt.Errorf("Vault data was empty at the given path. Warnings: %s", strings.Join(secret.Warnings, "; "))
 	}
 
