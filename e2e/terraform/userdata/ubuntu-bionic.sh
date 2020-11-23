@@ -14,9 +14,6 @@ nameserver $DOCKER_BRIDGE_IP_ADDRESS
 EOF
 sudo mv /tmp/resolv.conf /etc/resolv.conf
 
-# For host volume testing
-sudo mkdir -p /tmp/data
-
 # need to get the interface for dnsmasq config so that we can
 # accomodate both "predictable" and old-style interface names
 IFACE=$(/usr/local/bin/sockaddr eval 'GetDefaultInterfaces | attr "Name"')

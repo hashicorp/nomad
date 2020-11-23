@@ -24,9 +24,11 @@ sudo mkdir -p /ops/shared
 sudo chown -R ubuntu:ubuntu /ops/shared
 
 mkdir_for_root /opt
+mkdir_for_root /srv/data # for host volumes
 
 # Dependencies
 sudo apt-get update
+sudo apt-get upgrade -y
 sudo apt-get install -y \
      software-properties-common \
      dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
