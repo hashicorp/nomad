@@ -2282,7 +2282,6 @@ func (r *Resources) MeetsMinResources() error {
 	if r.MemoryMB < minResources.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum MemoryMB value is %d; got %d", minResources.MemoryMB, r.MemoryMB))
 	}
-
 	return mErr.ErrorOrNil()
 }
 
@@ -6143,7 +6142,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			}
 		}
 
-		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services); err != nil {
+		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services, tg.Networks); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -6342,6 +6341,11 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 				fmt.Errorf("Update max parallel count is greater than task group count (%d > %d). "+
 					"A destructive change would result in the simultaneous replacement of all allocations.", u.MaxParallel, tg.Count))
 		}
+	}
+
+	// Check for mbits network field
+	if len(tg.Networks) > 0 && tg.Networks[0].MBits > 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("mbits has been deprecated as of Nomad 0.12.0. Please remove mbits from the network block"))
 	}
 
 	for _, t := range tg.Tasks {
@@ -6713,7 +6717,7 @@ func (t *Task) GoString() string {
 }
 
 // Validate is used to sanity check a task
-func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service) error {
+func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service, tgNetworks Networks) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -6776,7 +6780,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	}
 
 	// Validate Services
-	if err := validateServices(t); err != nil {
+	if err := validateServices(t, tgNetworks); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
@@ -6874,7 +6878,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 
 // validateServices takes a task and validates the services within it are valid
 // and reference ports that exist.
-func validateServices(t *Task) error {
+func validateServices(t *Task, tgNetworks Networks) error {
 	var mErr multierror.Error
 
 	// Ensure that services don't ask for nonexistent ports and their names are
@@ -6969,12 +6973,22 @@ func validateServices(t *Task) error {
 		}
 	}
 
-	// Get the set of port labels.
+	// Get the set of group port labels.
 	portLabels := make(map[string]struct{})
+	if len(tgNetworks) > 0 {
+		ports := tgNetworks[0].PortLabels()
+		for portLabel := range ports {
+			portLabels[portLabel] = struct{}{}
+		}
+	}
+
+	// COMPAT(0.13)
+	// Append the set of task port labels. (Note that network resources on the
+	// task resources are deprecated, but we must let them continue working; a
+	// warning will be emitted on job submission).
 	if t.Resources != nil {
 		for _, network := range t.Resources.Networks {
-			ports := network.PortLabels()
-			for portLabel := range ports {
+			for portLabel := range network.PortLabels() {
 				portLabels[portLabel] = struct{}{}
 			}
 		}
@@ -7015,6 +7029,10 @@ func (t *Task) Warnings() error {
 	// Validate the resources
 	if t.Resources != nil && t.Resources.IOPS != 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("IOPS has been deprecated as of Nomad 0.9.0. Please remove IOPS from resource stanza."))
+	}
+
+	if t.Resources != nil && len(t.Resources.Networks) != 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("task network resources have been deprecated as of Nomad 0.12.0. Please configure networking via group network block."))
 	}
 
 	for idx, tmpl := range t.Templates {

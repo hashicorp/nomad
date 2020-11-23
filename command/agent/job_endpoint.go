@@ -1211,7 +1211,7 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			Mode:  nw.Mode,
 			CIDR:  nw.CIDR,
 			IP:    nw.IP,
-			MBits: *nw.MBits,
+			MBits: nw.Megabits(),
 		}
 
 		if nw.DNS != nil {

@@ -599,7 +599,7 @@ func TestTasksUpdated(t *testing.T) {
 	require.True(t, tasksUpdated(j1, j5, name))
 
 	j6 := mock.Job()
-	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []structs.Port{
+	j6.TaskGroups[0].Networks[0].DynamicPorts = []structs.Port{
 		{Label: "http", Value: 0},
 		{Label: "https", Value: 0},
 		{Label: "admin", Value: 0},
@@ -646,16 +646,12 @@ func TestTasksUpdated(t *testing.T) {
 	}
 	require.True(t, tasksUpdated(j11d1, j11d2, name))
 
-	j12 := mock.Job()
-	j12.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 100
-	require.True(t, tasksUpdated(j1, j12, name))
-
 	j13 := mock.Job()
-	j13.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts[0].Label = "foobar"
+	j13.TaskGroups[0].Networks[0].DynamicPorts[0].Label = "foobar"
 	require.True(t, tasksUpdated(j1, j13, name))
 
 	j14 := mock.Job()
-	j14.TaskGroups[0].Tasks[0].Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
+	j14.TaskGroups[0].Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
 	require.True(t, tasksUpdated(j1, j14, name))
 
 	j15 := mock.Job()
@@ -678,12 +674,8 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Change network mode
 	j19 := mock.Job()
-	j19.TaskGroups[0].Networks = j19.TaskGroups[0].Tasks[0].Resources.Networks
-	j19.TaskGroups[0].Tasks[0].Resources.Networks = nil
 
 	j20 := mock.Job()
-	j20.TaskGroups[0].Networks = j20.TaskGroups[0].Tasks[0].Resources.Networks
-	j20.TaskGroups[0].Tasks[0].Resources.Networks = nil
 
 	require.False(t, tasksUpdated(j19, j20, name))
 

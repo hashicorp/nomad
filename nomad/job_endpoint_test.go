@@ -183,6 +183,7 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Networks = structs.Networks{{
 		Mode: "bridge",
 	}}
@@ -453,6 +454,7 @@ func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
 
 	// Setup the job we are going to register
 	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Networks = structs.Networks{{
 		Mode: "bridge",
 		DynamicPorts: []structs.Port{{
@@ -571,6 +573,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 			Mode: "bridge",
 		},
 	}
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Services = []*structs.Service{
 		{
 			Name:      "backend",
@@ -665,11 +668,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	job.TaskGroups[0].Networks = structs.Networks{
-		{
-			Mode: "bridge",
-		},
-	}
+	job.TaskGroups[0].Networks[0].Mode = "bridge"
 	job.TaskGroups[0].Services = []*structs.Service{
 		{
 			Name:      "service1", // matches consul.ExamplePolicyID1
@@ -5809,9 +5808,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
-		tg.Networks = structs.Networks{
-			{Mode: "bridge"},
-		}
+		tg.Networks[0].Mode = "bridge"
 
 		err := validateJob(j)
 		require.NoError(t, err)

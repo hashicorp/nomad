@@ -21,6 +21,12 @@ job "prometheus" {
       size = 300
     }
 
+    network {
+      port "prometheus_ui" {
+        to = 9090
+      }
+    }
+
     task "prometheus" {
       template {
         change_mode = "noop"
@@ -61,16 +67,7 @@ EOH
           "local/prometheus.yml:/etc/prometheus/prometheus.yml",
         ]
 
-        port_map {
-          prometheus_ui = 9090
-        }
-      }
-
-      resources {
-        network {
-          mbits = 10
-          port "prometheus_ui" {}
-        }
+        ports = ["prometheus_ui"]
       }
 
       service {

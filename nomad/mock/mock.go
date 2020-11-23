@@ -77,6 +77,13 @@ func Node() *structs.Node {
 					Mode:   "host",
 					Device: "eth0",
 					Speed:  1000,
+					Addresses: []structs.NodeNetworkAddress{
+						{
+							Alias:   "default",
+							Address: "192.168.0.100",
+							Family:  structs.NodeNetworkAF_IPv4,
+						},
+					},
 				},
 			},
 		},
@@ -209,6 +216,15 @@ func Job() *structs.Job {
 					DelayFunction: "constant",
 				},
 				Migrate: structs.DefaultMigrateStrategy(),
+				Networks: []*structs.NetworkResource{
+					{
+						Mode: "host",
+						DynamicPorts: []structs.Port{
+							{Label: "http"},
+							{Label: "admin"},
+						},
+					},
+				},
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
@@ -244,15 +260,6 @@ func Job() *structs.Job {
 						Resources: &structs.Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*structs.NetworkResource{
-								{
-									MBits: 50,
-									DynamicPorts: []structs.Port{
-										{Label: "http"},
-										{Label: "admin"},
-									},
-								},
-							},
 						},
 						Meta: map[string]string{
 							"foo": "bar",
