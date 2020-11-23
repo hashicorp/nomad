@@ -69,15 +69,17 @@ module('Acceptance | volumes list', function(hooks) {
 
     const volumeRow = VolumesList.volumes.objectAt(0);
 
-    const controllerHealthStr = volume.controllersHealthy > 0 ? 'Healthy' : 'Unhealthy';
+    const controllerHealthStr = volume.controllersHealthy > 0 ?
+      `Healthy (${volume.controllersHealthy}/${volume.controllersExpected})` :
+      volume.controllerRequired ?
+        'Unhealthy (${volume.controllersHealthy}/${volume.controllersExpected})' :
+        'Node Only';
+
     const nodeHealthStr = volume.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(volumeRow.name, volume.id);
     assert.equal(volumeRow.schedulable, volume.schedulable ? 'Schedulable' : 'Unschedulable');
-    assert.equal(
-      volumeRow.controllerHealth,
-      `${controllerHealthStr} (${volume.controllersHealthy}/${volume.controllersExpected})`
-    );
+    assert.equal(volumeRow.controllerHealth, `${controllerHealthStr}`);
     assert.equal(
       volumeRow.nodeHealth,
       `${nodeHealthStr} (${volume.nodesHealthy}/${volume.nodesExpected})`
