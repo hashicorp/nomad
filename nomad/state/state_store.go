@@ -2427,7 +2427,9 @@ func (s *StateStore) CSIVolumeDenormalize(ws memdb.WatchSet, vol *structs.CSIVol
 
 // CSIVolumeDenormalizeTxn populates a CSIVolume with allocations
 func (s *StateStore) CSIVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *structs.CSIVolume) (*structs.CSIVolume, error) {
-
+	if vol == nil {
+		return nil, nil
+	}
 	for id := range vol.ReadAllocs {
 		a, err := s.allocByIDImpl(txn, ws, id)
 		if err != nil {
