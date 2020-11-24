@@ -266,7 +266,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// setting the user of the process
 	if command.User != "" {
 		e.logger.Debug("running command as user", "user", command.User)
-		if err := e.runAs(command.User); err != nil {
+		if err := setCmdUser(&e.childCmd, command.User); err != nil {
 			return nil, err
 		}
 	}
