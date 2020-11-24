@@ -1348,7 +1348,7 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn Txn, job *structs.Jo
 		plug, ok := plugins[x.pluginID]
 
 		if !ok {
-			plug, err = s.CSIPluginByID(ws, x.pluginID)
+			plug, err = s.CSIPluginByIDTxn(txn, nil, x.pluginID)
 			if err != nil {
 				return fmt.Errorf("error getting plugin: %s, %v", x.pluginID, err)
 			}
@@ -2481,27 +2481,41 @@ func (s *StateStore) CSIPluginsByIDPrefix(ws memdb.WatchSet, pluginID string) (m
 	return iter, nil
 }
 
-// CSIPluginByID returns the one named CSIPlugin
+// CSIPluginByID returns a named CSIPlugin. This method creates a new
+// transaction so you should not call it from within another transaction.
 func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPlugin, error) {
 	txn := s.db.ReadTxn()
-	defer txn.Abort()
+	plugin, err := s.CSIPluginByIDTxn(txn, ws, id)
+	if err != nil {
+		return nil, err
+	}
+	return plugin, nil
+}
 
-	raw, err := txn.First("csi_plugins", "id_prefix", id)
+// CSIPluginByIDTxn returns a named CSIPlugin
+func (s *StateStore) CSIPluginByIDTxn(txn Txn, ws memdb.WatchSet, id string) (*structs.CSIPlugin, error) {
+
+	watchCh, obj, err := txn.FirstWatch("csi_plugins", "id_prefix", id)
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugin lookup failed: %s %v", id, err)
 	}
-
-	if raw == nil {
-		return nil, nil
+	if ws != nil {
+		ws.Add(watchCh)
 	}
 
-	plug := raw.(*structs.CSIPlugin)
-
-	return plug, nil
+	if obj != nil {
+		return obj.(*structs.CSIPlugin), nil
+	}
+	return nil, nil
 }
 
 // CSIPluginDenormalize returns a CSIPlugin with allocation details. Always called on a copy of the plugin.
 func (s *StateStore) CSIPluginDenormalize(ws memdb.WatchSet, plug *structs.CSIPlugin) (*structs.CSIPlugin, error) {
+	txn := s.db.ReadTxn()
+	return s.CSIPluginDenormalizeTxn(txn, ws, plug)
+}
+
+func (s *StateStore) CSIPluginDenormalizeTxn(txn Txn, ws memdb.WatchSet, plug *structs.CSIPlugin) (*structs.CSIPlugin, error) {
 	if plug == nil {
 		return nil, nil
 	}
@@ -2516,7 +2530,7 @@ func (s *StateStore) CSIPluginDenormalize(ws memdb.WatchSet, plug *structs.CSIPl
 	}
 
 	for id := range ids {
-		alloc, err := s.AllocByID(ws, id)
+		alloc, err := s.allocByIDImpl(txn, ws, id)
 		if err != nil {
 			return nil, err
 		}
@@ -2560,9 +2574,8 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 func (s *StateStore) DeleteCSIPlugin(index uint64, id string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
-	ws := memdb.NewWatchSet()
 
-	plug, err := s.CSIPluginByID(ws, id)
+	plug, err := s.CSIPluginByIDTxn(txn, nil, id)
 	if err != nil {
 		return err
 	}
@@ -2571,7 +2584,7 @@ func (s *StateStore) DeleteCSIPlugin(index uint64, id string) error {
 		return nil
 	}
 
-	plug, err = s.CSIPluginDenormalize(ws, plug.Copy())
+	plug, err = s.CSIPluginDenormalizeTxn(txn, nil, plug.Copy())
 	if err != nil {
 		return err
 	}
@@ -3314,18 +3327,25 @@ func (s *StateStore) nestedUpdateAllocDesiredTransition(
 // AllocByID is used to lookup an allocation by its ID
 func (s *StateStore) AllocByID(ws memdb.WatchSet, id string) (*structs.Allocation, error) {
 	txn := s.db.ReadTxn()
+	return s.allocByIDImpl(txn, ws, id)
+}
 
-	watchCh, existing, err := txn.FirstWatch("allocs", "id", id)
+// allocByIDImpl retrives an allocation and is called under and existing
+// transaction. An optional watch set can be passed to add allocations to the
+// watch set
+func (s *StateStore) allocByIDImpl(txn Txn, ws memdb.WatchSet, id string) (*structs.Allocation, error) {
+	watchCh, raw, err := txn.FirstWatch("allocs", "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
-
-	ws.Add(watchCh)
-
-	if existing != nil {
-		return existing.(*structs.Allocation), nil
+	if ws != nil {
+		ws.Add(watchCh)
 	}
-	return nil, nil
+	if raw == nil {
+		return nil, nil
+	}
+	alloc := raw.(*structs.Allocation)
+	return alloc, nil
 }
 
 // AllocsByIDPrefix is used to lookup allocs by prefix
@@ -4620,7 +4640,6 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 
 // updateJobCSIPlugins runs on job update, and indexes the job in the plugin
 func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, txn *txn) error {
-	ws := memdb.NewWatchSet()
 	plugIns := make(map[string]*structs.CSIPlugin)
 
 	loop := func(job *structs.Job, delete bool) error {
@@ -4632,7 +4651,7 @@ func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, t
 
 				plugIn, ok := plugIns[t.CSIPluginConfig.ID]
 				if !ok {
-					p, err := s.CSIPluginByID(ws, t.CSIPluginConfig.ID)
+					p, err := s.CSIPluginByIDTxn(txn, nil, t.CSIPluginConfig.ID)
 					if err != nil {
 						return err
 					}
@@ -4916,12 +4935,11 @@ func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocati
 		return nil
 	}
 
-	ws := memdb.NewWatchSet()
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	for _, t := range tg.Tasks {
 		if t.CSIPluginConfig != nil {
 			pluginID := t.CSIPluginConfig.ID
-			plug, err := s.CSIPluginByID(ws, pluginID)
+			plug, err := s.CSIPluginByIDTxn(txn, nil, pluginID)
 			if err != nil {
 				return err
 			}
@@ -4950,7 +4968,6 @@ func (s *StateStore) updatePluginWithAlloc(index uint64, alloc *structs.Allocati
 func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.JobSummary, alloc *structs.Allocation,
 	txn *txn) error {
 
-	ws := memdb.NewWatchSet()
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		return nil
@@ -4959,7 +4976,7 @@ func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.J
 	for _, t := range tg.Tasks {
 		if t.CSIPluginConfig != nil {
 			pluginID := t.CSIPluginConfig.ID
-			plug, err := s.CSIPluginByID(ws, pluginID)
+			plug, err := s.CSIPluginByIDTxn(txn, nil, pluginID)
 			if err != nil {
 				return err
 			}
