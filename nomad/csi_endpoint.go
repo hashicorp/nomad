@@ -224,9 +224,8 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 
 func (v *CSIVolume) pluginValidateVolume(req *structs.CSIVolumeRegisterRequest, vol *structs.CSIVolume) (*structs.CSIPlugin, error) {
 	state := v.srv.fsm.State()
-	ws := memdb.NewWatchSet()
 
-	plugin, err := state.CSIPluginByID(ws, vol.PluginID)
+	plugin, err := state.CSIPluginByID(nil, vol.PluginID)
 	if err != nil {
 		return nil, err
 	}
@@ -491,9 +490,7 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 
 func (v *CSIVolume) volAndPluginLookup(namespace, volID string) (*structs.CSIPlugin, *structs.CSIVolume, error) {
 	state := v.srv.fsm.State()
-	ws := memdb.NewWatchSet()
-
-	vol, err := state.CSIVolumeByID(ws, namespace, volID)
+	vol, err := state.CSIVolumeByID(nil, namespace, volID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -507,7 +504,7 @@ func (v *CSIVolume) volAndPluginLookup(namespace, volID string) (*structs.CSIPlu
 	// note: we do this same lookup in CSIVolumeByID but then throw
 	// away the pointer to the plugin rather than attaching it to
 	// the volume so we have to do it again here.
-	plug, err := state.CSIPluginByID(ws, vol.PluginID)
+	plug, err := state.CSIPluginByID(nil, vol.PluginID)
 	if err != nil {
 		return nil, nil, err
 	}
