@@ -2122,7 +2122,9 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 	}
-	ws.Add(watchCh)
+	if ws != nil {
+		ws.Add(watchCh)
+	}
 
 	if obj == nil {
 		return nil, nil
@@ -2208,6 +2210,7 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 		}
 		iter.Add(raw)
 	}
+	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
@@ -2229,7 +2232,6 @@ func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) 
 func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *structs.CSIVolumeClaim) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
-	ws := memdb.NewWatchSet()
 
 	row, err := txn.First("csi_volumes", "id", namespace, id)
 	if err != nil {
@@ -2246,7 +2248,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 
 	var alloc *structs.Allocation
 	if claim.State == structs.CSIVolumeClaimStateTaken {
-		alloc, err = s.AllocByID(ws, claim.AllocationID)
+		alloc, err = s.allocByIDImpl(txn, nil, claim.AllocationID)
 		if err != nil {
 			s.logger.Error("AllocByID failed", "error", err)
 			return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
