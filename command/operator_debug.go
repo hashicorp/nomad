@@ -822,7 +822,6 @@ func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
 	// Ensure parent directories exist
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
-		// Display error immediately -- may not see this if files aren't written
 		c.Ui.Error(fmt.Sprintf("failed to create parent directories of \"%s\": %s", dirPath, err.Error()))
 		return err
 	}
@@ -830,14 +829,17 @@ func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
 	// Create the file
 	fh, err := os.Create(filePath)
 	if err != nil {
-		// Display error immediately -- may not see this if files aren't written
 		c.Ui.Error(fmt.Sprintf("failed to create file \"%s\": %s", filePath, err.Error()))
 		return err
 	}
 	defer fh.Close()
 
 	_, err = fh.Write(data)
-	return err
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to write data to file \"%s\", err: %v", filePath, err.Error()))
+		return err
+	}
+	return nil
 }
 
 // writeJSON writes JSON responses from the Nomad API calls to the archive
