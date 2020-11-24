@@ -579,6 +579,16 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 		host, err = client.Agent().Host("", id, nil)
 	}
 
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s/%s: Failed to retrieve agent host data, err: %v", path, id, err))
+
+		if strings.Contains(err.Error(), structs.ErrPermissionDenied.Error()) {
+			// Drop a hint to help the operator resolve the error
+			c.Ui.Warn(fmt.Sprintf("Agent host retrieval requires agent:read ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#host for more information."))
+		}
+		return // exit on any error
+	}
+
 	path = filepath.Join(path, id)
 	c.mkdir(path)
 
@@ -614,51 +624,50 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	}
 
 	bs, err := client.Agent().CPUProfile(opts, nil)
-	if err == nil {
-		c.writeBytes(path, "profile.prof", bs)
-	} else {
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
+
+		if strings.Contains(err.Error(), structs.ErrPermissionDenied.Error()) {
+			// All Profiles require the same permissions, so we only need to see
+			// one permission failure before we bail.
+			// But lets first drop a hint to help the operator resolve the error
+
+			c.Ui.Warn(fmt.Sprintf("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information."))
+			return // only exit on 403
+		}
 	}
+	c.writeBytes(path, "profile.prof", bs)
 
 	bs, err = client.Agent().Trace(opts, nil)
-	if err == nil {
-		c.writeBytes(path, "trace.prof", bs)
-	} else {
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
 	}
+	c.writeBytes(path, "trace.prof", bs)
 
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err == nil {
-		c.writeBytes(path, "goroutine.prof", bs)
-	} else {
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
 	}
+	c.writeBytes(path, "goroutine.prof", bs)
 
 	// Gather goroutine text output - debug type 1
 	// debug type 1 writes the legacy text format for human readable output
 	opts.Debug = 1
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err == nil {
-		c.writeBytes(path, "goroutine-debug1.txt", bs)
-	} else {
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
 	}
+	c.writeBytes(path, "goroutine-debug1.txt", bs)
 
 	// Gather goroutine text output - debug type 2
 	// When printing the "goroutine" profile, debug=2 means to print the goroutine
 	// stacks in the same form that a Go program uses when dying due to an unrecovered panic.
 	opts.Debug = 2
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err == nil {
-		c.writeBytes(path, "goroutine-debug2.txt", bs)
-	} else {
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
 	}
-
-	// Only need to cover this once, but lets drop a helpful hint for 403 permission denied
-	if err != nil && strings.Contains(err.Error(), "403 (Permission denied)") {
-		c.Ui.Error(fmt.Sprintf("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information."))
-	}
+	c.writeBytes(path, "goroutine-debug2.txt", bs)
 }
 
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
@@ -733,8 +742,16 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	ps, _, err := client.CSIPlugins().List(qo)
 	c.writeJSON(dir, "plugins.json", ps, err)
 
-	vs, _, err := client.CSIVolumes().List(qo)
-	c.writeJSON(dir, "volumes.json", vs, err)
+	// Loop over each plugin - /v1/plugin/csi/:plugin_id
+	for _, p := range ps {
+		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, qo)
+		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s", p.ID)
+		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
+	}
+
+	// CSI Volumes - /v1/volumes?type=csi
+	csiVolumes, _, err := client.CSIVolumes().List(qo)
+	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
 
 	if metricBytes, err := client.Operator().Metrics(qo); err != nil {
 		c.writeError(dir, "metrics.json", err)
