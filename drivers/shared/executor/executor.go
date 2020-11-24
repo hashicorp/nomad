@@ -408,6 +408,12 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return nil
 		},
 		processStart: func() error {
+			if u := e.commandCfg.User; u != "" {
+				if err := setCmdUser(cmd, u); err != nil {
+					return err
+				}
+			}
+
 			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
 		},
 		processWait: func() (*os.ProcessState, error) {
