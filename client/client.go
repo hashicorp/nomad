@@ -91,7 +91,7 @@ const (
 
 	// allocSyncIntv is the batching period of allocation updates before they
 	// are synced with the server.
-	allocSyncIntv = 200 * time.Millisecond
+	allocSyncIntv = time.Second
 
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
