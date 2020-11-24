@@ -208,6 +208,11 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 	})
 }
 
+func ExecTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) (exitCode int, stdout, stderr string) {
+	r := execTask(t, driver, taskID, cmd, tty, stdin)
+	return r.exitCode, r.stdout, r.stderr
+}
+
 func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) execResult {
 	stream := newTestExecStream(t, tty, stdin)
 
