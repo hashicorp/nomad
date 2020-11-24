@@ -72,7 +72,7 @@ type StateStore struct {
 	// abandoned (usually during a restore). This is only ever closed.
 	abandonCh chan struct{}
 
-	// TODO: refactor abondonCh to use a context so that both can use the same
+	// TODO: refactor abandonCh to use a context so that both can use the same
 	// cancel mechanism.
 	stopEventBroker func()
 }
@@ -1272,7 +1272,7 @@ func deleteNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
 }
 
 // updateOrGCPlugin updates a plugin but will delete it if the plugin is empty
-func updateOrGCPlugin(index uint64, txn *txn, plug *structs.CSIPlugin) error {
+func updateOrGCPlugin(index uint64, txn Txn, plug *structs.CSIPlugin) error {
 	plug.ModifyIndex = index
 
 	if plug.IsEmpty() {
@@ -1291,7 +1291,7 @@ func updateOrGCPlugin(index uint64, txn *txn, plug *structs.CSIPlugin) error {
 
 // deleteJobFromPlugins removes the allocations of this job from any plugins the job is
 // running, possibly deleting the plugin if it's no longer in use. It's called in DeleteJobTxn
-func (s *StateStore) deleteJobFromPlugins(index uint64, txn *txn, job *structs.Job) error {
+func (s *StateStore) deleteJobFromPlugins(index uint64, txn Txn, job *structs.Job) error {
 	ws := memdb.NewWatchSet()
 	summary, err := s.JobSummaryByID(ws, job.Namespace, job.ID)
 	if err != nil {
@@ -2096,7 +2096,8 @@ func (s *StateStore) CSIVolumeRegister(index uint64, volumes []*structs.CSIVolum
 	return txn.Commit()
 }
 
-// CSIVolumes returns the unfiltered list of all volumes
+// CSIVolumes returns the unfiltered list of all volumes. Caller should
+// snapshot if it wants to also denormalize the plugins.
 func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 	defer txn.Abort()
@@ -2111,8 +2112,9 @@ func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 	return iter, nil
 }
 
-// CSIVolumeByID is used to lookup a single volume. Returns a copy of the volume
-// because its plugins are denormalized to provide accurate Health.
+// CSIVolumeByID is used to lookup a single volume. Returns a copy of the
+// volume because its plugins and allocations are denormalized to provide
+// accurate Health.
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
 	txn := s.db.ReadTxn()
 
@@ -2126,11 +2128,14 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 		return nil, nil
 	}
 
+	// we return the volume with the plugins denormalized by default,
+	// because the scheduler needs them for feasibility checking
 	vol := obj.(*structs.CSIVolume)
 	return s.CSIVolumeDenormalizePlugins(ws, vol.Copy())
 }
 
-// CSIVolumes looks up csi_volumes by pluginID
+// CSIVolumes looks up csi_volumes by pluginID. Caller should snapshot if it
+// wants to also denormalize the plugins.
 func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
@@ -2152,7 +2157,8 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, pluginID
 	return wrap, nil
 }
 
-// CSIVolumesByIDPrefix supports search
+// CSIVolumesByIDPrefix supports search. Caller should snapshot if it wants to
+// also denormalize the plugins.
 func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
@@ -2165,7 +2171,8 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	return iter, nil
 }
 
-// CSIVolumesByNodeID looks up CSIVolumes in use on a node
+// CSIVolumesByNodeID looks up CSIVolumes in use on a node. Caller should
+// snapshot if it wants to also denormalize the plugins.
 func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
 	allocs, err := s.AllocsByNode(ws, nodeID)
 	if err != nil {
