@@ -122,8 +122,28 @@ The `exec` driver will set the following client attributes:
 The resource isolation provided varies by the operating system of
 the client and the configuration.
 
-On Linux, Nomad will use cgroups, and a chroot to isolate the
-resources of a process and as such the Nomad agent must be run as root.
+On Linux, Nomad will use cgroups, and a chroot to isolate the resources of a
+process and as such the Nomad agent must be run as root. Some Linux
+distributions do not boot with all required cgroups enabled by default. You
+can see which cgroups are enabled by reading `/proc/cgroups`, and verifying
+that all the following cgroups are enabled:
+
+```
+$ awk '{print $1 " " $4}' /proc/cgroups
+#subsys_name enabled
+cpuset 1
+cpu 1
+cpuacct 1
+blkio 1
+memory 1
+devices 1
+freezer 1
+net_cls 1
+perf_event 1
+net_prio 1
+hugetlb 1
+pids 1
+```
 
 ### Chroot
 
