@@ -183,12 +183,14 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
+	secretID := "some-secret-id"
 	cases := []struct {
 		policyBeforeRules string
 		policyAfterRules  string
 		topics            map[structs.Topic][]string
 		desc              string
 		event             structs.Event
+		policyEvent       structs.Event
 		shouldUnsubscribe bool
 		initialSubErr     bool
 	}{
@@ -203,6 +205,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				Payload: structs.DeploymentEvent{
 					Deployment: &structs.Deployment{
 						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
 					},
 				},
 			},
@@ -221,6 +232,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 					},
 				},
 			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
+					},
+				},
+			},
 		},
 		{
 			desc:              "subscribed to allocs and removed access",
@@ -233,6 +253,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				Payload: structs.AllocEvent{
 					Alloc: &structs.Allocation{
 						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
 					},
 				},
 			},
@@ -251,6 +280,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 					},
 				},
 			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
+					},
+				},
+			},
 		},
 		{
 			desc:              "subscribed to deployments and no access change",
@@ -263,6 +301,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				Payload: structs.DeploymentEvent{
 					Deployment: &structs.Deployment{
 						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
 					},
 				},
 			},
@@ -281,6 +328,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 					},
 				},
 			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
+					},
+				},
+			},
 		},
 		{
 			desc:              "subscribed to allocs and no access change",
@@ -293,6 +349,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				Payload: structs.AllocEvent{
 					Alloc: &structs.Allocation{
 						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
 					},
 				},
 			},
@@ -311,6 +376,15 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 					},
 				},
 			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
+					},
+				},
+			},
 		},
 		{
 			desc:              "initial token insufficient privileges",
@@ -325,12 +399,92 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 					},
 				},
 			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLToken,
+				Type:  structs.TypeACLTokenUpserted,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: &structs.ACLToken{
+						SecretID: secretID,
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to nodes and policy change no change",
+			policyBeforeRules: mock.NodePolicy(acl.PolicyRead),
+			policyAfterRules:  mock.NodePolicy(acl.PolicyWrite),
+			shouldUnsubscribe: false,
+			event: structs.Event{
+				Topic: structs.TopicNode,
+				Type:  structs.TypeNodeRegistration,
+				Payload: structs.NodeStreamEvent{
+					Node: &structs.Node{
+						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLPolicy,
+				Type:  structs.TypeACLPolicyUpserted,
+				Payload: structs.ACLPolicyEvent{
+					ACLPolicy: &structs.ACLPolicy{
+						Name: "some-policy",
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to nodes and policy change no access",
+			policyBeforeRules: mock.NodePolicy(acl.PolicyRead),
+			policyAfterRules:  mock.NodePolicy(acl.PolicyDeny),
+			shouldUnsubscribe: true,
+			event: structs.Event{
+				Topic: structs.TopicNode,
+				Type:  structs.TypeNodeRegistration,
+				Payload: structs.NodeStreamEvent{
+					Node: &structs.Node{
+						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLPolicy,
+				Type:  structs.TypeACLPolicyUpserted,
+				Payload: structs.ACLPolicyEvent{
+					ACLPolicy: &structs.ACLPolicy{
+						Name: "some-policy",
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to nodes policy deleted",
+			policyBeforeRules: mock.NodePolicy(acl.PolicyRead),
+			policyAfterRules:  "",
+			shouldUnsubscribe: true,
+			event: structs.Event{
+				Topic: structs.TopicNode,
+				Type:  structs.TypeNodeRegistration,
+				Payload: structs.NodeStreamEvent{
+					Node: &structs.Node{
+						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic: structs.TopicACLPolicy,
+				Type:  structs.TypeACLPolicyDeleted,
+				Payload: structs.ACLPolicyEvent{
+					ACLPolicy: &structs.ACLPolicy{
+						Name: "some-policy",
+					},
+				},
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			secretID := "some-secret-id"
 
 			policy := &structs.ACLPolicy{
 				Name:  "some-policy",
@@ -385,18 +539,8 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 
 			tokenProvider.policy = policyAfter
 
-			aclEvent := structs.Event{
-				Topic: structs.TopicACLToken,
-				Type:  structs.TypeACLTokenUpserted,
-				Payload: structs.ACLTokenEvent{
-					ACLToken: &structs.ACLToken{
-						SecretID: secretID,
-					},
-				},
-			}
-
 			// Publish ACL event triggering subscription re-evaluation
-			publisher.Publish(&structs.Events{Index: 101, Events: []structs.Event{aclEvent}})
+			publisher.Publish(&structs.Events{Index: 101, Events: []structs.Event{tc.policyEvent}})
 			// Publish another event
 			publisher.Publish(&structs.Events{Index: 102, Events: []structs.Event{tc.event}})
 

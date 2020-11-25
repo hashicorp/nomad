@@ -26,6 +26,8 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ApplyPlanResultsRequestType:             structs.TypePlanResult,
 	structs.ACLTokenDeleteRequestType:               structs.TypeACLTokenDeleted,
 	structs.ACLTokenUpsertRequestType:               structs.TypeACLTokenUpserted,
+	structs.ACLPolicyDeleteRequestType:              structs.TypeACLPolicyDeleted,
+	structs.ACLPolicyUpsertRequestType:              structs.TypeACLPolicyUpserted,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -57,6 +59,14 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 					ACLToken: before,
 				},
 			}, true
+		case *structs.ACLPolicy:
+			return structs.Event{
+				Topic: structs.TopicACLPolicy,
+				Key:   before.Name,
+				Payload: structs.ACLPolicyEvent{
+					ACLPolicy: before,
+				},
+			}, true
 		case *structs.Node:
 			return structs.Event{
 				Topic: structs.TopicNode,
@@ -71,6 +81,22 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 	}
 
 	switch after := change.After.(type) {
+	case *structs.ACLToken:
+		return structs.Event{
+			Topic: structs.TopicACLToken,
+			Key:   after.AccessorID,
+			Payload: &structs.ACLTokenEvent{
+				ACLToken: after,
+			},
+		}, true
+	case *structs.ACLPolicy:
+		return structs.Event{
+			Topic: structs.TopicACLPolicy,
+			Key:   after.Name,
+			Payload: &structs.ACLPolicyEvent{
+				ACLPolicy: after,
+			},
+		}, true
 	case *structs.Evaluation:
 		return structs.Event{
 			Topic: structs.TopicEval,
@@ -84,7 +110,6 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Eval: after,
 			},
 		}, true
-
 	case *structs.Allocation:
 		alloc := after.Copy()
 
@@ -105,7 +130,6 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Alloc: alloc,
 			},
 		}, true
-
 	case *structs.Job:
 		return structs.Event{
 			Topic:     structs.TopicJob,
@@ -115,7 +139,6 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Job: after,
 			},
 		}, true
-
 	case *structs.Node:
 		return structs.Event{
 			Topic: structs.TopicNode,
@@ -124,7 +147,6 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Node: after,
 			},
 		}, true
-
 	case *structs.Deployment:
 		return structs.Event{
 			Topic:      structs.TopicDeployment,

@@ -199,7 +199,7 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 				}
 
 				if e.aclDelegate == nil {
-					// nothing more to do
+					// Nothing more to do
 					continue
 				}
 
@@ -210,37 +210,39 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 					continue
 				}
 
-				e.mu.Lock()
-				defer e.mu.Unlock()
+				e.subscriptions.closeSubscriptionFunc(tokenSecretID, func(sub *Subscription) bool {
+					return !aclAllowsSubscription(aclObj, sub.req)
+				})
 
-				if subs, ok := e.subscriptions.byToken[tokenSecretID]; ok {
-					for _, sub := range subs {
-						// should this sub even be stored if it's invalid?
-						// TODO sentinel value of topics should be *:*
-						if len(sub.req.Topics) == 0 {
-							continue
-						}
-
-						if allowed := aclAllowsSubscription(aclObj, sub.req); !allowed {
-							sub.forceClose()
-						}
-					}
-				}
-
-				// if err := e.ACLValidForReq()
-				// Token was updated
-				// policy was removed, unsub
-				// policy was added or not removed, ignore
-				// check acl permissions against each subscriptions subribe request
 			case structs.ACLPolicyEvent:
-				// given a set of tokens that are subscribed to stream,
-				// are any of their policies this policy
-				// if the policy was deleted, does it affect the subscribe
-
-				// re-run the subscribe rules
+				// Re-evaluate each subscriptions permissions since a policy
+				// change may or may not affect the subscription
+				e.checkSubscriptionsAgainstPolicyChange()
 			}
-			// logic
 		}
+	}
+}
+
+func (e *EventBroker) checkSubscriptionsAgainstPolicyChange() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.aclDelegate == nil {
+		// Nothing to do
+		return
+	}
+
+	for tokenSecretID := range e.subscriptions.byToken {
+		aclObj, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, tokenSecretID)
+		if err != nil || aclObj == nil {
+			e.logger.Error("failed resolving ACL for secretID, closing subscriptions", "error", err)
+			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
+			continue
+		}
+
+		e.subscriptions.closeSubscriptionFunc(tokenSecretID, func(sub *Subscription) bool {
+			return !aclAllowsSubscription(aclObj, sub.req)
+		})
 	}
 }
 
@@ -254,6 +256,11 @@ func aclObjFromSnapshotForTokenSecretID(aclSnapshot ACLTokenProvider, aclCache *
 		return nil, errors.New("no token for secret ID")
 	}
 
+	// Check if this is a management token
+	if aclToken.Type == structs.ACLManagementToken {
+		return acl.ManagementACL, nil
+	}
+
 	aclPolicies := make([]*structs.ACLPolicy, 0, len(aclToken.Policies))
 	for _, policyName := range aclToken.Policies {
 		policy, err := aclSnapshot.ACLPolicyByName(nil, policyName)
@@ -264,11 +271,6 @@ func aclObjFromSnapshotForTokenSecretID(aclSnapshot ACLTokenProvider, aclCache *
 	}
 
 	return structs.CompileACLObject(aclCache, aclPolicies)
-}
-
-type thingy struct {
-	snapshot ACLTokenProvider
-	secretID string
 }
 
 type ACLTokenProvider interface {
@@ -302,29 +304,6 @@ func aclAllowsSubscription(aclObj *acl.ACL, subReq *SubscribeRequest) bool {
 	}
 
 	return true
-}
-
-func aclForTokenSecretID(thingy thingy, aclCache *lru.TwoQueueCache) (*acl.ACL, error) {
-	aclToken, err := thingy.snapshot.ACLTokenBySecretID(nil, thingy.secretID)
-	if err != nil {
-		return nil, err
-	}
-	if aclToken == nil {
-		return nil, structs.ErrTokenNotFound
-	}
-
-	policies := make([]*structs.ACLPolicy, 0, len(aclToken.Policies))
-	for _, policyName := range aclToken.Policies {
-		policy, err := thingy.snapshot.ACLPolicyByName(nil, policyName)
-		if err != nil {
-			return nil, err
-		}
-		if policy == nil {
-			continue
-		}
-		policies = append(policies, policy)
-	}
-	return structs.CompileACLObject(aclCache, policies)
 }
 
 func (s *Subscription) forceClose() {
@@ -367,6 +346,17 @@ func (s *subscriptions) closeSubscriptionsForTokens(tokenSecretIDs []string) {
 			for _, sub := range subs {
 				sub.forceClose()
 			}
+		}
+	}
+}
+
+func (s *subscriptions) closeSubscriptionFunc(tokenSecretID string, fn func(*Subscription) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, sub := range s.byToken[tokenSecretID] {
+		if fn(sub) {
+			sub.forceClose()
 		}
 	}
 }

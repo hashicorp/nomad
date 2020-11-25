@@ -43,6 +43,8 @@ const (
 	TypePlanResult               = "PlanResult"
 	TypeACLTokenDeleted          = "ACLTokenDeleted"
 	TypeACLTokenUpserted         = "ACLTokenUpserted"
+	TypeACLPolicyDeleted         = "ACLPolicyDeleted"
+	TypeACLPolicyUpserted        = "ACLPolicyUpserted"
 )
 
 // Event represents a change in Nomads state.
