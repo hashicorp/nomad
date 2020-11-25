@@ -25,6 +25,9 @@ const (
 
 	// demoConnectNativeJob is the example connect native enabled job useful for testing
 	demoConnectNativeJob = "connect/input/native-demo.nomad"
+
+	// demoConnectIngressGateway is the example ingress gateway job useful for testing
+	demoConnectIngressGateway = "connect/input/ingress-gateway.nomad"
 )
 
 type ConnectACLsE2ETest struct {
@@ -312,7 +315,37 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectNativeDemo(f *framework.F) {
 	r.Equal(1, foundSITokens["frontend"], "expected 1 SI token for frontend: %v", foundSITokens)
 	r.Equal(1, foundSITokens["generate"], "expected 1 SI token for generate: %v", foundSITokens)
 
-	t.Log("connect native job with ACLs enable finished")
+	t.Log("connect native job with ACLs enabled finished")
+}
+
+func (tc *ConnectACLsE2ETest) TestConnectACLsConnectIngressGatewayDemo(f *framework.F) {
+	t := f.T()
+	r := require.New(t)
+
+	t.Log("test register Connect Ingress Gateway job w/ ACLs enabled")
+
+	// setup ACL policy and mint operator token
+
+	policyID := tc.createConsulPolicy(consulPolicy{
+		Name:  "nomad-operator-policy",
+		Rules: `service "my-ingress-service" { policy = "write" } service "uuid-api" { policy = "write" }`,
+	}, f)
+	operatorToken := tc.createOperatorToken(policyID, f)
+	t.Log("created operator token:", operatorToken)
+
+	jobID := connectJobID()
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectIngressGateway, jobID, operatorToken)
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+
+	foundSITokens := tc.countSITokens(t)
+	r.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
+	r.Equal(1, foundSITokens["connect-ingress-my-ingress-service"], "expected 1 SI token for connect-ingress-my-ingress-service: %v", foundSITokens)
+	r.Equal(1, foundSITokens["generate"], "expected 1 SI token for generate: %v", foundSITokens)
+
+	t.Log("connect ingress gateway job with ACLs enabled finished")
 }
 
 var (
