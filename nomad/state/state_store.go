@@ -1826,22 +1826,20 @@ func (s *StateStore) JobsByIDPrefix(ws memdb.WatchSet, namespace, id string) (me
 func (s *StateStore) JobVersionsByID(ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
 	txn := s.db.ReadTxn()
 
-	return s.jobVersionByID(txn, &ws, namespace, id)
+	return s.jobVersionByID(txn, ws, namespace, id)
 }
 
 // jobVersionByID is the underlying implementation for retrieving all tracked
 // versions of a job and is called under an existing transaction. A watch set
 // can optionally be passed in to add the job histories to the watch set.
-func (s *StateStore) jobVersionByID(txn *txn, ws *memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
+func (s *StateStore) jobVersionByID(txn *txn, ws memdb.WatchSet, namespace, id string) ([]*structs.Job, error) {
 	// Get all the historic jobs for this ID
 	iter, err := txn.Get("job_version", "id_prefix", namespace, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if ws != nil {
-		ws.Add(iter.WatchCh())
-	}
+	ws.Add(iter.WatchCh())
 
 	var all []*structs.Job
 	for {
@@ -1884,9 +1882,7 @@ func (s *StateStore) jobByIDAndVersionImpl(ws memdb.WatchSet, namespace, id stri
 		return nil, err
 	}
 
-	if ws != nil {
-		ws.Add(watchCh)
-	}
+	ws.Add(watchCh)
 
 	if existing != nil {
 		job := existing.(*structs.Job)
@@ -2122,9 +2118,8 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 	}
-	if ws != nil {
-		ws.Add(watchCh)
-	}
+
+	ws.Add(watchCh)
 
 	if obj == nil {
 		return nil, nil
@@ -2170,6 +2165,7 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 	}
 
 	ws.Add(iter.WatchCh())
+
 	return iter, nil
 }
 
@@ -2210,6 +2206,7 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 		}
 		iter.Add(raw)
 	}
+
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
@@ -2223,6 +2220,7 @@ func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) 
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
+
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
@@ -2519,9 +2517,8 @@ func (s *StateStore) CSIPluginByIDTxn(txn Txn, ws memdb.WatchSet, id string) (*s
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugin lookup failed: %s %v", id, err)
 	}
-	if ws != nil {
-		ws.Add(watchCh)
-	}
+
+	ws.Add(watchCh)
 
 	if obj != nil {
 		return obj.(*structs.CSIPlugin), nil
@@ -3358,9 +3355,9 @@ func (s *StateStore) allocByIDImpl(txn Txn, ws memdb.WatchSet, id string) (*stru
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
-	if ws != nil {
-		ws.Add(watchCh)
-	}
+
+	ws.Add(watchCh)
+
 	if raw == nil {
 		return nil, nil
 	}
