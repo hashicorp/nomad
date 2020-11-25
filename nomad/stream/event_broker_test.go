@@ -178,26 +178,6 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	policy := &structs.ACLPolicy{
-		Name:  "some-policy",
-		Rules: mock.NodePolicy(acl.PolicyRead),
-	}
-	policy.SetHash()
-
-	tokenProvider := &fakeACLTokenProvider{
-		policy: policy,
-		token: &structs.ACLToken{
-			SecretID: "some-secret-id",
-			Policies: []string{"some-policy"},
-		},
-	}
-
-	aclDelegate := &fakeACLDelegate{
-		tokenProvider: tokenProvider,
-	}
-
-	publisher := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
-
 	cases := []struct {
 		policyBeforeRules string
 		policyAfterRules  string
@@ -206,51 +186,51 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 		event             structs.Event
 		shouldUnsubscribe bool
 	}{
-		// {
-		// 	desc:              "subscribed to deployments and removed access",
-		// 	policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
-		// 	shouldUnsubscribe: true,
-		// 	event: structs.Event{
-		// 		Topic: structs.TopicDeployment,
-		// 		Type:  structs.TypeDeploymentUpdate,
-		// 		Payload: structs.DeploymentEvent{
-		// 			Deployment: &structs.Deployment{
-		// 				ID: "some-id",
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc:              "subscribed to evals and removed access",
-		// 	policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
-		// 	shouldUnsubscribe: true,
-		// 	event: structs.Event{
-		// 		Topic: structs.TopicEval,
-		// 		Type:  structs.TypeEvalUpdated,
-		// 		Payload: structs.EvalEvent{
-		// 			Eval: &structs.Evaluation{
-		// 				ID: "some-id",
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc:              "subscribed to allocs and removed access",
-		// 	policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
-		// 	shouldUnsubscribe: true,
-		// 	event: structs.Event{
-		// 		Topic: structs.TopicAlloc,
-		// 		Type:  structs.TypeAllocUpdated,
-		// 		Payload: structs.AllocEvent{
-		// 			Alloc: &structs.Allocation{
-		// 				ID: "some-id",
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			desc:              "subscribed to deployments and removed access",
+			policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
+			shouldUnsubscribe: true,
+			event: structs.Event{
+				Topic: structs.TopicDeployment,
+				Type:  structs.TypeDeploymentUpdate,
+				Payload: structs.DeploymentEvent{
+					Deployment: &structs.Deployment{
+						ID: "some-id",
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to evals and removed access",
+			policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
+			shouldUnsubscribe: true,
+			event: structs.Event{
+				Topic: structs.TopicEval,
+				Type:  structs.TypeEvalUpdated,
+				Payload: structs.EvalEvent{
+					Eval: &structs.Evaluation{
+						ID: "some-id",
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to allocs and removed access",
+			policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
+			shouldUnsubscribe: true,
+			event: structs.Event{
+				Topic: structs.TopicAlloc,
+				Type:  structs.TypeAllocUpdated,
+				Payload: structs.AllocEvent{
+					Alloc: &structs.Allocation{
+						ID: "some-id",
+					},
+				},
+			},
+		},
 		{
 			desc:              "subscribed to nodes and removed access",
 			policyBeforeRules: mock.NodePolicy(acl.PolicyRead),
@@ -266,75 +246,97 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	desc:              "subscribed to deployments and no access change",
-		// 	policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	shouldUnsubscribe: false,
-		// 	event: structs.Event{
-		// 		Topic: structs.TopicDeployment,
-		// 		Type:  structs.TypeDeploymentUpdate,
-		// 		Payload: structs.DeploymentEvent{
-		// 			Deployment: &structs.Deployment{
-		// 				ID: "some-id",
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc:              "subscribed to evals and no access change",
-		// 	policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	shouldUnsubscribe: false,
-		// 	event: structs.Event{
-		// 		Topic: structs.TopicEval,
-		// 		Type:  structs.TypeEvalUpdated,
-		// 		Payload: structs.EvalEvent{
-		// 			Eval: &structs.Evaluation{
-		// 				ID: "some-id",
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc:              "subscribed to allocs and no access change",
-		// 	policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
-		// 	shouldUnsubscribe: false,
-		// 	event: structs.Event{
-		// 		Topic: structs.TopicAlloc,
-		// 		Type:  structs.TypeAllocUpdated,
-		// 		Payload: structs.AllocEvent{
-		// 			Alloc: &structs.Allocation{
-		// 				ID: "some-id",
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc:              "subscribed to nodes and no access change",
-		// 	policyBeforeRules: mock.NodePolicy(acl.PolicyRead),
-		// 	policyAfterRules:  mock.NodePolicy(acl.PolicyRead),
-		// 	shouldUnsubscribe: false,
-		// 	event: structs.Event{
-		// 		Topic: structs.TopicNode,
-		// 		Type:  structs.TypeNodeRegistration,
-		// 		Payload: structs.NodeStreamEvent{
-		// 			Node: &structs.Node{
-		// 				ID: "some-id",
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			desc:              "subscribed to deployments and no access change",
+			policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			shouldUnsubscribe: false,
+			event: structs.Event{
+				Topic: structs.TopicDeployment,
+				Type:  structs.TypeDeploymentUpdate,
+				Payload: structs.DeploymentEvent{
+					Deployment: &structs.Deployment{
+						ID: "some-id",
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to evals and no access change",
+			policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			shouldUnsubscribe: false,
+			event: structs.Event{
+				Topic: structs.TopicEval,
+				Type:  structs.TypeEvalUpdated,
+				Payload: structs.EvalEvent{
+					Eval: &structs.Evaluation{
+						ID: "some-id",
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to allocs and no access change",
+			policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			shouldUnsubscribe: false,
+			event: structs.Event{
+				Topic: structs.TopicAlloc,
+				Type:  structs.TypeAllocUpdated,
+				Payload: structs.AllocEvent{
+					Alloc: &structs.Allocation{
+						ID: "some-id",
+					},
+				},
+			},
+		},
+		{
+			desc:              "subscribed to nodes and no access change",
+			policyBeforeRules: mock.NodePolicy(acl.PolicyRead),
+			policyAfterRules:  mock.NodePolicy(acl.PolicyRead),
+			shouldUnsubscribe: false,
+			event: structs.Event{
+				Topic: structs.TopicNode,
+				Type:  structs.TypeNodeRegistration,
+				Payload: structs.NodeStreamEvent{
+					Node: &structs.Node{
+						ID: "some-id",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			secretID := "some-secret-id"
+
+			policy := &structs.ACLPolicy{
+				Name:  "some-policy",
+				Rules: tc.policyBeforeRules,
+			}
+			policy.SetHash()
+
+			tokenProvider := &fakeACLTokenProvider{
+				policy: policy,
+				token: &structs.ACLToken{
+					SecretID: secretID,
+					Policies: []string{policy.Name},
+				},
+			}
+
+			aclDelegate := &fakeACLDelegate{
+				tokenProvider: tokenProvider,
+			}
+
+			publisher := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
+
 			sub1, err := publisher.Subscribe(&SubscribeRequest{
 				Topics: map[structs.Topic][]string{
 					tc.event.Topic: {"*"},
 				},
-				Token: "some-secret-id",
+				Token: secretID,
 			})
 			require.NoError(t, err)
 			publisher.Publish(&structs.Events{Index: 100, Events: []structs.Event{tc.event}})
@@ -344,28 +346,42 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			_, err = sub1.Next(ctx)
 			require.NoError(t, err)
 
+			// Update the mock provider to use the after rules
+			tokenProvider.policy.Rules = tc.policyAfterRules
+
 			aclEvent := structs.Event{
 				Topic: structs.TopicACLToken,
 				Type:  structs.TypeACLTokenUpserted,
 				Payload: structs.ACLTokenEvent{
 					ACLToken: &structs.ACLToken{
-						SecretID: "some-secret-id",
+						SecretID: secretID,
 					},
 				},
 			}
 
+			// Publish ACL event triggering subscription re-evaluation
 			publisher.Publish(&structs.Events{Index: 101, Events: []structs.Event{aclEvent}})
+			// Publish another event
+			publisher.Publish(&structs.Events{Index: 102, Events: []structs.Event{tc.event}})
 
+			// If we are expecting to unsubscribe consume the subscription
+			// until the expected error occurs.
 			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
 			defer cancel()
-			_, err = sub1.Next(ctx)
 			if tc.shouldUnsubscribe {
-				require.Equal(t, ErrSubscriptionClosed, err)
+				for {
+					_, err = sub1.Next(ctx)
+					if err != nil {
+						require.Equal(t, ErrSubscriptionClosed, err)
+						break
+					}
+				}
 			} else {
+				_, err = sub1.Next(ctx)
 				require.NoError(t, err)
 			}
 
-			publisher.Publish(&structs.Events{Index: 102, Events: []structs.Event{tc.event}})
+			publisher.Publish(&structs.Events{Index: 103, Events: []structs.Event{tc.event}})
 
 			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
 			defer cancel()

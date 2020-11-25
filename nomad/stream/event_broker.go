@@ -152,7 +152,6 @@ func (e *EventBroker) handleUpdates(ctx context.Context) {
 			e.subscriptions.closeAll()
 			return
 		case update := <-e.publishCh:
-			println("appending event to eventbuf")
 			e.eventBuf.Append(update)
 		}
 	}
