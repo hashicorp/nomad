@@ -61,7 +61,8 @@ Usage: nomad operator debug [options]
   If ACLs are enabled, this command will require a token with the 'node:read'
   capability to run. In order to collect information, the token will also
   require the 'agent:read' and 'operator:read' capabilities, as well as the
-  'list-jobs' capability for all namespaces.
+  'list-jobs' capability for all namespaces. To collect pprof profiles the
+  token will also require 'agent:write', or enable_debug configuration set to true.
 
 General Options:
 
