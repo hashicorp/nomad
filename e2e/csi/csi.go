@@ -42,7 +42,7 @@ func init() {
 
 const ns = ""
 
-var pluginWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 24} // 2min
+var pluginWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36} // 3min
 var reapWait = &e2e.WaitConfig{Interval: 5 * time.Second, Retries: 36}   // 3min
 
 func (tc *CSIVolumesTest) BeforeAll(f *framework.F) {
