@@ -45,8 +45,17 @@
               </td>
               <td data-test-volume-schedulable>{{if row.model.schedulable "Schedulable" "Unschedulable"}}</td>
               <td data-test-volume-controller-health>
-                {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
-                ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
+                {{#if row.model.controllerRequired}}
+                  {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                  ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
+                {{else}}
+                  {{#if (gt row.model.controllersExpected 0)}}
+                    {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                    ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
+                  {{else}}
+                    <em class="is-faded">Node Only</em>
+                  {{/if}}
+                {{/if}}
               </td>
               <td data-test-volume-node-health>
                 {{if (gt row.model.nodesHealthy 0) "Healthy" "Unhealthy"}}
