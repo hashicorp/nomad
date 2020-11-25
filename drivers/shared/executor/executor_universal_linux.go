@@ -3,6 +3,7 @@ package executor
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"strconv"
 	"syscall"
@@ -16,9 +17,9 @@ import (
 	"github.com/opencontainers/runc/libcontainer/specconv"
 )
 
-// runAs takes a user id as a string and looks up the user, and sets the command
+// setCmdUser takes a user id as a string and looks up the user, and sets the command
 // to execute as that user.
-func (e *UniversalExecutor) runAs(userid string) error {
+func setCmdUser(cmd *exec.Cmd, userid string) error {
 	u, err := user.Lookup(userid)
 	if err != nil {
 		return fmt.Errorf("Failed to identify user %v: %v", userid, err)
@@ -51,17 +52,15 @@ func (e *UniversalExecutor) runAs(userid string) error {
 	}
 
 	// Set the command to run as that user and group.
-	if e.childCmd.SysProcAttr == nil {
-		e.childCmd.SysProcAttr = &syscall.SysProcAttr{}
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	if e.childCmd.SysProcAttr.Credential == nil {
-		e.childCmd.SysProcAttr.Credential = &syscall.Credential{}
+	if cmd.SysProcAttr.Credential == nil {
+		cmd.SysProcAttr.Credential = &syscall.Credential{}
 	}
-	e.childCmd.SysProcAttr.Credential.Uid = uint32(uid)
-	e.childCmd.SysProcAttr.Credential.Gid = uint32(gid)
-	e.childCmd.SysProcAttr.Credential.Groups = gids
-
-	e.logger.Debug("setting process user", "user", uid, "group", gid, "additional_groups", gids)
+	cmd.SysProcAttr.Credential.Uid = uint32(uid)
+	cmd.SysProcAttr.Credential.Gid = uint32(gid)
+	cmd.SysProcAttr.Credential.Groups = gids
 
 	return nil
 }
