@@ -29,6 +29,7 @@ IMPROVEMENTS:
  * consul: Support advertising CNI and multi-host network addresses to consul [[GH-8801](https://github.com/hashicorp/nomad/issues/8801)]
  * consul: Support Consul namespace (Consul Enterprise) in client configuration. [[GH-8849](https://github.com/hashicorp/nomad/pull/8849)]
  * consul/connect: Dynamically select envoy sidecar at runtime [[GH-8945](https://github.com/hashicorp/nomad/pull/8945)]
+ * csi: Support `nomad volume detach` with previously garbage-collected nodes. [[GH-9057](https://github.com/hashicorp/nomad/issues/9057)]
  * csi: Relaxed validation requirements when checking volume capabilities with controller plugins, to accommodate existing plugin behaviors. [[GH-9049](https://github.com/hashicorp/nomad/issues/9049)]
  * driver/docker: Upgrade pause container and detect architecture [[GH-8957](https://github.com/hashicorp/nomad/pull/8957)]
  * driver/docker: Support pinning tasks to specific CPUs with `cpuset_cpus` option. [[GH-8291](https://github.com/hashicorp/nomad/pull/8291)]
@@ -61,9 +62,15 @@ BUG FIXES:
  * consul: Fixed a bug that caused connect sidecars to be re-registered in Consul every 30 seconds [[GH-9330](https://github.com/hashicorp/nomad/pull/9330)]
  * consul/connect: Fixed a bug to correctly trigger updates on jobspec changes [[GH-9029](https://github.com/hashicorp/nomad/pull/9029)]
  * csi: Fixed a bug where multi-writer volumes were allowed only 1 write claim. [[GH-9040](https://github.com/hashicorp/nomad/issues/9040)]
+ * csi: Fixed a bug where garbage collection of plugins could prevent volume claim release. [[GH-9141](https://github.com/hashicorp/nomad/issues/9141)]
+ * csi: Fixed a bug where concurrent updates to volumes could result in inconsistent state. [[GH-9239](https://github.com/hashicorp/nomad/issues/9239)]
  * csi: Fixed a bug where `nomad volume detach` would not accept prefixes for the node ID parameter. [[GH-9041](https://github.com/hashicorp/nomad/issues/9041)]
+ * csi: Fixed a bug where `nomad alloc status -verbose` would display an error when querying volumes. [[GH-9354](https://github.com/hashicorp/nomad/issues/9354)]
+ * csi: Fixed a bug where queries for CSI plugins could be interleaved, resulting in inconsistent counts of plugins. [[GH-9438](https://github.com/hashicorp/nomad/issues/9438)]
  * driver/docker: Fixed a bug where the default `image_delay` configuration was ignored if the `gc` configuration was not set. [[GH-9101](https://github.com/hashicorp/nomad/issues/9101)]
  * driver/raw_exec: Fixed a bug where raw_exec attempts to create a freezer cgroups for the tasks even when `no_cgroups` is set. [[GH-9328](https://github.com/hashicorp/nomad/issues/9328)]
+ * ui: Fixed a bug in the volume status page where read allocations and write allocations were not displayed. [[GH-9377](https://github.com/hashicorp/nomad/issues/9377)]
+ * ui: Fixed a bug in the CSI volume and plugin status pages where plugins that don't require controllers were shown as unhealthy. [[GH-9416](https://github.com/hashicorp/nomad/issues/9416)]
 
 ## 0.12.9 (November 18, 2020)
 
