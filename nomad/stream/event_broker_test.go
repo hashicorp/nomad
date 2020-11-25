@@ -185,6 +185,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 		desc              string
 		event             structs.Event
 		shouldUnsubscribe bool
+		initialSubErr     bool
 	}{
 		{
 			desc:              "subscribed to deployments and removed access",
@@ -306,6 +307,20 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc:              "initial token insufficient privileges",
+			initialSubErr:     true,
+			policyBeforeRules: mock.NodePolicy(acl.PolicyDeny),
+			event: structs.Event{
+				Topic: structs.TopicNode,
+				Type:  structs.TypeNodeRegistration,
+				Payload: structs.NodeStreamEvent{
+					Node: &structs.Node{
+						ID: "some-id",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -332,18 +347,26 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 
 			publisher := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
 
-			sub1, err := publisher.Subscribe(&SubscribeRequest{
+			sub, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
 				Topics: map[structs.Topic][]string{
 					tc.event.Topic: {"*"},
 				},
-				Token: secretID,
+				Namespace: structs.DefaultNamespace,
+				Token:     secretID,
 			})
-			require.NoError(t, err)
+
+			if tc.initialSubErr {
+				require.Error(t, err)
+				require.Nil(t, sub)
+				return
+			} else {
+				require.NoError(t, err)
+			}
 			publisher.Publish(&structs.Events{Index: 100, Events: []structs.Event{tc.event}})
 
 			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
 			defer cancel()
-			_, err = sub1.Next(ctx)
+			_, err = sub.Next(ctx)
 			require.NoError(t, err)
 
 			// Update the mock provider to use the after rules
@@ -370,14 +393,14 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			defer cancel()
 			if tc.shouldUnsubscribe {
 				for {
-					_, err = sub1.Next(ctx)
+					_, err = sub.Next(ctx)
 					if err != nil {
 						require.Equal(t, ErrSubscriptionClosed, err)
 						break
 					}
 				}
 			} else {
-				_, err = sub1.Next(ctx)
+				_, err = sub.Next(ctx)
 				require.NoError(t, err)
 			}
 
@@ -385,7 +408,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 
 			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
 			defer cancel()
-			_, err = sub1.Next(ctx)
+			_, err = sub.Next(ctx)
 			if tc.shouldUnsubscribe {
 				require.Equal(t, ErrSubscriptionClosed, err)
 			} else {

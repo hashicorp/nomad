@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
@@ -17,7 +16,8 @@ import (
 )
 
 const (
-	DefaultTTL = 1 * time.Hour
+	ACLCheckNodeRead   = "node-read"
+	ACLCheckManagement = "management"
 )
 
 type EventBrokerCfg struct {
@@ -89,7 +89,8 @@ func (e *EventBroker) Publish(events *structs.Events) {
 		return
 	}
 
-	// ACL check subscriptions
+	// Notify the broker to check running subscriptions against potentially
+	// updated ACL Token or Policy
 	for _, event := range events.Events {
 		if event.Topic == structs.TopicACLToken || event.Topic == structs.TopicACLPolicy {
 			e.aclCh <- &event
@@ -97,6 +98,15 @@ func (e *EventBroker) Publish(events *structs.Events) {
 	}
 
 	e.publishCh <- events
+}
+
+// SubscribeWithACLCheck validates the SubscribeRequest's token and requested Topics
+// to ensure that the tokens privileges are sufficent enough.
+func (e *EventBroker) SubscribeWithACLCheck(req *SubscribeRequest) (*Subscription, error) {
+	if ok := e.aclForSubscriptionValid(req, req.Token); !ok {
+		return nil, ErrACLInvalid
+	}
+	return e.Subscribe(req)
 }
 
 // Subscribe returns a new Subscription for a given request. A Subscription
@@ -209,46 +219,53 @@ func (e *EventBroker) closeInvalidSubscriptions(aclTokenProvider ACLTokenProvide
 	if subs, ok := e.subscriptions.byToken[secretID]; ok {
 		for _, sub := range subs {
 			// should this sub even be stored if it's invalid?
+			// TODO sentinel value of topics should be *:*
 			if len(sub.req.Topics) == 0 {
-				// return fmt.Errorf("invalid topic request")
 				continue
 			}
 
-			policies := make(map[string]struct{})
-			var required = struct{}{}
-
-			for topic := range sub.req.Topics {
-				switch topic {
-				case structs.TopicDeployment,
-					structs.TopicEval,
-					structs.TopicAlloc,
-					structs.TopicJob:
-					policies[acl.NamespaceCapabilityReadJob] = required
-				case structs.TopicNode:
-					policies["node-read"] = required
-				case structs.TopicAll:
-					policies["management"] = required
-					// TODO handle ACL
-				default:
-					// return fmt.Errorf("unknown topic %s", topic)
-					continue
-				}
-			}
-
-			aclObj, err := aclForTokenSecretID(aclTokenProvider, secretID)
-			if err != nil || aclObj == nil {
-				e.logger.Error("failed resolving ACL for secretID", "error", err)
-				sub.forceClose()
-				continue
-			}
-
-			// run the check
-			if allowed := aclAllowsReq(policies, sub.req.Namespace, aclObj); !allowed {
+			if ok := e.aclForSubscriptionValid(sub.req, secretID); !ok {
+				e.logger.Debug("closing subscription for secretID which is no longer valid")
 				sub.forceClose()
 			}
 		}
 	}
+}
 
+func (e *EventBroker) aclForSubscriptionValid(subReq *SubscribeRequest, secretID string) bool {
+	tokenProvider := e.aclDelegate.TokenProvider()
+	policies := make(map[string]struct{})
+	var required = struct{}{}
+
+	for topic := range subReq.Topics {
+		switch topic {
+		case structs.TopicDeployment,
+			structs.TopicEval,
+			structs.TopicAlloc,
+			structs.TopicJob:
+			policies[acl.NamespaceCapabilityReadJob] = required
+		case structs.TopicNode:
+			policies[ACLCheckNodeRead] = required
+		case structs.TopicAll:
+			policies[ACLCheckManagement] = required
+		default:
+			// If the requested topic is unknown require management to be extra
+			// cautious
+			policies[ACLCheckManagement] = required
+		}
+	}
+
+	aclObj, err := aclForTokenSecretID(tokenProvider, secretID)
+	if err != nil || aclObj == nil {
+		e.logger.Error("failed resolving ACL for secretID", "error", err)
+		return false
+	}
+
+	// run the check
+	if allowed := aclAllowsReq(policies, subReq.Namespace, aclObj); !allowed {
+		return false
+	}
+	return true
 }
 
 func aclForTokenSecretID(aclTokenProvider ACLTokenProvider, secretID string) (*acl.ACL, error) {
