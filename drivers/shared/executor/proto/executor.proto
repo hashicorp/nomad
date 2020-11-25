@@ -14,7 +14,17 @@ service Executor {
     rpc Stats(StatsRequest) returns (stream StatsResponse) {}
     rpc Signal(SignalRequest) returns (SignalResponse) {}
     rpc Exec(ExecRequest) returns (ExecResponse) {}
-    rpc ExecStreaming(stream hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest) returns (stream hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse) {}
+
+    // buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
+    rpc ExecStreaming(
+      stream
+      // buf:lint:ignore RPC_REQUEST_STANDARD_NAME
+      hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest)
+    returns (
+      stream
+      // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+      hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse
+    ) {}
 }
 
 message LaunchRequest {

@@ -335,9 +335,11 @@ func (m *NomadConfig) GetDriver() *NomadDriverConfig {
 type NomadDriverConfig struct {
 	// ClientMaxPort is the upper range of the ports that the client uses for
 	// communicating with plugin subsystems over loopback
+	// buf:lint:ignore FIELD_LOWER_SNAKE_CASE
 	ClientMaxPort uint32 `protobuf:"varint,1,opt,name=ClientMaxPort,proto3" json:"ClientMaxPort,omitempty"`
 	// ClientMinPort is the lower range of the ports that the client uses for
 	// communicating with plugin subsystems over loopback
+	// buf:lint:ignore FIELD_LOWER_SNAKE_CASE
 	ClientMinPort        uint32   `protobuf:"varint,2,opt,name=ClientMinPort,proto3" json:"ClientMinPort,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

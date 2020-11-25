@@ -60,7 +60,9 @@ service Driver {
 
     // TaskEvents starts a streaming RPC where all task events emitted by the
     // driver are streamed to the caller.
-    rpc TaskEvents(TaskEventsRequest) returns (stream DriverTaskEvent) {}
+    rpc TaskEvents(TaskEventsRequest) returns (stream
+      // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+      DriverTaskEvent) {}
 
     // The following RPCs are only implemented if the driver sets the
     // corresponding capability.
@@ -73,6 +75,7 @@ service Driver {
 
     // ExecTaskStreaming executes a command inside the tasks execution context
     // and streams back results
+    // buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
     rpc ExecTaskStreaming(stream ExecTaskStreamingRequest) returns (stream ExecTaskStreamingResponse) {}
 
     // CreateNetwork is implemented when the driver needs to create the network
@@ -371,6 +374,7 @@ message DriverCapabilities {
     bool must_create_network = 5;
 
     enum MountConfigs {
+        // buf:lint:ignore ENUM_NO_ALLOW_ALIAS
         option allow_alias = true;
         UNKNOWN_MOUNTS = 0; // treated as ANY_MOUNTS for backwards compatibility
         ANY_MOUNTS = 0;
@@ -525,6 +529,7 @@ message LinuxResources {
     // CpusetMems constrains the allowed set of memory nodes. Default: "" (not specified)
     string cpuset_mems = 7;
     // PercentTicks is a compatibility option for docker and should not be used
+    // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
     double PercentTicks = 8;
 }
 

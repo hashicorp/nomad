@@ -918,6 +918,7 @@ type ExecutorClient interface {
 	Stats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (Executor_StatsClient, error)
 	Signal(ctx context.Context, in *SignalRequest, opts ...grpc.CallOption) (*SignalResponse, error)
 	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecResponse, error)
+	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
 	ExecStreaming(ctx context.Context, opts ...grpc.CallOption) (Executor_ExecStreamingClient, error)
 }
 
@@ -1065,6 +1066,7 @@ type ExecutorServer interface {
 	Stats(*StatsRequest, Executor_StatsServer) error
 	Signal(context.Context, *SignalRequest) (*SignalResponse, error)
 	Exec(context.Context, *ExecRequest) (*ExecResponse, error)
+	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
 	ExecStreaming(Executor_ExecStreamingServer) error
 }
 

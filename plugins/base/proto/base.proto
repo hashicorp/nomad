@@ -76,12 +76,14 @@ message NomadConfig {
 // driver plugins
 message NomadDriverConfig {
     // ClientMaxPort is the upper range of the ports that the client uses for
-	// communicating with plugin subsystems over loopback
-	uint32 ClientMaxPort = 1;
+    // communicating with plugin subsystems over loopback
+    // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
+    uint32 ClientMaxPort = 1;
 
-	// ClientMinPort is the lower range of the ports that the client uses for
-	// communicating with plugin subsystems over loopback
-	uint32 ClientMinPort = 2;
+    // ClientMinPort is the lower range of the ports that the client uses for
+    // communicating with plugin subsystems over loopback
+    // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
+    uint32 ClientMinPort = 2;
 }
 
 // SetConfigResponse is used to respond to setting the configuration
