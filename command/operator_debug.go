@@ -21,6 +21,8 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
@@ -446,10 +448,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	// Version contains cluster meta information
 	dir := "version"
-	err := c.mkdir(dir)
-	if err != nil {
-		return err
-	}
 
 	self, err := client.Agent().Self()
 	c.writeJSON(dir, "agent-self.json", self, err)
@@ -505,7 +503,15 @@ func (c *OperatorDebugCommand) path(paths ...string) string {
 
 // mkdir creates directories in the tmp root directory
 func (c *OperatorDebugCommand) mkdir(paths ...string) error {
-	return os.MkdirAll(c.path(paths...), 0755)
+	joinedPath := c.path(paths...)
+
+	// Ensure path doesn't escape the sandbox of the capture directory
+	escapes := helper.PathEscapesSandbox(c.collectDir, joinedPath)
+	if escapes {
+		return fmt.Errorf("file path escapes capture directory")
+	}
+
+	return os.MkdirAll(joinedPath, 0755)
 }
 
 // startMonitors starts go routines for each node and client
@@ -589,8 +595,6 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 	}
 
 	path = filepath.Join(path, id)
-	c.mkdir(path)
-
 	c.writeJSON(path, "agent-host.json", host, err)
 }
 
@@ -616,10 +620,6 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	}
 
 	path = filepath.Join(path, id)
-	err := c.mkdir(path)
-	if err != nil {
-		return
-	}
 
 	bs, err := client.Agent().CPUProfile(opts, nil)
 	if err != nil {
@@ -690,7 +690,7 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 			c.collectNomad(dir, client)
 			c.collectOperator(dir, client)
 			interval = time.After(c.interval)
-			intervalCount += 1
+			intervalCount++
 
 		case <-c.ctx.Done():
 			return
@@ -715,11 +715,6 @@ func (c *OperatorDebugCommand) collectOperator(dir string, client *api.Client) {
 
 // collectNomad captures the nomad cluster state
 func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) error {
-	err := c.mkdir(dir)
-	if err != nil {
-		return err
-	}
-
 	var qo *api.QueryOptions
 
 	js, _, err := client.Jobs().List(qo)
@@ -752,7 +747,7 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	csiVolumes, _, err := client.CSIVolumes().List(qo)
 	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
 
-	// Loop over each volume - /v1/volumes/csi/:volume-id
+	// CSI Volume details - /v1/volumes/csi/:volume-id
 	for _, v := range csiVolumes {
 		csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
 		csiFileName := fmt.Sprintf("csi-volume-id-%s.json", v.ID)
@@ -824,6 +819,12 @@ func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("failed to create parent directories of \"%s\": %s", dirPath, err.Error()))
 		return err
+	}
+
+	// Ensure filename doesn't escape the sandbox of the capture directory
+	escapes := helper.PathEscapesSandbox(c.collectDir, filePath)
+	if escapes {
+		return fmt.Errorf("file path escapes capture directory")
 	}
 
 	// Create the file

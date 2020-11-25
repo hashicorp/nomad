@@ -1,17 +1,65 @@
 package command
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_BadCSIPluginNames(t *testing.T) {
+	// Start test server and API client
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	cases := []string{
+		"aws/ebs",
+		"gcp-*-1",
+	}
+	for _, pluginName := range cases {
+		cleanup := state.CreateTestCSIPlugin(srv.Agent.Server().State(), pluginName)
+		defer cleanup()
+	}
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Debug on the leader and all client nodes
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader", "-node-id", "all", "-output", os.TempDir()})
+	assert.Equal(t, 0, code)
+
+	// Bad plugin name should be escaped before it reaches the sandbox test
+	require.NotContains(t, ui.ErrorWriter.String(), "file path escapes capture directory")
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+
+	path := cmd.collectDir
+	defer os.Remove(path)
+
+	var pluginFiles []string
+	for _, pluginName := range cases {
+		pluginFile := fmt.Sprintf("csi-plugin-id-%s.json", helper.CleanFilename(pluginName, "_"))
+		pluginFile = filepath.Join(path, "nomad", "0000", pluginFile)
+		pluginFiles = append(pluginFiles, pluginFile)
+	}
+
+	testutil.WaitForFiles(t, pluginFiles)
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+}
 
 func TestDebugUtils(t *testing.T) {
 	xs := argNodes("foo, bar")
@@ -138,7 +186,8 @@ func TestDebugFail_Pprof(t *testing.T) {
 	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
 
 	assert.Equal(t, 0, code) // Pprof failure isn't fatal
-	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof profile.prof")
+	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof")
+	require.Contains(t, ui.ErrorWriter.String(), "Permission denied")
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
 	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
 
