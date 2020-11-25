@@ -16,6 +16,10 @@ else
 GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
 endif
 
+# tag corresponding to latest release we maintain backward compatibility with
+# NOTE: using a pre-release, as buf fails to build the latest official release now
+PROTO_COMPARE_TAG ?= v1.0.0-beta3$(if $(findstring ent,$(GO_TAGS)),+ent,)
+
 default: help
 
 ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows MSYS_NT))
@@ -204,7 +208,7 @@ check: ## Lint the source code
 	@misspell -error -source=text website/pages/
 
 	@echo "==> Checking for breaking changes in protos..."
-	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=v1.0.0-beta3
+	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
@@ -237,6 +241,14 @@ check: ## Lint the source code
 checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
 	@find scripts -type f -name '*.sh' | xargs shellcheck
+
+.PHONY: checkproto
+checkproto: ## Lint protobuf files
+	@echo "==> Lint proto files..."
+	@buf check lint --config tools/buf/buf.yaml
+
+	@echo "==> Checking for breaking changes in protos..."
+	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
 generate-all: generate-structs proto generate-examples
