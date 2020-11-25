@@ -184,6 +184,7 @@ func (m *DeviceGroup) GetAttributes() map[string]*proto1.Attribute {
 type DetectedDevice struct {
 	// ID is the ID of the device. This ID is used during allocation and must be
 	// stable across restarts of the device driver.
+	// buf:lint:ignore FIELD_LOWER_SNAKE_CASE
 	ID string `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	// Health of the device.
 	Healthy bool `protobuf:"varint,2,opt,name=healthy,proto3" json:"healthy,omitempty"`

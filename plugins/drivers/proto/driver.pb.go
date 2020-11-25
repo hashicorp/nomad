@@ -2606,6 +2606,7 @@ type LinuxResources struct {
 	// CpusetMems constrains the allowed set of memory nodes. Default: "" (not specified)
 	CpusetMems string `protobuf:"bytes,7,opt,name=cpuset_mems,json=cpusetMems,proto3" json:"cpuset_mems,omitempty"`
 	// PercentTicks is a compatibility option for docker and should not be used
+	// buf:lint:ignore FIELD_LOWER_SNAKE_CASE
 	PercentTicks         float64  `protobuf:"fixed64,8,opt,name=PercentTicks,proto3" json:"PercentTicks,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -3887,6 +3888,7 @@ type DriverClient interface {
 	ExecTask(ctx context.Context, in *ExecTaskRequest, opts ...grpc.CallOption) (*ExecTaskResponse, error)
 	// ExecTaskStreaming executes a command inside the tasks execution context
 	// and streams back results
+	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
 	ExecTaskStreaming(ctx context.Context, opts ...grpc.CallOption) (Driver_ExecTaskStreamingClient, error)
 	// CreateNetwork is implemented when the driver needs to create the network
 	// namespace instead of allowing the Nomad client to do.
@@ -4186,6 +4188,7 @@ type DriverServer interface {
 	ExecTask(context.Context, *ExecTaskRequest) (*ExecTaskResponse, error)
 	// ExecTaskStreaming executes a command inside the tasks execution context
 	// and streams back results
+	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
 	ExecTaskStreaming(Driver_ExecTaskStreamingServer) error
 	// CreateNetwork is implemented when the driver needs to create the network
 	// namespace instead of allowing the Nomad client to do.
