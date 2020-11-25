@@ -26,13 +26,22 @@ export default class VolumeSerializer extends ApplicationSerializer {
     // Populate read/write allocation lists from aggregate allocation list
     const readAllocs = hash.ReadAllocs || {};
     const writeAllocs = hash.WriteAllocs || {};
-    const bindIDToAlloc = allocList => id => {
-      const alloc = allocList.find(a => a.ID === id);
-      return alloc;
-    };
 
-    hash.ReadAllocations = Object.keys(readAllocs).map(bindIDToAlloc(hash.Allocations));
-    hash.WriteAllocations = Object.keys(writeAllocs).map(bindIDToAlloc(hash.Allocations));
+    hash.ReadAllocations = [];
+    hash.WriteAllocations = [];
+
+    if (hash.Allocations) {
+      hash.Allocations.forEach(function(alloc) {
+        const id = alloc.ID;
+        if (id in readAllocs) {
+          hash.ReadAllocations.push(alloc);
+        }
+        if (id in writeAllocs) {
+          hash.WriteAllocations.push(alloc);
+        }
+      });
+      delete hash.Allocations;
+    }
 
     const normalizedHash = super.normalize(typeHash, hash);
     return this.extractEmbeddedRecords(this, this.store, typeHash, normalizedHash);
