@@ -105,10 +105,13 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		// Create new event publisher using provided config
-		broker := stream.NewEventBroker(ctx, &streamACLDelegate{s}, stream.EventBrokerCfg{
+		broker, err := stream.NewEventBroker(ctx, &streamACLDelegate{s}, stream.EventBrokerCfg{
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("creating state store event broker %w", err)
+		}
 		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges)
 	} else {
 		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)

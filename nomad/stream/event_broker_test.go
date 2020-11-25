@@ -23,7 +23,9 @@ func TestEventBroker_PublishChangesAndSubscribe(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	publisher := NewEventBroker(ctx, nil, EventBrokerCfg{EventBufferSize: 100})
+	publisher, err := NewEventBroker(ctx, nil, EventBrokerCfg{EventBufferSize: 100})
+	require.NoError(t, err)
+
 	sub, err := publisher.Subscribe(subscription)
 	require.NoError(t, err)
 	eventCh := consumeSubscription(ctx, sub)
@@ -67,7 +69,8 @@ func TestEventBroker_ShutdownClosesSubscriptions(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	publisher := NewEventBroker(ctx, nil, EventBrokerCfg{})
+	publisher, err := NewEventBroker(ctx, nil, EventBrokerCfg{})
+	require.NoError(t, err)
 
 	sub1, err := publisher.Subscribe(&SubscribeRequest{})
 	require.NoError(t, err)
@@ -95,7 +98,8 @@ func TestEventBroker_EmptyReqToken_DistinctSubscriptions(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	publisher := NewEventBroker(ctx, nil, EventBrokerCfg{})
+	publisher, err := NewEventBroker(ctx, nil, EventBrokerCfg{})
+	require.NoError(t, err)
 
 	// first subscription, empty token
 	sub1, err := publisher.Subscribe(&SubscribeRequest{})
@@ -116,7 +120,8 @@ func TestEventBroker_handleACLUpdates_tokendeleted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	publisher := NewEventBroker(ctx, nil, EventBrokerCfg{})
+	publisher, err := NewEventBroker(ctx, nil, EventBrokerCfg{})
+	require.NoError(t, err)
 
 	sub1, err := publisher.Subscribe(&SubscribeRequest{
 		Topics: map[structs.Topic][]string{
@@ -345,7 +350,8 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				tokenProvider: tokenProvider,
 			}
 
-			publisher := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
+			publisher, err := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
+			require.NoError(t, err)
 
 			sub, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
 				Topics: map[structs.Topic][]string{
@@ -370,7 +376,14 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			require.NoError(t, err)
 
 			// Update the mock provider to use the after rules
-			tokenProvider.policy.Rules = tc.policyAfterRules
+			policyAfter := &structs.ACLPolicy{
+				Name:        "some-new-policy",
+				Rules:       tc.policyAfterRules,
+				ModifyIndex: 101, // The ModifyIndex is used to caclulate the acl cache key
+			}
+			policyAfter.SetHash()
+
+			tokenProvider.policy = policyAfter
 
 			aclEvent := structs.Event{
 				Topic: structs.TopicACLToken,
@@ -395,8 +408,12 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 				for {
 					_, err = sub.Next(ctx)
 					if err != nil {
-						require.Equal(t, ErrSubscriptionClosed, err)
-						break
+						if err == context.DeadlineExceeded {
+							require.Fail(t, err.Error())
+						}
+						if err == ErrSubscriptionClosed {
+							break
+						}
 					}
 				}
 			} else {

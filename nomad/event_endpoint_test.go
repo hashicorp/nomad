@@ -308,7 +308,7 @@ func TestEventStream_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// start server
-	s, root, cleanupS := TestACLServer(t, nil)
+	s, _, cleanupS := TestACLServer(t, nil)
 	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -345,14 +345,6 @@ func TestEventStream_ACL(t *testing.T) {
 				"*": {"*"},
 			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
-		},
-		{
-			Name:  "root token",
-			Token: root.SecretID,
-			Topics: map[structs.Topic][]string{
-				"*": {"*"},
-			},
-			ExpectedErr: "subscription closed by server",
 		},
 		{
 			Name:  "job namespace token - correct ns",
