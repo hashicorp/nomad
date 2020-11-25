@@ -63,7 +63,7 @@ func (m *tfManager) Enable(t *testing.T) string {
 	response, err := exec.CommandContext(ctx,
 		"consulacls/consul-acls-manage.sh", "enable").CombinedOutput()
 	require.NoError(t, err)
-	fmt.Println(response)
+	fmt.Println(string(response))
 
 	// Read the Consul ACL master token that was generated (or if the token
 	// already existed because the bootstrap process had already taken place,
@@ -116,5 +116,5 @@ func (m *tfManager) Disable(t *testing.T) {
 	response, err := exec.CommandContext(ctx,
 		"consulacls/consul-acls-manage.sh", "disable").CombinedOutput()
 	require.NoError(t, err)
-	fmt.Println(response)
+	fmt.Println(string(response))
 }
