@@ -3520,6 +3520,84 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 
 }
 
+// TestStateStore_CSIPlugin_ConcurrentStop tests that concurrent allocation
+// updates don't cause the count to drift unexpectedly or cause allocation
+// update errors.
+func TestStateStore_CSIPlugin_ConcurrentStop(t *testing.T) {
+	t.Parallel()
+	index := uint64(999)
+	state := testStateStore(t)
+	ws := memdb.NewWatchSet()
+
+	var err error
+
+	// Create Nomad client Nodes
+	ns := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
+	for _, n := range ns {
+		index++
+		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
+		require.NoError(t, err)
+	}
+
+	plugID := "foo"
+	plugCfg := &structs.TaskCSIPluginConfig{ID: plugID}
+
+	allocs := []*structs.Allocation{}
+
+	// Fingerprint 3 running node plugins and their allocs
+	for _, n := range ns[:] {
+		alloc := mock.Alloc()
+		n, _ := state.NodeByID(ws, n.ID)
+		n.CSINodePlugins = map[string]*structs.CSIInfo{
+			plugID: {
+				PluginID:                 plugID,
+				AllocID:                  alloc.ID,
+				Healthy:                  true,
+				UpdateTime:               time.Now(),
+				RequiresControllerPlugin: true,
+				RequiresTopologies:       false,
+				NodeInfo:                 &structs.CSINodeInfo{},
+			},
+		}
+		index++
+		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
+		require.NoError(t, err)
+
+		alloc.NodeID = n.ID
+		alloc.DesiredStatus = "run"
+		alloc.ClientStatus = "running"
+		alloc.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
+
+		index++
+		err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
+		require.NoError(t, err)
+
+		allocs = append(allocs, alloc)
+	}
+
+	plug, err := state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 3, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 3, len(plug.Nodes), "nodes expected")
+
+	// stop all the allocs
+	for _, alloc := range allocs {
+		alloc.DesiredStatus = "stop"
+		alloc.ClientStatus = "complete"
+	}
+
+	// this is somewhat artificial b/c we get alloc updates from multiple
+	// nodes concurrently but not in a single RPC call. But this guarantees
+	// we'll trigger any nested transaction setup bugs
+	index++
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Nil(t, plug)
+}
+
 func TestStateStore_CSIPluginJobs(t *testing.T) {
 	s := testStateStore(t)
 	index := uint64(1001)
