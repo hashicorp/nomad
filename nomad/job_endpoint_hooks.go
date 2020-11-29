@@ -20,7 +20,7 @@ var (
 	// Vault token
 	vaultConstraint = &structs.Constraint{
 		LTarget: vaultConstraintLTarget,
-		RTarget: ">= 0.6.1",
+		RTarget: ">= 1.5.1",
 		Operand: structs.ConstraintSemver,
 	}
 )
