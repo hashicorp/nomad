@@ -1,4 +1,7 @@
 {
+  "github": {
+    "silent": true
+  },
   "redirects": [
     { "source": "/", "destination": "/ui/" }
   ],
