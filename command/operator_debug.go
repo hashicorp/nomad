@@ -634,20 +634,23 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			c.Ui.Warn(fmt.Sprintf("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information."))
 			return // only exit on 403
 		}
+	} else {
+		c.writeBytes(path, "profile.prof", bs)
 	}
-	c.writeBytes(path, "profile.prof", bs)
 
 	bs, err = client.Agent().Trace(opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
+	} else {
+		c.writeBytes(path, "trace.prof", bs)
 	}
-	c.writeBytes(path, "trace.prof", bs)
 
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
+	} else {
+		c.writeBytes(path, "goroutine.prof", bs)
 	}
-	c.writeBytes(path, "goroutine.prof", bs)
 
 	// Gather goroutine text output - debug type 1
 	// debug type 1 writes the legacy text format for human readable output
@@ -655,8 +658,9 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
+	} else {
+		c.writeBytes(path, "goroutine-debug1.txt", bs)
 	}
-	c.writeBytes(path, "goroutine-debug1.txt", bs)
 
 	// Gather goroutine text output - debug type 2
 	// When printing the "goroutine" profile, debug=2 means to print the goroutine
@@ -665,8 +669,9 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
+	} else {
+		c.writeBytes(path, "goroutine-debug2.txt", bs)
 	}
-	c.writeBytes(path, "goroutine-debug2.txt", bs)
 }
 
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
