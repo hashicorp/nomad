@@ -195,6 +195,7 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 						{
 							DestinationName: "upstream",
 							LocalBindPort:   80,
+							Datacenter:      "dc2",
 						},
 					},
 					LocalServicePort: 8000,
@@ -205,8 +206,9 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 
 	service.Canonicalize(task, tg, job)
 	proxy := service.Connect.SidecarService.Proxy
-	require.Equal(t, proxy.Upstreams[0].LocalBindPort, 80)
 	require.Equal(t, proxy.Upstreams[0].DestinationName, "upstream")
+	require.Equal(t, proxy.Upstreams[0].LocalBindPort, 80)
+	require.Equal(t, proxy.Upstreams[0].Datacenter, "dc2")
 	require.Equal(t, proxy.LocalServicePort, 8000)
 }
 

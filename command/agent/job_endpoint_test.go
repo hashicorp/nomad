@@ -3006,9 +3006,11 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 	require.Equal(t, []structs.ConsulUpstream{{
 		DestinationName: "upstream",
 		LocalBindPort:   8000,
+		Datacenter:      "dc2",
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName: "upstream",
 		LocalBindPort:   8000,
+		Datacenter:      "dc2",
 	}}))
 }
 
