@@ -5949,109 +5949,6 @@ func scalingPolicyNamespaceFilter(namespace string) func(interface{}) bool {
 	}
 }
 
-func (s *StateStore) EventSinks(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	// Walk the entire event sink table
-	iter, err := txn.Get("event_sink", "id")
-	if err != nil {
-		return nil, err
-	}
-
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-func (s *StateStore) EventSinkByID(ws memdb.WatchSet, id string) (*structs.EventSink, error) {
-	txn := s.db.ReadTxn()
-	return s.eventSinkByIDTxn(ws, id, txn)
-}
-
-func (s *StateStore) eventSinkByIDTxn(ws memdb.WatchSet, id string, txn Txn) (*structs.EventSink, error) {
-	watchCh, existing, err := txn.FirstWatch("event_sink", "id", id)
-	if err != nil {
-		return nil, fmt.Errorf("event sink lookup failed: %w", err)
-	}
-	ws.Add(watchCh)
-
-	if existing != nil {
-		return existing.(*structs.EventSink), nil
-	}
-	return nil, nil
-}
-
-func (s *StateStore) UpsertEventSink(idx uint64, sink *structs.EventSink) error {
-	txn := s.db.WriteTxn(idx)
-	defer txn.Abort()
-
-	existing, err := txn.First("event_sink", "id", sink.ID)
-	if err != nil {
-		return fmt.Errorf("event sink lookup failed: %w", err)
-	}
-
-	if existing != nil {
-		sink.CreateIndex = existing.(*structs.EventSink).CreateIndex
-		sink.ModifyIndex = idx
-	} else {
-		sink.CreateIndex = idx
-		sink.ModifyIndex = idx
-	}
-
-	// Insert the sink
-	if err := txn.Insert("event_sink", sink); err != nil {
-		return fmt.Errorf("event sink insert failed: %w", err)
-	}
-	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
-		return fmt.Errorf("index update failed: %w", err)
-	}
-
-	return txn.Commit()
-}
-
-func (s *StateStore) DeleteEventSinks(idx uint64, sinks []string) error {
-	txn := s.db.WriteTxn(idx)
-	defer txn.Abort()
-
-	for _, id := range sinks {
-		if _, err := txn.DeleteAll("event_sink", "id", id); err != nil {
-			return fmt.Errorf("deleting event sink failed: %v", err)
-		}
-	}
-	if err := txn.Insert("index", &IndexEntry{"event_sink", idx}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-	return txn.Commit()
-}
-
-func (s *StateStore) BatchUpdateEventSinks(index uint64, sinks []*structs.EventSink) error {
-	txn := s.db.WriteTxn(index)
-	defer txn.Abort()
-
-	for _, update := range sinks {
-		existing, err := txn.First("event_sink", "id", update.ID)
-		if err != nil || existing == nil {
-			return fmt.Errorf("event sink lookup failed: %w", err)
-		}
-
-		sink := existing.(*structs.EventSink)
-
-		// Copy over authoritative fields
-		sink.LatestIndex = update.LatestIndex
-		sink.ModifyIndex = index
-
-		if err := txn.Insert("event_sink", sink); err != nil {
-			return err
-		}
-	}
-
-	// Update the indexes table for event_sink
-	if err := txn.Insert("index", &IndexEntry{"event_sink", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-	return txn.Commit()
-}
-
 // StateSnapshot is used to provide a point-in-time snapshot
 type StateSnapshot struct {
 	StateStore
@@ -6311,13 +6208,6 @@ func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents)
 func (r *StateRestore) NamespaceRestore(ns *structs.Namespace) error {
 	if err := r.txn.Insert(TableNamespaces, ns); err != nil {
 		return fmt.Errorf("namespace insert failed: %v", err)
-	}
-	return nil
-}
-
-func (r *StateRestore) EventSinkRestore(sink *structs.EventSink) error {
-	if err := r.txn.Insert("event_sink", sink); err != nil {
-		return fmt.Errorf("event sink insert failed: %v", err)
 	}
 	return nil
 }

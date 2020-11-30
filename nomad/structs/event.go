@@ -1,14 +1,5 @@
 package structs
 
-import (
-	"fmt"
-	"net/url"
-	"reflect"
-	"strings"
-
-	multierror "github.com/hashicorp/go-multierror"
-)
-
 // EventStreamRequest is used to stream events from a servers EventBroker
 type EventStreamRequest struct {
 	Topics map[Topic][]string
@@ -93,96 +84,6 @@ func (j *EventJson) Copy() *EventJson {
 	n.Data = make([]byte, len(j.Data))
 	copy(n.Data, j.Data)
 	return n
-}
-
-type EventSinkProgressRequest struct {
-	Sinks []*EventSink
-	WriteRequest
-}
-
-type EventSinkUpsertRequest struct {
-	Sink *EventSink
-	WriteRequest
-}
-
-type EventSinkSpecificRequest struct {
-	ID string
-	QueryOptions
-}
-
-type EventSinkResponse struct {
-	Sink *EventSink
-	QueryMeta
-}
-
-type EventSinkDeleteRequest struct {
-	IDs []string
-	WriteRequest
-}
-
-type EventSinkListRequest struct {
-	QueryOptions
-}
-
-type EventSinkListResponse struct {
-	Sinks []*EventSink
-	QueryMeta
-}
-
-type SinkType string
-
-const (
-	SinkWebhook SinkType = "webhook"
-)
-
-type EventSink struct {
-	ID   string
-	Type SinkType
-
-	Topics map[Topic][]string
-
-	Address string
-
-	// LatestIndex is the latest reported index that was successfully sent.
-	// MangedSinks periodically check in to update the LatestIndex so that a
-	// minimal amount of events are resent when reestablishing an event sink
-	LatestIndex uint64
-
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-func (e *EventSink) Validate() error {
-	var mErr multierror.Error
-
-	if e.ID == "" {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Missing sink ID"))
-	} else if strings.Contains(e.ID, " ") {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink ID contains a space"))
-	} else if strings.Contains(e.ID, "\000") {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink ID contains a null character"))
-	}
-
-	switch e.Type {
-	case SinkWebhook:
-		if e.Address == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink requires a valid Address"))
-		} else if _, err := url.Parse(e.Address); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink Address must be a valid url: %w", err))
-		}
-	default:
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink type invalid"))
-	}
-
-	return mErr.ErrorOrNil()
-}
-
-// EqualSubscriptionValues specifies if this event has equivalent subscription
-// values to the one that we are comparing it to
-func (e *EventSink) EqualSubscriptionValues(old *EventSink) bool {
-	return e.Address == old.Address &&
-		e.Type == old.Type &&
-		reflect.DeepEqual(e.Topics, old.Topics)
 }
 
 // JobEvent holds a newly updated Job.
