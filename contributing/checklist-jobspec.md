@@ -4,9 +4,6 @@
 
 * [ ] Consider similar features in Consul, Kubernetes, and other tools. Is
   there prior art we should match? Terminology, structure, etc?
-* [ ] Parse in `jobspec/parse.go`
-* [ ] Test in `jobspec/parse_test.go` (preferably with a
-  `jobspec/text-fixtures/<feature>.hcl` test file)
 * [ ] Add structs/fields to `api/` package
   * structs usually have Canonicalize, Copy, and Merge methods
   * New fields should be added to existing Canonicalize, Copy, and Merge
@@ -20,6 +17,16 @@
 * [ ] Add check for job diff in `nomad/structs/diff.go`
   * Note that fields must be listed in alphabetical order in `FieldDiff` slices in `nomad/structs/diff_test.go`
 * [ ] Test conversion
+
+## HCL1 (deprecated)
+
+New jobspec entries should only be added to `jobspec2`. It makes use of HCL2
+and the `api` package for automatic parsing. Before, additional parsing was
+required in the original `jobspec` package.
+
+* [ ] ~~Parse in `jobspec/parse.go`~~ (HCL1 only)
+* [ ] ~~Test in `jobspec/parse_test.go` (preferably with a
+  `jobspec/text-fixtures/<feature>.hcl` test file)~~ (HCL1 only)
 
 ## Docs
 
