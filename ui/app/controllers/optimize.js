@@ -3,6 +3,7 @@ import Controller from '@ember/controller';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as controller } from '@ember/controller';
+import { inject as service } from '@ember/service';
 import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
@@ -15,8 +16,13 @@ import classic from 'ember-classic-decorator';
 
 export default class OptimizeController extends Controller {
   @controller('optimize/summary') summaryController;
+  @service router;
+  @service system;
 
   queryParams = [
+    {
+      includeAllNamespaces: 'all-namespaces',
+    },
     {
       searchTerm: 'search',
     },
@@ -49,15 +55,14 @@ export default class OptimizeController extends Controller {
   @tracked qpDatacenter = '';
   @tracked qpPrefix = '';
 
+  @tracked includeAllNamespaces = true;
+
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
 
-  optionsType = [
-    { key: 'service', label: 'Service' },
-    { key: 'system', label: 'System' },
-  ];
+  optionsType = [{ key: 'service', label: 'Service' }, { key: 'system', label: 'System' }];
 
   optionsStatus = [
     { key: 'pending', label: 'Pending' },
@@ -125,10 +130,21 @@ export default class OptimizeController extends Controller {
       selectionPrefix: prefixes,
     } = this;
 
+    const shouldShowNamespaces = this.system.shouldShowNamespaces;
+    const activeNamespace = shouldShowNamespaces ? this.system.activeNamespace.name : undefined;
+
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.summarySearch.listSearched.filter(summary => {
       const job = summary.get('job');
+
+      if (
+        shouldShowNamespaces &&
+        !this.includeAllNamespaces &&
+        activeNamespace !== summary.jobNamespace
+      ) {
+        return false;
+      }
 
       if (types.length && !types.includes(job.get('displayType'))) {
         return false;
@@ -152,7 +168,11 @@ export default class OptimizeController extends Controller {
   }
 
   get activeRecommendationSummary() {
-    return this.summaryController.model;
+    if (this.router.currentRouteName === 'optimize.summary') {
+      return this.summaryController.model;
+    } else {
+      return undefined;
+    }
   }
 
   // This is a task because the accordion uses timeouts for animation
@@ -179,13 +199,22 @@ export default class OptimizeController extends Controller {
   @action
   setFacetQueryParam(queryParam, selection) {
     this[queryParam] = serialize(selection);
-    this.ensureActiveSummaryIsNotExcluded();
+    this.syncActiveSummary();
   }
 
   @action
-  ensureActiveSummaryIsNotExcluded() {
+  toggleIncludeAllNamespaces() {
+    this.includeAllNamespaces = !this.includeAllNamespaces;
+    this.syncActiveSummary();
+  }
+
+  @action
+  syncActiveSummary() {
     scheduleOnce('actions', () => {
-      if (!this.filteredSummaries.includes(this.activeRecommendationSummary)) {
+      if (
+        !this.activeRecommendationSummary ||
+        !this.filteredSummaries.includes(this.activeRecommendationSummary)
+      ) {
         const firstFilteredSummary = this.filteredSummaries.objectAt(0);
 
         if (firstFilteredSummary) {
