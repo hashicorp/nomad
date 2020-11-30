@@ -165,6 +165,7 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 		upstreams[i] = api.Upstream{
 			DestinationName: upstream.DestinationName,
 			LocalBindPort:   upstream.LocalBindPort,
+			Datacenter:      upstream.Datacenter,
 		}
 	}
 	return upstreams

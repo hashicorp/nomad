@@ -2687,6 +2687,7 @@ func TestTaskGroupDiff(t *testing.T) {
 										{
 											DestinationName: "foo",
 											LocalBindPort:   8000,
+											Datacenter:      "dc2",
 										},
 									},
 									Config: map[string]interface{}{
@@ -2941,6 +2942,12 @@ func TestTaskGroupDiff(t *testing.T) {
 														Type: DiffTypeAdded,
 														Name: "ConsulUpstreams",
 														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "Datacenter",
+																Old:  "",
+																New:  "dc2",
+															},
 															{
 																Type: DiffTypeAdded,
 																Name: "DestinationName",

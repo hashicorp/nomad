@@ -270,6 +270,7 @@ func (cp *ConsulProxy) Canonicalize() {
 type ConsulUpstream struct {
 	DestinationName string `mapstructure:"destination_name" hcl:"destination_name,optional"`
 	LocalBindPort   int    `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
+	Datacenter      string `mapstructure:"datacenter" hcl:"datacenter,optional"`
 }
 
 type ConsulExposeConfig struct {
