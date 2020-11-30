@@ -3,6 +3,6 @@
     { "source": "/", "destination": "/ui" }
   ],
   "rewrites": [
-    { "source": "/ui/*", "destination": "/ui/index.html" }
+    { "source": "/ui/.*", "destination": "/ui/index.html" }
   ]
 }
