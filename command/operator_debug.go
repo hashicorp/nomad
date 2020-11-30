@@ -625,8 +625,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err := client.Agent().CPUProfile(opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
-
-		if strings.Contains(err.Error(), structs.ErrPermissionDenied.Error()) {
+		if structs.IsErrPermissionDenied(err) {
 			// All Profiles require the same permissions, so we only need to see
 			// one permission failure before we bail.
 			// But lets first drop a hint to help the operator resolve the error
@@ -635,21 +634,27 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			return // only exit on 403
 		}
 	} else {
-		c.writeBytes(path, "profile.prof", bs)
+		if err := c.writeBytes(path, "profile.prof", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	bs, err = client.Agent().Trace(opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
 	} else {
-		c.writeBytes(path, "trace.prof", bs)
+		if err := c.writeBytes(path, "trace.prof", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
 	} else {
-		c.writeBytes(path, "goroutine.prof", bs)
+		if err := c.writeBytes(path, "goroutine.prof", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	// Gather goroutine text output - debug type 1
@@ -659,7 +664,9 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
 	} else {
-		c.writeBytes(path, "goroutine-debug1.txt", bs)
+		if err := c.writeBytes(path, "goroutine-debug1.txt", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	// Gather goroutine text output - debug type 2
@@ -670,7 +677,9 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
 	} else {
-		c.writeBytes(path, "goroutine-debug2.txt", bs)
+		if err := c.writeBytes(path, "goroutine-debug2.txt", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 }
 
@@ -823,28 +832,25 @@ func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
 	// Ensure parent directories exist
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to create parent directories of \"%s\": %s", dirPath, err.Error()))
-		return err
+		return fmt.Errorf("failed to create parent directories of \"%s\": %w", dirPath, err)
 	}
 
 	// Ensure filename doesn't escape the sandbox of the capture directory
 	escapes := helper.PathEscapesSandbox(c.collectDir, filePath)
 	if escapes {
-		return fmt.Errorf("file path escapes capture directory")
+		return fmt.Errorf("file path \"%s\" escapes capture directory \"%s\"", filePath, c.collectDir)
 	}
 
 	// Create the file
 	fh, err := os.Create(filePath)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to create file \"%s\": %s", filePath, err.Error()))
-		return err
+		return fmt.Errorf("failed to create file \"%s\", err: %w", filePath, err)
 	}
 	defer fh.Close()
 
 	_, err = fh.Write(data)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to write data to file \"%s\", err: %v", filePath, err.Error()))
-		return err
+		return fmt.Errorf("Failed to write data to file \"%s\", err: %w", filePath, err)
 	}
 	return nil
 }
@@ -858,7 +864,11 @@ func (c *OperatorDebugCommand) writeJSON(dir, file string, data interface{}, err
 	if err != nil {
 		return c.writeError(dir, file, err)
 	}
-	return c.writeBytes(dir, file, bytes)
+	err = c.writeBytes(dir, file, bytes)
+	if err != nil {
+		c.Ui.Error(err.Error())
+	}
+	return nil
 }
 
 // writeError writes a JSON error object to capture errors in the debug bundle without
@@ -891,9 +901,12 @@ func (c *OperatorDebugCommand) writeBody(dir, file string, resp *http.Response, 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		c.writeError(dir, file, err)
+		return
 	}
 
-	c.writeBytes(dir, file, body)
+	if err := c.writeBytes(dir, file, body); err != nil {
+		c.Ui.Error(err.Error())
+	}
 }
 
 // writeManifest creates the index files
