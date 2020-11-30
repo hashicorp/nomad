@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { htmlSafe } from '@ember/string';
 
 export default {
-  title: 'Theme|ColorsHELLOFIXMEokay',
+  title: 'Theme|ColorsFIXMEokay',
 };
 
 export let Colors = () => {
