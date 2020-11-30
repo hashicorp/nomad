@@ -1144,8 +1144,13 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			updates := n.updates
 			evals := n.evals
 			future := n.updateFuture
-			n.updates = nil
-			n.evals = nil
+
+			// Assume future update patterns will be similar to
+			// current batch and set cap appropriately to avoid
+			// slice resizing.
+			n.updates = make([]*structs.Allocation, 0, len(updates))
+			n.evals = make([]*structs.Evaluation, 0, len(evals))
+
 			n.updateFuture = nil
 			n.updateTimer = nil
 			n.updatesLock.Unlock()
