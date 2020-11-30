@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -232,7 +231,11 @@ type RPCInfo interface {
 	AllowStaleRead() bool
 	IsForwarded() bool
 	SetForwarded()
-	HasTimedOut(since time.Time, rpcHoldTimeout time.Duration) bool
+	TimeToBlock() time.Duration
+	// TimeToBlock sets how long this request can block. The requested time may not be possible,
+	// so Callers should readback TimeToBlock. E.g. you cannot set time to block at all on WriteRequests
+	// and it cannot exceed MaxBlockingRPCQueryTime
+	SetTimeToBlock(t time.Duration)
 }
 
 // InternalRpcInfo allows adding internal RPC metadata to an RPC. This struct
@@ -287,6 +290,24 @@ type QueryOptions struct {
 	InternalRpcInfo
 }
 
+// TimeToBlock returns MaxQueryTime adjusted for maximums and defaults
+// it will return 0 if this is not a blocking query
+func (q QueryOptions) TimeToBlock() time.Duration {
+	if q.MinQueryIndex == 0 {
+		return 0
+	}
+	if q.MaxQueryTime > MaxBlockingRPCQueryTime {
+		return MaxBlockingRPCQueryTime
+	} else if q.MaxQueryTime <= 0 {
+		return DefaultBlockingRPCQueryTime
+	}
+	return q.MaxQueryTime
+}
+
+func (q QueryOptions) SetTimeToBlock(t time.Duration) {
+	q.MaxQueryTime = t
+}
+
 func (q QueryOptions) RequestRegion() string {
 	return q.Region
 }
@@ -310,21 +331,6 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
-}
-
-func (q QueryOptions) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
-	if q.MinQueryIndex > 0 {
-		// Restrict the max query time, and ensure there is always one
-		if q.MaxQueryTime > MaxBlockingRPCQueryTime {
-			q.MaxQueryTime = MaxBlockingRPCQueryTime
-		} else if q.MaxQueryTime <= 0 {
-			q.MaxQueryTime = DefaultBlockingRPCQueryTime
-		}
-		q.MaxQueryTime += lib.RandomStagger(q.MaxQueryTime / JitterFraction)
-
-		return time.Since(start) > (q.MaxQueryTime + rpcHoldTimeout)
-	}
-	return time.Since(start) > rpcHoldTimeout
 }
 
 // AgentPprofRequest is used to request a pprof report for a given node.
@@ -387,6 +393,13 @@ type WriteRequest struct {
 	InternalRpcInfo
 }
 
+func (w WriteRequest) TimeToBlock() time.Duration {
+	return 0
+}
+
+func (w WriteRequest) SetTimeToBlock(_ time.Duration) {
+}
+
 func (w WriteRequest) RequestRegion() string {
 	// The target region for this request
 	return w.Region
@@ -411,10 +424,6 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
-}
-
-func (w WriteRequest) HasTimedOut(start time.Time, rpcHoldTimeout time.Duration) bool {
-	return time.Since(start) > rpcHoldTimeout
 }
 
 // QueryMeta allows a query response to include potentially

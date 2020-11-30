@@ -53,12 +53,20 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 		return c.config.RPCHandler.RPC(method, args, reply)
 	}
 
-	// This is subtle but we start measuring the time on the client side
-	// right at the time of the first request, vs. on the first retry as
-	// is done on the server side inside forward(). This is because the
-	// servers may already be applying the RPCHoldTimeout up there, so by
-	// starting the timer here we won't potentially double up the delay.
-	firstCheck := time.Now()
+	// We will try to automatically retry requests that fail due to things like server unavailability
+	// but instead of retrying forever, lets have a solid upper-bound
+	deadline := time.Now()
+
+	// A reasonable amount of time for leader election. Note when servers forward() our RPC requests
+	// to the leader they may also allow for an RPCHoldTimeout while waiting for leader election.
+	// That's OK, we won't double up because we are using it here not as a sleep but
+	// as a hint to give up
+	deadline = deadline.Add(c.config.RPCHoldTimeout)
+
+	// If its a blocking query, allow the time specified by the request
+	if info, ok := args.(structs.RPCInfo); ok {
+		deadline = deadline.Add(info.TimeToBlock())
+	}
 
 TRY:
 	server := c.servers.FindServer()
@@ -68,6 +76,7 @@ TRY:
 
 	// Make the request.
 	rpcErr := c.connPool.RPC(c.Region(), server.Addr, c.RPCMajorVersion(), method, args, reply)
+
 	if rpcErr == nil {
 		c.fireRpcRetryWatcher()
 		return nil
@@ -83,14 +92,37 @@ TRY:
 	// Move off to another server, and see if we can retry.
 	c.rpcLogger.Error("error performing RPC to server", "error", rpcErr, "rpc", method, "server", server.Addr)
 	c.servers.NotifyFailedServer(server)
-	if retry := canRetry(args, rpcErr, firstCheck, c.config.RPCHoldTimeout); !retry {
+
+	if !canRetry(args, rpcErr) {
+		c.rpcLogger.Error("error performing RPC to server which is not safe to automatically retry", "error", rpcErr, "rpc", method, "server", server.Addr)
+		return rpcErr
+	}
+	if time.Now().After(deadline) {
+		// Blocking queries are tricky.  jitters and rpcholdtimes in multiple places can result in our server call taking longer than we wanted it to. For example:
+		// a block time of 5s may easily turn into the server blocking for 10s since it applies its own RPCHoldTime. If the server dies at t=7s we still want to retry
+		// so before we give up on blocking queries make one last attempt for an immediate answer
+		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
+			info.SetTimeToBlock(0)
+			return c.RPC(method, args, reply)
+		}
+		c.rpcLogger.Error("error performing RPC to server, deadline exceeded, cannot retry", "error", rpcErr, "rpc", method, "server", server.Addr)
 		return rpcErr
 	}
 
-	// We can wait a bit and retry!
-	jitter := lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)
+	// Wait to avoid thundering herd
 	select {
-	case <-time.After(jitter):
+	case <-time.After(lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)):
+		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
+		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
+			newBlockTime := deadline.Sub(time.Now())
+			// We can get below 0 here on slow computers because we slept for jitter so at least try to get an immediate response
+			if newBlockTime < 0 {
+				newBlockTime = 0
+			}
+			info.SetTimeToBlock(newBlockTime)
+			return c.RPC(method, args, reply)
+		}
+
 		goto TRY
 	case <-c.shutdownCh:
 	}
@@ -98,7 +130,7 @@ TRY:
 }
 
 // canRetry returns true if the given situation is safe for a retry.
-func canRetry(args interface{}, err error, start time.Time, rpcHoldTimeout time.Duration) bool {
+func canRetry(args interface{}, err error) bool {
 	// No leader errors are always safe to retry since no state could have
 	// been changed.
 	if structs.IsErrNoLeader(err) {
@@ -108,7 +140,7 @@ func canRetry(args interface{}, err error, start time.Time, rpcHoldTimeout time.
 	// Reads are safe to retry for stream errors, such as if a server was
 	// being shut down.
 	info, ok := args.(structs.RPCInfo)
-	if ok && info.IsRead() && lib.IsErrEOF(err) && !info.HasTimedOut(start, rpcHoldTimeout) {
+	if ok && info.IsRead() && lib.IsErrEOF(err) {
 		return true
 	}
 
