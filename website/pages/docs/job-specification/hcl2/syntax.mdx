@@ -1,0 +1,117 @@
+---
+layout: docs
+page_title: Syntax - Configuration Language
+sidebar_title: Syntax
+description: |-
+  HCL has its own syntax, intended to combine declarative
+  structure with expressions in a way that is easy for humans to read and
+  understand.
+---
+
+# HCL Configuration Syntax
+
+`@include 'beta-nomad1.0-note.mdx'`
+
+Other pages in this section have described various configuration constructs
+that can appear in HCL. This page describes the lower-level syntax of the
+language in more detail, revealing the building blocks that those constructs
+are built from.
+
+This page describes the _native syntax_ of HCL, which is a rich language
+designed to be easy for humans to read and write.
+
+This low-level syntax of HCL is defined in terms of a syntax called _HCL_,
+which is also used by configuration languages in other applications, and in
+particular other HashiCorp products. It is not necessary to know all of the
+details of HCL in order to use Nomad, and so this page summarizes the most
+important details. If you are interested, you can find a full definition of HCL
+syntax in [the HCL native syntax
+specification](https://github.com/hashicorp/hcl/blob/hcl2/hclsyntax/spec.md).
+
+## Arguments and Blocks
+
+HCL syntax is built around two key syntax constructs:
+arguments and blocks.
+
+### Arguments
+
+An _argument_ assigns a value to a particular name:
+
+```hcl
+image_id = "nginx:1.19"
+```
+
+The identifier before the equals sign is the _argument name_, and the expression
+after the equals sign is the argument's value.
+
+The context where the argument appears determines what value types are valid
+(for example, each job block type has a schema that defines the types of its
+arguments), but many arguments accept arbitrary
+[expressions](/docs/job-specification/hcl2/expressions), which allow the value to
+either be specified literally or generated from other values programmatically.
+
+### Blocks
+
+A _block_ is a container for other content:
+
+```hcl
+task "webserver" {
+  driver = "docker"
+
+  config {
+    # ...
+  }
+}
+```
+
+A block has a _type_ (`task` in this example). Each block type defines
+how many _labels_ must follow the type keyword. The `task` block type
+expects one labels, which is `webserver` in the example above.
+A particular block type may have any number of required labels, or it may
+require none as with the nested `config` block type.
+
+After the block type keyword and any labels, the block _body_ is delimited
+by the `{` and `}` characters. Within the block body, further arguments
+and blocks may be nested, creating a hierarchy of blocks and their associated
+arguments.
+
+HCL uses a limited number of _top-level block types,_ which
+are blocks that can appear outside of any other block in a configuration file.
+
+## Identifiers
+
+Argument names, block type names, and the names of most Nomad-specific
+constructs like tasks, input variables, etc. are all _identifiers_.
+
+Identifiers can contain letters, digits, underscores (`_`), and hyphens (`-`).
+The first character of an identifier must not be a digit, to avoid ambiguity
+with literal numbers.
+
+For complete identifier rules, Nomad implements
+[the Unicode identifier syntax](http://unicode.org/reports/tr31/), extended to
+include the ASCII hyphen character `-`.
+
+## Comments
+
+HCL supports three different syntaxes for comments:
+
+- `#` begins a single-line comment, ending at the end of the line.
+- `//` also begins a single-line comment, as an alternative to `#`.
+- `/*` and `*/` are start and end delimiters for a comment that might span
+  over multiple lines.
+
+The `#` single-line comment style is the default comment style and should be
+used in most cases. Automatic configuration formatting tools may automatically
+transform `//` comments into `#` comments, since the double-slash style is
+not idiomatic.
+
+## Character Encoding and Line Endings
+
+Nomad configuration files must always be UTF-8 encoded. While the
+delimiters of the language are all ASCII characters, Nomad accepts
+non-ASCII characters in identifiers, comments, and string values.
+
+Nomad accepts configuration files with either Unix-style line endings
+(LF only) or Windows-style line endings (CR then LF), but the idiomatic style
+is to use the Unix convention, and so automatic configuration formatting tools
+may automatically transform CRLF endings to LF.
