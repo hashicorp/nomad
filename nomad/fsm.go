@@ -293,7 +293,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyNamespaceUpsert(buf[1:], log.Index)
 	case structs.NamespaceDeleteRequestType:
 		return n.applyNamespaceDelete(buf[1:], log.Index)
-	// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
+	// COMPAT(1.0): These messages were added and removed during the 1.0-beta
+	// series and should not be immediately reused for other purposes
 	case structs.EventSinkUpsertRequestType,
 		structs.EventSinkDeleteRequestType,
 		structs.BatchEventSinkUpdateProgressType:
