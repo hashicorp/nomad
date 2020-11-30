@@ -22,7 +22,7 @@ When the `network` stanza is defined with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
 [Consul Connect](/docs/integrations/consul-connect). Tasks running within a
 network namespace are not visible to applications outside the namespace on the same host.
-This allows [Connect][] enabled applications to bind only to localhost within the shared network stack,
+This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.
 
 Note that this document only applies to services that want to _listen_ on a
@@ -192,10 +192,10 @@ and port mapping.
 ```hcl
 network {
   mode = "bridge"
-    port "http" {
-      static = 9002
-      to     = 9002
-    }
+  port "http" {
+    static = 9002
+    to     = 9002
+  }
 }
 ```
 
@@ -265,7 +265,7 @@ If not set the "default" host network is used which is commonly the address with
 
 When Nomad does port mapping for ports with a defined `host_network`, the port mapping rule will use the host address as the destination address.
 
-\*Host networks does not currently support task based mapped ports such as the Docker driver's `port_map` configuration.
+~> Note: `host_network` does not currently support task-based mapped ports such as the Docker driver's `port_map` configuration.
 
 ```hcl
 network {
