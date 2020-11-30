@@ -199,6 +199,7 @@ export default [
             content: [
               {
                 category: 'collection',
+                name: 'Collection Functions',
                 content: [
                   'chunklist',
                   'coalesce',
@@ -227,10 +228,12 @@ export default [
               },
               {
                 category: 'conversion',
+                name: 'Type Conversion Functions',
                 content: ['can', 'convert', 'try'],
               },
               {
                 category: 'crypto',
+                name: 'Hash and Crypto Functions',
                 content: [
                   'bcrypt',
                   'md5',
@@ -242,10 +245,12 @@ export default [
               },
               {
                 category: 'datetime',
+                name: 'Date and Time Functions',
                 content: ['formatdate', 'timeadd', 'timestamp'],
               },
               {
                 category: 'encoding',
+                name: 'Encoding Functions',
                 content: [
                   'base64decode',
                   'base64encode',
@@ -259,6 +264,7 @@ export default [
               },
               {
                 category: 'file',
+                name: 'Filesystem Functions',
                 content: [
                   'abspath',
                   'basename',
@@ -271,10 +277,12 @@ export default [
               },
               {
                 category: 'ipnet',
+                name: 'IP Network Functions',
                 content: ['cidrhost', 'cidrnetmask', 'cidrsubnet', 'cidrsubnets'],
               },
               {
                 category: 'numeric',
+                name: 'Numeric Functions',
                 content: [
                   'abs',
                   'ceil',
@@ -289,6 +297,7 @@ export default [
               },
               {
                 category: 'string',
+                name: 'String Functions',
                 content: [
                   'chomp',
                   'format',
@@ -311,6 +320,7 @@ export default [
               },
               {
                 category: 'uuid',
+                name: 'UUID Functions',
                 content: ['uuidv4', 'uuidv5'],
               },
             ],
