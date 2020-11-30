@@ -293,12 +293,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyNamespaceUpsert(buf[1:], log.Index)
 	case structs.NamespaceDeleteRequestType:
 		return n.applyNamespaceDelete(buf[1:], log.Index)
-	case structs.EventSinkUpsertRequestType:
-		return n.applyUpsertEventSink(buf[1:], log.Index)
-	case structs.EventSinkDeleteRequestType:
-		return n.applyDeleteEventSink(buf[1:], log.Index)
-	case structs.BatchEventSinkUpdateProgressType:
-		return n.applyBatchUpdateEventSink(buf[1:], log.Index)
+	// COMPAT(1.0): These messages were added and removed during the 1.0-beta
+	// series and should not be immediately reused for other purposes
+	case structs.EventSinkUpsertRequestType,
+		structs.EventSinkDeleteRequestType,
+		structs.BatchEventSinkUpdateProgressType:
+		return nil
 	}
 
 	// Check enterprise only message types.
@@ -1312,51 +1312,6 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertEventSink(buf []byte, index uint64) interface{} {
-	var req structs.EventSinkUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_upsert_event_sink"}, time.Now())
-
-	if err := n.state.UpsertEventSink(index, req.Sink); err != nil {
-		n.logger.Error("UpsertEventSink failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyDeleteEventSink(buf []byte, index uint64) interface{} {
-	var req structs.EventSinkDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_delete_event_sink"}, time.Now())
-
-	if err := n.state.DeleteEventSinks(index, req.IDs); err != nil {
-		n.logger.Error("DeleteEventSink failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyBatchUpdateEventSink(buf []byte, index uint64) interface{} {
-	var req structs.EventSinkProgressRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_batch_update_event_sink"}, time.Now())
-
-	if err := n.state.BatchUpdateEventSinks(index, req.Sinks); err != nil {
-		n.logger.Error("BatchUpdateEventSinks failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
 func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	// Create a new snapshot
 	snap, err := n.state.Snapshot()
@@ -1633,16 +1588,9 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
 		case EventSinkSnapshot:
-			sink := new(structs.EventSink)
-			if err := dec.Decode(sink); err != nil {
-				return err
-			}
-
-			if err := restore.EventSinkRestore(sink); err != nil {
-				return err
-			}
-
+			return nil
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1957,10 +1905,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistClusterMetadata(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistEventSinks(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2489,29 +2433,6 @@ func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
 		// Write out a volume snapshot
 		sink.Write([]byte{byte(CSIVolumeSnapshot)})
 		if err := encoder.Encode(volume); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistEventSinks(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	sinks, err := s.snap.EventSinks(nil)
-	if err != nil {
-		return err
-	}
-
-	for {
-		raw := sinks.Next()
-		if raw == nil {
-			break
-		}
-
-		es := raw.(*structs.EventSink)
-		sink.Write([]byte{byte(EventSinkSnapshot)})
-		if err := encoder.Encode(es); err != nil {
 			return err
 		}
 	}
