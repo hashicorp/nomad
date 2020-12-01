@@ -120,7 +120,7 @@ export default function ResourcesPage() {
                   </li>
                 </ul>
                 Please only use this to report bugs. For general help, please
-                use our mailing list or Gitter.
+                use our <a href="https://discuss.hashicorp.com/c/nomad">discussion forum</a>.
               </p>
               <h3>Who Uses Nomad</h3>
               <h4>Roblox</h4>
