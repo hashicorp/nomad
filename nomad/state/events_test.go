@@ -601,10 +601,12 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
+				Table:  "jobs",
 				Before: &structs.Job{},
 				After:  &structs.Job{},
 			},
 			{
+				Table:  "jobs",
 				Before: &structs.Job{},
 				After:  nil, // deleted
 			},
@@ -630,6 +632,7 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
+				Table:  "nodes",
 				Before: before,
 				After:  nil, // deleted
 			},
