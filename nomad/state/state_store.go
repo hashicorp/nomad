@@ -77,6 +77,15 @@ type StateStore struct {
 	stopEventBroker func()
 }
 
+type streamACLDelegate struct {
+	s *StateStore
+}
+
+func (a *streamACLDelegate) TokenProvider() stream.ACLTokenProvider {
+	resolver, _ := a.s.Snapshot()
+	return resolver
+}
+
 // NewStateStore is used to create a new state store
 func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	// Create the MemDB
@@ -96,10 +105,13 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		// Create new event publisher using provided config
-		broker := stream.NewEventBroker(ctx, stream.EventBrokerCfg{
+		broker, err := stream.NewEventBroker(ctx, &streamACLDelegate{s}, stream.EventBrokerCfg{
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})
+		if err != nil {
+			return nil, fmt.Errorf("creating state store event broker %w", err)
+		}
 		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges)
 	} else {
 		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
@@ -5015,7 +5027,7 @@ func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.J
 }
 
 // UpsertACLPolicies is used to create or update a set of ACL policies
-func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error {
+func (s *StateStore) UpsertACLPolicies(msgType structs.MessageType, index uint64, policies []*structs.ACLPolicy) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -5056,8 +5068,8 @@ func (s *StateStore) UpsertACLPolicies(index uint64, policies []*structs.ACLPoli
 }
 
 // DeleteACLPolicies deletes the policies with the given names
-func (s *StateStore) DeleteACLPolicies(index uint64, names []string) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) DeleteACLPolicies(msgType structs.MessageType, index uint64, names []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Delete the policy
@@ -5115,7 +5127,7 @@ func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error
 }
 
 // UpsertACLTokens is used to create or update a set of ACL tokens
-func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error {
+func (s *StateStore) UpsertACLTokens(msgType structs.MessageType, index uint64, tokens []*structs.ACLToken) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -5161,8 +5173,8 @@ func (s *StateStore) UpsertACLTokens(index uint64, tokens []*structs.ACLToken) e
 }
 
 // DeleteACLTokens deletes the tokens with the given accessor ids
-func (s *StateStore) DeleteACLTokens(index uint64, ids []string) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) DeleteACLTokens(msgType structs.MessageType, index uint64, ids []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Delete the tokens
@@ -5275,8 +5287,8 @@ func (s *StateStore) CanBootstrapACLToken() (bool, uint64, error) {
 }
 
 // BootstrapACLToken is used to create an initial ACL token
-func (s *StateStore) BootstrapACLTokens(index, resetIndex uint64, token *structs.ACLToken) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) BootstrapACLTokens(msgType structs.MessageType, index uint64, resetIndex uint64, token *structs.ACLToken) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	// Check if we have already done a bootstrap

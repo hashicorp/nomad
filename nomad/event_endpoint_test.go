@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
@@ -308,7 +310,7 @@ func TestEventStream_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// start server
-	s, root, cleanupS := TestACLServer(t, nil)
+	s, _, cleanupS := TestACLServer(t, nil)
 	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -345,14 +347,6 @@ func TestEventStream_ACL(t *testing.T) {
 				"*": {"*"},
 			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
-		},
-		{
-			Name:  "root token",
-			Token: root.SecretID,
-			Topics: map[structs.Topic][]string{
-				"*": {"*"},
-			},
-			ExpectedErr: "subscription closed by server",
 		},
 		{
 			Name:  "job namespace token - correct ns",
@@ -506,5 +500,126 @@ func TestEventStream_ACL(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestEventStream_ACL_Update_Close_Stream asserts that an active subscription
+// is closed after the token is no longer valid
+func TestEventStream_ACL_Update_Close_Stream(t *testing.T) {
+	t.Parallel()
+
+	// start server
+	s1, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	policyNsGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
+	tokenNsFoo := mock.CreatePolicyAndToken(t, s1.State(), 1006, "valid", policyNsGood)
+
+	req := structs.EventStreamRequest{
+		Topics: map[structs.Topic][]string{"Job": {"*"}},
+		QueryOptions: structs.QueryOptions{
+			Region:    s1.Region(),
+			Namespace: structs.DefaultNamespace,
+			AuthToken: tokenNsFoo.SecretID,
+		},
+	}
+
+	handler, err := s1.StreamingRpcHandler("Event.Stream")
+	require.Nil(t, err)
+
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	streamMsg := make(chan *structs.EventStreamWrapper)
+
+	go handler(p2)
+
+	go func() {
+		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+		for {
+			var msg structs.EventStreamWrapper
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF || strings.Contains(err.Error(), "closed") {
+					return
+				}
+				errCh <- fmt.Errorf("error decoding: %w", err)
+			}
+
+			streamMsg <- &msg
+		}
+	}()
+
+	publisher, err := s1.State().EventBroker()
+	require.NoError(t, err)
+
+	job := mock.Job()
+	jobEvent := structs.JobEvent{
+		Job: job,
+	}
+
+	// send req
+	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+	require.Nil(t, encoder.Encode(req))
+
+	// publish some events
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: structs.TopicJob, Payload: jobEvent}}})
+	publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: structs.TopicJob, Payload: jobEvent}}})
+
+	// RPC to delete token
+	aclDelReq := &structs.ACLTokenDeleteRequest{
+		AccessorIDs: []string{tokenNsFoo.AccessorID},
+		WriteRequest: structs.WriteRequest{
+			Region:    s1.Region(),
+			Namespace: structs.DefaultNamespace,
+			AuthToken: root.SecretID,
+		},
+	}
+	var aclResp structs.GenericResponse
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	defer cancel()
+
+	codec := rpcClient(t, s1)
+	errChStream := make(chan error, 1)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				errChStream <- ctx.Err()
+				return
+			case err := <-errCh:
+				errChStream <- err
+				return
+			case msg := <-streamMsg:
+				if msg.Error == nil {
+					// received a valid event, make RPC to delete token
+					// continue trying for error
+					continue
+				}
+
+				errChStream <- msg.Error
+				return
+			}
+		}
+	}()
+
+	// Delete the token used to create the stream
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.DeleteTokens", aclDelReq, &aclResp))
+	timeout := time.After(5 * time.Second)
+OUTER:
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("timeout waiting for event stream")
+		case err := <-errCh:
+			t.Fatal(err)
+		case err := <-errChStream:
+			// Success
+			require.Contains(t, err.Error(), stream.ErrSubscriptionClosed.Error())
+			break OUTER
+		}
 	}
 }

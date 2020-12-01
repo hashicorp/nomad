@@ -2167,10 +2167,10 @@ func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
 	// Upsert policy and token
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy})
+	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy})
 	assert.Nil(err)
 
-	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token})
+	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token})
 	assert.Nil(err)
 
 	// Upsert namespace

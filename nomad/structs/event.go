@@ -21,6 +21,8 @@ const (
 	TopicAlloc      Topic = "Alloc"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
+	TopicACLPolicy  Topic = "ACLToken"
+	TopicACLToken   Topic = "ACLPolicy"
 	TopicAll        Topic = "*"
 
 	TypeNodeRegistration         = "NodeRegistration"
@@ -39,6 +41,10 @@ const (
 	TypeJobDeregistered          = "JobDeregistered"
 	TypeJobBatchDeregistered     = "JobBatchDeregistered"
 	TypePlanResult               = "PlanResult"
+	TypeACLTokenDeleted          = "ACLTokenDeleted"
+	TypeACLTokenUpserted         = "ACLTokenUpserted"
+	TypeACLPolicyDeleted         = "ACLPolicyDeleted"
+	TypeACLPolicyUpserted        = "ACLPolicyUpserted"
 )
 
 // Event represents a change in Nomads state.
@@ -110,4 +116,12 @@ type DeploymentEvent struct {
 // NodeStreamEvent holds a newly updated Node
 type NodeStreamEvent struct {
 	Node *Node
+}
+
+type ACLTokenEvent struct {
+	ACLToken *ACLToken
+}
+
+type ACLPolicyEvent struct {
+	ACLPolicy *ACLPolicy
 }
