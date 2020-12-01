@@ -198,8 +198,8 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 					continue
 				}
 
+				// If broker cannot fetch state there is nothing more to do
 				if e.aclDelegate == nil {
-					// Nothing more to do
 					continue
 				}
 
@@ -223,17 +223,24 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 	}
 }
 
+// checkSubscriptionsAgainstPolicyChange iterates over the brokers
+// subscriptions and evaluates whether the token used for the subscription is
+// still valid. If it is not valid it closes the subscriptions belonging to the
+// token.
+//
+// A lock must be held to iterate over the map of subscriptions.
 func (e *EventBroker) checkSubscriptionsAgainstPolicyChange() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	// If broker cannot fetch state there is nothing more to do
 	if e.aclDelegate == nil {
-		// Nothing to do
 		return
 	}
 
+	aclSnapshot := e.aclDelegate.TokenProvider()
 	for tokenSecretID := range e.subscriptions.byToken {
-		aclObj, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, tokenSecretID)
+		aclObj, err := aclObjFromSnapshotForTokenSecretID(aclSnapshot, e.aclCache, tokenSecretID)
 		if err != nil || aclObj == nil {
 			e.logger.Error("failed resolving ACL for secretID, closing subscriptions", "error", err)
 			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
