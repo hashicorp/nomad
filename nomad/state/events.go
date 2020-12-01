@@ -50,8 +50,12 @@ func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
 
 func eventFromChange(change memdb.Change) (structs.Event, bool) {
 	if change.Deleted() {
-		switch before := change.Before.(type) {
-		case *structs.ACLToken:
+		switch change.Table {
+		case "acl_token":
+			before, ok := change.Before.(*structs.ACLToken)
+			if !ok {
+				return structs.Event{}, false
+			}
 			return structs.Event{
 				Topic: structs.TopicACLToken,
 				Key:   before.AccessorID,
@@ -59,7 +63,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 					ACLToken: before,
 				},
 			}, true
-		case *structs.ACLPolicy:
+		case "acl_policy":
+			before, ok := change.Before.(*structs.ACLPolicy)
+			if !ok {
+				return structs.Event{}, false
+			}
 			return structs.Event{
 				Topic: structs.TopicACLPolicy,
 				Key:   before.Name,
@@ -67,7 +75,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 					ACLPolicy: before,
 				},
 			}, true
-		case *structs.Node:
+		case "nodes":
+			before, ok := change.Before.(*structs.Node)
+			if !ok {
+				return structs.Event{}, false
+			}
 			return structs.Event{
 				Topic: structs.TopicNode,
 				Key:   before.ID,
@@ -76,28 +88,39 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				},
 			}, true
 		}
-
 		return structs.Event{}, false
 	}
 
-	switch after := change.After.(type) {
-	case *structs.ACLToken:
+	switch change.Table {
+	case "acl_token":
+		after, ok := change.After.(*structs.ACLToken)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic: structs.TopicACLToken,
 			Key:   after.AccessorID,
-			Payload: &structs.ACLTokenEvent{
+			Payload: structs.ACLTokenEvent{
 				ACLToken: after,
 			},
 		}, true
-	case *structs.ACLPolicy:
+	case "acl_policy":
+		after, ok := change.After.(*structs.ACLPolicy)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic: structs.TopicACLPolicy,
 			Key:   after.Name,
-			Payload: &structs.ACLPolicyEvent{
+			Payload: structs.ACLPolicyEvent{
 				ACLPolicy: after,
 			},
 		}, true
-	case *structs.Evaluation:
+	case "evals":
+		after, ok := change.After.(*structs.Evaluation)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic: structs.TopicEval,
 			Key:   after.ID,
@@ -110,7 +133,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Eval: after,
 			},
 		}, true
-	case *structs.Allocation:
+	case "allocs":
+		after, ok := change.After.(*structs.Allocation)
+		if !ok {
+			return structs.Event{}, false
+		}
 		alloc := after.Copy()
 
 		filterKeys := []string{
@@ -130,7 +157,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Alloc: alloc,
 			},
 		}, true
-	case *structs.Job:
+	case "jobs":
+		after, ok := change.After.(*structs.Job)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic:     structs.TopicJob,
 			Key:       after.ID,
@@ -139,7 +170,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Job: after,
 			},
 		}, true
-	case *structs.Node:
+	case "nodes":
+		after, ok := change.After.(*structs.Node)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic: structs.TopicNode,
 			Key:   after.ID,
@@ -147,7 +182,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Node: after,
 			},
 		}, true
-	case *structs.Deployment:
+	case "deployment":
+		after, ok := change.After.(*structs.Deployment)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic:      structs.TopicDeployment,
 			Key:        after.ID,
