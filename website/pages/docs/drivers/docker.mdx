@@ -792,7 +792,7 @@ plugin "docker" {
 
     If you set an auth helper, it will be tried for all images, including
     public images. If you mix private and public images, you will need to
-    include `auth_soft_fail=true` in every job using a public image.
+    include [`auth_soft_fail=true`] in every job using a public image.
 
 - `tls` stanza:
 
@@ -1049,3 +1049,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin
 [allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[`auth_soft_fail=true`]: #auth_soft_fail
