@@ -1,17 +1,65 @@
 package command
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_BadCSIPluginNames(t *testing.T) {
+	// Start test server and API client
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	cases := []string{
+		"aws/ebs",
+		"gcp-*-1",
+	}
+	for _, pluginName := range cases {
+		cleanup := state.CreateTestCSIPlugin(srv.Agent.Server().State(), pluginName)
+		defer cleanup()
+	}
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Debug on the leader and all client nodes
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader", "-node-id", "all", "-output", os.TempDir()})
+	assert.Equal(t, 0, code)
+
+	// Bad plugin name should be escaped before it reaches the sandbox test
+	require.NotContains(t, ui.ErrorWriter.String(), "file path escapes capture directory")
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+
+	path := cmd.collectDir
+	defer os.Remove(path)
+
+	var pluginFiles []string
+	for _, pluginName := range cases {
+		pluginFile := fmt.Sprintf("csi-plugin-id-%s.json", helper.CleanFilename(pluginName, "_"))
+		pluginFile = filepath.Join(path, "nomad", "0000", pluginFile)
+		pluginFiles = append(pluginFiles, pluginFile)
+	}
+
+	testutil.WaitForFiles(t, pluginFiles)
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+}
 
 func TestDebugUtils(t *testing.T) {
 	xs := argNodes("foo, bar")
@@ -50,7 +98,6 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup Client 1 (nodeclass = clienta)
 	agentConfFunc1 := func(c *agent.Config) {
 		c.Region = "global"
-		c.EnableDebug = true
 		c.Server.Enabled = false
 		c.Client.NodeClass = "clienta"
 		c.Client.Enabled = true
@@ -69,7 +116,6 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup Client 2 (nodeclass = clientb)
 	agentConfFunc2 := func(c *agent.Config) {
 		c.Region = "global"
-		c.EnableDebug = true
 		c.Server.Enabled = false
 		c.Client.NodeClass = "clientb"
 		c.Client.Enabled = true
@@ -88,7 +134,6 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup Client 3 (nodeclass = clienta)
 	agentConfFunc3 := func(c *agent.Config) {
 		c.Server.Enabled = false
-		c.EnableDebug = false
 		c.Client.NodeClass = "clienta"
 		c.Client.Servers = []string{srvRPCAddr}
 	}
@@ -109,10 +154,42 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Debug on client - node class = "clienta"
 	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"})
 
-	assert.Equal(t, 0, code) // take note of failed return code, but continue to allow buffer content checks
+	assert.Equal(t, 0, code)
 	require.Empty(t, ui.ErrorWriter.String(), "errorwriter should be empty")
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	require.Contains(t, ui.OutputWriter.String(), "Max node count reached (2)")
 	require.Contains(t, ui.OutputWriter.String(), "Node Class: clienta")
+	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+}
+
+func TestDebugFail_Pprof(t *testing.T) {
+	// Setup agent config with debug endpoints disabled
+	agentConfFunc := func(c *agent.Config) {
+		c.EnableDebug = false
+	}
+
+	// Start test server and API client
+	srv, _, url := testServer(t, false, agentConfFunc)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Debug on client - node class = "clienta"
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
+
+	assert.Equal(t, 0, code) // Pprof failure isn't fatal
+	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof")
+	require.Contains(t, ui.ErrorWriter.String(), "Permission denied")
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

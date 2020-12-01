@@ -21,6 +21,16 @@ var validUUID = regexp.MustCompile(`(?i)^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f
 // by sequences containing a dot followed by a one or more non-dot characters.
 var validInterpVarKey = regexp.MustCompile(`^[^.]+(\.[^.]+)*$`)
 
+// invalidFilename is the minimum set of characters which must be removed or
+// replaced to produce a valid filename
+var invalidFilename = regexp.MustCompile(`[/\\<>:"|?*]`)
+
+// invalidFilenameNonASCII = invalidFilename plus all non-ASCII characters
+var invalidFilenameNonASCII = regexp.MustCompile(`[[:^ascii:]/\\<>:"|?*]`)
+
+// invalidFilenameStrict = invalidFilename plus additional punctuation
+var invalidFilenameStrict = regexp.MustCompile(`[/\\<>:"|?*$()+=[\];#@~,&']`)
+
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
 	const uuidLen = 36
@@ -392,6 +402,24 @@ func CleanEnvVar(s string, r byte) string {
 		}
 	}
 	return string(b)
+}
+
+// CleanFilename replaces invalid characters in filename
+func CleanFilename(filename string, replace string) string {
+	clean := invalidFilename.ReplaceAllLiteralString(filename, replace)
+	return clean
+}
+
+// CleanFilenameASCIIOnly replaces invalid and non-ASCII characters in filename
+func CleanFilenameASCIIOnly(filename string, replace string) string {
+	clean := invalidFilenameNonASCII.ReplaceAllLiteralString(filename, replace)
+	return clean
+}
+
+// CleanFilenameStrict replaces invalid and punctuation characters in filename
+func CleanFilenameStrict(filename string, replace string) string {
+	clean := invalidFilenameStrict.ReplaceAllLiteralString(filename, replace)
+	return clean
 }
 
 func CheckHCLKeys(node ast.Node, valid []string) error {
