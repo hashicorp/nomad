@@ -19,7 +19,7 @@ standard upgrade flow.
 
 ### HCL2 for Job specification
 
-Nomad 1.0.0 adopts HCL2 for parsing the job spec. HCL2 extends HCL with more
+Nomad v1.0.0 adopts HCL2 for parsing the job spec. HCL2 extends HCL with more
 expression and reuse support, but adds some stricter schema for HCL blocks (a.k.a. stanzas).  Check [HCL](/docs/job-specification/hcl2) for more details.
 
 ### Signal used when stopping Docker tasks
@@ -73,12 +73,12 @@ Nomad. The specific configuration values replaced are:
 
 ### Envoy proxy versions
 
-Nomad 1.0.0 changes the behavior around the selection of Envoy version used
+Nomad v1.0.0 changes the behavior around the selection of Envoy version used
 for Connect sidecar proxies. Previously, Nomad always defaulted to Envoy v1.11.2
 if neither the `meta.connect.sidecar_image` parameter or `sidecar_task` stanza
 were explicitly configured. Likewise the same version of Envoy would be used for
 Connect ingress gateways if `meta.connect.gateway_image` was unset. Starting with
-Nomad 1.0.0, each Nomad Client will query Consul for a list of supported Envoy
+Nomad v1.0.0, each Nomad Client will query Consul for a list of supported Envoy
 versions. Nomad will make use of the latest version of Envoy supported by the
 Consul agent when launching Envoy as a Connect sidecar proxy. If the version of
 the Consul agent is older than v1.7.8, v1.8.4, or v1.9.0, Nomad will fallback to
@@ -93,6 +93,15 @@ full [node drain](https://www.nomadproject.io/docs/upgrade#5-upgrade-clients) at
 the time of the upgrade for each node will ensure Connect workloads are properly
 rescheduled onto nodes in such a way that the Nomad Clients, Consul agents, and
 Envoy sidecar tasks maintain compatibility with one another.
+
+### Envoy worker threads
+
+Nomad v1.0.0 changes the default behaviour around the number of worker threads
+created by the Envoy sidecar proxy when using Consul Connect. Previously, the
+Envoy [`--concurrency`][envoy_concurrency] argument was left unset, which caused
+Envoy to spawn as many worker threads as logical cores available on the CPU. The
+`--concurrency` value now defaults to `1` and can be configured by setting the
+[`meta.connect.proxy_concurrency`][proxy_concurrency] property in client configuration.
 
 ## Nomad 0.12.8
 
@@ -859,6 +868,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [drain-api]: /api-docs/nodes#drain-node
 [drain-cli]: /docs/commands/node/drain
 [dst]: /docs/job-specification/periodic#daylight-saving-time
+[envoy_concurrency]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
 [gh-8457]: https://github.com/hashicorp/nomad/issues/8457
 [gh-9148]: https://github.com/hashicorp/nomad/issues/9148
@@ -870,6 +880,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [plugins]: /docs/drivers/external
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
 [preemption]: /docs/internals/scheduling/preemption
+[proxy_concurrency]: /docs/job-specification/sidecar_task#proxy_concurrency
 [reserved]: /docs/configuration/client#reserved-parameters
 [task-config]: /docs/job-specification/task#config
 [tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
