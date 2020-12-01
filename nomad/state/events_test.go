@@ -12,6 +12,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestEventFromChange_SingleEventPerTable ensures that only a single event is
+// created per table per memdb.Change
+func TestEventFromChange_SingleEventPerTable(t *testing.T) {
+	t.Parallel()
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	changes := Changes{
+		Index:   100,
+		MsgType: structs.JobRegisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "job_version",
+				Before: mock.Job(),
+				After:  mock.Job(),
+			},
+			{
+				Table:  "jobs",
+				Before: mock.Job(),
+				After:  mock.Job(),
+			},
+		},
+	}
+
+	out := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out.Events, 1)
+	require.Equal(t, out.Events[0].Type, structs.TypeJobRegistered)
+
+}
+
 func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
