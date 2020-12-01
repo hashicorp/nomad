@@ -68,7 +68,11 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `auth` - (Optional) Provide authentication for a private registry (see below).
 
 - `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
-  Attempt to continue without auth.
+  Attempt to continue without auth. If the Nomad client configuration has an
+  [`auth.helper`](#plugin_auth_helper) stanza, the helper will be tried for
+  all images, including public images. If you mix private and public images,
+  you will need to include `auth_soft_fail=true` in every job using a public
+  image.
 
 - `command` - (Optional) The command to run when starting the container.
 
@@ -503,7 +507,7 @@ task "example" {
 }
 ```
 
-Example docker-config, using two helper scripts in \$PATH,
+Example docker-config, using two helper scripts in `$PATH`,
 "docker-credential-ecr-login" and "docker-credential-vault":
 
 ```json
@@ -520,8 +524,8 @@ Example docker-config, using two helper scripts in \$PATH,
 }
 ```
 
-Example agent configuration, using a helper script "docker-credential-ecr-login" in
-\$PATH
+Example agent configuration, using a helper script
+"docker-credential-ecr-login" in `$PATH`
 
 ```hcl
 client {
@@ -697,8 +701,10 @@ $ sudo usermod -G docker -a nomad
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
-If you would like to change any of the options related to the `docker` driver on
-a Nomad client, you can modify them with the [plugin stanza][plugin-stanza] syntax. Below is an example of a configuration (many of the values are the default). See the next section for more information on the options.
+If you would like to change any of the options related to the `docker` driver
+on a Nomad client, you can modify them with the [plugin stanza][plugin-stanza]
+syntax. Below is an example of a configuration (many of the values are the
+default). See the next section for more information on the options.
 
 ```hcl
 plugin "docker" {
@@ -783,6 +789,10 @@ plugin "docker" {
     like script on `$PATH` to lookup authentication information from external
     sources. The script's name must begin with `docker-credential-` and this
     option should include only the basename of the script, not the path.
+
+    If you set an auth helper, it will be tried for all images, including
+    public images. If you mix private and public images, you will need to
+    include [`auth_soft_fail=true`] in every job using a public image.
 
 - `tls` stanza:
 
@@ -1039,3 +1049,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin
 [allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[`auth_soft_fail=true`]: #auth_soft_fail
