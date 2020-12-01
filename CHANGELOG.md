@@ -31,6 +31,7 @@ IMPROVEMENTS:
  * consul: Support Consul namespace (Consul Enterprise) in client configuration. [[GH-8849](https://github.com/hashicorp/nomad/pull/8849)]
  * consul/connect: Dynamically select envoy sidecar at runtime [[GH-8945](https://github.com/hashicorp/nomad/pull/8945)]
  * consul/connect: Enable setting `datacenter` field on connect upstreams [[GH-8964](https://github.com/hashicorp/nomad/issues/8964)]
+ * consul/connect: Envoy concurrency now defaults to 1 rather than number of cores [[GH-9341](https://github.com/hashicorp/nomad/issues/9341)]
  * csi: Support `nomad volume detach` with previously garbage-collected nodes. [[GH-9057](https://github.com/hashicorp/nomad/issues/9057)]
  * csi: Relaxed validation requirements when checking volume capabilities with controller plugins, to accommodate existing plugin behaviors. [[GH-9049](https://github.com/hashicorp/nomad/issues/9049)]
  * driver/docker: Upgrade pause container and detect architecture [[GH-8957](https://github.com/hashicorp/nomad/pull/8957)]

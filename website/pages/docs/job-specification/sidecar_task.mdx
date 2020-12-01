@@ -61,40 +61,44 @@ group service has a [`sidecar_service`][sidecar_service] stanza.
 The default sidecar task is equivalent to:
 
 ```hcl
-   sidecar_task {
-     name   = "connect-proxy-<service>"
+sidecar_task {
+  name = "connect-proxy-<service>"
 
-     lifecycle {
-       hook = "prestart"
-       sidecar = true
-     }
+  lifecycle {
+    hook    = "prestart"
+    sidecar = true
+  }
 
-     driver = "docker"
-     config {
-       image = "${meta.connect.sidecar_image}"
-       args  = [
-         "-c",
-         "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json",
-         "-l",
-         "${meta.connect.log_level}"
-       ]
-     }
+  driver = "docker"
+  config {
+    image = "${meta.connect.sidecar_image}"
+    args = [
+      "-c",
+      "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json",
+      "-l",
+      "${meta.connect.log_level}",
+      "--concurrency",
+      "${meta.connect.proxy_concurrency}",
+      "--disable-hot-restart"
+    ]
+  }
 
-     logs {
-       max_files     = 2
-       max_file_size = 2 # MB
-     }
+  logs {
+    max_files     = 2
+    max_file_size = 2 # MB
+  }
 
-     resources {
-       cpu    = 250 # MHz
-       memory = 128 # MB
-     }
+  resources {
+    cpu    = 250 # MHz
+    memory = 128 # MB
+  }
 
-     shutdown_delay = "5s"
-   }
+  shutdown_delay = "5s"
+}
 ```
 
-The `meta.connect.sidecar_image` and `meta.connect.log_level` are [_client_
+The `meta.connect.sidecar_image`, `meta.connect.log_level`, and
+`meta.connect.proxy_concurrency` variables are [_client_
 configurable][nodemeta] variables with the following defaults:
 
 - `sidecar_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
@@ -102,8 +106,9 @@ configurable][nodemeta] variables with the following defaults:
    by a query to Consul.
 - `log_level` - `(string: "info")` - Envoy sidecar log level. "`debug`" is useful for
   debugging Connect related issues.
+- `proxy_concurrency` - `(string: "1")` - The number of [worker threads][worker_threads] the Envoy
+  sidecar will run.
 
-`meta.connect.sidecar_image` can be configured at the job, group, or task level.
 Custom images can make use of Consul's preferred Envoy version by making use of
 Nomad's version interpolation, e.g.
 
@@ -169,3 +174,4 @@ The following example configures resources for the sidecar task and other config
 [resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
 [logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
 [nodemeta]: /docs/configuration/client#meta
+[worker_threads]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
