@@ -7,5 +7,6 @@
   ],
   "rewrites": [
     { "source": "/ui/(.*)", "destination": "/ui/index.html" }
-  ]
+  ],
+  "trailingSlash": true
 }
