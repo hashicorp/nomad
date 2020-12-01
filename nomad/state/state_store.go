@@ -1456,7 +1456,7 @@ func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 
 // UpsertJob is used to register a job or update a job definition
 func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, job *structs.Job) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
 		return err
