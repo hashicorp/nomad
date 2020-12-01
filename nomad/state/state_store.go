@@ -5621,8 +5621,7 @@ func (s *StateStore) UpsertNamespaces(index uint64, namespaces []*structs.Namesp
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 // upsertNamespaceImpl is used to upsert a namespace
@@ -5723,8 +5722,7 @@ func (s *StateStore) DeleteNamespaces(index uint64, names []string) error {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func (s *StateStore) DeleteScalingPolicies(index uint64, ids []string) error {
