@@ -64,6 +64,104 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
   - `fs_type`: file system type (ex. `"ext4"`)
   - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
 
+## Volume Interpolation
+
+Because volumes represent state, many workloads with multiple allocations will
+want to mount specific volumes to specific tasks. You can use the [HCL2]
+syntax in Nomad 1.0 for fine-grained control over how volumes are used.
+
+There are two limitations to using HCL2 interpolation for `volume` blocks:
+* The `volume` block is used to schedule workloads, so any interpolation needs
+  to be done before placement. This means that variables like
+  `NOMAD_ALLOC_INDEX` can't be used for interpolation.
+* Nomad does not yet support dynamic volume creation (see [GH-8212]), so volumes
+  must be created and registered before being used as a `volume.source`.
+
+The following job specification demonstrates how to use multiple volumes with
+multiple allocations. It uses a `dynamic` block to create a new task group for
+each of the two volumes. This job specification also shows using HCL2
+variables interpolation to expose information to the task's environment.
+
+```hcl
+variables {
+  volume_index = ["0", "1"]
+  path         = "test"
+}
+
+job "example" {
+  datacenters = ["dc1"]
+
+  dynamic "group" {
+    for_each = var.volume_index
+    labels   = ["cache-${group.value}"]
+
+    content {
+
+      volume "cache-volume" {
+        type   = "csi"
+        source = "test-volume${group.value}"
+      }
+
+      network {
+        port "db" {
+          to = 6379
+        }
+      }
+
+      task "redis" {
+        driver = "docker"
+        config {
+          image = "redis:3.2"
+          ports = ["db"]
+        }
+        resources {
+          cpu    = 500
+          memory = 256
+        }
+
+        env {
+          # this will be available as the MOUNT_PATH environment
+          # variable in the task
+          MOUNT_PATH = "${NOMAD_ALLOC_DIR}/${var.path}"
+        }
+
+        volume_mount {
+          volume      = "cache-volume"
+          destination = "${NOMAD_ALLOC_DIR}/${var.path}"
+        }
+
+      }
+    }
+  }
+}
+```
+
+The job that results from this job specification has two task groups, each one
+named for each of the two volumes. Each allocation has its own volume.
+
+```shell-session
+$ nomad job status example
+ID            = example
+...
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+81d32909  352c6926  cache-1     0        run      running  4s ago   3s ago
+ce6fbfc8  352c6926  cache-0     0        run      running  4s ago   3s ago
+
+$ nomad volume status test-volume0
+...
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+ce6fbfc8  352c6926  cache-0     0        run      running  29s ago  18s ago
+
+$ nomad volume status test-volume1
+...
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+81d32909  352c6926  cache-0     0        run      running  29s ago  18s ago
+```
+
 
 [volume_mount]: /docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
 [host_volume]: /docs/configuration/client#host_volume-stanza
@@ -72,3 +170,5 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
 [csi_volume]: /docs/commands/volume/register
 [attachment mode]: /docs/commands/volume/register#attachment_mode
 [volume registration]: /docs/commands/volume/register#mount_options
+[HCL2]: /docs/job-specification/hcl2
+[GH-8212]: https://github.com/hashicorp/nomad/issues/8212
