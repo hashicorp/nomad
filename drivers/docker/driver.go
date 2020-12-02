@@ -1461,7 +1461,10 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 		return fmt.Errorf("failed to parse signal: %v", err)
 	}
 
-	return h.Signal(sig)
+	// TODO: review whether we can timeout in this and other Docker API
+	// calls without breaking the expected client behavior.
+	// see https://github.com/hashicorp/nomad/issues/9503
+	return h.Signal(context.Background(), sig)
 }
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
