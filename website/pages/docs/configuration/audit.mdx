@@ -91,15 +91,15 @@ audit {
 - `delivery_guarantee` `(string: "enforced", required)` - Specifies the
   delivery guarantee that will be made for each audit log entry. Available
   options are `"enforced"` and `"best-effort"`. `"enforced"` will
-  hault request execution if the audit log event fails to be written to it's sink.
-  `"best-effort"` will not hault request execution, meaning a request could
+  halt request execution if the audit log event fails to be written to its sink.
+  `"best-effort"` will not halt request execution, meaning a request could
   potentially be un-audited.
 
 - `format` `(string: "json", required)` - Specifies the output format to be
   sent to a sink. Currently only `"json"` format is supported.
 
 - `path` `(string: "[data_dir]/audit/audit.log")` - Specifies the path and file
-  name to use for the audit log. By default Nomad will use it's configured
+  name to use for the audit log. By default Nomad will use its configured
   [`data_dir`](/docs/configuration#data_dir) for a combined path of
   `/data_dir/audit/audit.log`. If `rotate_bytes` or `rotate_duration` are set
   file rotation will occur. In this case the filename will be post-fixed with
@@ -113,8 +113,8 @@ audit {
   audit log should be written to before it needs to be rotated. Must be a
   duration value such as 30s.
 
-- `rotate_max_files` `(int: 0)` - Specifies the maximum number of older audit log
-  file archives to keep. If 0 no files are ever deleted.
+- `rotate_max_files` `(int: 0)` - Specifies the maximum number of older audit
+  log file archives to keep. If 0, no files are ever deleted.
 
 ### `filter` Stanza
 
@@ -124,7 +124,7 @@ audit log for all stages (OperationReceived and OperationComplete). Filters
 are useful for operators who want to limit the performance impact of audit
 logging as well as reducing the amount of events generated.
 
-`endpoints`, `stages`, and `operations` support [globbed pattern](https://github.com/ryanuber/go-glob/blob/master/README.md#example) matching.
+`endpoints`, `stages`, and `operations` support [globbed pattern][glob] matching.
 
 Query parameters are ignored when evaluating filters.
 
@@ -176,9 +176,9 @@ audit {
 
 ## Audit Log Format
 
-Below are two audit log entries for a request made to `/v1/job/web/summary`.
-The first entry is for the `OperationReceived` stage. The second entry is for
-the `OperationComplete` stage and includes the contents of the `OperationReceived`
+Below are two audit log entries for a request made to `/v1/job/web/summary`. The
+first entry is for the `OperationReceived` stage. The second entry is for the
+`OperationComplete` stage and includes the contents of the `OperationReceived`
 stage plus a `response` key.
 
 ```json
@@ -292,3 +292,5 @@ If the request returns an error the audit log will reflect the error message.
   }
 }
 ```
+
+[glob]: https://github.com/ryanuber/go-glob/blob/master/README.md#example
