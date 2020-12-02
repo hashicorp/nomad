@@ -234,14 +234,14 @@ plugin "docker" {
 }
 ```
 
-### Qemu images
+### QEMU images
 
-Nomad 0.12.0 restricts the paths the Qemu tasks can load an image from. A Qemu
+Nomad 0.12.0 restricts the paths the QEMU tasks can load an image from. A QEMU
 task may download an image to the allocation directory to load. But images
 outside the allocation directories must be explicitly allowed by operators in
 the client agent configuration file.
 
-For example, you may allow loading Qemu images from `/mnt/qemu-images` by
+For example, you may allow loading QEMU images from `/mnt/qemu-images` by
 adding the following to the agent configuration file:
 
 ```hcl

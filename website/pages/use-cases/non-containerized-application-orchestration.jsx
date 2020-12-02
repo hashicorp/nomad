@@ -12,7 +12,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
         textSplit={{
           heading: 'Non-Containerized Orchestration',
           content:
-            'Deploy, manage, and scale your non-containerized applications using the Java, Qemu, or exec drivers.',
+            'Deploy, manage, and scale your non-containerized applications using the Java, QEMU, or exec drivers.',
           textSide: 'right',
           links: [
             {
