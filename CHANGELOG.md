@@ -72,6 +72,7 @@ BUG FIXES:
  * csi: Fixed a bug where `nomad volume detach` would not accept prefixes for the node ID parameter. [[GH-9041](https://github.com/hashicorp/nomad/issues/9041)]
  * csi: Fixed a bug where `nomad alloc status -verbose` would display an error when querying volumes. [[GH-9354](https://github.com/hashicorp/nomad/issues/9354)]
  * csi: Fixed a bug where queries for CSI plugins could be interleaved, resulting in inconsistent counts of plugins. [[GH-9438](https://github.com/hashicorp/nomad/issues/9438)]
+ * driver/docker: Fixed a bug where the Docker daemon could block longer than the `kill_timeout`. [[GH-9502](https://github.com/hashicorp/nomad/issues/9502)
  * driver/docker: Fixed a bug where the default `image_delay` configuration was ignored if the `gc` configuration was not set. [[GH-9101](https://github.com/hashicorp/nomad/issues/9101)]
  * driver/raw_exec: Fixed a bug where raw_exec attempts to create a freezer cgroups for the tasks even when `no_cgroups` is set. [[GH-9328](https://github.com/hashicorp/nomad/issues/9328)]
  * ui: Fixed a bug in the volume status page where read allocations and write allocations were not displayed. [[GH-9377](https://github.com/hashicorp/nomad/issues/9377)]
