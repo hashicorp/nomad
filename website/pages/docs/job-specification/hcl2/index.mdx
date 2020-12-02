@@ -31,7 +31,9 @@ guide](/guides/hcl).
 
 ## HCL Parsing Context
 
-It is important to acknowledge that the Nomad API uses JSON to represent Nomad jobs.
+The [Nomad API uses JSON][jobs-api], not HCL, to represent Nomad jobs.
+
+[jobs-api]: /api-docs/jobs
 When running commands like `nomad job run` and `nomad job plan`, the Nomad CLI
 parses HCL and ultimately converts it to JSON. Because this parsing happens locally
 (i.e., where the operator is running the CLI) before job submission, there are some
