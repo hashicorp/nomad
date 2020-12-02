@@ -127,7 +127,7 @@ job "example" {
 
         volume_mount {
           volume      = "cache-volume"
-          destination = "${NOMAD_ALLOC_DIR}/test"
+          destination = "${NOMAD_ALLOC_DIR}/${var.path}"
         }
 
       }
