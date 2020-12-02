@@ -120,7 +120,7 @@ if [ ! -f ${NOMAD_ALLOC_DIR}/poststart-started ]; then exit 15; fi
 touch ${NOMAD_ALLOC_DIR}/main-checked
 
 echo trap
-trap cleanup SIGINT
+trap cleanup SIGTERM
 
 echo sleep
 while true
