@@ -533,7 +533,7 @@ job "example" {
 }
 ```
 
-No explicit `address_mode` required!
+No explicit `address_mode` required.
 
 Services default to the `auto` address mode. When a Docker network mode other
 than "host" or "bridge" is used, services will automatically advertise the
@@ -561,7 +561,7 @@ job "example" {
       config {
         image = "redis:3.2"
         network_mode = "weave"
-        # No port map required!
+        # No port map required.
       }
 
       resources {
@@ -666,7 +666,7 @@ job "example" {
       config {
         image = "redis:3.2"
         advertise_ipv6_address = true
-        # No port map required!
+        # No port map required.
       }
 
       resources {
@@ -705,7 +705,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 </sup>
 <small>
   {' '}
-  Script checks are not supported for the [qemu driver][qemu] since the Nomad
+  Script checks are not supported for the [QEMU driver][qemu] since the Nomad
   client does not have access to the file system of a task for that driver.
 </small>
 
@@ -715,7 +715,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
 [interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [network]: /docs/job-specification/network 'Nomad network Job Specification'
-[qemu]: /docs/drivers/qemu 'Nomad qemu Driver'
+[qemu]: /docs/drivers/qemu 'Nomad QEMU Driver'
 [restart_stanza]: /docs/job-specification/restart 'restart stanza'
 [connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
 [type]: /docs/job-specification/service#type
