@@ -29,6 +29,19 @@ a quick try to HCL2, you can also read the quicker [HCL2 getting started
 guide](/guides/hcl).
 --->
 
+## HCL Parsing Context
+
+The [Nomad API uses JSON][jobs-api], not HCL, to represent Nomad jobs.
+When running commands like `nomad job run` and `nomad job plan`, the Nomad CLI
+parses HCL and ultimately converts it to JSON. Because this parsing happens locally
+(i.e., where the operator is running the CLI) before job submission, there are some
+limits to the capabilities that can be accessed by HCL job specifications. For
+example, scheduling information is not yet available, including information about
+the client. Similarly, HCL features that depend on external context will take that
+context from the local environment of the CLI (e.g., files, environment variables).
+
+[jobs-api]: /api-docs/jobs
+
 ## Syntax
 
 The main purpose of the HCL language in Nomad is defining jobs. All other
