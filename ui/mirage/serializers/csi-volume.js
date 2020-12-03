@@ -23,7 +23,10 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeVolumeFromArray(volume) {
+  volume.CurrentWriters = volume.WriteAllocs.length;
   delete volume.WriteAllocs;
+
+  volume.CurrentReaders = volume.ReadAllocs.length;
   delete volume.ReadAllocs;
 }
 
