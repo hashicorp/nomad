@@ -224,7 +224,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
 			shouldUnsubscribe: true,
 			event: structs.Event{
-				Topic: structs.TopicEval,
+				Topic: structs.TopicEvaluation,
 				Type:  structs.TypeEvalUpdated,
 				Payload: structs.EvaluationEvent{
 					Evaluation: &structs.Evaluation{
@@ -248,7 +248,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{}),
 			shouldUnsubscribe: true,
 			event: structs.Event{
-				Topic: structs.TopicAlloc,
+				Topic: structs.TopicAllocation,
 				Type:  structs.TypeAllocUpdated,
 				Payload: structs.AllocationEvent{
 					Allocation: &structs.Allocation{
@@ -320,7 +320,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
 			shouldUnsubscribe: false,
 			event: structs.Event{
-				Topic: structs.TopicEval,
+				Topic: structs.TopicEvaluation,
 				Type:  structs.TypeEvalUpdated,
 				Payload: structs.EvaluationEvent{
 					Evaluation: &structs.Evaluation{
@@ -344,7 +344,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
 			shouldUnsubscribe: false,
 			event: structs.Event{
-				Topic: structs.TopicAlloc,
+				Topic: structs.TopicAllocation,
 				Type:  structs.TypeAllocUpdated,
 				Payload: structs.AllocationEvent{
 					Allocation: &structs.Allocation{

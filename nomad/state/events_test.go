@@ -238,7 +238,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	var allocEvents []structs.Event
 	var deploymentEvent []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicAlloc {
+		if e.Topic == structs.TopicAllocation {
 			allocEvents = append(allocEvents, e)
 		} else if e.Topic == structs.TopicDeployment {
 			deploymentEvent = append(deploymentEvent, e)
@@ -249,7 +249,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	for _, e := range allocEvents {
 		require.Equal(t, 100, int(e.Index))
 		require.Equal(t, structs.TypeDeploymentAllocHealth, e.Type)
-		require.Equal(t, structs.TopicAlloc, e.Topic)
+		require.Equal(t, structs.TopicAllocation, e.Topic)
 	}
 
 	require.Len(t, deploymentEvent, 1)
@@ -359,7 +359,7 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	require.Len(t, events, 1)
 
 	e := events[0]
-	require.Equal(t, structs.TopicEval, e.Topic)
+	require.Equal(t, structs.TopicEvaluation, e.Topic)
 	require.Equal(t, structs.TypeEvalUpdated, e.Type)
 	require.Contains(t, e.FilterKeys, e2.JobID)
 	require.Contains(t, e.FilterKeys, e2.DeploymentID)
@@ -411,9 +411,9 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	var jobs []structs.Event
 	var deploys []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicAlloc {
+		if e.Topic == structs.TopicAllocation {
 			allocs = append(allocs, e)
-		} else if e.Topic == structs.TopicEval {
+		} else if e.Topic == structs.TopicEvaluation {
 			evals = append(evals, e)
 		} else if e.Topic == structs.TopicJob {
 			jobs = append(jobs, e)
@@ -562,9 +562,9 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 	var allocs []structs.Event
 	var evalEvents []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicEval {
+		if e.Topic == structs.TopicEvaluation {
 			evalEvents = append(evalEvents, e)
-		} else if e.Topic == structs.TopicAlloc {
+		} else if e.Topic == structs.TopicAllocation {
 			allocs = append(allocs, e)
 		} else {
 			require.Fail(t, "unexpected event type")

@@ -122,7 +122,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{}, false
 		}
 		return structs.Event{
-			Topic: structs.TopicEval,
+			Topic: structs.TopicEvaluation,
 			Key:   after.ID,
 			FilterKeys: []string{
 				after.JobID,
@@ -149,7 +149,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		alloc.Job = nil
 
 		return structs.Event{
-			Topic:      structs.TopicAlloc,
+			Topic:      structs.TopicAllocation,
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,

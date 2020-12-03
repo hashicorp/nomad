@@ -17,8 +17,8 @@ type Topic string
 
 const (
 	TopicDeployment Topic = "Deployment"
-	TopicEval       Topic = "Evaluation"
-	TopicAlloc      Topic = "Allococation"
+	TopicEvaluation Topic = "Evaluation"
+	TopicAllocation Topic = "Allococation"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
 	TopicACLPolicy  Topic = "ACLToken"
