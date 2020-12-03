@@ -329,6 +329,8 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 - The `consul` binary must be present in Nomad's `$PATH` to run the Envoy
   proxy sidecar on client nodes.
 - Consul Connect using network namespaces is only supported on Linux.
+- Prior to Consul 1.9, the Envoy sidecar proxy will drop and stop accepting
+  connections while the Nomad agent is restarting.
 
 [count-dashboard]: /img/count-dashboard.png
 [gh6120]: https://github.com/hashicorp/nomad/issues/6120

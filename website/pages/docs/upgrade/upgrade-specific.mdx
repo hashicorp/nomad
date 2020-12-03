@@ -81,7 +81,20 @@ Nomad. The specific configuration values replaced are:
 - Docker driver `docker.caps.whitelist` is replaced with
   `docker.caps.allowlist`.
 
-### Envoy proxy versions
+### Consul Connect
+
+Nomad 1.0's Consul Connect integration works best with Consul 1.9 or later. The
+ideal upgrade path is:
+
+1. Create a new Nomad client image with Nomad 1.0 and Consul 1.9 or later.
+2. Add new hosts based on the image.
+3. [Drain][drain-cli] and shutdown old Nomad client nodes.
+
+While inplace upgrades and older versions of Consul are supported by Nomad 1.0,
+Envoy proxies will drop and stop accepting connections while the Nomad agent is
+restarting. Nomad 1.0 with Consul 1.9 do not have this limitation.
+
+#### Envoy proxy versions
 
 Nomad v1.0.0 changes the behavior around the selection of Envoy version used for
 Connect sidecar proxies. Previously, Nomad always defaulted to Envoy v1.11.2 if
@@ -104,7 +117,7 @@ will ensure Connect workloads are properly rescheduled onto nodes in such a way
 that the Nomad Clients, Consul agents, and Envoy sidecar tasks maintain
 compatibility with one another.
 
-### Envoy worker threads
+#### Envoy worker threads
 
 Nomad v1.0.0 changes the default behavior around the number of worker threads
 created by the Envoy sidecar proxy when using Consul Connect. Previously, the
