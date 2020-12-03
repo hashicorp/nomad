@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -32,6 +33,7 @@ module('Acceptance | volumes list', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await VolumesList.visit();
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('visiting /csi redirects to /csi/volumes', async function(assert) {

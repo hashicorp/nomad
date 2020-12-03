@@ -4,6 +4,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { find, click, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
 
@@ -88,6 +89,7 @@ module('Integration | Component | task log', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('Streaming starts on creation', async function(assert) {
@@ -110,6 +112,7 @@ module('Integration | Component | task log', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('Clicking Head loads the log head', async function(assert) {
@@ -292,6 +295,7 @@ module('Integration | Component | task log', function(hooks) {
     assert.notOk(find('[data-test-connection-error]'), 'The error message is dismissable');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('When the client is inaccessible, the server is accessible, and stderr is pressed before the client timeout occurs, the no connection error is not shown', async function(assert) {

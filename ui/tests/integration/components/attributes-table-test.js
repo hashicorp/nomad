@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import flat from 'flat';
 
 const { flatten } = flat;
@@ -39,6 +40,7 @@ module('Integration | Component | attributes table', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('should render the full path of key/value pair from the root of the object', async function(assert) {

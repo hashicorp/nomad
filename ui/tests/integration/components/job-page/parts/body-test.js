@@ -4,6 +4,7 @@ import { find, findAll, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | job-page/parts/body', function(hooks) {
   setupRenderingTest(hooks);
@@ -52,6 +53,7 @@ module('Integration | Component | job-page/parts/body', function(hooks) {
     assert.ok(subnavLabels.some(label => label === 'Deployments'), 'Deployments link');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('the subnav does not include the deployments link when the job is not a service', async function(assert) {

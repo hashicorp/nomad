@@ -6,6 +6,7 @@ import moment from 'moment';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | job-page/parts/latest-deployment', function(hooks) {
   setupRenderingTest(hooks);
@@ -111,6 +112,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function(assert) {
@@ -154,6 +156,7 @@ module('Integration | Component | job-page/parts/latest-deployment', function(ho
     assert.ok(find('[data-test-deployment-allocations]'), 'Allocations found');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('each task group in the expanded task group section shows task group details', async function(assert) {

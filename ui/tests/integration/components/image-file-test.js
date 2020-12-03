@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import sinon from 'sinon';
 import RSVP from 'rsvp';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
@@ -33,6 +34,7 @@ module('Integration | Component | image file', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('the image is wrapped in an anchor that links directly to the image', async function(assert) {

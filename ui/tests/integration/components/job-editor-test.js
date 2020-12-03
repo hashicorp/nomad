@@ -9,6 +9,7 @@ import jobEditor from 'nomad-ui/tests/pages/components/job-editor';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 const Editor = create(jobEditor());
 
@@ -112,6 +113,7 @@ module('Integration | Component | job-editor', function(hooks) {
     assert.ok(Editor.editor.isPresent, 'Editor is present');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('the explanation popup can be dismissed', async function(assert) {
@@ -173,6 +175,7 @@ module('Integration | Component | job-editor', function(hooks) {
     assert.ok(Editor.planHelp.isPresent, 'The plan explanation popup is shown');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('from the plan screen, the cancel button goes back to the editor with the job still in tact', async function(assert) {
@@ -206,6 +209,7 @@ module('Integration | Component | job-editor', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when plan fails, the plan error message is shown', async function(assert) {
@@ -228,6 +232,7 @@ module('Integration | Component | job-editor', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when run fails, the run error message is shown', async function(assert) {
@@ -251,6 +256,7 @@ module('Integration | Component | job-editor', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when the scheduler dry-run has warnings, the warnings are shown to the user', async function(assert) {
@@ -273,6 +279,7 @@ module('Integration | Component | job-editor', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when the scheduler dry-run has no warnings, a success message is shown to the user', async function(assert) {
@@ -291,6 +298,7 @@ module('Integration | Component | job-editor', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when a job is submitted in the edit context, a POST request is made to the update job endpoint', async function(assert) {
@@ -347,6 +355,7 @@ module('Integration | Component | job-editor', function(hooks) {
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when the job-editor cancel button is clicked, the onCancel hook is called', async function(assert) {

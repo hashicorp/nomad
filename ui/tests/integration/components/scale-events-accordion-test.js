@@ -6,6 +6,7 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | scale-events-accordion', function(hooks) {
   setupRenderingTest(hooks);
@@ -42,6 +43,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
 
     assert.equal(findAll('[data-test-scale-events] [data-test-accordion-head]').length, eventCount);
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when an event is an error, an error icon is shown', async function(assert) {
@@ -54,6 +56,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
 
     assert.ok(find('[data-test-error]'));
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when an event has a count higher than previous count, a danger up arrow is shown', async function(assert) {
@@ -73,6 +76,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
         .classList.contains('is-danger')
     );
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when an event has a count lower than previous count, a primary down arrow is shown', async function(assert) {
@@ -115,6 +119,7 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
 
     assert.ok(find('[data-test-accordion-toggle]').classList.contains('is-invisible'));
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when an event has meta properties, the accordion entry is expanding, presenting the meta properties in a json viewer', async function(assert) {
@@ -140,5 +145,6 @@ module('Integration | Component | scale-events-accordion', function(hooks) {
       JSON.stringify(meta, null, 2)
     );
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 });

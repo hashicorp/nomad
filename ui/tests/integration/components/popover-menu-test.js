@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import { create } from 'ember-cli-page-object';
 import popoverMenuPageObject from 'nomad-ui/tests/pages/components/popover-menu';
 
@@ -41,6 +42,7 @@ module('Integration | Component | popover-menu', function(hooks) {
     assert.notOk(PopoverMenu.menu.isOpen);
     assert.equal(PopoverMenu.label, props.label);
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('clicking the trigger button toggles the popover menu', async function(assert) {
@@ -53,6 +55,7 @@ module('Integration | Component | popover-menu', function(hooks) {
 
     assert.ok(PopoverMenu.menu.isOpen);
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('the trigger gets the triggerClass prop assigned as a class', async function(assert) {

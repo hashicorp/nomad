@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
@@ -48,6 +49,7 @@ module('Integration | Component | two step button', function(hooks) {
     assert.notOk(find('[data-test-confirmation-message]'), 'No confirmation message yet');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('clicking the idle state button transitions into the promptForConfirmation state', async function(assert) {
@@ -71,6 +73,7 @@ module('Integration | Component | two step button', function(hooks) {
 
     assert.notOk(find('[data-test-idle-button]'), 'No more idle button');
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('canceling in the promptForConfirmation state calls the onCancel hook and resets to the idle state', async function(assert) {
@@ -112,6 +115,7 @@ module('Integration | Component | two step button', function(hooks) {
     assert.ok(TwoStepButton.isRunning, 'The confirm button is in a loading state');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when in the prompt state, clicking outside will reset state back to idle', async function(assert) {
@@ -169,5 +173,6 @@ module('Integration | Component | two step button', function(hooks) {
     assert.ok(find('[data-test-idle-button]'), 'Still in the idle state after clicking');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 });

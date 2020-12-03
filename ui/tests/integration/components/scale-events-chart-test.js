@@ -5,6 +5,7 @@ import hbs from 'htmlbars-inline-precompile';
 import moment from 'moment';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | scale-events-chart', function(hooks) {
   setupRenderingTest(hooks);
@@ -60,6 +61,7 @@ module('Integration | Component | scale-events-chart', function(hooks) {
       events.filter(ev => ev.count == null).length
     );
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('clicking an annotation presents details for the event', async function(assert) {
@@ -86,6 +88,7 @@ module('Integration | Component | scale-events-chart', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('clicking an active annotation closes event details', async function(assert) {

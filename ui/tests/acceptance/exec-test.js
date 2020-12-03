@@ -3,6 +3,7 @@ import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 import KEYS from 'nomad-ui/utils/keys';
@@ -37,6 +38,7 @@ module('Acceptance | exec', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await Exec.visitJob({ job: this.job.id });
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function(assert) {

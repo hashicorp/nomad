@@ -6,6 +6,7 @@ import { findAll, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import PromiseObject from 'nomad-ui/utils/classes/promise-object';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | app breadcrumbs', function(hooks) {
   setupRenderingTest(hooks);
@@ -77,6 +78,7 @@ module('Integration | Component | app breadcrumbs', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
 
     resolvePromise({ label: 'Two', args: ['two'] });
 

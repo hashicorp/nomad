@@ -5,6 +5,7 @@ import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import moment from 'moment';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
@@ -118,6 +119,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     const namespace = server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('when there are namespaces, the job detail page states the namespace for the job', async function(assert) {

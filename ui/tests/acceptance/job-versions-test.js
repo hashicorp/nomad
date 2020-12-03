@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import Versions from 'nomad-ui/tests/pages/jobs/job/versions';
 import moment from 'moment';
 
@@ -22,6 +23,7 @@ module('Acceptance | job versions', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/jobs/:id/versions should list all job versions', async function(assert) {

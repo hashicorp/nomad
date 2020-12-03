@@ -16,6 +16,7 @@ import {
   expectStartRequest,
 } from './helpers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 // A minimum viable page object to use with the pageSizeSelect behavior
 const PeriodicJobPage = create({
@@ -169,6 +170,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     expectError(assert, 'Could Not Stop Job');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function(assert) {

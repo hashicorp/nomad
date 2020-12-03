@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -22,6 +23,7 @@ module('Acceptance | regions (only one)', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await JobsList.visit();
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('when there is only one region, the region switcher is not shown in the nav bar and the region is not in the page title', async function(assert) {

@@ -5,6 +5,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 import isIp from 'is-ip';
@@ -50,6 +51,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/allocation/:id should name the allocation and link to the corresponding job and node', async function(assert) {

@@ -5,6 +5,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | job-page/parts/placement-failures', function(hooks) {
   setupRenderingTest(hooks);
@@ -61,6 +62,7 @@ module('Integration | Component | job-page/parts/placement-failures', function(h
     });
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when the job has no placement failures, the placement failures section is gone', async function(assert) {

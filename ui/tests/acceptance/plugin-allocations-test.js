@@ -3,6 +3,7 @@ import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginAllocations from 'nomad-ui/tests/pages/storage/plugins/plugin/allocations';
 
@@ -27,6 +28,7 @@ module('Acceptance | plugin allocations', function(hooks) {
 
     await PluginAllocations.visit({ id: plugin.id });
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/csi/plugins/:id/allocations shows all allocations in a single table', async function(assert) {

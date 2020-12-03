@@ -4,6 +4,7 @@ import { render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import Service from '@ember/service';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 import RecommendationCardComponent from 'nomad-ui/tests/pages/components/recommendation-card';
 import { create } from 'ember-cli-page-object';
@@ -206,6 +207,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
     assert.equal(RecommendationCard.activeTask.totalsTable.current.cpu.text, '125 MHz');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('it doesn’t have header toggles when there’s only one task', async function(assert) {

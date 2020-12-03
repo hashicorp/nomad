@@ -4,6 +4,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import faker from 'nomad-ui/mirage/faker';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | list table', function(hooks) {
   setupRenderingTest(hooks);
@@ -69,6 +70,7 @@ module('Integration | Component | list table', function(hooks) {
     });
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   // Ember doesn't support query params (or controllers or routes) in integration tests,

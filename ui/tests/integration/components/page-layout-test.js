@@ -4,6 +4,7 @@ import { find, click, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | page layout', function(hooks) {
   setupRenderingTest(hooks);
@@ -27,6 +28,7 @@ module('Integration | Component | page layout', function(hooks) {
 
     assert.ok(find('[data-test-gutter-menu]').classList.contains('is-open'), 'Gutter menu is open');
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('the gutter-menu hamburger menu closes the gutter menu', async function(assert) {

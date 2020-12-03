@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { render, triggerEvent } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | das/recommendation-chart', function(hooks) {
   setupRenderingTest(hooks);
@@ -27,6 +28,7 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     assert.dom('.recommendation-chart .icon-is-arrow-up').exists();
     assert.dom('text.percent').hasText('+46%');
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('it renders a chart for a recommended memory decrease', async function(assert) {
@@ -49,6 +51,7 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     assert.dom('.recommendation-chart .icon-is-arrow-down').exists();
     assert.dom('text.percent').hasText('-32%');
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('it handles the maximum being far beyond the recommended', async function(assert) {
@@ -97,6 +100,7 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     assert.dom('.recommendation-chart .resource').hasText('CPU');
     assert.dom('.recommendation-chart .icon-is-arrow-up').exists();
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('the stats labels shift aligment and disappear to account for space', async function(assert) {

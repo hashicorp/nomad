@@ -3,6 +3,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { currentURL, visit } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import Response from 'ember-cli-mirage/response';
 import moment from 'moment';
 
@@ -60,6 +61,7 @@ module('Acceptance | optimize', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await Optimize.visit();
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('lets recommendations be toggled, reports the choices to the recommendations API, and displays task group recommendations serially', async function(assert) {

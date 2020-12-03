@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginsList from 'nomad-ui/tests/pages/storage/plugins/list';
 
@@ -18,6 +19,7 @@ module('Acceptance | plugins list', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await PluginsList.visit();
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('visiting /csi/plugins', async function(assert) {

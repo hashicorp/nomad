@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 import sinon from 'sinon';
 
@@ -16,6 +17,7 @@ module('Integration | Component | copy-button', function(hooks) {
 
     assert.dom('.copy-button .icon-is-copy-action').exists();
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('it shows the success icon on success and resets afterward', async function(assert) {
@@ -28,6 +30,7 @@ module('Integration | Component | copy-button', function(hooks) {
 
     assert.dom('.copy-button .icon-is-copy-success').exists();
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
 
     clock.runAll();
 
@@ -45,5 +48,6 @@ module('Integration | Component | copy-button', function(hooks) {
 
     assert.dom('.copy-button .icon-is-alert-triangle').exists();
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 });

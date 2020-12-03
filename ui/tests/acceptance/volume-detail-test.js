@@ -3,6 +3,7 @@ import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import moment from 'moment';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
@@ -35,6 +36,7 @@ module('Acceptance | volume detail', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await VolumeDetail.visit({ id: volume.id });
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {

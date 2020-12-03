@@ -4,6 +4,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import ClientMonitor from 'nomad-ui/tests/pages/clients/monitor';
 import Layout from 'nomad-ui/tests/pages/layout';
 
@@ -30,6 +31,7 @@ module('Acceptance | client monitor', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await ClientMonitor.visit({ id: node.id });
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/clients/:id/monitor should have a breadcrumb trail linking back to clients', async function(assert) {

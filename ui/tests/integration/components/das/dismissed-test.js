@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import sinon from 'sinon';
 
 module('Integration | Component | das/dismissed', function(hooks) {
@@ -19,6 +20,7 @@ module('Integration | Component | das/dismissed', function(hooks) {
     await render(hbs`<Das::Dismissed @proceed={{proceedSpy}} />`);
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
 
     await click('input[type=checkbox]');
     await click('[data-test-understood]');
@@ -38,6 +40,7 @@ module('Integration | Component | das/dismissed', function(hooks) {
     assert.dom('[data-test-understood]').doesNotExist();
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
 
     assert.ok(proceedSpy.calledWith({ manuallyDismissed: false }));
   });

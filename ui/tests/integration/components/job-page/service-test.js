@@ -8,6 +8,7 @@ import { startJob, stopJob, expectError, expectDeleteRequest, expectStartRequest
 import Job from 'nomad-ui/tests/pages/jobs/detail';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | job-page/service', function(hooks) {
   setupRenderingTest(hooks);
@@ -84,6 +85,7 @@ module('Integration | Component | job-page/service', function(hooks) {
     expectError(assert, 'Could Not Stop Job');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function(assert) {
@@ -131,6 +133,7 @@ module('Integration | Component | job-page/service', function(hooks) {
     assert.equal(allocationRow.taskGroup, allocation.taskGroup, 'Task Group name');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('Recent allocations caps out at five', async function(assert) {
@@ -169,6 +172,7 @@ module('Integration | Component | job-page/service', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('Active deployment can be promoted', async function(assert) {
@@ -221,6 +225,7 @@ module('Integration | Component | job-page/service', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
 
     await click('[data-test-job-error-close]');
 

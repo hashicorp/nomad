@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -72,6 +73,7 @@ module('Acceptance | task group detail', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {

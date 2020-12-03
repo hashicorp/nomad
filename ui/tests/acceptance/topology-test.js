@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import Topology from 'nomad-ui/tests/pages/topology';
 import queryString from 'query-string';
 
@@ -21,6 +22,7 @@ module('Acceptance | topology', function(hooks) {
 
     await Topology.visit();
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('by default the info panel shows cluster aggregate stats', async function(assert) {
