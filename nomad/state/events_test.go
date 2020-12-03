@@ -570,7 +570,7 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 			require.Fail(t, "unexpected event type")
 		}
 
-		require.Equal(t, structs.TypeAllocUpdateDesiredStatus, e.Type)
+		require.Equal(t, structs.TypeAllocationUpdateDesiredStatus, e.Type)
 	}
 
 	require.Len(t, allocs, 1)
