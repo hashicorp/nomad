@@ -13,9 +13,7 @@ export default ApplicationSerializer.extend({
 
   serialize() {
     var json = ApplicationSerializer.prototype.serialize.apply(this, arguments);
-    if (json instanceof Array) {
-      json.forEach(serializeVolume);
-    } else {
+    if (!json instanceof Array) {
       serializeVolume(json);
     }
     return json;
