@@ -29,10 +29,12 @@ the nature of this endpoint individual topics require specific policies.
 | Topic        | ACL Required         |
 | ------------ | -------------------- |
 | `*`          | `management`         |
+| `ACLToken`   | `management`         |
+| `ACLPolicy`  | `management`         |
 | `Job`        | `namespace:read-job` |
-| `Alloc`      | `namespace:read-job` |
+| `Allocation` | `namespace:read-job` |
 | `Deployment` | `namespace:read-job` |
-| `Eval`       | `namespace:read-job` |
+| `Evaluation` | `namespace:read-job` |
 | `Node`       | `node:read`          |
 
 ### Parameters
@@ -53,35 +55,42 @@ the nature of this endpoint individual topics require specific policies.
 
 ### Event Topics
 
-| Topic        | Output                           |
+| Topic        | Output                          |
 | ------------ | ------------------------------- |
+| ACLToken     | ACLToken                        |
+| ACLPolicy    | ACLPolicy                       |
+| ACLPolicy    | Allocation (no job information) |
+| Allocation   | Allocation (no job information) |
 | Job          | Job                             |
-| Eval         | Evaluation                      |
-| Alloc        | Allocation (no job information) |
+| Evaluation   | Evaluation                      |
 | Deployment   | Deployment                      |
 | Node         | Node                            |
 | NodeDrain    | Node                            |
 
 ### Event Types
 
-| Type                     |
-| ------------------------ |
-| AllocCreated             |
-| AllocUpdated             |
-| AllocUpdateDesiredStatus |
-| DeploymentStatusUpdate   |
-| DeploymentPromotion      |
-| DeploymentAllocHealth    |
-| EvalUpdated              |
-| JobRegistered            |
-| JobDeregistered          |
-| JobBatchDeregistered     |
-| NodeRegistration         |
-| NodeDeregistration       |
-| NodeEligibility          |
-| NodeDrain                |
-| NodeEvent                |
-| PlanResult               |
+| Type                          |
+| ----------------------------- |
+| ACLTokenUpserted              |
+| ACLTokenDeleted               |
+| ACLPolicyUpserted             |
+| ACLPolicyDeleted              |
+| AllocationCreated             |
+| AllocationUpdated             |
+| AllocationUpdateDesiredStatus |
+| DeploymentStatusUpdate        |
+| DeploymentPromotion           |
+| DeploymentAllocHealth         |
+| EvaluationUpdated             |
+| JobRegistered                 |
+| JobDeregistered               |
+| JobBatchDeregistered          |
+| NodeRegistration              |
+| NodeDeregistration            |
+| NodeEligibility               |
+| NodeDrain                     |
+| NodeEvent                     |
+| PlanResult                    |
 
 ### Sample Request
 
@@ -90,7 +99,7 @@ $ curl -s -v -N http://127.0.0.1:4646/v1/event/stream
 ```
 
 ```shell-session
-$ curl -s -v -N http://127.0.0.1:4646/v1/event/stream?index=100&topic=Eval
+$ curl -s -v -N http://127.0.0.1:4646/v1/event/stream?index=100&topic=Evaluation
 ```
 
 ```shell-session

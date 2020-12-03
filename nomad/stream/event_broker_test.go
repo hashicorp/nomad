@@ -249,7 +249,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			shouldUnsubscribe: true,
 			event: structs.Event{
 				Topic: structs.TopicAllocation,
-				Type:  structs.TypeAllocUpdated,
+				Type:  structs.TypeAllocationUpdated,
 				Payload: structs.AllocationEvent{
 					Allocation: &structs.Allocation{
 						ID: "some-id",
@@ -345,7 +345,7 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			shouldUnsubscribe: false,
 			event: structs.Event{
 				Topic: structs.TopicAllocation,
-				Type:  structs.TypeAllocUpdated,
+				Type:  structs.TypeAllocationUpdated,
 				Payload: structs.AllocationEvent{
 					Allocation: &structs.Allocation{
 						ID: "some-id",
