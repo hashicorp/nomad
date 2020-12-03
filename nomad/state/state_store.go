@@ -5028,7 +5028,7 @@ func (s *StateStore) updatePluginWithJobSummary(index uint64, summary *structs.J
 
 // UpsertACLPolicies is used to create or update a set of ACL policies
 func (s *StateStore) UpsertACLPolicies(msgType structs.MessageType, index uint64, policies []*structs.ACLPolicy) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	for _, policy := range policies {
@@ -5128,7 +5128,7 @@ func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error
 
 // UpsertACLTokens is used to create or update a set of ACL tokens
 func (s *StateStore) UpsertACLTokens(msgType structs.MessageType, index uint64, tokens []*structs.ACLToken) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	for _, token := range tokens {
