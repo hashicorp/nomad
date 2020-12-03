@@ -41,7 +41,6 @@ IMPROVEMENTS:
  * jobspec: Added support for `headers` option in `artifact` stanza [[GH-9306](https://github.com/hashicorp/nomad/issues/9306)]
 
 __BACKWARDS INCOMPATIBILITIES:__
- * api: `/v1/event/stream` parameters and API package now use Evaluation and Allocation instead of shortened name. [[GH-9509](https://github.com/hashicorp/nomad/issues/9509)]
  * core: `nomad event sink` beta cli commands and API endpoints have been removed. [[GH-9470](https://github.com/hashicorp/nomad/issues/9470)]
  * core: null characters are prohibited in region, datacenter, job name/ID, task group name, and task name [[GH-9020](https://github.com/hashicorp/nomad/issues/9020)]
  * csi: registering a CSI volume with a `block-device` attachment mode and `mount_options` now returns a validation error, instead of silently dropping the `mount_options`. [[GH-9044](https://github.com/hashicorp/nomad/issues/9044)]
