@@ -17,8 +17,8 @@ type Topic string
 
 const (
 	TopicDeployment Topic = "Deployment"
-	TopicEval       Topic = "Eval"
-	TopicAlloc      Topic = "Alloc"
+	TopicEval       Topic = "Evaluation"
+	TopicAlloc      Topic = "Allococation"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
 	TopicACLPolicy  Topic = "ACLToken"
@@ -33,10 +33,10 @@ const (
 	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
 	TypeDeploymentPromotion      = "DeploymentPromotion"
 	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
-	TypeAllocCreated             = "AllocCreated"
-	TypeAllocUpdated             = "AllocUpdated"
-	TypeAllocUpdateDesiredStatus = "AllocUpdateDesiredStatus"
-	TypeEvalUpdated              = "EvalUpdated"
+	TypeAllocCreated             = "AllocationCreated"
+	TypeAllocUpdated             = "AllocationUpdated"
+	TypeAllocUpdateDesiredStatus = "AllocationUpdateDesiredStatus"
+	TypeEvalUpdated              = "EvaluationUpdated"
 	TypeJobRegistered            = "JobRegistered"
 	TypeJobDeregistered          = "JobDeregistered"
 	TypeJobBatchDeregistered     = "JobBatchDeregistered"
@@ -97,15 +97,15 @@ type JobEvent struct {
 	Job *Job
 }
 
-// EvalEvent holds a newly updated Eval.
-type EvalEvent struct {
-	Eval *Evaluation
+// EvaluationEvent holds a newly updated Eval.
+type EvaluationEvent struct {
+	Evaluation *Evaluation
 }
 
-// AllocEvent holds a newly updated Allocation. The
+// AllocationEvent holds a newly updated Allocation. The
 // Allocs embedded Job has been removed to reduce size.
-type AllocEvent struct {
-	Alloc *Allocation
+type AllocationEvent struct {
+	Allocation *Allocation
 }
 
 // DeploymentEvent holds a newly updated Deployment.

@@ -363,8 +363,8 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	require.Equal(t, structs.TypeEvalUpdated, e.Type)
 	require.Contains(t, e.FilterKeys, e2.JobID)
 	require.Contains(t, e.FilterKeys, e2.DeploymentID)
-	event := e.Payload.(*structs.EvalEvent)
-	require.Equal(t, "blocked", event.Eval.Status)
+	event := e.Payload.(*structs.EvaluationEvent)
+	require.Equal(t, "blocked", event.Evaluation.Status)
 }
 
 func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {

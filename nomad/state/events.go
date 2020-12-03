@@ -129,8 +129,8 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				after.DeploymentID,
 			},
 			Namespace: after.Namespace,
-			Payload: &structs.EvalEvent{
-				Eval: after,
+			Payload: &structs.EvaluationEvent{
+				Evaluation: after,
 			},
 		}, true
 	case "allocs":
@@ -153,8 +153,8 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &structs.AllocEvent{
-				Alloc: alloc,
+			Payload: &structs.AllocationEvent{
+				Allocation: alloc,
 			},
 		}, true
 	case "jobs":

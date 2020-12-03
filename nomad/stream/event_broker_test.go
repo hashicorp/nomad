@@ -226,8 +226,8 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			event: structs.Event{
 				Topic: structs.TopicEval,
 				Type:  structs.TypeEvalUpdated,
-				Payload: structs.EvalEvent{
-					Eval: &structs.Evaluation{
+				Payload: structs.EvaluationEvent{
+					Evaluation: &structs.Evaluation{
 						ID: "some-id",
 					},
 				},
@@ -250,8 +250,8 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			event: structs.Event{
 				Topic: structs.TopicAlloc,
 				Type:  structs.TypeAllocUpdated,
-				Payload: structs.AllocEvent{
-					Alloc: &structs.Allocation{
+				Payload: structs.AllocationEvent{
+					Allocation: &structs.Allocation{
 						ID: "some-id",
 					},
 				},
@@ -322,8 +322,8 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			event: structs.Event{
 				Topic: structs.TopicEval,
 				Type:  structs.TypeEvalUpdated,
-				Payload: structs.EvalEvent{
-					Eval: &structs.Evaluation{
+				Payload: structs.EvaluationEvent{
+					Evaluation: &structs.Evaluation{
 						ID: "some-id",
 					},
 				},
@@ -346,8 +346,8 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			event: structs.Event{
 				Topic: structs.TopicAlloc,
 				Type:  structs.TypeAllocUpdated,
-				Payload: structs.AllocEvent{
-					Alloc: &structs.Allocation{
+				Payload: structs.AllocationEvent{
+					Allocation: &structs.Allocation{
 						ID: "some-id",
 					},
 				},
