@@ -13,12 +13,19 @@ export default ApplicationSerializer.extend({
 
   serialize() {
     var json = ApplicationSerializer.prototype.serialize.apply(this, arguments);
-    if (!json instanceof Array) {
+    if (json instanceof Array) {
+      json.forEach(serializeVolumeFromArray);
+    } else {
       serializeVolume(json);
     }
     return json;
   },
 });
+
+function serializeVolumeFromArray(volume) {
+  delete volume.WriteAllocs;
+  delete volume.ReadAllocs;
+}
 
 function serializeVolume(volume) {
   volume.WriteAllocs = groupBy(volume.WriteAllocs, 'ID');
