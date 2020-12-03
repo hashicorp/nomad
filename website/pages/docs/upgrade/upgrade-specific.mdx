@@ -91,7 +91,7 @@ ideal upgrade path is:
 3. [Drain][drain-cli] and shutdown old Nomad client nodes.
 
 While inplace upgrades and older versions of Consul are supported by Nomad 1.0,
-Envoy proxies may drop and stop accepting connections while the Nomad agent is
+Envoy proxies will drop and stop accepting connections while the Nomad agent is
 restarting. Nomad 1.0 with Consul 1.9 do not have this limitation.
 
 #### Envoy proxy versions
