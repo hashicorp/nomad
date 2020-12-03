@@ -12,8 +12,8 @@ import (
 
 const (
 	TopicDeployment Topic = "Deployment"
-	TopicEval       Topic = "Eval"
-	TopicAlloc      Topic = "Alloc"
+	TopicEvaluation Topic = "Evaluation"
+	TopicAllocation Topic = "Allocation"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
 	TopicAll        Topic = "*"
@@ -92,9 +92,9 @@ func (e *Event) Node() (*Node, error) {
 }
 
 type eventPayload struct {
-	Allocation *Allocation `mapstructure:"Alloc"`
+	Allocation *Allocation `mapstructure:"Allocation"`
 	Deployment *Deployment `mapstructure:"Deployment"`
-	Evaluation *Evaluation `mapstructure:"Eval"`
+	Evaluation *Evaluation `mapstructure:"Evaluation"`
 	Job        *Job        `mapstructure:"Job"`
 	Node       *Node       `mapstructure:"Node"`
 }

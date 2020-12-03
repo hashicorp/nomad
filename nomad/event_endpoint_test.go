@@ -336,7 +336,7 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "no token",
 			Token: "",
 			Topics: map[structs.Topic][]string{
-				"*": {"*"},
+				structs.TopicAll: {"*"},
 			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
 		},
@@ -344,7 +344,7 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "bad token",
 			Token: tokenBad.SecretID,
 			Topics: map[structs.Topic][]string{
-				"*": {"*"},
+				structs.TopicAll: {"*"},
 			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
 		},
@@ -352,10 +352,10 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job namespace token - correct ns",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Job":        {"*"},
-				"Eval":       {"*"},
-				"Alloc":      {"*"},
-				"Deployment": {"*"},
+				structs.TopicJob:        {"*"},
+				structs.TopicEvaluation: {"*"},
+				structs.TopicAllocation: {"*"},
+				structs.TopicDeployment: {"*"},
 			},
 			Namespace:   "foo",
 			ExpectedErr: "subscription closed by server",
@@ -367,7 +367,7 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job namespace token - incorrect ns",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Job": {"*"}, // good
+				structs.TopicJob: {"*"}, // good
 			},
 			Namespace:   "bar", // bad
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
@@ -379,7 +379,7 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job namespace token - request management topic",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"*": {"*"}, // bad
+				structs.TopicAll: {"*"}, // bad
 			},
 			Namespace:   "foo",
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
@@ -391,8 +391,8 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job namespace token - request invalid node topic",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Eval": {"*"}, // good
-				"Node": {"*"}, // bad
+				structs.TopicEvaluation: {"*"}, // good
+				structs.TopicNode:       {"*"}, // bad
 			},
 			Namespace:   "foo",
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
@@ -404,8 +404,8 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job+node namespace token, valid",
 			Token: tokenNsNode.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Eval": {"*"}, // good
-				"Node": {"*"}, // good
+				structs.TopicEvaluation: {"*"}, // good
+				structs.TopicNode:       {"*"}, // good
 			},
 			Namespace:   "foo",
 			ExpectedErr: "subscription closed by server",

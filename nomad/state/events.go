@@ -10,13 +10,13 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.NodeDeregisterRequestType:               structs.TypeNodeDeregistration,
 	structs.UpsertNodeEventsType:                    structs.TypeNodeEvent,
 	structs.EvalUpdateRequestType:                   structs.TypeEvalUpdated,
-	structs.AllocClientUpdateRequestType:            structs.TypeAllocUpdated,
+	structs.AllocClientUpdateRequestType:            structs.TypeAllocationUpdated,
 	structs.JobRegisterRequestType:                  structs.TypeJobRegistered,
-	structs.AllocUpdateRequestType:                  structs.TypeAllocUpdated,
+	structs.AllocUpdateRequestType:                  structs.TypeAllocationUpdated,
 	structs.NodeUpdateStatusRequestType:             structs.TypeNodeEvent,
 	structs.JobDeregisterRequestType:                structs.TypeJobDeregistered,
 	structs.JobBatchDeregisterRequestType:           structs.TypeJobBatchDeregistered,
-	structs.AllocUpdateDesiredTransitionRequestType: structs.TypeAllocUpdateDesiredStatus,
+	structs.AllocUpdateDesiredTransitionRequestType: structs.TypeAllocationUpdateDesiredStatus,
 	structs.NodeUpdateEligibilityRequestType:        structs.TypeNodeDrain,
 	structs.NodeUpdateDrainRequestType:              structs.TypeNodeDrain,
 	structs.BatchNodeUpdateDrainRequestType:         structs.TypeNodeDrain,
@@ -122,15 +122,15 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{}, false
 		}
 		return structs.Event{
-			Topic: structs.TopicEval,
+			Topic: structs.TopicEvaluation,
 			Key:   after.ID,
 			FilterKeys: []string{
 				after.JobID,
 				after.DeploymentID,
 			},
 			Namespace: after.Namespace,
-			Payload: &structs.EvalEvent{
-				Eval: after,
+			Payload: &structs.EvaluationEvent{
+				Evaluation: after,
 			},
 		}, true
 	case "allocs":
@@ -149,12 +149,12 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		alloc.Job = nil
 
 		return structs.Event{
-			Topic:      structs.TopicAlloc,
+			Topic:      structs.TopicAllocation,
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &structs.AllocEvent{
-				Alloc: alloc,
+			Payload: &structs.AllocationEvent{
+				Allocation: alloc,
 			},
 		}, true
 	case "jobs":

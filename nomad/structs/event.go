@@ -17,34 +17,34 @@ type Topic string
 
 const (
 	TopicDeployment Topic = "Deployment"
-	TopicEval       Topic = "Eval"
-	TopicAlloc      Topic = "Alloc"
+	TopicEvaluation Topic = "Evaluation"
+	TopicAllocation Topic = "Allococation"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
 	TopicACLPolicy  Topic = "ACLToken"
 	TopicACLToken   Topic = "ACLPolicy"
 	TopicAll        Topic = "*"
 
-	TypeNodeRegistration         = "NodeRegistration"
-	TypeNodeDeregistration       = "NodeDeregistration"
-	TypeNodeEligibilityUpdate    = "NodeEligibility"
-	TypeNodeDrain                = "NodeDrain"
-	TypeNodeEvent                = "NodeStreamEvent"
-	TypeDeploymentUpdate         = "DeploymentStatusUpdate"
-	TypeDeploymentPromotion      = "DeploymentPromotion"
-	TypeDeploymentAllocHealth    = "DeploymentAllocHealth"
-	TypeAllocCreated             = "AllocCreated"
-	TypeAllocUpdated             = "AllocUpdated"
-	TypeAllocUpdateDesiredStatus = "AllocUpdateDesiredStatus"
-	TypeEvalUpdated              = "EvalUpdated"
-	TypeJobRegistered            = "JobRegistered"
-	TypeJobDeregistered          = "JobDeregistered"
-	TypeJobBatchDeregistered     = "JobBatchDeregistered"
-	TypePlanResult               = "PlanResult"
-	TypeACLTokenDeleted          = "ACLTokenDeleted"
-	TypeACLTokenUpserted         = "ACLTokenUpserted"
-	TypeACLPolicyDeleted         = "ACLPolicyDeleted"
-	TypeACLPolicyUpserted        = "ACLPolicyUpserted"
+	TypeNodeRegistration              = "NodeRegistration"
+	TypeNodeDeregistration            = "NodeDeregistration"
+	TypeNodeEligibilityUpdate         = "NodeEligibility"
+	TypeNodeDrain                     = "NodeDrain"
+	TypeNodeEvent                     = "NodeStreamEvent"
+	TypeDeploymentUpdate              = "DeploymentStatusUpdate"
+	TypeDeploymentPromotion           = "DeploymentPromotion"
+	TypeDeploymentAllocHealth         = "DeploymentAllocHealth"
+	TypeAllocationCreated             = "AllocationCreated"
+	TypeAllocationUpdated             = "AllocationUpdated"
+	TypeAllocationUpdateDesiredStatus = "AllocationUpdateDesiredStatus"
+	TypeEvalUpdated                   = "EvaluationUpdated"
+	TypeJobRegistered                 = "JobRegistered"
+	TypeJobDeregistered               = "JobDeregistered"
+	TypeJobBatchDeregistered          = "JobBatchDeregistered"
+	TypePlanResult                    = "PlanResult"
+	TypeACLTokenDeleted               = "ACLTokenDeleted"
+	TypeACLTokenUpserted              = "ACLTokenUpserted"
+	TypeACLPolicyDeleted              = "ACLPolicyDeleted"
+	TypeACLPolicyUpserted             = "ACLPolicyUpserted"
 )
 
 // Event represents a change in Nomads state.
@@ -97,15 +97,15 @@ type JobEvent struct {
 	Job *Job
 }
 
-// EvalEvent holds a newly updated Eval.
-type EvalEvent struct {
-	Eval *Evaluation
+// EvaluationEvent holds a newly updated Eval.
+type EvaluationEvent struct {
+	Evaluation *Evaluation
 }
 
-// AllocEvent holds a newly updated Allocation. The
+// AllocationEvent holds a newly updated Allocation. The
 // Allocs embedded Job has been removed to reduce size.
-type AllocEvent struct {
-	Alloc *Allocation
+type AllocationEvent struct {
+	Allocation *Allocation
 }
 
 // DeploymentEvent holds a newly updated Deployment.

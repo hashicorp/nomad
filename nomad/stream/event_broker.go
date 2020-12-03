@@ -293,8 +293,8 @@ func aclAllowsSubscription(aclObj *acl.ACL, subReq *SubscribeRequest) bool {
 	for topic := range subReq.Topics {
 		switch topic {
 		case structs.TopicDeployment,
-			structs.TopicEval,
-			structs.TopicAlloc,
+			structs.TopicEvaluation,
+			structs.TopicAllocation,
 			structs.TopicJob:
 			if ok := aclObj.AllowNsOp(subReq.Namespace, acl.NamespaceCapabilityReadJob); !ok {
 				return false
