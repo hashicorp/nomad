@@ -4046,12 +4046,12 @@ func (j *Job) Validate() error {
 	} else if strings.Contains(j.ID, " ") {
 		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a space"))
 	} else if strings.Contains(j.ID, "\000") {
-		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a null chararacter"))
+		mErr.Errors = append(mErr.Errors, errors.New("Job ID contains a null character"))
 	}
 	if j.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job name"))
 	} else if strings.Contains(j.Name, "\000") {
-		mErr.Errors = append(mErr.Errors, errors.New("Job Name contains a null chararacter"))
+		mErr.Errors = append(mErr.Errors, errors.New("Job Name contains a null character"))
 	}
 	if j.Namespace == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
