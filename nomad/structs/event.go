@@ -21,8 +21,8 @@ const (
 	TopicAllocation Topic = "Allocation"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
-	TopicACLPolicy  Topic = "ACLToken"
-	TopicACLToken   Topic = "ACLPolicy"
+	TopicACLPolicy  Topic = "ACLPolicy"
+	TopicACLToken   Topic = "ACLToken"
 	TopicAll        Topic = "*"
 
 	TypeNodeRegistration              = "NodeRegistration"
