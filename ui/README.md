@@ -1,4 +1,4 @@
-# Nomad UI: FIXME??
+# Nomad UI
 
 The official Nomad UI.
 

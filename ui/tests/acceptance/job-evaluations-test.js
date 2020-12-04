@@ -21,18 +21,6 @@ module('Acceptance | job evaluations', function(hooks) {
 
   test('it passes an accessibility audit', async function(assert) {
     await a11yAudit(assert);
-
-    if (Math.random() > 0.5) {
-      assert.ok(false);
-    }
-  });
-
-  test('it sometimes fails', async function(assert) {
-    if (Math.random() > 0.5) {
-      assert.ok(false);
-    } else {
-      assert.ok(true);
-    }
   });
 
   test('lists all evaluations for the job', async function(assert) {
