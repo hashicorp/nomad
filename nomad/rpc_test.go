@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -696,7 +697,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 			require.Truef(t, now.After(readDeadline),
 				"Client read deadline (%s) should be in the past (before %s)", readDeadline, now)
 
-			testutil.RequireDeadlineErr(t, err)
+			require.True(t, errors.Is(err, os.ErrDeadlineExceeded))
 			return
 		}
 
@@ -739,7 +740,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 		conn.SetReadDeadline(readDeadline)
 		n, err = conn.Read(buf)
 		require.Zero(t, n)
-		testutil.RequireDeadlineErr(t, err)
+		require.True(t, errors.Is(err, os.ErrDeadlineExceeded))
 	}
 
 	assertNoLimit := func(t *testing.T, addr string) {
@@ -773,7 +774,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 			case <-deadline:
 				t.Fatalf("timed out waiting for conn error %d/%d", i+1, maxConns)
 			case err := <-errCh:
-				testutil.RequireDeadlineErr(t, err)
+				require.True(t, errors.Is(err, os.ErrDeadlineExceeded))
 			}
 		}
 	}
@@ -983,7 +984,7 @@ func TestRPC_Limits_Streaming(t *testing.T) {
 
 	conn.SetReadDeadline(time.Now().Add(1 * time.Second))
 	_, err = conn.Read(buf)
-	testutil.RequireDeadlineErr(t, err)
+	require.True(t, errors.Is(err, os.ErrDeadlineExceeded))
 
 	// Close 1 streamer and assert another is allowed
 	t.Logf("expect streaming connection 0 to exit with error")
@@ -1002,7 +1003,7 @@ func TestRPC_Limits_Streaming(t *testing.T) {
 			return false, fmt.Errorf("connection was rejected")
 		}
 
-		testutil.RequireDeadlineErr(t, err)
+		require.True(t, errors.Is(err, os.ErrDeadlineExceeded))
 		return true, nil
 	}, func(err error) {
 		require.NoError(t, err)
