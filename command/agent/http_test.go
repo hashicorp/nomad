@@ -998,7 +998,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// timed out.
 		require.True(t, time.Now().After(readDeadline))
 
-		require.True(t, errors.Is(err, os.ErrDeadlineExceeded))
+		require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+			"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 	}
 
 	assertNoLimit := func(t *testing.T, addr string) {
@@ -1031,7 +1032,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
 			case err := <-errCh:
-				require.True(t, errors.Is(err, os.ErrDeadlineExceeded))
+				require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+					"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 			}
 		}
 	}
