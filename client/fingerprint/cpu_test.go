@@ -1,6 +1,7 @@
 package fingerprint
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -101,6 +102,9 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		}
 		if response.NodeResources.Cpu.CpuShares != int64(cfg.CpuCompute) {
 			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.CpuShares)
+		}
+		if response.Attributes["cpu.totalcompute"] != strconv.Itoa(cfg.CpuCompute) {
+			t.Fatalf("expected override cpu.totalcompute of %d but found %s", cfg.CpuCompute, response.Attributes["cpu.totalcompute"])
 		}
 	}
 }

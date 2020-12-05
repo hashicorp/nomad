@@ -47,11 +47,6 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 		f.logger.Warn("failed initializing stats collector", "error", err)
 	}
 
-	if cfg.CpuCompute != 0 {
-		setResourcesCPU(cfg.CpuCompute)
-		return nil
-	}
-
 	if modelName := stats.CPUModelName(); modelName != "" {
 		resp.AddAttribute("cpu.modelname", modelName)
 	}
