@@ -3,7 +3,7 @@
 if [ -z "$1" ]; then
     echo "usage: $0 GO_VERSION"
     echo ""
-    echo "For example: $0 1.14.3"
+    echo "For example: $0 1.15.5"
     exit 1
 fi
 
