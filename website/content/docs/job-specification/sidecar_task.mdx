@@ -1,0 +1,186 @@
+---
+layout: docs
+page_title: sidecar_task Stanza - Job Specification
+sidebar_title: sidecar_task
+description: |-
+  The "sidecar_task" stanza allows specifying options for configuring
+  the task of the sidecar proxies used in Consul Connect integration
+---
+
+# `sidecar_task` Stanza
+
+<Placement groups={['job', 'group', 'service', 'connect', 'sidecar_task']} />
+
+The `sidecar_task` stanza allows configuring various options for the proxy
+sidecar or Connect gateway managed by Nomad for the [Consul
+Connect](/docs/integrations/consul-connect) integration such as
+resource requirements, kill timeouts and more as defined below. It is valid
+only within the context of a [`connect`][connect] stanza.
+
+```hcl
+job "countdash" {
+  datacenters = ["dc1"]
+
+  group "api" {
+    network {
+      mode = "bridge"
+    }
+
+    service {
+      name = "count-api"
+      port = "9001"
+
+      connect {
+        sidecar_service = {}
+
+        sidecar_task {
+          resources {
+            cpu    = 500
+            memory = 1024
+          }
+        }
+      }
+    }
+
+    task "web" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v2"
+      }
+    }
+  }
+}
+```
+
+## Default Envoy configuration
+
+Nomad automatically launches and manages an Envoy task for use as a proxy sidecar
+or connect gateway, when [`sidecar_service`][sidecar_service] or [`gateway`][gateway]
+are configured.
+
+The default Envoy task is equivalent to:
+
+```hcl
+sidecar_task {
+  name = "connect-proxy-<service>"
+  #      "connect-gateway-<service>" when used as a gateway
+
+  lifecycle { # absent when used as a gateway
+    hook    = "prestart"
+    sidecar = true
+  }
+
+  driver = "docker"
+
+  config {
+    image = "${meta.connect.sidecar_image}"
+    #       "${meta.connect.gateway_image}" when used as a gateway
+
+    args = [
+      "-c",
+      "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json",
+      "-l",
+      "${meta.connect.log_level}",
+      "--concurrency",
+      "${meta.connect.proxy_concurrency}",
+      "--disable-hot-restart"
+    ]
+  }
+
+  logs {
+    max_files     = 2
+    max_file_size = 2 # MB
+  }
+
+  resources {
+    cpu    = 250 # MHz
+    memory = 128 # MB
+  }
+
+  shutdown_delay = "5s"
+}
+```
+
+The `meta.connect.sidecar_image`, `meta.connect.gateway_image`, `meta.connect.log_level`,
+and `meta.connect.proxy_concurrency` variables are [client configurable][nodemeta]
+variables with the following defaults:
+
+- `sidecar_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
+  upstream Envoy Docker image, where `${NOMAD_envoy_version}` is resolved automatically
+  by a query to Consul.
+- `gateway_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
+  upstream Envoy Docker image, where `${NOMAD_envoy_version}` is resolved automatically
+  by a query to Consul.
+- `log_level` - `(string: "info")` - Envoy sidecar log level. "`debug`" is useful for
+  debugging Connect related issues.
+- `proxy_concurrency` - `(string: "1")` - The number of [worker threads][worker_threads] the Envoy
+  sidecar will run.
+
+Custom images can make use of Consul's preferred Envoy version by making use of
+Nomad's version interpolation, e.g.
+
+```hcl
+meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
+```
+
+## `sidecar_task` Parameters
+
+- `name` `(string: "connect-[proxy|gateway]-<service>")` - Name of the task. Defaults to
+  including the name of the service the proxy or gateway is providing.
+
+- `driver` `(string: "docker")` - Driver used for the sidecar task.
+
+- `user` `(string: nil)` - Determines which user is used to run the task, defaults
+  to the same user the Nomad client is being run as.
+
+- `config` `(map: nil)` - Configuration provided to the driver for initialization.
+
+- `env` `(map: nil)` - Map of environment variables used by the driver.
+
+- `resources` <code>([Resources][resources])</code> - Resources needed by the sidecar task.
+
+- `meta` `(map: nil)` - Arbitrary metadata associated with this task that's opaque to Nomad.
+
+- `logs` <code>([Logs][]: nil)</code> - Specifies logging configuration for the
+  `stdout` and `stderr` of the task.
+
+- `kill_timeout` `(string: "5s")` - Time between signalling a task that will be
+  killed and killing it.
+
+- `shutdown_delay` `(string: "5s")` - Delay between deregistering the task from
+  Consul and sending it a signal to shutdown.
+
+- `kill_signal` `(string:SIGINT)` - Kill signal to use for the task, defaults to SIGINT.
+
+## `sidecar_task` Examples
+
+The following example configures resources for the sidecar task and other configuration.
+
+```hcl
+   sidecar_task {
+     resources {
+       cpu = 500
+       memory = 1024
+     }
+
+     env {
+       FOO = "abc"
+     }
+
+     shutdown_delay = "5s"
+   }
+
+```
+
+[connect]: /docs/job-specification/connect 'Nomad connect Job Specification'
+[gateway]: /docs/job-specification/gateway
+[group]: /docs/job-specification/group 'Nomad group Job Specification'
+[interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
+[job]: /docs/job-specification/job 'Nomad job Job Specification'
+[logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
+[resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
+[sidecar_service]: /docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
+[task]: /docs/job-specification/task 'Nomad task Job Specification'
+[nodemeta]: /docs/configuration/client#meta
+[worker_threads]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
