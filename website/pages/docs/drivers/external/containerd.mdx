@@ -316,6 +316,18 @@ will be mapped to `8080` in the container.
 
 You can also read more about `network stanza` in the [`nomad official documentation`](https://www.nomadproject.io/docs/job-specification/network).
 
+## Service discovery
+
+Nomad schedules workloads of various types across a cluster of generic hosts.
+Because of this, placement is not known in advance and you will need to use
+service discovery to connect tasks to other services deployed across your cluster.
+Nomad integrates with Consul to provide service discovery and monitoring.
+
+A [`service stanza`](https://www.nomadproject.io/docs/job-specification/service)
+can be added to your job spec, to enable service discovery.
+
+The service stanza instructs Nomad to register a service with Consul.
+
 ## Plugin Options ((#plugin_options))
 
 - `enabled` - (Optional) The `containerd` driver may be disabled on hosts by
