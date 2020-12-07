@@ -16,10 +16,10 @@ The simplest expressions are just literal values, like `"hello"` or `5`, but
 HCL also allows more complex expressions such as arithmetic, conditional
 evaluation, and a number of built-in functions.
 
-Expressions can be used in a number of places in HCL, but some contexts limit
-which expression constructs are allowed, such as requiring a literal value of a
-particular type or forbidding. Each language feature's documentation describes
-any restrictions it places on expressions.
+Expressions can be used in a number of places in HCL, particularly as attribute
+values. Attribute value expressions must adhere to the attribute type. Block
+labels must be string literals without any interpolation. Each language
+feature's documentation describes any restrictions it places on expressions.
 
 The rest of this page describes all of the features of Nomad's
 expression syntax.
@@ -272,7 +272,7 @@ job "example" {
   # ...
   service {
     port = "lb" # can use expressions here
-  
+
     dynamic "check" {
       for_each = local.check_paths
 
