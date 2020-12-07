@@ -57,6 +57,9 @@ horizontal application scaling or horizontal cluster scaling.
   should return a single value. Detailed information on the configuration options
   can be found on the [APM Plugins][apm_plugin_docs] page.
 
+- `query_window` - Defines how far back to query the APM for metrics. It should
+  be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
+
 - `strategy` - The strategy to use, and it's configuration when calculating the
   desired state based on the current count and the metric returned by the APM.
   Detailed information on the configuration options can be found on the
@@ -84,6 +87,7 @@ policy {
   check "active_connections" {
     source = "prometheus"
     query  = "scalar(open_connections_example_cache)"
+    query_window = "5m"
 
     strategy "target_value" {
       target = 10
