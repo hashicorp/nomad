@@ -66,7 +66,7 @@ task "example" {
 - _Blocks_ are containers for other content and usually represent the
   configuration of some kind of object, like a task. Blocks have a
   _block type,_ can have zero or more _labels,_ and have a _body_ that contains
-  any number of arguments and nested blocks.
+  any number of arguments and nested blocks. Block labels must be string literals.
 - _Arguments_ assign a value to a name. They appear within blocks.
 - _Expressions_ represent a value, either literally or by referencing and
   combining other values. They appear as values for arguments, or within other
@@ -126,3 +126,9 @@ hello
 HCL2 trims the whitespace preceding the delimiter in the last line.  So in the
 above example, `data` is read as `"hello\n  world\n  "` in HCL1, but `"hello\n
 world\n"` (note lack of trailing whitespace) in HCL2.
+
+### Decimals
+
+Nomad 0.12 and earlier accepted small decimal values without a leading zero
+(e.g. `.3`, `.59`, `.9`). In such case, Nomad 1.0 requires a leading zero (e.g.
+`0.3`, `0.59`, `0.9`).
