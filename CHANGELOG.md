@@ -73,6 +73,7 @@ BUG FIXES:
  * driver/docker: Fixed a bug where the Docker daemon could block longer than the `kill_timeout`. [[GH-9502](https://github.com/hashicorp/nomad/issues/9502)
  * driver/docker: Fixed a bug where the default `image_delay` configuration was ignored if the `gc` configuration was not set. [[GH-9101](https://github.com/hashicorp/nomad/issues/9101)]
  * driver/raw_exec: Fixed a bug where raw_exec attempts to create a freezer cgroups for the tasks even when `no_cgroups` is set. [[GH-9328](https://github.com/hashicorp/nomad/issues/9328)]
+ * scheduler: Fixed a bug where where system jobs would bind on all interfaces instead of the specified `host_network`. [[GH-8822](https://github.com/hashicorp/nomad/issues/8822)]
  * ui: Fixed a bug in the volume status page where read allocations and write allocations were not displayed. [[GH-9377](https://github.com/hashicorp/nomad/issues/9377)]
  * ui: Fixed a bug in the CSI volume and plugin status pages where plugins that don't require controllers were shown as unhealthy. [[GH-9416](https://github.com/hashicorp/nomad/issues/9416)]
 
