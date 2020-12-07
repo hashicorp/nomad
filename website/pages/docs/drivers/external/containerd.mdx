@@ -113,6 +113,9 @@ config {
 }
 ```
 
+- `cwd` - (Optional) Specify the current working directory (cwd) for your container process.
+  If the directory does not exist, one will be created for you.
+
 - `privileged` - (Optional) `true` or `false` (default) Run container in
   privileged mode. Your container will have all Linux capabilities when running
   in privileged mode.
@@ -122,6 +125,11 @@ config {
   privileged = true
 }
 ```
+
+- `host_dns` - (Optional) `true` (default) or `false` By default, a container
+  launched using `containerd-driver` will use host `/etc/resolv.conf`. This is
+  similar to [`docker behavior`](https://docs.docker.com/config/containers/container-networking/#dns-services).
+  However, if you don't want to use host DNS, you can turn off this flag by setting `host_dns=false`.
 
 - `readonly_rootfs` - (Optional) `true` or `false` (default) Container root
   filesystem will be read-only.
