@@ -139,12 +139,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 			if n.IPAM.Config[0].Gateway != "" {
 				fp.Attributes["driver.docker.bridge_ip"] = pstructs.NewStringAttribute(n.IPAM.Config[0].Gateway)
-			} else {
+			} else if d.fingerprintSuccess == nil {
 				// Docker 17.09.0-ce dropped the Gateway IP from the bridge network
 				// See https://github.com/moby/moby/issues/32648
-				if d.fingerprintSuccess == nil {
-					d.logger.Debug("bridge_ip could not be discovered")
-				}
+				d.logger.Debug("bridge_ip could not be discovered")
 			}
 			break
 		}
