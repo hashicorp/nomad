@@ -258,6 +258,26 @@ before you can use `bridge` networks.
  $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
 
+Also, ensure your Linux operating system distribution has been configured
+to allow container traffic through the bridge network to be routed via iptables.
+These tunables can be set as follows:
+
+```hcl
+ $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+ $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+ $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a nomad client node, add a file
+including the following to `/etc/sysctl.d/` or remove the file your Linux
+distribution puts in that directory.
+
+```hcl
+ net.bridge.bridge-nf-call-arptables = 1
+ net.bridge.bridge-nf-call-ip6tables = 1
+ net.bridge.bridge-nf-call-iptables = 1
+```
+
 ## Plugin Options ((#plugin_options))
 
 - `enabled` - (Optional) The `containerd` driver may be disabled on hosts by
