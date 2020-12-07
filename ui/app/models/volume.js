@@ -18,6 +18,14 @@ export default class Volume extends Model {
     return [...this.writeAllocations.toArray(), ...this.readAllocations.toArray()];
   }
 
+  @attr('number') currentWriters;
+  @attr('number') currentReaders;
+
+  @computed('currentWriters', 'currentReaders')
+  get allocationCount() {
+    return this.currentWriters + this.currentReaders;
+  }
+
   @attr('string') externalId;
   @attr() topologies;
   @attr('string') accessMode;
