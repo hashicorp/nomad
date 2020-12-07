@@ -29,6 +29,7 @@ module.exports = function(environment) {
       mirageWithNamespaces: false,
       mirageWithTokens: true,
       mirageWithRegions: true,
+      showStorybookLink: process.env.STORYBOOK_LINK === 'true',
     },
   };
 
