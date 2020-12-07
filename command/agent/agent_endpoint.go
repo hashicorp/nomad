@@ -716,15 +716,35 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	var reply structs.HostDataResponse
 	var rpcErr error
 
-	// serverID is set, so forward to that server
+	// serverID is set, find path to make RPC call to server
 	if serverID != "" {
-		rpcErr = s.agent.Server().RPC("Agent.Host", &args, &reply)
+		// Verify Server() exists before making RPC call
+		server := s.agent.Server()
+		if server == nil {
+			s.agent.logger.Trace("s.agent.Server() is nil -- forwarding Agent.Host RPC through s.agent.Client() instead", "serverID", serverID)
+			// Verify Client() exists
+			client := s.agent.Client()
+			if client == nil {
+				rpcErr = fmt.Errorf("failed to retrieve Client() or Server() for Agent.Host RPC call to serverID: %s", serverID)
+			} else {
+				// Send RPC via local client
+				rpcErr = client.RPC("Agent.Host", &args, &reply)
+			}
+		} else {
+			// Send RPC via local server
+			rpcErr = server.RPC("Agent.Host", &args, &reply)
+		}
+
+		if rpcErr != nil {
+			rpcErr = fmt.Errorf("failed Agent.Host RPC to serverID: %s, err: %w", serverID, rpcErr)
+		}
 		return reply, rpcErr
 	}
 
 	// Make the RPC. The RPC endpoint actually forwards the request to the correct
 	// agent, but we need to use the correct RPC interface.
 	localClient, remoteClient, localServer := s.rpcHandlerForNode(nodeID)
+	s.agent.logger.Trace("s.rpcHandlerForNode()", "serverID", serverID, "nodeID", nodeID, "localClient", localClient, "remoteClient", remoteClient, "localServer", localServer)
 
 	if localClient {
 		rpcErr = s.agent.Client().ClientRPC("Agent.Host", &args, &reply)

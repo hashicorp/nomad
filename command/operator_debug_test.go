@@ -291,7 +291,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 			addrServer,
 		},
 		{
-			"client1 address - fails with SIGSEGV",
+			"client1 address - verify no SIGSEGV panic",
 			addrClient1,
 		},
 	}
