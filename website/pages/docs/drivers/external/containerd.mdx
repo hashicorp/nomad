@@ -131,6 +131,22 @@ config {
   similar to [`docker behavior`](https://docs.docker.com/config/containers/container-networking/#dns-services).
   However, if you don't want to use host DNS, you can turn off this flag by setting `host_dns=false`.
 
+- `seccomp` - (Optional) Enable default seccomp profile. List of [`allowed syscalls`](https://github.com/containerd/containerd/blob/master/contrib/seccomp/seccomp_default.go#L51-L390).
+
+- `seccomp_profile` - (Optional) Path to custom seccomp profile.
+  `seccomp` must be set to `true` in order to use `seccomp_profile`.
+
+  The default `docker` seccomp profile found [`here`](https://github.com/moby/moby/blob/master/profiles/seccomp/default.json)
+  can be downloaded, and modified (by removing/adding syscalls) to create a custom seccomp profile.
+  The custom seccomp profile can then be saved under `/opt/seccomp/seccomp.json` on the Nomad client nodes.
+
+```hcl
+config {
+  seccomp         = true
+  seccomp_profile = "/opt/seccomp/seccomp.json"
+}
+```
+
 - `readonly_rootfs` - (Optional) `true` or `false` (default) Container root
   filesystem will be read-only.
 
