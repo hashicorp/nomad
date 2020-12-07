@@ -235,6 +235,87 @@ func TestDebugFail_Pprof(t *testing.T) {
 	ui.ErrorWriter.Reset()
 }
 
+func TestDebug_ClientToServer(t *testing.T) {
+	// Start test server and API client
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	// Retrieve server RPC address to join client
+	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
+	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+
+	// Setup client 1 (nodeclass = clienta)
+	agentConfFunc1 := func(c *agent.Config) {
+		c.Region = "global"
+		c.Server.Enabled = false
+		c.Client.NodeClass = "clienta"
+		c.Client.Enabled = true
+		c.Client.Servers = []string{srvRPCAddr}
+	}
+
+	// Start client 1
+	client1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
+	defer client1.Shutdown()
+
+	// Wait for client 1 to connect
+	client1NodeID := client1.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID)
+	t.Logf("[TEST] Client1 ready, id: %s", client1NodeID)
+
+	// Get API addresses
+	addrServer := srv.HTTPAddr()
+	addrClient1 := client1.HTTPAddr()
+
+	t.Logf("[TEST] testAgent api address: %s", url)
+	t.Logf("[TEST] Server    api address: %s", addrServer)
+	t.Logf("[TEST] Client1   api address: %s", addrClient1)
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Setup test cases struct
+	cases := []struct {
+		name string
+		url  string
+	}{
+		{
+			"testAgent api server",
+			url,
+		},
+		{
+			"server address",
+			addrServer,
+		},
+		{
+			"client1 address - fails with SIGSEGV",
+			addrClient1,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Run test case
+			code := cmd.Run([]string{"-address", c.url, "-duration", "250ms", "-server-id", "all", "-node-id", "all"})
+			out := ui.OutputWriter.String()
+			outerr := ui.ErrorWriter.String()
+
+			// Verify case expectations
+			assert.Equal(t, 0, code)
+			require.Empty(t, outerr, "errorwriter should be empty")
+			require.Contains(t, out, "Starting debugger")
+			require.Contains(t, out, "Created debug archive")
+
+			// Reset buffers before next test
+			ui.OutputWriter.Reset()
+			ui.ErrorWriter.Reset()
+		})
+	}
+}
+
 func TestDebugSuccesses(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
