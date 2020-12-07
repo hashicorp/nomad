@@ -8,7 +8,6 @@ import { generateResources } from '../common';
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const CLIENT_STATUSES = ['pending', 'running', 'complete', 'failed', 'lost'];
 const DESIRED_STATUSES = ['run', 'stop', 'evict'];
-const REF_TIME = new Date();
 
 export default Factory.extend({
   id: i => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
@@ -16,7 +15,7 @@ export default Factory.extend({
   jobVersion: 1,
 
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
-  modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+  modifyTime: () => faker.date.past(2 / 365, new Date()) * 1000000,
 
   createIndex: () => faker.random.number({ min: 10, max: 2000 }),
   createTime() {
@@ -97,7 +96,7 @@ export default Factory.extend({
         const lastEvent = previousEvents[previousEvents.length - 1];
         rescheduleTime = moment(lastEvent.RescheduleTime / 1000000).add(5, 'minutes');
       } else {
-        rescheduleTime = faker.date.past(2 / 365, REF_TIME);
+        rescheduleTime = faker.date.past(2 / 365, new Date());
       }
 
       rescheduleTime *= 1000000;

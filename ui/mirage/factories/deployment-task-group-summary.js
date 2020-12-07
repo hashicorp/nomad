@@ -2,8 +2,6 @@ import { Factory } from 'ember-cli-mirage';
 
 import faker from 'nomad-ui/mirage/faker';
 
-const REF_TIME = new Date();
-
 export default Factory.extend({
   name: '',
 
@@ -12,7 +10,7 @@ export default Factory.extend({
 
   requiresPromotion: false,
 
-  requireProgressBy: () => faker.date.past(0.5 / 365, REF_TIME),
+  requireProgressBy: () => faker.date.past(0.5 / 365, new Date()),
 
   desiredTotal: () => faker.random.number({ min: 1, max: 10 }),
 

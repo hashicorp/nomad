@@ -2,7 +2,6 @@ import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
 
-const REF_TIME = new Date();
 const TROUBLESOME_CHARACTERS = '🏆 💃 🤩 🙌🏿 🖨 ? ; %'.split(' ');
 const makeWord = () => (faker.random.number(10000000) + 50000).toString(36);
 const makeSentence = (count = 10) =>
@@ -92,7 +91,7 @@ export default Factory.extend({
     return this.body.length;
   },
 
-  modTime: () => faker.date.past(2 / 365, REF_TIME),
+  modTime: () => faker.date.past(2 / 365, new Date()),
 
   dir: trait({
     isDir: true,
