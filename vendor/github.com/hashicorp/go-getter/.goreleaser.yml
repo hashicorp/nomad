@@ -1,7 +1,3 @@
-before:
-  hooks:
-    - go test ./...
-
 builds:
   - id: signable
     mod_timestamp: '{{ .CommitTimestamp }}'
@@ -18,6 +14,7 @@ builds:
           -v {{ dir .Path }}:/workdir
           {{ .Env.CODESIGN_IMAGE }}
           sign -product-name={{ .ProjectName }} {{ .Name }}
+    dir: ./cmd/go-getter/
     flags:
       - -trimpath
     ldflags:
@@ -26,6 +23,7 @@ builds:
     targets:
       - linux_386
       - linux_amd64
+    dir: ./cmd/go-getter/
     flags:
       - -trimpath
     ldflags:
