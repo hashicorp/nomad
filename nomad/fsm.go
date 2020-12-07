@@ -246,15 +246,15 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.JobStabilityRequestType:
 		return n.applyJobStability(buf[1:], log.Index)
 	case structs.ACLPolicyUpsertRequestType:
-		return n.applyACLPolicyUpsert(buf[1:], log.Index)
+		return n.applyACLPolicyUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLPolicyDeleteRequestType:
-		return n.applyACLPolicyDelete(buf[1:], log.Index)
+		return n.applyACLPolicyDelete(msgType, buf[1:], log.Index)
 	case structs.ACLTokenUpsertRequestType:
-		return n.applyACLTokenUpsert(buf[1:], log.Index)
+		return n.applyACLTokenUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLTokenDeleteRequestType:
-		return n.applyACLTokenDelete(buf[1:], log.Index)
+		return n.applyACLTokenDelete(msgType, buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
-		return n.applyACLTokenBootstrap(buf[1:], log.Index)
+		return n.applyACLTokenBootstrap(msgType, buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.UpsertNodeEventsType:
@@ -1071,14 +1071,14 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_upsert"}, time.Now())
 	var req structs.ACLPolicyUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLPolicies(index, req.Policies); err != nil {
+	if err := n.state.UpsertACLPolicies(msgType, index, req.Policies); err != nil {
 		n.logger.Error("UpsertACLPolicies failed", "error", err)
 		return err
 	}
@@ -1086,14 +1086,14 @@ func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_delete"}, time.Now())
 	var req structs.ACLPolicyDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteACLPolicies(index, req.Names); err != nil {
+	if err := n.state.DeleteACLPolicies(msgType, index, req.Names); err != nil {
 		n.logger.Error("DeleteACLPolicies failed", "error", err)
 		return err
 	}
@@ -1101,14 +1101,14 @@ func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_upsert"}, time.Now())
 	var req structs.ACLTokenUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLTokens(index, req.Tokens); err != nil {
+	if err := n.state.UpsertACLTokens(msgType, index, req.Tokens); err != nil {
 		n.logger.Error("UpsertACLTokens failed", "error", err)
 		return err
 	}
@@ -1116,14 +1116,14 @@ func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_delete"}, time.Now())
 	var req structs.ACLTokenDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteACLTokens(index, req.AccessorIDs); err != nil {
+	if err := n.state.DeleteACLTokens(msgType, index, req.AccessorIDs); err != nil {
 		n.logger.Error("DeleteACLTokens failed", "error", err)
 		return err
 	}
@@ -1131,14 +1131,14 @@ func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenBootstrap is used to bootstrap an ACL token
-func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenBootstrap(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_bootstrap"}, time.Now())
 	var req structs.ACLTokenBootstrapRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.BootstrapACLTokens(index, req.ResetIndex, req.Token); err != nil {
+	if err := n.state.BootstrapACLTokens(msgType, index, req.ResetIndex, req.Token); err != nil {
 		n.logger.Error("BootstrapACLToken failed", "error", err)
 		return err
 	}

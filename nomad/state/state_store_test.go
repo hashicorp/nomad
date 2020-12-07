@@ -8006,8 +8006,7 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err := state.UpsertACLPolicies(1000,
-		[]*structs.ACLPolicy{policy, policy2}); err != nil {
+	if err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !watchFired(ws) {
@@ -8062,8 +8061,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	policy2 := mock.ACLPolicy()
 
 	// Create the policy
-	if err := state.UpsertACLPolicies(1000,
-		[]*structs.ACLPolicy{policy, policy2}); err != nil {
+	if err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8074,8 +8072,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	}
 
 	// Delete the policy
-	if err := state.DeleteACLPolicies(1001,
-		[]string{policy.Name, policy2.Name}); err != nil {
+	if err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 1001, []string{policy.Name, policy2.Name}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8140,7 +8137,7 @@ func TestStateStore_ACLPolicyByNamePrefix(t *testing.T) {
 	for _, name := range names {
 		p := mock.ACLPolicy()
 		p.Name = name
-		if err := state.UpsertACLPolicies(baseIndex, []*structs.ACLPolicy{p}); err != nil {
+		if err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLPolicy{p}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		baseIndex++
@@ -8184,7 +8181,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.EqualValues(t, 0, resetIdx)
 
-	if err := state.BootstrapACLTokens(1000, 0, tk1); err != nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1000, 0, tk1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8197,7 +8194,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	assert.Equal(t, false, ok)
 	assert.EqualValues(t, 1000, resetIdx)
 
-	if err := state.BootstrapACLTokens(1001, 0, tk2); err == nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1001, 0, tk2); err == nil {
 		t.Fatalf("expected error")
 	}
 
@@ -8235,7 +8232,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	}
 
 	// Should allow bootstrap with reset index
-	if err := state.BootstrapACLTokens(1001, 1000, tk2); err != nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1001, 1000, tk2); err != nil {
 		t.Fatalf("err %v", err)
 	}
 
@@ -8271,8 +8268,7 @@ func TestStateStore_UpsertACLTokens(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err := state.UpsertACLTokens(1000,
-		[]*structs.ACLToken{tk1, tk2}); err != nil {
+	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !watchFired(ws) {
@@ -8335,8 +8331,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 	tk2 := mock.ACLToken()
 
 	// Create the tokens
-	if err := state.UpsertACLTokens(1000,
-		[]*structs.ACLToken{tk1, tk2}); err != nil {
+	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8347,8 +8342,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 	}
 
 	// Delete the token
-	if err := state.DeleteACLTokens(1001,
-		[]string{tk1.AccessorID, tk2.AccessorID}); err != nil {
+	if err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 1001, []string{tk1.AccessorID, tk2.AccessorID}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8413,7 +8407,7 @@ func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
 	for _, prefix := range prefixes {
 		tk := mock.ACLToken()
 		tk.AccessorID = prefix + tk.AccessorID[4:]
-		if err := state.UpsertACLTokens(baseIndex, []*structs.ACLToken{tk}); err != nil {
+		if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLToken{tk}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		baseIndex++
@@ -8480,8 +8474,7 @@ func TestStateStore_ACLTokensByGlobal(t *testing.T) {
 	tk4 := mock.ACLToken()
 	tk3.Global = true
 
-	if err := state.UpsertACLTokens(1000,
-		[]*structs.ACLToken{tk1, tk2, tk3, tk4}); err != nil {
+	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2, tk3, tk4}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

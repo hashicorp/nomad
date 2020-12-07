@@ -28,6 +28,7 @@ var (
 			"args": []interface{}{
 				"-c", structs.EnvoyBootstrapPath,
 				"-l", "${meta.connect.log_level}",
+				"--concurrency", "${meta.connect.proxy_concurrency}",
 				"--disable-hot-restart",
 			},
 		}

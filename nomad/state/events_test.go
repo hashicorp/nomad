@@ -12,6 +12,86 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestEventFromChange_SingleEventPerTable ensures that only a single event is
+// created per table per memdb.Change
+func TestEventFromChange_SingleEventPerTable(t *testing.T) {
+	t.Parallel()
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	changes := Changes{
+		Index:   100,
+		MsgType: structs.JobRegisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "job_version",
+				Before: mock.Job(),
+				After:  mock.Job(),
+			},
+			{
+				Table:  "jobs",
+				Before: mock.Job(),
+				After:  mock.Job(),
+			},
+		},
+	}
+
+	out := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out.Events, 1)
+	require.Equal(t, out.Events[0].Type, structs.TypeJobRegistered)
+}
+
+// TestEventFromChange_NodeSecretID ensures that a node's secret ID is not
+// included in a node event
+func TestEventFromChange_NodeSecretID(t *testing.T) {
+	t.Parallel()
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	node := mock.Node()
+	require.NotEmpty(t, node.SecretID)
+
+	// Create
+	changes := Changes{
+		Index:   100,
+		MsgType: structs.NodeRegisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "nodes",
+				Before: nil,
+				After:  node,
+			},
+		},
+	}
+
+	out := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out.Events, 1)
+
+	nodeEvent, ok := out.Events[0].Payload.(*structs.NodeStreamEvent)
+	require.True(t, ok)
+	require.Empty(t, nodeEvent.Node.SecretID)
+
+	// Delete
+	changes = Changes{
+		Index:   100,
+		MsgType: structs.NodeDeregisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "nodes",
+				Before: node,
+				After:  nil,
+			},
+		},
+	}
+
+	out2 := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out2.Events, 1)
+
+	nodeEvent2, ok := out2.Events[0].Payload.(*structs.NodeStreamEvent)
+	require.True(t, ok)
+	require.Empty(t, nodeEvent2.Node.SecretID)
+}
+
 func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
@@ -208,7 +288,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	var allocEvents []structs.Event
 	var deploymentEvent []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicAlloc {
+		if e.Topic == structs.TopicAllocation {
 			allocEvents = append(allocEvents, e)
 		} else if e.Topic == structs.TopicDeployment {
 			deploymentEvent = append(deploymentEvent, e)
@@ -219,7 +299,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	for _, e := range allocEvents {
 		require.Equal(t, 100, int(e.Index))
 		require.Equal(t, structs.TypeDeploymentAllocHealth, e.Type)
-		require.Equal(t, structs.TopicAlloc, e.Topic)
+		require.Equal(t, structs.TopicAllocation, e.Topic)
 	}
 
 	require.Len(t, deploymentEvent, 1)
@@ -329,12 +409,12 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	require.Len(t, events, 1)
 
 	e := events[0]
-	require.Equal(t, structs.TopicEval, e.Topic)
+	require.Equal(t, structs.TopicEvaluation, e.Topic)
 	require.Equal(t, structs.TypeEvalUpdated, e.Type)
 	require.Contains(t, e.FilterKeys, e2.JobID)
 	require.Contains(t, e.FilterKeys, e2.DeploymentID)
-	event := e.Payload.(*structs.EvalEvent)
-	require.Equal(t, "blocked", event.Eval.Status)
+	event := e.Payload.(*structs.EvaluationEvent)
+	require.Equal(t, "blocked", event.Evaluation.Status)
 }
 
 func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
@@ -381,9 +461,9 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	var jobs []structs.Event
 	var deploys []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicAlloc {
+		if e.Topic == structs.TopicAllocation {
 			allocs = append(allocs, e)
-		} else if e.Topic == structs.TopicEval {
+		} else if e.Topic == structs.TopicEvaluation {
 			evals = append(evals, e)
 		} else if e.Topic == structs.TopicJob {
 			jobs = append(jobs, e)
@@ -532,15 +612,15 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 	var allocs []structs.Event
 	var evalEvents []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicEval {
+		if e.Topic == structs.TopicEvaluation {
 			evalEvents = append(evalEvents, e)
-		} else if e.Topic == structs.TopicAlloc {
+		} else if e.Topic == structs.TopicAllocation {
 			allocs = append(allocs, e)
 		} else {
 			require.Fail(t, "unexpected event type")
 		}
 
-		require.Equal(t, structs.TypeAllocUpdateDesiredStatus, e.Type)
+		require.Equal(t, structs.TypeAllocationUpdateDesiredStatus, e.Type)
 	}
 
 	require.Len(t, allocs, 1)
@@ -571,10 +651,12 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
+				Table:  "jobs",
 				Before: &structs.Job{},
 				After:  &structs.Job{},
 			},
 			{
+				Table:  "jobs",
 				Before: &structs.Job{},
 				After:  nil, // deleted
 			},
@@ -600,6 +682,7 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
+				Table:  "nodes",
 				Before: before,
 				After:  nil, // deleted
 			},

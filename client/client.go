@@ -98,17 +98,26 @@ const (
 	allocSyncRetryIntv = 5 * time.Second
 
 	// defaultConnectSidecarImage is the image set in the node meta by default
-	// to be used by Consul Connect sidecar tasks
-	// Update sidecar_task.html when updating this.
+	// to be used by Consul Connect sidecar tasks. As of Nomad 1.0, this value
+	// is only used as a fallback when the version of Consul does not yet support
+	// dynamic envoy versions.
 	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
 
 	// defaultConnectGatewayImage is the image set in the node meta by default
-	// to be used by Consul Connect Gateway tasks.
+	// to be used by Consul Connect Gateway tasks. As of Nomad 1.0, this value
+	// is only used as a fallback when the version of Consul does not yet support
+	// dynamic envoy versions.
 	defaultConnectGatewayImage = defaultConnectSidecarImage
 
 	// defaultConnectLogLevel is the log level set in the node meta by default
-	// to be used by Consul Connect sidecar tasks
+	// to be used by Consul Connect sidecar tasks.
 	defaultConnectLogLevel = "info"
+
+	// defaultConnectProxyConcurrency is the default number of worker threads the
+	// connect sidecar should be configured to use.
+	//
+	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
+	defaultConnectProxyConcurrency = "1"
 )
 
 var (
@@ -1403,6 +1412,9 @@ func (c *Client) setupNode() error {
 	if _, ok := node.Meta["connect.log_level"]; !ok {
 		node.Meta["connect.log_level"] = defaultConnectLogLevel
 	}
+	if _, ok := node.Meta["connect.proxy_concurrency"]; !ok {
+		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
+	}
 
 	return nil
 }
@@ -1904,7 +1916,6 @@ func (c *Client) AllocStateUpdated(alloc *structs.Allocation) {
 // allocSync is a long lived function that batches allocation updates to the
 // server.
 func (c *Client) allocSync() {
-	staggered := false
 	syncTicker := time.NewTicker(allocSyncIntv)
 	updates := make(map[string]*structs.Allocation)
 	for {
@@ -1933,19 +1944,24 @@ func (c *Client) allocSync() {
 			}
 
 			var resp structs.GenericResponse
-			if err := c.RPC("Node.UpdateAlloc", &args, &resp); err != nil {
+			err := c.RPC("Node.UpdateAlloc", &args, &resp)
+			if err != nil {
+				// Error updating allocations, do *not* clear
+				// updates and retry after backoff
 				c.logger.Error("error updating allocations", "error", err)
 				syncTicker.Stop()
 				syncTicker = time.NewTicker(c.retryIntv(allocSyncRetryIntv))
-				staggered = true
-			} else {
-				updates = make(map[string]*structs.Allocation)
-				if staggered {
-					syncTicker.Stop()
-					syncTicker = time.NewTicker(allocSyncIntv)
-					staggered = false
-				}
+				continue
 			}
+
+			// Successfully updated allocs, reset map and ticker.
+			// Always reset ticker to give loop time to receive
+			// alloc updates. If the RPC took the ticker interval
+			// we may call it in a tight loop before draining
+			// buffered updates.
+			updates = make(map[string]*structs.Allocation, len(updates))
+			syncTicker.Stop()
+			syncTicker = time.NewTicker(allocSyncIntv)
 		}
 	}
 }

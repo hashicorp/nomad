@@ -59,7 +59,7 @@ func (tc *EventsTest) TestDeploymentEvents(f *framework.F) {
 	defer cancel()
 
 	topics := map[api.Topic][]string{
-		"Deployment": {jobID},
+		api.TopicDeployment: {jobID},
 	}
 
 	var deployEvents []api.Event
@@ -127,7 +127,7 @@ func (tc *EventsTest) TestBlockedEvalEvents(f *framework.F) {
 	defer cancel()
 
 	topics := map[api.Topic][]string{
-		"Eval": {"*"},
+		api.TopicEvaluation: {"*"},
 	}
 
 	var evalEvents []api.Event
@@ -206,7 +206,7 @@ func (tc *EventsTest) TestStartIndex(f *framework.F) {
 	startIndex := *job.JobModifyIndex + 1
 
 	topics := map[api.Topic][]string{
-		"Job": {"*"},
+		api.TopicJob: {"*"},
 	}
 
 	// starting at Job.ModifyIndex + 1, the next (and only) JobRegistered event that we see

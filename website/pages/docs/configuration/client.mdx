@@ -138,7 +138,8 @@ driver) but will be removed in a future release.
   paths
 
 - `cni_config_dir` `(string: "/opt/cni/config")` - Sets the directory where CNI
-  network configuration is located. The client will use this path when fingerprinting CNI networks.
+  network configuration is located. The client will use this path when fingerprinting
+  CNI networks. Filenames should use the `.conflist` extension.
 
 - `bridge_network name` `(string: "nomad")` - Sets the name of the bridge to be
   created by nomad for allocations running with bridge networking mode on the

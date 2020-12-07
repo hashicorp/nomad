@@ -29,6 +29,19 @@ a quick try to HCL2, you can also read the quicker [HCL2 getting started
 guide](/guides/hcl).
 --->
 
+## HCL Parsing Context
+
+The [Nomad API uses JSON][jobs-api], not HCL, to represent Nomad jobs.
+When running commands like `nomad job run` and `nomad job plan`, the Nomad CLI
+parses HCL and ultimately converts it to JSON. Because this parsing happens locally
+(i.e., where the operator is running the CLI) before job submission, there are some
+limits to the capabilities that can be accessed by HCL job specifications. For
+example, scheduling information is not yet available, including information about
+the client. Similarly, HCL features that depend on external context will take that
+context from the local environment of the CLI (e.g., files, environment variables).
+
+[jobs-api]: /api-docs/jobs
+
 ## Syntax
 
 The main purpose of the HCL language in Nomad is defining jobs. All other
@@ -53,7 +66,7 @@ task "example" {
 - _Blocks_ are containers for other content and usually represent the
   configuration of some kind of object, like a task. Blocks have a
   _block type,_ can have zero or more _labels,_ and have a _body_ that contains
-  any number of arguments and nested blocks.
+  any number of arguments and nested blocks. Block labels must be string literals.
 - _Arguments_ assign a value to a name. They appear within blocks.
 - _Expressions_ represent a value, either literally or by referencing and
   combining other values. They appear as values for arguments, or within other
@@ -113,3 +126,9 @@ hello
 HCL2 trims the whitespace preceding the delimiter in the last line.  So in the
 above example, `data` is read as `"hello\n  world\n  "` in HCL1, but `"hello\n
 world\n"` (note lack of trailing whitespace) in HCL2.
+
+### Decimals
+
+Nomad 0.12 and earlier accepted small decimal values without a leading zero
+(e.g. `.3`, `.59`, `.9`). In such case, Nomad 1.0 requires a leading zero (e.g.
+`0.3`, `0.59`, `0.9`).

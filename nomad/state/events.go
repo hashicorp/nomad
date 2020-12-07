@@ -10,13 +10,13 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.NodeDeregisterRequestType:               structs.TypeNodeDeregistration,
 	structs.UpsertNodeEventsType:                    structs.TypeNodeEvent,
 	structs.EvalUpdateRequestType:                   structs.TypeEvalUpdated,
-	structs.AllocClientUpdateRequestType:            structs.TypeAllocUpdated,
+	structs.AllocClientUpdateRequestType:            structs.TypeAllocationUpdated,
 	structs.JobRegisterRequestType:                  structs.TypeJobRegistered,
-	structs.AllocUpdateRequestType:                  structs.TypeAllocUpdated,
+	structs.AllocUpdateRequestType:                  structs.TypeAllocationUpdated,
 	structs.NodeUpdateStatusRequestType:             structs.TypeNodeEvent,
 	structs.JobDeregisterRequestType:                structs.TypeJobDeregistered,
 	structs.JobBatchDeregisterRequestType:           structs.TypeJobBatchDeregistered,
-	structs.AllocUpdateDesiredTransitionRequestType: structs.TypeAllocUpdateDesiredStatus,
+	structs.AllocUpdateDesiredTransitionRequestType: structs.TypeAllocationUpdateDesiredStatus,
 	structs.NodeUpdateEligibilityRequestType:        structs.TypeNodeDrain,
 	structs.NodeUpdateDrainRequestType:              structs.TypeNodeDrain,
 	structs.BatchNodeUpdateDrainRequestType:         structs.TypeNodeDrain,
@@ -24,6 +24,10 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.DeploymentPromoteRequestType:            structs.TypeDeploymentPromotion,
 	structs.DeploymentAllocHealthRequestType:        structs.TypeDeploymentAllocHealth,
 	structs.ApplyPlanResultsRequestType:             structs.TypePlanResult,
+	structs.ACLTokenDeleteRequestType:               structs.TypeACLTokenDeleted,
+	structs.ACLTokenUpsertRequestType:               structs.TypeACLTokenUpserted,
+	structs.ACLPolicyDeleteRequestType:              structs.TypeACLPolicyDeleted,
+	structs.ACLPolicyUpsertRequestType:              structs.TypeACLPolicyUpserted,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -46,36 +50,99 @@ func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
 
 func eventFromChange(change memdb.Change) (structs.Event, bool) {
 	if change.Deleted() {
-		switch before := change.Before.(type) {
-		case *structs.Node:
+		switch change.Table {
+		case "acl_token":
+			before, ok := change.Before.(*structs.ACLToken)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic: structs.TopicACLToken,
+				Key:   before.AccessorID,
+				Payload: structs.ACLTokenEvent{
+					ACLToken: before,
+				},
+			}, true
+		case "acl_policy":
+			before, ok := change.Before.(*structs.ACLPolicy)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic: structs.TopicACLPolicy,
+				Key:   before.Name,
+				Payload: structs.ACLPolicyEvent{
+					ACLPolicy: before,
+				},
+			}, true
+		case "nodes":
+			before, ok := change.Before.(*structs.Node)
+			if !ok {
+				return structs.Event{}, false
+			}
+
+			// Node secret ID should not be included
+			node := before.Copy()
+			node.SecretID = ""
+
 			return structs.Event{
 				Topic: structs.TopicNode,
-				Key:   before.ID,
+				Key:   node.ID,
 				Payload: &structs.NodeStreamEvent{
-					Node: before,
+					Node: node,
 				},
 			}, true
 		}
-
 		return structs.Event{}, false
 	}
 
-	switch after := change.After.(type) {
-	case *structs.Evaluation:
+	switch change.Table {
+	case "acl_token":
+		after, ok := change.After.(*structs.ACLToken)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
-			Topic: structs.TopicEval,
+			Topic: structs.TopicACLToken,
+			Key:   after.AccessorID,
+			Payload: structs.ACLTokenEvent{
+				ACLToken: after,
+			},
+		}, true
+	case "acl_policy":
+		after, ok := change.After.(*structs.ACLPolicy)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic: structs.TopicACLPolicy,
+			Key:   after.Name,
+			Payload: structs.ACLPolicyEvent{
+				ACLPolicy: after,
+			},
+		}, true
+	case "evals":
+		after, ok := change.After.(*structs.Evaluation)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic: structs.TopicEvaluation,
 			Key:   after.ID,
 			FilterKeys: []string{
 				after.JobID,
 				after.DeploymentID,
 			},
 			Namespace: after.Namespace,
-			Payload: &structs.EvalEvent{
-				Eval: after,
+			Payload: &structs.EvaluationEvent{
+				Evaluation: after,
 			},
 		}, true
-
-	case *structs.Allocation:
+	case "allocs":
+		after, ok := change.After.(*structs.Allocation)
+		if !ok {
+			return structs.Event{}, false
+		}
 		alloc := after.Copy()
 
 		filterKeys := []string{
@@ -87,16 +154,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		alloc.Job = nil
 
 		return structs.Event{
-			Topic:      structs.TopicAlloc,
+			Topic:      structs.TopicAllocation,
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &structs.AllocEvent{
-				Alloc: alloc,
+			Payload: &structs.AllocationEvent{
+				Allocation: alloc,
 			},
 		}, true
-
-	case *structs.Job:
+	case "jobs":
+		after, ok := change.After.(*structs.Job)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic:     structs.TopicJob,
 			Key:       after.ID,
@@ -105,17 +175,28 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Job: after,
 			},
 		}, true
+	case "nodes":
+		after, ok := change.After.(*structs.Node)
+		if !ok {
+			return structs.Event{}, false
+		}
 
-	case *structs.Node:
+		// Node secret ID should not be included
+		node := after.Copy()
+		node.SecretID = ""
+
 		return structs.Event{
 			Topic: structs.TopicNode,
-			Key:   after.ID,
+			Key:   node.ID,
 			Payload: &structs.NodeStreamEvent{
-				Node: after,
+				Node: node,
 			},
 		}, true
-
-	case *structs.Deployment:
+	case "deployment":
+		after, ok := change.After.(*structs.Deployment)
+		if !ok {
+			return structs.Event{}, false
+		}
 		return structs.Event{
 			Topic:      structs.TopicDeployment,
 			Key:        after.ID,

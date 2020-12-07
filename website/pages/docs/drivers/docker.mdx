@@ -68,7 +68,11 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `auth` - (Optional) Provide authentication for a private registry (see below).
 
 - `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
-  Attempt to continue without auth.
+  Attempt to continue without auth. If the Nomad client configuration has an
+  [`auth.helper`](#plugin_auth_helper) stanza, the helper will be tried for
+  all images, including public images. If you mix private and public images,
+  you will need to include `auth_soft_fail=true` in every job using a public
+  image.
 
 - `command` - (Optional) The command to run when starting the container.
 
@@ -77,20 +81,22 @@ The `docker` driver supports the following configuration in the job spec. Only
     command = "my-command"
   }
   ```
-- `cpuset_cpus` <sup>Beta</sup> - (Optional) CPUs in which to allow execution (0-3, 0,1).
-Limit the specific CPUs or cores a container can use. A comma-separated list
-or hyphen-separated range of CPUs a container can use, if you have more than
-one CPU. The first CPU is numbered 0. A valid value might be 0-3 (to use the
-first, second, third, and fourth CPU) or 1,3 (to use the second and fourth CPU).
+
+- `cpuset_cpus` <sup>Beta</sup> - (Optional) CPUs in which to allow execution
+  (0-3, 0,1). Limit the specific CPUs or cores a container can use. A
+  comma-separated list or hyphen-separated range of CPUs a container can use, if
+  you have more than one CPU. The first CPU is numbered 0. A valid value might
+  be 0-3 (to use the first, second, third, and fourth CPU) or 1,3 (to use the
+  second and fourth CPU).
 
 Note: `cpuset_cpus` pins the workload to the CPUs but doesn't give the workload
 exclusive access to those CPUs.
 
-  ```hcl
-  config {
-    cpuset_cpus = "0-3"
-  }
-  ```
+```hcl
+config {
+  cpuset_cpus = "0-3"
+}
+```
 
 - `dns_search_domains` - (Optional) A list of DNS search domains for the container
   to use.
@@ -503,7 +509,7 @@ task "example" {
 }
 ```
 
-Example docker-config, using two helper scripts in \$PATH,
+Example docker-config, using two helper scripts in `$PATH`,
 "docker-credential-ecr-login" and "docker-credential-vault":
 
 ```json
@@ -520,8 +526,8 @@ Example docker-config, using two helper scripts in \$PATH,
 }
 ```
 
-Example agent configuration, using a helper script "docker-credential-ecr-login" in
-\$PATH
+Example agent configuration, using a helper script
+"docker-credential-ecr-login" in `$PATH`
 
 ```hcl
 client {
@@ -627,7 +633,7 @@ group "example" {
 
 If Nomad allocates port `23332` to your allocation, the Docker driver will
 automatically setup the port mapping from `23332` on the host to `6379` in your
-container, so it will just work!
+container, so it will just work.
 
 Note that by default this only works with `bridged` networking mode. It may
 also work with custom networking plugins which implement the same API for
@@ -697,8 +703,10 @@ $ sudo usermod -G docker -a nomad
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
-If you would like to change any of the options related to the `docker` driver on
-a Nomad client, you can modify them with the [plugin stanza][plugin-stanza] syntax. Below is an example of a configuration (many of the values are the default). See the next section for more information on the options.
+If you would like to change any of the options related to the `docker` driver
+on a Nomad client, you can modify them with the [plugin stanza][plugin-stanza]
+syntax. Below is an example of a configuration (many of the values are the
+default). See the next section for more information on the options.
 
 ```hcl
 plugin "docker" {
@@ -778,20 +786,27 @@ plugin "docker" {
     JSON file which is in the dockercfg format containing authentication
     information for a private registry, from either (in order) `auths`,
     `credHelpers` or `credsStore`.
+
   - `helper`<a id="plugin_auth_helper"></a> - Allows an operator to specify a
     [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
     like script on `$PATH` to lookup authentication information from external
     sources. The script's name must begin with `docker-credential-` and this
     option should include only the basename of the script, not the path.
 
+    If you set an auth helper, it will be tried for all images, including
+    public images. If you mix private and public images, you will need to
+    include [`auth_soft_fail=true`] in every job using a public image.
+
 - `tls` stanza:
 
   - `cert` - Path to the server's certificate file (`.pem`). Specify this
     along with `key` and `ca` to use a TLS client to connect to the docker
     daemon. `endpoint` must also be specified or this setting will be ignored.
+
   - `key` - Path to the client's private key (`.pem`). Specify this along with
     `cert` and `ca` to use a TLS client to connect to the docker daemon.
     `endpoint` must also be specified or this setting will be ignored.
+
   - `ca` - Path to the server's CA file (`.pem`). Specify this along with
     `cert` and `key` to use a TLS client to connect to the docker daemon.
     `endpoint` must also be specified or this setting will be ignored.
@@ -805,22 +820,28 @@ plugin "docker" {
 
   - `image` - Defaults to `true`. Changing this to `false` will prevent Nomad
     from removing images from stopped tasks.
+
   - `image_delay` - A time duration, as [defined
     here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`.
     The delay controls how long Nomad will wait between an image being unused
     and deleting it. If a tasks is received that uses the same image within
     the delay, the image will be reused.
+
   - `container` - Defaults to `true`. This option can be used to disable Nomad
     from removing a container when the task exits. Under a name conflict,
     Nomad may still remove the dead container.
+
   - `dangling_containers` stanza for controlling dangling container detection
     and cleanup:
 
     - `enabled` - Defaults to `true`. Enables dangling container handling.
+
     - `dry_run` - Defaults to `false`. Only log dangling containers without
       cleaning them up.
+
     - `period` - Defaults to `"5m"`. A time duration that controls interval
       between Nomad scans for dangling containers.
+
     - `creation_grace` - Defaults to `"5m"`. Grace period after a container is
       created during which the GC ignores it. Only used to prevent the GC from
       removing newly created containers before they are registered with the
@@ -833,6 +854,7 @@ plugin "docker" {
     (`volumes`) inside their container and use volume drivers
     (`volume_driver`). Binding relative paths is always allowed and will be
     resolved relative to the allocation's directory.
+
   - `selinuxlabel` - Allows the operator to set a SELinux label to the
     allocation and task local bind-mounts to containers. If used with
     `docker.volumes.enabled` set to false, the labels will still be applied to
@@ -947,8 +969,10 @@ The `docker` driver will set the following client attributes:
 
 - `driver.docker` - This will be set to "1", indicating the driver is
   available.
+
 - `driver.docker.bridge_ip` - The IP of the Docker bridge network if one
   exists.
+
 - `driver.docker.version` - This will be set to version of the docker server.
 
 Here is an example of using these properties in a job file:
@@ -1035,7 +1059,8 @@ Docker for Windows only supports running Windows containers. Because Docker for
 Windows is relatively new and rapidly evolving you may want to consult the
 [list of relevant issues on GitHub][winissues].
 
-[winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Adriver%2Fdocker+label%3Aplatform-windows
+[winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin
 [allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[`auth_soft_fail=true`]: #auth_soft_fail

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -997,7 +998,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// timed out.
 		require.True(t, time.Now().After(readDeadline))
 
-		testutil.RequireDeadlineErr(t, err)
+		require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+			"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 	}
 
 	assertNoLimit := func(t *testing.T, addr string) {
@@ -1030,7 +1032,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
 			case err := <-errCh:
-				testutil.RequireDeadlineErr(t, err)
+				require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+					"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 			}
 		}
 	}

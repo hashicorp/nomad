@@ -1,37 +1,42 @@
 ---
 layout: docs
 page_title: 'Drivers: nomad-driver-containerd'
-sidebar_title: Containerd
+sidebar_title: containerd
 description: >-
   The containerd driver is used
   for launching containers using containerd.
 ---
 
-# Containerd Task Driver
+# containerd Task Driver
 
 Name: `containerd-driver`
 
 Homepage: https://github.com/Roblox/nomad-driver-containerd
 
-Containerd ([`containerd.io`](https://containerd.io)) is a lightweight container daemon
-for running and managing container lifecycle. Docker daemon also uses containerd.
+containerd ([`containerd.io`](https://containerd.io)) is a lightweight container
+daemon for running and managing container lifecycle. Docker daemon also uses
+containerd.
 
 ```hcl
 dockerd (docker daemon) --> containerd --> containerd-shim --> runc
 ```
 
-`nomad-driver-containerd` enables Nomad clients to launch containers directly using containerd, without Docker!
-The Docker daemon is therefore not required on the host system.
+`nomad-driver-containerd` enables Nomad clients to launch containers directly
+using containerd, without Docker. The Docker daemon is therefore not required on
+the host system.
 
-See the project's [`homepage`](https://github.com/Roblox/nomad-driver-containerd) for more details.
+See the [project's homepage](https://github.com/Roblox/nomad-driver-containerd)
+for more details.
 
 ## Client Requirements
 
-The containerd task driver is not built into Nomad. It must be [`downloaded`](https://github.com/Roblox/nomad-driver-containerd/releases/)
-onto the client host in the configured plugin directory.
+The containerd task driver is not built into Nomad. It must be
+[`downloaded`][releases] onto the client host in the configured plugin
+directory.
 
 - Linux (Ubuntu >=16.04) with [`containerd`](https://containerd.io/downloads/) (>=1.3) installed.
-- [`containerd-driver`](https://github.com/Roblox/nomad-driver-containerd/releases/) binary in Nomad's [plugin_dir][plugin_dir].
+
+- [`containerd-driver`][releases] binary in Nomad's [plugin_dir][].
 
 ## Capabilities
 
@@ -50,7 +55,9 @@ For exec'ing into the container, one can use `nomad alloc exec` command.
 
 ## Task Configuration
 
-Since docker also relies on containerd for managing container lifecycle, the example job created by [`nomad init -short`][nomad-init] can easily be adapted to use `containerd-driver` instead:
+Since Docker also relies on containerd for managing container lifecycle, the
+example job created by [`nomad init -short`][nomad-init] can easily be adapted
+to use `containerd-driver` instead:
 
 ```hcl
 job "redis" {
@@ -78,7 +85,8 @@ job "redis" {
 
 The containerd task driver supports the following parameters:
 
-- `image` - (Required) OCI image (Docker is also OCI compatible) for your container.
+- `image` - (Required) OCI image (Docker is also OCI compatible) for your
+  container.
 
 ```hcl
 config {
@@ -105,8 +113,9 @@ config {
 }
 ```
 
-- `privileged` - (Optional) `true` or `false` (default) Run container in privileged mode.
-  Your container will have all linux capabilities when running in privileged mode.
+- `privileged` - (Optional) `true` or `false` (default) Run container in
+  privileged mode. Your container will have all Linux capabilities when running
+  in privileged mode.
 
 ```hcl
 config {
@@ -114,7 +123,8 @@ config {
 }
 ```
 
-- `readonly_rootfs` - (Optional) `true` or `false` (default) Container root filesystem will be read-only.
+- `readonly_rootfs` - (Optional) `true` or `false` (default) Container root
+  filesystem will be read-only.
 
 ```hcl
 config {
@@ -122,8 +132,8 @@ config {
 }
 ```
 
-- `host_network` ((#host_network)) - (Optional) `true` or `false` (default) Enable host network.
-  This is equivalent to `--net=host` in docker.
+- `host_network` ((#host_network)) - (Optional) `true` or `false` (default)
+  Enable host network. This is equivalent to `--net=host` in docker.
 
 ```hcl
 config {
@@ -166,12 +176,19 @@ config {
 }
 ```
 
-- `mounts` - (Optional) A list of mounts to be mounted in the container.
-  Volume, bind and tmpfs type mounts are supported. fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211) are supported.
-  - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`. **Default:** `volume`.
+- `mounts` - (Optional) A list of mounts to be mounted in the container. Volume,
+  bind and tmpfs type mounts are supported. fstab style [`mount options`][] are
+  supported.
+
+  - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`.
+    **Default:** `volume`.
+
   - `target` - (Required) Target path in the container.
+
   - `source` - (Optional) Source path on the host.
-  - `options` - (Optional) fstab style [`mount options`](https://github.com/containerd/containerd/blob/master/mount/mount_linux.go#L187-L211). **NOTE:** For bind mounts, atleast `rbind` and `ro` are required.
+
+  - `options` - (Optional) fstab style [`mount options`][]. **NOTE:** For bind
+    mounts, at least `rbind` and `ro` are required.
 
 ```hcl
 config {
@@ -190,12 +207,15 @@ config {
 
 `nomad-driver-containerd` supports **host** and **bridge** networks.
 
-**NOTE:** `host` and `bridge` are mutually exclusive options, and only one of them should be used at a time.
+**NOTE:** `host` and `bridge` are mutually exclusive options, and only one of
+them should be used at a time.
 
-1. **Host** network can be enabled by setting `host_network` to `true` in task config
-   of the job spec (see [host_network][host-network] under Task Configuration).
+1. **Host** network can be enabled by setting `host_network` to `true` in task
+   config of the job spec (see [host_network][host-network] under Task
+   Configuration).
 
-2. **Bridge** network can be enabled by setting the `network` stanza in the task group section of the job spec.
+1. **Bridge** network can be enabled by setting the `network` stanza in the task
+   group section of the job spec.
 
 ```hcl
 network {
@@ -203,7 +223,8 @@ network {
 }
 ```
 
-You need to install CNI plugins on Nomad client nodes under `/opt/cni/bin` before you can use `bridge` networks.
+You need to install CNI plugins on Nomad client nodes under `/opt/cni/bin`
+before you can use `bridge` networks.
 
 **Instructions for installing CNI plugins.**
 
@@ -215,14 +236,17 @@ You need to install CNI plugins on Nomad client nodes under `/opt/cni/bin` befor
 
 ## Plugin Options ((#plugin_options))
 
-- `enabled` - (Optional) The `containerd` driver may be disabled on hosts by setting this option to `false` (defaults to `true`).
+- `enabled` - (Optional) The `containerd` driver may be disabled on hosts by
+  setting this option to `false` (defaults to `true`).
 
-- `containerd_runtime` - (Required) Runtime for `containerd` e.g. `io.containerd.runc.v1` or `io.containerd.runc.v2`
+- `containerd_runtime` - (Required) Runtime for `containerd` e.g.
+  `io.containerd.runc.v1` or `io.containerd.runc.v2`
 
-- `stats_interval` - (Optional) This value defines how frequently you want to send `TaskStats` to nomad client. (defaults to `1 second`).
+- `stats_interval` - (Optional) This value defines how frequently you want to
+  send `TaskStats` to nomad client. (defaults to `1 second`).
 
-An example of using these plugin options with the new [plugin
-syntax][plugin] is shown below:
+An example of using these plugin options with the new [plugin syntax][plugin] is
+shown below:
 
 ```hcl
 plugin "containerd-driver" {
@@ -234,7 +258,8 @@ plugin "containerd-driver" {
 }
 ```
 
-Please note the plugin name should match whatever name you have specified for the external driver in the [plugin_dir][plugin_dir] directory.
+Please note the plugin name should match whatever name you have specified for
+the external driver in the [plugin_dir][plugin_dir] directory.
 
 [nomad-driver-containerd]: https://github.com/Roblox/nomad-driver-containerd
 [nomad-init]: /docs/commands/job/init
@@ -242,3 +267,5 @@ Please note the plugin name should match whatever name you have specified for th
 [plugin_dir]: /docs/configuration#plugin_dir
 [plugin-options]: #plugin_options
 [host-network]: #host_network
+[`mount options`]: https://github.com/containerd/containerd/blob/9561d9389d3dd87ff6030bf1da4e705bbc024130/mount/mount_linux.go#L198-L222
+[releases]: https://github.com/Roblox/nomad-driver-containerd/releases/

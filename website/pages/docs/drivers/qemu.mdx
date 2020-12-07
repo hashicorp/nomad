@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: 'Drivers: Qemu'
-sidebar_title: Qemu
-description: The Qemu task driver is used to run virtual machines using Qemu/KVM.
+page_title: 'Drivers: QEMU'
+sidebar_title: QEMU
+description: The QEMU task driver is used to run virtual machines using QEMU/KVM.
 ---
 
-# Qemu Driver
+# QEMU Driver
 
 Name: `qemu`
 
-The `qemu` driver provides a generic virtual machine runner. Qemu can utilize
+The `qemu` driver provides a generic virtual machine runner. QEMU can utilize
 the KVM kernel module to utilize hardware virtualization features and provide
 great performance. Currently the `qemu` driver can map a set of ports from the
 host machine to the guest virtual machine, and provides configuration for
@@ -115,7 +115,7 @@ The `qemu` driver implements the following [capabilities](/docs/internals/plugin
 
 ## Client Requirements
 
-The `qemu` driver requires Qemu to be installed and in your system's `$PATH`.
+The `qemu` driver requires QEMU to be installed and in your system's `$PATH`.
 The task must also specify at least one artifact to download, as this is the only
 way to retrieve the image being run.
 
@@ -123,7 +123,7 @@ way to retrieve the image being run.
 
 The `qemu` driver will set the following client attributes:
 
-- `driver.qemu` - Set to `1` if Qemu is found on the host node. Nomad determines
+- `driver.qemu` - Set to `1` if QEMU is found on the host node. Nomad determines
   this by executing `qemu-system-x86_64 -version` on the host and parsing the output
 - `driver.qemu.version` - Version of `qemu-system-x86_64`, ex: `2.4.0`
 
@@ -150,16 +150,16 @@ plugin "qemu" {
 }
 ```
 
-- `image_paths` (`[]string`: `[]`) - Specifies the host paths the Qemu driver is
+- `image_paths` (`[]string`: `[]`) - Specifies the host paths the QEMU driver is
   allowed to load images from.
 
 ## Resource Isolation
 
-Nomad uses Qemu to provide full software virtualization for virtual machine
-workloads. Nomad can use Qemu KVM's hardware-assisted virtualization to deliver
+Nomad uses QEMU to provide full software virtualization for virtual machine
+workloads. Nomad can use QEMU KVM's hardware-assisted virtualization to deliver
 better performance.
 
 Virtualization provides the highest level of isolation for workloads that
-require additional security, and resource use is constrained by the Qemu
+require additional security, and resource use is constrained by the QEMU
 hypervisor rather than the host kernel. VM network traffic still flows through
 the host's interface(s).

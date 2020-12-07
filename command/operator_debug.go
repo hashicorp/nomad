@@ -21,27 +21,30 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
 
 type OperatorDebugCommand struct {
 	Meta
 
-	timestamp  string
-	collectDir string
-	duration   time.Duration
-	interval   time.Duration
-	logLevel   string
-	stale      bool
-	maxNodes   int
-	nodeClass  string
-	nodeIDs    []string
-	serverIDs  []string
-	consul     *external
-	vault      *external
-	manifest   []string
-	ctx        context.Context
-	cancel     context.CancelFunc
+	timestamp     string
+	collectDir    string
+	duration      time.Duration
+	interval      time.Duration
+	pprofDuration time.Duration
+	logLevel      string
+	stale         bool
+	maxNodes      int
+	nodeClass     string
+	nodeIDs       []string
+	serverIDs     []string
+	consul        *external
+	vault         *external
+	manifest      []string
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
 const (
@@ -58,7 +61,8 @@ Usage: nomad operator debug [options]
   If ACLs are enabled, this command will require a token with the 'node:read'
   capability to run. In order to collect information, the token will also
   require the 'agent:read' and 'operator:read' capabilities, as well as the
-  'list-jobs' capability for all namespaces.
+  'list-jobs' capability for all namespaces. To collect pprof profiles the
+  token will also require 'agent:write', or enable_debug configuration set to true.
 
 General Options:
 
@@ -85,6 +89,9 @@ Debug Options:
 
   -node-class=<node-class>
     Filter client nodes based on node class.
+
+  -pprof-duration=<duration>
+    Duration for pprof collection. Defaults to 1s.
 
   -server-id=<server>,<server>
     Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
@@ -160,16 +167,17 @@ func (c *OperatorDebugCommand) Synopsis() string {
 func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-duration":     complete.PredictAnything,
-			"-interval":     complete.PredictAnything,
-			"-log-level":    complete.PredictAnything,
-			"-max-nodes":    complete.PredictAnything,
-			"-node-class":   complete.PredictAnything,
-			"-node-id":      complete.PredictAnything,
-			"-server-id":    complete.PredictAnything,
-			"-output":       complete.PredictAnything,
-			"-consul-token": complete.PredictAnything,
-			"-vault-token":  complete.PredictAnything,
+			"-duration":       complete.PredictAnything,
+			"-interval":       complete.PredictAnything,
+			"-log-level":      complete.PredictAnything,
+			"-max-nodes":      complete.PredictAnything,
+			"-node-class":     complete.PredictAnything,
+			"-node-id":        complete.PredictAnything,
+			"-server-id":      complete.PredictAnything,
+			"-output":         complete.PredictAnything,
+			"-pprof-duration": complete.PredictAnything,
+			"-consul-token":   complete.PredictAnything,
+			"-vault-token":    complete.PredictAnything,
 		})
 }
 
@@ -183,7 +191,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, output string
+	var duration, interval, output, pprofDuration string
 	var nodeIDs, serverIDs string
 
 	flags.StringVar(&duration, "duration", "2m", "")
@@ -195,6 +203,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&serverIDs, "server-id", "", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
+	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
 	flags.StringVar(&c.consul.addrVal, "consul-http-addr", os.Getenv("CONSUL_HTTP_ADDR"), "")
@@ -236,6 +245,14 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.interval = i
+
+	// Parse the pprof capture duration
+	pd, err := time.ParseDuration(pprofDuration)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing pprof duration: %s: %s", pprofDuration, err.Error()))
+		return 1
+	}
+	c.pprofDuration = pd
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -393,6 +410,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.Ui.Output(fmt.Sprintf("         Interval: %s", interval))
 	c.Ui.Output(fmt.Sprintf("         Duration: %s", duration))
+	if c.pprofDuration.Seconds() != 1 {
+		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
+	}
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
 
@@ -429,10 +449,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	// Version contains cluster meta information
 	dir := "version"
-	err := c.mkdir(dir)
-	if err != nil {
-		return err
-	}
 
 	self, err := client.Agent().Self()
 	c.writeJSON(dir, "agent-self.json", self, err)
@@ -488,7 +504,15 @@ func (c *OperatorDebugCommand) path(paths ...string) string {
 
 // mkdir creates directories in the tmp root directory
 func (c *OperatorDebugCommand) mkdir(paths ...string) error {
-	return os.MkdirAll(c.path(paths...), 0755)
+	joinedPath := c.path(paths...)
+
+	// Ensure path doesn't escape the sandbox of the capture directory
+	escapes := helper.PathEscapesSandbox(c.collectDir, joinedPath)
+	if escapes {
+		return fmt.Errorf("file path escapes capture directory")
+	}
+
+	return os.MkdirAll(joinedPath, 0755)
 }
 
 // startMonitors starts go routines for each node and client
@@ -549,7 +573,6 @@ func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 	for _, n := range c.serverIDs {
 		c.collectAgentHost("server", n, client)
 	}
-
 }
 
 // collectAgentHost gets the agent host data
@@ -562,9 +585,17 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 		host, err = client.Agent().Host("", id, nil)
 	}
 
-	path = filepath.Join(path, id)
-	c.mkdir(path)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s/%s: Failed to retrieve agent host data, err: %v", path, id, err))
 
+		if strings.Contains(err.Error(), structs.ErrPermissionDenied.Error()) {
+			// Drop a hint to help the operator resolve the error
+			c.Ui.Warn(fmt.Sprintf("Agent host retrieval requires agent:read ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#host for more information."))
+		}
+		return // exit on any error
+	}
+
+	path = filepath.Join(path, id)
 	c.writeJSON(path, "agent-host.json", host, err)
 }
 
@@ -577,12 +608,12 @@ func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
 	for _, n := range c.serverIDs {
 		c.collectPprof("server", n, client)
 	}
-
 }
 
 // collectPprof captures pprof data for the node
 func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
-	opts := api.PprofOptions{Seconds: 1}
+	pprofDurationSeconds := int(c.pprofDuration.Seconds())
+	opts := api.PprofOptions{Seconds: pprofDurationSeconds}
 	if path == "server" {
 		opts.ServerID = id
 	} else {
@@ -590,32 +621,52 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	}
 
 	path = filepath.Join(path, id)
-	err := c.mkdir(path)
-	if err != nil {
-		return
-	}
 
 	bs, err := client.Agent().CPUProfile(opts, nil)
-	if err == nil {
-		c.writeBytes(path, "profile.prof", bs)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof profile.prof, err: %v", path, err))
+		if structs.IsErrPermissionDenied(err) {
+			// All Profiles require the same permissions, so we only need to see
+			// one permission failure before we bail.
+			// But lets first drop a hint to help the operator resolve the error
+
+			c.Ui.Warn(fmt.Sprintf("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information."))
+			return // only exit on 403
+		}
+	} else {
+		if err := c.writeBytes(path, "profile.prof", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	bs, err = client.Agent().Trace(opts, nil)
-	if err == nil {
-		c.writeBytes(path, "trace.prof", bs)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
+	} else {
+		if err := c.writeBytes(path, "trace.prof", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err == nil {
-		c.writeBytes(path, "goroutine.prof", bs)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
+	} else {
+		if err := c.writeBytes(path, "goroutine.prof", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	// Gather goroutine text output - debug type 1
 	// debug type 1 writes the legacy text format for human readable output
 	opts.Debug = 1
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err == nil {
-		c.writeBytes(path, "goroutine-debug1.txt", bs)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
+	} else {
+		if err := c.writeBytes(path, "goroutine-debug1.txt", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	// Gather goroutine text output - debug type 2
@@ -623,8 +674,12 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	// stacks in the same form that a Go program uses when dying due to an unrecovered panic.
 	opts.Debug = 2
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err == nil {
-		c.writeBytes(path, "goroutine-debug2.txt", bs)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
+	} else {
+		if err := c.writeBytes(path, "goroutine-debug2.txt", bs); err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 }
 
@@ -650,7 +705,7 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 			c.collectNomad(dir, client)
 			c.collectOperator(dir, client)
 			interval = time.After(c.interval)
-			intervalCount += 1
+			intervalCount++
 
 		case <-c.ctx.Done():
 			return
@@ -675,11 +730,6 @@ func (c *OperatorDebugCommand) collectOperator(dir string, client *api.Client) {
 
 // collectNomad captures the nomad cluster state
 func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) error {
-	err := c.mkdir(dir)
-	if err != nil {
-		return err
-	}
-
 	var qo *api.QueryOptions
 
 	js, _, err := client.Jobs().List(qo)
@@ -697,17 +747,30 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	ns, _, err := client.Nodes().List(qo)
 	c.writeJSON(dir, "nodes.json", ns, err)
 
+	// CSI Plugins - /v1/plugins?type=csi
 	ps, _, err := client.CSIPlugins().List(qo)
 	c.writeJSON(dir, "plugins.json", ps, err)
 
-	vs, _, err := client.CSIVolumes().List(qo)
-	c.writeJSON(dir, "volumes.json", vs, err)
-
-	if metricBytes, err := client.Operator().Metrics(qo); err != nil {
-		c.writeError(dir, "metrics.json", err)
-	} else {
-		c.writeBytes(dir, "metrics.json", metricBytes)
+	// CSI Plugin details - /v1/plugin/csi/:plugin_id
+	for _, p := range ps {
+		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, qo)
+		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s.json", p.ID)
+		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
 	}
+
+	// CSI Volumes - /v1/volumes?type=csi
+	csiVolumes, _, err := client.CSIVolumes().List(qo)
+	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
+
+	// CSI Volume details - /v1/volumes/csi/:volume-id
+	for _, v := range csiVolumes {
+		csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
+		csiFileName := fmt.Sprintf("csi-volume-id-%s.json", v.ID)
+		c.writeJSON(dir, csiFileName, csiVolume, err)
+	}
+
+	metrics, _, err := client.Operator().MetricsSummary(qo)
+	c.writeJSON(dir, "metrics.json", metrics, err)
 
 	return nil
 }
@@ -758,30 +821,38 @@ func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
 
 // writeBytes writes a file to the archive, recording it in the manifest
 func (c *OperatorDebugCommand) writeBytes(dir, file string, data []byte) error {
-	relativePath := filepath.Join(dir, file)
+	// Replace invalid characters in filename
+	filename := helper.CleanFilename(file, "_")
+
+	relativePath := filepath.Join(dir, filename)
 	c.manifest = append(c.manifest, relativePath)
 	dirPath := filepath.Join(c.collectDir, dir)
-	filePath := filepath.Join(dirPath, file)
+	filePath := filepath.Join(dirPath, filename)
 
 	// Ensure parent directories exist
 	err := os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
-		// Display error immediately -- may not see this if files aren't written
-		c.Ui.Error(fmt.Sprintf("failed to create parent directories of \"%s\": %s", dirPath, err.Error()))
-		return err
+		return fmt.Errorf("failed to create parent directories of \"%s\": %w", dirPath, err)
+	}
+
+	// Ensure filename doesn't escape the sandbox of the capture directory
+	escapes := helper.PathEscapesSandbox(c.collectDir, filePath)
+	if escapes {
+		return fmt.Errorf("file path \"%s\" escapes capture directory \"%s\"", filePath, c.collectDir)
 	}
 
 	// Create the file
 	fh, err := os.Create(filePath)
 	if err != nil {
-		// Display error immediately -- may not see this if files aren't written
-		c.Ui.Error(fmt.Sprintf("failed to create file \"%s\": %s", filePath, err.Error()))
-		return err
+		return fmt.Errorf("failed to create file \"%s\", err: %w", filePath, err)
 	}
 	defer fh.Close()
 
 	_, err = fh.Write(data)
-	return err
+	if err != nil {
+		return fmt.Errorf("Failed to write data to file \"%s\", err: %w", filePath, err)
+	}
+	return nil
 }
 
 // writeJSON writes JSON responses from the Nomad API calls to the archive
@@ -793,7 +864,11 @@ func (c *OperatorDebugCommand) writeJSON(dir, file string, data interface{}, err
 	if err != nil {
 		return c.writeError(dir, file, err)
 	}
-	return c.writeBytes(dir, file, bytes)
+	err = c.writeBytes(dir, file, bytes)
+	if err != nil {
+		c.Ui.Error(err.Error())
+	}
+	return nil
 }
 
 // writeError writes a JSON error object to capture errors in the debug bundle without
@@ -826,9 +901,12 @@ func (c *OperatorDebugCommand) writeBody(dir, file string, resp *http.Response, 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		c.writeError(dir, file, err)
+		return
 	}
 
-	c.writeBytes(dir, file, body)
+	if err := c.writeBytes(dir, file, body); err != nil {
+		c.Ui.Error(err.Error())
+	}
 }
 
 // writeManifest creates the index files
