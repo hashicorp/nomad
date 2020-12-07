@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	cconsul "github.com/hashicorp/nomad/client/consul"
@@ -118,6 +119,7 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		t.taskHealth[task.Name] = &taskHealthState{task: task}
 
 		if task.Lifecycle != nil && !task.Lifecycle.Sidecar {
+			spew.Dump("ADDING LIFECYCLE TASK ", task.Name)
 			t.lifecycleTasks[task.Name] = true
 		}
 
@@ -283,7 +285,7 @@ func (t *Tracker) watchTaskEvents() {
 				return
 			}
 
-			if state.State == structs.TaskStatePending {
+			if (state.State == structs.TaskStatePending) && !t.lifecycleTasks[taskName] {
 				latestStartTime = time.Time{}
 				break
 			} else if state.StartedAt.After(latestStartTime) {
@@ -299,6 +301,7 @@ func (t *Tracker) watchTaskEvents() {
 			t.l.Lock()
 			t.allocFailed = true
 			t.l.Unlock()
+
 			t.setTaskHealth(false, true)
 			return
 		}
@@ -479,7 +482,9 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 
 		switch t.state.State {
 		case structs.TaskStatePending:
-			return "Task not running by deadline", true
+			if t.task.Lifecycle == nil || t.task.Lifecycle.Hook != structs.TaskLifecycleHookPoststop {
+				return "Task not running by deadline", true
+			}
 		case structs.TaskStateDead:
 			// hook tasks are healthy when dead successfully
 			if t.task.Lifecycle == nil || t.task.Lifecycle.Sidecar {
