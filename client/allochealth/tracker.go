@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	cconsul "github.com/hashicorp/nomad/client/consul"
@@ -69,7 +68,7 @@ type Tracker struct {
 
 	// lifecycleTasks is a set of tasks with lifecycle hook set and may
 	// terminate without affecting alloc health
-	lifecycleTasks map[string]bool
+	lifecycleTasks map[string]string
 
 	// l is used to lock shared fields listed below
 	l sync.Mutex
@@ -111,7 +110,7 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		consulClient:        consulClient,
 		checkLookupInterval: consulCheckLookupInterval,
 		logger:              logger,
-		lifecycleTasks:      map[string]bool{},
+		lifecycleTasks:      map[string]string{},
 	}
 
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
@@ -119,8 +118,7 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		t.taskHealth[task.Name] = &taskHealthState{task: task}
 
 		if task.Lifecycle != nil && !task.Lifecycle.Sidecar {
-			spew.Dump("ADDING LIFECYCLE TASK ", task.Name)
-			t.lifecycleTasks[task.Name] = true
+			t.lifecycleTasks[task.Name] = task.Lifecycle.Hook
 		}
 
 		for _, s := range task.Services {
@@ -280,12 +278,14 @@ func (t *Tracker) watchTaskEvents() {
 		latestStartTime := time.Time{}
 		for taskName, state := range alloc.TaskStates {
 			// One of the tasks has failed so we can exit watching
-			if state.Failed || (!state.FinishedAt.IsZero() && !t.lifecycleTasks[taskName]) {
+			if state.Failed || (!state.FinishedAt.IsZero() && (t.lifecycleTasks[taskName]) == "") {
 				t.setTaskHealth(false, true)
 				return
 			}
 
-			if (state.State == structs.TaskStatePending) && !t.lifecycleTasks[taskName] {
+			// Ignore poststop since it will be pending until the main job exists
+			if (state.State == structs.TaskStatePending) &&
+				t.lifecycleTasks[taskName] != structs.TaskLifecycleHookPoststop {
 				latestStartTime = time.Time{}
 				break
 			} else if state.StartedAt.After(latestStartTime) {
@@ -482,9 +482,7 @@ func (t *taskHealthState) event(deadline time.Time, minHealthyTime time.Duration
 
 		switch t.state.State {
 		case structs.TaskStatePending:
-			if t.task.Lifecycle == nil || t.task.Lifecycle.Hook != structs.TaskLifecycleHookPoststop {
-				return "Task not running by deadline", true
-			}
+			return "Task not running by deadline", true
 		case structs.TaskStateDead:
 			// hook tasks are healthy when dead successfully
 			if t.task.Lifecycle == nil || t.task.Lifecycle.Sidecar {

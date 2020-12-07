@@ -35,7 +35,11 @@ func TestTaskHookCoordinator_PrestartRunsBeforeMain(t *testing.T) {
 
 	mainTask := tasks[0]
 	sideTask := tasks[1]
-	initTask := tasks[2]
+	initTask := tasks[3]
+
+	require.Equal(t, "web", mainTask.Name)
+	require.Equal(t, "side", sideTask.Name)
+	require.Equal(t, "init", initTask.Name)
 
 	coord := newTaskHookCoordinator(logger, tasks)
 	initCh := coord.startConditionForTask(initTask)
@@ -55,7 +59,11 @@ func TestTaskHookCoordinator_MainRunsAfterPrestart(t *testing.T) {
 
 	mainTask := tasks[0]
 	sideTask := tasks[1]
-	initTask := tasks[2]
+	initTask := tasks[3]
+
+	require.Equal(t, "web", mainTask.Name)
+	require.Equal(t, "side", sideTask.Name)
+	require.Equal(t, "init", initTask.Name)
 
 	coord := newTaskHookCoordinator(logger, tasks)
 	initCh := coord.startConditionForTask(initTask)
@@ -189,7 +197,11 @@ func TestTaskHookCoordinator_SidecarNeverStarts(t *testing.T) {
 
 	mainTask := tasks[0]
 	sideTask := tasks[1]
-	initTask := tasks[2]
+	initTask := tasks[3]
+
+	require.Equal(t, "web", mainTask.Name)
+	require.Equal(t, "side", sideTask.Name)
+	require.Equal(t, "init", initTask.Name)
 
 	coord := newTaskHookCoordinator(logger, tasks)
 	initCh := coord.startConditionForTask(initTask)
@@ -234,8 +246,14 @@ func TestTaskHookCoordinator_PoststartStartsAfterMain(t *testing.T) {
 	sideTask := tasks[1]
 	postTask := tasks[2]
 
+	require.Equal(t, "web", mainTask.Name)
+	require.Equal(t, "side", sideTask.Name)
+	require.Equal(t, "post", postTask.Name)
+	require.Equal(t, structs.TaskLifecycleHookPoststop, postTask.Lifecycle.Hook)
+
 	// Make the the third task a poststart hook
 	postTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststart
+	require.Equal(t, structs.TaskLifecycleHookPoststart, postTask.Lifecycle.Hook)
 
 	coord := newTaskHookCoordinator(logger, tasks)
 	postCh := coord.startConditionForTask(postTask)

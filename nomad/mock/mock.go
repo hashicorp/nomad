@@ -395,8 +395,9 @@ func LifecycleJob() *structs.Job {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "web",
-				Count: 1,
+				Name:    "web",
+				Count:   1,
+				Migrate: structs.DefaultMigrateStrategy(),
 				RestartPolicy: &structs.RestartPolicy{
 					Attempts: 0,
 					Interval: 10 * time.Minute,
@@ -425,6 +426,21 @@ func LifecycleJob() *structs.Job {
 						Lifecycle: &structs.TaskLifecycleConfig{
 							Hook:    structs.TaskLifecycleHookPrestart,
 							Sidecar: true,
+						},
+						LogConfig: structs.DefaultLogConfig(),
+						Resources: &structs.Resources{
+							CPU:      1000,
+							MemoryMB: 256,
+						},
+					},
+					{
+						Name:   "post",
+						Driver: "mock_driver",
+						Config: map[string]interface{}{
+							"run_for": "1s",
+						},
+						Lifecycle: &structs.TaskLifecycleConfig{
+							Hook: structs.TaskLifecycleHookPoststop,
 						},
 						LogConfig: structs.DefaultLogConfig(),
 						Resources: &structs.Resources{
@@ -490,6 +506,10 @@ func LifecycleAlloc() *structs.Allocation {
 				CPU:      1000,
 				MemoryMB: 256,
 			},
+			"post": {
+				CPU:      1000,
+				MemoryMB: 256,
+			},
 		},
 
 		AllocatedResources: &structs.AllocatedResources{
@@ -511,6 +531,14 @@ func LifecycleAlloc() *structs.Allocation {
 					},
 				},
 				"side": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 1000,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+				"post": {
 					Cpu: structs.AllocatedCpuResources{
 						CpuShares: 1000,
 					},
