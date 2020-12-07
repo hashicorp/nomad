@@ -44,7 +44,7 @@ func formatDeviceStats(qid string, stat *api.StatObject) []string {
 
 func formatDeviceStatsImpl(stat *api.StatObject, keyPrefix string, result *[]string) {
 	if keyPrefix != "" {
-		keyPrefix = keyPrefix + "."
+		keyPrefix += "."
 	}
 
 	for n, stat := range stat.Attributes {

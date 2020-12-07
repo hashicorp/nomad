@@ -138,14 +138,14 @@ START:
 		} else if r.handler(nc) {
 			// skip both characters
 			bw.Write(buf[wi:i])
-			i = i + 2
+			i += 2
 			wi = i
 		} else if nc == '\n' || nc == '\r' {
-			i = i + 2
+			i += 2
 			s = sLookEscapeChar
 			goto START
 		} else {
-			i = i + 2
+			i += 2
 			// need to write everything keep going
 		}
 	}

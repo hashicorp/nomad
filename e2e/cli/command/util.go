@@ -28,7 +28,7 @@ func fetchBinary(bin string) (string, error) {
 
 	dest := path.Join(nomadBinaryDir, "nomad")
 	if runtime.GOOS == "windows" {
-		dest = dest + ".exe"
+		dest += ".exe"
 	}
 
 	if err = getter.GetFile(dest, bin); err != nil {

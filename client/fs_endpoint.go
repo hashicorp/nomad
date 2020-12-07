@@ -940,7 +940,7 @@ func findClosest(entries []*cstructs.AllocFileInfo, desiredIdx, desiredOffset in
 				break
 			} else {
 				// Try the next file
-				offset = offset - s
+				offset -= s
 				idx += 1
 				continue
 			}

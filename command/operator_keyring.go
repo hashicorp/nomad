@@ -172,7 +172,7 @@ func (c *OperatorKeyringCommand) handleKeyResponse(resp *api.KeyringResponse) {
 	i := 1
 	for k := range resp.Keys {
 		out[i] = fmt.Sprintf("%s", k)
-		i = i + 1
+		i++
 	}
 	c.Ui.Output(formatList(out))
 }
