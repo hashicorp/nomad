@@ -21,6 +21,17 @@ export default class Application extends JSONSerializer {
   arrayNullOverrides = null;
 
   /**
+    A list of keys that are converted to empty objects if their value is null.
+
+    objectNullOverrides = ['Object'];
+    { Object: null } => { Object: {} }
+
+    @property objectNullOverrides
+    @type String[]
+   */
+  objectNullOverrides = null;
+
+  /**
     A list of keys or objects to convert a map into an array of maps with the original map keys as Name properties.
 
     mapToArray = ['Map'];
@@ -87,6 +98,13 @@ export default class Application extends JSONSerializer {
         this.arrayNullOverrides.forEach(key => {
           if (!hash[key]) {
             hash[key] = [];
+          }
+        });
+      }
+      if (this.objectNullOverrides) {
+        this.objectNullOverrides.forEach(key => {
+          if (!hash[key]) {
+            hash[key] = {};
           }
         });
       }
