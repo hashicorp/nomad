@@ -95,7 +95,7 @@ func TestDebug_NodeClass(t *testing.T) {
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
 	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
-	// Setup Client 1 (nodeclass = clienta)
+	// Setup client 1 (nodeclass = clienta)
 	agentConfFunc1 := func(c *agent.Config) {
 		c.Region = "global"
 		c.Server.Enabled = false
@@ -104,16 +104,16 @@ func TestDebug_NodeClass(t *testing.T) {
 		c.Client.Servers = []string{srvRPCAddr}
 	}
 
-	// Start Client 1
+	// Start client 1
 	client1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
 	defer client1.Shutdown()
 
-	// Wait for the client to connect
+	// Wait for client1 to connect
 	client1NodeID := client1.Agent.Client().NodeID()
 	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID)
 	t.Logf("[TEST] Client1 ready, id: %s", client1NodeID)
 
-	// Setup Client 2 (nodeclass = clientb)
+	// Setup client 2 (nodeclass = clientb)
 	agentConfFunc2 := func(c *agent.Config) {
 		c.Region = "global"
 		c.Server.Enabled = false
@@ -122,27 +122,27 @@ func TestDebug_NodeClass(t *testing.T) {
 		c.Client.Servers = []string{srvRPCAddr}
 	}
 
-	// Start Client 2
+	// Start client 2
 	client2 := agent.NewTestAgent(t, "client2", agentConfFunc2)
 	defer client2.Shutdown()
 
-	// Wait for the client to connect
+	// Wait for client2 to connect
 	client2NodeID := client2.Agent.Client().NodeID()
 	testutil.WaitForClient(t, srv.Agent.RPC, client2NodeID)
 	t.Logf("[TEST] Client2 ready, id: %s", client2NodeID)
 
-	// Setup Client 3 (nodeclass = clienta)
+	// Setup client 3 (nodeclass = clienta)
 	agentConfFunc3 := func(c *agent.Config) {
 		c.Server.Enabled = false
 		c.Client.NodeClass = "clienta"
 		c.Client.Servers = []string{srvRPCAddr}
 	}
 
-	// Start Client 3
+	// Start client 3
 	client3 := agent.NewTestAgent(t, "client3", agentConfFunc3)
 	defer client3.Shutdown()
 
-	// Wait for the client to connect
+	// Wait for client3 to connect
 	client3NodeID := client3.Agent.Client().NodeID()
 	testutil.WaitForClient(t, srv.Agent.RPC, client3NodeID)
 	t.Logf("[TEST] Client3 ready, id: %s", client3NodeID)
@@ -151,18 +151,58 @@ func TestDebug_NodeClass(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// Debug on client - node class = "clienta"
-	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"})
+	// Setup test cases struct
+	cases := []struct {
+		name            string
+		args            []string
+		expectedCode    int
+		expectedOutputs []string
+		expectedError   string
+	}{
+		{
+			name:         "address=api, node-class=clienta, max-nodes=2",
+			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Starting debugger",
+				"Created debug archive",
+				"Max node count reached (2)",
+				"Node Class: clienta",
+			},
+			expectedError: "",
+		},
+		{
+			name:         "address=api, node-class=clientb, max-nodes=2",
+			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clientb", "-max-nodes", "2"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Starting debugger",
+				"Created debug archive",
+				"Node Class: clientb",
+			},
+			expectedError: "",
+		},
+	}
 
-	assert.Equal(t, 0, code)
-	require.Empty(t, ui.ErrorWriter.String(), "errorwriter should be empty")
-	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
-	require.Contains(t, ui.OutputWriter.String(), "Max node count reached (2)")
-	require.Contains(t, ui.OutputWriter.String(), "Node Class: clienta")
-	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Run test case
+			code := cmd.Run(c.args)
+			out := ui.OutputWriter.String()
+			outerr := ui.ErrorWriter.String()
 
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
+			// Verify case expectations
+			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
+			for _, expectedOutput := range c.expectedOutputs {
+				require.Contains(t, out, expectedOutput, "expected output \"%s\", got \"%s\"", expectedOutput, out)
+			}
+			require.Containsf(t, outerr, c.expectedError, "expected error \"%s\", got \"%s\"", c.expectedError, outerr)
+
+			// Reset buffers before next test
+			ui.OutputWriter.Reset()
+			ui.ErrorWriter.Reset()
+		})
+	}
 }
 
 func TestDebugFail_Pprof(t *testing.T) {
