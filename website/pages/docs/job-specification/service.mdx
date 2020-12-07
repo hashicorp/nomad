@@ -106,7 +106,7 @@ Connect][connect] integration.
   service. The value of `port` depends on which [`address_mode`](#address_mode)
   is being used:
 
-  - `driver` - Advertise the port determined by the driver (eg Docker or rkt).
+  - `driver` - Advertise the port determined by the driver (e.g. Docker or rkt).
     The `port` may be a numeric port or a port label specified in the driver's
     `port_map`.
 
@@ -129,7 +129,7 @@ Connect][connect] integration.
   [documentation](https://www.consul.io/docs/internals/anti-entropy#enable-tag-override)
   for more information.
 
-- `address_mode` `(string: "auto")` - Specifies what address (host, alloc or
+- `address_mode` `(string: "auto")` - Specifies which address (host, alloc or
   driver-specific) this service should advertise. This setting is supported in
   Docker since Nomad 0.6 and rkt since Nomad 0.7. See [below for
   examples.](#using-driver-address-mode) Valid options are:
@@ -154,9 +154,9 @@ Connect][connect] integration.
 
   - `host` - Use the host IP and port.
 
-- `task` `(string: "")` - Specifies the name of the Nomad Task associated with
+- `task` `(string: "")` - Specifies the name of the Nomad task associated with
   this service definition. Only available on group services. Must be set if this
-  service definition represents a Consul Connect Native service and there is more
+  service definition represents a Consul Connect-native service and there is more
   than one task in the task group.
 
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
@@ -217,7 +217,7 @@ scripts.
 
 - `interval` `(string: <required>)` - Specifies the frequency of the health checks
   that Consul will perform. This is specified using a label suffix like "30s"
-  or "1h". This must be greater than or equal to "1s"
+  or "1h". This must be greater than or equal to "1s".
 
 - `method` `(string: "GET")` - Specifies the HTTP method to use for HTTP
   checks.
@@ -485,7 +485,7 @@ The [Docker](/docs/drivers/docker#network_mode) and
 [rkt](/docs/drivers/rkt#net) drivers support the `driver` setting for the
 `address_mode` parameter in both `service` and `check` stanzas. The driver
 address mode allows advertising and health checking the IP and port assigned to
-a task by the driver. This way if you're using a network plugin like Weave with
+a task by the driver. This way, if you're using a network plugin like Weave with
 Docker, you can advertise the Weave address in Consul instead of the host's
 address.
 
@@ -705,7 +705,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 </sup>
 <small>
   {' '}
-  Script checks are not supported for the [QEMU driver][qemu] since the Nomad
+  Script checks are not supported for the QEMU driver since the Nomad
   client does not have access to the file system of a task for that driver.
 </small>
 
