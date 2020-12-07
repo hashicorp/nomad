@@ -53,10 +53,16 @@ linters-settings:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
 
+issues:
+  exclude:
+  - ifElseChain
+  - singleCaseSwitch
+
 linters:
   disable-all: true
   enable:
     - goimports
+    - gocritic
     - misspell
     - govet
     - deadcode
