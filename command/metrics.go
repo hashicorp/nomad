@@ -122,7 +122,7 @@ func (c *OperatorMetricsCommand) Run(args []string) int {
 			return 1
 		}
 
-		resp := string(bs[:])
+		resp := string(bs)
 		c.Ui.Output(resp)
 	}
 

@@ -620,10 +620,8 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 			if ok && rclaim.NodeID == claim.NodeID {
 				allocIDs = append(allocIDs, allocID)
 			}
-		} else {
-			if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
-				allocIDs = append(allocIDs, allocID)
-			}
+		} else if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
+			allocIDs = append(allocIDs, allocID)
 		}
 	}
 	for allocID, alloc := range vol.WriteAllocs {
@@ -632,10 +630,8 @@ func (v *CSIVolume) nodeUnpublishVolume(vol *structs.CSIVolume, claim *structs.C
 			if ok && wclaim.NodeID == claim.NodeID {
 				allocIDs = append(allocIDs, allocID)
 			}
-		} else {
-			if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
-				allocIDs = append(allocIDs, allocID)
-			}
+		} else if alloc.NodeID == claim.NodeID && alloc.TerminalStatus() {
+			allocIDs = append(allocIDs, allocID)
 		}
 	}
 	var merr multierror.Error

@@ -160,7 +160,6 @@ func (w *NoXSSResponseWriter) Write(p []byte) (int, error) {
 	// Headers and buffer were written, this writer has been
 	// flushed and can be a passthrough
 	w.flushed = true
-	w.buf = w.buf[:]
 
 	// Write p
 	return w.orig.Write(p)

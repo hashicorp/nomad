@@ -307,7 +307,8 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			}
 		}
 	} else {
-		if err := l.container.Signal(os.Kill, true); err != nil {
+		err := l.container.Signal(os.Kill, true)
+		if err != nil {
 			return err
 		}
 	}

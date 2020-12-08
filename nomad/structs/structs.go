@@ -5375,11 +5375,9 @@ func (p *ScalingPolicy) Validate() error {
 	if p.Max < 0 {
 		mErr.Errors = append(mErr.Errors,
 			fmt.Errorf("maximum count must be specified and non-negative"))
-	} else {
-		if p.Max < p.Min {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("maximum count must not be less than minimum count"))
-		}
+	} else if p.Max < p.Min {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("maximum count must not be less than minimum count"))
 	}
 
 	if p.Min < 0 {

@@ -634,7 +634,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			return // only exit on 403
 		}
 	} else {
-		if err := c.writeBytes(path, "profile.prof", bs); err != nil {
+		err := c.writeBytes(path, "profile.prof", bs)
+		if err != nil {
 			c.Ui.Error(err.Error())
 		}
 	}
@@ -643,7 +644,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
 	} else {
-		if err := c.writeBytes(path, "trace.prof", bs); err != nil {
+		err := c.writeBytes(path, "trace.prof", bs)
+		if err != nil {
 			c.Ui.Error(err.Error())
 		}
 	}
@@ -652,7 +654,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
 	} else {
-		if err := c.writeBytes(path, "goroutine.prof", bs); err != nil {
+		err := c.writeBytes(path, "goroutine.prof", bs)
+		if err != nil {
 			c.Ui.Error(err.Error())
 		}
 	}
@@ -664,7 +667,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
 	} else {
-		if err := c.writeBytes(path, "goroutine-debug1.txt", bs); err != nil {
+		err := c.writeBytes(path, "goroutine-debug1.txt", bs)
+		if err != nil {
 			c.Ui.Error(err.Error())
 		}
 	}
@@ -677,7 +681,8 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
 	} else {
-		if err := c.writeBytes(path, "goroutine-debug2.txt", bs); err != nil {
+		err := c.writeBytes(path, "goroutine-debug2.txt", bs)
+		if err != nil {
 			c.Ui.Error(err.Error())
 		}
 	}

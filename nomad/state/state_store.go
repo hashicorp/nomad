@@ -6043,8 +6043,8 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 	return denormalizedAllocs, nil
 }
 
-func getPreemptedAllocDesiredDescription(PreemptedByAllocID string) string {
-	return fmt.Sprintf("Preempted by alloc ID %v", PreemptedByAllocID)
+func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
+	return fmt.Sprintf("Preempted by alloc ID %v", preemptedByAllocID)
 }
 
 // StateRestore is used to optimize the performance when

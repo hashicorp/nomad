@@ -2785,11 +2785,9 @@ func (c *Client) emitStats() {
 			next.Reset(c.config.StatsCollectionInterval)
 			if err != nil {
 				c.logger.Warn("error fetching host resource usage stats", "error", err)
-			} else {
+			} else if c.config.PublishNodeMetrics {
 				// Publish Node metrics if operator has opted in
-				if c.config.PublishNodeMetrics {
-					c.emitHostStats()
-				}
+				c.emitHostStats()
 			}
 
 			c.emitClientMetrics()

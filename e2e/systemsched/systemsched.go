@@ -114,12 +114,10 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 			if alloc.ID == dAlloc.ID {
 				foundPreviousAlloc = true
 				require.Equal(t, uint64(0), alloc.JobVersion)
-			} else {
+			} else if alloc.ClientStatus == structs.AllocClientStatusRunning {
 				// Ensure allocs running on non disabled node are
 				// newer version
-				if alloc.ClientStatus == structs.AllocClientStatusRunning {
-					require.Equal(t, uint64(1), alloc.JobVersion)
-				}
+				require.Equal(t, uint64(1), alloc.JobVersion)
 			}
 		}
 	}
