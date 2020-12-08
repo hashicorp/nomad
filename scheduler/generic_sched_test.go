@@ -5578,6 +5578,124 @@ func TestServiceSched_Migrate_CanaryStatus(t *testing.T) {
 	}
 }
 
+// TestDowngradedJobForPlacement_PicksTheLatest asserts that downgradedJobForPlacement
+// picks the latest deployment that have either been marked as promoted or is considered
+// non-destructive so it doesn't use canaries.
+func TestDowngradedJobForPlacement_PicksTheLatest(t *testing.T) {
+	h := NewHarness(t)
+
+	// This test tests downgradedJobForPlacement directly to ease testing many different scenarios
+	// without invoking the full machinary of scheduling and updating deployment state tracking.
+	//
+	// It scafold the parts of scheduler and state stores so we can mimic the updates.
+	updates := []struct {
+		// Version of the job this update represent
+		version uint64
+
+		// whether this update is marked as promoted: Promoted is only true if the job
+		// update is a "destructive" update and has been updated manually
+		promoted bool
+
+		// requireCanaries indicate whether the job update requires placing canaries due to
+		// it being a destructive update compared to the latest promoted deployment.
+		requireCanaries bool
+
+		// the expected version for migrating a stable non-canary alloc after applying this update
+		expectedVersion uint64
+	}{
+		// always use latest promoted deployment
+		{1, true, true, 1},
+		{2, true, true, 2},
+		{3, true, true, 3},
+
+		// ignore most recent non promoted
+		{4, false, true, 3},
+		{5, false, true, 3},
+		{6, false, true, 3},
+
+		// use latest promoted after promotion
+		{7, true, true, 7},
+
+		// non destructive updates that don't require canaries and are treated as promoted
+		{8, false, false, 8},
+	}
+
+	job := mock.Job()
+	job.Version = 0
+	job.Stable = true
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	initDeployment := &structs.Deployment{
+		ID:             uuid.Generate(),
+		JobID:          job.ID,
+		Namespace:      job.Namespace,
+		JobVersion:     job.Version,
+		JobModifyIndex: job.JobModifyIndex,
+		JobCreateIndex: job.CreateIndex,
+		TaskGroups: map[string]*structs.DeploymentState{
+			"web": {
+				DesiredTotal: 1,
+				Promoted:     true,
+			},
+		},
+		Status:            structs.DeploymentStatusSuccessful,
+		StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+	}
+	require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), initDeployment))
+
+	deploymentIDs := []string{initDeployment.ID}
+
+	for i, u := range updates {
+		t.Run(fmt.Sprintf("%d: %#+v", i, u), func(t *testing.T) {
+			t.Logf("case: %#+v", u)
+			nj := job.Copy()
+			nj.Version = u.version
+			nj.TaskGroups[0].Tasks[0].Env["version"] = fmt.Sprintf("%v", u.version)
+			nj.TaskGroups[0].Count = 1
+			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nj))
+
+			desiredCanaries := 1
+			if !u.requireCanaries {
+				desiredCanaries = 0
+			}
+			deployment := &structs.Deployment{
+				ID:             uuid.Generate(),
+				JobID:          nj.ID,
+				Namespace:      nj.Namespace,
+				JobVersion:     nj.Version,
+				JobModifyIndex: nj.JobModifyIndex,
+				JobCreateIndex: nj.CreateIndex,
+				TaskGroups: map[string]*structs.DeploymentState{
+					"web": {
+						DesiredTotal:    1,
+						Promoted:        u.promoted,
+						DesiredCanaries: desiredCanaries,
+					},
+				},
+				Status:            structs.DeploymentStatusSuccessful,
+				StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+			}
+			require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), deployment))
+
+			deploymentIDs = append(deploymentIDs, deployment.ID)
+
+			sched := h.Scheduler(NewServiceScheduler).(*GenericScheduler)
+
+			sched.job = nj
+			sched.deployment = deployment
+			placement := &allocPlaceResult{
+				taskGroup: nj.TaskGroups[0],
+			}
+
+			// Here, assert the downgraded job version
+			foundDeploymentID, foundJob, err := sched.downgradedJobForPlacement(placement)
+			require.NoError(t, err)
+			require.Equal(t, u.expectedVersion, foundJob.Version)
+			require.Equal(t, deploymentIDs[u.expectedVersion], foundDeploymentID)
+		})
+	}
+}
+
 // TestServiceSched_RunningWithNextAllocation asserts that if a running allocation has
 // NextAllocation Set, the allocation is not ignored and will be stopped
 func TestServiceSched_RunningWithNextAllocation(t *testing.T) {

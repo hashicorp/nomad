@@ -440,7 +440,11 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to lookup job deployments: %v", err)
 	}
-	sort.Slice(deployments, func(i, j int) bool { return deployments[i].JobVersion > deployments[i].JobVersion })
+
+	sort.Slice(deployments, func(i, j int) bool {
+		return deployments[i].JobVersion > deployments[j].JobVersion
+	})
+
 	for _, d := range deployments {
 		// It's unexpected to have a recent deployment that doesn't contain the TaskGroup; as all allocations
 		// should be destroyed. In such cases, attempt to find the deployment for that TaskGroup and hopefully
