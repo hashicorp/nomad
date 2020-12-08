@@ -58,6 +58,7 @@ issues:
   - ifElseChain
   - singleCaseSwitch
   - assignOp
+  - unlambda
 
 linters:
   disable-all: true
