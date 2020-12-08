@@ -20,6 +20,146 @@ references:
     PAGER: cat
     GIT_PAGER: cat
 
+commands:
+  install-buf:
+    steps:
+      - run:
+          name: install buf
+          command: |
+            sudo ./scripts/vagrant-linux-priv-buf.sh
+  install-vault:
+    parameters:
+      version:
+        type: string
+        default: 1.2.4
+    steps:
+      - run:
+          name: Install Vault
+          command: |
+            set -x
+
+            case "${OSTYPE}" in
+              linux*)  os="linux" ;;
+              darwin*) os="darwin" ;;
+              msys*)   os="windows" ;;
+              *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+            esac
+
+            curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"<< parameters.version >>"/vault_"<< parameters.version >>"_"${os}"_amd64.zip
+
+            if [[ "${os}" != "windows" ]]; then
+              sudo unzip -d /usr/local/bin /tmp/vault.zip
+              rm -rf /tmp/vault*
+            else
+              rm -rf c:\Windows\vault.exe
+              unzip /tmp/vault.zip -d "/c/Windows"
+              rm -rf /tmp/vault*
+            fi
+  install-consul:
+    parameters:
+      version:
+        type: string
+        default: 1.8.3
+    steps:
+      - run:
+          name: Install Consul << parameters.version >>
+          command: |
+            curl -SL --fail -o /tmp/consul.zip https://releases.hashicorp.com/consul/<< parameters.version >>/consul_<< parameters.version >>_linux_amd64.zip
+            sudo unzip -d /usr/local/bin /tmp/consul.zip
+            rm -rf /tmp/consul*
+  install-golang:
+    parameters:
+      target_directory:
+        type: string
+        default: /usr/local
+    steps:
+      - run:
+          name: Install golang
+          command: |
+            set -x
+
+            echo installing golang ${GOLANG_VERSION}
+
+            case "${OSTYPE}" in
+              linux*)  os="linux" ;;
+              darwin*) os="darwin" ;;
+              msys*)   os="windows" ;;
+              *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+            esac
+
+            if [[ "${os}" != "windows" ]]
+            then
+              sudo rm -rf << parameters.target_directory >>/go
+              sudo mkdir -p << parameters.target_directory >>
+              curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+              sudo tar -C << parameters.target_directory >> -xzf /tmp/golang.tar.gz
+              rm -rf /tmp/golang.tar.gz
+            else
+              rm -rf << parameters.target_directory >>/go
+              mkdir -p <<parameters.target_directory >>
+              curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+              unzip -q -o /tmp/go.zip -d << parameters.target_directory >>
+              rm -rf /tmp/go.zip
+            fi
+
+  install-circleci-local-cli:
+    parameters:
+      version:
+        type: string
+        default: 0.1.5879
+
+      sha256:
+        type: string
+        default: f178ea62c781aec06267017404f87983c87f171fd0e66ef3737916246ae66dd6
+    steps:
+      - run:
+          name: Install CircleCI CLI << parameters.version >>
+          command: |
+            CCI_VERSION="<< parameters.version >>"
+            CCI_SHA256="<< parameters.sha256 >>"
+
+            URL="https://github.com/CircleCI-Public/circleci-cli/releases/download/v${CCI_VERSION}/circleci-cli_${CCI_VERSION}_linux_amd64.tar.gz"
+
+            mkdir -p /tmp/circleci-cli/
+            curl --fail --show-error --location \
+              -o /tmp/circleci-cli/cli.tar.gz "${URL}"
+
+            echo "$CCI_SHA256 /tmp/circleci-cli/cli.tar.gz" | sha256sum -c
+
+            tar -xz --strip-components=1 \
+              -C /tmp/circleci-cli \
+              -f /tmp/circleci-cli/cli.tar.gz \
+              "circleci-cli_${CCI_VERSION}_linux_amd64/circleci"
+
+            sudo cp /tmp/circleci-cli/circleci /usr/bin/circleci-local-cli
+
+            circleci-local-cli version
+  run-tests:
+    steps:
+      - run:
+          name: Running Nomad Tests
+          no_output_timeout: 20m
+          command: |
+            if [ -z $GOTEST_PKGS_EXCLUDE ];
+            then
+              unset GOTEST_PKGS_EXCLUDE
+            else
+              unset GOTEST_PKGS
+            fi
+
+            if [ ! -z $GOTESTARCH ]; then
+              export GOARCH="$GOTESTARCH";
+            fi
+
+            mkdir -p /tmp/test-reports
+            sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
+
+            if [ ! -z $GOTEST_MOD ]; then
+              sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad-module
+            else
+              sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make test-nomad
+            fi
+
 executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
