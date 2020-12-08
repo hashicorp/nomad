@@ -447,6 +447,7 @@ export default [
   },
   'ecosystem',
   'who-uses-nomad',
+  '------------',
   'enterprise',
   'faq',
 ]
