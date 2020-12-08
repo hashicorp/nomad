@@ -54,7 +54,7 @@
 @import './home/style.css';
 @import './downloads/style.css';
 @import './security/style.css';
-@import './resources/style.css';
+@import './community/style.css';
 @import '../layouts/use-cases/style.css';
 
 /* Print Styles */

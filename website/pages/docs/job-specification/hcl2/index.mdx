@@ -1,16 +1,14 @@
 ---
 layout: docs
 page_title: Configuration Language
-sidebar_title: HCL2 <sup>Beta</sup>
+sidebar_title: HCL2
 description: |-
   Noamd uses text files to describe infrastructure and to set variables.
   These text files are called Nomad job specifications and are
   written in the HCL language.
 ---
 
-# HCL <sup>Beta</sup>
-
-`@include 'beta-nomad1.0-note.mdx'`
+# HCL2
 
 Nomad uses the Hashicorp Configuration Language - HCL - designed to allow
 concise descriptions of the required steps to get to a job file.
@@ -66,7 +64,7 @@ task "example" {
 - _Blocks_ are containers for other content and usually represent the
   configuration of some kind of object, like a task. Blocks have a
   _block type,_ can have zero or more _labels,_ and have a _body_ that contains
-  any number of arguments and nested blocks.
+  any number of arguments and nested blocks. Block labels must be string literals.
 - _Arguments_ assign a value to a name. They appear within blocks.
 - _Expressions_ represent a value, either literally or by referencing and
   combining other values. They appear as values for arguments, or within other
@@ -126,3 +124,9 @@ hello
 HCL2 trims the whitespace preceding the delimiter in the last line.  So in the
 above example, `data` is read as `"hello\n  world\n  "` in HCL1, but `"hello\n
 world\n"` (note lack of trailing whitespace) in HCL2.
+
+### Decimals
+
+Nomad 0.12 and earlier accepted small decimal values without a leading zero
+(e.g. `.3`, `.59`, `.9`). In such case, Nomad 1.0 requires a leading zero (e.g.
+`0.3`, `0.59`, `0.9`).

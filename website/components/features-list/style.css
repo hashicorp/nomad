@@ -4,7 +4,18 @@
   & h2 {
     text-align: center;
     margin-top: 0;
+    margin-bottom: 32px;
+  }
+
+  & .intro-container {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
     margin-bottom: 64px;
+
+    & a {
+      color: var(--nomad);
+    }
   }
 
   & .items-container {
