@@ -38,7 +38,9 @@ configured.
 If ACLs are enabled, this command will require a token with the 'node:read'
 capability to run. In order to collect information, the token will also
 require the 'agent:read' and 'operator:read' capabilities, as well as the
-'list-jobs' capability for all namespaces.
+'list-jobs' capability for all namespaces. To collect pprof profiles the
+token will also require 'agent:write', or enable_debug configuration set to 
+true.
 
 ## General Options
 
@@ -55,12 +57,24 @@ require the 'agent:read' and 'operator:read' capabilities, as well as the
 
 - `-log-level=DEBUG`: The log level to monitor. Defaults to `DEBUG`.
 
-- `-node-id=n1,n2`: Comma separated list of Nomad client node ids, to
-  monitor for logs and include pprof data. Accepts id prefixes.
+- `-max-nodes=<count>`: Cap the maximum number of client nodes included 
+  in the capture.  Defaults to 10, set to 0 for unlimited.
 
-- `-server-id=s1,s2`: Comma separated list of Nomad server names, or
-  the special server name "leader" to monitor for logs and include
-  pprof data.
+- `-node-class=<node-class>`: Filter client nodes based on node class.
+
+- `-node-id=<node1>,<node2>`: Comma separated list of Nomad client node ids,
+  to monitor for logs and include pprof profiles. Accepts id prefixes, and 
+  "all" to select all nodes (up to count = max-nodes).
+
+- `pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
+
+- `-server-id=s1,s2`: Comma separated list of Nomad server names, "leader", or
+  "all" to monitor for logs and include pprof profiles.
+
+- `stale=<true|false>`: If "false", the default, get membership data from the
+  cluster leader. If the cluster is in an outage unable to establish
+  leadership, it may be necessary to get the configuration from a non-leader
+  server.
 
 - `-output=path`: Path to the parent directory of the output
   directory. Defaults to the current directory. If specified, no
@@ -108,18 +122,42 @@ require the 'agent:read' and 'operator:read' capabilities, as well as the
 
 ## Output
 
-This command prints the name of the timestamped archive file produced.
+This command prints a summary of the capture and the name of the timestamped 
+archive file produced.
 
 ## Examples
 
 ```shell-session
-$ nomad operator debug -duration 20s -interval 5s -server-id leader -node-id 6e,dd
-Starting debugger and capturing cluster data...
-    Interval: '5s'
-    Duration: '20s'
+$ nomad operator debug -duration 5s -interval 5s -server-id all -node-id b5,20
+Starting debugger...
+
+          Servers: (3/3) [server1.global server2.global server3.global]
+          Clients: (2/3) [b547cd3a-085f-68c2-55f4-e99beebb0433 20c0964b-72cc-4083-87fe-ec6905b6230a]
+         Interval: 5s
+         Duration: 5s
+
+Capturing cluster data...
     Capture interval 0000
     Capture interval 0001
     Capture interval 0002
     Capture interval 0003
-Created debug archive: nomad-debug-2020-07-20-205223Z.tar.gz
+Created debug archive: nomad-debug-2020-12-08-034455Z.tar.gz
+```
+
+```shell-session
+$ nomad operator debug -duration 5s -interval 5s -server-id all -node-id all -max-nodes=1
+Starting debugger...
+
+          Servers: (3/3) [server1.global server2.global server3.global]
+          Clients: (1/3) [b547cd3a-085f-68c2-55f4-e99beebb0433]
+                   Max node count reached (1)
+         Interval: 5s
+         Duration: 5s
+
+Capturing cluster data...
+    Capture interval 0000
+    Capture interval 0001
+    Capture interval 0002
+    Capture interval 0003
+Created debug archive: nomad-debug-2020-12-08-034113Z.tar.gz
 ```
