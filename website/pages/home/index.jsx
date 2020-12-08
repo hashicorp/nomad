@@ -6,6 +6,7 @@ import MiniCTA from 'components/mini-cta'
 import NomadEnterpriseInfo from 'components/enterprise-info/nomad'
 import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
+import TimeSeriesChart from 'components/charts/time-series'
 
 export default function Homepage() {
   return (
@@ -25,6 +26,12 @@ export default function Homepage() {
             type: 'outbound',
           },
         ]}
+      />
+
+      <TimeSeriesChart
+        csvPath="/data/c2m/cpu-percent.csv"
+        xAxisColumn="time"
+        lineColumns={['leader', 'follower 1', 'follower 2']}
       />
 
       <FeaturesList
