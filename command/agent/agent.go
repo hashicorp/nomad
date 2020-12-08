@@ -443,7 +443,7 @@ func (a *Agent) finalizeServerConfig(c *nomad.Config) {
 	// Setup the plugin loaders
 	c.PluginLoader = a.pluginLoader
 	c.PluginSingletonLoader = a.pluginSingletonLoader
-	c.AgentShutdown = a.Shutdown
+	c.AgentShutdown = func() error { return a.Shutdown() }
 }
 
 // clientConfig is used to generate a new client configuration struct for

@@ -503,7 +503,9 @@ func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, 
 		},
 
 		processStart: func() error { return l.container.Run(process) },
-		processWait:  process.Wait,
+		processWait: func() (*os.ProcessState, error) {
+			return process.Wait()
+		},
 	}
 
 	return execHelper.run(ctx, tty, stream)
