@@ -368,9 +368,6 @@ jobs:
       - run: make check
       - run: make checkscripts
       - run: mkdir -p ui/dist && make generate-all static-assets
-      - run:
-          name: check .circleci/config.yml is up-to-date
-          command: make -C .circleci CIRCLECI="circleci-local-cli --skip-update-check" ci-verify
   build-darwin-binaries:
     executor: go-macos
     steps:
