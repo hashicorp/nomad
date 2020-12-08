@@ -57,6 +57,7 @@ issues:
   exclude:
   - ifElseChain
   - singleCaseSwitch
+  - assignOp
 
 linters:
   disable-all: true
