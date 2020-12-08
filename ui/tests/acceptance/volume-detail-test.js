@@ -6,6 +6,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
@@ -39,9 +40,9 @@ module('Acceptance | volume detail', function(hooks) {
   test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {
     await VolumeDetail.visit({ id: volume.id });
 
-    assert.equal(VolumeDetail.breadcrumbFor('csi.index').text, 'Storage');
-    assert.equal(VolumeDetail.breadcrumbFor('csi.volumes').text, 'Volumes');
-    assert.equal(VolumeDetail.breadcrumbFor('csi.volumes.volume').text, volume.name);
+    assert.equal(Layout.breadcrumbFor('csi.index').text, 'Storage');
+    assert.equal(Layout.breadcrumbFor('csi.volumes').text, 'Volumes');
+    assert.equal(Layout.breadcrumbFor('csi.volumes.volume').text, volume.name);
   });
 
   test('/csi/volumes/:id should show the volume name in the title', async function(assert) {

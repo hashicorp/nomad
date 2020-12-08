@@ -5,6 +5,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ServerMonitor from 'nomad-ui/tests/pages/servers/monitor';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 let agent;
 let managementToken;
@@ -33,10 +34,10 @@ module('Acceptance | server monitor', function(hooks) {
   test('/servers/:id/monitor should have a breadcrumb trail linking back to servers', async function(assert) {
     await ServerMonitor.visit({ name: agent.name });
 
-    assert.equal(ServerMonitor.breadcrumbFor('servers.index').text, 'Servers');
-    assert.equal(ServerMonitor.breadcrumbFor('servers.server').text, agent.name);
+    assert.equal(Layout.breadcrumbFor('servers.index').text, 'Servers');
+    assert.equal(Layout.breadcrumbFor('servers.server').text, agent.name);
 
-    await ServerMonitor.breadcrumbFor('servers.index').visit();
+    await Layout.breadcrumbFor('servers.index').visit();
     assert.equal(currentURL(), '/servers');
   });
 

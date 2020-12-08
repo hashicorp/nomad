@@ -17,16 +17,6 @@ import toggle from 'nomad-ui/tests/pages/components/toggle';
 export default create({
   visit: visitable('/clients/:id'),
 
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
-
   title: text('[data-test-title]'),
   clientId: text('[data-test-node-id]'),
 

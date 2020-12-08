@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
+import Layout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
 
 let allocation;
@@ -57,37 +58,37 @@ module('Acceptance | task detail', function(hooks) {
 
     const shortId = allocation.id.split('-')[0];
 
-    assert.equal(Task.breadcrumbFor('jobs.index').text, 'Jobs', 'Jobs is the first breadcrumb');
+    assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'Jobs is the first breadcrumb');
     assert.equal(
-      Task.breadcrumbFor('jobs.job.index').text,
+      Layout.breadcrumbFor('jobs.job.index').text,
       job.name,
       'Job is the second breadcrumb'
     );
     assert.equal(
-      Task.breadcrumbFor('jobs.job.task-group').text,
+      Layout.breadcrumbFor('jobs.job.task-group').text,
       taskGroup,
       'Task Group is the third breadcrumb'
     );
     assert.equal(
-      Task.breadcrumbFor('allocations.allocation').text,
+      Layout.breadcrumbFor('allocations.allocation').text,
       shortId,
       'Allocation short id is the fourth breadcrumb'
     );
     assert.equal(
-      Task.breadcrumbFor('allocations.allocation.task').text,
+      Layout.breadcrumbFor('allocations.allocation.task').text,
       task.name,
       'Task name is the fifth breadcrumb'
     );
 
-    await Task.breadcrumbFor('jobs.index').visit();
+    await Layout.breadcrumbFor('jobs.index').visit();
     assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
-    await Task.breadcrumbFor('jobs.job.index').visit();
+    await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(currentURL(), `/jobs/${job.id}`, 'Job breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
-    await Task.breadcrumbFor('jobs.job.task-group').visit();
+    await Layout.breadcrumbFor('jobs.job.task-group').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/${taskGroup}`,
@@ -95,7 +96,7 @@ module('Acceptance | task detail', function(hooks) {
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
-    await Task.breadcrumbFor('allocations.allocation').visit();
+    await Layout.breadcrumbFor('allocations.allocation').visit();
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,
@@ -280,7 +281,7 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
-    await Task.breadcrumbFor('jobs.index').visit();
+    await Layout.breadcrumbFor('jobs.index').visit();
     assert.equal(
       currentURL(),
       '/jobs?namespace=other-namespace',
@@ -288,7 +289,7 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
-    await Task.breadcrumbFor('jobs.job.index').visit();
+    await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}?namespace=other-namespace`,
@@ -296,7 +297,7 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
-    await Task.breadcrumbFor('jobs.job.task-group').visit();
+    await Layout.breadcrumbFor('jobs.job.task-group').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}/${taskGroup}?namespace=other-namespace`,
@@ -304,7 +305,7 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     );
 
     await Task.visit({ id: allocation.id, name: task.name });
-    await Task.breadcrumbFor('allocations.allocation').visit();
+    await Layout.breadcrumbFor('allocations.allocation').visit();
     assert.equal(
       currentURL(),
       `/allocations/${allocation.id}`,

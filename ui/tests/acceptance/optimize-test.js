@@ -68,7 +68,7 @@ module('Acceptance | optimize', function(hooks) {
     const currentTaskGroup = this.job1.taskGroups.models[0];
     const nextTaskGroup = this.job2.taskGroups.models[0];
 
-    assert.equal(Optimize.breadcrumbFor('optimize').text, 'Recommendations');
+    assert.equal(PageLayout.breadcrumbFor('optimize').text, 'Recommendations');
 
     assert.equal(
       Optimize.recommendationSummaries[0].slug,
@@ -76,7 +76,7 @@ module('Acceptance | optimize', function(hooks) {
     );
 
     assert.equal(
-      Optimize.breadcrumbFor('optimize.summary').text,
+      PageLayout.breadcrumbFor('optimize.summary').text,
       `${this.job1.name} / ${currentTaskGroup.name}`
     );
 
