@@ -19,6 +19,11 @@ module.exports = [
 
   // Nomad Learn Redirects
   {
+    source: '/intro/getting-started',
+    destination: 'https://learn.hashicorp.com/collections/nomad/get-started',
+    permanent: true,
+  },
+  {
     source: '/intro/getting-started/install',
     destination:
       'https://learn.hashicorp.com/tutorials/nomad/get-started-install',
@@ -51,7 +56,17 @@ module.exports = [
       'https://learn.hashicorp.com/tutorials/nomad/get-started-learn-more',
     permanent: true,
   },
-
+  {
+    source: '/intro/vs/kubernetes',
+    destination: '/docs/nomad-vs-kubernetes',
+    permanent: true,
+  },
+  {
+    source: '/intro/who-uses-nomad',
+    destination: '/docs/who-uses/noamd',
+    permanent: true,
+  },
+  // Guides
   {
     source: '/guides/load-balancing',
     destination: 'https://learn.hashicorp.com/collections/nomad/load-balancing',
@@ -413,12 +428,6 @@ module.exports = [
   },
 
   // Website
-  {
-    source: '/community',
-    destination: '/resources',
-    permanent: true,
-  },
-
   // Docs
   {
     source: '/docs/index',
@@ -1211,7 +1220,12 @@ module.exports = [
     destination: '/docs/integrations/vault-integration',
     permanent: true,
   },
-
+  // Old resources -> Community
+  {
+    source: '/resources',
+    destination: '/community',
+    permanent: true,
+  },
   // `/<path>/index.html` to /<path>
   {
     source: '/:splat*/index.html',
