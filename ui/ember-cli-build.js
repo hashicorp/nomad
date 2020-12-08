@@ -23,6 +23,7 @@ module.exports = function(defaults) {
       ],
     },
     'ember-cli-babel': {
+      includeExternalHelpers: true,
       includePolyfill: isProd,
     },
     hinting: isTest,
