@@ -18,6 +18,10 @@ import (
 )
 
 func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
 	query := req.URL.Query()
 
 	indexStr := query.Get("index")
