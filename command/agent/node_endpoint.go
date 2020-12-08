@@ -139,8 +139,11 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 			// If drain is disabled on an old client, mark the node as eligible for backwards compatibility
 			drainRequest.MarkEligible = true
 		}
-	} else if err := decodeBody(req, &drainRequest); err != nil {
-		return nil, CodedError(400, err.Error())
+	} else {
+		err := decodeBody(req, &drainRequest)
+		if err != nil {
+			return nil, CodedError(400, err.Error())
+		}
 	}
 
 	args := structs.NodeUpdateDrainRequest{

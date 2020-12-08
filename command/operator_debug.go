@@ -633,22 +633,31 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			c.Ui.Warn(fmt.Sprintf("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information."))
 			return // only exit on 403
 		}
-	} else if err := c.writeBytes(path, "profile.prof", bs); err != nil {
-		c.Ui.Error(err.Error())
+	} else {
+		err := c.writeBytes(path, "profile.prof", bs)
+		if err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	bs, err = client.Agent().Trace(opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
-	} else if err := c.writeBytes(path, "trace.prof", bs); err != nil {
-		c.Ui.Error(err.Error())
+	} else {
+		err := c.writeBytes(path, "trace.prof", bs)
+		if err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
-	} else if err := c.writeBytes(path, "goroutine.prof", bs); err != nil {
-		c.Ui.Error(err.Error())
+	} else {
+		err := c.writeBytes(path, "goroutine.prof", bs)
+		if err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	// Gather goroutine text output - debug type 1
@@ -657,8 +666,11 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
-	} else if err := c.writeBytes(path, "goroutine-debug1.txt", bs); err != nil {
-		c.Ui.Error(err.Error())
+	} else {
+		err := c.writeBytes(path, "goroutine-debug1.txt", bs)
+		if err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 
 	// Gather goroutine text output - debug type 2
@@ -668,8 +680,11 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 	bs, err = client.Agent().Lookup("goroutine", opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
-	} else if err := c.writeBytes(path, "goroutine-debug2.txt", bs); err != nil {
-		c.Ui.Error(err.Error())
+	} else {
+		err := c.writeBytes(path, "goroutine-debug2.txt", bs)
+		if err != nil {
+			c.Ui.Error(err.Error())
+		}
 	}
 }
 
